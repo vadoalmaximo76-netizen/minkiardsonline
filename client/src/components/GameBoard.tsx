@@ -17,7 +17,7 @@ export const GameBoard: React.FC = () => {
   const [diceOpen, setDiceOpen] = useState(false);
   const [diceResult, setDiceResult] = useState<number | undefined>();
   const [playerWhoRolled, setPlayerWhoRolled] = useState<string | undefined>();
-  const { selectedCard, gameId } = useGameState();
+  const { selectedCard, gameId, playerName } = useGameState();
 
   const shareInviteLink = () => {
     const link = `${window.location.origin}?game=${gameId}`;
