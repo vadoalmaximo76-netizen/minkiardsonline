@@ -98,6 +98,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             playerName,
             cardImage: result.card.frontImage
           });
+
+          // Check if it's the "Ape" card and emit bee sound event
+          if (cardName.toLowerCase().includes('ape')) {
+            io.to(gameId).emit('bee-sound', {
+              cardName,
+              playerName
+            });
+          }
         }
       }
     });

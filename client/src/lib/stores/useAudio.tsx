@@ -22,6 +22,7 @@ interface AudioState {
   playCardToGraveyard: () => void;
   playDiceRoll: () => void;
   playDamageSound: () => void;
+  playBeeSound: () => void;
   initAudioContext: () => void;
 }
 
@@ -259,5 +260,44 @@ export const useAudio = create<AudioState>((set, get) => ({
     oscillator1.stop(audioContext.currentTime + 0.15);
     oscillator2.start(audioContext.currentTime);
     oscillator2.stop(audioContext.currentTime + 0.15);
+  },
+
+  playBeeSound: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    // Bee buzzing sound - modulated oscillator to create buzzing effect
+    const oscillator = audioContext.createOscillator();
+    const modulator = audioContext.createOscillator();
+    const modulatorGain = audioContext.createGain();
+    const gainNode = audioContext.createGain();
+    
+    // Connect the modulator to modulate the main oscillator frequency
+    modulator.connect(modulatorGain);
+    modulatorGain.connect(oscillator.frequency);
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    // Main buzzing frequency (around 200-300 Hz for bee)
+    oscillator.frequency.setValueAtTime(250, audioContext.currentTime);
+    oscillator.type = 'sawtooth';
+    
+    // Modulator creates the buzzing effect (rapid frequency modulation)
+    modulator.frequency.setValueAtTime(30, audioContext.currentTime); // 30 Hz modulation
+    modulator.type = 'sine';
+    modulatorGain.gain.setValueAtTime(50, audioContext.currentTime); // Modulation depth
+    
+    // Envelope for natural sound
+    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.1);
+    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime + 1.5);
+    gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 2);
+    
+    // Play for 2 seconds
+    modulator.start(audioContext.currentTime);
+    oscillator.start(audioContext.currentTime);
+    modulator.stop(audioContext.currentTime + 2);
+    oscillator.stop(audioContext.currentTime + 2);
   }
 }));

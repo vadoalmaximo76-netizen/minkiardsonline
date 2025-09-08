@@ -38,7 +38,7 @@ export const GameBoard: React.FC = () => {
   const [personaggioCardImage, setPersonaggioCardImage] = useState<string>("");
   const [addCardsModalOpen, setAddCardsModalOpen] = useState(false);
   const { selectedCard, gameId, playerName } = useGameState();
-  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, initAudioContext, toggleMute, isMuted } = useAudio();
+  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, initAudioContext, toggleMute, isMuted } = useAudio();
 
 
   const shareInviteLink = () => {
@@ -181,6 +181,11 @@ export const GameBoard: React.FC = () => {
       alert(`${playerName} ha aggiunto ${count} carte al mazzo ${deckLabel}!`);
     };
 
+    const handleBeeSound = ({ cardName, playerName }: { cardName: string, playerName: string }) => {
+      console.log(`Playing bee sound for ${cardName} played by ${playerName}`);
+      playBeeSound();
+    };
+
     socket.on('game-reset', handleGameReset);
     socket.on('card-shown', handleCardShown);
     socket.on('card-show-confirmed', handleCardShowConfirmed);
@@ -194,6 +199,7 @@ export const GameBoard: React.FC = () => {
     socket.on('player-joined', handlePlayerJoined);
     socket.on('personaggio-enters', handlePersonaggioEnters);
     socket.on('cards-added', handleCardsAdded);
+    socket.on('bee-sound', handleBeeSound);
 
     return () => {
       socket.off('game-reset', handleGameReset);
@@ -209,6 +215,7 @@ export const GameBoard: React.FC = () => {
       socket.off('player-joined', handlePlayerJoined);
       socket.off('personaggio-enters', handlePersonaggioEnters);
       socket.off('cards-added', handleCardsAdded);
+      socket.off('bee-sound', handleBeeSound);
     };
   }, []);
 
