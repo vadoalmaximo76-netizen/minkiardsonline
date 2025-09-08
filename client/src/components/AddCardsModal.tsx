@@ -33,9 +33,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
 
   const deckOptions = [
     { value: 'personaggi', label: 'PERSONAGGI', color: 'bg-blue-600' },
-    { value: 'mosse', label: 'MOSSE', color: 'bg-green-600' },
-    { value: 'bonus', label: 'BONUS', color: 'bg-purple-600' },
-    { value: 'personaggi_speciali', label: 'PERSONAGGI SPECIALI', color: 'bg-red-600' }
+    { value: 'mosse', label: 'MOSSE', color: 'bg-red-600' },
+    { value: 'bonus', label: 'BONUS', color: 'bg-black' },
+    { value: 'personaggi_speciali', label: 'PERSONAGGI SPECIALI', color: 'bg-yellow-500' }
   ];
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
