@@ -5,6 +5,7 @@ import { GameField } from "./GameField";
 import { Graveyard } from "./Graveyard";
 import { Chat } from "./Chat";
 import { CardModal } from "./CardModal";
+import { DiceModal } from "./DiceModal";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
@@ -13,6 +14,9 @@ import { MessageCircle } from "lucide-react";
 export const GameBoard: React.FC = () => {
   const [chatOpen, setChatOpen] = useState(false);
   const [graveyardOpen, setGraveyardOpen] = useState(false);
+  const [diceOpen, setDiceOpen] = useState(false);
+  const [diceResult, setDiceResult] = useState<number | undefined>();
+  const [playerWhoRolled, setPlayerWhoRolled] = useState<string | undefined>();
   const { selectedCard, gameId } = useGameState();
 
   const shareInviteLink = () => {
@@ -59,14 +63,22 @@ export const GameBoard: React.FC = () => {
       alert(message);
     };
 
+    const handleDiceRoll = ({ result, playerName }: { result: number, playerName: string }) => {
+      setDiceResult(result);
+      setPlayerWhoRolled(playerName);
+      setDiceOpen(true);
+    };
+
     socket.on('game-reset', handleGameReset);
     socket.on('card-shown', handleCardShown);
     socket.on('card-show-confirmed', handleCardShowConfirmed);
+    socket.on('dice-rolled', handleDiceRoll);
 
     return () => {
       socket.off('game-reset', handleGameReset);
       socket.off('card-shown', handleCardShown);
       socket.off('card-show-confirmed', handleCardShowConfirmed);
+      socket.off('dice-rolled', handleDiceRoll);
     };
   }, []);
 
@@ -110,6 +122,12 @@ export const GameBoard: React.FC = () => {
               className="bg-red-600 hover:bg-red-700 text-white font-bold"
             >
               RICOMINCIA PARTITA
+            </Button>
+            <Button
+              onClick={() => setDiceOpen(true)}
+              className="bg-orange-600 hover:bg-orange-700 text-white font-bold"
+            >
+              DADO
             </Button>
           </div>
         </div>
@@ -166,6 +184,14 @@ export const GameBoard: React.FC = () => {
 
         {/* Card Modal */}
         {selectedCard && <CardModal />}
+
+        {/* Dice Modal */}
+        <DiceModal 
+          isOpen={diceOpen}
+          onClose={() => setDiceOpen(false)}
+          currentRoll={diceResult}
+          playerWhoRolled={playerWhoRolled}
+        />
       </div>
     </div>
   );
