@@ -177,6 +177,7 @@ export const GameBoard: React.FC = () => {
     };
 
     const handleCardsAdded = ({ playerName, deckLabel, count }: { playerName: string, deckLabel: string, count: number }) => {
+      console.log('Cards added event received:', { playerName, deckLabel, count });
       alert(`${playerName} ha aggiunto ${count} carte al mazzo ${deckLabel}!`);
     };
 

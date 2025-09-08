@@ -358,10 +358,15 @@ export class GameManager {
   }
 
   addCustomCards(gameId: string, deckType: string, images: Array<{ name: string, data: string }>): { success: boolean } {
+    console.log('GameManager addCustomCards called:', { gameId, deckType, imageCount: images.length });
     const game = this.games.get(gameId);
-    if (!game) return { success: false };
+    if (!game) {
+      console.error('Game not found:', gameId);
+      return { success: false };
+    }
 
     try {
+      console.log('Processing images...');
       images.forEach((image, index) => {
         const card = {
           id: `custom-${deckType}-${Date.now()}-${index}`,
@@ -372,18 +377,25 @@ export class GameManager {
           text: ''
         };
         
+        console.log('Created card:', { id: card.id, type: card.type, hasImage: !!card.frontImage });
+        
         // Add to appropriate deck
         if (deckType === 'personaggi') {
           game.decks.personaggi.push(card);
+          console.log('Added to personaggi deck, new count:', game.decks.personaggi.length);
         } else if (deckType === 'mosse') {
           game.decks.mosse.push(card);
+          console.log('Added to mosse deck, new count:', game.decks.mosse.length);
         } else if (deckType === 'bonus') {
           game.decks.bonus.push(card);
+          console.log('Added to bonus deck, new count:', game.decks.bonus.length);
         } else if (deckType === 'personaggi_speciali') {
           game.decks.personaggi_speciali.push(card);
+          console.log('Added to personaggi_speciali deck, new count:', game.decks.personaggi_speciali.length);
         }
       });
       
+      console.log('Custom cards added successfully');
       return { success: true };
     } catch (error) {
       console.error('Error adding custom cards:', error);

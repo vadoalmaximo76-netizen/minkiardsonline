@@ -17,6 +17,19 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   const [isUploading, setIsUploading] = useState(false);
   const { gameId, playerName } = useGameState();
 
+  // Listen for cards-added event to reset form
+  React.useEffect(() => {
+    const handleCardsAdded = () => {
+      console.log('Cards added successfully, resetting form');
+      setUploadedImages([]);
+      setIsUploading(false);
+      onClose();
+    };
+
+    socket.on('cards-added', handleCardsAdded);
+    return () => socket.off('cards-added', handleCardsAdded);
+  }, [onClose]);
+
   if (!isOpen) return null;
 
   const deckOptions = [
@@ -38,8 +51,18 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
 
   const convertToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
+      // Check file size (limit to 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        reject(new Error(`Immagine troppo grande: ${file.name}. Limite 5MB.`));
+        return;
+      }
+      
       const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
+      reader.onload = () => {
+        const result = reader.result as string;
+        console.log(`Converted ${file.name} to base64, size: ${result.length} chars`);
+        resolve(result);
+      };
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
@@ -66,6 +89,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       );
 
       // Send to server
+      console.log('Sending add-custom-cards:', { gameId, playerName, deckType: selectedDeck, imageCount: base64Images.length });
       socket.emit('add-custom-cards', {
         gameId,
         playerName,
@@ -73,12 +97,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
         images: base64Images
       });
 
-      // Reset form
-      setUploadedImages([]);
-      setIsUploading(false);
-      onClose();
-      
-      alert(`${uploadedImages.length} carte aggiunte al mazzo ${deckOptions.find(d => d.value === selectedDeck)?.label}!`);
+      // Wait for server confirmation before resetting form
+      // The form will be reset when we receive the 'cards-added' event
+      console.log('Waiting for server confirmation...');
     } catch (error) {
       console.error('Error uploading images:', error);
       alert('Errore durante il caricamento delle immagini');
