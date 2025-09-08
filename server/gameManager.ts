@@ -1,4 +1,6 @@
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from '../client/src/lib/cardData';
+import { db } from './db';
+import { matches, gameEvents, type InsertMatch, type InsertGameEvent } from '../shared/schema';
 
 interface Card {
   id: string;
@@ -27,6 +29,9 @@ interface GameState {
   field: Card[];
   graveyard: Card[];
   scenarioCardsActive: boolean;
+  matchId?: number; // Database match ID for event recording
+  eventCounter: number; // Sequential event counter
+  startTime: Date; // Match start time
 }
 
 export class GameManager {
@@ -58,7 +63,9 @@ export class GameManager {
       players: {},
       field: [],
       graveyard: [],
-      scenarioCardsActive: false
+      scenarioCardsActive: false,
+      eventCounter: 0,
+      startTime: new Date()
     };
 
     // Auto-shuffle all decks when starting a new game
@@ -67,9 +74,11 @@ export class GameManager {
     return gameState;
   }
 
-  addPlayer(gameId: string, playerName: string, socketId: string): void {
+  async addPlayer(gameId: string, playerName: string, socketId: string): Promise<void> {
     if (!this.games.has(gameId)) {
       this.games.set(gameId, this.initializeGame(gameId));
+      // Create match record when first player joins
+      await this.createMatchRecord(gameId);
     }
 
     const game = this.games.get(gameId)!;
@@ -80,6 +89,76 @@ export class GameManager {
     };
 
     this.playerToGame.set(socketId, gameId);
+    
+    // Record player join event
+    await this.recordEvent(gameId, 'player-join', { playerName }, playerName);
+  }
+
+  private async createMatchRecord(gameId: string): Promise<void> {
+    try {
+      const game = this.games.get(gameId);
+      if (!game) return;
+
+      const [match] = await db.insert(matches).values({
+        gameId,
+        players: [],
+        startedAt: game.startTime,
+        gameMode: 'standard',
+        totalEvents: 0
+      }).returning();
+
+      game.matchId = match.id;
+    } catch (error) {
+      console.error('Failed to create match record:', error);
+    }
+  }
+
+  private async recordEvent(gameId: string, eventType: string, eventData: any, playerName: string): Promise<void> {
+    try {
+      const game = this.games.get(gameId);
+      if (!game || !game.matchId) return;
+
+      game.eventCounter++;
+
+      await db.insert(gameEvents).values({
+        matchId: game.matchId,
+        eventType,
+        eventData,
+        playerName,
+        eventOrder: game.eventCounter,
+        timestamp: new Date()
+      });
+
+      // Update total events count
+      await db.update(matches)
+        .set({ totalEvents: game.eventCounter })
+        .where({ id: game.matchId });
+
+    } catch (error) {
+      console.error('Failed to record event:', error);
+    }
+  }
+
+  private async completeMatch(gameId: string, winnerPlayer?: string): Promise<void> {
+    try {
+      const game = this.games.get(gameId);
+      if (!game || !game.matchId) return;
+
+      const duration = Math.floor((Date.now() - game.startTime.getTime()) / 1000);
+      const playerList = Object.keys(game.players);
+
+      await db.update(matches)
+        .set({
+          endedAt: new Date(),
+          winnerPlayer,
+          duration,
+          players: playerList
+        })
+        .where({ id: game.matchId });
+
+    } catch (error) {
+      console.error('Failed to complete match:', error);
+    }
   }
 
   removePlayer(socketId: string): void {
@@ -118,7 +197,7 @@ export class GameManager {
     }
   }
 
-  pickCard(gameId: string, deckType: keyof GameState['decks'], playerName: string): boolean {
+  async pickCard(gameId: string, deckType: keyof GameState['decks'], playerName: string): Promise<boolean> {
     const game = this.games.get(gameId);
     if (!game || !game.players[playerName]) return false;
 
@@ -128,6 +207,14 @@ export class GameManager {
     const card = deck.pop()!;
     card.owner = playerName;
     game.players[playerName].hand.push(card);
+
+    // Record pick card event
+    await this.recordEvent(gameId, 'pick-card', {
+      cardId: card.id,
+      deckType,
+      cardType: card.type,
+      frontImage: card.frontImage
+    }, playerName);
 
     return true;
   }
@@ -148,7 +235,7 @@ export class GameManager {
     return true;
   }
 
-  playCard(gameId: string, cardId: string, playerName: string): { card?: any, isPersonaggio?: boolean } {
+  async playCard(gameId: string, cardId: string, playerName: string): Promise<{ card?: any, isPersonaggio?: boolean }> {
     const game = this.games.get(gameId);
     if (!game || !game.players[playerName]) return {};
 
@@ -162,13 +249,21 @@ export class GameManager {
       // Check if it's a PERSONAGGI card
       const isPersonaggio = card.type === 'personaggi';
       
+      // Record play card event
+      await this.recordEvent(gameId, 'play-card', {
+        cardId: card.id,
+        cardType: card.type,
+        frontImage: card.frontImage,
+        isPersonaggio
+      }, playerName);
+      
       return { card, isPersonaggio };
     }
     
     return {};
   }
 
-  returnToHand(gameId: string, cardId: string, playerName: string): void {
+  async returnToHand(gameId: string, cardId: string, playerName: string): Promise<void> {
     const game = this.games.get(gameId);
     if (!game || !game.players[playerName]) return;
 
@@ -187,6 +282,13 @@ export class GameManager {
 
     if (card && card.owner === playerName) {
       game.players[playerName].hand.push(card);
+      
+      // Record return to hand event
+      await this.recordEvent(gameId, 'return-to-hand', {
+        cardId: card.id,
+        cardType: card.type,
+        fromLocation: cardIndex !== -1 ? 'field' : 'graveyard'
+      }, playerName);
     }
   }
 
@@ -254,7 +356,7 @@ export class GameManager {
     return { success: false };
   }
 
-  transferCard(gameId: string, cardId: string, fromPlayer: string, toPlayer: string): void {
+  async transferCard(gameId: string, cardId: string, fromPlayer: string, toPlayer: string): Promise<void> {
     const game = this.games.get(gameId);
     if (!game || !game.players[fromPlayer] || !game.players[toPlayer]) return;
 
@@ -461,7 +563,7 @@ export class GameManager {
     }
   }
 
-  eliminatePersonaggi(gameId: string, cardId: string, playerName: string): { success: boolean, cardImage?: string } {
+  async eliminatePersonaggi(gameId: string, cardId: string, playerName: string): Promise<{ success: boolean, cardImage?: string }> {
     const game = this.games.get(gameId);
     if (!game) return { success: false };
 
