@@ -2,10 +2,10 @@ import React from "react";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
-import { X } from "lucide-react";
+import { X, Sword } from "lucide-react";
 
 export const CardModal: React.FC = () => {
-  const { selectedCard, setSelectedCard, playerName, gameState } = useGameState();
+  const { selectedCard, setSelectedCard, playerName, gameState, setSelectedMosseCard } = useGameState();
 
   if (!selectedCard) return null;
 
@@ -65,6 +65,12 @@ export const CardModal: React.FC = () => {
     setSelectedCard(null);
   };
 
+  const handleAttacca = () => {
+    // Set this MOSSE card as selected for attacking
+    setSelectedMosseCard(selectedCard);
+    setSelectedCard(null);
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
@@ -90,6 +96,17 @@ export const CardModal: React.FC = () => {
 
         {/* Action buttons */}
         <div className="space-y-3">
+          {/* MOSSE card ATTACCA button - show for MOSSE cards in hand or field */}
+          {selectedCard.type === 'mosse' && isOwner && (
+            <Button
+              onClick={handleAttacca}
+              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 flex items-center justify-center gap-2"
+            >
+              <Sword size={20} />
+              ATTACCA
+            </Button>
+          )}
+
           {/* Field card actions */}
           {isInField && isOwner && (
             <>

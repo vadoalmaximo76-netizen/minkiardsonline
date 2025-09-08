@@ -35,7 +35,7 @@ export const GameBoard: React.FC = () => {
   const [personaggioCardName, setPersonaggioCardName] = useState<string>("");
   const [personaggioMessage, setPersonaggioMessage] = useState<string>("");
   const { selectedCard, gameId, playerName } = useGameState();
-  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, initAudioContext, toggleMute, isMuted } = useAudio();
+  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, initAudioContext, toggleMute, isMuted } = useAudio();
 
   const shareInviteLink = () => {
     const link = `${window.location.origin}?game=${gameId}`;
@@ -137,6 +137,9 @@ export const GameBoard: React.FC = () => {
       
       // Start shaking animation
       addShakingCard(targetCardId);
+      
+      // Play damage sound effect
+      playDamageSound();
       
       // Stop shaking after 2 seconds
       setTimeout(() => {

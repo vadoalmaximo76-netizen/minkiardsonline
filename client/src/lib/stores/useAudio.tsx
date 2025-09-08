@@ -21,6 +21,7 @@ interface AudioState {
   playChatMessage: () => void;
   playCardToGraveyard: () => void;
   playDiceRoll: () => void;
+  playDamageSound: () => void;
   initAudioContext: () => void;
 }
 
@@ -226,5 +227,37 @@ export const useAudio = create<AudioState>((set, get) => ({
         });
       }, (i * rollDuration) / clickCount);
     }
+  },
+
+  playDamageSound: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    // Damage sound - sharp impact with distortion
+    const oscillator1 = audioContext.createOscillator();
+    const oscillator2 = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator1.connect(gainNode);
+    oscillator2.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    // Sharp hit sound with two frequency components
+    oscillator1.frequency.setValueAtTime(150, audioContext.currentTime);
+    oscillator1.frequency.linearRampToValueAtTime(50, audioContext.currentTime + 0.1);
+    oscillator1.type = 'square';
+    
+    oscillator2.frequency.setValueAtTime(300, audioContext.currentTime);
+    oscillator2.frequency.linearRampToValueAtTime(100, audioContext.currentTime + 0.1);
+    oscillator2.type = 'sawtooth';
+    
+    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.01);
+    gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.15);
+    
+    oscillator1.start(audioContext.currentTime);
+    oscillator1.stop(audioContext.currentTime + 0.15);
+    oscillator2.start(audioContext.currentTime);
+    oscillator2.stop(audioContext.currentTime + 0.15);
   }
 }));
