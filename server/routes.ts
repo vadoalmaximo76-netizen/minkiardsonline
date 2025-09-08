@@ -61,9 +61,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('play-card', ({ cardId, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
-        gameManager.playCard(gameId, cardId, playerName);
+        const result = gameManager.playCard(gameId, cardId, playerName);
         const gameState = gameManager.getGameState(gameId);
         io.to(gameId).emit('game-state-update', gameState);
+        
+        // If a PERSONAGGI card was played, emit special notification
+        if (result.isPersonaggio && result.card) {
+          const getCardNameFromUrl = (url: string) => {
+            const parts = url.split('/');
+            const filename = parts[parts.length - 1];
+            return filename
+              .toLowerCase()
+              .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+              .replace(/[-_]/g, ' ')
+              .split(' ')
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(' ');
+          };
+          
+          const cardName = getCardNameFromUrl(result.card.frontImage);
+          
+          // Random dramatic messages
+          const messages = [
+            "È PRONTO A FARE BRUTTO",
+            "ENTRA IN SCENA", 
+            "ARRIVA PER SPACCARVI IL CULO",
+            "SI UNISCE ALLA ZUFFA"
+          ];
+          
+          const selectedMessage = messages[Math.floor(Math.random() * messages.length)];
+          
+          io.to(gameId).emit('personaggio-enters', {
+            cardName,
+            message: selectedMessage,
+            playerName
+          });
+        }
       }
     });
 

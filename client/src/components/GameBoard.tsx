@@ -8,6 +8,7 @@ import { Calculator } from "./Calculator";
 import { CardModal } from "./CardModal";
 import { DiceModal } from "./DiceModal";
 import { FullScreenNotification } from "./FullScreenNotification";
+import { PersonaggioNotification } from "./PersonaggioNotification";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
@@ -30,6 +31,9 @@ export const GameBoard: React.FC = () => {
   const [scenarioCardsActive, setScenarioCardsActive] = useState<boolean>(false);
   const [ciaoNotificationVisible, setCiaoNotificationVisible] = useState(false);
   const [ciaoCardName, setCiaoCardName] = useState<string>("");
+  const [personaggioNotificationVisible, setPersonaggioNotificationVisible] = useState(false);
+  const [personaggioCardName, setPersonaggioCardName] = useState<string>("");
+  const [personaggioMessage, setPersonaggioMessage] = useState<string>("");
   const { selectedCard, gameId, playerName } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, initAudioContext, toggleMute, isMuted } = useAudio();
 
@@ -153,6 +157,17 @@ export const GameBoard: React.FC = () => {
       }, 3000);
     };
 
+    const handlePersonaggioEnters = ({ cardName, message }: { cardName: string, message: string }) => {
+      setPersonaggioCardName(cardName);
+      setPersonaggioMessage(message);
+      setPersonaggioNotificationVisible(true);
+      
+      // Auto-hide after 4 seconds
+      setTimeout(() => {
+        setPersonaggioNotificationVisible(false);
+      }, 4000);
+    };
+
     socket.on('game-reset', handleGameReset);
     socket.on('card-shown', handleCardShown);
     socket.on('card-show-confirmed', handleCardShowConfirmed);
@@ -164,6 +179,7 @@ export const GameBoard: React.FC = () => {
     socket.on('card-attacked', handleCardAttacked);
     socket.on('card-to-graveyard', handleCardToGraveyard);
     socket.on('player-joined', handlePlayerJoined);
+    socket.on('personaggio-enters', handlePersonaggioEnters);
 
     return () => {
       socket.off('game-reset', handleGameReset);
@@ -177,6 +193,7 @@ export const GameBoard: React.FC = () => {
       socket.off('card-attacked', handleCardAttacked);
       socket.off('card-to-graveyard', handleCardToGraveyard);
       socket.off('player-joined', handlePlayerJoined);
+      socket.off('personaggio-enters', handlePersonaggioEnters);
     };
   }, []);
 
@@ -380,6 +397,13 @@ export const GameBoard: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* PERSONAGGI Enter Notification */}
+        <PersonaggioNotification
+          isVisible={personaggioNotificationVisible}
+          cardName={personaggioCardName}
+          message={personaggioMessage}
+        />
 
         {/* Dice Modal */}
         <DiceModal 

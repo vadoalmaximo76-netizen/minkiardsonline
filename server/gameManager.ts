@@ -148,9 +148,9 @@ export class GameManager {
     return true;
   }
 
-  playCard(gameId: string, cardId: string, playerName: string): void {
+  playCard(gameId: string, cardId: string, playerName: string): { card?: any, isPersonaggio?: boolean } {
     const game = this.games.get(gameId);
-    if (!game || !game.players[playerName]) return;
+    if (!game || !game.players[playerName]) return {};
 
     const player = game.players[playerName];
     const cardIndex = player.hand.findIndex(card => card.id === cardId);
@@ -158,7 +158,14 @@ export class GameManager {
     if (cardIndex !== -1) {
       const card = player.hand.splice(cardIndex, 1)[0];
       game.field.push(card);
+      
+      // Check if it's a PERSONAGGI card
+      const isPersonaggio = card.type === 'personaggi';
+      
+      return { card, isPersonaggio };
     }
+    
+    return {};
   }
 
   returnToHand(gameId: string, cardId: string, playerName: string): void {
