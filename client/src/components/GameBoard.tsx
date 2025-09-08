@@ -4,15 +4,17 @@ import { PlayerHand } from "./PlayerHand";
 import { GameField } from "./GameField";
 import { Graveyard } from "./Graveyard";
 import { Chat } from "./Chat";
+import { Calculator } from "./Calculator";
 import { CardModal } from "./CardModal";
 import { DiceModal } from "./DiceModal";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, Calculator as CalcIcon } from "lucide-react";
 
 export const GameBoard: React.FC = () => {
   const [chatOpen, setChatOpen] = useState(false);
+  const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [graveyardOpen, setGraveyardOpen] = useState(false);
   const [diceOpen, setDiceOpen] = useState(false);
   const [diceResult, setDiceResult] = useState<number | undefined>();
@@ -194,10 +196,25 @@ export const GameBoard: React.FC = () => {
           <MessageCircle size={24} />
         </Button>
 
+        {/* Calculator Button */}
+        <Button
+          onClick={() => setCalculatorOpen(!calculatorOpen)}
+          className="fixed bottom-20 right-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-full p-3"
+        >
+          <CalcIcon size={24} />
+        </Button>
+
         {/* Chat */}
         {chatOpen && (
           <div className="fixed bottom-16 right-4 w-80 h-96">
             <Chat onClose={() => setChatOpen(false)} />
+          </div>
+        )}
+
+        {/* Calculator */}
+        {calculatorOpen && (
+          <div className="fixed bottom-36 right-4 w-80 h-96">
+            <Calculator onClose={() => setCalculatorOpen(false)} />
           </div>
         )}
 
