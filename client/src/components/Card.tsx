@@ -23,6 +23,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const [showPlayerSelect, setShowPlayerSelect] = useState(false);
   const [showTransferSelect, setShowTransferSelect] = useState(false);
   const [isEliminated, setIsEliminated] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const { 
     setSelectedCard, 
     playerName, 
@@ -35,6 +36,9 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   } = useGameState();
 
   const handleCardClick = () => {
+    // Toggle expanded state first - makes card bigger
+    setIsExpanded(!isExpanded);
+
     // If a MOSSE card is selected and this is an opponent's PERSONAGGI card on the field
     if (selectedMosseCard && 
         location === 'field' && 
@@ -147,9 +151,10 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         <img
           src={showBack ? card.backImage : card.frontImage}
           alt="Card"
-          className={`w-20 h-28 rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg 
+          className={`${isExpanded ? 'w-32 h-44' : 'w-20 h-28'} rounded-lg cursor-pointer hover:scale-105 transition-all duration-300 shadow-lg 
             ${isShaking ? 'animate-shake' : ''} 
-            ${isMosseSelected ? 'ring-4 ring-red-500 ring-opacity-70' : ''}`}
+            ${isMosseSelected ? 'ring-4 ring-red-500 ring-opacity-70' : ''}
+            ${isExpanded ? 'transform scale-125 z-10' : ''}`}
           onClick={handleCardClick}
         />
         
@@ -172,7 +177,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         value={cardText}
         onChange={handleTextChange}
         placeholder="Add note..."
-        className="w-20 h-10 text-xs p-1 rounded resize-none"
+        className={`${isExpanded ? 'w-32' : 'w-20'} h-10 text-xs p-1 rounded resize-none transition-all duration-300`}
         disabled={!isOwner && location === 'hand'}
       />
 
