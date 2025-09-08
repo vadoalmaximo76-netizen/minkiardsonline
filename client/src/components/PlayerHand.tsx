@@ -9,7 +9,7 @@ export const PlayerHand: React.FC = () => {
 
   return (
     <div className="mb-8">
-      <h2 className="text-white font-bold text-2xl mb-4">YOUR HAND</h2>
+      <h2 className="text-white font-bold text-2xl mb-4">CARTE IN MANO</h2>
       <div className="flex gap-4 overflow-x-auto pb-4">
         {playerCards.map((card) => (
           <Card

@@ -20,11 +20,18 @@ export const GameField: React.FC = () => {
     return acc;
   }, {} as Record<string, typeof fieldCards>);
 
-  // Sort players - those with cards first, then others at bottom
-  const playersWithCards = Object.keys(cardsByPlayer);
+  // Sort players - current player first, then others with cards, then others at bottom
+  const allPlayersWithCards = Object.keys(cardsByPlayer);
   const playersWithoutCards = Object.keys(players).filter(
-    (player) => !playersWithCards.includes(player)
+    (player) => !allPlayersWithCards.includes(player)
   );
+  
+  // Reorder so current player comes first
+  const playersWithCards = allPlayersWithCards.sort((a, b) => {
+    if (a === playerName) return -1; // Current player first
+    if (b === playerName) return 1;  // Current player first
+    return 0; // Keep other players in original order
+  });
 
   const handleMoveCard = (cardId: string, direction: 'left' | 'right') => {
     socket.emit('move-card-position', { 
