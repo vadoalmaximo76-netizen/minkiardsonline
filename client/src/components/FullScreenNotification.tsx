@@ -17,7 +17,10 @@ export const FullScreenNotification: React.FC<FullScreenNotificationProps> = ({
   const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
-    if (!isVisible) return;
+    if (!isVisible) {
+      setCountdown(5);
+      return;
+    }
 
     const timer = setInterval(() => {
       setCountdown((prev) => {
@@ -31,26 +34,34 @@ export const FullScreenNotification: React.FC<FullScreenNotificationProps> = ({
 
     return () => {
       clearInterval(timer);
-      setCountdown(5);
     };
   }, [isVisible, onClose]);
 
   const getNotificationText = () => {
+    const randomTitles = [
+      "UH LÀ LÀ!",
+      "ATTENZIONE ATTENZIONE",
+      "MANNEGGIA QUIGL PUORC",
+      "🐷 2⃣"
+    ];
+    
+    const randomTitle = randomTitles[Math.floor(Math.random() * randomTitles.length)];
+    
     if (cardCount === 3) {
       return {
-        title: "🔥 PRIMO TRAGUARDO! 🔥",
+        title: randomTitle,
         subtitle: `${playerName} ha messo 3 carte nel CIMITERO!`,
         color: "from-orange-500 to-red-600"
       };
     } else if (cardCount === 5) {
       return {
-        title: "💀 SECONDO TRAGUARDO! 💀",
+        title: randomTitle,
         subtitle: `${playerName} ha messo 5 carte nel CIMITERO!`,
         color: "from-purple-500 to-pink-600"
       };
     }
     return {
-      title: "🎯 TRAGUARDO! 🎯",
+      title: randomTitle,
       subtitle: `${playerName} ha raggiunto ${cardCount} carte nel CIMITERO!`,
       color: "from-blue-500 to-purple-600"
     };
