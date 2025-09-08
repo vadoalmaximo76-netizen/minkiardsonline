@@ -378,15 +378,6 @@ export const GameBoard: React.FC = () => {
           )}
         </Button>
 
-        {/* Add Cards Button */}
-        <Button
-          onClick={() => setAddCardsModalOpen(true)}
-          className="fixed bottom-4 left-4 bg-yellow-600 hover:bg-yellow-700 text-white font-bold rounded-lg px-4 py-3 z-50 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2"
-          style={{ position: 'fixed' }}
-        >
-          <Plus size={20} />
-          AGGIUNGI CARTE
-        </Button>
 
         {/* Calculator */}
         {calculatorOpen && (
@@ -435,6 +426,17 @@ export const GameBoard: React.FC = () => {
           isOpen={addCardsModalOpen}
           onClose={() => setAddCardsModalOpen(false)}
         />
+
+        {/* Add Cards Button - Bottom of page */}
+        <div className="mt-16 mb-8 flex justify-center">
+          <Button
+            onClick={() => setAddCardsModalOpen(true)}
+            className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold rounded-lg px-6 py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-3"
+          >
+            <Plus size={24} />
+            AGGIUNGI CARTE
+          </Button>
+        </div>
 
         {/* Dice Modal */}
         <DiceModal 
