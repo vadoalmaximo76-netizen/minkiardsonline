@@ -21,6 +21,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const [cardText, setCardText] = useState(card.text || "");
   const [showActions, setShowActions] = useState(false);
   const [showPlayerSelect, setShowPlayerSelect] = useState(false);
+  const [showTransferSelect, setShowTransferSelect] = useState(false);
   const [isEliminated, setIsEliminated] = useState(false);
   const { 
     setSelectedCard, 
@@ -91,6 +92,19 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
 
   const handleShowCard = () => {
     setShowPlayerSelect(true);
+  };
+
+  const handleTransferCard = () => {
+    setShowTransferSelect(true);
+  };
+
+  const handleTransferToPlayer = (targetPlayer: string) => {
+    socket.emit('transfer-card', { 
+      cardId: card.id, 
+      fromPlayer: playerName, 
+      toPlayer: targetPlayer
+    });
+    setShowTransferSelect(false);
   };
 
   const handleShowToPlayer = (targetPlayer: string) => {
@@ -179,6 +193,13 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
           >
             MOSTRA
           </Button>
+          <Button
+            onClick={handleTransferCard}
+            className="bg-green-600 hover:bg-green-700 text-white font-bold text-xs px-2 py-1"
+            size="sm"
+          >
+            CEDI
+          </Button>
         </div>
       )}
 
@@ -226,6 +247,36 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
                   key={player}
                   onClick={() => handleShowToPlayer(player)}
                   className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2"
+                >
+                  {player}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Player Selection Modal for CEDI */}
+      {showTransferSelect && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-white font-bold text-lg">Cedi carta a:</h3>
+              <Button
+                onClick={() => setShowTransferSelect(false)}
+                className="bg-red-600 hover:bg-red-700 text-white px-2 py-1"
+                size="sm"
+              >
+                Chiudi
+              </Button>
+            </div>
+            
+            <div className="space-y-2">
+              {otherPlayers.map((player) => (
+                <Button
+                  key={player}
+                  onClick={() => handleTransferToPlayer(player)}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2"
                 >
                   {player}
                 </Button>
