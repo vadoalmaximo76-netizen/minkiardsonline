@@ -115,7 +115,7 @@ export const GameBoard: React.FC = () => {
             )}
           </div>
           <div className="flex flex-col gap-2">
-            {/* First row: DADO and CIMITERO */}
+            {/* First row: DADO, CIMITERO, and REGOLAMENTO */}
             <div className="flex gap-2 justify-end">
               <Button
                 onClick={() => {
@@ -132,6 +132,12 @@ export const GameBoard: React.FC = () => {
                 className="bg-purple-600 hover:bg-purple-700 text-white font-bold"
               >
                 CIMITERO
+              </Button>
+              <Button
+                onClick={() => window.open('https://minkiards.wixsite.com/minkiards/post/regolamento-ufficiale', '_blank')}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
+              >
+                REGOLAMENTO
               </Button>
             </div>
             
