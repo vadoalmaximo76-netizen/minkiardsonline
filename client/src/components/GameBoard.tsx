@@ -84,7 +84,14 @@ export const GameBoard: React.FC = () => {
       <div className="relative z-10">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-4xl font-bold text-white">MINKIARDS</h1>
+          <div>
+            <h1 className="text-4xl font-bold text-white">MINKIARDS</h1>
+            {gameId && gameId.startsWith('room-') && (
+              <p className="text-white/80 text-sm mt-1">
+                Stanza: {gameId.replace('room-', '')}
+              </p>
+            )}
+          </div>
           <div className="flex gap-4">
             <Button
               onClick={() => setGraveyardOpen(!graveyardOpen)}
