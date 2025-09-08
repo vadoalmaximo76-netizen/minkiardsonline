@@ -49,6 +49,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on('choose-specific-card', ({ deckType, cardId, playerName }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        gameManager.chooseSpecificCard(gameId, deckType, cardId, playerName);
+        const gameState = gameManager.getGameState(gameId);
+        io.to(gameId).emit('game-state-update', gameState);
+      }
+    });
+
     socket.on('play-card', ({ cardId, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {

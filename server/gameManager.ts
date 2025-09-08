@@ -125,6 +125,22 @@ export class GameManager {
     return true;
   }
 
+  chooseSpecificCard(gameId: string, deckType: keyof GameState['decks'], cardId: string, playerName: string): boolean {
+    const game = this.games.get(gameId);
+    if (!game || !game.players[playerName]) return false;
+
+    const deck = game.decks[deckType];
+    const cardIndex = deck.findIndex(card => card.id === cardId);
+    
+    if (cardIndex === -1) return false;
+
+    const card = deck.splice(cardIndex, 1)[0];
+    card.owner = playerName;
+    game.players[playerName].hand.push(card);
+
+    return true;
+  }
+
   playCard(gameId: string, cardId: string, playerName: string): void {
     const game = this.games.get(gameId);
     if (!game || !game.players[playerName]) return;
