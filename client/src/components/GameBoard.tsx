@@ -7,6 +7,7 @@ import { Chat } from "./Chat";
 import { Calculator } from "./Calculator";
 import { CardModal } from "./CardModal";
 import { DiceModal } from "./DiceModal";
+import { FullScreenNotification } from "./FullScreenNotification";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
@@ -19,6 +20,9 @@ export const GameBoard: React.FC = () => {
   const [diceOpen, setDiceOpen] = useState(false);
   const [diceResult, setDiceResult] = useState<number | undefined>();
   const [playerWhoRolled, setPlayerWhoRolled] = useState<string | undefined>();
+  const [notificationVisible, setNotificationVisible] = useState(false);
+  const [notificationPlayer, setNotificationPlayer] = useState<string>("");
+  const [notificationCardCount, setNotificationCardCount] = useState<number>(0);
   const { selectedCard, gameId, playerName } = useGameState();
 
   const shareInviteLink = () => {
@@ -77,11 +81,18 @@ export const GameBoard: React.FC = () => {
       setDiceOpen(true);
     };
 
+    const handleGraveyardMilestone = ({ playerName: achievingPlayer, cardCount }: { playerName: string, cardCount: number }) => {
+      setNotificationPlayer(achievingPlayer);
+      setNotificationCardCount(cardCount);
+      setNotificationVisible(true);
+    };
+
     socket.on('game-reset', handleGameReset);
     socket.on('card-shown', handleCardShown);
     socket.on('card-show-confirmed', handleCardShowConfirmed);
     socket.on('dice-rolled', handleDiceRoll);
     socket.on('dice-window-opened', handleDiceWindowOpen);
+    socket.on('graveyard-milestone', handleGraveyardMilestone);
 
     return () => {
       socket.off('game-reset', handleGameReset);
@@ -89,6 +100,7 @@ export const GameBoard: React.FC = () => {
       socket.off('card-show-confirmed', handleCardShowConfirmed);
       socket.off('dice-rolled', handleDiceRoll);
       socket.off('dice-window-opened', handleDiceWindowOpen);
+      socket.off('graveyard-milestone', handleGraveyardMilestone);
     };
   }, []);
 
@@ -233,6 +245,14 @@ export const GameBoard: React.FC = () => {
           onClose={() => setDiceOpen(false)}
           currentRoll={diceResult}
           playerWhoRolled={playerWhoRolled}
+        />
+
+        {/* Graveyard Milestone Notification */}
+        <FullScreenNotification
+          isVisible={notificationVisible}
+          playerName={notificationPlayer}
+          cardCount={notificationCardCount}
+          onClose={() => setNotificationVisible(false)}
         />
       </div>
     </div>

@@ -216,9 +216,9 @@ export class GameManager {
     }
   }
 
-  moveToGraveyard(gameId: string, cardId: string, playerName: string): void {
+  moveToGraveyard(gameId: string, cardId: string, playerName: string): { success: boolean, graveyardCount?: number } {
     const game = this.games.get(gameId);
-    if (!game) return;
+    if (!game) return { success: false };
 
     // Find card in field
     const cardIndex = game.field.findIndex(card => card.id === cardId);
@@ -227,8 +227,17 @@ export class GameManager {
       if (card.owner === playerName) {
         card.eliminatedBy = playerName;
         game.graveyard.push(card);
+
+        // Count cards in graveyard for this player
+        const graveyardCount = game.graveyard.filter(
+          graveyardCard => graveyardCard.eliminatedBy === playerName
+        ).length;
+
+        return { success: true, graveyardCount };
       }
     }
+    
+    return { success: false };
   }
 
   transferCard(gameId: string, cardId: string, fromPlayer: string, toPlayer: string): void {

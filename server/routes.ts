@@ -88,9 +88,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('move-to-graveyard', ({ cardId, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
-        gameManager.moveToGraveyard(gameId, cardId, playerName);
-        const gameState = gameManager.getGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        const result = gameManager.moveToGraveyard(gameId, cardId, playerName);
+        if (result.success) {
+          const gameState = gameManager.getGameState(gameId);
+          io.to(gameId).emit('game-state-update', gameState);
+
+          // Check for milestone achievements
+          if (result.graveyardCount === 3 || result.graveyardCount === 5) {
+            io.to(gameId).emit('graveyard-milestone', {
+              playerName,
+              cardCount: result.graveyardCount,
+              timestamp: Date.now()
+            });
+          }
+        }
       }
     });
 
