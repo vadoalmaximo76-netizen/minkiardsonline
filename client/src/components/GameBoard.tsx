@@ -9,12 +9,13 @@ import { CardModal } from "./CardModal";
 import { DiceModal } from "./DiceModal";
 import { FullScreenNotification } from "./FullScreenNotification";
 import { PersonaggioNotification } from "./PersonaggioNotification";
+import { AddCardsModal } from "./AddCardsModal";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
-import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX } from "lucide-react";
+import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus } from "lucide-react";
 
 export const GameBoard: React.FC = () => {
   const [chatOpen, setChatOpen] = useState(false);
@@ -35,6 +36,7 @@ export const GameBoard: React.FC = () => {
   const [personaggioCardName, setPersonaggioCardName] = useState<string>("");
   const [personaggioMessage, setPersonaggioMessage] = useState<string>("");
   const [personaggioCardImage, setPersonaggioCardImage] = useState<string>("");
+  const [addCardsModalOpen, setAddCardsModalOpen] = useState(false);
   const { selectedCard, gameId, playerName } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, initAudioContext, toggleMute, isMuted } = useAudio();
 
@@ -174,6 +176,10 @@ export const GameBoard: React.FC = () => {
       }, 4000);
     };
 
+    const handleCardsAdded = ({ playerName, deckLabel, count }: { playerName: string, deckLabel: string, count: number }) => {
+      alert(`${playerName} ha aggiunto ${count} carte al mazzo ${deckLabel}!`);
+    };
+
     socket.on('game-reset', handleGameReset);
     socket.on('card-shown', handleCardShown);
     socket.on('card-show-confirmed', handleCardShowConfirmed);
@@ -186,6 +192,7 @@ export const GameBoard: React.FC = () => {
     socket.on('card-to-graveyard', handleCardToGraveyard);
     socket.on('player-joined', handlePlayerJoined);
     socket.on('personaggio-enters', handlePersonaggioEnters);
+    socket.on('cards-added', handleCardsAdded);
 
     return () => {
       socket.off('game-reset', handleGameReset);
@@ -200,6 +207,7 @@ export const GameBoard: React.FC = () => {
       socket.off('card-to-graveyard', handleCardToGraveyard);
       socket.off('player-joined', handlePlayerJoined);
       socket.off('personaggio-enters', handlePersonaggioEnters);
+      socket.off('cards-added', handleCardsAdded);
     };
   }, []);
 
@@ -370,6 +378,16 @@ export const GameBoard: React.FC = () => {
           )}
         </Button>
 
+        {/* Add Cards Button */}
+        <Button
+          onClick={() => setAddCardsModalOpen(true)}
+          className="fixed bottom-4 left-4 bg-yellow-600 hover:bg-yellow-700 text-white font-bold rounded-lg px-4 py-3 z-50 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2"
+          style={{ position: 'fixed' }}
+        >
+          <Plus size={20} />
+          AGGIUNGI CARTE
+        </Button>
+
         {/* Calculator */}
         {calculatorOpen && (
           <div 
@@ -410,6 +428,12 @@ export const GameBoard: React.FC = () => {
           cardName={personaggioCardName}
           message={personaggioMessage}
           cardImage={personaggioCardImage || ""}
+        />
+
+        {/* Add Cards Modal */}
+        <AddCardsModal
+          isOpen={addCardsModalOpen}
+          onClose={() => setAddCardsModalOpen(false)}
         />
 
         {/* Dice Modal */}

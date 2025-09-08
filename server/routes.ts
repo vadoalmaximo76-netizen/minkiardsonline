@@ -267,6 +267,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on('add-custom-cards', ({ gameId, playerName, deckType, images }) => {
+      const playerGameId = gameManager.getPlayerGameId(socket.id);
+      if (playerGameId === gameId) {
+        const result = gameManager.addCustomCards(gameId, deckType, images);
+        if (result.success) {
+          const gameState = gameManager.getGameState(gameId);
+          io.to(gameId).emit('game-state-update', gameState);
+          
+          // Notify all players about the new cards
+          io.to(gameId).emit('cards-added', {
+            playerName,
+            deckType,
+            count: images.length,
+            deckLabel: deckType.toUpperCase().replace('_', ' ')
+          });
+        }
+      }
+    });
+
     socket.on('toggle-scenario-cards', ({ gameId, active }) => {
       const playerGameId = gameManager.getPlayerGameId(socket.id);
       if (playerGameId === gameId) {

@@ -357,6 +357,50 @@ export class GameManager {
     }));
   }
 
+  addCustomCards(gameId: string, deckType: string, images: Array<{ name: string, data: string }>): { success: boolean } {
+    const game = this.games.get(gameId);
+    if (!game) return { success: false };
+
+    try {
+      images.forEach((image, index) => {
+        const card = {
+          id: `custom-${deckType}-${Date.now()}-${index}`,
+          type: deckType as 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali',
+          frontImage: image.data, // Base64 data URL
+          backImage: this.getBackImageForDeck(deckType),
+          owner: '',
+          text: ''
+        };
+        
+        // Add to appropriate deck
+        if (deckType === 'personaggi') {
+          game.decks.personaggi.push(card);
+        } else if (deckType === 'mosse') {
+          game.decks.mosse.push(card);
+        } else if (deckType === 'bonus') {
+          game.decks.bonus.push(card);
+        } else if (deckType === 'personaggi_speciali') {
+          game.decks.personaggi_speciali.push(card);
+        }
+      });
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error adding custom cards:', error);
+      return { success: false };
+    }
+  }
+
+  private getBackImageForDeck(deckType: string): string {
+    const backImages = {
+      'personaggi': "https://i.imgur.com/r1rfUAB.png",
+      'mosse': "https://i.imgur.com/6MUXCZO.png", 
+      'bonus': "https://i.imgur.com/lEROr3r.png",
+      'personaggi_speciali': "https://i.imgur.com/ipVd57A.png"
+    };
+    return backImages[deckType as keyof typeof backImages] || backImages.personaggi;
+  }
+
   toggleScenarioCards(gameId: string, active: boolean): boolean {
     const game = this.games.get(gameId);
     if (!game) return false;
