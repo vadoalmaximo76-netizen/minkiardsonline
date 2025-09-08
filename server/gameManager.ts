@@ -461,14 +461,14 @@ export class GameManager {
     }
   }
 
-  eliminatePersonaggi(gameId: string, cardId: string, playerName: string): boolean {
+  eliminatePersonaggi(gameId: string, cardId: string, playerName: string): { success: boolean, cardImage?: string } {
     const game = this.games.get(gameId);
-    if (!game) return false;
+    if (!game) return { success: false };
 
     try {
       // Find the card in the field
       const cardIndex = game.field.findIndex(card => card.id === cardId && card.type === 'personaggi');
-      if (cardIndex === -1) return false;
+      if (cardIndex === -1) return { success: false };
 
       const card = game.field.splice(cardIndex, 1)[0];
       
@@ -476,10 +476,10 @@ export class GameManager {
       card.eliminatedBy = playerName;
       game.graveyard.push(card);
 
-      return true;
+      return { success: true, cardImage: card.frontImage };
     } catch (error) {
       console.error('Error eliminating personaggi card:', error);
-      return false;
+      return { success: false };
     }
   }
 
