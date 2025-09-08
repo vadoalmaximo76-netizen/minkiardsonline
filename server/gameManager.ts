@@ -369,4 +369,36 @@ export class GameManager {
 
     return true;
   }
+
+  moveCardPosition(gameId: string, cardId: string, direction: 'left' | 'right'): boolean {
+    const game = this.games.get(gameId);
+    if (!game) return false;
+
+    const cardIndex = game.field.findIndex(card => card.id === cardId);
+    if (cardIndex === -1) return false;
+
+    const card = game.field[cardIndex];
+    const playerCards = game.field.filter(c => c.owner === card.owner);
+    const playerCardIndex = playerCards.findIndex(c => c.id === cardId);
+    
+    if (playerCardIndex === -1) return false;
+
+    // Check if move is valid
+    if (direction === 'left' && playerCardIndex === 0) return false;
+    if (direction === 'right' && playerCardIndex === playerCards.length - 1) return false;
+
+    // Find the target card to swap with
+    const targetIndex = direction === 'left' ? playerCardIndex - 1 : playerCardIndex + 1;
+    const targetCard = playerCards[targetIndex];
+    
+    // Find both cards in the main field array
+    const sourceFieldIndex = game.field.findIndex(c => c.id === cardId);
+    const targetFieldIndex = game.field.findIndex(c => c.id === targetCard.id);
+    
+    // Swap positions
+    [game.field[sourceFieldIndex], game.field[targetFieldIndex]] = 
+    [game.field[targetFieldIndex], game.field[sourceFieldIndex]];
+
+    return true;
+  }
 }

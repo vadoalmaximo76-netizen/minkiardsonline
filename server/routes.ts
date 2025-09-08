@@ -239,6 +239,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on('move-card-position', ({ cardId, direction, playerName }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        const success = gameManager.moveCardPosition(gameId, cardId, direction);
+        if (success) {
+          const gameState = gameManager.getGameState(gameId);
+          io.to(gameId).emit('game-state-update', gameState);
+        }
+      }
+    });
+
     socket.on('disconnect', () => {
       console.log('Player disconnected:', socket.id);
       gameManager.removePlayer(socket.id);
