@@ -221,7 +221,8 @@ export const GameBoard: React.FC = () => {
         {/* Calculator Button */}
         <Button
           onClick={() => setCalculatorOpen(!calculatorOpen)}
-          className="fixed bottom-4 right-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-full p-3"
+          className="fixed bottom-4 right-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-full p-3 z-50 shadow-lg hover:shadow-xl transition-all duration-200"
+          style={{ position: 'fixed' }}
         >
           <CalcIcon size={24} />
         </Button>
@@ -235,12 +236,13 @@ export const GameBoard: React.FC = () => {
               setUnreadMessages(0);
             }
           }}
-          className="fixed bottom-20 right-4 bg-sky-blue hover:bg-sky-blue/80 text-white font-bold rounded-full p-3 relative"
+          className="fixed bottom-20 right-2 bg-sky-blue hover:bg-sky-blue/80 text-white font-bold rounded-full p-3 relative z-50 shadow-lg hover:shadow-xl transition-all duration-200"
+          style={{ position: 'fixed' }}
         >
           <MessageCircle size={24} />
           {/* Notification Badge */}
           {unreadMessages > 0 && !chatOpen && (
-            <div className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center min-w-[24px]">
+            <div className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center min-w-[24px] animate-pulse">
               {unreadMessages > 99 ? '99+' : unreadMessages}
             </div>
           )}
@@ -248,14 +250,20 @@ export const GameBoard: React.FC = () => {
 
         {/* Calculator */}
         {calculatorOpen && (
-          <div className="fixed bottom-16 right-4 w-80 h-96">
+          <div 
+            className="fixed bottom-16 right-2 w-80 h-96 z-40 animate-in slide-in-from-right-5 fade-in duration-300"
+            style={{ position: 'fixed' }}
+          >
             <Calculator onClose={() => setCalculatorOpen(false)} />
           </div>
         )}
 
         {/* Chat */}
         {chatOpen && (
-          <div className="fixed bottom-36 right-4 w-80 h-96">
+          <div 
+            className="fixed bottom-36 right-2 w-80 h-96 z-40 animate-in slide-in-from-right-5 fade-in duration-300"
+            style={{ position: 'fixed' }}
+          >
             <Chat onClose={() => setChatOpen(false)} />
           </div>
         )}
