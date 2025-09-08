@@ -47,7 +47,7 @@ export class GameManager {
   }
 
   private initializeGame(gameId: string): GameState {
-    return {
+    const gameState = {
       decks: {
         personaggi: this.createInitialDeck('personaggi'),
         mosse: this.createInitialDeck('mosse'),
@@ -58,6 +58,11 @@ export class GameManager {
       field: [],
       graveyard: []
     };
+
+    // Auto-shuffle all decks when starting a new game
+    this.shuffleGameDecks(gameState);
+    
+    return gameState;
   }
 
   addPlayer(gameId: string, playerName: string, socketId: string): void {
@@ -291,6 +296,17 @@ export class GameManager {
     }
   }
 
+  private shuffleGameDecks(game: GameState): void {
+    // Shuffle each deck type
+    for (const deckType of Object.keys(game.decks) as Array<keyof GameState['decks']>) {
+      const deck = game.decks[deckType];
+      for (let i = deck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [deck[i], deck[j]] = [deck[j], deck[i]];
+      }
+    }
+  }
+
   resetGame(gameId: string): void {
     const game = this.games.get(gameId);
     if (!game) return;
@@ -311,5 +327,8 @@ export class GameManager {
       bonus: this.createInitialDeck('bonus'),
       personaggi_speciali: this.createInitialDeck('personaggi_speciali')
     };
+
+    // Auto-shuffle all decks when resetting the game
+    this.shuffleGameDecks(game);
   }
 }
