@@ -94,7 +94,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           io.to(gameId).emit('personaggio-enters', {
             cardName,
             message: selectedMessage,
-            playerName
+            playerName,
+            cardImage: result.card.frontImage
           });
         }
       }

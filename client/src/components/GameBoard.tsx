@@ -34,6 +34,7 @@ export const GameBoard: React.FC = () => {
   const [personaggioNotificationVisible, setPersonaggioNotificationVisible] = useState(false);
   const [personaggioCardName, setPersonaggioCardName] = useState<string>("");
   const [personaggioMessage, setPersonaggioMessage] = useState<string>("");
+  const [personaggioCardImage, setPersonaggioCardImage] = useState<string>("");
   const { selectedCard, gameId, playerName } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, initAudioContext, toggleMute, isMuted } = useAudio();
 
@@ -160,9 +161,10 @@ export const GameBoard: React.FC = () => {
       }, 3000);
     };
 
-    const handlePersonaggioEnters = ({ cardName, message }: { cardName: string, message: string }) => {
+    const handlePersonaggioEnters = ({ cardName, message, cardImage }: { cardName: string, message: string, cardImage: string }) => {
       setPersonaggioCardName(cardName);
       setPersonaggioMessage(message);
+      setPersonaggioCardImage(cardImage);
       setPersonaggioNotificationVisible(true);
       
       // Auto-hide after 4 seconds
@@ -406,6 +408,7 @@ export const GameBoard: React.FC = () => {
           isVisible={personaggioNotificationVisible}
           cardName={personaggioCardName}
           message={personaggioMessage}
+          cardImage={personaggioCardImage}
         />
 
         {/* Dice Modal */}
