@@ -20,6 +20,7 @@ interface AudioState {
   playPlayerJoin: () => void;
   playChatMessage: () => void;
   playCardToGraveyard: () => void;
+  playDiceRoll: () => void;
   initAudioContext: () => void;
 }
 
@@ -187,5 +188,43 @@ export const useAudio = create<AudioState>((set, get) => ({
         oscillator.stop(audioContext.currentTime + 0.25);
       }, index * 80);
     });
+  },
+
+  playDiceRoll: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    // Rolling dice sound - rapid series of clicks and rattles
+    const rollDuration = 1000; // 1 second
+    const clickCount = 12; // Number of individual click sounds
+    
+    for (let i = 0; i < clickCount; i++) {
+      setTimeout(() => {
+        // Create multiple oscillators for a complex dice rolling sound
+        const frequencies = [200, 300, 400]; // Multiple frequency components
+        
+        frequencies.forEach((baseFreq, freqIndex) => {
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+          
+          // Add slight random variation to frequency for realism
+          const freq = baseFreq + (Math.random() * 50 - 25);
+          oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
+          oscillator.type = 'square';
+          
+          // Short clicking sound
+          const volume = 0.05 * (1 - i / clickCount); // Decrease volume over time
+          gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+          gainNode.gain.linearRampToValueAtTime(volume, audioContext.currentTime + 0.001);
+          gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.05);
+          
+          oscillator.start(audioContext.currentTime);
+          oscillator.stop(audioContext.currentTime + 0.05);
+        });
+      }, (i * rollDuration) / clickCount);
+    }
   }
 }));

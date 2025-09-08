@@ -31,7 +31,7 @@ export const GameBoard: React.FC = () => {
   const [ciaoNotificationVisible, setCiaoNotificationVisible] = useState(false);
   const [ciaoCardName, setCiaoCardName] = useState<string>("");
   const { selectedCard, gameId, playerName } = useGameState();
-  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, initAudioContext, toggleMute, isMuted } = useAudio();
+  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, initAudioContext, toggleMute, isMuted } = useAudio();
 
   const shareInviteLink = () => {
     const link = `${window.location.origin}?game=${gameId}`;
@@ -97,6 +97,9 @@ export const GameBoard: React.FC = () => {
       setDiceResult(result);
       setPlayerWhoRolled(playerName);
       setDiceOpen(true);
+      
+      // Play dice roll sound when anyone rolls the dice
+      playDiceRoll();
     };
 
     const handleDiceWindowOpen = ({ playerName: opener }: { playerName: string }) => {
