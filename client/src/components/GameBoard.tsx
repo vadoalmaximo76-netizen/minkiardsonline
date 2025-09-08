@@ -325,7 +325,7 @@ export const GameBoard: React.FC = () => {
             initAudioContext();
             toggleMute();
           }}
-          className="fixed bottom-4 right-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-full p-3 z-50 shadow-lg hover:shadow-xl transition-all duration-200"
+          className="fixed bottom-4 right-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-full p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
           style={{ position: 'fixed' }}
           title={isMuted ? "Enable sound" : "Disable sound"}
         >
@@ -335,7 +335,7 @@ export const GameBoard: React.FC = () => {
         {/* Calculator Button */}
         <Button
           onClick={() => setCalculatorOpen(!calculatorOpen)}
-          className="fixed bottom-20 right-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-full p-3 z-50 shadow-lg hover:shadow-xl transition-all duration-200"
+          className="fixed bottom-20 right-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-full p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
           style={{ position: 'fixed' }}
         >
           <CalcIcon size={24} />
@@ -348,7 +348,7 @@ export const GameBoard: React.FC = () => {
             // Notify all players that the dice window is being opened
             socket.emit('open-dice-window', { gameId, playerName });
           }}
-          className="fixed right-2 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-full p-3 z-50 shadow-lg hover:shadow-xl transition-all duration-200"
+          className="fixed right-2 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-full p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
           style={{ position: 'fixed', bottom: '17rem' }}
         >
           <Dice6 size={24} />
@@ -357,7 +357,7 @@ export const GameBoard: React.FC = () => {
         {/* CIMITERO Button */}
         <Button
           onClick={() => setGraveyardOpen(!graveyardOpen)}
-          className="fixed bottom-52 right-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-full p-3 z-50 shadow-lg hover:shadow-xl transition-all duration-200"
+          className="fixed bottom-52 right-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-full p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
           style={{ position: 'fixed' }}
         >
           <Skull size={24} />
@@ -372,7 +372,7 @@ export const GameBoard: React.FC = () => {
               setUnreadMessages(0);
             }
           }}
-          className="fixed bottom-36 right-2 bg-sky-blue hover:bg-sky-blue/80 text-white font-bold rounded-full p-3 relative z-50 shadow-lg hover:shadow-xl transition-all duration-200"
+          className="fixed bottom-36 right-2 bg-sky-blue hover:bg-sky-blue/80 text-white font-bold rounded-full p-3 relative z-60 shadow-lg hover:shadow-xl transition-all duration-200"
           style={{ position: 'fixed' }}
         >
           <MessageCircle size={24} />
