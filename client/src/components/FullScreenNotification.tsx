@@ -38,30 +38,31 @@ export const FullScreenNotification: React.FC<FullScreenNotificationProps> = ({
   }, [isVisible, onClose]);
 
   const getNotificationText = () => {
-    const randomTitles = [
+    const titles = [
       "UH LÀ LÀ!",
       "ATTENZIONE ATTENZIONE",
       "MANNEGGIA QUIGL PUORC",
       "🐷 2⃣"
     ];
     
-    const randomTitle = randomTitles[Math.floor(Math.random() * randomTitles.length)];
+    // Select only ONE random title
+    const selectedTitle = titles[Math.floor(Math.random() * titles.length)];
     
     if (cardCount === 3) {
       return {
-        title: randomTitle,
+        title: selectedTitle,
         subtitle: `${playerName} ha messo 3 carte nel CIMITERO!`,
         color: "from-orange-500 to-red-600"
       };
     } else if (cardCount === 5) {
       return {
-        title: randomTitle,
+        title: selectedTitle,
         subtitle: `${playerName} ha messo 5 carte nel CIMITERO!`,
         color: "from-purple-500 to-pink-600"
       };
     }
     return {
-      title: randomTitle,
+      title: selectedTitle,
       subtitle: `${playerName} ha raggiunto ${cardCount} carte nel CIMITERO!`,
       color: "from-blue-500 to-purple-600"
     };
