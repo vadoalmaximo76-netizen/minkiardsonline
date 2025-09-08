@@ -15,7 +15,9 @@ import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
-import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull } from "lucide-react";
+import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, History, Play } from "lucide-react";
+import { MatchHistory } from "./MatchHistory";
+import { ReplayViewer } from "./ReplayViewer";
 
 export const GameBoard: React.FC = () => {
   const [chatOpen, setChatOpen] = useState(false);
@@ -37,8 +39,22 @@ export const GameBoard: React.FC = () => {
   const [personaggioMessage, setPersonaggioMessage] = useState<string>("");
   const [personaggioCardImage, setPersonaggioCardImage] = useState<string>("");
   const [addCardsModalOpen, setAddCardsModalOpen] = useState(false);
+  const [matchHistoryOpen, setMatchHistoryOpen] = useState(false);
+  const [replayViewerOpen, setReplayViewerOpen] = useState(false);
+  const [selectedReplayMatchId, setSelectedReplayMatchId] = useState<number | null>(null);
   const { selectedCard, gameId, playerName } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, initAudioContext, toggleMute, isMuted } = useAudio();
+
+  const handleSelectReplay = (matchId: number) => {
+    setSelectedReplayMatchId(matchId);
+    setMatchHistoryOpen(false);
+    setReplayViewerOpen(true);
+  };
+
+  const handleCloseReplayViewer = () => {
+    setReplayViewerOpen(false);
+    setSelectedReplayMatchId(null);
+  };
 
   const shareInviteLink = () => {
     const link = `${window.location.origin}?game=${gameId}`;
@@ -341,6 +357,26 @@ export const GameBoard: React.FC = () => {
           <CalcIcon size={24} />
         </Button>
 
+        {/* Match History Button */}
+        <Button
+          onClick={() => setMatchHistoryOpen(true)}
+          className="fixed right-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
+          style={{ position: 'fixed', bottom: '25rem' }}
+          title="Cronologia Partite"
+        >
+          <History size={24} />
+        </Button>
+
+        {/* Replay Demo Button */}
+        <Button
+          onClick={() => alert('Sistema di replay in sviluppo!\nSarà disponibile quando il database sarà completamente configurato.')}
+          className="fixed right-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-full p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
+          style={{ position: 'fixed', bottom: '21rem' }}
+          title="Replay Demo"
+        >
+          <Play size={24} />
+        </Button>
+
         {/* DADO Button */}
         <Button
           onClick={() => {
@@ -432,6 +468,22 @@ export const GameBoard: React.FC = () => {
           isOpen={addCardsModalOpen}
           onClose={() => setAddCardsModalOpen(false)}
         />
+
+        {/* Match History Modal */}
+        {matchHistoryOpen && (
+          <MatchHistory
+            onSelectReplay={handleSelectReplay}
+            onClose={() => setMatchHistoryOpen(false)}
+          />
+        )}
+
+        {/* Replay Viewer Modal */}
+        {replayViewerOpen && selectedReplayMatchId && (
+          <ReplayViewer
+            matchId={selectedReplayMatchId}
+            onClose={handleCloseReplayViewer}
+          />
+        )}
 
         {/* Add Cards Button - Bottom of page */}
         <div className="mt-16 mb-8 flex justify-center">

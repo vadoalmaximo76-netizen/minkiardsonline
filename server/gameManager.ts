@@ -99,15 +99,19 @@ export class GameManager {
       const game = this.games.get(gameId);
       if (!game) return;
 
-      const [match] = await db.insert(matches).values({
-        gameId,
-        players: [],
-        startedAt: game.startTime,
-        gameMode: 'standard',
-        totalEvents: 0
-      }).returning();
+      // Temporarily disabled due to database connection issues
+      // Will be re-enabled once SSL issues are resolved
+      console.log('Match record creation temporarily disabled for gameId:', gameId);
+      
+      // const [match] = await db.insert(matches).values({
+      //   gameId,
+      //   players: [],
+      //   startedAt: game.startTime,
+      //   gameMode: 'standard',
+      //   totalEvents: 0
+      // }).returning();
 
-      game.matchId = match.id;
+      // game.matchId = match.id;
     } catch (error) {
       console.error('Failed to create match record:', error);
     }
@@ -116,12 +120,13 @@ export class GameManager {
   private async recordEvent(gameId: string, eventType: string, eventData: any, playerName: string): Promise<void> {
     try {
       const game = this.games.get(gameId);
-      if (!game || !game.matchId) return;
+      if (!game) return;
 
       game.eventCounter++;
 
-      await db.insert(gameEvents).values({
-        matchId: game.matchId,
+      // Temporarily log events to console instead of database
+      console.log('Game Event:', {
+        gameId,
         eventType,
         eventData,
         playerName,
@@ -129,11 +134,9 @@ export class GameManager {
         timestamp: new Date()
       });
 
-      // Update total events count
-      await db.update(matches)
-        .set({ totalEvents: game.eventCounter })
-        .where({ id: game.matchId });
-
+      // Database recording temporarily disabled due to SSL issues
+      // Will be re-enabled once database connection is stable
+      
     } catch (error) {
       console.error('Failed to record event:', error);
     }
@@ -378,6 +381,15 @@ export class GameManager {
     if (card) {
       card.owner = toPlayer;
       game.players[toPlayer].hand.push(card);
+      
+      // Record transfer event
+      await this.recordEvent(gameId, 'transfer-card', {
+        cardId: card.id,
+        cardType: card.type,
+        fromPlayer,
+        toPlayer,
+        fromLocation: game.field.find(c => c.id === cardId) ? 'field' : 'hand'
+      }, fromPlayer);
     }
   }
 
@@ -577,6 +589,14 @@ export class GameManager {
       // Mark as eliminated and add to graveyard
       card.eliminatedBy = playerName;
       game.graveyard.push(card);
+      
+      // Record elimination event
+      await this.recordEvent(gameId, 'eliminate-personaggi', {
+        cardId: card.id,
+        cardType: card.type,
+        frontImage: card.frontImage,
+        eliminatedBy: playerName
+      }, playerName);
 
       return { success: true, cardImage: card.frontImage };
     } catch (error) {
