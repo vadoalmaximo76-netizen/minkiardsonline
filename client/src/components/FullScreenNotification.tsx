@@ -5,6 +5,7 @@ interface FullScreenNotificationProps {
   isVisible: boolean;
   playerName: string;
   cardCount: number;
+  title: string;
   onClose: () => void;
 }
 
@@ -12,6 +13,7 @@ export const FullScreenNotification: React.FC<FullScreenNotificationProps> = ({
   isVisible,
   playerName,
   cardCount,
+  title,
   onClose
 }) => {
   const [countdown, setCountdown] = useState(5);
@@ -38,31 +40,21 @@ export const FullScreenNotification: React.FC<FullScreenNotificationProps> = ({
   }, [isVisible, onClose]);
 
   const getNotificationText = () => {
-    const titles = [
-      "UH LÀ LÀ!",
-      "ATTENZIONE ATTENZIONE",
-      "MANNEGGIA QUIGL PUORC",
-      "🐷 2⃣"
-    ];
-    
-    // Select only ONE random title
-    const selectedTitle = titles[Math.floor(Math.random() * titles.length)];
-    
     if (cardCount === 3) {
       return {
-        title: selectedTitle,
+        title: title,
         subtitle: `${playerName} ha messo 3 carte nel CIMITERO!`,
         color: "from-orange-500 to-red-600"
       };
     } else if (cardCount === 5) {
       return {
-        title: selectedTitle,
+        title: title,
         subtitle: `${playerName} ha messo 5 carte nel CIMITERO!`,
         color: "from-purple-500 to-pink-600"
       };
     }
     return {
-      title: selectedTitle,
+      title: title,
       subtitle: `${playerName} ha raggiunto ${cardCount} carte nel CIMITERO!`,
       color: "from-blue-500 to-purple-600"
     };

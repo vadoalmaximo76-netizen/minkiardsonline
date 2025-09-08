@@ -23,6 +23,7 @@ export const GameBoard: React.FC = () => {
   const [notificationVisible, setNotificationVisible] = useState(false);
   const [notificationPlayer, setNotificationPlayer] = useState<string>("");
   const [notificationCardCount, setNotificationCardCount] = useState<number>(0);
+  const [notificationTitle, setNotificationTitle] = useState<string>("");
   const { selectedCard, gameId, playerName } = useGameState();
 
   const shareInviteLink = () => {
@@ -81,9 +82,10 @@ export const GameBoard: React.FC = () => {
       setDiceOpen(true);
     };
 
-    const handleGraveyardMilestone = ({ playerName: achievingPlayer, cardCount }: { playerName: string, cardCount: number }) => {
+    const handleGraveyardMilestone = ({ playerName: achievingPlayer, cardCount, title }: { playerName: string, cardCount: number, title: string }) => {
       setNotificationPlayer(achievingPlayer);
       setNotificationCardCount(cardCount);
+      setNotificationTitle(title);
       setNotificationVisible(true);
     };
 
@@ -252,6 +254,7 @@ export const GameBoard: React.FC = () => {
           isVisible={notificationVisible}
           playerName={notificationPlayer}
           cardCount={notificationCardCount}
+          title={notificationTitle}
           onClose={() => setNotificationVisible(false)}
         />
       </div>

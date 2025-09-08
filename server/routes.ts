@@ -95,9 +95,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Check for milestone achievements
           if (result.graveyardCount === 3 || result.graveyardCount === 5) {
+            const titles = [
+              "UH LÀ LÀ!",
+              "ATTENZIONE ATTENZIONE", 
+              "MANNEGGIA QUIGL PUORC",
+              "🐷 2⃣"
+            ];
+            
+            // Select ONE random title on server side so all players see the same
+            const selectedTitle = titles[Math.floor(Math.random() * titles.length)];
+            
             io.to(gameId).emit('graveyard-milestone', {
               playerName,
               cardCount: result.graveyardCount,
+              title: selectedTitle,
               timestamp: Date.now()
             });
           }
