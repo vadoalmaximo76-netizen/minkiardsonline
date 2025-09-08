@@ -218,6 +218,14 @@ export const GameBoard: React.FC = () => {
           <Graveyard onClose={() => setGraveyardOpen(false)} />
         )}
 
+        {/* Calculator Button */}
+        <Button
+          onClick={() => setCalculatorOpen(!calculatorOpen)}
+          className="fixed bottom-4 right-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-full p-3"
+        >
+          <CalcIcon size={24} />
+        </Button>
+
         {/* Chat Button */}
         <Button
           onClick={() => {
@@ -227,7 +235,7 @@ export const GameBoard: React.FC = () => {
               setUnreadMessages(0);
             }
           }}
-          className="fixed bottom-4 right-4 bg-sky-blue hover:bg-sky-blue/80 text-white font-bold rounded-full p-3 relative"
+          className="fixed bottom-20 right-4 bg-sky-blue hover:bg-sky-blue/80 text-white font-bold rounded-full p-3 relative"
         >
           <MessageCircle size={24} />
           {/* Notification Badge */}
@@ -238,25 +246,17 @@ export const GameBoard: React.FC = () => {
           )}
         </Button>
 
-        {/* Calculator Button */}
-        <Button
-          onClick={() => setCalculatorOpen(!calculatorOpen)}
-          className="fixed bottom-20 right-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-full p-3"
-        >
-          <CalcIcon size={24} />
-        </Button>
-
-        {/* Chat */}
-        {chatOpen && (
+        {/* Calculator */}
+        {calculatorOpen && (
           <div className="fixed bottom-16 right-4 w-80 h-96">
-            <Chat onClose={() => setChatOpen(false)} />
+            <Calculator onClose={() => setCalculatorOpen(false)} />
           </div>
         )}
 
-        {/* Calculator */}
-        {calculatorOpen && (
+        {/* Chat */}
+        {chatOpen && (
           <div className="fixed bottom-36 right-4 w-80 h-96">
-            <Calculator onClose={() => setCalculatorOpen(false)} />
+            <Chat onClose={() => setChatOpen(false)} />
           </div>
         )}
 
