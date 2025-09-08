@@ -20,15 +20,54 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const [cardText, setCardText] = useState(card.text || "");
   const [showActions, setShowActions] = useState(false);
   const [showPlayerSelect, setShowPlayerSelect] = useState(false);
-  const { setSelectedCard, playerName, gameState } = useGameState();
+  const { 
+    setSelectedCard, 
+    playerName, 
+    gameState, 
+    selectedMosseCard, 
+    setSelectedMosseCard, 
+    shakingCards, 
+    addShakingCard, 
+    removeShakingCard 
+  } = useGameState();
 
   const handleCardClick = () => {
+    // If a MOSSE card is selected and this is an opponent's PERSONAGGI card on the field
+    if (selectedMosseCard && 
+        location === 'field' && 
+        card.type === 'personaggi' && 
+        card.owner !== playerName) {
+      
+      // Attack: Make the PERSONAGGI card shake
+      socket.emit('mosse-attack', { 
+        mosseCardId: selectedMosseCard.id,
+        targetCardId: card.id,
+        attackerName: playerName,
+        targetOwner: card.owner
+      });
+      
+      // Clear the selected MOSSE card
+      setSelectedMosseCard(null);
+      return;
+    }
+
+    // If this is a MOSSE card in hand, select it for attacking
+    if (location === 'hand' && card.type === 'mosse' && card.owner === playerName) {
+      setSelectedMosseCard(selectedMosseCard?.id === card.id ? null : card);
+      setSelectedCard(null);
+      return;
+    }
+
+    // Regular card click behavior
     if (location === 'field') {
       setSelectedCard(card);
+      setSelectedMosseCard(null);
     } else if (location === 'graveyard') {
       setShowActions(!showActions);
+      setSelectedMosseCard(null);
     } else {
       setSelectedCard(card);
+      setSelectedMosseCard(null);
     }
   };
 
@@ -70,6 +109,8 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
 
   const isOwner = card.owner === playerName;
   const otherPlayers = Object.keys(gameState?.players || {}).filter(p => p !== playerName);
+  const isShaking = shakingCards.has(card.id);
+  const isMosseSelected = selectedMosseCard?.id === card.id;
 
   return (
     <div className="flex flex-col gap-2">
@@ -78,7 +119,9 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         <img
           src={showBack ? card.backImage : card.frontImage}
           alt="Card"
-          className="w-20 h-28 rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg"
+          className={`w-20 h-28 rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg 
+            ${isShaking ? 'animate-shake' : ''} 
+            ${isMosseSelected ? 'ring-4 ring-red-500 ring-opacity-70' : ''}`}
           onClick={handleCardClick}
         />
         

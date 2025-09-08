@@ -105,6 +105,18 @@ export const GameBoard: React.FC = () => {
       setScenarioCardsActive(active);
     };
 
+    const handleCardAttacked = ({ targetCardId }: { targetCardId: string }) => {
+      const { addShakingCard, removeShakingCard } = useGameState.getState();
+      
+      // Start shaking animation
+      addShakingCard(targetCardId);
+      
+      // Stop shaking after 2 seconds
+      setTimeout(() => {
+        removeShakingCard(targetCardId);
+      }, 2000);
+    };
+
     socket.on('game-reset', handleGameReset);
     socket.on('card-shown', handleCardShown);
     socket.on('card-show-confirmed', handleCardShowConfirmed);
@@ -113,6 +125,7 @@ export const GameBoard: React.FC = () => {
     socket.on('graveyard-milestone', handleGraveyardMilestone);
     socket.on('chat-message', handleChatMessage);
     socket.on('scenario-cards-toggled', handleScenarioCardsToggled);
+    socket.on('card-attacked', handleCardAttacked);
 
     return () => {
       socket.off('game-reset', handleGameReset);
@@ -123,6 +136,7 @@ export const GameBoard: React.FC = () => {
       socket.off('graveyard-milestone', handleGraveyardMilestone);
       socket.off('chat-message', handleChatMessage);
       socket.off('scenario-cards-toggled', handleScenarioCardsToggled);
+      socket.off('card-attacked', handleCardAttacked);
     };
   }, []);
 

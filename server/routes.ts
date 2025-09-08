@@ -225,6 +225,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on('mosse-attack', ({ mosseCardId, targetCardId, attackerName, targetOwner }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        // Broadcast the attack to all players so they can see the shaking animation
+        io.to(gameId).emit('card-attacked', {
+          mosseCardId,
+          targetCardId,
+          attackerName,
+          targetOwner,
+          timestamp: Date.now()
+        });
+      }
+    });
+
     socket.on('disconnect', () => {
       console.log('Player disconnected:', socket.id);
       gameManager.removePlayer(socket.id);
