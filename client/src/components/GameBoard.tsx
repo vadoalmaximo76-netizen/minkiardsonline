@@ -9,10 +9,11 @@ import { CardModal } from "./CardModal";
 import { DiceModal } from "./DiceModal";
 import { FullScreenNotification } from "./FullScreenNotification";
 import { useGameState } from "../lib/stores/useGameState";
+import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
-import { MessageCircle, Calculator as CalcIcon } from "lucide-react";
+import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX } from "lucide-react";
 
 export const GameBoard: React.FC = () => {
   const [chatOpen, setChatOpen] = useState(false);
@@ -30,6 +31,7 @@ export const GameBoard: React.FC = () => {
   const [ciaoNotificationVisible, setCiaoNotificationVisible] = useState(false);
   const [ciaoCardName, setCiaoCardName] = useState<string>("");
   const { selectedCard, gameId, playerName } = useGameState();
+  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, initAudioContext, toggleMute, isMuted } = useAudio();
 
   const shareInviteLink = () => {
     const link = `${window.location.origin}?game=${gameId}`;
@@ -45,9 +47,23 @@ export const GameBoard: React.FC = () => {
     }
   };
 
+  // Initialize audio context and play game start sound on mount
+  useEffect(() => {
+    initAudioContext();
+    // Play game start sound after a brief delay
+    setTimeout(() => {
+      playGameStart();
+    }, 500);
+  }, []);
+
   useEffect(() => {
     const handleGameReset = ({ message }: { message: string }) => {
       alert(message);
+    };
+
+    const handlePlayerJoined = ({ playerName: newPlayer }: { playerName: string }) => {
+      // Play sound when a new player joins
+      playPlayerJoin();
     };
 
     const handleCardShown = ({ cardImage, fromPlayer, message }: { cardImage: string, fromPlayer: string, message: string }) => {
@@ -101,6 +117,8 @@ export const GameBoard: React.FC = () => {
       if (!chatOpen) {
         setUnreadMessages(prev => prev + 1);
       }
+      // Play chat message sound
+      playChatMessage();
     };
 
     const handleScenarioCardsToggled = ({ active }: { active: boolean }) => {
@@ -123,6 +141,9 @@ export const GameBoard: React.FC = () => {
       setCiaoCardName(cardName);
       setCiaoNotificationVisible(true);
       
+      // Play lose sound when card goes to graveyard
+      playCardToGraveyard();
+      
       // Auto-hide after 3 seconds
       setTimeout(() => {
         setCiaoNotificationVisible(false);
@@ -139,6 +160,7 @@ export const GameBoard: React.FC = () => {
     socket.on('scenario-cards-toggled', handleScenarioCardsToggled);
     socket.on('card-attacked', handleCardAttacked);
     socket.on('card-to-graveyard', handleCardToGraveyard);
+    socket.on('player-joined', handlePlayerJoined);
 
     return () => {
       socket.off('game-reset', handleGameReset);
@@ -151,6 +173,7 @@ export const GameBoard: React.FC = () => {
       socket.off('scenario-cards-toggled', handleScenarioCardsToggled);
       socket.off('card-attacked', handleCardAttacked);
       socket.off('card-to-graveyard', handleCardToGraveyard);
+      socket.off('player-joined', handlePlayerJoined);
     };
   }, []);
 
@@ -278,10 +301,23 @@ export const GameBoard: React.FC = () => {
           <Graveyard onClose={() => setGraveyardOpen(false)} />
         )}
 
+        {/* Sound Toggle Button */}
+        <Button
+          onClick={() => {
+            initAudioContext();
+            toggleMute();
+          }}
+          className="fixed bottom-4 right-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-full p-3 z-50 shadow-lg hover:shadow-xl transition-all duration-200"
+          style={{ position: 'fixed' }}
+          title={isMuted ? "Enable sound" : "Disable sound"}
+        >
+          {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+        </Button>
+
         {/* Calculator Button */}
         <Button
           onClick={() => setCalculatorOpen(!calculatorOpen)}
-          className="fixed bottom-4 right-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-full p-3 z-50 shadow-lg hover:shadow-xl transition-all duration-200"
+          className="fixed bottom-20 right-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-full p-3 z-50 shadow-lg hover:shadow-xl transition-all duration-200"
           style={{ position: 'fixed' }}
         >
           <CalcIcon size={24} />
@@ -296,7 +332,7 @@ export const GameBoard: React.FC = () => {
               setUnreadMessages(0);
             }
           }}
-          className="fixed bottom-20 right-2 bg-sky-blue hover:bg-sky-blue/80 text-white font-bold rounded-full p-3 relative z-50 shadow-lg hover:shadow-xl transition-all duration-200"
+          className="fixed bottom-36 right-2 bg-sky-blue hover:bg-sky-blue/80 text-white font-bold rounded-full p-3 relative z-50 shadow-lg hover:shadow-xl transition-all duration-200"
           style={{ position: 'fixed' }}
         >
           <MessageCircle size={24} />
@@ -311,7 +347,7 @@ export const GameBoard: React.FC = () => {
         {/* Calculator */}
         {calculatorOpen && (
           <div 
-            className="fixed bottom-16 right-2 w-80 h-96 z-40 animate-in slide-in-from-right-5 fade-in duration-300"
+            className="fixed bottom-32 right-2 w-80 h-96 z-40 animate-in slide-in-from-right-5 fade-in duration-300"
             style={{ position: 'fixed' }}
           >
             <Calculator onClose={() => setCalculatorOpen(false)} />
@@ -321,7 +357,7 @@ export const GameBoard: React.FC = () => {
         {/* Chat */}
         {chatOpen && (
           <div 
-            className="fixed bottom-36 right-2 w-80 h-96 z-40 animate-in slide-in-from-right-5 fade-in duration-300"
+            className="fixed bottom-52 right-2 w-80 h-96 z-40 animate-in slide-in-from-right-5 fade-in duration-300"
             style={{ position: 'fixed' }}
           >
             <Chat onClose={() => setChatOpen(false)} />
