@@ -27,6 +27,8 @@ export const GameBoard: React.FC = () => {
   const [notificationTitle, setNotificationTitle] = useState<string>("");
   const [unreadMessages, setUnreadMessages] = useState<number>(0);
   const [scenarioCardsActive, setScenarioCardsActive] = useState<boolean>(false);
+  const [ciaoNotificationVisible, setCiaoNotificationVisible] = useState(false);
+  const [ciaoCardName, setCiaoCardName] = useState<string>("");
   const { selectedCard, gameId, playerName } = useGameState();
 
   const shareInviteLink = () => {
@@ -117,6 +119,16 @@ export const GameBoard: React.FC = () => {
       }, 2000);
     };
 
+    const handleCardToGraveyard = ({ cardName }: { cardName: string }) => {
+      setCiaoCardName(cardName);
+      setCiaoNotificationVisible(true);
+      
+      // Auto-hide after 3 seconds
+      setTimeout(() => {
+        setCiaoNotificationVisible(false);
+      }, 3000);
+    };
+
     socket.on('game-reset', handleGameReset);
     socket.on('card-shown', handleCardShown);
     socket.on('card-show-confirmed', handleCardShowConfirmed);
@@ -126,6 +138,7 @@ export const GameBoard: React.FC = () => {
     socket.on('chat-message', handleChatMessage);
     socket.on('scenario-cards-toggled', handleScenarioCardsToggled);
     socket.on('card-attacked', handleCardAttacked);
+    socket.on('card-to-graveyard', handleCardToGraveyard);
 
     return () => {
       socket.off('game-reset', handleGameReset);
@@ -137,6 +150,7 @@ export const GameBoard: React.FC = () => {
       socket.off('chat-message', handleChatMessage);
       socket.off('scenario-cards-toggled', handleScenarioCardsToggled);
       socket.off('card-attacked', handleCardAttacked);
+      socket.off('card-to-graveyard', handleCardToGraveyard);
     };
   }, []);
 
@@ -316,6 +330,17 @@ export const GameBoard: React.FC = () => {
 
         {/* Card Modal */}
         {selectedCard && <CardModal />}
+
+        {/* Ciao Ciao Notification */}
+        {ciaoNotificationVisible && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+            <div className="bg-gray-800/90 backdrop-blur-sm rounded-lg p-8 text-center border-2 border-yellow-400 shadow-2xl">
+              <div className="text-6xl mb-4 animate-wave">👋</div>
+              <h2 className="text-white font-bold text-3xl mb-2">Ciao ciao</h2>
+              <p className="text-yellow-400 font-semibold text-xl">{ciaoCardName}</p>
+            </div>
+          </div>
+        )}
 
         {/* Dice Modal */}
         <DiceModal 

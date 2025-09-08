@@ -223,7 +223,7 @@ export class GameManager {
     }
   }
 
-  moveToGraveyard(gameId: string, cardId: string, playerName: string): { success: boolean, graveyardCount?: number } {
+  moveToGraveyard(gameId: string, cardId: string, playerName: string): { success: boolean, graveyardCount?: number, cardImage?: string } {
     const game = this.games.get(gameId);
     if (!game) return { success: false };
 
@@ -240,7 +240,7 @@ export class GameManager {
           graveyardCard => graveyardCard.eliminatedBy === playerName
         ).length;
 
-        return { success: true, graveyardCount };
+        return { success: true, graveyardCount, cardImage: card.frontImage };
       }
     }
     

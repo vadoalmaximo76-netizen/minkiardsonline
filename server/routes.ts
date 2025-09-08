@@ -93,6 +93,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const gameState = gameManager.getGameState(gameId);
           io.to(gameId).emit('game-state-update', gameState);
 
+          // Get card name from image URL for "Ciao ciao" notification
+          if (result.cardImage) {
+            const getCardNameFromUrl = (url: string) => {
+              const parts = url.split('/');
+              const filename = parts[parts.length - 1];
+              // Remove file extension and replace hyphens/underscores with spaces
+              return filename
+                .toLowerCase()
+                .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+                .replace(/[-_]/g, ' ')
+                .split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+            };
+            
+            const cardName = getCardNameFromUrl(result.cardImage);
+            
+            // Emit "Ciao ciao" notification
+            io.to(gameId).emit('card-to-graveyard', {
+              cardName,
+              playerName
+            });
+          }
+
           // Check for milestone achievements
           if (result.graveyardCount === 3 || result.graveyardCount === 5) {
             const titles = [
