@@ -12,6 +12,21 @@ export const CardModal: React.FC = () => {
   const isOwner = selectedCard.owner === playerName;
   const players = Object.keys(gameState?.players || {}).filter(p => p !== playerName);
   
+  // Extract card name from the frontImage URL
+  const getCardName = (imageUrl: string) => {
+    try {
+      const url = new URL(imageUrl);
+      const pathname = url.pathname;
+      const filename = pathname.split('/').pop() || '';
+      // Remove file extension and return the name
+      return filename.replace(/\.[^/.]+$/, '');
+    } catch {
+      return 'Card';
+    }
+  };
+
+  const cardName = getCardName(selectedCard.frontImage);
+  
   // Determine the card location (we need to check where the card is)
   const isInField = gameState?.field?.some(card => card.id === selectedCard.id);
   const isInGraveyard = gameState?.graveyard?.some(card => card.id === selectedCard.id);
@@ -54,7 +69,7 @@ export const CardModal: React.FC = () => {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-white font-bold text-lg">Card Actions</h3>
+          <h3 className="text-white font-bold text-lg">{cardName}</h3>
           <Button
             onClick={handleClose}
             className="bg-sky-blue hover:bg-sky-blue/80 text-white p-2"
