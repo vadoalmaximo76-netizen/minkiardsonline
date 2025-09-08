@@ -38,6 +38,8 @@ export const GameBoard: React.FC = () => {
   const handleResetGame = () => {
     if (confirm("Sei sicuro di voler ricominciare la partita? Tutte le carte verranno rimesse nei mazzi.")) {
       socket.emit('reset-game', { gameId });
+      // Reset scenario cards state when game is reset
+      setScenarioCardsActive(false);
     }
   };
 
@@ -99,6 +101,10 @@ export const GameBoard: React.FC = () => {
       }
     };
 
+    const handleScenarioCardsToggled = ({ active }: { active: boolean }) => {
+      setScenarioCardsActive(active);
+    };
+
     socket.on('game-reset', handleGameReset);
     socket.on('card-shown', handleCardShown);
     socket.on('card-show-confirmed', handleCardShowConfirmed);
@@ -106,6 +112,7 @@ export const GameBoard: React.FC = () => {
     socket.on('dice-window-opened', handleDiceWindowOpen);
     socket.on('graveyard-milestone', handleGraveyardMilestone);
     socket.on('chat-message', handleChatMessage);
+    socket.on('scenario-cards-toggled', handleScenarioCardsToggled);
 
     return () => {
       socket.off('game-reset', handleGameReset);
@@ -115,6 +122,7 @@ export const GameBoard: React.FC = () => {
       socket.off('dice-window-opened', handleDiceWindowOpen);
       socket.off('graveyard-milestone', handleGraveyardMilestone);
       socket.off('chat-message', handleChatMessage);
+      socket.off('scenario-cards-toggled', handleScenarioCardsToggled);
     };
   }, []);
 
