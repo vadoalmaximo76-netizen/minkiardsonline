@@ -139,7 +139,10 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
 
       {/* Zoomed Card Modal */}
       {selectedCardForZoom && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-70 p-4">
+        <div 
+          className="fixed inset-0 bg-black/80 flex items-center justify-center p-4"
+          style={{ zIndex: 9999 }}
+        >
           <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full text-center">
             <div className="mb-4">
               <img
