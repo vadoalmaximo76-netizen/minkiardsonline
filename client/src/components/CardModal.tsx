@@ -65,7 +65,7 @@ export const CardModal: React.FC = () => {
           <img
             src={selectedCard.frontImage}
             alt="Card"
-            className="w-48 h-72 rounded-lg shadow-lg"
+            className="w-40 h-56 rounded-lg shadow-lg"
           />
         </div>
 

@@ -55,7 +55,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         <img
           src={showBack ? card.backImage : card.frontImage}
           alt="Card"
-          className="w-24 h-36 rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg"
+          className="w-20 h-28 rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg"
           onClick={handleCardClick}
         />
         
@@ -71,7 +71,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         value={cardText}
         onChange={handleTextChange}
         placeholder="Add note..."
-        className="w-24 h-12 text-xs p-1 rounded resize-none"
+        className="w-20 h-10 text-xs p-1 rounded resize-none"
         disabled={!isOwner && location === 'hand'}
       />
 

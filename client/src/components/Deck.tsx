@@ -32,7 +32,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
         <img
           src={backImage}
           alt={`${name} back`}
-          className="w-32 h-48 rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg"
+          className="w-28 h-40 rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg"
           onClick={handlePickCard}
         />
         
