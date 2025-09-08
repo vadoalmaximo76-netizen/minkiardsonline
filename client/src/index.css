@@ -12,6 +12,21 @@
   animation: shake 0.5s ease-in-out 4;
 }
 
+@keyframes shuffle {
+  0% { transform: translateX(0) rotate(0deg) scale(1); }
+  15% { transform: translateX(-8px) rotate(-3deg) scale(1.05); }
+  30% { transform: translateX(8px) rotate(3deg) scale(0.95); }
+  45% { transform: translateX(-6px) rotate(-2deg) scale(1.05); }
+  60% { transform: translateX(6px) rotate(2deg) scale(0.95); }
+  75% { transform: translateX(-3px) rotate(-1deg) scale(1.02); }
+  90% { transform: translateX(3px) rotate(1deg) scale(0.98); }
+  100% { transform: translateX(0) rotate(0deg) scale(1); }
+}
+
+.animate-shuffle {
+  animation: shuffle 1s ease-in-out;
+}
+
 @layer base {
   * {
     @apply border-border;

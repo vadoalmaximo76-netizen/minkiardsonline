@@ -13,11 +13,21 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
   const { gameState, playerName } = useGameState();
   const [showBrowser, setShowBrowser] = useState(false);
   const [selectedCardForZoom, setSelectedCardForZoom] = useState<any>(null);
+  const [isShuffling, setIsShuffling] = useState(false);
   
   const remainingCards = gameState?.decks?.[type]?.length || 0;
 
   const handleShuffle = () => {
+    // Start shuffle animation
+    setIsShuffling(true);
+    
+    // Send shuffle request to server
     socket.emit('shuffle-deck', { deckType: type });
+    
+    // Stop animation after 1 second
+    setTimeout(() => {
+      setIsShuffling(false);
+    }, 1000);
   };
 
   const handlePickCard = () => {
@@ -72,7 +82,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
         <img
           src={backImage}
           alt={`${name} back`}
-          className="w-28 h-40 rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg"
+          className={`w-28 h-40 rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg ${isShuffling ? 'animate-shuffle' : ''}`}
           onClick={handlePickCard}
         />
         
