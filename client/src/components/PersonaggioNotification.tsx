@@ -5,15 +5,13 @@ interface PersonaggioNotificationProps {
   cardName: string;
   message: string;
   cardImage: string;
-  onComplete?: () => void;
 }
 
 export const PersonaggioNotification: React.FC<PersonaggioNotificationProps> = ({
   isVisible,
   cardName,
   message,
-  cardImage,
-  onComplete
+  cardImage
 }) => {
   if (!isVisible) return null;
 
