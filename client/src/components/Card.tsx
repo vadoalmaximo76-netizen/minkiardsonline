@@ -18,10 +18,15 @@ interface CardProps {
 
 export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) => {
   const [cardText, setCardText] = useState(card.text || "");
+  const [showActions, setShowActions] = useState(false);
   const { setSelectedCard, playerName } = useGameState();
 
   const handleCardClick = () => {
-    setSelectedCard(card);
+    if (location === 'field' || location === 'graveyard') {
+      setShowActions(!showActions);
+    } else {
+      setSelectedCard(card);
+    }
   };
 
   const handlePlay = () => {
@@ -86,7 +91,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         </Button>
       )}
 
-      {(location === 'field' || location === 'graveyard') && (
+      {(location === 'field' || location === 'graveyard') && showActions && (
         <div className="flex flex-wrap gap-1">
           {isOwner && (
             <>

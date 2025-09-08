@@ -69,54 +69,21 @@ export const CardModal: React.FC = () => {
           />
         </div>
 
-        {/* Action buttons */}
+        {/* Action buttons - Only show CEDI for hand cards */}
         <div className="space-y-3">
-          {isOwner && (
-            <>
-              <Button
-                onClick={handleReturnToHand}
-                className="w-full bg-sky-blue hover:bg-sky-blue/80 text-white font-bold py-3"
-              >
-                RIMETTI IN MANO
-              </Button>
-              
-              <Button
-                onClick={handleReturnToDeck}
-                className="w-full bg-sky-blue hover:bg-sky-blue/80 text-white font-bold py-3"
-              >
-                RIMETTI NEL MAZZO
-              </Button>
-              
-              <Button
-                onClick={handleMoveToGraveyard}
-                className="w-full bg-sky-blue hover:bg-sky-blue/80 text-white font-bold py-3"
-              >
-                METTI NEL CIMITERO
-              </Button>
-              
-              <Button
-                onClick={handleSposta}
-                className="w-full bg-sky-blue hover:bg-sky-blue/80 text-white font-bold py-3"
-              >
-                SPOSTA
-              </Button>
-
-              {/* CEDI button with player selection */}
-              {players.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-white text-sm">CEDI A:</p>
-                  {players.map((player) => (
-                    <Button
-                      key={player}
-                      onClick={() => handleCedi(player)}
-                      className="w-full bg-sky-blue hover:bg-sky-blue/80 text-white font-bold py-2"
-                    >
-                      {player}
-                    </Button>
-                  ))}
-                </div>
-              )}
-            </>
+          {isOwner && players.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-white text-sm">CEDI A:</p>
+              {players.map((player) => (
+                <Button
+                  key={player}
+                  onClick={() => handleCedi(player)}
+                  className="w-full bg-sky-blue hover:bg-sky-blue/80 text-white font-bold py-2"
+                >
+                  {player}
+                </Button>
+              ))}
+            </div>
           )}
         </div>
       </div>
