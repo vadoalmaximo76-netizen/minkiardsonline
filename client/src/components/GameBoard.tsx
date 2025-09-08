@@ -11,6 +11,7 @@ import { FullScreenNotification } from "./FullScreenNotification";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
+import { Checkbox } from "./ui/checkbox";
 import { MessageCircle, Calculator as CalcIcon } from "lucide-react";
 
 export const GameBoard: React.FC = () => {
@@ -25,6 +26,7 @@ export const GameBoard: React.FC = () => {
   const [notificationCardCount, setNotificationCardCount] = useState<number>(0);
   const [notificationTitle, setNotificationTitle] = useState<string>("");
   const [unreadMessages, setUnreadMessages] = useState<number>(0);
+  const [scenarioCardsActive, setScenarioCardsActive] = useState<boolean>(false);
   const { selectedCard, gameId, playerName } = useGameState();
 
   const shareInviteLink = () => {
@@ -195,11 +197,33 @@ export const GameBoard: React.FC = () => {
             backImage="https://i.imgur.com/6MUXCZO.png"
             type="mosse"
           />
-          <Deck
-            name="BONUS"
-            backImage="https://i.imgur.com/lEROr3r.png"
-            type="bonus"
-          />
+          <div className="flex flex-col items-center">
+            <Deck
+              name="BONUS"
+              backImage="https://i.imgur.com/lEROr3r.png"
+              type="bonus"
+            />
+            {/* ATTIVA SCENARI checkbox */}
+            <div className="flex items-center space-x-2 mt-2">
+              <Checkbox
+                id="attiva-scenari"
+                checked={scenarioCardsActive}
+                onCheckedChange={(checked) => {
+                  setScenarioCardsActive(checked as boolean);
+                  socket.emit('toggle-scenario-cards', { 
+                    gameId, 
+                    active: checked as boolean 
+                  });
+                }}
+              />
+              <label
+                htmlFor="attiva-scenari"
+                className="text-sm font-medium text-white cursor-pointer select-none"
+              >
+                ATTIVA SCENARI
+              </label>
+            </div>
+          </div>
           <Deck
             name="PERSONAGGI SPECIALI"
             backImage="https://i.imgur.com/ipVd57A.png"
