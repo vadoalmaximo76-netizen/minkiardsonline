@@ -73,7 +73,7 @@ export const CardModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
+      <div className="bg-gray-800 rounded-lg p-6 max-w-lg w-full">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-white font-bold text-lg">{cardName}</h3>
           <Button
@@ -90,7 +90,7 @@ export const CardModal: React.FC = () => {
           <img
             src={selectedCard.frontImage}
             alt="Card"
-            className="w-40 h-56 rounded-lg shadow-lg"
+            className="w-64 h-80 rounded-lg shadow-lg"
           />
         </div>
 
