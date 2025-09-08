@@ -23,7 +23,9 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const { setSelectedCard, playerName, gameState } = useGameState();
 
   const handleCardClick = () => {
-    if (location === 'field' || location === 'graveyard') {
+    if (location === 'field') {
+      setSelectedCard(card);
+    } else if (location === 'graveyard') {
       setShowActions(!showActions);
     } else {
       setSelectedCard(card);
@@ -116,7 +118,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         </div>
       )}
 
-      {(location === 'field' || location === 'graveyard') && showActions && (
+      {location === 'graveyard' && showActions && (
         <div className="flex flex-wrap gap-1">
           {isOwner && (
             <>
@@ -134,15 +136,6 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
               >
                 RIMETTI NEL MAZZO
               </Button>
-              {location === 'field' && (
-                <Button
-                  onClick={handleMoveToGraveyard}
-                  className="bg-sky-blue hover:bg-sky-blue/80 text-white font-bold text-xs px-1 py-1"
-                  size="sm"
-                >
-                  METTI NEL CIMITERO
-                </Button>
-              )}
             </>
           )}
         </div>

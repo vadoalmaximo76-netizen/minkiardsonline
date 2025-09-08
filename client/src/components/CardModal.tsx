@@ -11,6 +11,10 @@ export const CardModal: React.FC = () => {
 
   const isOwner = selectedCard.owner === playerName;
   const players = Object.keys(gameState?.players || {}).filter(p => p !== playerName);
+  
+  // Determine the card location (we need to check where the card is)
+  const isInField = gameState?.field?.some(card => card.id === selectedCard.id);
+  const isInGraveyard = gameState?.graveyard?.some(card => card.id === selectedCard.id);
 
   const handleClose = () => {
     setSelectedCard(null);
@@ -69,9 +73,36 @@ export const CardModal: React.FC = () => {
           />
         </div>
 
-        {/* Action buttons - Only show CEDI for hand cards */}
+        {/* Action buttons */}
         <div className="space-y-3">
-          {isOwner && players.length > 0 && (
+          {/* Field card actions */}
+          {isInField && isOwner && (
+            <>
+              <Button
+                onClick={handleReturnToHand}
+                className="w-full bg-sky-blue hover:bg-sky-blue/80 text-white font-bold py-3"
+              >
+                RIMETTI IN MANO
+              </Button>
+              
+              <Button
+                onClick={handleReturnToDeck}
+                className="w-full bg-sky-blue hover:bg-sky-blue/80 text-white font-bold py-3"
+              >
+                RIMETTI NEL MAZZO
+              </Button>
+              
+              <Button
+                onClick={handleMoveToGraveyard}
+                className="w-full bg-sky-blue hover:bg-sky-blue/80 text-white font-bold py-3"
+              >
+                METTI NEL CIMITERO
+              </Button>
+            </>
+          )}
+
+          {/* Hand card actions - Only show CEDI for hand cards */}
+          {!isInField && !isInGraveyard && isOwner && players.length > 0 && (
             <div className="space-y-2">
               <p className="text-white text-sm">CEDI A:</p>
               {players.map((player) => (
