@@ -15,7 +15,7 @@ import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
-import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus } from "lucide-react";
+import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull } from "lucide-react";
 
 export const GameBoard: React.FC = () => {
   const [chatOpen, setChatOpen] = useState(false);
@@ -235,24 +235,8 @@ export const GameBoard: React.FC = () => {
             )}
           </div>
           <div className="flex flex-col gap-2">
-            {/* First row: DADO, CIMITERO, and REGOLAMENTO */}
+            {/* First row: REGOLAMENTO only */}
             <div className="flex gap-2 justify-end">
-              <Button
-                onClick={() => {
-                  setDiceOpen(true);
-                  // Notify all players that the dice window is being opened
-                  socket.emit('open-dice-window', { gameId, playerName });
-                }}
-                className="bg-orange-600 hover:bg-orange-700 text-white font-bold"
-              >
-                DADO
-              </Button>
-              <Button
-                onClick={() => setGraveyardOpen(!graveyardOpen)}
-                className="bg-purple-600 hover:bg-purple-700 text-white font-bold"
-              >
-                CIMITERO
-              </Button>
               <Button
                 onClick={() => window.open('https://minkiards.wixsite.com/minkiards/post/regolamento-ufficiale', '_blank')}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
@@ -356,6 +340,28 @@ export const GameBoard: React.FC = () => {
           style={{ position: 'fixed' }}
         >
           <CalcIcon size={24} />
+        </Button>
+
+        {/* DADO Button */}
+        <Button
+          onClick={() => {
+            setDiceOpen(true);
+            // Notify all players that the dice window is being opened
+            socket.emit('open-dice-window', { gameId, playerName });
+          }}
+          className="fixed bottom-68 right-2 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-full p-3 z-50 shadow-lg hover:shadow-xl transition-all duration-200"
+          style={{ position: 'fixed' }}
+        >
+          <Dice6 size={24} />
+        </Button>
+
+        {/* CIMITERO Button */}
+        <Button
+          onClick={() => setGraveyardOpen(!graveyardOpen)}
+          className="fixed bottom-52 right-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-full p-3 z-50 shadow-lg hover:shadow-xl transition-all duration-200"
+          style={{ position: 'fixed' }}
+        >
+          <Skull size={24} />
         </Button>
 
         {/* Chat Button */}
