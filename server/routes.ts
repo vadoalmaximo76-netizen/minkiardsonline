@@ -161,6 +161,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on('roll-dice', ({ gameId, playerName }) => {
+      const playerGameId = gameManager.getPlayerGameId(socket.id);
+      if (playerGameId === gameId) {
+        // Generate random number between 1 and 6
+        const result = Math.floor(Math.random() * 6) + 1;
+        
+        // Broadcast dice result to all players in the game
+        io.to(gameId).emit('dice-rolled', {
+          result,
+          playerName,
+          timestamp: Date.now()
+        });
+      }
+    });
+
     socket.on('disconnect', () => {
       console.log('Player disconnected:', socket.id);
       gameManager.removePlayer(socket.id);
