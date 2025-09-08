@@ -162,6 +162,7 @@ export const GameBoard: React.FC = () => {
     };
 
     const handlePersonaggioEnters = ({ cardName, message, cardImage }: { cardName: string, message: string, cardImage: string }) => {
+      console.log('Personaggio enters:', { cardName, message, cardImage });
       setPersonaggioCardName(cardName);
       setPersonaggioMessage(message);
       setPersonaggioCardImage(cardImage);
@@ -408,7 +409,7 @@ export const GameBoard: React.FC = () => {
           isVisible={personaggioNotificationVisible}
           cardName={personaggioCardName}
           message={personaggioMessage}
-          cardImage={personaggioCardImage}
+          cardImage={personaggioCardImage || ""}
         />
 
         {/* Dice Modal */}

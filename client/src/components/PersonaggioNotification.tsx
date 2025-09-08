@@ -19,17 +19,26 @@ export const PersonaggioNotification: React.FC<PersonaggioNotificationProps> = (
     <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
       <div className="flex items-center gap-8">
         {/* Card Image with Zoom Animation */}
-        <div className="animate-in zoom-in-50 fade-in duration-500 repeat-infinite alternate-reverse">
-          <img
-            src={cardImage}
-            alt={cardName}
-            className="w-32 h-44 rounded-lg border-4 border-orange-500 shadow-2xl animate-pulse"
-            style={{
-              filter: 'drop-shadow(0 0 20px rgba(255, 165, 0, 0.8))',
-              animation: 'zoom-pulse 1s ease-in-out infinite alternate'
-            }}
-          />
-        </div>
+        {cardImage && (
+          <div className="animate-in zoom-in-50 fade-in duration-500">
+            <img
+              src={cardImage}
+              alt={cardName}
+              className="w-32 h-44 rounded-lg border-4 border-orange-500 shadow-2xl"
+              style={{
+                filter: 'drop-shadow(0 0 20px rgba(255, 165, 0, 0.8))',
+                animation: 'zoom-pulse 1s ease-in-out infinite alternate'
+              }}
+              onError={(e) => {
+                console.error('Failed to load card image:', cardImage);
+                e.currentTarget.style.display = 'none';
+              }}
+              onLoad={() => {
+                console.log('Card image loaded successfully:', cardImage);
+              }}
+            />
+          </div>
+        )}
 
         {/* Notification with Flames */}
         <div className="bg-black/80 border-4 border-orange-500 rounded-lg p-8 text-center relative overflow-hidden animate-in zoom-in-95 fade-in duration-500">
