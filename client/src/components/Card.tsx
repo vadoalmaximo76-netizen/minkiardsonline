@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
+import { X } from "lucide-react";
 
 interface CardProps {
   card: {
@@ -20,6 +21,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const [cardText, setCardText] = useState(card.text || "");
   const [showActions, setShowActions] = useState(false);
   const [showPlayerSelect, setShowPlayerSelect] = useState(false);
+  const [isEliminated, setIsEliminated] = useState(false);
   const { 
     setSelectedCard, 
     playerName, 
@@ -105,6 +107,18 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     const newText = e.target.value;
     setCardText(newText);
     socket.emit('update-card-text', { cardId: card.id, text: newText });
+    
+    // Check if "0" was entered for a PERSONAGGI card
+    if (newText === "0" && card.type === 'personaggi' && location === 'field') {
+      // Trigger elimination animation
+      setIsEliminated(true);
+      
+      // Send elimination event to server after animation delay
+      setTimeout(() => {
+        socket.emit('eliminate-personaggi', { cardId: card.id, playerName: card.owner });
+        setIsEliminated(false);
+      }, 2000); // 2 second animation
+    }
   };
 
   const isOwner = card.owner === playerName;
@@ -128,6 +142,13 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         {location === 'field' && (
           <div className="absolute -top-2 left-0 bg-black/70 text-white px-2 py-1 rounded text-xs">
             {card.owner}
+          </div>
+        )}
+        
+        {/* Red X elimination animation */}
+        {isEliminated && (
+          <div className="absolute inset-0 flex items-center justify-center bg-red-600/50 rounded-lg animate-pulse">
+            <X size={32} className="text-white animate-ping" />
           </div>
         )}
       </div>

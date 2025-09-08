@@ -330,6 +330,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on('eliminate-personaggi', ({ cardId, playerName }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        const success = gameManager.eliminatePersonaggi(gameId, cardId, playerName);
+        if (success) {
+          const gameState = gameManager.getGameState(gameId);
+          io.to(gameId).emit('game-state-update', gameState);
+        }
+      }
+    });
+
     socket.on('move-card-position', ({ cardId, direction, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {

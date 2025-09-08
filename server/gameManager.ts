@@ -461,6 +461,28 @@ export class GameManager {
     }
   }
 
+  eliminatePersonaggi(gameId: string, cardId: string, playerName: string): boolean {
+    const game = this.games.get(gameId);
+    if (!game) return false;
+
+    try {
+      // Find the card in the field
+      const cardIndex = game.field.findIndex(card => card.id === cardId && card.type === 'personaggi');
+      if (cardIndex === -1) return false;
+
+      const card = game.field.splice(cardIndex, 1)[0];
+      
+      // Mark as eliminated and add to graveyard
+      card.eliminatedBy = playerName;
+      game.graveyard.push(card);
+
+      return true;
+    } catch (error) {
+      console.error('Error eliminating personaggi card:', error);
+      return false;
+    }
+  }
+
   moveCardPosition(gameId: string, cardId: string, direction: 'left' | 'right'): boolean {
     const game = this.games.get(gameId);
     if (!game) return false;
