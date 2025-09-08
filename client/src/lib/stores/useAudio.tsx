@@ -23,6 +23,7 @@ interface AudioState {
   playDiceRoll: () => void;
   playDamageSound: () => void;
   playBeeSound: () => void;
+  playCharacterSound: (soundType: string) => void;
   initAudioContext: () => void;
 }
 
@@ -299,5 +300,194 @@ export const useAudio = create<AudioState>((set, get) => ({
     oscillator.start(audioContext.currentTime);
     modulator.stop(audioContext.currentTime + 2);
     oscillator.stop(audioContext.currentTime + 2);
+  },
+
+  playCharacterSound: (soundType: string) => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    switch (soundType.toLowerCase()) {
+      case 'bee':
+        // Use the dedicated bee sound function
+        get().playBeeSound();
+        break;
+      case 'animal_dog':
+        // Dog barking sound
+        const frequencies = [150, 300, 450];
+        frequencies.forEach((freq, index) => {
+          setTimeout(() => {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
+            oscillator.type = 'square';
+            
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.15, audioContext.currentTime + 0.05);
+            gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.3);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.3);
+          }, index * 200);
+        });
+        break;
+
+      case 'animal_cat':
+        // Cat meowing sound
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+        oscillator.frequency.linearRampToValueAtTime(600, audioContext.currentTime + 0.3);
+        oscillator.frequency.linearRampToValueAtTime(350, audioContext.currentTime + 0.6);
+        oscillator.type = 'triangle';
+        
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.12, audioContext.currentTime + 0.1);
+        gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.8);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.8);
+        break;
+
+      case 'animal_bird':
+        // Bird chirping sound
+        for (let i = 0; i < 3; i++) {
+          setTimeout(() => {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            
+            osc.frequency.setValueAtTime(800 + Math.random() * 400, audioContext.currentTime);
+            osc.type = 'sine';
+            
+            gain.gain.setValueAtTime(0, audioContext.currentTime);
+            gain.gain.linearRampToValueAtTime(0.08, audioContext.currentTime + 0.05);
+            gain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.2);
+            
+            osc.start(audioContext.currentTime);
+            osc.stop(audioContext.currentTime + 0.2);
+          }, i * 150);
+        }
+        break;
+
+      case 'robot_mechanical':
+        // Robotic/mechanical sound
+        const robotOsc = audioContext.createOscillator();
+        const robotGain = audioContext.createGain();
+        const filter = audioContext.createBiquadFilter();
+        
+        robotOsc.connect(filter);
+        filter.connect(robotGain);
+        robotGain.connect(audioContext.destination);
+        
+        robotOsc.frequency.setValueAtTime(80, audioContext.currentTime);
+        robotOsc.type = 'square';
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(200, audioContext.currentTime);
+        
+        robotGain.gain.setValueAtTime(0, audioContext.currentTime);
+        robotGain.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.1);
+        robotGain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 1);
+        
+        robotOsc.start(audioContext.currentTime);
+        robotOsc.stop(audioContext.currentTime + 1);
+        break;
+
+      case 'magic_spell':
+        // Magical/spell sound
+        for (let i = 0; i < 5; i++) {
+          setTimeout(() => {
+            const magicOsc = audioContext.createOscillator();
+            const magicGain = audioContext.createGain();
+            
+            magicOsc.connect(magicGain);
+            magicGain.connect(audioContext.destination);
+            
+            magicOsc.frequency.setValueAtTime(200 + i * 100, audioContext.currentTime);
+            magicOsc.type = 'sine';
+            
+            magicGain.gain.setValueAtTime(0, audioContext.currentTime);
+            magicGain.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.1);
+            magicGain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.4);
+            
+            magicOsc.start(audioContext.currentTime);
+            magicOsc.stop(audioContext.currentTime + 0.4);
+          }, i * 100);
+        }
+        break;
+
+      case 'explosion':
+        // Explosion sound
+        const noise = audioContext.createBufferSource();
+        const noiseGain = audioContext.createGain();
+        const bufferSize = audioContext.sampleRate * 0.5;
+        const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+        const data = buffer.getChannelData(0);
+        
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+        
+        noise.buffer = buffer;
+        noise.connect(noiseGain);
+        noiseGain.connect(audioContext.destination);
+        
+        noiseGain.gain.setValueAtTime(0, audioContext.currentTime);
+        noiseGain.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.01);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.5);
+        
+        noise.start(audioContext.currentTime);
+        noise.stop(audioContext.currentTime + 0.5);
+        break;
+
+      case 'human_voice':
+        // Human voice approximation
+        const voiceOsc = audioContext.createOscillator();
+        const voiceGain = audioContext.createGain();
+        
+        voiceOsc.connect(voiceGain);
+        voiceGain.connect(audioContext.destination);
+        
+        voiceOsc.frequency.setValueAtTime(120, audioContext.currentTime);
+        voiceOsc.frequency.linearRampToValueAtTime(150, audioContext.currentTime + 0.3);
+        voiceOsc.frequency.linearRampToValueAtTime(100, audioContext.currentTime + 0.6);
+        voiceOsc.type = 'sawtooth';
+        
+        voiceGain.gain.setValueAtTime(0, audioContext.currentTime);
+        voiceGain.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.1);
+        voiceGain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.8);
+        
+        voiceOsc.start(audioContext.currentTime);
+        voiceOsc.stop(audioContext.currentTime + 0.8);
+        break;
+
+      default:
+        // Default character entrance sound
+        const defaultOsc = audioContext.createOscillator();
+        const defaultGain = audioContext.createGain();
+        
+        defaultOsc.connect(defaultGain);
+        defaultGain.connect(audioContext.destination);
+        
+        defaultOsc.frequency.setValueAtTime(440, audioContext.currentTime);
+        defaultOsc.type = 'triangle';
+        
+        defaultGain.gain.setValueAtTime(0, audioContext.currentTime);
+        defaultGain.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.1);
+        defaultGain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.5);
+        
+        defaultOsc.start(audioContext.currentTime);
+        defaultOsc.stop(audioContext.currentTime + 0.5);
+        break;
+    }
   }
 }));

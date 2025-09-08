@@ -38,7 +38,7 @@ export const GameBoard: React.FC = () => {
   const [personaggioCardImage, setPersonaggioCardImage] = useState<string>("");
   const [addCardsModalOpen, setAddCardsModalOpen] = useState(false);
   const { selectedCard, gameId, playerName } = useGameState();
-  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, initAudioContext, toggleMute, isMuted } = useAudio();
+  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, initAudioContext, toggleMute, isMuted } = useAudio();
 
 
   const shareInviteLink = () => {
@@ -186,6 +186,11 @@ export const GameBoard: React.FC = () => {
       playBeeSound();
     };
 
+    const handleCharacterSound = ({ cardName, playerName, soundType }: { cardName: string, playerName: string, soundType: string }) => {
+      console.log(`Playing ${soundType} sound for ${cardName} played by ${playerName}`);
+      playCharacterSound(soundType);
+    };
+
     socket.on('game-reset', handleGameReset);
     socket.on('card-shown', handleCardShown);
     socket.on('card-show-confirmed', handleCardShowConfirmed);
@@ -200,6 +205,7 @@ export const GameBoard: React.FC = () => {
     socket.on('personaggio-enters', handlePersonaggioEnters);
     socket.on('cards-added', handleCardsAdded);
     socket.on('bee-sound', handleBeeSound);
+    socket.on('character-sound', handleCharacterSound);
 
     return () => {
       socket.off('game-reset', handleGameReset);
@@ -216,6 +222,7 @@ export const GameBoard: React.FC = () => {
       socket.off('personaggio-enters', handlePersonaggioEnters);
       socket.off('cards-added', handleCardsAdded);
       socket.off('bee-sound', handleBeeSound);
+      socket.off('character-sound', handleCharacterSound);
     };
   }, []);
 

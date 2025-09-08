@@ -3,6 +3,29 @@ import { createServer, type Server } from "http";
 import { Server as SocketServer } from "socket.io";
 import { GameManager } from "./gameManager";
 
+// Function to determine sound type based on character name
+function getCharacterSoundType(cardName: string): string | null {
+  const name = cardName.toLowerCase();
+  
+  // Animal sounds - use dedicated bee sound for ape/bee cards, fallback to bee sound in character system
+  if (name.includes('ape') || name.includes('bee')) return 'bee';
+  if (name.includes('cane') || name.includes('dog') || name.includes('bull')) return 'animal_dog';
+  if (name.includes('gatto') || name.includes('cat')) return 'animal_cat';
+  if (name.includes('uccello') || name.includes('bird') || name.includes('pollo') || name.includes('gallo')) return 'animal_bird';
+  
+  // Robot/mechanical sounds
+  if (name.includes('robot') || name.includes('cyber') || name.includes('meccanico') || name.includes('terminator')) return 'robot_mechanical';
+  
+  // Magic/spell sounds
+  if (name.includes('mago') || name.includes('strega') || name.includes('wizard') || name.includes('magic') || name.includes('fatata')) return 'magic_spell';
+  
+  // Explosion sounds
+  if (name.includes('bomba') || name.includes('esplosivo') || name.includes('dynamite') || name.includes('cannone')) return 'explosion';
+  
+  // Human voice for most other characters
+  return 'human_voice';
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   const io = new SocketServer(httpServer, {
@@ -99,11 +122,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             cardImage: result.card.frontImage
           });
 
-          // Check if it's the "Ape" card and emit bee sound event
-          if (cardName.toLowerCase().includes('ape')) {
-            io.to(gameId).emit('bee-sound', {
+          // Determine sound type based on card name and emit character sound event
+          const soundType = getCharacterSoundType(cardName);
+          if (soundType) {
+            io.to(gameId).emit('character-sound', {
               cardName,
-              playerName
+              playerName,
+              soundType
             });
           }
         }
