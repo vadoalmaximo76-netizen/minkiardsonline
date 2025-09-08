@@ -24,6 +24,7 @@ export const GameBoard: React.FC = () => {
   const [notificationPlayer, setNotificationPlayer] = useState<string>("");
   const [notificationCardCount, setNotificationCardCount] = useState<number>(0);
   const [notificationTitle, setNotificationTitle] = useState<string>("");
+  const [unreadMessages, setUnreadMessages] = useState<number>(0);
   const { selectedCard, gameId, playerName } = useGameState();
 
   const shareInviteLink = () => {
@@ -89,12 +90,20 @@ export const GameBoard: React.FC = () => {
       setNotificationVisible(true);
     };
 
+    const handleChatMessage = () => {
+      // Only increment unread count if chat is closed
+      if (!chatOpen) {
+        setUnreadMessages(prev => prev + 1);
+      }
+    };
+
     socket.on('game-reset', handleGameReset);
     socket.on('card-shown', handleCardShown);
     socket.on('card-show-confirmed', handleCardShowConfirmed);
     socket.on('dice-rolled', handleDiceRoll);
     socket.on('dice-window-opened', handleDiceWindowOpen);
     socket.on('graveyard-milestone', handleGraveyardMilestone);
+    socket.on('chat-message', handleChatMessage);
 
     return () => {
       socket.off('game-reset', handleGameReset);
@@ -103,6 +112,7 @@ export const GameBoard: React.FC = () => {
       socket.off('dice-rolled', handleDiceRoll);
       socket.off('dice-window-opened', handleDiceWindowOpen);
       socket.off('graveyard-milestone', handleGraveyardMilestone);
+      socket.off('chat-message', handleChatMessage);
     };
   }, []);
 
@@ -210,10 +220,22 @@ export const GameBoard: React.FC = () => {
 
         {/* Chat Button */}
         <Button
-          onClick={() => setChatOpen(!chatOpen)}
-          className="fixed bottom-4 right-4 bg-sky-blue hover:bg-sky-blue/80 text-white font-bold rounded-full p-3"
+          onClick={() => {
+            setChatOpen(!chatOpen);
+            // Reset unread count when opening chat
+            if (!chatOpen) {
+              setUnreadMessages(0);
+            }
+          }}
+          className="fixed bottom-4 right-4 bg-sky-blue hover:bg-sky-blue/80 text-white font-bold rounded-full p-3 relative"
         >
           <MessageCircle size={24} />
+          {/* Notification Badge */}
+          {unreadMessages > 0 && !chatOpen && (
+            <div className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center min-w-[24px]">
+              {unreadMessages > 99 ? '99+' : unreadMessages}
+            </div>
+          )}
         </Button>
 
         {/* Calculator Button */}
