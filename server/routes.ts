@@ -59,10 +59,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('play-card', ({ cardId, playerName }) => {
+    socket.on('play-card', async ({ cardId, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
-        const result = gameManager.playCard(gameId, cardId, playerName);
+        const result = await gameManager.playCard(gameId, cardId, playerName);
         const gameState = gameManager.getGameState(gameId);
         io.to(gameId).emit('game-state-update', gameState);
         
