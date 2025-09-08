@@ -526,6 +526,30 @@ export const DECK_BACK_IMAGES = {
   personaggi_speciali: "https://i.imgur.com/ipVd57A.png"
 };
 
+// Scenario cards that can be added to BONUS deck when "ATTIVA SCENARI" is enabled
+export const SCENARIO_CARDS = [
+  "https://i.postimg.cc/Fz5YY7D7/ALLEANZA.png",
+  "https://i.postimg.cc/c1wKVBLY/assorbi-potere.png",
+  "https://i.postimg.cc/PrHLhvC7/caldo-infernale.png",
+  "https://i.postimg.cc/FsxYKFcH/cannibalismo.png",
+  "https://i.postimg.cc/VkLd0yBB/casocaos.png",
+  "https://i.postimg.cc/7ZsbgBKv/fenza-1-metro-e-20-alta.png",
+  "https://i.postimg.cc/FKYzGj6Y/GABBIA-DELLA-MORTE.png",
+  "https://i.postimg.cc/KzLzhmxF/GUERRA.png",
+  "https://i.postimg.cc/s2bXLMFw/l-anello-debole.png",
+  "https://i.postimg.cc/6qXQ9FpZ/MONDO-SOMMERSO.png",
+  "https://i.postimg.cc/mkyghVP5/multidado.png",
+  "https://i.postimg.cc/kMQ4jMTv/PACIFISMO.png",
+  "https://i.postimg.cc/3J3wzM65/PALAZZO-KIJI.png",
+  "https://i.postimg.cc/m2VrsXfc/PRENDIAMO-L-INSALATA.png",
+  "https://i.postimg.cc/XYz7Zrv4/REGNO-DEGLI-INFERI.png",
+  "https://i.postimg.cc/mgDg2YBm/REGNO-SPECIALE.png",
+  "https://i.postimg.cc/JhH7jRyJ/ROCCASCIAAANIII.png",
+  "https://i.postimg.cc/Y9cr3TgP/TENUTE-CARRISI.png",
+  "https://i.postimg.cc/LXzH0v38/VEDI-NAPOLI-E-POI-MUORI.png",
+  "https://i.postimg.cc/Rh4MrfgQ/zio-vincenzo-al-volturno.png"
+];
+
 export const DECK_CARD_COUNTS = {
   personaggi: 177,
   mosse: 91,

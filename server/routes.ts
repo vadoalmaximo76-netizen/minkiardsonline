@@ -209,6 +209,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on('toggle-scenario-cards', ({ gameId, active }) => {
+      const playerGameId = gameManager.getPlayerGameId(socket.id);
+      if (playerGameId === gameId) {
+        const success = gameManager.toggleScenarioCards(gameId, active);
+        if (success) {
+          const gameState = gameManager.getGameState(gameId);
+          // Broadcast updated game state and scenario card state to all players
+          io.to(gameId).emit('game-state-update', gameState);
+          io.to(gameId).emit('scenario-cards-toggled', { 
+            active,
+            timestamp: Date.now()
+          });
+        }
+      }
+    });
+
     socket.on('disconnect', () => {
       console.log('Player disconnected:', socket.id);
       gameManager.removePlayer(socket.id);

@@ -1,4 +1,4 @@
-import { CARD_DATA, DECK_BACK_IMAGES } from '../client/src/lib/cardData';
+import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from '../client/src/lib/cardData';
 
 interface Card {
   id: string;
@@ -26,6 +26,7 @@ interface GameState {
   players: Record<string, Player>;
   field: Card[];
   graveyard: Card[];
+  scenarioCardsActive: boolean;
 }
 
 export class GameManager {
@@ -56,7 +57,8 @@ export class GameManager {
       },
       players: {},
       field: [],
-      graveyard: []
+      graveyard: [],
+      scenarioCardsActive: false
     };
 
     // Auto-shuffle all decks when starting a new game
@@ -328,7 +330,43 @@ export class GameManager {
       personaggi_speciali: this.createInitialDeck('personaggi_speciali')
     };
 
+    // Reset scenario cards to inactive
+    game.scenarioCardsActive = false;
+
     // Auto-shuffle all decks when resetting the game
     this.shuffleGameDecks(game);
+  }
+
+  private createScenarioCards(): Card[] {
+    const backImage = DECK_BACK_IMAGES.bonus;
+    
+    return SCENARIO_CARDS.map((frontImage, index) => ({
+      id: `scenario-${index}`,
+      type: 'bonus',
+      frontImage,
+      backImage,
+      owner: '',
+      text: ''
+    }));
+  }
+
+  toggleScenarioCards(gameId: string, active: boolean): boolean {
+    const game = this.games.get(gameId);
+    if (!game) return false;
+
+    game.scenarioCardsActive = active;
+
+    if (active) {
+      // Add scenario cards to bonus deck
+      const scenarioCards = this.createScenarioCards();
+      game.decks.bonus.push(...scenarioCards);
+      // Shuffle the bonus deck after adding scenario cards
+      this.shuffleDeck(gameId, 'bonus');
+    } else {
+      // Remove scenario cards from bonus deck
+      game.decks.bonus = game.decks.bonus.filter(card => !card.id.startsWith('scenario-'));
+    }
+
+    return true;
   }
 }
