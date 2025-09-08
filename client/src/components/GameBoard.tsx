@@ -348,8 +348,8 @@ export const GameBoard: React.FC = () => {
             // Notify all players that the dice window is being opened
             socket.emit('open-dice-window', { gameId, playerName });
           }}
-          className="fixed bottom-68 right-2 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-full p-3 z-50 shadow-lg hover:shadow-xl transition-all duration-200"
-          style={{ position: 'fixed' }}
+          className="fixed right-2 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-full p-3 z-50 shadow-lg hover:shadow-xl transition-all duration-200"
+          style={{ position: 'fixed', bottom: '17rem' }}
         >
           <Dice6 size={24} />
         </Button>
