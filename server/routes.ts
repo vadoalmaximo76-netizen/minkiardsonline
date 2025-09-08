@@ -269,18 +269,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     socket.on('add-custom-cards', ({ gameId, playerName, deckType, images }) => {
-      console.log('Received add-custom-cards:', { gameId, playerName, deckType, imageCount: images.length });
       const playerGameId = gameManager.getPlayerGameId(socket.id);
-      console.log('Player game ID:', playerGameId, 'Expected game ID:', gameId);
       
       if (playerGameId === gameId) {
-        console.log('Adding custom cards to game...');
         const result = gameManager.addCustomCards(gameId, deckType, images);
-        console.log('Add custom cards result:', result);
         
         if (result.success) {
           const gameState = gameManager.getGameState(gameId);
-          console.log('Broadcasting game state update...');
           io.to(gameId).emit('game-state-update', gameState);
           
           // Notify all players about the new cards
@@ -290,12 +285,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             count: images.length,
             deckLabel: deckType.toUpperCase().replace('_', ' ')
           });
-          console.log('Custom cards added successfully');
-        } else {
-          console.error('Failed to add custom cards');
         }
-      } else {
-        console.error('Player not in the specified game');
       }
     });
 

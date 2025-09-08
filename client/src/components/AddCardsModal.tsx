@@ -20,7 +20,6 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   // Listen for cards-added event to reset form
   React.useEffect(() => {
     const handleCardsAdded = () => {
-      console.log('Cards added successfully, resetting form');
       setUploadedImages([]);
       setIsUploading(false);
       onClose();
@@ -58,11 +57,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       }
       
       const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        console.log(`Converted ${file.name} to base64, size: ${result.length} chars`);
-        resolve(result);
-      };
+      reader.onload = () => resolve(reader.result as string);
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
@@ -89,17 +84,12 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       );
 
       // Send to server
-      console.log('Sending add-custom-cards:', { gameId, playerName, deckType: selectedDeck, imageCount: base64Images.length });
       socket.emit('add-custom-cards', {
         gameId,
         playerName,
         deckType: selectedDeck,
         images: base64Images
       });
-
-      // Wait for server confirmation before resetting form
-      // The form will be reset when we receive the 'cards-added' event
-      console.log('Waiting for server confirmation...');
     } catch (error) {
       console.error('Error uploading images:', error);
       alert('Errore durante il caricamento delle immagini');
