@@ -116,6 +116,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on('reset-game', ({ gameId }) => {
+      const playerGameId = gameManager.getPlayerGameId(socket.id);
+      if (playerGameId === gameId) {
+        gameManager.resetGame(gameId);
+        const gameState = gameManager.getGameState(gameId);
+        io.to(gameId).emit('game-state-update', gameState);
+        
+        // Notify all players that the game has been reset
+        io.to(gameId).emit('game-reset', { message: 'La partita è stata riavviata!' });
+      }
+    });
+
     socket.on('disconnect', () => {
       console.log('Player disconnected:', socket.id);
       gameManager.removePlayer(socket.id);

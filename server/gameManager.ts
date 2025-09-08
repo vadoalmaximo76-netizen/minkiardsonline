@@ -265,4 +265,26 @@ export class GameManager {
       if (findAndUpdateCard(player.hand)) return;
     }
   }
+
+  resetGame(gameId: string): void {
+    const game = this.games.get(gameId);
+    if (!game) return;
+
+    // Clear all player hands
+    for (const player of Object.values(game.players)) {
+      player.hand = [];
+    }
+
+    // Clear field and graveyard
+    game.field = [];
+    game.graveyard = [];
+
+    // Recreate all decks with full cards
+    game.decks = {
+      personaggi: this.createInitialDeck('personaggi'),
+      mosse: this.createInitialDeck('mosse'),
+      bonus: this.createInitialDeck('bonus'),
+      personaggi_speciali: this.createInitialDeck('personaggi_speciali')
+    };
+  }
 }

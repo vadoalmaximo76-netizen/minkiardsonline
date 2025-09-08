@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Deck } from "./Deck";
 import { PlayerHand } from "./PlayerHand";
 import { GameField } from "./GameField";
@@ -6,6 +6,7 @@ import { Graveyard } from "./Graveyard";
 import { Chat } from "./Chat";
 import { CardModal } from "./CardModal";
 import { useGameState } from "../lib/stores/useGameState";
+import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
 import { MessageCircle } from "lucide-react";
 
@@ -19,6 +20,24 @@ export const GameBoard: React.FC = () => {
     navigator.clipboard.writeText(link);
     alert("Invitation link copied to clipboard!");
   };
+
+  const handleResetGame = () => {
+    if (confirm("Sei sicuro di voler ricominciare la partita? Tutte le carte verranno rimesse nei mazzi.")) {
+      socket.emit('reset-game', { gameId });
+    }
+  };
+
+  useEffect(() => {
+    const handleGameReset = ({ message }: { message: string }) => {
+      alert(message);
+    };
+
+    socket.on('game-reset', handleGameReset);
+
+    return () => {
+      socket.off('game-reset', handleGameReset);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-royal-blue p-4 relative">
@@ -47,6 +66,12 @@ export const GameBoard: React.FC = () => {
               className="bg-sky-blue hover:bg-sky-blue/80 text-white font-bold"
             >
               INVITE LINK
+            </Button>
+            <Button
+              onClick={handleResetGame}
+              className="bg-red-600 hover:bg-red-700 text-white font-bold"
+            >
+              RICOMINCIA PARTITA
             </Button>
           </div>
         </div>
