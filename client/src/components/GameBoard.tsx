@@ -69,16 +69,24 @@ export const GameBoard: React.FC = () => {
       setDiceOpen(true);
     };
 
+    const handleDiceWindowOpen = ({ playerName: opener }: { playerName: string }) => {
+      setDiceResult(undefined);
+      setPlayerWhoRolled(undefined);
+      setDiceOpen(true);
+    };
+
     socket.on('game-reset', handleGameReset);
     socket.on('card-shown', handleCardShown);
     socket.on('card-show-confirmed', handleCardShowConfirmed);
     socket.on('dice-rolled', handleDiceRoll);
+    socket.on('dice-window-opened', handleDiceWindowOpen);
 
     return () => {
       socket.off('game-reset', handleGameReset);
       socket.off('card-shown', handleCardShown);
       socket.off('card-show-confirmed', handleCardShowConfirmed);
       socket.off('dice-rolled', handleDiceRoll);
+      socket.off('dice-window-opened', handleDiceWindowOpen);
     };
   }, []);
 
@@ -124,7 +132,11 @@ export const GameBoard: React.FC = () => {
               RICOMINCIA PARTITA
             </Button>
             <Button
-              onClick={() => setDiceOpen(true)}
+              onClick={() => {
+                setDiceOpen(true);
+                // Notify all players that the dice window is being opened
+                socket.emit('open-dice-window', { gameId, playerName });
+              }}
               className="bg-orange-600 hover:bg-orange-700 text-white font-bold"
             >
               DADO
