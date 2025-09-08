@@ -66,14 +66,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const gameState = gameManager.getGameState(gameId);
         io.to(gameId).emit('game-state-update', gameState);
         
-        // Debug logging for card play
-        console.log('Card played result:', { 
-          isPersonaggio: result.isPersonaggio, 
-          hasCard: !!result.card,
-          cardType: result.card?.type,
-          cardId: result.card?.id
-        });
-        
         // If a PERSONAGGI card was played, emit special notification
         if (result.isPersonaggio && result.card) {
           const getCardNameFromUrl = (url: string) => {
@@ -99,8 +91,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ];
           
           const selectedMessage = messages[Math.floor(Math.random() * messages.length)];
-          
-          console.log('Emitting personaggio-enters event for:', cardName);
           
           io.to(gameId).emit('personaggio-enters', {
             cardName,
