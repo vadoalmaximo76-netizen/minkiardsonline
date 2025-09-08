@@ -421,6 +421,46 @@ export class GameManager {
     return true;
   }
 
+  removeCardToGraveyard(gameId: string, deckType: string, cardId: string, playerName: string, section: string): boolean {
+    const game = this.games.get(gameId);
+    if (!game) return false;
+
+    try {
+      // Find and remove card from the specified deck
+      let cardToRemove = null;
+      let deckArray = null;
+
+      if (deckType === 'personaggi') {
+        deckArray = game.decks.personaggi;
+      } else if (deckType === 'mosse') {
+        deckArray = game.decks.mosse;
+      } else if (deckType === 'bonus') {
+        deckArray = game.decks.bonus;
+      } else if (deckType === 'personaggi_speciali') {
+        deckArray = game.decks.personaggi_speciali;
+      }
+
+      if (!deckArray) return false;
+
+      const cardIndex = deckArray.findIndex(card => card.id === cardId);
+      if (cardIndex === -1) return false;
+
+      cardToRemove = deckArray.splice(cardIndex, 1)[0];
+
+      // Add section property to the card to distinguish it
+      cardToRemove.eliminatedBy = playerName;
+      cardToRemove.section = section;
+
+      // Add to graveyard
+      game.graveyard.push(cardToRemove);
+
+      return true;
+    } catch (error) {
+      console.error('Error removing card to graveyard:', error);
+      return false;
+    }
+  }
+
   moveCardPosition(gameId: string, cardId: string, direction: 'left' | 'right'): boolean {
     const game = this.games.get(gameId);
     if (!game) return false;

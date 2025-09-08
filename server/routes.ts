@@ -319,6 +319,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on('remove-card-to-graveyard', ({ deckType, cardId, playerName, section }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        const success = gameManager.removeCardToGraveyard(gameId, deckType, cardId, playerName, section);
+        if (success) {
+          const gameState = gameManager.getGameState(gameId);
+          io.to(gameId).emit('game-state-update', gameState);
+        }
+      }
+    });
+
     socket.on('move-card-position', ({ cardId, direction, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {

@@ -54,6 +54,17 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
     setSelectedCardForZoom(null);
   };
 
+  const handleRemoveCard = (cardId: string) => {
+    socket.emit('remove-card-to-graveyard', { 
+      deckType: type, 
+      cardId, 
+      playerName,
+      section: 'CARTE CANCELLATE'
+    });
+    setSelectedCardForZoom(null);
+    setShowBrowser(false);
+  };
+
   // Function to extract filename from URL and sort alphabetically
   const getSortedCards = () => {
     if (!gameState?.decks?.[type]) return [];
@@ -152,16 +163,22 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
               />
             </div>
             
-            <div className="flex gap-4 justify-center">
+            <div className="flex gap-3 justify-center">
               <Button
                 onClick={() => handleCardSelect(selectedCardForZoom.id)}
-                className="bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-3"
+                className="bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-3"
               >
                 PESCA
               </Button>
               <Button
+                onClick={() => handleRemoveCard(selectedCardForZoom.id)}
+                className="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-3"
+              >
+                RIMUOVI
+              </Button>
+              <Button
                 onClick={handleCloseZoom}
-                className="bg-gray-600 hover:bg-gray-700 text-white font-bold px-6 py-3"
+                className="bg-gray-600 hover:bg-gray-700 text-white font-bold px-4 py-3"
               >
                 Chiudi
               </Button>
