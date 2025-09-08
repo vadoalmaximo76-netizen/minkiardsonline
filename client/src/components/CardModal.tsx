@@ -18,10 +18,10 @@ export const CardModal: React.FC = () => {
       const url = new URL(imageUrl);
       const pathname = url.pathname;
       const filename = pathname.split('/').pop() || '';
-      // Remove file extension and return the name
-      return filename.replace(/\.[^/.]+$/, '');
+      // Remove file extension, replace hyphens with spaces, and convert to uppercase
+      return filename.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase();
     } catch {
-      return 'Card';
+      return 'CARD';
     }
   };
 
