@@ -112,35 +112,42 @@ export const GameBoard: React.FC = () => {
               </p>
             )}
           </div>
-          <div className="flex gap-4">
-            <Button
-              onClick={() => setGraveyardOpen(!graveyardOpen)}
-              className="bg-sky-blue hover:bg-sky-blue/80 text-white font-bold"
-            >
-              CIMITERO
-            </Button>
-            <Button
-              onClick={shareInviteLink}
-              className="bg-sky-blue hover:bg-sky-blue/80 text-white font-bold"
-            >
-              INVITE LINK
-            </Button>
-            <Button
-              onClick={handleResetGame}
-              className="bg-red-600 hover:bg-red-700 text-white font-bold"
-            >
-              RICOMINCIA PARTITA
-            </Button>
-            <Button
-              onClick={() => {
-                setDiceOpen(true);
-                // Notify all players that the dice window is being opened
-                socket.emit('open-dice-window', { gameId, playerName });
-              }}
-              className="bg-orange-600 hover:bg-orange-700 text-white font-bold"
-            >
-              DADO
-            </Button>
+          <div className="flex flex-col gap-2">
+            {/* First row: DADO and CIMITERO */}
+            <div className="flex gap-2 justify-end">
+              <Button
+                onClick={() => {
+                  setDiceOpen(true);
+                  // Notify all players that the dice window is being opened
+                  socket.emit('open-dice-window', { gameId, playerName });
+                }}
+                className="bg-orange-600 hover:bg-orange-700 text-white font-bold"
+              >
+                DADO
+              </Button>
+              <Button
+                onClick={() => setGraveyardOpen(!graveyardOpen)}
+                className="bg-purple-600 hover:bg-purple-700 text-white font-bold"
+              >
+                CIMITERO
+              </Button>
+            </div>
+            
+            {/* Second row: INVITA AMICI and RICOMINCIA PARTITA */}
+            <div className="flex gap-2 justify-end">
+              <Button
+                onClick={shareInviteLink}
+                className="bg-sky-blue hover:bg-sky-blue/80 text-white font-bold"
+              >
+                INVITA AMICI
+              </Button>
+              <Button
+                onClick={handleResetGame}
+                className="bg-red-600 hover:bg-red-700 text-white font-bold"
+              >
+                RICOMINCIA PARTITA
+              </Button>
+            </div>
           </div>
         </div>
 
