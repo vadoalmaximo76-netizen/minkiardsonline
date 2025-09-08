@@ -125,6 +125,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on('show-card-to-player', ({ cardId, fromPlayer, toPlayer, cardImage }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        // Find the target player's socket
+        const gameState = gameManager.getGameState(gameId);
+        if (gameState && gameState.players[toPlayer]) {
+          const targetSocketId = gameState.players[toPlayer].socketId;
+          
+          // Send card to specific player
+          io.to(targetSocketId).emit('card-shown', {
+            cardId,
+            fromPlayer,
+            cardImage,
+            message: `${fromPlayer} ti ha mostrato una carta`
+          });
+          
+          // Confirm to sender
+          socket.emit('card-show-confirmed', {
+            message: `Carta mostrata a ${toPlayer}`
+          });
+        }
+      }
+    });
+
     socket.on('reset-game', ({ gameId }) => {
       const playerGameId = gameManager.getPlayerGameId(socket.id);
       if (playerGameId === gameId) {

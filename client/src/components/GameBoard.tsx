@@ -32,10 +32,41 @@ export const GameBoard: React.FC = () => {
       alert(message);
     };
 
+    const handleCardShown = ({ cardImage, fromPlayer, message }: { cardImage: string, fromPlayer: string, message: string }) => {
+      // Create a modal-like notification to show the card
+      const modal = document.createElement('div');
+      modal.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 9999;';
+      
+      modal.innerHTML = `
+        <div style="background: #1f2937; padding: 24px; border-radius: 8px; text-align: center; max-width: 400px;">
+          <h3 style="color: white; margin-bottom: 16px; font-weight: bold;">${message}</h3>
+          <img src="${cardImage}" alt="Shown card" style="width: 160px; height: 224px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); margin-bottom: 16px;">
+          <button style="background: #3b82f6; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;" onclick="this.closest('div').parentElement.remove()">Chiudi</button>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      // Auto-remove after 10 seconds
+      setTimeout(() => {
+        if (modal.parentElement) {
+          modal.remove();
+        }
+      }, 10000);
+    };
+
+    const handleCardShowConfirmed = ({ message }: { message: string }) => {
+      alert(message);
+    };
+
     socket.on('game-reset', handleGameReset);
+    socket.on('card-shown', handleCardShown);
+    socket.on('card-show-confirmed', handleCardShowConfirmed);
 
     return () => {
       socket.off('game-reset', handleGameReset);
+      socket.off('card-shown', handleCardShown);
+      socket.off('card-show-confirmed', handleCardShowConfirmed);
     };
   }, []);
 

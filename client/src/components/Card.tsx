@@ -19,7 +19,8 @@ interface CardProps {
 export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) => {
   const [cardText, setCardText] = useState(card.text || "");
   const [showActions, setShowActions] = useState(false);
-  const { setSelectedCard, playerName } = useGameState();
+  const [showPlayerSelect, setShowPlayerSelect] = useState(false);
+  const { setSelectedCard, playerName, gameState } = useGameState();
 
   const handleCardClick = () => {
     if (location === 'field' || location === 'graveyard') {
@@ -45,6 +46,20 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     socket.emit('move-to-graveyard', { cardId: card.id, playerName });
   };
 
+  const handleShowCard = () => {
+    setShowPlayerSelect(true);
+  };
+
+  const handleShowToPlayer = (targetPlayer: string) => {
+    socket.emit('show-card-to-player', { 
+      cardId: card.id, 
+      fromPlayer: playerName, 
+      toPlayer: targetPlayer,
+      cardImage: card.frontImage
+    });
+    setShowPlayerSelect(false);
+  };
+
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newText = e.target.value;
     setCardText(newText);
@@ -52,6 +67,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   };
 
   const isOwner = card.owner === playerName;
+  const otherPlayers = Object.keys(gameState?.players || {}).filter(p => p !== playerName);
 
   return (
     <div className="flex flex-col gap-2">
@@ -82,13 +98,22 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
 
       {/* Action Buttons */}
       {location === 'hand' && isOwner && (
-        <Button
-          onClick={handlePlay}
-          className="bg-sky-blue hover:bg-sky-blue/80 text-white font-bold text-xs px-2 py-1"
-          size="sm"
-        >
-          GIOCA
-        </Button>
+        <div className="flex flex-col gap-1">
+          <Button
+            onClick={handlePlay}
+            className="bg-sky-blue hover:bg-sky-blue/80 text-white font-bold text-xs px-2 py-1"
+            size="sm"
+          >
+            GIOCA
+          </Button>
+          <Button
+            onClick={handleShowCard}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-2 py-1"
+            size="sm"
+          >
+            MOSTRA
+          </Button>
+        </div>
       )}
 
       {(location === 'field' || location === 'graveyard') && showActions && (
@@ -120,6 +145,36 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
               )}
             </>
           )}
+        </div>
+      )}
+
+      {/* Player Selection Modal for MOSTRA */}
+      {showPlayerSelect && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-white font-bold text-lg">Mostra carta a:</h3>
+              <Button
+                onClick={() => setShowPlayerSelect(false)}
+                className="bg-red-600 hover:bg-red-700 text-white px-2 py-1"
+                size="sm"
+              >
+                Chiudi
+              </Button>
+            </div>
+            
+            <div className="space-y-2">
+              {otherPlayers.map((player) => (
+                <Button
+                  key={player}
+                  onClick={() => handleShowToPlayer(player)}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2"
+                >
+                  {player}
+                </Button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>
