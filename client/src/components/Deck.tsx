@@ -12,6 +12,7 @@ interface DeckProps {
 export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
   const { gameState, playerName } = useGameState();
   const [showBrowser, setShowBrowser] = useState(false);
+  const [selectedCardForZoom, setSelectedCardForZoom] = useState<any>(null);
   
   const remainingCards = gameState?.decks?.[type]?.length || 0;
 
@@ -29,9 +30,38 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
     setShowBrowser(true);
   };
 
+  const handleCardClick = (card: any) => {
+    setSelectedCardForZoom(card);
+  };
+
   const handleCardSelect = (cardId: string) => {
     socket.emit('choose-specific-card', { deckType: type, cardId, playerName });
+    setSelectedCardForZoom(null);
     setShowBrowser(false);
+  };
+
+  const handleCloseZoom = () => {
+    setSelectedCardForZoom(null);
+  };
+
+  // Function to extract filename from URL and sort alphabetically
+  const getSortedCards = () => {
+    if (!gameState?.decks?.[type]) return [];
+    
+    return [...gameState.decks[type]].sort((a, b) => {
+      // Extract filename from URL
+      const getFileName = (url: string) => {
+        const parts = url.split('/');
+        const filename = parts[parts.length - 1];
+        // Remove file extension and convert to lowercase for comparison
+        return filename.toLowerCase().replace(/\.(png|jpg|jpeg|gif|webp)$/i, '');
+      };
+      
+      const filenameA = getFileName(a.frontImage);
+      const filenameB = getFileName(b.frontImage);
+      
+      return filenameA.localeCompare(filenameB);
+    });
   };
 
   return (
@@ -82,16 +112,46 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
             </div>
             
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {gameState?.decks?.[type]?.map((card) => (
+              {getSortedCards().map((card) => (
                 <div key={card.id} className="flex flex-col items-center">
                   <img
                     src={card.frontImage}
                     alt="Card"
                     className="w-20 h-28 rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg"
-                    onClick={() => handleCardSelect(card.id)}
+                    onClick={() => handleCardClick(card)}
                   />
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Zoomed Card Modal */}
+      {selectedCardForZoom && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-60 p-4">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full text-center">
+            <div className="mb-4">
+              <img
+                src={selectedCardForZoom.frontImage}
+                alt="Selected Card"
+                className="w-48 h-auto rounded-lg mx-auto shadow-2xl"
+              />
+            </div>
+            
+            <div className="flex gap-4 justify-center">
+              <Button
+                onClick={() => handleCardSelect(selectedCardForZoom.id)}
+                className="bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-3"
+              >
+                PESCA
+              </Button>
+              <Button
+                onClick={handleCloseZoom}
+                className="bg-gray-600 hover:bg-gray-700 text-white font-bold px-6 py-3"
+              >
+                Chiudi
+              </Button>
             </div>
           </div>
         </div>
