@@ -131,12 +131,12 @@ export const RoundTable: React.FC = () => {
 
   // Calculate card size based on number of players and screen size
   const getCardScale = (playerCount: number) => {
-    // Reduced scales to prevent overlapping
+    // Smaller scales for TAVOLO DA GIOCO cards
     const mobileScales = {
-      2: 'scale-75 sm:scale-85 md:scale-95 lg:scale-110',
-      4: 'scale-65 sm:scale-75 md:scale-85 lg:scale-95', 
-      6: 'scale-55 sm:scale-65 md:scale-75 lg:scale-85',
-      8: 'scale-45 sm:scale-55 md:scale-65 lg:scale-75'
+      2: 'scale-65 sm:scale-75 md:scale-85 lg:scale-95',
+      4: 'scale-55 sm:scale-65 md:scale-75 lg:scale-85', 
+      6: 'scale-45 sm:scale-55 md:scale-65 lg:scale-75',
+      8: 'scale-35 sm:scale-45 md:scale-55 lg:scale-65'
     };
     
     if (playerCount <= 2) return mobileScales[2];
@@ -384,7 +384,7 @@ export const RoundTable: React.FC = () => {
                           )}
                           
                           {/* Card */}
-                          <div className="scale-75 sm:scale-85 md:scale-95">
+                          <div className="scale-90 sm:scale-100 md:scale-110 lg:scale-125">
                             <Card
                               card={card}
                               location="field"
