@@ -9,23 +9,11 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY 
 });
 
-// Local database of MINKIARDS card values (fallback when OpenAI API is unavailable)
+// Local database of MINKIARDS card values (DISABLED - values were incorrect)
+// TODO: Get real values from user and populate this database accurately
 const MINKIARDS_CARD_DATA: Record<string, { pti: number, stars: number, powers?: string }> = {
-  // Common MINKIARDS characters with typical values
-  'amadeus': { pti: 750, stars: 3, powers: 'Genio musicale' },
-  'bear': { pti: 1250, stars: 4, powers: 'Forza bruta' },
-  'bud-spencer': { pti: 1500, stars: 5, powers: 'Pugno devastante' },
-  'morte': { pti: 2000, stars: 5, powers: 'Tocco letale' },
-  'vegeta': { pti: 1800, stars: 5, powers: 'Principe Saiyan' },
-  'crash-bandicoot': { pti: 800, stars: 3, powers: 'Spin attack' },
-  'poliziotto': { pti: 1000, stars: 3, powers: 'Autorità' },
-  'fedesimo': { pti: 600, stars: 2, powers: 'Astuzia' },
-  'milhouse': { pti: 400, stars: 1, powers: 'Intelligenza' },
-  'ezio-greggio': { pti: 500, stars: 2, powers: 'Comicità' },
-  'janara': { pti: 900, stars: 4, powers: 'Magia oscura' },
-  'borgarally': { pti: 1100, stars: 3, powers: 'Velocità' },
-  'montaquilano': { pti: 850, stars: 3, powers: 'Resistenza' },
-  // Add more as needed
+  // Disabled until we get accurate values from the user
+  // 'card-name': { pti: 0, stars: 0, powers: '' },
 };
 
 // Extract card name from image URL
@@ -548,56 +536,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
           
-          // Auto-analyze and populate PTI/Stars for all players (human and CPU)
-          try {
-            console.log(`Starting analysis for ${playerName}'s PERSONAGGI card: ${cardName}`);
-            const cardAnalysis = await analyzePersonaggioCard(result.card.frontImage);
-            if (cardAnalysis) {
-              let notes = `PTI: ${cardAnalysis.pti} | Stelle: ${cardAnalysis.stars}`;
-              
-              if (cardAnalysis.powers && cardAnalysis.powers.trim()) {
-                notes += ` | Poteri: ${cardAnalysis.powers}`;
-              }
-              
-              console.log(`Auto-populating notes for ${playerName}'s ${cardName}:`);
-              console.log(`- PTI: ${cardAnalysis.pti}`);
-              console.log(`- Stelle: ${cardAnalysis.stars}`);
-              console.log(`- Poteri: ${cardAnalysis.powers || 'Nessuno'}`);
-              console.log(`- Final notes: ${notes}`);
-              
-              // Update the card text with extracted information
-              gameManager.updateCardText(gameId, result.card.id, notes);
-              
-              // Send updated game state
-              const updatedGameState = gameManager.getSanitizedGameState(gameId);
-              io.to(gameId).emit('game-state-update', updatedGameState);
-              
-              // Send notification about successful analysis
-              io.to(gameId).emit('card-analysis-complete', {
-                playerName,
-                cardName: cardAnalysis.name || cardName,
-                pti: cardAnalysis.pti,
-                stars: cardAnalysis.stars,
-                powers: cardAnalysis.powers,
-                source: cardAnalysis.pti === 1000 && cardAnalysis.stars === 1 ? 'default' : 'analyzed'
-              });
-            } else {
-              console.log(`No analysis result returned for ${playerName}'s ${cardName}`);
-              // Use basic fallback
-              const basicNotes = 'PTI: 1000 | Stelle: 2';
-              gameManager.updateCardText(gameId, result.card.id, basicNotes);
-              const updatedGameState = gameManager.getSanitizedGameState(gameId);
-              io.to(gameId).emit('game-state-update', updatedGameState);
-            }
-          } catch (error) {
-            console.error('Error auto-analyzing PERSONAGGI card:', error);
-            // Fallback to intelligent defaults
-            const cardNameFromUrl = getCardNameFromImageUrl(result.card.frontImage);
-            const fallbackNotes = `PTI: 1000 | Stelle: 2 | Nome: ${cardNameFromUrl}`;
-            gameManager.updateCardText(gameId, result.card.id, fallbackNotes);
-            const updatedGameState = gameManager.getSanitizedGameState(gameId);
-            io.to(gameId).emit('game-state-update', updatedGameState);
-          }
+          // Auto-analysis disabled - OpenAI API quota exceeded and local values are incorrect
+          // Leave notes empty for manual entry by players
+          console.log(`PERSONAGGI card ${cardName} played by ${playerName} - please enter PTI and stars manually in card notes`);
+          
+          // Send notification to user to enter values manually
+          io.to(gameId).emit('manual-entry-required', {
+            playerName,
+            cardName,
+            cardId: result.card.id,
+            message: `Per favore inserisci manualmente PTI e stelle nelle note della carta ${cardName}`
+          });
         }
       }
     });
