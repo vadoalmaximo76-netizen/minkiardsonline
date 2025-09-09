@@ -2,9 +2,6 @@
 
 MINKIARDS is a real-time multiplayer online card game built with React and Express. The game features four distinct decks of cards (PERSONAGGI, MOSSE, BONUS, PERSONAGGI SPECIALI) that players can draw from and play on a shared game field. Players can interact with cards through various actions like playing, moving between zones, and transferring to other players. The application uses WebSocket communication for real-time multiplayer functionality and features a modern UI built with React and Tailwind CSS.
 
-## Dynamic Background Music System
-The game features an adaptive music system that responds to game intensity, creating immersive audio experiences that change based on player actions and game events. The music seamlessly transitions between different intensity states to enhance gameplay atmosphere.
-
 # User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -54,23 +51,12 @@ Cards are defined with front/back images, ownership tracking, and custom text an
 - **Card Return System**: Used cards automatically return to their respective decks
 - **Field Management**: Cards must be placed on field before use, maintaining proper game flow
 
-## Dynamic Music System
-Advanced adaptive background music that responds to game events and intensity:
-- **Intensity States**: Seven distinct musical states (calm, planning, action, combat, tension, victory, defeat)
-- **Real-time Adaptation**: Music changes dynamically based on game events like attacks, card plays, and turn transitions
-- **Smooth Transitions**: Seamless 3-second crossfades between different musical intensities
-- **Synthesized Audio**: Uses Web Audio API to generate harmonious music with customizable frequency, tempo, and volume
-- **User Controls**: Players can toggle dynamic music on/off and view current intensity state
-- **Event Integration**: Automatically responds to game events like damage, victories, and strategic moments
-
-### Music Intensity States
-- **Calm**: Peaceful waiting periods and idle moments (220Hz, 90 BPM)
-- **Planning**: Strategic thinking and turn preparation (247Hz, 110 BPM) 
-- **Action**: Card plays and dynamic gameplay (294Hz, 140 BPM)
-- **Combat**: Attacks and intense battles (330Hz, 160 BPM)
-- **Tension**: Critical moments and high-stakes situations (277Hz, 130 BPM)
-- **Victory**: Celebration music for winning moments (392Hz, 120 BPM)
-- **Defeat**: Melancholic tones for losses and setbacks (196Hz, 80 BPM)
+## Audio System
+The game features a comprehensive sound effect system using Web Audio API to enhance gameplay experience:
+- **Sound Effects**: Game start chimes, player notifications, dice rolls, damage sounds, character-specific audio
+- **Character Sounds**: Different audio for animals (bee, dog, cat, bird), robots, magic spells, explosions, and human voices
+- **Interactive Audio**: Players can mute/unmute all sound effects with a dedicated control button
+- **Synthesized Audio**: Uses Web Audio API to generate various sound effects with precise frequency and timing control
 
 ## Development Tools
 Vite is used for the build system with React plugin and GLSL shader support. ESBuild handles server-side bundling for production. The development setup includes hot module replacement and runtime error overlays.
