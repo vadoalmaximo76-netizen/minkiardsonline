@@ -62,7 +62,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Start CPU turn after a short delay
         setTimeout(async () => {
-          const cpuAction = await gameManager.processCPUTurn(gameId, cpuName);
+          const cpuAction = await gameManager.processCPUTurn(gameId, cpuName, io);
           if (cpuAction) {
             // Execute the CPU's action
             switch (cpuAction.type) {
@@ -384,6 +384,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('send-chat-message', ({ message, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
+        // Check if this is a response to a CPU question
+        const cpuProcessed = gameManager.processCPUResponse(gameId, message, playerName);
+        
         const chatMessage = {
           id: `${Date.now()}-${Math.random()}`,
           playerName,
@@ -391,6 +394,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
           timestamp: Date.now()
         };
         io.to(gameId).emit('chat-message', chatMessage);
+        
+        // If CPU processed the response and was waiting, try to continue their turn
+        if (cpuProcessed) {
+          setTimeout(async () => {
+            // Find which CPU was waiting and continue their turn
+            const waitingCPU = gameManager.getCPUWaitingForResponse(gameId);
+            if (!waitingCPU) {
+              // CPU is no longer waiting, try to continue their turn
+              const gameState = gameManager.getGameState(gameId);
+              const currentPlayer = gameState?.turnOrder?.[gameState.currentTurnIndex];
+              
+              if (currentPlayer?.startsWith('CPU-')) {
+                const cpuAction = await gameManager.processCPUTurn(gameId, currentPlayer, io);
+                if (cpuAction) {
+                  // Execute CPU action
+                  switch (cpuAction.type) {
+                    case 'play-card':
+                      const result = await gameManager.playCard(gameId, cpuAction.data.cardId, cpuAction.data.playerName);
+                      const updatedGameState = gameManager.getGameState(gameId);
+                      io.to(gameId).emit('game-state-update', updatedGameState);
+                      
+                      if (result.isPersonaggio && result.card) {
+                        const getCardNameFromUrl = (url: string) => {
+                          const parts = url.split('/');
+                          const filename = parts[parts.length - 1];
+                          return filename
+                            .toLowerCase()
+                            .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+                            .replace(/[-_]/g, ' ')
+                            .split(' ')
+                            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                            .join(' ');
+                        };
+                        
+                        const cardName = getCardNameFromUrl(result.card.frontImage);
+                        io.to(gameId).emit('personaggio-enters', {
+                          cardName,
+                          message: 'SI UNISCE ALLA ZUFFA',
+                          playerName: currentPlayer,
+                          cardImage: result.card.frontImage
+                        });
+                      }
+                      break;
+                  }
+                  
+                  // End CPU turn after action
+                  setTimeout(() => {
+                    const nextAfterCPU = gameManager.endTurn(gameId, currentPlayer);
+                    if (nextAfterCPU) {
+                      io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                    }
+                  }, 1500);
+                }
+              }
+            }
+          }, 2000); // Give time for CPU to process response
+        }
       }
     });
 
@@ -634,7 +694,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             try {
               console.log(`Processing automated turn for CPU: ${nextPlayer}`);
               
-              const cpuAction = await gameManager.processCPUTurn(gameId, nextPlayer);
+              const cpuAction = await gameManager.processCPUTurn(gameId, nextPlayer, io);
               if (cpuAction) {
                 // Execute the CPU's action
                 switch (cpuAction.type) {

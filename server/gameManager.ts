@@ -594,7 +594,7 @@ export class GameManager {
     return cpuName;
   }
 
-  async processCPUTurn(gameId: string, cpuPlayerName: string): Promise<any> {
+  async processCPUTurn(gameId: string, cpuPlayerName: string, socketEmitter?: any): Promise<any> {
     const game = this.games.get(gameId);
     if (!game) return null;
 
@@ -602,12 +602,47 @@ export class GameManager {
     if (!cpuPlayer?.isCPU || !cpuPlayer.cpuInstance) return null;
 
     try {
+      // Set socket emitter for chat functionality
+      if (socketEmitter) {
+        cpuPlayer.cpuInstance.setSocketEmitter(socketEmitter);
+      }
+      
       const action = await cpuPlayer.cpuInstance.takeTurn(game);
       return action;
     } catch (error) {
       console.error(`Error processing CPU turn for ${cpuPlayerName}:`, error);
       return null;
     }
+  }
+
+  // Handle human response to CPU question
+  processCPUResponse(gameId: string, humanMessage: string, humanPlayerName: string): boolean {
+    const game = this.games.get(gameId);
+    if (!game) return false;
+
+    // Find if any CPU is waiting for a response
+    for (const player of Object.values(game.players)) {
+      if (player.isCPU && player.cpuInstance) {
+        const processed = player.cpuInstance.processHumanResponse(humanMessage);
+        if (processed) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  // Get CPU waiting for response
+  getCPUWaitingForResponse(gameId: string): string | null {
+    const game = this.games.get(gameId);
+    if (!game) return null;
+
+    for (const [playerName, player] of Object.entries(game.players)) {
+      if (player.isCPU && player.cpuInstance && player.cpuInstance.waitingForResponse) {
+        return playerName;
+      }
+    }
+    return null;
   }
 
   getCPUPlayers(gameId: string): string[] {
