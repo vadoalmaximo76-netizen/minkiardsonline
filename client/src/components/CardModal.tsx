@@ -7,6 +7,7 @@ import { X, Sword } from "lucide-react";
 export const CardModal: React.FC = () => {
   const [showPlayerSelect, setShowPlayerSelect] = useState(false);
   const [showTransferSelect, setShowTransferSelect] = useState(false);
+  const [showSwapSelect, setShowSwapSelect] = useState(false);
   const { selectedCard, setSelectedCard, playerName, gameState, setSelectedMosseCard } = useGameState();
 
   if (!selectedCard) return null;
@@ -108,6 +109,27 @@ export const CardModal: React.FC = () => {
     setSelectedCard(null);
   };
 
+  const handleSwapCards = (targetPlayer: string, targetCardId: string) => {
+    socket.emit('swap-personaggi-cards', {
+      player1: playerName,
+      card1Id: selectedCard.id,
+      player2: targetPlayer,
+      card2Id: targetCardId
+    });
+    setShowSwapSelect(false);
+    setSelectedCard(null);
+  };
+
+  // Get PERSONAGGI cards from other players in the field
+  const getOtherPlayersPersonaggiCards = () => {
+    if (!gameState?.field) return [];
+    
+    return gameState.field.filter(card => 
+      card.type === 'personaggi' && 
+      card.owner !== playerName
+    );
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-lg p-6 max-w-lg w-full">
@@ -168,7 +190,7 @@ export const CardModal: React.FC = () => {
                 METTI NEL CIMITERO
               </Button>
 
-              {/* CEDI button for field cards */}
+              {/* CEDI and SCAMBIA buttons for field cards */}
               <div className="space-y-2">
                 <Button
                   onClick={() => setShowTransferSelect(true)}
@@ -177,6 +199,17 @@ export const CardModal: React.FC = () => {
                 >
                   CEDI
                 </Button>
+                
+                {/* SCAMBIA button only for PERSONAGGI cards */}
+                {selectedCard.type === 'personaggi' && (
+                  <Button
+                    onClick={() => setShowSwapSelect(true)}
+                    className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3"
+                    disabled={getOtherPlayersPersonaggiCards().length === 0}
+                  >
+                    SCAMBIA
+                  </Button>
+                )}
               </div>
             </>
           )}
@@ -213,6 +246,17 @@ export const CardModal: React.FC = () => {
               >
                 CEDI
               </Button>
+              
+              {/* SCAMBIA button only for PERSONAGGI cards in hand */}
+              {selectedCard.type === 'personaggi' && (
+                <Button
+                  onClick={() => setShowSwapSelect(true)}
+                  className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3"
+                  disabled={getOtherPlayersPersonaggiCards().length === 0}
+                >
+                  SCAMBIA
+                </Button>
+              )}
             </>
           )}
         </div>
@@ -277,6 +321,57 @@ export const CardModal: React.FC = () => {
               </div>
             ) : (
               <p className="text-white text-center">Nessun altro giocatore disponibile</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Card Swap Modal for PERSONAGGI */}
+      {showSwapSelect && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-60 p-4">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-white font-bold text-lg">Scambia con carta PERSONAGGI:</h3>
+              <Button
+                onClick={() => setShowSwapSelect(false)}
+                className="bg-red-600 hover:bg-red-700 text-white px-2 py-1"
+                size="sm"
+              >
+                Chiudi
+              </Button>
+            </div>
+            
+            {getOtherPlayersPersonaggiCards().length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {getOtherPlayersPersonaggiCards().map((card) => {
+                  const cardName = card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase() || 'CARTA';
+                  
+                  return (
+                    <div 
+                      key={card.id} 
+                      className="bg-gray-700 rounded-lg p-3 hover:bg-gray-600 cursor-pointer transition-colors"
+                      onClick={() => handleSwapCards(card.owner, card.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={card.frontImage}
+                          alt={cardName}
+                          className="w-16 h-20 rounded object-cover"
+                        />
+                        <div className="flex-1">
+                          <h4 className="text-white font-bold text-sm mb-1">{cardName}</h4>
+                          <p className="text-gray-300 text-xs">Proprietario: {card.owner}</p>
+                          {card.text && (
+                            <p className="text-gray-400 text-xs mt-1">Note: {card.text}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-white text-center">Nessuna carta PERSONAGGI disponibile per lo scambio</p>
             )}
           </div>
         </div>
