@@ -103,6 +103,7 @@ export class GameManager {
 
     if (isCPU) {
       player.cpuInstance = new CPUPlayer(playerName, gameId);
+      player.cpuInstance.resetOpeningSequence(); // Reset opening sequence for new game
     }
 
     game.players[playerName] = player;

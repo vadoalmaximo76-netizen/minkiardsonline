@@ -53,6 +53,15 @@ export class CPUPlayer {
     this.socketEmitter = socketEmitter;
   }
 
+  // Reset opening sequence for new game
+  resetOpeningSequence() {
+    this.openingSequenceState = { 
+      phase: 'pick-initial', 
+      pickedCards: [] 
+    };
+    console.log(`CPU ${this.playerName} opening sequence reset for new game`);
+  }
+
   setSocketEmitter(emitter: any) {
     this.socketEmitter = emitter;
   }
@@ -707,8 +716,8 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         return await this.executeOpeningSequence(gameState);
       }
       
-      // Check if there's recent advice to follow
-      if (this.lastAdvice && (Date.now() - this.lastAdvice.timestamp) < 60000) { // Follow advice within 1 minute
+      // Check if there's recent advice to follow (but not during opening sequence)
+      if (!isOpeningSequence && this.lastAdvice && (Date.now() - this.lastAdvice.timestamp) < 60000) { // Follow advice within 1 minute
         console.log(`CPU ${this.playerName} following advice from ${this.lastAdvice.from}:`, this.lastAdvice);
         
         if (this.lastAdvice.type === 'pick-card') {
@@ -739,11 +748,11 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       // Check if CPU understands the correct game rules
       const handAnalysis = this.analyzeHandForGameRules(cpuPlayer.hand || []);
       
-      // If doesn't have required cards, ask for advice or pick cards
+      // If doesn't have required cards, ask for advice or pick cards (but not during opening)
       if (!handAnalysis.canPlay) {
         if (handAnalysis.missingTypes.length > 0) {
-          // Ask human for advice about strategy (less frequently if following advice)
-          if (!this.lastAdvice && Math.random() < 0.6) {
+          // Ask human for advice about strategy (less frequently if following advice, and not during opening)
+          if (!isOpeningSequence && !this.lastAdvice && Math.random() < 0.6) {
             this.askForAdvice(handAnalysis);
             return null;
           }
@@ -923,17 +932,23 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
 
   // Check if this is the opening sequence
   isOpeningSequence(cpuPlayer: any, gameState: any): boolean {
-    // Check if CPU has no cards in hand AND no character on field
-    const hasNoCards = !cpuPlayer.hand || cpuPlayer.hand.length === 0;
-    const hasNoCharacterOnField = !gameState.field.some((card: any) => 
+    // Opening sequence is active if phase is not completed
+    const isInOpeningSequence = this.openingSequenceState.phase !== 'completed';
+    
+    // Reset opening sequence if CPU already has a character on field from previous games
+    const hasCharacterOnField = gameState.field.some((card: any) => 
       card.owner === this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali')
     );
     
-    const isOpeningTurn = hasNoCards && hasNoCharacterOnField && this.openingSequenceState.phase !== 'completed';
+    if (hasCharacterOnField && this.openingSequenceState.phase === 'pick-initial') {
+      console.log(`CPU ${this.playerName} already has character on field, skipping opening sequence`);
+      this.openingSequenceState.phase = 'completed';
+      return false;
+    }
     
-    console.log(`CPU ${this.playerName} opening check: hasNoCards=${hasNoCards}, hasNoCharacterOnField=${hasNoCharacterOnField}, phase=${this.openingSequenceState.phase}, isOpening=${isOpeningTurn}`);
+    console.log(`CPU ${this.playerName} opening check: phase=${this.openingSequenceState.phase}, isInSequence=${isInOpeningSequence}, hasCharacterOnField=${hasCharacterOnField}`);
     
-    return isOpeningTurn;
+    return isInOpeningSequence;
   }
 
   // Execute the opening sequence according to MINKIARDS rules
