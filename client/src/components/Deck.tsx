@@ -122,37 +122,39 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
 
       {/* Deck Browser Modal */}
       {showBrowser && (
-        <div className="fixed inset-0 bg-black/90 z-50">
-          {/* Header */}
-          <div className="flex justify-between items-center p-4 bg-gray-900 border-b border-gray-700">
-            <h3 className="text-white font-bold text-2xl" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
-              Scegli una carta da {name}
-            </h3>
-            <Button
-              onClick={() => setShowBrowser(false)}
-              className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 text-lg font-bold"
-              style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
-            >
-              Chiudi
-            </Button>
-          </div>
-          
-          {/* Grid Cards Container */}
-          <div className="bg-gray-800 overflow-y-auto overflow-x-hidden p-6" style={{ height: 'calc(100vh - 80px)' }}>
-            <div className="grid grid-cols-5 gap-4 w-full">
-              {getSortedCards().map((card, index) => (
-                <div key={card.id} className="flex flex-col items-center">
-                  <img
-                    src={card.frontImage}
-                    alt="Card"
-                    className="w-full aspect-[3/4] rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg border border-white/20 hover:border-white/60 object-cover"
-                    onClick={() => handleCardClick(card)}
-                  />
-                  <span className="text-white text-xs mt-1 text-center truncate w-full" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
-                    {card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').substring(0, 15)}
-                  </span>
-                </div>
-              ))}
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center">
+          <div className="bg-gray-900 rounded-lg overflow-hidden" style={{ width: '1270px', height: '720px' }}>
+            {/* Header */}
+            <div className="flex justify-between items-center p-4 bg-gray-900 border-b border-gray-700">
+              <h3 className="text-white font-bold text-2xl" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+                Scegli una carta da {name}
+              </h3>
+              <Button
+                onClick={() => setShowBrowser(false)}
+                className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 text-lg font-bold"
+                style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
+              >
+                Chiudi
+              </Button>
+            </div>
+            
+            {/* Grid Cards Container */}
+            <div className="bg-gray-800 overflow-y-auto overflow-x-hidden p-6" style={{ height: 'calc(720px - 80px)' }}>
+              <div className="grid grid-cols-5 gap-4 w-full">
+                {getSortedCards().map((card, index) => (
+                  <div key={card.id} className="flex flex-col items-center">
+                    <img
+                      src={card.frontImage}
+                      alt="Card"
+                      className="w-full aspect-[3/4] rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg border border-white/20 hover:border-white/60 object-cover"
+                      onClick={() => handleCardClick(card)}
+                    />
+                    <span className="text-white text-xs mt-1 text-center truncate w-full" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                      {card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').substring(0, 15)}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
