@@ -361,7 +361,7 @@ export const GameBoard: React.FC = () => {
         </Button>
 
         {/* Game controls */}
-        <div className="fixed bottom-2 landscape:bottom-4 md:bottom-4 right-2 landscape:right-4 md:right-4 flex flex-col gap-1 landscape:gap-2 md:gap-2 z-40">
+        <div className="fixed bottom-2 landscape:bottom-4 md:bottom-4 right-2 landscape:right-4 md:right-4 flex flex-col gap-1 landscape:gap-2 md:gap-2 z-50">
           <Button
             onClick={() => {
               setChatOpen(!chatOpen);
@@ -408,7 +408,7 @@ export const GameBoard: React.FC = () => {
         {/* Calculator */}
         {calculatorOpen && (
           <div 
-            className="fixed bottom-16 landscape:bottom-20 md:bottom-52 right-2 landscape:right-4 md:right-4 w-64 landscape:w-72 md:w-80 z-40 animate-in slide-in-from-right-5 fade-in duration-300"
+            className="fixed bottom-16 landscape:bottom-20 md:bottom-52 right-1 landscape:right-4 md:right-4 w-[calc(100vw-1rem)] max-w-64 landscape:w-72 md:w-80 z-40 animate-in slide-in-from-right-5 fade-in duration-300"
             style={{ position: 'fixed' }}
           >
             <Calculator onClose={() => setCalculatorOpen(false)} />
@@ -418,7 +418,7 @@ export const GameBoard: React.FC = () => {
         {/* Chat */}
         {chatOpen && (
           <div 
-            className="fixed bottom-16 landscape:bottom-20 md:bottom-52 right-2 landscape:right-4 md:right-4 w-64 landscape:w-72 md:w-80 h-72 landscape:h-80 md:h-96 z-40 animate-in slide-in-from-right-5 fade-in duration-300"
+            className="fixed bottom-16 landscape:bottom-20 md:bottom-52 right-1 landscape:right-4 md:right-4 w-[calc(100vw-1rem)] max-w-64 landscape:w-72 md:w-80 h-72 landscape:h-80 md:h-96 z-40 animate-in slide-in-from-right-5 fade-in duration-300"
             style={{ position: 'fixed' }}
           >
             <Chat onClose={() => setChatOpen(false)} />
