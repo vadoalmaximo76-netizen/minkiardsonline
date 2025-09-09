@@ -134,9 +134,9 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
           <div 
             className="bg-gray-900 rounded-lg shadow-2xl border-2 border-gray-600"
             style={{ 
-              width: '70vw',
+              width: '60vw',
               height: '50vh',
-              minWidth: '1000px',
+              minWidth: '800px',
               minHeight: '450px',
               position: 'relative'
             }}
@@ -161,7 +161,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
                 height: 'calc(100% - 80px)'
               }}
             >
-              <div className="grid grid-cols-8 gap-2">
+              <div className="grid grid-cols-6 gap-3">
                 {getSortedCards().map((card, index) => (
                   <div key={card.id} className="flex flex-col items-center bg-gray-700 rounded p-1 hover:bg-gray-600 cursor-pointer">
                     <img
