@@ -122,15 +122,20 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
 
       {/* Deck Browser Modal */}
       {showBrowser && (
-        <div className="fixed inset-0 bg-black/90 z-50">
+        <div className="fixed inset-0 bg-black/95 z-50 flex flex-col">
           {/* Header */}
-          <div className="flex justify-between items-center p-6 bg-gray-900 border-b border-gray-700">
-            <h3 className="text-white font-bold text-3xl" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
-              Scegli una carta da {name}
-            </h3>
+          <div className="flex justify-between items-center p-4 bg-gray-900 border-b-2 border-white/20 flex-shrink-0">
+            <div className="flex flex-col">
+              <h3 className="text-white font-bold text-2xl md:text-3xl" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+                Scegli una carta da {name}
+              </h3>
+              <p className="text-white/70 text-sm mt-1" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                {getSortedCards().length} carte disponibili - Scorri orizzontalmente
+              </p>
+            </div>
             <Button
               onClick={() => setShowBrowser(false)}
-              className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 text-xl font-bold"
+              className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 text-lg font-bold rounded-lg"
               style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
             >
               Chiudi
@@ -138,19 +143,40 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
           </div>
           
           {/* Cards Container */}
-          <div className="h-full overflow-x-auto overflow-y-hidden p-6" style={{ height: 'calc(100vh - 120px)' }}>
-            <div className="flex gap-4 h-full items-center">
-              {getSortedCards().map((card) => (
-                <div key={card.id} className="flex-shrink-0">
-                  <img
-                    src={card.frontImage}
-                    alt="Card"
-                    className="w-32 h-44 rounded-lg cursor-pointer hover:scale-110 transition-all duration-200 shadow-2xl hover:shadow-white/20"
-                    onClick={() => handleCardClick(card)}
-                  />
-                </div>
-              ))}
+          <div className="flex-1 overflow-x-auto overflow-y-hidden bg-gradient-to-b from-gray-800 to-gray-900">
+            <div className="flex gap-6 h-full items-center px-6 py-8 min-w-max">
+              {getSortedCards().map((card, index) => {
+                // Extract card name for display
+                const cardName = card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase() || '';
+                return (
+                  <div key={card.id} className="flex-shrink-0 flex flex-col items-center group">
+                    <div className="relative">
+                      <img
+                        src={card.frontImage}
+                        alt={cardName}
+                        className="w-36 h-48 md:w-40 md:h-52 rounded-xl cursor-pointer transition-all duration-300 shadow-xl hover:shadow-2xl hover:shadow-white/30 hover:scale-105 border-2 border-white/10 hover:border-white/40"
+                        onClick={() => handleCardClick(card)}
+                      />
+                      {/* Card number indicator */}
+                      <div className="absolute -top-2 -left-2 bg-white text-black rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">
+                        {index + 1}
+                      </div>
+                    </div>
+                    {/* Card name */}
+                    <p className="text-white text-xs mt-2 text-center max-w-36 truncate" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                      {cardName}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
+          </div>
+          
+          {/* Footer with scroll hint */}
+          <div className="bg-gray-900 p-3 text-center border-t border-white/20 flex-shrink-0">
+            <p className="text-white/60 text-sm" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+              ← Scorri per vedere tutte le carte →
+            </p>
           </div>
         </div>
       )}
@@ -158,34 +184,37 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
       {/* Zoomed Card Modal */}
       {selectedCardForZoom && (
         <div 
-          className="fixed inset-0 bg-black/80 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/90 flex items-center justify-center p-4"
           style={{ zIndex: 9999 }}
         >
-          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full text-center">
-            <div className="mb-4">
+          <div className="bg-gray-800 rounded-xl p-8 max-w-lg w-full text-center border-2 border-white/20">
+            {/* Card Name */}
+            <h4 className="text-white font-bold text-xl mb-4" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+              {selectedCardForZoom.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase()}
+            </h4>
+            
+            {/* Large Card Image */}
+            <div className="mb-6">
               <img
                 src={selectedCardForZoom.frontImage}
                 alt="Selected Card"
-                className="w-48 h-auto rounded-lg mx-auto shadow-2xl"
+                className="w-64 h-auto rounded-xl mx-auto shadow-2xl border-2 border-white/10"
               />
             </div>
             
-            <div className="flex gap-3 justify-center">
+            {/* Action Buttons */}
+            <div className="flex gap-4 justify-center">
               <Button
                 onClick={() => handleCardSelect(selectedCardForZoom.id)}
-                className="bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-3"
+                className="bg-green-600 hover:bg-green-700 text-white font-bold px-8 py-4 text-lg rounded-lg"
+                style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
-                PESCA
-              </Button>
-              <Button
-                onClick={() => handleRemoveCard(selectedCardForZoom.id)}
-                className="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-3"
-              >
-                RIMUOVI
+                PESCA QUESTA CARTA
               </Button>
               <Button
                 onClick={handleCloseZoom}
-                className="bg-gray-600 hover:bg-gray-700 text-white font-bold px-4 py-3"
+                className="bg-gray-600 hover:bg-gray-700 text-white font-bold px-8 py-4 text-lg rounded-lg"
+                style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 Chiudi
               </Button>
