@@ -60,6 +60,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         io.to(gameId).emit('game-state-update', gameState);
         io.to(gameId).emit('player-joined', { playerName: cpuName });
         
+        // CPU sends a greeting message when joining
+        setTimeout(() => {
+          const game = gameManager.getGameState(gameId);
+          const cpuPlayer = game?.players[cpuName];
+          if (cpuPlayer?.isCPU && cpuPlayer.cpuInstance) {
+            cpuPlayer.cpuInstance.sendChatMessage(cpuPlayer.cpuInstance.getRandomChatResponse('greeting'));
+          }
+        }, 1500);
+        
         // Start CPU turn after a short delay
         setTimeout(async () => {
           const cpuAction = await gameManager.processCPUTurn(gameId, cpuName, io);
@@ -394,6 +403,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           timestamp: Date.now()
         };
         io.to(gameId).emit('chat-message', chatMessage);
+        
+        // Let CPU players respond to human chat messages
+        if (!playerName.startsWith('CPU-')) {
+          gameManager.processCPUChatResponses(gameId, message, playerName);
+        }
         
         // If CPU processed the response and was waiting, try to continue their turn
         if (cpuProcessed) {

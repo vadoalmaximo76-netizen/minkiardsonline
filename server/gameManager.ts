@@ -681,6 +681,23 @@ export class GameManager {
     return null;
   }
 
+  // Handle human chat messages and let CPU players respond
+  processCPUChatResponses(gameId: string, humanMessage: string, humanPlayerName: string): void {
+    const game = this.games.get(gameId);
+    if (!game) return;
+
+    // Let all CPU players in this game potentially respond to the human message
+    for (const [cpuPlayerName, player] of Object.entries(game.players)) {
+      if (player.isCPU && player.cpuInstance && cpuPlayerName !== humanPlayerName) {
+        try {
+          player.cpuInstance.processHumanChat(humanMessage, humanPlayerName);
+        } catch (error) {
+          console.error(`Error in CPU ${cpuPlayerName} chat processing:`, error);
+        }
+      }
+    }
+  }
+
   getCPUPlayers(gameId: string): string[] {
     const game = this.games.get(gameId);
     if (!game) return [];
