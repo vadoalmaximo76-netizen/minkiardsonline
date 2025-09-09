@@ -6,6 +6,7 @@ import { X, Sword } from "lucide-react";
 
 export const CardModal: React.FC = () => {
   const [showPlayerSelect, setShowPlayerSelect] = useState(false);
+  const [showTransferSelect, setShowTransferSelect] = useState(false);
   const { selectedCard, setSelectedCard, playerName, gameState, setSelectedMosseCard } = useGameState();
 
   if (!selectedCard) return null;
@@ -97,6 +98,16 @@ export const CardModal: React.FC = () => {
     setSelectedCard(null);
   };
 
+  const handleTransferToPlayer = (targetPlayer: string) => {
+    socket.emit('transfer-card', {
+      cardId: selectedCard.id,
+      fromPlayer: playerName,
+      toPlayer: targetPlayer
+    });
+    setShowTransferSelect(false);
+    setSelectedCard(null);
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-lg p-6 max-w-lg w-full">
@@ -157,21 +168,16 @@ export const CardModal: React.FC = () => {
                 METTI NEL CIMITERO
               </Button>
 
-              {/* CEDI buttons for field cards */}
-              {players.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-white text-sm">CEDI A:</p>
-                  {players.map((player) => (
-                    <Button
-                      key={player}
-                      onClick={() => handleCedi(player)}
-                      className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2"
-                    >
-                      {player}
-                    </Button>
-                  ))}
-                </div>
-              )}
+              {/* CEDI button for field cards */}
+              <div className="space-y-2">
+                <Button
+                  onClick={() => setShowTransferSelect(true)}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3"
+                  disabled={players.length === 0}
+                >
+                  CEDI
+                </Button>
+              </div>
             </>
           )}
 
@@ -199,21 +205,14 @@ export const CardModal: React.FC = () => {
                 MOSTRA
               </Button>
 
-              {/* CEDI buttons for hand cards */}
-              {players.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-white text-sm">CEDI A:</p>
-                  {players.map((player) => (
-                    <Button
-                      key={player}
-                      onClick={() => handleCedi(player)}
-                      className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2"
-                    >
-                      {player}
-                    </Button>
-                  ))}
-                </div>
-              )}
+              {/* CEDI button for hand cards */}
+              <Button
+                onClick={() => setShowTransferSelect(true)}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3"
+                disabled={players.length === 0}
+              >
+                CEDI
+              </Button>
             </>
           )}
         </div>
@@ -245,6 +244,40 @@ export const CardModal: React.FC = () => {
                 </Button>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Player Selection Modal for CEDI */}
+      {showTransferSelect && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-60 p-4">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-white font-bold text-lg">Cedi carta a:</h3>
+              <Button
+                onClick={() => setShowTransferSelect(false)}
+                className="bg-red-600 hover:bg-red-700 text-white px-2 py-1"
+                size="sm"
+              >
+                Chiudi
+              </Button>
+            </div>
+            
+            {players.length > 0 ? (
+              <div className="space-y-2">
+                {players.map((player) => (
+                  <Button
+                    key={player}
+                    onClick={() => handleTransferToPlayer(player)}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2"
+                  >
+                    {player}
+                  </Button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-white text-center">Nessun altro giocatore disponibile</p>
+            )}
           </div>
         </div>
       )}
