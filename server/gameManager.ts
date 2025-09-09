@@ -22,6 +22,7 @@ interface Player {
   socketId: string;
   isCPU?: boolean;
   cpuInstance?: CPUPlayer;
+  usedCardsThisTurn?: string[]; // Track cards used this turn to prevent reuse
 }
 
 interface GameState {
@@ -98,7 +99,8 @@ export class GameManager {
       name: playerName,
       hand: [],
       socketId,
-      isCPU
+      isCPU,
+      usedCardsThisTurn: [] // Initialize tracking of used cards
     };
 
     if (isCPU) {
@@ -434,6 +436,31 @@ export class GameManager {
     }
   }
 
+  // Check if a card has been used this turn
+  hasCardBeenUsed(gameId: string, cardId: string, playerName: string): boolean {
+    const game = this.games.get(gameId);
+    if (!game || !game.players[playerName]) return false;
+    
+    const player = game.players[playerName];
+    return player.usedCardsThisTurn?.includes(cardId) || false;
+  }
+
+  // Mark a card as used this turn
+  markCardAsUsed(gameId: string, cardId: string, playerName: string): void {
+    const game = this.games.get(gameId);
+    if (!game || !game.players[playerName]) return;
+    
+    const player = game.players[playerName];
+    if (!player.usedCardsThisTurn) {
+      player.usedCardsThisTurn = [];
+    }
+    
+    if (!player.usedCardsThisTurn.includes(cardId)) {
+      player.usedCardsThisTurn.push(cardId);
+      console.log(`${playerName} used card ${cardId} this turn`);
+    }
+  }
+
   returnToDeck(gameId: string, cardId: string, playerName: string): void {
     const game = this.games.get(gameId);
     if (!game) return;
@@ -471,6 +498,8 @@ export class GameManager {
       
       const deckType = card.type as keyof GameState['decks'];
       game.decks[deckType].push(card);
+      
+      console.log(`Returned ${card.type} card ${cardId} to deck for ${playerName}`);
     }
   }
 
@@ -1053,9 +1082,19 @@ export class GameManager {
     const currentPlayer = gameState.turnOrder[gameState.currentTurnIndex];
     if (currentPlayer !== playerName) return null;
 
+    // Reset usedCardsThisTurn for the current player when their turn ends
+    if (gameState.players[playerName]) {
+      gameState.players[playerName].usedCardsThisTurn = [];
+    }
+
     // Move to next player
     gameState.currentTurnIndex = (gameState.currentTurnIndex + 1) % gameState.turnOrder.length;
     const nextPlayer = gameState.turnOrder[gameState.currentTurnIndex];
+
+    // Initialize usedCardsThisTurn for the next player if not exists
+    if (gameState.players[nextPlayer] && !gameState.players[nextPlayer].usedCardsThisTurn) {
+      gameState.players[nextPlayer].usedCardsThisTurn = [];
+    }
 
     return nextPlayer;
   }

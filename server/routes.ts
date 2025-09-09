@@ -51,8 +51,12 @@ async function analyzePersonaggioCard(imageUrl: string): Promise<{ pti: number, 
       powers: analysis.powers || analysis.poteri || '',
       name: analysis.name || analysis.nome || ''
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error analyzing PERSONAGGI card:', error);
+    // Handle quota exceeded errors gracefully
+    if (error.code === 'insufficient_quota') {
+      console.log('OpenAI quota exceeded, using default values for card analysis');
+    }
     return { pti: 1000, stars: 1 }; // Default values
   }
 }
@@ -879,6 +883,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('mosse-attack', ({ mosseCardId, targetCardId, attackerName, targetOwner }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
+        // Check if the MOSSE card has already been used this turn
+        if (gameManager.hasCardBeenUsed(gameId, mosseCardId, attackerName)) {
+          console.log(`${attackerName} attempted to reuse MOSSE card ${mosseCardId} - attack blocked`);
+          socket.emit('attack-blocked', { 
+            message: 'Non puoi riutilizzare la stessa carta MOSSE nello stesso turno!',
+            cardId: mosseCardId 
+          });
+          return;
+        }
+        
+        // Mark the MOSSE card as used this turn
+        gameManager.markCardAsUsed(gameId, mosseCardId, attackerName);
+        
         // Broadcast the attack to all players so they can see the shaking animation
         io.to(gameId).emit('card-attacked', {
           mosseCardId,
