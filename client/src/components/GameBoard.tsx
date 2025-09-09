@@ -408,7 +408,7 @@ export const GameBoard: React.FC = () => {
         {/* Calculator */}
         {calculatorOpen && (
           <div 
-            className="fixed bottom-16 md:bottom-52 right-2 w-72 md:w-80 z-40 animate-in slide-in-from-right-5 fade-in duration-300"
+            className="fixed bottom-16 landscape:bottom-20 md:bottom-52 right-2 landscape:right-4 md:right-4 w-64 landscape:w-72 md:w-80 z-40 animate-in slide-in-from-right-5 fade-in duration-300"
             style={{ position: 'fixed' }}
           >
             <Calculator onClose={() => setCalculatorOpen(false)} />
@@ -418,7 +418,7 @@ export const GameBoard: React.FC = () => {
         {/* Chat */}
         {chatOpen && (
           <div 
-            className="fixed bottom-16 md:bottom-52 right-2 w-72 md:w-80 h-80 md:h-96 z-40 animate-in slide-in-from-right-5 fade-in duration-300"
+            className="fixed bottom-16 landscape:bottom-20 md:bottom-52 right-2 landscape:right-4 md:right-4 w-64 landscape:w-72 md:w-80 h-72 landscape:h-80 md:h-96 z-40 animate-in slide-in-from-right-5 fade-in duration-300"
             style={{ position: 'fixed' }}
           >
             <Chat onClose={() => setChatOpen(false)} />
