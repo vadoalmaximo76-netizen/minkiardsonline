@@ -75,6 +75,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (cpuAction) {
             // Execute the CPU's action
             switch (cpuAction.type) {
+              case 'pick-card':
+                const pickSuccess = await gameManager.pickCard(gameId, cpuAction.data.deckType, cpuAction.data.playerName);
+                if (pickSuccess) {
+                  const pickGameState = gameManager.getSanitizedGameState(gameId);
+                  io.to(gameId).emit('game-state-update', pickGameState);
+                }
+                break;
+                
               case 'play-card':
                 const result = await gameManager.playCard(gameId, cpuAction.data.cardId, cpuAction.data.playerName);
                 const updatedGameState = gameManager.getSanitizedGameState(gameId);
@@ -424,6 +432,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 if (cpuAction) {
                   // Execute CPU action
                   switch (cpuAction.type) {
+                    case 'pick-card':
+                      const pickSuccess = await gameManager.pickCard(gameId, cpuAction.data.deckType, cpuAction.data.playerName);
+                      if (pickSuccess) {
+                        const pickGameState = gameManager.getSanitizedGameState(gameId);
+                        io.to(gameId).emit('game-state-update', pickGameState);
+                      }
+                      break;
+                      
                     case 'play-card':
                       const result = await gameManager.playCard(gameId, cpuAction.data.cardId, cpuAction.data.playerName);
                       const updatedGameState = gameManager.getSanitizedGameState(gameId);
@@ -712,6 +728,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (cpuAction) {
                 // Execute the CPU's action
                 switch (cpuAction.type) {
+                  case 'pick-card':
+                    const pickSuccess = await gameManager.pickCard(gameId, cpuAction.data.deckType, cpuAction.data.playerName);
+                    if (pickSuccess) {
+                      const pickGameState = gameManager.getSanitizedGameState(gameId);
+                      io.to(gameId).emit('game-state-update', pickGameState);
+                    }
+                    break;
+                    
                   case 'play-card':
                     const result = await gameManager.playCard(gameId, cpuAction.data.cardId, cpuAction.data.playerName);
                     const updatedGameState = gameManager.getSanitizedGameState(gameId);

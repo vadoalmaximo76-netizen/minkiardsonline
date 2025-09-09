@@ -542,7 +542,7 @@ export class CPUPlayer {
     return situationResponses[Math.floor(Math.random() * situationResponses.length)];
   }
 
-  // Main CPU turn logic - uses simple strategy (no API calls)
+  // Main CPU turn logic - uses simple strategy (no API calls)  
   async takeTurn(gameState: any) {
     try {
       console.log(`CPU ${this.playerName} is thinking...`);
@@ -550,6 +550,29 @@ export class CPUPlayer {
       // If waiting for response, don't take action
       if (this.waitingForResponse) {
         console.log(`CPU ${this.playerName} is waiting for human response`);
+        return null;
+      }
+      
+      const cpuPlayer = gameState.players[this.playerName];
+      if (!cpuPlayer) {
+        console.log(`CPU ${this.playerName} not found in game state`);
+        return null;
+      }
+      
+      // If CPU has no cards, try to pick cards first
+      if (!cpuPlayer.hand || cpuPlayer.hand.length === 0) {
+        console.log(`CPU ${this.playerName} has no cards, trying to pick cards`);
+        const pickAction = this.decideCardToPick(gameState);
+        if (pickAction) {
+          this.sendChatMessage("Devo pescare qualche carta prima!");
+          return pickAction;
+        }
+      }
+      
+      // If still no cards after trying to pick, can't play
+      if (!cpuPlayer.hand || cpuPlayer.hand.length === 0) {
+        console.log(`CPU ${this.playerName} still has no cards after pick attempt`);
+        this.sendChatMessage(this.getRandomChatResponse('no_actions'));
         return null;
       }
       
@@ -580,8 +603,7 @@ export class CPUPlayer {
       console.log(`CPU ${this.playerName} has no valid actions, trying to play any card`);
       
       // Fallback: try to play any available card
-      const cpuPlayer = gameState.players[this.playerName];
-      if (cpuPlayer && cpuPlayer.hand && cpuPlayer.hand.length > 0) {
+      if (cpuPlayer.hand && cpuPlayer.hand.length > 0) {
         const anyCard = cpuPlayer.hand[0];
         this.sendChatMessage("Gioco una carta a caso!");
         return {
@@ -601,6 +623,65 @@ export class CPUPlayer {
       this.sendChatMessage(this.getRandomChatResponse('no_actions'));
       return null;
     }
+  }
+  
+  // Decide which type of card to pick
+  decideCardToPick(gameState: any): any {
+    const cpuPlayer = gameState.players[this.playerName];
+    if (!cpuPlayer) return null;
+    
+    // Check which decks have cards available
+    const availableDecks = [];
+    
+    if (gameState.decks.personaggi && gameState.decks.personaggi.length > 0) {
+      availableDecks.push('personaggi');
+    }
+    if (gameState.decks.mosse && gameState.decks.mosse.length > 0) {
+      availableDecks.push('mosse');
+    }
+    if (gameState.decks.bonus && gameState.decks.bonus.length > 0) {
+      availableDecks.push('bonus');
+    }
+    if (gameState.decks.personaggi_speciali && gameState.decks.personaggi_speciali.length > 0) {
+      availableDecks.push('personaggi_speciali');
+    }
+    
+    if (availableDecks.length === 0) {
+      console.log(`CPU ${this.playerName} no decks have cards available`);
+      return null;
+    }
+    
+    // Check if CPU needs a character
+    const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName && card.type === 'personaggi');
+    
+    // Priority: character first if don't have one, then varied strategy
+    let preferredDeck;
+    
+    if (!myCharacter && availableDecks.includes('personaggi')) {
+      preferredDeck = 'personaggi';
+      console.log(`CPU ${this.playerName} needs a character, picking from personaggi`);
+    } else {
+      // Pick randomly but with some strategy
+      const rand = Math.random();
+      if (rand < 0.4 && availableDecks.includes('mosse')) {
+        preferredDeck = 'mosse';
+      } else if (rand < 0.7 && availableDecks.includes('bonus')) {
+        preferredDeck = 'bonus'; 
+      } else if (availableDecks.includes('personaggi')) {
+        preferredDeck = 'personaggi';
+      } else {
+        preferredDeck = availableDecks[0];
+      }
+      console.log(`CPU ${this.playerName} picking from ${preferredDeck}`);
+    }
+    
+    return {
+      type: 'pick-card',
+      data: {
+        deckType: preferredDeck,
+        playerName: this.playerName
+      }
+    };
   }
 
   // Generate strategy announcement with more variety
