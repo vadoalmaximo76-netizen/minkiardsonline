@@ -440,16 +440,24 @@ export class GameManager {
   // Check if a card type has been used this turn (by frontImage)
   hasCardTypeBeenUsed(gameId: string, frontImage: string, playerName: string): boolean {
     const game = this.games.get(gameId);
-    if (!game || !game.players[playerName]) return false;
+    if (!game || !game.players[playerName]) {
+      console.log(`hasCardTypeBeenUsed: game or player not found for ${gameId}, ${playerName}`);
+      return false;
+    }
     
     const player = game.players[playerName];
-    return player.usedCardsThisTurn?.includes(frontImage) || false;
+    const hasBeenUsed = player.usedCardsThisTurn?.includes(frontImage) || false;
+    console.log(`hasCardTypeBeenUsed: ${playerName}, ${frontImage} = ${hasBeenUsed}, usedCards: ${JSON.stringify(player.usedCardsThisTurn)}`);
+    return hasBeenUsed;
   }
 
   // Mark a card type as used this turn (by frontImage)
   markCardTypeAsUsed(gameId: string, frontImage: string, playerName: string): void {
     const game = this.games.get(gameId);
-    if (!game || !game.players[playerName]) return;
+    if (!game || !game.players[playerName]) {
+      console.log(`markCardTypeAsUsed: game or player not found for ${gameId}, ${playerName}`);
+      return;
+    }
     
     const player = game.players[playerName];
     if (!player.usedCardsThisTurn) {
@@ -458,7 +466,7 @@ export class GameManager {
     
     if (!player.usedCardsThisTurn.includes(frontImage)) {
       player.usedCardsThisTurn.push(frontImage);
-      console.log(`${playerName} used card type ${frontImage} this turn`);
+      console.log(`${playerName} marked card type ${frontImage} as used this turn. UsedCards: ${JSON.stringify(player.usedCardsThisTurn)}`);
     }
   }
 

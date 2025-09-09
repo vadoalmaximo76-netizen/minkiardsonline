@@ -583,14 +583,16 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         
         if (mosseOnField && targetCard) {
           // Check if this MOSSE card type has already been used this turn
-          if (this.gameManager && this.gameManager.hasCardTypeBeenUsed(gameState.id, mosseOnField.frontImage, this.playerName)) {
+          console.log(`CPU ${this.playerName}: Checking if MOSSE card ${mosseOnField.frontImage} has been used this turn`);
+          
+          if (this.gameManager && this.gameManager.hasCardTypeBeenUsed(this.gameId, mosseOnField.frontImage, this.playerName)) {
             console.log(`CPU ${this.playerName}: MOSSE card ${mosseOnField.frontImage} already used this turn, cannot attack`);
             this.sendChatMessage(`Non posso riutilizzare la stessa carta MOSSE nello stesso turno!`);
             
             // Try to play a different MOSSE card from hand instead
             const unusedMoveCard = cpuPlayer.hand.find((c: any) => 
               c.type === 'mosse' && 
-              (!this.gameManager || !this.gameManager.hasCardTypeBeenUsed(gameState.id, c.frontImage, this.playerName))
+              (!this.gameManager || !this.gameManager.hasCardTypeBeenUsed(this.gameId, c.frontImage, this.playerName))
             );
             
             if (unusedMoveCard) {
@@ -641,7 +643,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           // Need to play a MOSSE card first from hand, but check if it's already been used
           const unusedMoveCard = cpuPlayer.hand.find((c: any) => 
             c.type === 'mosse' && 
-            (!this.gameManager || !this.gameManager.hasCardTypeBeenUsed(gameState.id, c.frontImage, this.playerName))
+            (!this.gameManager || !this.gameManager.hasCardTypeBeenUsed(this.gameId, c.frontImage, this.playerName))
           );
           
           if (unusedMoveCard) {
