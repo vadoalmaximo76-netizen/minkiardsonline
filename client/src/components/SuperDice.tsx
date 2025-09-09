@@ -22,7 +22,7 @@ export const SuperDice: React.FC<SuperDiceProps> = ({ isOpen, onClose, gameId, p
     { name: 'PORTALE SPECIALE', image: 'https://i.postimg.cc/3JbNsXRs/portale-speciale.png', type: 'bonus' },
     { name: 'MINKIARDS N 200', image: 'https://i.postimg.cc/7hk0Tg7s/minkiards-n-200.png', type: 'bonus' },
     // Adding a 6th card to complete the dice
-    { name: 'AGO DI PINO', image: 'https://i.ibb.co/Ld485J59/ago-di-pino.png', type: 'mosse' }
+    { name: 'MACUMBA', image: 'https://i.postimg.cc/SNG7CtgW/macumba.png', type: 'bonus' }
   ];
 
   const handleRollDice = () => {
@@ -134,7 +134,7 @@ export const SuperDice: React.FC<SuperDiceProps> = ({ isOpen, onClose, gameId, p
             Facce del dado:
           </p>
           <div className="grid grid-cols-3 gap-1">
-            {diceCards.slice(0, 5).map((card, index) => (
+            {diceCards.map((card, index) => (
               <img
                 key={index}
                 src={card.image}
