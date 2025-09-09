@@ -219,16 +219,33 @@ export class CPUPlayer {
   // Execute the decided action
   async executeAction(gameState: any, action: GameAnalysis['recommendedAction']) {
     const cpuPlayer = gameState.players[this.playerName];
-    if (!cpuPlayer || cpuPlayer.hand.length === 0) return null;
+    if (!cpuPlayer) {
+      console.log(`CPU ${this.playerName} not found in game state`);
+      return null;
+    }
+    
+    if (!cpuPlayer.hand || cpuPlayer.hand.length === 0) {
+      console.log(`CPU ${this.playerName} has no cards in hand`);
+      return null;
+    }
+
+    console.log(`CPU ${this.playerName} executing action: ${action.type}, has ${cpuPlayer.hand.length} cards`);
 
     switch (action.type) {
       case 'play_card':
-        // Play the first playable card or the specified card
-        const cardToPlay = action.cardId 
-          ? cpuPlayer.hand.find((c: any) => c.id === action.cardId)
-          : cpuPlayer.hand[0];
+        // Play the specified card or the first available card
+        let cardToPlay = null;
+        
+        if (action.cardId) {
+          cardToPlay = cpuPlayer.hand.find((c: any) => c.id === action.cardId);
+        }
+        
+        if (!cardToPlay && cpuPlayer.hand.length > 0) {
+          cardToPlay = cpuPlayer.hand[0];
+        }
         
         if (cardToPlay) {
+          console.log(`CPU ${this.playerName} playing card: ${cardToPlay.id}`);
           return {
             type: 'play-card',
             data: {
@@ -242,16 +259,30 @@ export class CPUPlayer {
       case 'attack':
         // Find a move card and attack specified target
         const moveCard = cpuPlayer.hand.find((c: any) => c.type === 'mosse');
-        if (moveCard && action.target) {
+        const targetCard = gameState.field.find((c: any) => c.id === action.target);
+        
+        if (moveCard && targetCard) {
+          console.log(`CPU ${this.playerName} attacking with: ${moveCard.id}`);
           return {
             type: 'mosse-attack',
             data: {
               mosseCardId: moveCard.id,
               targetCardId: action.target,
               attackerName: this.playerName,
-              targetOwner: gameState.field.find((c: any) => c.id === action.target)?.owner
+              targetOwner: targetCard.owner
             }
           };
+        } else {
+          // Fallback to playing the move card normally
+          if (moveCard) {
+            return {
+              type: 'play-card',
+              data: {
+                cardId: moveCard.id,
+                playerName: this.playerName
+              }
+            };
+          }
         }
         break;
 
@@ -259,6 +290,7 @@ export class CPUPlayer {
         // Switch to a character from hand
         const characterCard = cpuPlayer.hand.find((c: any) => c.type === 'personaggi');
         if (characterCard) {
+          console.log(`CPU ${this.playerName} switching to character: ${characterCard.id}`);
           return {
             type: 'play-card',
             data: {
@@ -270,6 +302,7 @@ export class CPUPlayer {
         break;
     }
 
+    console.log(`CPU ${this.playerName} could not execute action, returning null`);
     return null;
   }
 
@@ -509,7 +542,7 @@ export class CPUPlayer {
     return situationResponses[Math.floor(Math.random() * situationResponses.length)];
   }
 
-  // Main CPU turn logic with better fallback behavior
+  // Main CPU turn logic - uses simple strategy (no API calls)
   async takeTurn(gameState: any) {
     try {
       console.log(`CPU ${this.playerName} is thinking...`);
@@ -520,35 +553,20 @@ export class CPUPlayer {
         return null;
       }
       
-      let analysis: GameAnalysis;
+      // Use simple analysis (no OpenAI calls)
+      const analysis = this.analyzeGameStateSimple(gameState);
       
-      try {
-        // Try AI analysis first
-        analysis = await this.analyzeGameState(gameState);
-        
-        // Try to check for clarification need
-        const clarificationCheck = await this.needsClarification(gameState);
-        
-        if (clarificationCheck.needsClarification) {
-          await this.askQuestion(clarificationCheck.question);
-          return null;
-        }
-        
-      } catch (error) {
-        console.log(`CPU ${this.playerName} AI analysis failed, using simple strategy`);
-        // Fallback to simple analysis
-        analysis = this.analyzeGameStateSimple(gameState);
-        
-        // Send a thinking message
-        this.sendChatMessage(this.getRandomChatResponse('thinking'));
-      }
+      // Send a thinking message
+      this.sendChatMessage(this.getRandomChatResponse('thinking'));
       
-      console.log(`CPU ${this.playerName} analysis:`, analysis.recommendedAction.reasoning);
+      console.log(`CPU ${this.playerName} strategy:`, analysis.recommendedAction.reasoning);
       
       // Announce strategy before acting
       const strategy = this.getStrategyAnnouncement(analysis);
       if (strategy) {
-        this.sendChatMessage(strategy);
+        setTimeout(() => {
+          this.sendChatMessage(strategy);
+        }, 1000);
       }
       
       // Execute the decided action
@@ -559,7 +577,22 @@ export class CPUPlayer {
         return action;
       }
       
-      console.log(`CPU ${this.playerName} has no valid actions`);
+      console.log(`CPU ${this.playerName} has no valid actions, trying to play any card`);
+      
+      // Fallback: try to play any available card
+      const cpuPlayer = gameState.players[this.playerName];
+      if (cpuPlayer && cpuPlayer.hand && cpuPlayer.hand.length > 0) {
+        const anyCard = cpuPlayer.hand[0];
+        this.sendChatMessage("Gioco una carta a caso!");
+        return {
+          type: 'play-card',
+          data: {
+            cardId: anyCard.id,
+            playerName: this.playerName
+          }
+        };
+      }
+      
       this.sendChatMessage(this.getRandomChatResponse('no_actions'));
       return null;
       
