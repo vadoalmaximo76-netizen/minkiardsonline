@@ -55,13 +55,6 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
       return;
     }
 
-    // If this is a MOSSE card in hand, select it for attacking
-    if (location === 'hand' && card.type === 'mosse' && card.owner === playerName) {
-      setSelectedMosseCard(selectedMosseCard?.id === card.id ? null : card);
-      setSelectedCard(null);
-      return;
-    }
-
     // Regular card click behavior
     if (location === 'field') {
       setSelectedCard(card);
@@ -70,6 +63,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
       setShowActions(!showActions);
       setSelectedMosseCard(null);
     } else {
+      // For cards in hand (including MOSSE cards), open the modal
       setSelectedCard(card);
       setSelectedMosseCard(null);
     }
