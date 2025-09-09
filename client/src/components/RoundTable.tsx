@@ -223,6 +223,11 @@ export const RoundTable: React.FC = () => {
           boxShadow: '0 0 20px rgba(255, 255, 255, 0.6), 0 0 40px rgba(255, 255, 255, 0.4), 0 0 60px rgba(255, 255, 255, 0.2)'
         }}
       >
+        {/* Black overlay with 20% opacity */}
+        <div 
+          className="absolute inset-0 bg-black opacity-20 rounded-lg"
+          style={{ borderRadius: '16px' }}
+        />
         
         {/* Center Area - Decks with protection zone */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
