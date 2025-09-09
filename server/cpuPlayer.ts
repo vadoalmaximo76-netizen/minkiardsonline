@@ -298,6 +298,12 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
             - Can buy powers by spending character points
             - Can switch characters from hand to field
             
+            IMPORTANT CARD USAGE RULES:
+            - To use a card, you must first play it on the field
+            - Once used, the card returns to its deck
+            - When you play a card, you automatically draw a replacement of the same type
+            - You cannot use cards directly from hand - they must be on the field first
+            
             Consider previous conversation with human players to adapt your strategy.
             If humans have given you specific instructions or clarifications, prioritize those.
             

@@ -147,7 +147,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     gameManager.returnToDeck(gameId, currentAction.data.cardId, currentAction.data.playerName);
                     
                     // Draw a replacement card of the same type
-                    const drawnCard = gameManager.pickCard(gameId, 'mosse', currentAction.data.playerName);
+                    const drawnCard = await gameManager.pickCard(gameId, 'mosse', currentAction.data.playerName);
                     if (drawnCard) {
                       console.log(`CPU ${cpuName} drew replacement MOSSE card`);
                     }
@@ -191,9 +191,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   // According to MINKIARDS rules: when you play a card, you automatically draw a replacement of the same type
                   if (result.card) {
                     const cardType = result.card.type;
-                    const replacementDrawn = await gameManager.pickCard(gameId, cardType as keyof GameState['decks'], currentAction.data.playerName);
-                    if (replacementDrawn) {
-                      console.log(`CPU ${cpuName} drew replacement ${cardType} card after playing`);
+                    if (cardType === 'personaggi' || cardType === 'mosse' || cardType === 'bonus' || cardType === 'personaggi_speciali') {
+                      const replacementDrawn = await gameManager.pickCard(gameId, cardType, currentAction.data.playerName);
+                      if (replacementDrawn) {
+                        console.log(`CPU ${cpuName} drew replacement ${cardType} card after playing`);
+                      }
                     }
                   }
                   
@@ -277,6 +279,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
         const result = await gameManager.playCard(gameId, cardId, playerName);
+        
+        // According to MINKIARDS rules: when you play a card, you automatically draw a replacement of the same type
+        if (result.card) {
+          const cardType = result.card.type;
+          if (cardType === 'personaggi' || cardType === 'mosse' || cardType === 'bonus' || cardType === 'personaggi_speciali') {
+            const replacementDrawn = await gameManager.pickCard(gameId, cardType, playerName);
+            if (replacementDrawn) {
+              console.log(`${playerName} drew replacement ${cardType} card after playing`);
+            }
+          }
+        }
+        
         const gameState = gameManager.getSanitizedGameState(gameId);
         io.to(gameId).emit('game-state-update', gameState);
         

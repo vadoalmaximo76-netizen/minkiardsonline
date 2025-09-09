@@ -1,0 +1,356 @@
+Le Minkiards non sono un gioco da fare in solitudine, anzi è pensato appositamente per i gruppi di persone, nello specifico da 2 fino anche a 15 partecipanti (dipende dal numero di carte dei mazzi). Tutti i partecipanti si dispongono seduti intorno a un tavolo e si mischiano separatamente i 4 mazzi, dopodiché si dispongono uno accanto all'altro al centro del tavolo stesso. Fate attenzione a non mischiare le carte di un mazzo con quelle di un altro! Una volta terminato, ogni concorrente - in senso antiorario ma va bene anche orario purché si definisca all'inizio - lancia un dado e colui che riceverà il numero più alto pescherà per primo e dopo di lui tutti gli altri sempre in senso antiorario (o orario, dipende da cosa si è deciso). In caso 2 o più concorrenti ricevano lo stesso numero più alto, solo loro rilanceranno e sarà valida la stessa regola di prima. Deciso chi pesca per primo, vediamo come e cosa ogni partecipante deve pescare: un personaggio, un bonus e una mossa. Tutte e 3 le carte dovranno essere tenute in mano dal concorrente e non dovranno essere mostrate o comunicate in alcun modo agli altri partecipanti. Come già detto, il mazzo dei personaggi speciali non deve essere coinvolto nella pesca finché il gioco non lo richiederà.
+
+
+3.0. I personaggi
+Sono la tipologia di carte più importante, poiché senza un proprio personaggio in campo il concorrente non può eseguire alcun tipo di azione.
+
+Andiamo dunque a vedere l'anatomia delle carte personaggio attraverso alcuni casi esemplificativi.
+
+
+3.1. Le trasformazioni
+
+In alto a sinistra è segnalata la tipologia di carta, in questo caso appunto "Personaggi"; subito accanto il nome del personaggio, che qui è "Chuck Norris". Sotto al nome sono presenti dei pallini colorati: la loro presenza determina le variabili del personaggio pescando l'apposita carta corrispondente dai personaggi speciali. Quello verde con una "E" indica che, con opportune carte e modalità, questo personaggio può effettuare un'evoluzione. Nello specifico, Chuck Norris ha un relativo personaggio evoluto fra i personaggi speciali, ovvero Walker Texas Ranger. Dopo il pallino verde, ce n'è uno lilla e azzurro con una "T" e indica che Chuck Norris può essere soggetto (sempre attraverso specifiche pratiche) a una taroccata e quindi - in caso ciò accada - deve essere sostituito dal suo relativo personaggio taroccato, ovvero nel suo caso Ciucco Norris.
+
+Il pallino giallo con una "S" indica che quando Chuck Norris effettua una trasformazione (anche qui con determinate carte o pratiche) verrà messo in campo al suo posto un relativo super personaggio, in questo caso Super Chuck Norris.
+
+
+
+Chuck Norris ne è sprovvisto, perciò prendiamo in esame un altro personaggio che ha un ultimo pallino, di colore celeste e blu: Zeus. Si legge "PS", che sta per "personaggio supremo". Ciò significa che, grazie a situazioni molto particolari del gioco, il personaggio potrà essere sostituito dal suo relativo personaggio supremo. Nel caso di Zeus, il personaggio supremo è Amazeus, schierabile non appena Zeus verrà fuso (con apposita carta) al personaggio Amadeus. Tutti i personaggi supremi hanno un testo che specifica quali siano le condizioni affinché questi possano essere giocabili.
+
+
+
+
+3.2. Punti, stelle e poteri
+Terminata la parte superiore della carta, andiamo direttamente in basso: sulla sinistra sono indicati i punti (PTI) e sulla destra delle stelle. Che cosa sono e a che cosa servono questi dati? Banalmente i punti corrispondono alla vita residua di un personaggio, nel caso di Zeus 2800 punti fanno di lui un personaggio abbastanza resistente. Infatti l'obiettivo degli avversari è azzerare questi punti (attraverso le mosse, come si vedrà più avanti) per eliminarlo dal gioco. Le stelle invece indicano la potenza del personaggio, ovvero il numero per il quale va moltiplicato il valore di una mossa usata da lui. Tenete bene a mente questo passaggio, ci torneremo tra poco.
+
+
+
+Non è finita, perché alcuni personaggi contengono anche informazioni aggiuntive scritte in rosso: questo testo indica il potere del personaggio. Alcuni personaggi hanno addirittura più poteri, segnalati nella parte superiore e in quella inferiore della barra dei punti. Prendiamo in esame il personaggio Razzi, che non gode dei punti e delle stelle di Chuck Norris o Zeus e non ha neppure relativi personaggi speciali. Però, in compenso, possiede un potere invidiabile: ogni fine turno gli vengono rimborsati i punti persi. Si era detto che l'obiettivo di ogni partecipante è azzerare i punti dei personaggi avversari; bene, Razzi se non muore entro un turno (ovvero nell'intervallo di due sue giocate), recupera i punti che gli sono stati tolti durante questo lasso di tempo. Ciò vuol dire che se si schiera Razzi con 500 punti e questo viene attaccato a turno dagli altri avversari ma non riescono a eliminarlo, quando toccherà di nuovo a Razzi, tornerà a 500 punti (quelli che aveva prima che gli venissero tolti).
+
+
+Razzi non è l'unico personaggio ad avere un potere, anzi sono in tantissimi ad averne. Ognuno ha il suo, ma chi ne è sprovvisto può acquisirne uno attraverso apposite carte o, anche, acquistarne uno o più senza bisogno di carte aggiuntive. Come? Cedendo parte dei propri punti.
+
+In questa tabella è presente la "Banca dei poteri", ovvero la lista di tutti i poteri dei personaggi con il relativo costo in punti. Quando tocca a un partecipante, può giocare una carta (come leggerai di seguito) oppure potenziare il proprio personaggio in campo attraverso l'acquisto di un potere. Scegliendo tra quelli disponibili nell'elenco (specificati nel dettaglio sulle carte originali dei personaggi), può decidere di cedere una parte di punti per aggiungere quelle particolari caratteristiche che normalmente non avrebbe.
+
+Qualora quindi tu abbia in campo un personaggio come Zeus (che non ha poteri) e tu voglia attribuirgli l'effetto di Razzi ("Ogni fine turno gli vengono rimborsati i punti persi"), basterà cercare il personaggio Razzi nella Banca dei poteri e pagare la cifra in punti rispettiva. L'effetto di Razzi costa 5000 punti, dunque se Zeus ne ha di meno non potrà acquistarlo; dovrà potenziarsi nei vari modi che il gioco prevede e, solo quando ne avrà più di 5000, potrà acquistarlo e attribuirselo. Se Zeus raggiungerà ad esempio 5100 punti e deciderà di acquistare l'effetto di Razzi, pagherà 5000 punti e scenderà a 100 punti (5100-5000).
+
+Chiunque può acquistare altri poteri, anche chi ne ha già, ma il prezzo cambia: se un personaggio ha un potere e vuole acquistarne un secondo, lo pagherà il doppio del prezzo originale; il terzo costerà il triplo, il quarto il quadruplo, ecc.
+
+
+3.3. Le dinamiche
+Spiegata la simbologia delle carte dei personaggi, vediamo come funzionano e come giocarle. Come già detto, senza un proprio personaggio in campo un concorrente non può eseguire alcuna azione di gioco. Dunque per dare il via alla partita, ogni partecipante deve metterne in campo uno. Perché lo scopo degli avversari è eliminare i tuoi personaggi? Perché raggiunto un certo numero di personaggi che sono stati eliminati (numero da decidere prima di una partita) vieni eliminato anche tu dal gioco e loro si sbarazzano di un pretendente alla vittoria. Se si decide di disputare una partita "a 5 personaggi" non significa che ci sono 5 concorrenti, ma che ogni concorrente ha a disposizione - per rimanere in gioco - 5 personaggi; una volta eliminati tutti e 5, il partecipante ha perso e non può più giocare.
+
+Per cui a meno che non si decida di giocare "a 1 personaggio", una volta messo in campo, il concorrente deve pescarne un altro dall'apposito mazzo e tenerlo in mano. Un partecipante può giocare una sola carta quando è il suo turno: un bonus o una mossa (come vedremo) oppure sostituire il personaggio che ha in campo con quello che ha in mano. Se gioca una carta non può anche sostituire il personaggio e viceversa. Quando a un partecipante sono stati eliminati tutti i personaggi a disposizione tranne uno, non ha più diritto a pescarne altri e rimane con un personaggio in campo e zero in mano. Si contano come personaggi eliminati solo quelli effettivamente morti e non quelli che, per alcune dinamiche di gioco, spariscono o vengono sottratti. I personaggi morti devono essere messi da parte per ogni singolo partecipante e tenuti sul campo di gioco con le carte coperte per costituire il cosiddetto "cimitero". Ogni concorrente ne ha uno formato dai suoi personaggi morti.
+
+
+4.0. Le mosse
+Si è detto che l'obiettivo è eliminare i personaggi avversari: le mosse sono fatte apposta per questo. Quando si ha una mossa in mano e si decide di giocarla, si deve subito comunicare su quale personaggio avversario usarla e non si può poi cambiare idea. Spesso sulle carte si farà riferimento all'effetto delle mosse anche con termini come "attacco" o "danno", sono solo sinonimi. Ma ora andiamo a vedere come funzionano nello specifico questi attacchi e come si infliggono questi danni.
+
+
+4.1. I danni
+
+Prendiamo in considerazione una mossa abbastanza semplice: Verza. In alto sulla sinistra c'è la tipologia di mossa, sulla destra il suo nome e sotto il nome compaiono due simboli: un "+" verde e un "-" rosso. Che cosa indicano? Per rispondere a questa domanda dobbiamo pazientare un attimo, è necessario prima spiegare il resto della carta. Dunque scendiamo giù e sotto l'immagine troviamo sulla sinistra un numero, che in questo caso è -80. Questo vuol dire che questa mossa, usata su un personaggio avversario, gli toglierà ben 80 punti. Come accennato nel paragrafo dei personaggi però, questo numero va moltiplicato per il numero di stelle del personaggio che la usa. Dunque toglierà 80 solo se il personaggio che la usa ha una sola stella, altrimenti se ne ha 2 toglierà 160, e così via. Accanto a questo numero c'è una scritta: "Per tutti", che spesso si può trovare anche come "A tutti". Che cosa indica? Indica che chiunque usi questa mossa,  il suo valore è lo stesso, ovvero in questo caso 80 punti. Vedremo più avanti le varianti di questa voce con appositi valori per alcuni personaggi. Per eliminare un personaggio, è necessario attaccarlo e togliergli punti finché questi non arrivano a 0. Quando si uccide un personaggio attraverso una mossa, il personaggio che ha sferrato il colpo di grazia, si aggiunge come ricompensa tanti punti quanti ne aveva l'avversario ucciso prima del colpo fatale. Es.: se un personaggio ha 180 punti residui e un avversario gli sferra un attacco da 200 punti (uccidendolo), colui che lo ha attaccato si aggiungerà 180 punti come (quelli che restavano a quel personaggio prima di morire).
+
+
+4.2. Le respinte
+Ora che abbiamo compreso il significato delle voci presenti su una mossa, torniamo ai nostri pallini verdi e rossi che abbiamo lasciato in sospeso poco fa. Il verde indica che questa mossa può essere usata per respingere un attacco che si subisce; il rosso indica che questa mossa può essere respinta con un'altra. Detto così può giustamente sembrare incomprensibile, dunque spieghiamo meglio.
+
+Se io vengo attaccato e sto per subire un danno di un certo valore e ho in mano una mossa il cui danno, moltiplicato per le stelle del personaggio che sta subendo l'attacco è uguale o maggiore al danno stesso subito, posso respingere questa mossa prima ancora di subirla anche se non è il mio turno. Il personaggio avversario che aveva provato ad attaccarmi subirà un danno equivalente alla differenza tra il mio danno e quello che mi avrebbe inflitto lui. Se i danni si equivalgono, nessuno dei due personaggi subirà l'attacco. Dunque se un avversario mi attacca con una mossa con il bollino rosso (può essere respinta) dal valore simbolico di 50 punti e io ho in mano una mossa con danno simbolico 80 e ha il bollino verde (può respingere), metto in gioco questa carta subito così il mio personaggio non subirà danni e il personaggio che mi aveva attaccato subirà un danno di 30 punti (80-50).
+
+
+4.3. Le mosse originali
+
+Come si vede in quest'altra mossa, non c'è solo la dicitura "Per tutti" ma viene fatta una distinzione di valore anche per altri personaggi. In questo caso la carta Tanfo se viene usata da "Montaquilano" toglierà al personaggio attaccato 60 punti da moltiplicare per le stelle di "Montaquilano". Se usata da "Napoletano" il valore base (danno riportato sulla carta prima di essere moltiplicato per le stelle) sarà di 120 punti. In più il riferimento specifico a questi due personaggi comporta due conseguenze: la prima è che questa mossa, se usata dai personaggi indicati, non può essere respinta da un'altra mossa; la seconda conseguenza è che nessun personaggio può usare questa mossa contro uno dei personaggi che la possiedono come mossa originale (ovvero quelli che sono riportati sulla carta accanto al danno base). In questo caso la mossa è utilizzabile solo contro un altro personaggio, altrimenti non è giocabile. E se con "Montaquilano" usassi Tanfo per attaccare "Napoletano"? In un caso raro come questo si considera la gerarchia, ovvero può attaccare soltanto il personaggio il cui danno base è superiore (in questo caso "Napoletano"), altrimenti non si può giocare la mossa.
+
+
+4.4. Le mosse con effetto
+
+Non tutte le mosse possiedono un danno fisso, anzi non sono poche quelle che hanno un effetto più complesso. Per questo motivo c'è uno spazio apposito sotto la barra dei danni (che può essere vuota come in questo caso ma può anche contenere informazioni) per descrivere l'effetto completo della mossa.
+
+Nel caso di Puozza ittà l sang, si tolgono 5 punti il primo turno, 10 il secondo, 20 il terzo e così via. Ovviamente i punti vanno sempre moltiplicati per le stelle del personaggio che la usa. Quando svanisce un effetto come questo che dura nel tempo? Quando muore o il personaggio che la subisce o il personaggio che l'ha usata. Ma nel caso specifico di Puozza ittà l sang la morte del personaggio che l'ha usata non è sufficiente a interrompere quella che è una vera e propria maledizione, infatti è esplicitamente scritto che chi la subisce si può salvare solo se mette in campo il personaggio aggiuntivo "Mazzamauriegl". In generale però gli attacchi che hanno una durata nel tempo come questo si mettono in standby in un caso: se si richiama in mano il personaggio che l'ha usato. Se invece si richiama in mano il personaggio che l'ha subito, l'effetto continuerà a valere.
+
+
+4.5. Mosse, stelle e variazioni
+
+Abbiamo chiarito il rapporto tra una mossa e le stelle del personaggio che la usa, ma non è tutto. Doveroso è l'esempio di un'altra carta: Furto. Questa carta è molto particolare perché non sottrae punti, ma addirittura stelle e le aggiunge al personaggio che l'ha usata. Anche in questo caso il danno va moltiplicato per le stelle di chi lo sferra, per cui se viene usata da un personaggio che ha 4 stelle, sottrarrà ben 4 stelle al personaggio verso cui è diretta. E se il personaggio a cui è destinata ha meno stelle di quelle che toglierebbe questa mossa? Appena un personaggio arriva ad avere meno di 0 stelle, muore. Sempre a proposito di stelle, va fatto un ulteriore chiarimento circa le loro moltiplicazioni e divisioni: se - per varie dinamiche di gioco - si dovesse dimezzare un numero dispari di stelle, si arrotonderà per eccesso (es.: da 3 ne rimane una, da 5 ne rimangono 2, ecc.). Se invece si dovesse aggiungere la metà delle stelle già presenti, si arrotonderà per difetto (es.: 5 più la metà di 5 uguale 7, ecc.). Il danno si moltiplica per le stelle solo ed esclusivamente per le mosse e non per i bonus.
+
+
+4.6. Ultime precisazioni
+-Ogni mossa, dopo che il suo effetto è terminato, va rimessa coperta sotto il mazzo delle mosse.
+
+-Posso usare una mossa se il mio personaggio ha 0 stelle? No.
+
+-Posso attaccare un personaggio che non è in campo? Sì, ma solo tramite apposite carte che lo consentano.
+
+-Posso attaccare, per motivi che non stiamo qui a precisare, un personaggio in campo che sia mio e non di un avversario? No, a meno che non sia stata usata una carta che lo imponga.
+
+
+5.0. I bonus
+Se fin qui è stato tutto semplice e avete capito che l'obiettivo è, con il proprio personaggio, eliminare gli avversari attraverso le mosse, preparatevi: ora viene la parte più complessa. Senza i bonus le Minkiards sarebbero un gioco normale, come tanti, ma con i bonus le Minkiards diventano un gioco unico e ricco di strategie che potrete escogitare per vincere la partita. Concentratevi, perché ora viene il bello.
+
+
+5.1. Potenziare il proprio personaggio
+
+
+I bonus, tutti con il retro nero, possono servire per vari scopi. Il primo che andremo ad analizzare è quello che consente di potenziare il nostro personaggio.
+
+Prima di entrare nel dettaglio, notiamo subito che la struttura grafica di un bonus è molto simile a quella di una mossa: tipologia in alto a sinistra, nome in alto a destra, al centro l'immagine e in basso alcune informazioni. La carta che prendiamo in considerazione ora è "Peluria di Holly" (ma il discorso vale per tutte le altre strutturate in questo modo), un bonus molto semplice che serve a potenziare il proprio personaggio in campo. Sotto l'immagine centrale infatti leggiamo alcuni numeri e alcuni nomi, che cosa significano? Nel caso specifico "+50" indica che, quando si usa questa carta, il proprio personaggio in campo si aggiunge 50 punti (PTI)  a quelli residui. Il "per tutti" indica che questo vale per qualunque personaggio che la userà e che quindi l'effetto di aggiungere 50 punti vale per tutti. Nel rigo in basso però viene specificata un'eccezione: se questo bonus è utilizzato sul personaggio "Holly", si aggiungerà 70 punti anziché 50.
+
+Dunque, per esempio, se ho in campo un personaggio che al momento ha 220 punti e utilizzo la carta "Peluria di Holly", il mio personaggio andrà subito a 270 punti (220+50). Se questo personaggio è Holly, andrà a 290 punti (220+70).
+
+Ci sono anche altri bonus che permettono di potenziare i personaggi pur senza aggiungere direttamente i punti, ma la dinamica resta la stessa.
+
+Questo bonus, come tutti gli altri, si può applicare soltanto a un proprio personaggio in campo a meno che la carta stessa o alcune particolari situazioni di gioco non permettano di agire diversamente.
+
+
+5.2. Cambiare le dinamiche di gioco
+
+
+I bonus che abbiamo appena visto sono i più semplici e lineari, ma rappresentano solo una minima parte di tutti i bonus presenti. Gli altri hanno effetti molto diversi e, alcuni, sono molto complessi. Questi bonus possono cambiare le dinamiche di gioco modificando il suo regolare corso. Per comprendere di cosa parliamo, proponiamo l'esempio di un bonus di questo tipo ma con un effetto di facile comprensione: "Scudo".
+
+A differenza del precedente bonus analizzato, "Scudo" non ha punti o personaggi di riferimento, ma ha un testo rosso posto al di sotto della barra azzurra e nera (che qui è vuota). In questo testo viene spiegato l'effetto che questa carta ha sul gioco e, in questo caso, in particolare sul tuo personaggio. Nel caso specifico di "Scudo" dunque, utilizzando questa carta il tuo personaggio non potrà subire attacchi tramite mosse da nessun altro concorrente finché non toccherà di nuovo a te.
+
+
+
+Una carta il cui effetto modifica le dinamiche di gioco in modo più netto è "Tsunami" (ma tranquilli, ce ne sono di peggiori, molto peggiori).
+
+"Tsunami" infatti, come indica il testo sulla parte bassa, fa scambiare tutte le carte in mano di ogni concorrente con quelle di chi gli siede accanto. A decidere il senso del giro da seguire è il dado che, attraverso il numero che uscirà, indicherà il da farsi.
+
+Quindi se qualcuno userà questo bonus, dite addio alle carte che avete in mano e che speravate di giocare nei prossimi turni. Addio alla strategia che stavate preparando, con le nuove carte che avete in mano dovrete pensare a un nuovo piano che vi porti alla vittoria. A meno che non arrivi un altro bonus a stravolgere tutto. Cosa, tra l'altro, non poco probabile.
+
+
+5.3. Gli scenari
+
+
+Esiste un particolarissimo tipo di bonus che, di fatto, è una categoria a sé: gli scenari. Sono riconoscibili già visivamente in quanto presentano - in basso a sinistra sull'immagine centrale - la scritta "Scenario".
+
+Ma perché questa particolarità? Che cos'hanno di speciale?
+
+Gli scenari sono degli ambienti che vengono messi in piedi all'interno di una partita, stabiliscono delle condizioni particolari che favoriscono alcuni personaggi, ne penalizzano altri, creano un universo parallelo entro il quale i concorrenti si muovono di conseguenza.
+
+L'esempio più semplice è riportato qui in modo da agevolare la comprensione del concetto: "Fenza 1 metro e 20 alta" che, come da descrizione, indica che "Valgono solo gli attacchi da 120 PTI in su". Ciò significa che se viene lanciato un attacco dal valore di 115 PTI, non ha effetto.
+
+Dunque uno scenario è un bonus che inserisce una o più regole che da questo momento varranno all'interno della partita finché questo bonus non perde il suo effetto. Come si fa a far terminare uno scenario? Con apposite carte che annullino l'effetto di bonus in vigore oppure schierando un altro scenario. Non si possono avere contemporaneamente due scenari diversi, ma sarà valido solamente l'ultimo schierato in campo.
+
+
+
+
+Ovviamente non tutti gli scenari sono di facile applicazione come "Fenza 1 metro e 20 alta", ma ce ne sono alcuni (probabilmente la maggior parte) che hanno complessità davvero interessanti.
+
+"Vedi Napoli e poi muori" ne è un esempio, in quanto crea un ambiente estremamente complesso e intricato nel quale ci sono regole speciali che possono rivelarsi fatali per alcuni personaggi.
+
+In questo caso si fa riferimento ai "Napoletani", espressione seguita da un asterisco, presente proprio perché questa voce necessita di una precisazione.
+
+Gli scenari, come detto in precedenza, possono favorire o penalizzare alcuni tipi di personaggi che vengono specificati nella descrizione stessa degli scenari. I tipi di personaggi citati (in questo caso i Napoletani) si riferiscono a una precisa lista di personaggi corrispondente a ogni apposita categoria.
+
+Per fare chiarezza e semplificare, ecco la lista completa in grado di spiegare gli asterischi presenti in alcuni scenari:
+
+
+NAPOLETANI = Bud Spencer, Cannavacciuolo, Ciro pizzaiolo di sfiducia, Djidji D'Alessio, Fedesimo, Gigione, Golden Freezer, Jo' Donatello, Lotain, Napoletano, O Pappon', Tony Tammaro, Vu cumprà.
+
+
+NERI = Bello Figo Gu, Kulungu, Napoletano, Nero che beva la soda, Neymar Junior, Obama, Real Gee, Shorty, Tizio Jamaicano.
+
+
+RESISTENTI AL CALDO = Apollo, Avvoltoio, Bambola del demonio, Bullox, Cinghiale inferocito, Evil Fake, God Zilla, Mago Letterius, Mancazione, Mohamed kebabbaro di fiducia, Pippo Raudo. 
+
+
+RESISTENTI ALL'ACQUA = Aragosta irachena, Opossum con la rabbia, Parassita, Pingu, Pontius Pilatus, Poseidone, Procione insatanato, Sciallcuan.
+
+
+5.4. Le leghe
+
+
+Meritano un paragrafo apposito anche i bonus che analizzeremo di seguito: le leghe.
+
+Le leghe sono dei bonus che hanno il potere, se usate da specifici personaggi, di chiamarne in campo di altri correlati e di schierarli tutti insieme contemporaneamente.
+
+L'esempio riportato di "Lega ganza" infatti indica che se questa carta viene usata da un personaggio tra Gigione, Cacca, One Direction, Michele Telo, Psy o Justin Bieberon, puoi chiamare in campo anche gli altri appena elencati. Ciò significa che puoi cercarli nel mazzo dei personaggi e sottrarli ad altri partecipanti (che dovranno cederli anche se li hanno in mano). Ovviamente non puoi prelevarli dai personaggi morti a meno che specifiche dinamiche di gioco non lo consentano.
+
+Puoi usare questa carta anche se non hai in campo uno dei personaggi elencati, in tal caso l'effetto non sarà valido e - al suo posto - come una sorta di premio di consolazione il tuo personaggio si aggiungerà 20 punti.
+
+
+5.5. Ultime precisazioni
+
+-Ogni bonus, dopo che il suo effetto è terminato, va rimesso coperto sotto il mazzo dei bonus. Se l'effetto è ancora in vigore dopo il primo turno, deve rimanere in campo finché l'effetto non svanisce.
+
+
+-Posso usare un bonus se il mio personaggio ha 0 stelle? Certo, a differenza delle mosse i bonus non vengono attivati o moltiplicati dal numero di stelle che ha un personaggio che li usa.
+
+
+-Posso applicare un bonus a un personaggio che non è in mio possesso? Sì, ma solo tramite apposite carte che lo consentano.
+
+
+-Posso respingere un bonus così come è possibile fare con le mosse? No, i bonus non si possono respingere a meno che non si utilizzi un apposito bonus che ne annulli l'effetto. Bonus come "Respinta" ad esempio non hanno effetto sui bonus ma solo sulle mosse.
+
+
+6.0. I personaggi speciali
+
+Come detto nell'introduzione, il quarto mazzo (con retro dai bordi gialli) è quello che entra in gioco solo grazie ad apposite carte: ecco a voi il mazzo dei personaggi speciali.
+
+Perché speciali? Perché appunto sono diversi dai personaggi base, rappresentano le loro variazioni che possono essere più forti (nel caso delle trasformazioni, delle evoluzioni e dei personaggi supremi) o più deboli (nel caso delle taroccate). Ma andiamo a vedere nel dettaglio.
+
+
+6.1. I Super Personaggi
+
+Questo che vedete è un super personaggio, nello specifico Super Chuck, che corrisponde alla trasformazione del personaggio base Chuck Norris.
+
+Ma andiamo per gradi: in alto a sinistra è indicato il tipo di carta, in alto a destra il suo nome. Sempre in alto a sinistra, ma con un carattere più piccolo, è specificato il nome del suo personaggio base di riferimento, dunque se Chuck Norris riuscirà a trasformarsi con determinate carte che lo prevedono, questo diventerà Super Chuck. Si andrà dunque a cercare Super Chuck dal mazzo dei personaggi speciali e lo si metterà in campo al posto di Chuck Norris.
+
+Come si legge in basso alla carta infatti, Super Chuck con i suoi 6500 punti e le sue 9 stelle è molto più forte di un normale Chuck Norris (indicativamente il doppio dei suoi punti e delle sue stelle con una piccola aggiunta).
+
+Come per i personaggi base quindi abbiamo la barra dei punti e quella delle stelle, ma appena sopra leggiamo la voce "Super attacco": che significa? Bisogna fare un piccolo passo indietro e tornare alle mosse: tra di loro c'è una carta che si chiama "Attacco" che, se usata da un super personaggio, fa utilizzare il super attacco. Dunque se Super Chuck usa la mossa "Attacco", userà il super attacco "Terzo pugno" che - come indicato - vale 200 punti (moltiplicati poi per il numero di stelle). Dunque il super attacco è una mossa speciale che appartiene solo ai super personaggi e che ha una forza distruttiva molto elevata.
+
+
+Un super personaggio viene chiamato in campo quando un personaggio base si trasforma (questa dicitura è presente su diversi bonus) ma non tutti i personaggi hanno un corrispettivo super personaggio (cosa che viene indicata dal pallino giallo come abbiamo visto all'inizio). Come si procede dunque? Quando un personaggio base si trasforma ma non ha un super personaggio, si raddoppieranno i suoi punti e le sue stelle: se al momento della trasformazione ha più punti di quelli originali, raddoppierà i punti e le stelle che ha in quel momento; se invece al momento della trasformazione ha meno punti di quelli originali, si avrà un personaggio che ha il doppio di punti e stelle originali come se non si contassero i danni che ha subito.
+
+Ogni personaggio può trasformarsi più di una volta, compresi i super personaggi, per i quali vale la stessa regola dei personaggi base che non hanno un super personaggio di riferimento.
+
+
+6.2. I personaggi evoluti
+
+
+Retro giallo, fronte verde: ecco un personaggio evoluto. La struttura è simile a quella dei super personaggi, ma ci sono delle differenze da analizzare.
+
+In alto a sinistra il tipo di carta, a destra il nome del personaggio. Sempre a sinistra, come per i super personaggi, è indicato il personaggio dal quale deriva quest'evoluzione. A destra però, come in questo caso, può esserci anche un ulteriore simbolo di evoluzione, che indica che questo personaggio - nonostante già evoluto - può evolversi ancora in un altro personaggio speciale (in questo caso si tratta di Zody).
+
+Punti e stelle corrispondono a quelli del personaggio dello stadio evolutivo precedente più la loro metà con una piccola aggiunta (Horsy ha infatti 2400 punti e 3 stelle mentre Hozdy ha 5000 punti e 5 stelle).
+
+Fin qui tutto in linea con quanto visto con i super personaggi, ma al posto del super attacco c'è una variante: 2 mosse fisse, ma vediamo nel dettaglio. Se Hozdy usa una mossa dal valore da 1 a 150 punti, questa si trasformerà nel suo attacco speciale "Rincorsa", che vale 150 punti (da moltiplicare poi per il numero delle sue stelle). Quindi se usa "L'ho solo sfiorata un po'" che è una mossa che vale 5 punti, varrà 150x5 (!). Così anche per "Scalciata" che fa valere 300 punti tutte le mosse che rientrano nel range da 151 a 300. Se usa una mossa base che toglie più di 300 punti, allora non ci saranno mutazioni ma varrà il numero di punti reali.
+
+
+Un personaggio evoluto viene chiamato in campo quando un personaggio base si evolve (questa dicitura è presente su diversi bonus) ma non tutti i personaggi hanno un corrispettivo personaggio evoluto (cosa che viene indicata dal pallino verde come abbiamo visto all'inizio). Come si procede dunque? Quando un personaggio base si evolve ma non ha un personaggio evoluto, ai suoi punti si aggiungerà la loro metà e lo stesso vale per le stelle: se al momento dell'evoluzione ha più punti di quelli originali, si aggiungerà la metà dei punti e delle stelle che ha in quel momento; se invece al momento della trasformazione ha meno punti di quelli originali, si avrà un personaggio che ha punti e stelle originali più la loro metà come se non si contassero i danni che ha subito. Se la metà di punti o stelle non è un numero intero, si arrotonderà per difetto. Es.: 3 stelle diventano 5 poiché 3 più 1,5 (la metà di 3) farebbe 4,5 ma arrotondando 1,5 a 2 la somma è 5.
+
+I personaggi che non hanno un personaggio evoluto di riferimento però non hanno il vantaggio delle mosse predefinite.
+
+Ogni personaggio può evolversi più di una volta, compresi i personaggi evoluti che non hanno altri gradi di evoluzione.
+
+
+
+Non solo catene di evoluzioni, ma anche evoluzioni alternative grazie all'utilizzo del dado. Qui vediamo Bruno Barbieriff, che sulla sinistra ci mostra la dicitura "Se il dado dà 5 o 6": che significa?
+
+Indica che, una volta deciso che il personaggio base (in questo caso Bruno Barbieri) si evolverà, sarà necessario lanciare il dado per vedere in chi si trasformerà. Diventerà Bruno Barbieriff solo se dal dado usciranno un 5 o un 6, altrimenti effettuerà un'evoluzione diversa in base a quanto indicato sugli altri personaggi evoluti.
+
+Infine, come avviene per i personaggi base, anche quelli evoluti possono avere dei poteri che vengono opportunamente segnalati.
+
+
+6.3. I personaggi supremi
+
+I personaggi supremi sono dei personaggi speciali che scendono in campo grazie a particolari dinamiche determinate dall'uso di precise carte. Nell'esempio che vi proponiamo c'è Gogeta, i cui punti e stelle sono indicati in basso. Ancora più giù però viene descritto il modo in cui Gogeta può essere chiamato in campo: "Si evoca con la fusione di Goku e Vegeta". Dunque se durante la partita il bonus "Fusione" unirà i personaggi Goku e Vegeta, anziché una fusione semplice si chiamerà in campo Gogeta.
+
+Come detto, i personaggi supremi riguardano casi molto particolari, ma sui personaggi base è presente il bollino blu con la "S" per aiutarci.
+
+
+6.4. I personaggi tarocchi
+
+Vi è chiaro il concetto dei super personaggi? Bene, i personaggi tarocchi sono l'esatto contrario: non hanno il doppio di punti e stelle dei personaggi base, bensì la metà.
+
+Sono delle penalizzazioni, dei personaggi fatti male e di qualità scadente che sostituiscono i rispettivi personaggi base (indicati dalla scritta "Tarocca da" presente sopra il nome) attraverso precise dinamiche di gioco. Un personaggio base si tarocca (espressione presenti su diversi bonus) e viene sostituito dal suo rispettivo personaggio tarocco.
+
+Però non tutti i personaggi hanno un corrispettivo personaggio tarocco (cosa che viene indicata dal pallino fucsia e celeste come abbiamo visto all'inizio). Come si procede dunque? Quando un personaggio base si tarocca ma non ha un personaggio tarocco, i suoi punti e le sue stelle verranno dimezzati: se al momento della taroccata ha più punti di quelli originali, si dimezzerà i punti e le stelle che ha in quel momento; se invece al momento della taroccata ha meno punti di quelli originali, si avrà un personaggio che ha la metà di punti e stelle originali come se non si contassero i danni che ha subito. Se la metà di punti o stelle non è un numero intero, si arrotonderà per eccesso. Es.: 3 stelle diventano 1 poiché la metà di 3 è 1,5 e quindi si scende al primo numero intero disponibile, che in questo caso è 1.
+
+
+Precisazione: tutti i personaggi speciali conservano poteri e mosse originali dei rispettivi personaggi base perché, di fatto, sono delle loro mutazioni ma conservano lo spirito originale di quel personaggio.
+
+
+Chiarimenti: 
+
+-può un personaggio che ha effettuato una trasformazione, evolversi successivamente e viceversa? Certo, però se a evolversi è un super personaggio (non un semplice personaggio trasformato) e il suo personaggio base ha anche un personaggio evoluto di riferimento, quest'ultimo non andrà a sostituire il super personaggio ma si creerà un super personaggio che effettua l'evoluzione secondo le regole spiegate sopra. Ovviamente vale lo stesso anche per la situazione inversa o per una taroccata.
+
+-Se due personaggi sono uniti tra di loro formandone uno solo e si usa la trasformazione e soltanto uno dei due ha un super personaggio di riferimento, che cosa succede? Succede che si prenderà quel super personaggio e lo si sostituirà al suo personaggio base, mentre l'altro incluso nella fusione (o qualunque tipo di unione) si trasformerà secondo le normali regole della trasformazione. Lo stesso vale per evoluzioni, taroccate e personaggi supremi.
+
+
+7.0. Ma ora giochiamo!
+All'inizio di questo vademecum per il giocatore, vi avevamo lasciati con le vostre 3 carte in mano pronti per cominciare la partita. Scusate l'attesa, ma era necessario spiegare con esattezza tutto ciò che le carte possono fare. Ora che lo sapete, possiamo cominciare una partita, vediamo come si fa!
+
+
+7.1. Le modalità di gioco
+Qual è l'obiettivo delle Minkiards? Eliminare tutti i personaggi avversari e sopravvivere, vincendo così la partita. Ma quanti sono questi personaggi? Va deciso all'inizio, prima ancora di mischiare le carte.
+
+Esistono vari tipi di modalità a eliminazione limitata e variano in base al numero di personaggi che ogni concorrente ha a disposizione prima di uscire dalla partita:
+
+
+-5 personaggi, la modalità più usata, permette ai concorrenti di veder morire 4 propri personaggi prima di essere eliminati con la morte del quinto e ultimo. Durata media di una partita: 1 ora.
+
+-3 personaggi, permette ai concorrenti di veder morire 2 propri personaggi prima di essere eliminati con la morte del terzo e ultimo. Durata media di una partita: 30 minuti.
+
+-2 personaggi, permette ai concorrenti di veder morire 2 propri personaggi prima di essere eliminati con la morte del terzo e ultimo. Durata media di una partita: 20 minuti.
+
+-1 personaggio, una modalità molto veloce, permette ai concorrenti di veder morire 1 solo proprio personaggio prima di essere eliminati. Durata media di una partita: 15 minuti.
+
+
+La durata media di ogni modalità è calcolata sulla base di una partita con 5 concorrenti, ma ovviamente questa durata varia in base al numero di giocatori perché da loro dipende la quantità di personaggi da eliminare per mettere fine a una partita. Una partita a 1 personaggio con 2 soli concorrenti può durare benissimo solo 30 secondi, il tempo di un attacco letale all'avversario.
+
+
+Altra modalità è quella del "Chi vince regna".
+
+Viene sorteggiato un concorrente e, a turno, viene sfidato dagli altri in tanti scontri 1vs1. Si ha a disposizione un solo personaggio a testa, quando questo muore viene eliminato anche il suo concorrente e ne subentrerà un altro. Quest'ultimo pescherà nuove carte, mentre il concorrente che aveva vinto, continuerà con le sue. La durata è variabile e a discrezione dei giocatori.
+
+
+Esiste anche una modalità "A tempo" che, come suggerisce il nome, dipende fortemente dallo scorrere dei minuti di gioco.
+
+Si decide, prima della partita, la durata degli slot: 15, 10, 5 o 2 minuti. Dunque allo scadere di ogni slot, il concorrente che ha collezionato più morti, viene eliminato e proseguono gli altri. Nel caso il maggior numero di morti sia eguagliato anche da altri giocatori, verranno eliminati anche loro.
+
+Per evitare perdite di tempo e annesse strategie, ogni giocatore ha solo 10 secondi a disposizione per giocare una carta e, se terminato il suo tempo non ne ha ancora giocata una, un avversario può prendergliene una a caso dalle mani e giocarla senza il suo consenso.
+
+
+L'ultima modalità è quella del "Tag team", ovvero a coppie.
+
+Si può giocare solo se si è in un numero pari di partecipanti, ci si divide in coppie e ogni coppia sfida le altre. Ognuno ha le sue carte esattamente come nelle altre partite, ma i personaggi del proprio compagno di squadra è come se fossero anche i suoi: non può quindi attaccarli, ma può attribuire a lui i propri bonus nel momento in cui vengono giocati.
+
+Per favorire l'alternanza delle giocate, è necessario sedersi intorno al tavolo evitando che due giocatori della stessa squadra siano vicini. Non si può comunicare quali carte si hanno in mano.
+
+
+7.2. Il Rankiard
+Ma chi vince, che cosa vince? Beh, certamente vincere una partita è sempre bello, ma nel momento in cui si instaura un certo gruppo di persone che giocano insieme periodicamente, è prevista anche una ricompensa in base alla classifica: il Rankiard.
+
+Il Rankiard è il ranking delle Minkiards, i cui punti si accumulano in base all'esito di ogni partita. Chi vince guadagnerà più punti, chi arriverà secondo ne guadagnerà ovviamente di meno, fino ad arrivare all'ultimo classificato (il primo a essere eliminato) che conserverà il bottino più piccolo.
+
+Nel dettaglio, in questa tabella è spiegato come funziona l'assegnazione dei punti Rankiard per ogni modalità. L'unica modalità che non assegna punti Rankiard è la Tag team, ma ad ogni modo prima di giocare potete scegliere se far valere il Rankiard (partita ufficiale) oppure no (partita amichevole).
+
+
+Accumulare punti Rankiard permette di stilare una classifica da aggiornare dopo ogni partita, come vedete qui.
+
+Il Rankiard non solo viene chiamato in causa da diverse carte di gioco (che dunque dovranno essere scartate se decidete di disputare una partita senza Rankiard), ma è proprio una regola.
+
+Ogni giocatore ha infatti a disposizione un serbatoio aggiuntivo di punti che corrisponde al numero di punti Rankiard che ha accumulato nel corso delle precedenti partite. Ogni volta che è il suo turno, oltre a giocare una carta può aggiungere al personaggio che ha in campo una certa quantità di punti prendendoli proprio dai punti Rankiard, che possono essere usati finché non finiscono.
+
+Va chiarito che l'utilizzo dei punti durante una partita non determina una loro diminuzione anche nella classifica, nella quale i punti resteranno intatti.
+
+
+7.3. Tutto pronto, finalmente si gioca
+Scelta la modalità? Scelto l'ordine col dado? Mischiate le carte? Pescate? Perfetto, finalmente si comincia!
+
+Per prima cosa ogni giocatore (a partire dal primo estratto col dado), mette in campo il personaggio che ha in mano e ne pesca subito un altro dal mazzo (a meno che non sia una partita a 1 personaggio). A seguire, tutti gli altri giocatori in senso orario o antiorario (anche questo, come detto, va deciso prima di giocare). Nel momento in cui ogni giocatore ha in campo il suo personaggio, tocca di nuovo al primo del giro. Che cosa può fare?
+
+Deve scegliere, perché può fare una sola mossa: mettere in campo un altro personaggio richiamando in mano quello che aveva in campo, oppure può giocare un bonus e decidere su chi farlo valere o, in alternativa, giocare una mossa e attaccare un personaggio avversario.
+
+Non può giocare due carte, a meno che non venga permesso da particolari dinamiche di gioco.
+
+In alternativa, se non sa quale carta giocare, ha due possibilità: acquista un potere dalla Banca dei poteri (come visto sopra) oppure dice "Capi" (si legge "capì"). Dire "Capi" significa passare il turno e non giocare nessuna carta, ma questo è concesso una sola volta per ogni partecipante in tutta la partita.
+
+Acquistare poteri invece è sempre concesso, ma quando ciò avviene non si può anche giocare una carta.
+
+La partita andrà avanti dunque in questo modo, seguendo quest'ordine e rispettando i turni fino alla sua fine, a meno che determinate carte non concedano di agire diversamente.
+
+
+Si parla di "turno" quando tocca a un giocatore ma questo vocabolo viene a volte anche usato come sinonimo di "giro" intendendo il tempo che passa da quando un giocatore termina la sua giocata fino a quando ritoccherà a lui, ovvero dopo che hanno fatto le loro giocate anche gli altri concorrenti. Quando dunque sulle carte si leggerà "il suo turno" o diciture simili, significa "quando tocca a lui". Quando si leggerà un certo numero di turni ("3 turni", "5 turni", ecc.) indica quante volte si ritornerà a far giocare il primo che quei turni li ha cominciati.
+
+
+
+Prendiamo come esempio il bonus "Nirdosh", che recita "Dopo due turni muore".
+
+Che cosa significa? Che quando il gioco questa carta, comincerà il primo turno che terminerà quando toccherà di nuovo a me. Gli altri concorrenti nel frattempo giocano le loro carte e quando ritoccherà a me per la seconda volta dopo aver giocato "Nirdosh", saranno passati due turni e, come si legge, il mio personaggio morirà. I due turni terminano appena toccherà a me, quindi prima che io giochi una carta.
+
+
+
+
+
+
+
+7.4. Come finisce una partita
+Abbiamo già visto in precedenza come utilizzare le carte avendo studiato e analizzato la loro struttura e le loro caratteristiche, ma abbiamo anche detto che un partecipante vince quando muoiono tutti i personaggi avversari. Come avviene questo attraverso l'uso delle carte?
+
+Un personaggio muore quando i suoi punti scendono a 0 o anche al di sotto oppure se arriva ad avere meno di 0 stelle. Sostanzialmente è questa la regola, ma un personaggio può morire anche direttamente mediante l'uso di determinate carta (che scoprirai giocando).
+
+Quando un personaggio muore, finisce nel cimitero. Ogni concorrente ha il suo, è costituito da tutti i suoi personaggi che sono morti, vengono raggruppati e messi a faccia in giù col retro della carta verso l'alto
