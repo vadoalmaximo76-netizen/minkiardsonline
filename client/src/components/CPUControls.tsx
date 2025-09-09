@@ -1,17 +1,49 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
-import { Bot, Users } from "lucide-react";
+import { Bot, Users, MessageCircle, Clock } from "lucide-react";
 
 export const CPUControls: React.FC = () => {
   const { gameId, gameState } = useGameState();
+  const [cpuWaitingForResponse, setCpuWaitingForResponse] = useState<string | null>(null);
 
   const handleAddCPU = () => {
     if (gameId) {
       socket.emit('add-cpu-player', { gameId });
     }
   };
+
+  useEffect(() => {
+    const handleCPUWaiting = ({ cpuName }: { cpuName: string }) => {
+      setCpuWaitingForResponse(cpuName);
+    };
+
+    const handleCPUResumed = ({ cpuName }: { cpuName: string }) => {
+      setCpuWaitingForResponse(null);
+    };
+
+    const handleChatMessage = (message: any) => {
+      // Check if message is from a CPU asking a question
+      if (message.playerName.startsWith('CPU-') && message.message.includes('?')) {
+        setCpuWaitingForResponse(message.playerName);
+      }
+      // Check if message is CPU confirming they received answer
+      if (message.playerName.startsWith('CPU-') && message.message.includes('Grazie per la spiegazione')) {
+        setCpuWaitingForResponse(null);
+      }
+    };
+
+    socket.on('cpu-waiting-for-response', handleCPUWaiting);
+    socket.on('cpu-response-received', handleCPUResumed);
+    socket.on('chat-message', handleChatMessage);
+
+    return () => {
+      socket.off('cpu-waiting-for-response', handleCPUWaiting);
+      socket.off('cpu-response-received', handleCPUResumed);
+      socket.off('chat-message', handleChatMessage);
+    };
+  }, []);
 
   const cpuPlayers = gameState?.players ? 
     Object.values(gameState.players).filter((player: any) => player.name.startsWith('CPU-')) : [];
@@ -69,9 +101,26 @@ export const CPUControls: React.FC = () => {
         </div>
       </div>
       
+      {cpuWaitingForResponse && (
+        <div className="mt-3 bg-orange-600/20 border border-orange-500 rounded-lg p-3">
+          <div className="flex items-center gap-2 text-orange-300 font-semibold mb-2">
+            <MessageCircle size={16} className="animate-pulse" />
+            <Clock size={16} className="animate-spin" />
+            CPU Aspetta Risposta
+          </div>
+          <p className="text-white text-sm">
+            <strong>{cpuWaitingForResponse}</strong> ha fatto una domanda nella chat e aspetta la tua risposta prima di procedere.
+          </p>
+          <p className="text-orange-200 text-xs mt-1">
+            💬 Rispondi nella chat per permettere al CPU di continuare
+          </p>
+        </div>
+      )}
+      
       <div className="mt-3 text-xs text-gray-400">
         <p>💡 I giocatori CPU analizzeranno le carte usando l'AI e giocheranno automaticamente</p>
         <p>🎯 Seguiranno le regole ufficiali di MINKIARDS e leggeranno il testo delle carte</p>
+        <p>💬 I CPU possono fare domande nella chat per chiarire dubbi o strategie</p>
       </div>
     </div>
   );
