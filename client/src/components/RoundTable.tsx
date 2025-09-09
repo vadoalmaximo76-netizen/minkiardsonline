@@ -131,12 +131,12 @@ export const RoundTable: React.FC = () => {
 
   // Calculate card size based on number of players and screen size
   const getCardScale = (playerCount: number) => {
-    // Increased scales for bigger cards
+    // Much larger scales to fill the bigger table
     const mobileScales = {
-      2: 'scale-75 landscape:scale-90 sm:scale-75 md:scale-90 lg:scale-100',
-      4: 'scale-60 landscape:scale-75 sm:scale-65 md:scale-75 lg:scale-90', 
-      6: 'scale-50 landscape:scale-65 sm:scale-55 md:scale-65 lg:scale-75',
-      8: 'scale-40 landscape:scale-55 sm:scale-45 md:scale-55 lg:scale-65'
+      2: 'scale-100 sm:scale-110 md:scale-125 lg:scale-150',
+      4: 'scale-90 sm:scale-100 md:scale-110 lg:scale-125', 
+      6: 'scale-75 sm:scale-85 md:scale-95 lg:scale-110',
+      8: 'scale-65 sm:scale-75 md:scale-85 lg:scale-95'
     };
     
     if (playerCount <= 2) return mobileScales[2];
@@ -153,7 +153,7 @@ export const RoundTable: React.FC = () => {
       
       {/* Round Table Container */}
       <div 
-        className="relative rounded-full w-[400px] h-[400px] landscape:w-[800px] landscape:h-[650px] sm:w-[550px] sm:h-[550px] md:w-[750px] md:h-[750px] lg:w-[950px] lg:h-[800px] xl:w-[1100px] xl:h-[850px] mx-auto border-4 md:border-8 border-amber-700 shadow-2xl bg-no-repeat overflow-hidden touch-manipulation"
+        className="relative rounded-full w-[90vw] h-[90vw] max-w-[1200px] max-h-[1200px] min-w-[350px] min-h-[350px] mx-auto border-4 md:border-8 border-amber-700 shadow-2xl bg-no-repeat overflow-hidden touch-manipulation"
         style={{
           backgroundImage: `url('https://i.ibb.co/B2yVVMkJ/wallpaper-2547293.png')`,
           backgroundSize: 'cover',
@@ -165,21 +165,21 @@ export const RoundTable: React.FC = () => {
         {/* Center Area - Decks */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
           <div className="flex gap-1 sm:gap-2 items-center justify-center">
-            <div className="flex flex-col items-center scale-75 landscape:scale-90 sm:scale-75 md:scale-90 lg:scale-100">
+            <div className="flex flex-col items-center scale-90 sm:scale-100 md:scale-110 lg:scale-125">
               <Deck
                 name="PERSONAGGI"
                 backImage="https://i.imgur.com/r1rfUAB.png"
                 type="personaggi"
               />
             </div>
-            <div className="flex flex-col items-center scale-75 landscape:scale-90 sm:scale-75 md:scale-90 lg:scale-100">
+            <div className="flex flex-col items-center scale-90 sm:scale-100 md:scale-110 lg:scale-125">
               <Deck
                 name="MOSSE"
                 backImage="https://i.imgur.com/6MUXCZO.png"
                 type="mosse"
               />
             </div>
-            <div className="flex flex-col items-center scale-75 landscape:scale-90 sm:scale-75 md:scale-90 lg:scale-100">
+            <div className="flex flex-col items-center scale-90 sm:scale-100 md:scale-110 lg:scale-125">
               <Deck
                 name="BONUS"
                 backImage="https://i.imgur.com/lEROr3r.png"
@@ -205,7 +205,7 @@ export const RoundTable: React.FC = () => {
                 </label>
               </div>
             </div>
-            <div className="flex flex-col items-center scale-75 landscape:scale-90 sm:scale-75 md:scale-90 lg:scale-100">
+            <div className="flex flex-col items-center scale-90 sm:scale-100 md:scale-110 lg:scale-125">
               <Deck
                 name="SPECIALI"
                 backImage="https://i.imgur.com/ipVd57A.png"
@@ -384,7 +384,7 @@ export const RoundTable: React.FC = () => {
                           )}
                           
                           {/* Card */}
-                          <div className="scale-75 landscape:scale-90 sm:scale-75 md:scale-90">
+                          <div className="scale-100 sm:scale-110 md:scale-125">
                             <Card
                               card={card}
                               location="field"
