@@ -280,8 +280,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gameId) {
         const result = await gameManager.playCard(gameId, cardId, playerName);
         
-        // According to MINKIARDS rules: when you play a card, you automatically draw a replacement of the same type
-        if (result.card) {
+        // According to MINKIARDS rules: when a CPU plays a card, it automatically draws a replacement of the same type
+        // Human players must draw manually
+        if (result.card && playerName.startsWith('CPU-')) {
           const cardType = result.card.type;
           if (cardType === 'personaggi' || cardType === 'mosse' || cardType === 'bonus' || cardType === 'personaggi_speciali') {
             const replacementDrawn = await gameManager.pickCard(gameId, cardType, playerName);
