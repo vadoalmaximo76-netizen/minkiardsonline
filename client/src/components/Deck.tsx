@@ -137,8 +137,8 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
           <div 
             className="bg-gray-900 rounded-lg shadow-2xl border-2 border-gray-600"
             style={{ 
-              width: '1270px',
-              height: '720px',
+              width: '1500px',
+              height: '600px',
               maxWidth: '95vw',
               maxHeight: '95vh',
               position: 'relative'
@@ -171,7 +171,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
                     <img
                       src={card.frontImage}
                       alt="Card"
-                      className="w-full h-32 object-cover rounded border border-gray-500 hover:border-white transition-all"
+                      className="w-full aspect-[3/4] object-cover rounded border border-gray-500 hover:border-white transition-all"
                       onClick={() => handleCardClick(card)}
                     />
                     <span className="text-white text-xs mt-1 text-center truncate w-full">
