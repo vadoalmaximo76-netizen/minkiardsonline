@@ -33,6 +33,8 @@ interface GameState {
   matchId?: number; // Database match ID for event recording
   eventCounter: number; // Sequential event counter
   startTime: Date; // Match start time
+  turnOrder: string[]; // Player turn order
+  currentTurnIndex: number; // Index of current player in turn order
 }
 
 export class GameManager {
@@ -66,7 +68,9 @@ export class GameManager {
       graveyard: [],
       scenarioCardsActive: false,
       eventCounter: 0,
-      startTime: new Date()
+      startTime: new Date(),
+      turnOrder: [],
+      currentTurnIndex: 0
     };
 
     // Auto-shuffle all decks when starting a new game
@@ -694,5 +698,42 @@ export class GameManager {
     [game.field[targetFieldIndex], game.field[sourceFieldIndex]];
 
     return true;
+  }
+
+  startGame(gameId: string): string[] | null {
+    const gameState = this.games.get(gameId);
+    if (!gameState) return null;
+
+    // Get all player names and randomize order
+    const playerNames = Object.keys(gameState.players);
+    if (playerNames.length < 2) return null; // Need at least 2 players
+
+    // Shuffle player order randomly
+    const playerOrder = [...playerNames];
+    for (let i = playerOrder.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [playerOrder[i], playerOrder[j]] = [playerOrder[j], playerOrder[i]];
+    }
+
+    // Set the turn order and reset current turn index
+    gameState.turnOrder = playerOrder;
+    gameState.currentTurnIndex = 0;
+
+    return playerOrder;
+  }
+
+  endTurn(gameId: string, playerName: string): string | null {
+    const gameState = this.games.get(gameId);
+    if (!gameState || gameState.turnOrder.length === 0) return null;
+
+    // Verify it's the current player's turn
+    const currentPlayer = gameState.turnOrder[gameState.currentTurnIndex];
+    if (currentPlayer !== playerName) return null;
+
+    // Move to next player
+    gameState.currentTurnIndex = (gameState.currentTurnIndex + 1) % gameState.turnOrder.length;
+    const nextPlayer = gameState.turnOrder[gameState.currentTurnIndex];
+
+    return nextPlayer;
   }
 }

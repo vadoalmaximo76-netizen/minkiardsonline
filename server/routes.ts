@@ -488,6 +488,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on('start-game', ({ gameId, playerName }) => {
+      const gameState = gameManager.getGameState(gameId);
+      if (gameState) {
+        const playerOrder = gameManager.startGame(gameId);
+        if (playerOrder) {
+          io.to(gameId).emit('game-started', { playerOrder });
+        }
+      }
+    });
+
+    socket.on('end-turn', ({ gameId, playerName }) => {
+      const nextPlayer = gameManager.endTurn(gameId, playerName);
+      if (nextPlayer) {
+        io.to(gameId).emit('next-turn', { nextPlayer });
+      }
+    });
+
     socket.on('disconnect', () => {
       console.log('Player disconnected:', socket.id);
       gameManager.removePlayer(socket.id);

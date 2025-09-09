@@ -10,6 +10,8 @@ import { DiceModal } from "./DiceModal";
 import { FullScreenNotification } from "./FullScreenNotification";
 import { PersonaggioNotification } from "./PersonaggioNotification";
 import { AddCardsModal } from "./AddCardsModal";
+import { PlayerOrderNotification } from "./PlayerOrderNotification";
+import { NextTurnNotification } from "./NextTurnNotification";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
@@ -37,6 +39,10 @@ export const GameBoard: React.FC = () => {
   const [personaggioMessage, setPersonaggioMessage] = useState<string>("");
   const [personaggioCardImage, setPersonaggioCardImage] = useState<string>("");
   const [addCardsModalOpen, setAddCardsModalOpen] = useState(false);
+  const [playerOrderVisible, setPlayerOrderVisible] = useState(false);
+  const [playerOrder, setPlayerOrder] = useState<string[]>([]);
+  const [nextTurnVisible, setNextTurnVisible] = useState(false);
+  const [nextTurnPlayer, setNextTurnPlayer] = useState<string>("");
   const { selectedCard, gameId, playerName } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, initAudioContext, toggleMute, isMuted } = useAudio();
 
@@ -53,6 +59,10 @@ export const GameBoard: React.FC = () => {
       // Reset scenario cards state when game is reset
       setScenarioCardsActive(false);
     }
+  };
+
+  const handleStartGame = () => {
+    socket.emit('start-game', { gameId, playerName });
   };
 
   // Initialize audio context and play game start sound on mount
@@ -201,6 +211,16 @@ export const GameBoard: React.FC = () => {
       // Optional: Show a notification that a card was revealed
     };
 
+    const handleGameStarted = ({ playerOrder }: { playerOrder: string[] }) => {
+      setPlayerOrder(playerOrder);
+      setPlayerOrderVisible(true);
+    };
+
+    const handleNextTurn = ({ nextPlayer }: { nextPlayer: string }) => {
+      setNextTurnPlayer(nextPlayer);
+      setNextTurnVisible(true);
+    };
+
     socket.on('game-reset', handleGameReset);
     socket.on('card-shown', handleCardShown);
     socket.on('card-show-confirmed', handleCardShowConfirmed);
@@ -218,6 +238,8 @@ export const GameBoard: React.FC = () => {
     socket.on('character-sound', handleCharacterSound);
     socket.on('card-played-face-down', handleCardPlayedFaceDown);
     socket.on('card-revealed', handleCardRevealed);
+    socket.on('game-started', handleGameStarted);
+    socket.on('next-turn', handleNextTurn);
 
     return () => {
       socket.off('game-reset', handleGameReset);
@@ -237,6 +259,8 @@ export const GameBoard: React.FC = () => {
       socket.off('character-sound', handleCharacterSound);
       socket.off('card-played-face-down', handleCardPlayedFaceDown);
       socket.off('card-revealed', handleCardRevealed);
+      socket.off('game-started', handleGameStarted);
+      socket.off('next-turn', handleNextTurn);
     };
   }, []);
 
@@ -263,13 +287,19 @@ export const GameBoard: React.FC = () => {
             )}
           </div>
           <div className="flex flex-col gap-2">
-            {/* First row: REGOLAMENTO only */}
+            {/* First row: REGOLAMENTO and COMINCIA */}
             <div className="flex gap-2 justify-end">
               <Button
                 onClick={() => window.open('https://minkiards.wixsite.com/minkiards/post/regolamento-ufficiale', '_blank')}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
               >
                 REGOLAMENTO
+              </Button>
+              <Button
+                onClick={handleStartGame}
+                className="bg-green-600 hover:bg-green-700 text-white font-bold"
+              >
+                COMINCIA
               </Button>
             </div>
             
@@ -455,6 +485,20 @@ export const GameBoard: React.FC = () => {
           cardName={personaggioCardName}
           message={personaggioMessage}
           cardImage={personaggioCardImage || ""}
+        />
+
+        {/* Player Order Notification */}
+        <PlayerOrderNotification
+          isVisible={playerOrderVisible}
+          playerOrder={playerOrder}
+          onClose={() => setPlayerOrderVisible(false)}
+        />
+
+        {/* Next Turn Notification */}
+        <NextTurnNotification
+          isVisible={nextTurnVisible}
+          nextPlayer={nextTurnPlayer}
+          onClose={() => setNextTurnVisible(false)}
         />
 
         {/* Add Cards Modal */}
