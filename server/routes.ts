@@ -129,23 +129,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   }, 1000);
                   break;
                   
-                case 'play-card-for-attack':
-                  console.log(`CPU ${cpuName} playing MOSSE card for attack`);
-                  const attackPlayResult = await gameManager.playCard(gameId, currentAction.data.cardId, currentAction.data.playerName);
-                  const attackGameState = gameManager.getSanitizedGameState(gameId);
-                  io.to(gameId).emit('game-state-update', attackGameState);
+                case 'use-card-attack':
+                  console.log(`CPU ${cpuName} using MOSSE card from field for attack`);
                   
-                  // After playing the card, execute the attack
+                  // Execute the attack using the card that's already on the field
+                  io.to(gameId).emit('card-attacked', {
+                    mosseCardId: currentAction.data.cardId,
+                    targetCardId: currentAction.data.targetCardId,
+                    attackerName: currentAction.data.playerName,
+                    targetOwner: currentAction.data.targetOwner,
+                    timestamp: Date.now()
+                  });
+                  
+                  // After attack, return the used card to its deck and draw replacement
                   setTimeout(() => {
-                    console.log(`CPU ${cpuName} now executing attack with played card`);
-                    io.to(gameId).emit('card-attacked', {
-                      mosseCardId: currentAction.data.cardId,
-                      targetCardId: currentAction.data.targetCardId,
-                      attackerName: currentAction.data.playerName,
-                      targetOwner: currentAction.data.targetOwner,
-                      timestamp: Date.now()
-                    });
-                  }, 1500); // Short delay to let the card be visible on field first
+                    console.log(`CPU ${cpuName} returning used MOSSE card to deck`);
+                    gameManager.returnToDeck(gameId, currentAction.data.cardId, currentAction.data.playerName);
+                    
+                    // Draw a replacement card of the same type
+                    const drawnCard = gameManager.pickCard(gameId, 'mosse', currentAction.data.playerName);
+                    if (drawnCard) {
+                      console.log(`CPU ${cpuName} drew replacement MOSSE card`);
+                    }
+                    
+                    const updatedGameState = gameManager.getSanitizedGameState(gameId);
+                    io.to(gameId).emit('game-state-update', updatedGameState);
+                    
+                    setTimeout(async () => {
+                      const nextAction = await gameManager.processCPUTurn(gameId, cpuName, io);
+                      await continueCPUTurn(nextAction);
+                    }, 1000);
+                  }, 2000);
                   break;
                   
                 case 'pick-card-and-end-opening':
@@ -173,6 +187,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   
                 case 'play-card':
                   const result = await gameManager.playCard(gameId, currentAction.data.cardId, currentAction.data.playerName);
+                  
+                  // According to MINKIARDS rules: when you play a card, you automatically draw a replacement of the same type
+                  if (result.card) {
+                    const cardType = result.card.type;
+                    const replacementDrawn = await gameManager.pickCard(gameId, cardType as keyof GameState['decks'], currentAction.data.playerName);
+                    if (replacementDrawn) {
+                      console.log(`CPU ${cpuName} drew replacement ${cardType} card after playing`);
+                    }
+                  }
+                  
                   const updatedGameState = gameManager.getSanitizedGameState(gameId);
                   io.to(gameId).emit('game-state-update', updatedGameState);
                   

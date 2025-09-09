@@ -406,24 +406,23 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         break;
 
       case 'attack':
-        // Find a move card and target card
-        const moveCard = cpuPlayer.hand.find((c: any) => c.type === 'mosse');
+        // Check if we have a MOSSE card on the field to use for attack
+        const mosseOnField = gameState.field.find((c: any) => 
+          c.owner === this.playerName && c.type === 'mosse'
+        );
         const targetCard = gameState.field.find((c: any) => c.id === action.target);
         
-        if (moveCard && targetCard) {
-          // CPU must first play the MOSSE card on the field, then use it
-          console.log(`CPU ${this.playerName} needs to play MOSSE card first: ${moveCard.id}`);
-          
-          // Get card name for announcement
-          const cardName = this.getCardNameFromUrl(moveCard.frontImage);
+        if (mosseOnField && targetCard) {
+          // Use the MOSSE card that's already on the field for attack
+          const cardName = this.getCardNameFromUrl(mosseOnField.frontImage);
           const targetName = this.getCardNameFromUrl(targetCard.frontImage);
           
-          this.sendChatMessage(`Gioco la carta MOSSE "${cardName}" e la uso per attaccare ${targetName}!`);
+          this.sendChatMessage(`Uso la carta MOSSE "${cardName}" per attaccare ${targetName}!`);
           
           return {
-            type: 'play-card-for-attack',
+            type: 'use-card-attack',
             data: {
-              cardId: moveCard.id,
+              cardId: mosseOnField.id,
               playerName: this.playerName,
               targetCardId: action.target,
               targetOwner: targetCard.owner,
@@ -432,10 +431,12 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
             }
           };
         } else {
-          // Fallback to playing the move card normally
+          // Need to play a MOSSE card first from hand
+          const moveCard = cpuPlayer.hand.find((c: any) => c.type === 'mosse');
           if (moveCard) {
             const cardName = this.getCardNameFromUrl(moveCard.frontImage);
-            this.sendChatMessage(`Gioco la carta MOSSE "${cardName}" sul campo.`);
+            this.sendChatMessage(`Prima devo giocare la carta MOSSE "${cardName}" sul campo.`);
+            
             return {
               type: 'play-card',
               data: {
