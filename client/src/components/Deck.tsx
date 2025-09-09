@@ -122,27 +122,26 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
 
       {/* Deck Browser Modal */}
       {showBrowser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
-          <div className="bg-gray-800 rounded-lg p-4 w-[85vw] h-[90vh] landscape:w-[95vw] landscape:h-[90vh] sm:w-[90vw] sm:h-[85vh] md:w-[95vw] md:h-[90vh] lg:w-[98vw] lg:h-[90vh] xl:w-[98vw] xl:h-[95vh] max-w-[1600px] max-h-[1200px] min-w-[320px] min-h-[400px] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg p-6 w-[98vw] h-[95vh] overflow-hidden">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-white font-bold text-xl" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>Scegli una carta da {name}</h3>
+              <h3 className="text-white font-bold text-2xl" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>Scegli una carta da {name}</h3>
               <Button
                 onClick={() => setShowBrowser(false)}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2"
+                className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 text-lg"
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 Chiudi
               </Button>
             </div>
             
-            <div className="flex overflow-x-auto gap-2 pb-4" style={{ height: 'calc(100% - 120px)' }}>
+            <div className="flex overflow-x-auto gap-3 pb-4" style={{ height: 'calc(100% - 100px)' }}>
               {getSortedCards().map((card) => (
                 <div key={card.id} className="flex-shrink-0 flex flex-col items-center">
                   <img
                     src={card.frontImage}
                     alt="Card"
-                    className="h-full max-h-[calc(100vh-200px)] w-auto rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg"
-                    style={{ aspectRatio: '3/4' }}
+                    className="w-24 h-32 sm:w-28 sm:h-36 md:w-32 md:h-40 lg:w-36 lg:h-48 rounded-lg cursor-pointer hover:scale-110 transition-transform shadow-lg"
                     onClick={() => handleCardClick(card)}
                   />
                 </div>
