@@ -13,8 +13,21 @@ export const RoundTable: React.FC = () => {
   const fieldCards = gameState?.field || [];
   const players = gameState?.players || {};
   const allPlayerNames = Object.keys(players);
-  const otherPlayers = allPlayerNames.filter(name => name !== playerName);
+  const turnOrder = gameState?.turnOrder || [];
   const scenarioCardsActive = gameState?.scenarioCardsActive || false;
+
+  // Determine player order for positioning around the table
+  const getOrderedPlayers = () => {
+    if (turnOrder.length > 0) {
+      // Use turn order if available, excluding current player
+      return turnOrder.filter(name => name !== playerName);
+    } else {
+      // Fallback to all players except current player if no turn order yet
+      return allPlayerNames.filter(name => name !== playerName);
+    }
+  };
+
+  const otherPlayers = getOrderedPlayers();
 
   // Group cards by player
   const cardsByPlayer = fieldCards.reduce((acc, card) => {
