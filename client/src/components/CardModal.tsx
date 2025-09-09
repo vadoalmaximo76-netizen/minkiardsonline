@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
 import { X, Sword } from "lucide-react";
 
 export const CardModal: React.FC = () => {
+  const [showPlayerSelect, setShowPlayerSelect] = useState(false);
   const { selectedCard, setSelectedCard, playerName, gameState, setSelectedMosseCard } = useGameState();
 
   if (!selectedCard) return null;
@@ -71,6 +72,31 @@ export const CardModal: React.FC = () => {
     setSelectedCard(null);
   };
 
+  const handlePlay = () => {
+    socket.emit('play-card', { cardId: selectedCard.id, playerName });
+    setSelectedCard(null);
+  };
+
+  const handlePlayFaceDown = () => {
+    socket.emit('play-card-face-down', { cardId: selectedCard.id, playerName });
+    setSelectedCard(null);
+  };
+
+  const handleShowCardToPlayers = () => {
+    setShowPlayerSelect(true);
+  };
+
+  const handleShowToPlayer = (targetPlayer: string) => {
+    socket.emit('show-card-to-player', { 
+      cardId: selectedCard.id, 
+      fromPlayer: playerName, 
+      toPlayer: targetPlayer,
+      cardImage: selectedCard.frontImage
+    });
+    setShowPlayerSelect(false);
+    setSelectedCard(null);
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-lg p-6 max-w-lg w-full">
@@ -133,23 +159,79 @@ export const CardModal: React.FC = () => {
             </>
           )}
 
-          {/* Hand card actions - Only show CEDI for hand cards */}
-          {!isInField && !isInGraveyard && isOwner && players.length > 0 && (
+          {/* Hand card actions */}
+          {!isInField && !isInGraveyard && isOwner && (
+            <>
+              <Button
+                onClick={handlePlay}
+                className="w-full bg-sky-blue hover:bg-sky-blue/80 text-white font-bold py-3"
+              >
+                GIOCA
+              </Button>
+              
+              <Button
+                onClick={handlePlayFaceDown}
+                className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3"
+              >
+                GIOCA CARTA COPERTA
+              </Button>
+              
+              <Button
+                onClick={handleShowCardToPlayers}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3"
+              >
+                MOSTRA
+              </Button>
+
+              {/* CEDI buttons for hand cards */}
+              {players.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-white text-sm">CEDI A:</p>
+                  {players.map((player) => (
+                    <Button
+                      key={player}
+                      onClick={() => handleCedi(player)}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2"
+                    >
+                      {player}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Player Selection Modal for MOSTRA */}
+      {showPlayerSelect && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-60 p-4">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-white font-bold text-lg">Mostra carta a:</h3>
+              <Button
+                onClick={() => setShowPlayerSelect(false)}
+                className="bg-red-600 hover:bg-red-700 text-white px-2 py-1"
+                size="sm"
+              >
+                Chiudi
+              </Button>
+            </div>
+            
             <div className="space-y-2">
-              <p className="text-white text-sm">CEDI A:</p>
               {players.map((player) => (
                 <Button
                   key={player}
-                  onClick={() => handleCedi(player)}
-                  className="w-full bg-sky-blue hover:bg-sky-blue/80 text-white font-bold py-2"
+                  onClick={() => handleShowToPlayer(player)}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2"
                 >
                   {player}
                 </Button>
               ))}
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
