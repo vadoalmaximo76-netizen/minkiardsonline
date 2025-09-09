@@ -129,48 +129,57 @@ export const RoundTable: React.FC = () => {
     }));
   };
 
-  // Calculate card size based on number of players
+  // Calculate card size based on number of players and screen size
   const getCardScale = (playerCount: number) => {
-    if (playerCount <= 2) return 'scale-90';
-    if (playerCount <= 4) return 'scale-75';
-    if (playerCount <= 6) return 'scale-60';
-    return 'scale-50';
+    // Mobile scales (smaller)
+    const mobileScales = {
+      2: 'scale-50 sm:scale-60 md:scale-75 lg:scale-90',
+      4: 'scale-40 sm:scale-50 md:scale-60 lg:scale-75', 
+      6: 'scale-30 sm:scale-40 md:scale-50 lg:scale-60',
+      8: 'scale-25 sm:scale-30 md:scale-40 lg:scale-50'
+    };
+    
+    if (playerCount <= 2) return mobileScales[2];
+    if (playerCount <= 4) return mobileScales[4];
+    if (playerCount <= 6) return mobileScales[6];
+    return mobileScales[8];
   };
 
   const cardScale = getCardScale(allPlayerNames.length);
 
   return (
-    <div className="mb-8">
-      <h2 className="text-white font-bold text-2xl mb-4 text-center">TAVOLO DA GIOCO</h2>
+    <div className="mb-4 md:mb-8">
+      <h2 className="text-white font-bold text-lg md:text-2xl mb-2 md:mb-4 text-center">TAVOLO DA GIOCO</h2>
       
       {/* Round Table Container */}
       <div 
-        className="relative rounded-full w-[900px] h-[700px] mx-auto border-8 border-amber-700 shadow-2xl bg-no-repeat overflow-hidden"
+        className="relative rounded-full w-[350px] h-[350px] sm:w-[450px] sm:h-[450px] md:w-[600px] md:h-[600px] lg:w-[800px] lg:h-[650px] xl:w-[900px] xl:h-[700px] mx-auto border-4 md:border-8 border-amber-700 shadow-2xl bg-no-repeat overflow-hidden touch-manipulation"
         style={{
           backgroundImage: `url('https://i.ibb.co/B2yVVMkJ/wallpaper-2547293.png')`,
           backgroundSize: 'cover',
-          backgroundPosition: 'center'
+          backgroundPosition: 'center',
+          touchAction: 'pinch-zoom'
         }}
       >
         
         {/* Center Area - Decks */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-          <div className="flex gap-2 items-center justify-center">
-            <div className="flex flex-col items-center scale-75">
+          <div className="flex gap-1 sm:gap-2 items-center justify-center">
+            <div className="flex flex-col items-center scale-50 sm:scale-60 md:scale-75">
               <Deck
                 name="PERSONAGGI"
                 backImage="https://i.imgur.com/r1rfUAB.png"
                 type="personaggi"
               />
             </div>
-            <div className="flex flex-col items-center scale-75">
+            <div className="flex flex-col items-center scale-50 sm:scale-60 md:scale-75">
               <Deck
                 name="MOSSE"
                 backImage="https://i.imgur.com/6MUXCZO.png"
                 type="mosse"
               />
             </div>
-            <div className="flex flex-col items-center scale-75">
+            <div className="flex flex-col items-center scale-50 sm:scale-60 md:scale-75">
               <Deck
                 name="BONUS"
                 backImage="https://i.imgur.com/lEROr3r.png"
@@ -190,13 +199,13 @@ export const RoundTable: React.FC = () => {
                 />
                 <label
                   htmlFor="attiva-scenari-round"
-                  className="text-xs font-medium text-white cursor-pointer select-none"
+                  className="text-xs font-medium text-white cursor-pointer select-none hidden sm:block"
                 >
                   SCENARI
                 </label>
               </div>
             </div>
-            <div className="flex flex-col items-center scale-75">
+            <div className="flex flex-col items-center scale-50 sm:scale-60 md:scale-75">
               <Deck
                 name="SPECIALI"
                 backImage="https://i.imgur.com/ipVd57A.png"
