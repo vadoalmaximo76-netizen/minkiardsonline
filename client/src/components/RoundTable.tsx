@@ -225,7 +225,7 @@ export const RoundTable: React.FC = () => {
       >
         {/* Black overlay with 20% opacity */}
         <div 
-          className="absolute inset-0 bg-black opacity-20 rounded-lg"
+          className="absolute inset-0 bg-black opacity-40 rounded-lg"
           style={{ borderRadius: '16px' }}
         />
         
