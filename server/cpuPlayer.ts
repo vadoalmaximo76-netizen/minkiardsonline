@@ -385,7 +385,131 @@ export class CPUPlayer {
       .join('\n');
   }
 
-  // Main CPU turn logic with chat integration
+  // Simple game analysis without AI (fallback)
+  analyzeGameStateSimple(gameState: any): GameAnalysis {
+    const cpuPlayer = gameState.players[this.playerName];
+    if (!cpuPlayer) {
+      return this.getDefaultAnalysis();
+    }
+
+    const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName && card.type === 'personaggi');
+    const enemyCharacters = gameState.field.filter((card: any) => card.owner !== this.playerName && card.type === 'personaggi');
+
+    // Simple strategy: 
+    // 1. Play a character if I don't have one
+    // 2. Play a move/bonus card if I have a character
+    // 3. Otherwise just play any card
+    let recommendedAction;
+
+    if (!myCharacter) {
+      // Need a character
+      const characterCard = cpuPlayer.hand.find((c: any) => c.type === 'personaggi');
+      if (characterCard) {
+        recommendedAction = {
+          type: 'play_card' as const,
+          cardId: characterCard.id,
+          reasoning: 'Ho bisogno di un personaggio in campo'
+        };
+      } else {
+        recommendedAction = {
+          type: 'play_card' as const,
+          reasoning: 'Gioco una carta qualsiasi'
+        };
+      }
+    } else {
+      // I have a character, play strategically
+      const moveCard = cpuPlayer.hand.find((c: any) => c.type === 'mosse');
+      const bonusCard = cpuPlayer.hand.find((c: any) => c.type === 'bonus');
+      
+      if (moveCard && enemyCharacters.length > 0) {
+        recommendedAction = {
+          type: 'attack' as const,
+          cardId: moveCard.id,
+          target: enemyCharacters[0].id,
+          reasoning: 'Attacco un personaggio nemico'
+        };
+      } else if (bonusCard) {
+        recommendedAction = {
+          type: 'play_card' as const,
+          cardId: bonusCard.id,
+          reasoning: 'Uso una carta bonus'
+        };
+      } else if (cpuPlayer.hand.length > 0) {
+        recommendedAction = {
+          type: 'play_card' as const,
+          cardId: cpuPlayer.hand[0].id,
+          reasoning: 'Gioco una carta disponibile'
+        };
+      } else {
+        recommendedAction = {
+          type: 'play_card' as const,
+          reasoning: 'Passo il turno'
+        };
+      }
+    }
+
+    return {
+      myCharacter,
+      enemyCharacters,
+      handCards: cpuPlayer.hand,
+      fieldSituation: `${gameState.field.length} carte in campo`,
+      recommendedAction
+    };
+  }
+
+  getDefaultAnalysis(): GameAnalysis {
+    return {
+      myCharacter: null,
+      enemyCharacters: [],
+      handCards: [],
+      fieldSituation: 'Analisi non disponibile',
+      recommendedAction: {
+        type: 'play_card',
+        reasoning: 'Azione di default'
+      }
+    };
+  }
+
+  // Random chat responses for more personality
+  getRandomChatResponse(situation: string): string {
+    const responses = {
+      thinking: [
+        "Fammi pensare un attimo...",
+        "Sto valutando le mie opzioni",
+        "Interessante situazione...",
+        "Vediamo cosa posso fare"
+      ],
+      playing_character: [
+        "È ora di entrare in azione!",
+        "Ecco il mio campione!",
+        "Questo personaggio farà la differenza",
+        "Preparatevi alla battaglia!"
+      ],
+      attacking: [
+        "Attacco!",
+        "È ora di fare sul serio!",
+        "Prendi questa!",
+        "Difenditi se puoi!"
+      ],
+      no_actions: [
+        "Non posso fare molto per ora",
+        "Passo il turno",
+        "Tocca a voi",
+        "Aspetto il momento giusto"
+      ],
+      greeting: [
+        "Ciao a tutti! Pronto a giocare?",
+        "Salve! Che la partita abbia inizio!",
+        "Ciao! Vediamo chi vincerà",
+        "Buongiorno! Sono pronto per la sfida"
+      ]
+    };
+
+    const situationResponses = responses[situation as keyof typeof responses] || responses.thinking;
+    return situationResponses[Math.floor(Math.random() * situationResponses.length)];
+  }
+
+  // Main CPU turn logic with better fallback behavior
   async takeTurn(gameState: any) {
     try {
       console.log(`CPU ${this.playerName} is thinking...`);
@@ -396,15 +520,27 @@ export class CPUPlayer {
         return null;
       }
       
-      // Analyze current game state
-      const analysis = await this.analyzeGameState(gameState);
+      let analysis: GameAnalysis;
       
-      // Check if CPU needs clarification
-      const clarificationCheck = await this.needsClarification(gameState);
-      
-      if (clarificationCheck.needsClarification) {
-        await this.askQuestion(clarificationCheck.question);
-        return null; // Don't take action until clarified
+      try {
+        // Try AI analysis first
+        analysis = await this.analyzeGameState(gameState);
+        
+        // Try to check for clarification need
+        const clarificationCheck = await this.needsClarification(gameState);
+        
+        if (clarificationCheck.needsClarification) {
+          await this.askQuestion(clarificationCheck.question);
+          return null;
+        }
+        
+      } catch (error) {
+        console.log(`CPU ${this.playerName} AI analysis failed, using simple strategy`);
+        // Fallback to simple analysis
+        analysis = this.analyzeGameStateSimple(gameState);
+        
+        // Send a thinking message
+        this.sendChatMessage(this.getRandomChatResponse('thinking'));
       }
       
       console.log(`CPU ${this.playerName} analysis:`, analysis.recommendedAction.reasoning);
@@ -424,31 +560,79 @@ export class CPUPlayer {
       }
       
       console.log(`CPU ${this.playerName} has no valid actions`);
-      this.sendChatMessage(`Non ho mosse disponibili, passo il turno.`);
+      this.sendChatMessage(this.getRandomChatResponse('no_actions'));
       return null;
       
     } catch (error) {
       console.error(`Error in CPU ${this.playerName} turn:`, error);
-      this.sendChatMessage(`Ho avuto un problema, salto questo turno.`);
+      this.sendChatMessage(this.getRandomChatResponse('no_actions'));
       return null;
     }
   }
 
-  // Generate strategy announcement
+  // Generate strategy announcement with more variety
   private getStrategyAnnouncement(analysis: GameAnalysis): string {
     const action = analysis.recommendedAction;
     
     switch (action.type) {
       case 'play_card':
-        return `Giocherò una carta per rafforzare la mia posizione.`;
+        if (action.reasoning.includes('personaggio')) {
+          return this.getRandomChatResponse('playing_character');
+        }
+        return analysis.handCards.length > 3 
+          ? "Ho molte opzioni, scelgo questa carta" 
+          : "Gioco questa carta strategicamente";
       case 'attack':
-        return `Attaccherò il personaggio nemico - ${action.reasoning}`;
+        return this.getRandomChatResponse('attacking');
       case 'switch_character':
-        return `Cambierò personaggio per una strategia migliore.`;
+        return "Cambio tattica, nuovo personaggio in arrivo!";
       case 'buy_power':
-        return `Comprerò un potere per il mio personaggio.`;
+        return "Investo in un potere speciale!";
       default:
-        return '';
+        return this.getRandomChatResponse('thinking');
     }
+  }
+
+  // Process human chat messages to respond appropriately
+  processHumanChat(message: string, senderName: string): boolean {
+    const lowerMessage = message.toLowerCase();
+    
+    // Respond to greetings
+    if (lowerMessage.includes('ciao') || lowerMessage.includes('salve') || lowerMessage.includes('buongiorno')) {
+      setTimeout(() => {
+        this.sendChatMessage(`Ciao ${senderName}! Come va la partita?`);
+      }, 1000 + Math.random() * 2000); // Random delay
+      return true;
+    }
+    
+    // Respond to questions about strategy
+    if (lowerMessage.includes('strategia') || lowerMessage.includes('cosa fai') || lowerMessage.includes('che farai')) {
+      setTimeout(() => {
+        const responses = [
+          "Sto pensando alla mossa migliore!",
+          "La mia strategia è segreta per ora",
+          "Adatterò la strategia alla situazione",
+          "Vedremo chi avrà la meglio!"
+        ];
+        this.sendChatMessage(responses[Math.floor(Math.random() * responses.length)]);
+      }, 1000 + Math.random() * 2000);
+      return true;
+    }
+    
+    // Respond to direct questions to the CPU
+    if (lowerMessage.includes(this.playerName.toLowerCase()) || lowerMessage.includes('cpu')) {
+      setTimeout(() => {
+        const responses = [
+          "Sì?",
+          "Dimmi tutto!",
+          "Ti ascolto",
+          "Cosa posso fare per te?"
+        ];
+        this.sendChatMessage(responses[Math.floor(Math.random() * responses.length)]);
+      }, 500 + Math.random() * 1500);
+      return true;
+    }
+    
+    return false;
   }
 }
