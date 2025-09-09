@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Deck } from "./Deck";
 import { PlayerHand } from "./PlayerHand";
+import { OtherPlayersHands } from "./OtherPlayersHands";
 import { RoundTable } from "./RoundTable";
 import { Graveyard } from "./Graveyard";
 import { Chat } from "./Chat";
@@ -386,6 +387,9 @@ export const GameBoard: React.FC = () => {
 
         {/* Player Hand */}
         <PlayerHand />
+
+        {/* Other Players' Hands */}
+        <OtherPlayersHands />
 
         {/* Round Table - replaces the old decks and game field */}
         <RoundTable />
