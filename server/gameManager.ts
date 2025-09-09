@@ -208,6 +208,40 @@ export class GameManager {
     return this.games.get(gameId) || null;
   }
 
+  // Get sanitized game state for Socket.IO transmission (removes circular references)
+  getSanitizedGameState(gameId: string): any {
+    const gameState = this.games.get(gameId);
+    if (!gameState) return null;
+
+    // Create a deep copy of the game state without circular references
+    const sanitized = {
+      decks: gameState.decks,
+      players: {} as Record<string, any>,
+      field: gameState.field,
+      graveyard: gameState.graveyard,
+      scenarioCardsActive: gameState.scenarioCardsActive,
+      matchId: gameState.matchId,
+      eventCounter: gameState.eventCounter,
+      startTime: gameState.startTime,
+      turnOrder: gameState.turnOrder,
+      currentTurnIndex: gameState.currentTurnIndex,
+      spectators: gameState.spectators
+    };
+
+    // Sanitize players by removing cpuInstance references
+    for (const [playerName, player] of Object.entries(gameState.players)) {
+      sanitized.players[playerName] = {
+        name: player.name,
+        hand: player.hand,
+        socketId: player.socketId,
+        isCPU: player.isCPU
+        // Note: cpuInstance is intentionally omitted to prevent circular references
+      };
+    }
+
+    return sanitized;
+  }
+
   shuffleDeck(gameId: string, deckType: keyof GameState['decks']): void {
     const game = this.games.get(gameId);
     if (!game) return;

@@ -46,7 +46,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       gameManager.addPlayer(gameId, playerName, socket.id);
       
       // Send current game state to the player
-      const gameState = gameManager.getGameState(gameId);
+      const gameState = gameManager.getSanitizedGameState(gameId);
       socket.emit('game-state-update', gameState);
       
       // Notify other players
@@ -56,7 +56,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('add-cpu-player', async ({ gameId }) => {
       try {
         const cpuName = await gameManager.addCPUPlayer(gameId);
-        const gameState = gameManager.getGameState(gameId);
+        const gameState = gameManager.getSanitizedGameState(gameId);
         io.to(gameId).emit('game-state-update', gameState);
         io.to(gameId).emit('player-joined', { playerName: cpuName });
         
@@ -68,7 +68,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             switch (cpuAction.type) {
               case 'play-card':
                 const result = await gameManager.playCard(gameId, cpuAction.data.cardId, cpuAction.data.playerName);
-                const updatedGameState = gameManager.getGameState(gameId);
+                const updatedGameState = gameManager.getSanitizedGameState(gameId);
                 io.to(gameId).emit('game-state-update', updatedGameState);
                 
                 if (result.isPersonaggio && result.card) {
@@ -116,7 +116,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
         gameManager.shuffleDeck(gameId, deckType);
-        const gameState = gameManager.getGameState(gameId);
+        const gameState = gameManager.getSanitizedGameState(gameId);
         io.to(gameId).emit('game-state-update', gameState);
       }
     });
@@ -126,7 +126,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gameId) {
         const success = await gameManager.pickCard(gameId, deckType, playerName);
         if (success) {
-          const gameState = gameManager.getGameState(gameId);
+          const gameState = gameManager.getSanitizedGameState(gameId);
           io.to(gameId).emit('game-state-update', gameState);
         }
       }
@@ -136,7 +136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
         gameManager.chooseSpecificCard(gameId, deckType, cardId, playerName);
-        const gameState = gameManager.getGameState(gameId);
+        const gameState = gameManager.getSanitizedGameState(gameId);
         io.to(gameId).emit('game-state-update', gameState);
       }
     });
@@ -145,7 +145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
         const result = await gameManager.playCard(gameId, cardId, playerName);
-        const gameState = gameManager.getGameState(gameId);
+        const gameState = gameManager.getSanitizedGameState(gameId);
         io.to(gameId).emit('game-state-update', gameState);
         
         // If a PERSONAGGI card was played, emit special notification
@@ -198,7 +198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
         const result = await gameManager.playCardFaceDown(gameId, cardId, playerName);
-        const gameState = gameManager.getGameState(gameId);
+        const gameState = gameManager.getSanitizedGameState(gameId);
         io.to(gameId).emit('game-state-update', gameState);
         
         if (result.card) {
@@ -215,7 +215,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
         const result = await gameManager.revealCard(gameId, cardId, playerName);
-        const gameState = gameManager.getGameState(gameId);
+        const gameState = gameManager.getSanitizedGameState(gameId);
         io.to(gameId).emit('game-state-update', gameState);
         
         if (result.card) {
@@ -277,7 +277,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
         gameManager.returnToHand(gameId, cardId, playerName);
-        const gameState = gameManager.getGameState(gameId);
+        const gameState = gameManager.getSanitizedGameState(gameId);
         io.to(gameId).emit('game-state-update', gameState);
       }
     });
@@ -286,7 +286,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
         gameManager.returnToDeck(gameId, cardId, playerName);
-        const gameState = gameManager.getGameState(gameId);
+        const gameState = gameManager.getSanitizedGameState(gameId);
         io.to(gameId).emit('game-state-update', gameState);
       }
     });
@@ -296,7 +296,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gameId) {
         const result = gameManager.moveToGraveyard(gameId, cardId, playerName);
         if (result.success) {
-          const gameState = gameManager.getGameState(gameId);
+          const gameState = gameManager.getSanitizedGameState(gameId);
           io.to(gameId).emit('game-state-update', gameState);
 
           // Get card name from image URL for "Ciao ciao" notification
@@ -350,7 +350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
         gameManager.transferCard(gameId, cardId, fromPlayer, toPlayer);
-        const gameState = gameManager.getGameState(gameId);
+        const gameState = gameManager.getSanitizedGameState(gameId);
         io.to(gameId).emit('game-state-update', gameState);
       }
     });
@@ -359,7 +359,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
         gameManager.swapPersonaggiCards(gameId, player1, card1Id, player2, card2Id);
-        const gameState = gameManager.getGameState(gameId);
+        const gameState = gameManager.getSanitizedGameState(gameId);
         io.to(gameId).emit('game-state-update', gameState);
         
         // Emit notification to all players about the swap
@@ -376,7 +376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
         gameManager.updateCardText(gameId, cardId, text);
-        const gameState = gameManager.getGameState(gameId);
+        const gameState = gameManager.getSanitizedGameState(gameId);
         io.to(gameId).emit('game-state-update', gameState);
       }
     });
@@ -402,7 +402,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const waitingCPU = gameManager.getCPUWaitingForResponse(gameId);
             if (!waitingCPU) {
               // CPU is no longer waiting, try to continue their turn
-              const gameState = gameManager.getGameState(gameId);
+              const gameState = gameManager.getSanitizedGameState(gameId);
               const currentPlayer = gameState?.turnOrder?.[gameState.currentTurnIndex];
               
               if (currentPlayer?.startsWith('CPU-')) {
@@ -412,7 +412,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   switch (cpuAction.type) {
                     case 'play-card':
                       const result = await gameManager.playCard(gameId, cpuAction.data.cardId, cpuAction.data.playerName);
-                      const updatedGameState = gameManager.getGameState(gameId);
+                      const updatedGameState = gameManager.getSanitizedGameState(gameId);
                       io.to(gameId).emit('game-state-update', updatedGameState);
                       
                       if (result.isPersonaggio && result.card) {
@@ -458,7 +458,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
         // Find the target player's socket
-        const gameState = gameManager.getGameState(gameId);
+        const gameState = gameManager.getSanitizedGameState(gameId);
         if (gameState && gameState.players[toPlayer]) {
           const targetSocketId = gameState.players[toPlayer].socketId;
           
@@ -482,7 +482,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const playerGameId = gameManager.getPlayerGameId(socket.id);
       if (playerGameId === gameId) {
         gameManager.resetGame(gameId);
-        const gameState = gameManager.getGameState(gameId);
+        const gameState = gameManager.getSanitizedGameState(gameId);
         io.to(gameId).emit('game-state-update', gameState);
         
         // Notify all players that the game has been reset
@@ -547,7 +547,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const result = await gameManager.placeSuperDiceCard(gameId, playerName, cardData);
         
         if (result.success) {
-          const gameState = gameManager.getGameState(gameId);
+          const gameState = gameManager.getSanitizedGameState(gameId);
           io.to(gameId).emit('game-state-update', gameState);
           
           // Emit notification that the super dice card was placed
@@ -568,7 +568,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const result = gameManager.addCustomCards(gameId, deckType, images);
         
         if (result.success) {
-          const gameState = gameManager.getGameState(gameId);
+          const gameState = gameManager.getSanitizedGameState(gameId);
           io.to(gameId).emit('game-state-update', gameState);
           
           // Notify all players about the new cards
@@ -587,7 +587,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (playerGameId === gameId) {
         const success = gameManager.toggleScenarioCards(gameId, active);
         if (success) {
-          const gameState = gameManager.getGameState(gameId);
+          const gameState = gameManager.getSanitizedGameState(gameId);
           // Broadcast updated game state and scenario card state to all players
           io.to(gameId).emit('game-state-update', gameState);
           io.to(gameId).emit('scenario-cards-toggled', { 
@@ -617,7 +617,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gameId) {
         const success = gameManager.removeCardToGraveyard(gameId, deckType, cardId, playerName, section);
         if (success) {
-          const gameState = gameManager.getGameState(gameId);
+          const gameState = gameManager.getSanitizedGameState(gameId);
           io.to(gameId).emit('game-state-update', gameState);
         }
       }
@@ -628,7 +628,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gameId) {
         const result = await gameManager.eliminatePersonaggi(gameId, cardId, playerName);
         if (result.success) {
-          const gameState = gameManager.getGameState(gameId);
+          const gameState = gameManager.getSanitizedGameState(gameId);
           io.to(gameId).emit('game-state-update', gameState);
 
           // Get card name from image URL for "Ciao ciao" notification
@@ -663,14 +663,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gameId) {
         const success = gameManager.moveCardPosition(gameId, cardId, direction);
         if (success) {
-          const gameState = gameManager.getGameState(gameId);
+          const gameState = gameManager.getSanitizedGameState(gameId);
           io.to(gameId).emit('game-state-update', gameState);
         }
       }
     });
 
     socket.on('start-game', ({ gameId, playerName }) => {
-      const gameState = gameManager.getGameState(gameId);
+      const gameState = gameManager.getSanitizedGameState(gameId);
       if (gameState) {
         const playerOrder = gameManager.startGame(gameId);
         if (playerOrder) {
@@ -685,7 +685,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         io.to(gameId).emit('next-turn', { nextPlayer });
         
         // Check if next player is CPU and automatically process their turn
-        const gameState = gameManager.getGameState(gameId);
+        const gameState = gameManager.getSanitizedGameState(gameId);
         const nextPlayerData = gameState?.players[nextPlayer];
         
         if (nextPlayerData && nextPlayer.startsWith('CPU-')) {
@@ -700,7 +700,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 switch (cpuAction.type) {
                   case 'play-card':
                     const result = await gameManager.playCard(gameId, cpuAction.data.cardId, cpuAction.data.playerName);
-                    const updatedGameState = gameManager.getGameState(gameId);
+                    const updatedGameState = gameManager.getSanitizedGameState(gameId);
                     io.to(gameId).emit('game-state-update', updatedGameState);
                     
                     if (result.isPersonaggio && result.card) {
@@ -768,7 +768,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('leave-game', ({ gameId, playerName }) => {
       const success = gameManager.leaveGame(gameId, playerName);
       if (success) {
-        const gameState = gameManager.getGameState(gameId);
+        const gameState = gameManager.getSanitizedGameState(gameId);
         io.to(gameId).emit('game-state-update', gameState);
         io.to(gameId).emit('player-left', { playerName });
       }
