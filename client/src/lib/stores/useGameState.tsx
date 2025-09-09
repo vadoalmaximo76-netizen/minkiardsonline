@@ -26,6 +26,9 @@ interface GameState {
   players: Record<string, Player>;
   field: Card[];
   graveyard: Card[];
+  scenarioCardsActive: boolean;
+  turnOrder: string[];
+  currentTurnIndex: number;
 }
 
 interface GameStateStore {

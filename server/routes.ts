@@ -125,7 +125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
         const success = gameManager.pickCard(gameId, deckType, playerName);
-        if (success) {
+        if (success === true) {
           const gameState = gameManager.getGameState(gameId);
           io.to(gameId).emit('game-state-update', gameState);
         }
