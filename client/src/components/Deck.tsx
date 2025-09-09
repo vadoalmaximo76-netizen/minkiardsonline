@@ -86,8 +86,8 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
   };
 
   return (
-    <div className="flex flex-col items-center gap-4">
-      <h3 className="text-white font-bold text-lg">{name}</h3>
+    <div className="flex flex-col items-center gap-1 sm:gap-2 md:gap-3">
+      <h3 className="text-white font-bold text-xs sm:text-sm md:text-base lg:text-lg">{name}</h3>
       
       <div className="relative">
         <img
@@ -103,7 +103,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1">
         <Button
           onClick={handleShuffle}
           className="bg-sky-blue hover:bg-sky-blue/80 text-white font-bold px-2 py-1 text-xs"
