@@ -198,7 +198,7 @@ export const RoundTable: React.FC = () => {
       
       {/* Rectangular Table Container */}
       <div 
-        className="relative w-[80vw] h-[85vh] landscape:w-[98vw] landscape:h-[85vh] sm:w-[90vw] sm:h-[75vh] md:w-[95vw] md:h-[80vh] lg:w-[98vw] lg:h-[85vh] xl:w-[98vw] xl:h-[90vh] max-w-[1400px] max-h-[900px] min-w-[320px] min-h-[400px] mx-auto border-4 landscape:border-8 md:border-8 border-white bg-no-repeat overflow-hidden touch-manipulation"
+        className="relative w-[75vw] h-[85vh] landscape:w-[90vw] landscape:h-[85vh] sm:w-[85vw] sm:h-[75vh] md:w-[88vw] md:h-[80vh] lg:w-[92vw] lg:h-[85vh] xl:w-[95vw] xl:h-[90vh] max-w-[1300px] max-h-[900px] min-w-[320px] min-h-[400px] mx-auto border-4 landscape:border-8 md:border-8 border-white bg-no-repeat overflow-hidden touch-manipulation"
         style={{
           borderRadius: '16px',
           backgroundImage: `url('https://i.ibb.co/B2yVVMkJ/wallpaper-2547293.png')`,
