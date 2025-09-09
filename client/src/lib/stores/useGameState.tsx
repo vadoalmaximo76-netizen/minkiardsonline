@@ -35,6 +35,7 @@ interface GameStateStore {
   selectedCard: Card | null;
   selectedMosseCard: Card | null;
   shakingCards: Set<string>;
+  showBrowser: boolean;
   
   setGameState: (state: GameState) => void;
   setPlayerName: (name: string) => void;
@@ -43,6 +44,7 @@ interface GameStateStore {
   setSelectedMosseCard: (card: Card | null) => void;
   addShakingCard: (cardId: string) => void;
   removeShakingCard: (cardId: string) => void;
+  setShowBrowser: (show: boolean) => void;
 }
 
 export const useGameState = create<GameStateStore>((set) => {
@@ -58,6 +60,7 @@ export const useGameState = create<GameStateStore>((set) => {
     selectedCard: null,
     selectedMosseCard: null,
     shakingCards: new Set(),
+    showBrowser: false,
     
     setGameState: (gameState) => set({ gameState }),
     setPlayerName: (playerName) => set({ playerName }),
@@ -74,5 +77,6 @@ export const useGameState = create<GameStateStore>((set) => {
       newSet.delete(cardId);
       return { shakingCards: newSet };
     }),
+    setShowBrowser: (showBrowser) => set({ showBrowser }),
   };
 });

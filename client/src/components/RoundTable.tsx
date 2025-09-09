@@ -8,13 +8,13 @@ import { socket } from "../lib/socket";
 import { Checkbox } from "./ui/checkbox";
 
 export const RoundTable: React.FC = () => {
-  const { gameState, playerName, gameId } = useGameState();
+  const { gameState, playerName, gameId, showBrowser } = useGameState();
   
   const fieldCards = gameState?.field || [];
   const players = gameState?.players || {};
   const allPlayerNames = Object.keys(players);
-  const turnOrder = gameState?.turnOrder || [];
-  const scenarioCardsActive = gameState?.scenarioCardsActive || false;
+  const turnOrder: string[] = [];
+  const scenarioCardsActive = false;
 
   // Determine player order for positioning around the table
   const getOrderedPlayers = () => {
@@ -230,38 +230,40 @@ export const RoundTable: React.FC = () => {
         />
         
         {/* Center Area - Decks with protection zone */}
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
-          <div className="flex gap-0.5 landscape:gap-1 sm:gap-1 items-center justify-center">
-            <div className={`flex flex-col items-center ${deckScale}`}>
-              <Deck
-                name="PERSONAGGI"
-                backImage="https://i.imgur.com/r1rfUAB.png"
-                type="personaggi"
-              />
-            </div>
-            <div className={`flex flex-col items-center ${deckScale}`}>
-              <Deck
-                name="MOSSE"
-                backImage="https://i.imgur.com/6MUXCZO.png"
-                type="mosse"
-              />
-            </div>
-            <div className={`flex flex-col items-center ${deckScale}`}>
-              <Deck
-                name="BONUS"
-                backImage="https://i.imgur.com/lEROr3r.png"
-                type="bonus"
-              />
-            </div>
-            <div className={`flex flex-col items-center ${deckScale}`}>
-              <Deck
-                name="SPECIALI"
-                backImage="https://i.imgur.com/ipVd57A.png"
-                type="personaggi_speciali"
-              />
+        {!showBrowser && (
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
+            <div className="flex gap-0.5 landscape:gap-1 sm:gap-1 items-center justify-center">
+              <div className={`flex flex-col items-center ${deckScale}`}>
+                <Deck
+                  name="PERSONAGGI"
+                  backImage="https://i.imgur.com/r1rfUAB.png"
+                  type="personaggi"
+                />
+              </div>
+              <div className={`flex flex-col items-center ${deckScale}`}>
+                <Deck
+                  name="MOSSE"
+                  backImage="https://i.imgur.com/6MUXCZO.png"
+                  type="mosse"
+                />
+              </div>
+              <div className={`flex flex-col items-center ${deckScale}`}>
+                <Deck
+                  name="BONUS"
+                  backImage="https://i.imgur.com/lEROr3r.png"
+                  type="bonus"
+                />
+              </div>
+              <div className={`flex flex-col items-center ${deckScale}`}>
+                <Deck
+                  name="SPECIALI"
+                  backImage="https://i.imgur.com/ipVd57A.png"
+                  type="personaggi_speciali"
+                />
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Other Players' Cards around the table */}
         {otherPlayers.map((player, playerIndex) => {

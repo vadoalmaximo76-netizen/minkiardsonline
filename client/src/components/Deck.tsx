@@ -10,8 +10,7 @@ interface DeckProps {
 }
 
 export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
-  const { gameState, playerName } = useGameState();
-  const [showBrowser, setShowBrowser] = useState(false);
+  const { gameState, playerName, showBrowser, setShowBrowser } = useGameState();
   const [selectedCardForZoom, setSelectedCardForZoom] = useState<any>(null);
   const [isShuffling, setIsShuffling] = useState(false);
   
