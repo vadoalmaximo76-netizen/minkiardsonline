@@ -131,12 +131,12 @@ export const RoundTable: React.FC = () => {
 
   // Calculate card size based on number of players and screen size
   const getCardScale = (playerCount: number) => {
-    // Smaller scales for TAVOLO DA GIOCO cards
+    // Much smaller scales for smartphone to prevent overlapping
     const mobileScales = {
-      2: 'scale-65 sm:scale-75 md:scale-85 lg:scale-95',
-      4: 'scale-55 sm:scale-65 md:scale-75 lg:scale-85', 
-      6: 'scale-45 sm:scale-55 md:scale-65 lg:scale-75',
-      8: 'scale-35 sm:scale-45 md:scale-55 lg:scale-65'
+      2: 'scale-45 landscape:scale-65 sm:scale-75 md:scale-85 lg:scale-95',
+      4: 'scale-35 landscape:scale-55 sm:scale-65 md:scale-75 lg:scale-85', 
+      6: 'scale-25 landscape:scale-45 sm:scale-55 md:scale-65 lg:scale-75',
+      8: 'scale-20 landscape:scale-35 sm:scale-45 md:scale-55 lg:scale-65'
     };
     
     if (playerCount <= 2) return mobileScales[2];
@@ -165,22 +165,22 @@ export const RoundTable: React.FC = () => {
         
         {/* Center Area - Decks */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-          <div className="flex gap-1 sm:gap-2 items-center justify-center">
-            <div className="flex flex-col items-center scale-75 sm:scale-85 md:scale-95 lg:scale-105">
+          <div className="flex gap-0.5 landscape:gap-1 sm:gap-2 items-center justify-center">
+            <div className="flex flex-col items-center scale-50 landscape:scale-75 sm:scale-85 md:scale-95 lg:scale-105">
               <Deck
                 name="PERSONAGGI"
                 backImage="https://i.imgur.com/r1rfUAB.png"
                 type="personaggi"
               />
             </div>
-            <div className="flex flex-col items-center scale-75 sm:scale-85 md:scale-95 lg:scale-105">
+            <div className="flex flex-col items-center scale-50 landscape:scale-75 sm:scale-85 md:scale-95 lg:scale-105">
               <Deck
                 name="MOSSE"
                 backImage="https://i.imgur.com/6MUXCZO.png"
                 type="mosse"
               />
             </div>
-            <div className="flex flex-col items-center scale-75 sm:scale-85 md:scale-95 lg:scale-105">
+            <div className="flex flex-col items-center scale-50 landscape:scale-75 sm:scale-85 md:scale-95 lg:scale-105">
               <Deck
                 name="BONUS"
                 backImage="https://i.imgur.com/lEROr3r.png"
@@ -206,7 +206,7 @@ export const RoundTable: React.FC = () => {
                 </label>
               </div>
             </div>
-            <div className="flex flex-col items-center scale-75 sm:scale-85 md:scale-95 lg:scale-105">
+            <div className="flex flex-col items-center scale-50 landscape:scale-75 sm:scale-85 md:scale-95 lg:scale-105">
               <Deck
                 name="SPECIALI"
                 backImage="https://i.imgur.com/ipVd57A.png"
