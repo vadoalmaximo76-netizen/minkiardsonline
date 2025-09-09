@@ -216,7 +216,7 @@ export const RoundTable: React.FC = () => {
         className="relative w-[85vw] h-[90vh] landscape:w-[95vw] landscape:h-[90vh] sm:w-[90vw] sm:h-[85vh] md:w-[95vw] md:h-[90vh] lg:w-[98vw] lg:h-[90vh] xl:w-[98vw] xl:h-[95vh] max-w-[1600px] max-h-[1200px] min-w-[320px] min-h-[400px] mx-auto border-4 landscape:border-8 md:border-8 border-white bg-no-repeat overflow-hidden touch-manipulation"
         style={{
           borderRadius: '16px',
-          backgroundImage: `url('https://i.ibb.co/B2yVVMkJ/wallpaper-2547293.png')`,
+          backgroundImage: `url('https://i.ibb.co/Y4bv4xwz/sfondo-minkiards.png')`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           touchAction: 'pinch-zoom',
