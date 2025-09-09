@@ -42,6 +42,10 @@ export class CPUPlayer {
   private conversationHistory: Array<{type: 'question' | 'answer', content: string, timestamp: number}> = [];
   private socketEmitter: any;
   private lastAdvice: any = null;
+  private openingSequenceState: {
+    phase: 'pick-initial' | 'play-character' | 'pick-replacement' | 'completed';
+    pickedCards: string[];
+  } = { phase: 'pick-initial', pickedCards: [] };
 
   constructor(playerName: string, gameId: string, socketEmitter?: any) {
     this.playerName = playerName;
@@ -695,6 +699,14 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         return null;
       }
       
+      // Check if this is the opening sequence (no cards in hand, no character on field)
+      const isOpeningSequence = this.isOpeningSequence(cpuPlayer, gameState);
+      
+      if (isOpeningSequence) {
+        console.log(`CPU ${this.playerName} executing opening sequence`);
+        return await this.executeOpeningSequence(gameState);
+      }
+      
       // Check if there's recent advice to follow
       if (this.lastAdvice && (Date.now() - this.lastAdvice.timestamp) < 60000) { // Follow advice within 1 minute
         console.log(`CPU ${this.playerName} following advice from ${this.lastAdvice.from}:`, this.lastAdvice);
@@ -907,6 +919,137 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     
     const handAnalysis = this.analyzeHandForGameRules(cpuPlayer.hand || []);
     return this.decideCardToPickBasedOnRules(gameState, handAnalysis);
+  }
+
+  // Check if this is the opening sequence
+  isOpeningSequence(cpuPlayer: any, gameState: any): boolean {
+    // Check if CPU has no cards in hand AND no character on field
+    const hasNoCards = !cpuPlayer.hand || cpuPlayer.hand.length === 0;
+    const hasNoCharacterOnField = !gameState.field.some((card: any) => 
+      card.owner === this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali')
+    );
+    
+    const isOpeningTurn = hasNoCards && hasNoCharacterOnField && this.openingSequenceState.phase !== 'completed';
+    
+    console.log(`CPU ${this.playerName} opening check: hasNoCards=${hasNoCards}, hasNoCharacterOnField=${hasNoCharacterOnField}, phase=${this.openingSequenceState.phase}, isOpening=${isOpeningTurn}`);
+    
+    return isOpeningTurn;
+  }
+
+  // Execute the opening sequence according to MINKIARDS rules
+  async executeOpeningSequence(gameState: any): Promise<any> {
+    const cpuPlayer = gameState.players[this.playerName];
+    
+    switch (this.openingSequenceState.phase) {
+      case 'pick-initial':
+        return this.executeInitialCardPicking(gameState);
+        
+      case 'play-character':
+        return this.executePlayCharacter(gameState);
+        
+      case 'pick-replacement':
+        return this.executePickReplacement(gameState);
+        
+      default:
+        console.log(`CPU ${this.playerName} opening sequence completed`);
+        this.openingSequenceState.phase = 'completed';
+        return null;
+    }
+  }
+
+  // Phase 1: Pick initial 3 cards (PERSONAGGI, MOSSE, BONUS)
+  executeInitialCardPicking(gameState: any): any {
+    const neededTypes = ['personaggi', 'mosse', 'bonus'];
+    const remainingTypes = neededTypes.filter(type => 
+      !this.openingSequenceState.pickedCards.includes(type)
+    );
+    
+    if (remainingTypes.length > 0) {
+      const typeToPick = remainingTypes[0];
+      
+      // Check if deck has cards
+      if (gameState.decks[typeToPick] && gameState.decks[typeToPick].length > 0) {
+        console.log(`CPU ${this.playerName} picking initial ${typeToPick} card (${remainingTypes.length} remaining)`);
+        
+        if (remainingTypes.length === 3) {
+          this.sendChatMessage("Inizio partita! Pesco le mie 3 carte iniziali.");
+        }
+        
+        this.openingSequenceState.pickedCards.push(typeToPick);
+        
+        // If all 3 cards picked, move to next phase
+        if (this.openingSequenceState.pickedCards.length === 3) {
+          this.openingSequenceState.phase = 'play-character';
+        }
+        
+        return {
+          type: 'pick-card',
+          data: {
+            deckType: typeToPick,
+            playerName: this.playerName
+          }
+        };
+      }
+    }
+    
+    // If we can't pick more cards, move to next phase
+    this.openingSequenceState.phase = 'play-character';
+    return null;
+  }
+
+  // Phase 2: Play the PERSONAGGI card
+  executePlayCharacter(gameState: any): any {
+    const cpuPlayer = gameState.players[this.playerName];
+    
+    // Find a PERSONAGGI card in hand
+    const personaggioCard = cpuPlayer.hand?.find((card: any) => 
+      card.type === 'personaggi' || card.type === 'personaggi_speciali'
+    );
+    
+    if (personaggioCard) {
+      console.log(`CPU ${this.playerName} playing initial character: ${personaggioCard.id}`);
+      this.sendChatMessage("Metto in campo il mio personaggio!");
+      
+      // Move to next phase
+      this.openingSequenceState.phase = 'pick-replacement';
+      
+      return {
+        type: 'play-card',
+        data: {
+          cardId: personaggioCard.id,
+          playerName: this.playerName
+        }
+      };
+    }
+    
+    // If no character to play, move to next phase
+    this.openingSequenceState.phase = 'pick-replacement';
+    return null;
+  }
+
+  // Phase 3: Pick replacement PERSONAGGI card
+  executePickReplacement(gameState: any): any {
+    // Check if PERSONAGGI deck has cards
+    if (gameState.decks.personaggi && gameState.decks.personaggi.length > 0) {
+      console.log(`CPU ${this.playerName} picking replacement character`);
+      this.sendChatMessage("Pesco un nuovo personaggio e finisco il turno!");
+      
+      // Complete the opening sequence
+      this.openingSequenceState.phase = 'completed';
+      
+      return {
+        type: 'pick-card',
+        data: {
+          deckType: 'personaggi',
+          playerName: this.playerName
+        }
+      };
+    }
+    
+    // If no cards to pick, just complete the sequence
+    this.openingSequenceState.phase = 'completed';
+    this.sendChatMessage("Sequenza di apertura completata!");
+    return null;
   }
 
   // Generate strategy announcement with more variety
