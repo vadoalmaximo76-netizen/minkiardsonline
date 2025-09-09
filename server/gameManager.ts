@@ -10,6 +10,7 @@ interface Card {
   owner: string;
   text?: string;
   eliminatedBy?: string;
+  faceDown?: boolean;
 }
 
 interface Player {
@@ -247,6 +248,7 @@ export class GameManager {
     
     if (cardIndex !== -1) {
       const card = player.hand.splice(cardIndex, 1)[0];
+      card.faceDown = false; // Ensure face up when played normally
       game.field.push(card);
       
       // Check if it's a PERSONAGGI card
@@ -261,6 +263,63 @@ export class GameManager {
       }, playerName);
       
       return { card, isPersonaggio };
+    }
+    
+    return {};
+  }
+
+  async playCardFaceDown(gameId: string, cardId: string, playerName: string): Promise<{ card?: any }> {
+    const game = this.games.get(gameId);
+    if (!game || !game.players[playerName]) return {};
+
+    const player = game.players[playerName];
+    const cardIndex = player.hand.findIndex(card => card.id === cardId);
+    
+    if (cardIndex !== -1) {
+      const card = player.hand.splice(cardIndex, 1)[0];
+      card.faceDown = true; // Mark as face down
+      game.field.push(card);
+      
+      // Record play card face down event
+      await this.recordEvent(gameId, 'play-card-face-down', {
+        cardId: card.id,
+        cardType: card.type,
+        faceDown: true
+      }, playerName);
+      
+      return { card };
+    }
+    
+    return {};
+  }
+
+  async revealCard(gameId: string, cardId: string, playerName: string): Promise<{ card?: any, isPersonaggio?: boolean }> {
+    const game = this.games.get(gameId);
+    if (!game) return {};
+
+    // Find the card in the field
+    const cardIndex = game.field.findIndex(card => card.id === cardId && card.owner === playerName);
+    
+    if (cardIndex !== -1) {
+      const card = game.field[cardIndex];
+      
+      // Only reveal if it's face down and owned by the player
+      if (card.faceDown) {
+        card.faceDown = false; // Reveal the card
+        
+        // Check if it's a PERSONAGGI card
+        const isPersonaggio = card.type === 'personaggi';
+        
+        // Record reveal card event
+        await this.recordEvent(gameId, 'reveal-card', {
+          cardId: card.id,
+          cardType: card.type,
+          frontImage: card.frontImage,
+          isPersonaggio
+        }, playerName);
+        
+        return { card, isPersonaggio };
+      }
     }
     
     return {};

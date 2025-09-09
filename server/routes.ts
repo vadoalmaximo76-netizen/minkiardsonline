@@ -135,6 +135,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on('play-card-face-down', async ({ cardId, playerName }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        const result = await gameManager.playCardFaceDown(gameId, cardId, playerName);
+        const gameState = gameManager.getGameState(gameId);
+        io.to(gameId).emit('game-state-update', gameState);
+        
+        if (result.card) {
+          io.to(gameId).emit('card-played-face-down', {
+            cardId: result.card.id,
+            playerName,
+            message: `${playerName} ha giocato una carta coperta`
+          });
+        }
+      }
+    });
+
+    socket.on('reveal-card', async ({ cardId, playerName }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        const result = await gameManager.revealCard(gameId, cardId, playerName);
+        const gameState = gameManager.getGameState(gameId);
+        io.to(gameId).emit('game-state-update', gameState);
+        
+        if (result.card) {
+          const getCardNameFromUrl = (url: string) => {
+            const parts = url.split('/');
+            const filename = parts[parts.length - 1];
+            return filename
+              .toLowerCase()
+              .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+              .replace(/[-_]/g, ' ')
+              .split(' ')
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(' ');
+          };
+          
+          const cardName = getCardNameFromUrl(result.card.frontImage);
+          
+          io.to(gameId).emit('card-revealed', {
+            cardId: result.card.id,
+            cardName,
+            playerName,
+            cardImage: result.card.frontImage,
+            message: `${playerName} ha scoperto: ${cardName}!`
+          });
+
+          // If it's a PERSONAGGI card, also emit the entrance notification and sound
+          if (result.isPersonaggio) {
+            const messages = [
+              "È PRONTO A FARE BRUTTO",
+              "ENTRA IN SCENA", 
+              "ARRIVA PER SPACCARVI IL CULO",
+              "SI UNISCE ALLA ZUFFA"
+            ];
+            
+            const selectedMessage = messages[Math.floor(Math.random() * messages.length)];
+            
+            io.to(gameId).emit('personaggio-enters', {
+              cardName,
+              message: selectedMessage,
+              playerName,
+              cardImage: result.card.frontImage
+            });
+
+            // Determine sound type based on card name and emit character sound event
+            const soundType = getCharacterSoundType(cardName);
+            if (soundType) {
+              io.to(gameId).emit('character-sound', {
+                cardName,
+                playerName,
+                soundType
+              });
+            }
+          }
+        }
+      }
+    });
+
     socket.on('return-to-hand', ({ cardId, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {

@@ -191,6 +191,16 @@ export const GameBoard: React.FC = () => {
       playCharacterSound(soundType);
     };
 
+    const handleCardPlayedFaceDown = ({ cardId, playerName, message }: { cardId: string, playerName: string, message: string }) => {
+      console.log(`Card played face down: ${message}`);
+      // Optional: Show a notification that a card was played face down
+    };
+
+    const handleCardRevealed = ({ cardId, cardName, playerName, cardImage, message }: { cardId: string, cardName: string, playerName: string, cardImage: string, message: string }) => {
+      console.log(`Card revealed: ${message}`);
+      // Optional: Show a notification that a card was revealed
+    };
+
     socket.on('game-reset', handleGameReset);
     socket.on('card-shown', handleCardShown);
     socket.on('card-show-confirmed', handleCardShowConfirmed);
@@ -206,6 +216,8 @@ export const GameBoard: React.FC = () => {
     socket.on('cards-added', handleCardsAdded);
     socket.on('bee-sound', handleBeeSound);
     socket.on('character-sound', handleCharacterSound);
+    socket.on('card-played-face-down', handleCardPlayedFaceDown);
+    socket.on('card-revealed', handleCardRevealed);
 
     return () => {
       socket.off('game-reset', handleGameReset);
@@ -223,6 +235,8 @@ export const GameBoard: React.FC = () => {
       socket.off('cards-added', handleCardsAdded);
       socket.off('bee-sound', handleBeeSound);
       socket.off('character-sound', handleCharacterSound);
+      socket.off('card-played-face-down', handleCardPlayedFaceDown);
+      socket.off('card-revealed', handleCardRevealed);
     };
   }, []);
 

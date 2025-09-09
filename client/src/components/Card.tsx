@@ -12,6 +12,7 @@ interface CardProps {
     backImage: string;
     owner: string;
     text?: string;
+    faceDown?: boolean;
   };
   location: 'hand' | 'field' | 'graveyard';
   showBack?: boolean;
@@ -76,6 +77,14 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
 
   const handlePlay = () => {
     socket.emit('play-card', { cardId: card.id, playerName });
+  };
+
+  const handlePlayFaceDown = () => {
+    socket.emit('play-card-face-down', { cardId: card.id, playerName });
+  };
+
+  const handleReveal = () => {
+    socket.emit('reveal-card', { cardId: card.id, playerName });
   };
 
   const handleReturnToHand = () => {
@@ -145,11 +154,12 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
       {/* Card Image */}
       <div className="relative">
         <img
-          src={showBack ? card.backImage : card.frontImage}
+          src={showBack || card.faceDown ? card.backImage : card.frontImage}
           alt="Card"
           className={`w-20 h-28 rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg 
             ${isShaking ? 'animate-shake' : ''} 
-            ${isMosseSelected ? 'ring-4 ring-red-500 ring-opacity-70' : ''}`}
+            ${isMosseSelected ? 'ring-4 ring-red-500 ring-opacity-70' : ''}
+            ${card.faceDown ? 'ring-2 ring-orange-400 ring-opacity-50' : ''}`}
           onClick={handleCardClick}
         />
         
@@ -187,6 +197,13 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
             GIOCA
           </Button>
           <Button
+            onClick={handlePlayFaceDown}
+            className="bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs px-2 py-1"
+            size="sm"
+          >
+            GIOCA CARTA COPERTA
+          </Button>
+          <Button
             onClick={handleShowCard}
             className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-2 py-1"
             size="sm"
@@ -199,6 +216,19 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
             size="sm"
           >
             CEDI
+          </Button>
+        </div>
+      )}
+
+      {/* Reveal button for face-down cards in field */}
+      {location === 'field' && isOwner && card.faceDown && (
+        <div className="flex flex-col gap-1">
+          <Button
+            onClick={handleReveal}
+            className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold text-xs px-2 py-1"
+            size="sm"
+          >
+            SCOPRI
           </Button>
         </div>
       )}
