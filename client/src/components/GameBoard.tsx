@@ -12,12 +12,13 @@ import { PersonaggioNotification } from "./PersonaggioNotification";
 import { AddCardsModal } from "./AddCardsModal";
 import { PlayerOrderNotification } from "./PlayerOrderNotification";
 import { NextTurnNotification } from "./NextTurnNotification";
+import { LeaveGameNotification } from "./LeaveGameNotification";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
-import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull } from "lucide-react";
+import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X } from "lucide-react";
 
 export const GameBoard: React.FC = () => {
   const [chatOpen, setChatOpen] = useState(false);
@@ -43,6 +44,8 @@ export const GameBoard: React.FC = () => {
   const [playerOrder, setPlayerOrder] = useState<string[]>([]);
   const [nextTurnVisible, setNextTurnVisible] = useState(false);
   const [nextTurnPlayer, setNextTurnPlayer] = useState<string>("");
+  const [leaveGameVisible, setLeaveGameVisible] = useState(false);
+  const [leavingPlayer, setLeavingPlayer] = useState<string>("");
   const { selectedCard, gameId, playerName } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, initAudioContext, toggleMute, isMuted } = useAudio();
 
@@ -63,6 +66,12 @@ export const GameBoard: React.FC = () => {
 
   const handleStartGame = () => {
     socket.emit('start-game', { gameId, playerName });
+  };
+
+  const handleLeaveGame = () => {
+    if (confirm("Sei sicuro di voler lasciare la partita? Diventerai uno spettatore.")) {
+      socket.emit('leave-game', { gameId, playerName });
+    }
   };
 
   // Initialize audio context and play game start sound on mount
@@ -221,6 +230,11 @@ export const GameBoard: React.FC = () => {
       setNextTurnVisible(true);
     };
 
+    const handlePlayerLeft = ({ playerName }: { playerName: string }) => {
+      setLeavingPlayer(playerName);
+      setLeaveGameVisible(true);
+    };
+
     socket.on('game-reset', handleGameReset);
     socket.on('card-shown', handleCardShown);
     socket.on('card-show-confirmed', handleCardShowConfirmed);
@@ -240,6 +254,7 @@ export const GameBoard: React.FC = () => {
     socket.on('card-revealed', handleCardRevealed);
     socket.on('game-started', handleGameStarted);
     socket.on('next-turn', handleNextTurn);
+    socket.on('player-left', handlePlayerLeft);
 
     return () => {
       socket.off('game-reset', handleGameReset);
@@ -261,6 +276,7 @@ export const GameBoard: React.FC = () => {
       socket.off('card-revealed', handleCardRevealed);
       socket.off('game-started', handleGameStarted);
       socket.off('next-turn', handleNextTurn);
+      socket.off('player-left', handlePlayerLeft);
     };
   }, []);
 
@@ -501,6 +517,13 @@ export const GameBoard: React.FC = () => {
           onClose={() => setNextTurnVisible(false)}
         />
 
+        {/* Leave Game Notification */}
+        <LeaveGameNotification
+          isVisible={leaveGameVisible}
+          playerName={leavingPlayer}
+          onClose={() => setLeaveGameVisible(false)}
+        />
+
         {/* Add Cards Modal */}
         <AddCardsModal
           isOpen={addCardsModalOpen}
@@ -508,14 +531,21 @@ export const GameBoard: React.FC = () => {
         />
 
 
-        {/* Add Cards Button - Bottom of page */}
-        <div className="mt-16 mb-8 flex justify-center">
+        {/* Add Cards and Leave Game Buttons - Bottom of page */}
+        <div className="mt-16 mb-8 flex justify-center gap-4">
           <Button
             onClick={() => setAddCardsModalOpen(true)}
             className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold rounded-lg px-6 py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-3"
           >
             <Plus size={24} />
             AGGIUNGI CARTE
+          </Button>
+          <Button
+            onClick={handleLeaveGame}
+            className="bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg px-6 py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-3"
+          >
+            <X size={24} />
+            LASCIA LA PARTITA
           </Button>
         </div>
 

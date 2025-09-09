@@ -505,6 +505,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on('leave-game', ({ gameId, playerName }) => {
+      const success = gameManager.leaveGame(gameId, playerName);
+      if (success) {
+        const gameState = gameManager.getGameState(gameId);
+        io.to(gameId).emit('game-state-update', gameState);
+        io.to(gameId).emit('player-left', { playerName });
+      }
+    });
+
     socket.on('disconnect', () => {
       console.log('Player disconnected:', socket.id);
       gameManager.removePlayer(socket.id);

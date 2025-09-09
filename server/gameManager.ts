@@ -35,6 +35,7 @@ interface GameState {
   startTime: Date; // Match start time
   turnOrder: string[]; // Player turn order
   currentTurnIndex: number; // Index of current player in turn order
+  spectators: string[]; // Players who left the game but are still spectating
 }
 
 export class GameManager {
@@ -70,7 +71,8 @@ export class GameManager {
       eventCounter: 0,
       startTime: new Date(),
       turnOrder: [],
-      currentTurnIndex: 0
+      currentTurnIndex: 0,
+      spectators: []
     };
 
     // Auto-shuffle all decks when starting a new game
@@ -735,5 +737,75 @@ export class GameManager {
     const nextPlayer = gameState.turnOrder[gameState.currentTurnIndex];
 
     return nextPlayer;
+  }
+
+  leaveGame(gameId: string, playerName: string): boolean {
+    const gameState = this.games.get(gameId);
+    if (!gameState) return false;
+
+    // Check if player exists
+    if (!gameState.players[playerName]) return false;
+
+    // Move player to spectators
+    gameState.spectators.push(playerName);
+
+    // Remove player from turn order
+    const turnIndex = gameState.turnOrder.indexOf(playerName);
+    if (turnIndex !== -1) {
+      gameState.turnOrder.splice(turnIndex, 1);
+      
+      // Adjust current turn index if necessary
+      if (gameState.currentTurnIndex >= turnIndex && gameState.currentTurnIndex > 0) {
+        gameState.currentTurnIndex--;
+      }
+      
+      // Wrap around if we're at the end
+      if (gameState.currentTurnIndex >= gameState.turnOrder.length && gameState.turnOrder.length > 0) {
+        gameState.currentTurnIndex = 0;
+      }
+    }
+
+    // Keep the player in the players object so they can spectate,
+    // but clear their hand and move all their cards back to decks
+    const player = gameState.players[playerName];
+    
+    // Move all cards from player's hand back to appropriate decks
+    for (const card of player.hand) {
+      const deckType = card.type as keyof typeof gameState.decks;
+      card.owner = '';
+      card.text = '';
+      gameState.decks[deckType].push(card);
+    }
+    
+    // Clear player's hand
+    player.hand = [];
+
+    // Move player's field cards back to decks  
+    const playerFieldCards = gameState.field.filter(card => card.owner === playerName);
+    for (const card of playerFieldCards) {
+      const deckType = card.type as keyof typeof gameState.decks;
+      card.owner = '';
+      card.text = '';
+      card.faceDown = false;
+      gameState.decks[deckType].push(card);
+    }
+    
+    // Remove player's cards from field
+    gameState.field = gameState.field.filter(card => card.owner !== playerName);
+
+    // Move player's graveyard cards back to decks
+    const playerGraveyardCards = gameState.graveyard.filter(card => card.owner === playerName);
+    for (const card of playerGraveyardCards) {
+      const deckType = card.type as keyof typeof gameState.decks;
+      card.owner = '';
+      card.text = '';
+      card.eliminatedBy = undefined;
+      gameState.decks[deckType].push(card);
+    }
+    
+    // Remove player's cards from graveyard
+    gameState.graveyard = gameState.graveyard.filter(card => card.owner !== playerName);
+
+    return true;
   }
 }
