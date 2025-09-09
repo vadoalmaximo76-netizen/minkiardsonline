@@ -22,7 +22,7 @@ interface Player {
   socketId: string;
   isCPU?: boolean;
   cpuInstance?: CPUPlayer;
-  usedCardsThisTurn?: string[]; // Track cards used this turn to prevent reuse
+  usedCardsThisTurn?: string[]; // Track card images used this turn to prevent reuse
 }
 
 interface GameState {
@@ -106,6 +106,7 @@ export class GameManager {
     if (isCPU) {
       player.cpuInstance = new CPUPlayer(playerName, gameId);
       player.cpuInstance.resetOpeningSequence(); // Reset opening sequence for new game
+      player.cpuInstance.setGameManager(this); // Pass game manager reference for card usage tracking
     }
 
     game.players[playerName] = player;
@@ -436,17 +437,17 @@ export class GameManager {
     }
   }
 
-  // Check if a card has been used this turn
-  hasCardBeenUsed(gameId: string, cardId: string, playerName: string): boolean {
+  // Check if a card type has been used this turn (by frontImage)
+  hasCardTypeBeenUsed(gameId: string, frontImage: string, playerName: string): boolean {
     const game = this.games.get(gameId);
     if (!game || !game.players[playerName]) return false;
     
     const player = game.players[playerName];
-    return player.usedCardsThisTurn?.includes(cardId) || false;
+    return player.usedCardsThisTurn?.includes(frontImage) || false;
   }
 
-  // Mark a card as used this turn
-  markCardAsUsed(gameId: string, cardId: string, playerName: string): void {
+  // Mark a card type as used this turn (by frontImage)
+  markCardTypeAsUsed(gameId: string, frontImage: string, playerName: string): void {
     const game = this.games.get(gameId);
     if (!game || !game.players[playerName]) return;
     
@@ -455,9 +456,39 @@ export class GameManager {
       player.usedCardsThisTurn = [];
     }
     
-    if (!player.usedCardsThisTurn.includes(cardId)) {
-      player.usedCardsThisTurn.push(cardId);
-      console.log(`${playerName} used card ${cardId} this turn`);
+    if (!player.usedCardsThisTurn.includes(frontImage)) {
+      player.usedCardsThisTurn.push(frontImage);
+      console.log(`${playerName} used card type ${frontImage} this turn`);
+    }
+  }
+
+  // Legacy method for backward compatibility
+  hasCardBeenUsed(gameId: string, cardId: string, playerName: string): boolean {
+    const game = this.games.get(gameId);
+    if (!game || !game.players[playerName]) return false;
+    
+    // Find the card to get its frontImage
+    const card = game.field.find(c => c.id === cardId) || 
+                 game.players[playerName].hand.find(c => c.id === cardId);
+    
+    if (card) {
+      return this.hasCardTypeBeenUsed(gameId, card.frontImage, playerName);
+    }
+    
+    return false;
+  }
+
+  // Legacy method for backward compatibility  
+  markCardAsUsed(gameId: string, cardId: string, playerName: string): void {
+    const game = this.games.get(gameId);
+    if (!game || !game.players[playerName]) return;
+    
+    // Find the card to get its frontImage
+    const card = game.field.find(c => c.id === cardId) || 
+                 game.players[playerName].hand.find(c => c.id === cardId);
+    
+    if (card) {
+      this.markCardTypeAsUsed(gameId, card.frontImage, playerName);
     }
   }
 

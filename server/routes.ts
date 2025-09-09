@@ -883,9 +883,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('mosse-attack', ({ mosseCardId, targetCardId, attackerName, targetOwner }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
-        // Check if the MOSSE card has already been used this turn
-        if (gameManager.hasCardBeenUsed(gameId, mosseCardId, attackerName)) {
-          console.log(`${attackerName} attempted to reuse MOSSE card ${mosseCardId} - attack blocked`);
+        // Get the card to check its frontImage
+        const gameState = gameManager.getSanitizedGameState(gameId);
+        const mosseCard = gameState?.field?.find((c: any) => c.id === mosseCardId);
+        
+        if (!mosseCard) {
+          console.log(`MOSSE card ${mosseCardId} not found on field`);
+          return;
+        }
+        
+        // Check if this type of MOSSE card has already been used this turn
+        if (gameManager.hasCardTypeBeenUsed(gameId, mosseCard.frontImage, attackerName)) {
+          console.log(`${attackerName} attempted to reuse MOSSE card type ${mosseCard.frontImage} - attack blocked`);
           socket.emit('attack-blocked', { 
             message: 'Non puoi riutilizzare la stessa carta MOSSE nello stesso turno!',
             cardId: mosseCardId 
@@ -893,8 +902,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return;
         }
         
-        // Mark the MOSSE card as used this turn
-        gameManager.markCardAsUsed(gameId, mosseCardId, attackerName);
+        // Mark this type of MOSSE card as used this turn
+        gameManager.markCardTypeAsUsed(gameId, mosseCard.frontImage, attackerName);
         
         // Broadcast the attack to all players so they can see the shaking animation
         io.to(gameId).emit('card-attacked', {

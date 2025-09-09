@@ -369,6 +369,13 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     return null;
   }
 
+  // Reference to game manager for checking used cards
+  private gameManager: any = null;
+  
+  setGameManager(gameManager: any) {
+    this.gameManager = gameManager;
+  }
+
   // Analyze current game state and decide next move with conversation context
   async analyzeGameState(gameState: any): Promise<GameAnalysis> {
     try {
@@ -575,6 +582,34 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         const targetCard = gameState.field.find((c: any) => c.id === action.target);
         
         if (mosseOnField && targetCard) {
+          // Check if this MOSSE card type has already been used this turn
+          if (this.gameManager && this.gameManager.hasCardTypeBeenUsed(gameState.id, mosseOnField.frontImage, this.playerName)) {
+            console.log(`CPU ${this.playerName}: MOSSE card ${mosseOnField.frontImage} already used this turn, cannot attack`);
+            this.sendChatMessage(`Non posso riutilizzare la stessa carta MOSSE nello stesso turno!`);
+            
+            // Try to play a different MOSSE card from hand instead
+            const unusedMoveCard = cpuPlayer.hand.find((c: any) => 
+              c.type === 'mosse' && 
+              (!this.gameManager || !this.gameManager.hasCardTypeBeenUsed(gameState.id, c.frontImage, this.playerName))
+            );
+            
+            if (unusedMoveCard) {
+              const cardName = this.getCardNameFromUrl(unusedMoveCard.frontImage);
+              this.sendChatMessage(`Gioco una carta MOSSE diversa: "${cardName}".`);
+              
+              return {
+                type: 'play-card',
+                data: {
+                  cardId: unusedMoveCard.id,
+                  playerName: this.playerName
+                }
+              };
+            } else {
+              this.sendChatMessage(`Non ho altre carte MOSSE disponibili. Passo il turno.`);
+              return null;
+            }
+          }
+          
           // Use the MOSSE card that's already on the field for attack
           const cardName = this.getCardNameFromUrl(mosseOnField.frontImage);
           const targetName = this.getCardNameFromUrl(targetCard.frontImage);
@@ -603,19 +638,26 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
             }
           };
         } else {
-          // Need to play a MOSSE card first from hand
-          const moveCard = cpuPlayer.hand.find((c: any) => c.type === 'mosse');
-          if (moveCard) {
-            const cardName = this.getCardNameFromUrl(moveCard.frontImage);
+          // Need to play a MOSSE card first from hand, but check if it's already been used
+          const unusedMoveCard = cpuPlayer.hand.find((c: any) => 
+            c.type === 'mosse' && 
+            (!this.gameManager || !this.gameManager.hasCardTypeBeenUsed(gameState.id, c.frontImage, this.playerName))
+          );
+          
+          if (unusedMoveCard) {
+            const cardName = this.getCardNameFromUrl(unusedMoveCard.frontImage);
             this.sendChatMessage(`Prima devo giocare la carta MOSSE "${cardName}" sul campo.`);
             
             return {
               type: 'play-card',
               data: {
-                cardId: moveCard.id,
+                cardId: unusedMoveCard.id,
                 playerName: this.playerName
               }
             };
+          } else {
+            this.sendChatMessage(`Tutte le mie carte MOSSE sono già state usate questo turno.`);
+            return null;
           }
         }
         break;
