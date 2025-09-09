@@ -137,8 +137,8 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
           <div 
             className="bg-gray-900 rounded-lg shadow-2xl border-2 border-gray-600"
             style={{ 
-              width: '1500px',
-              height: '600px',
+              width: '1800px',
+              height: '500px',
               maxWidth: '95vw',
               maxHeight: '95vh',
               position: 'relative'
@@ -165,7 +165,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
                 overflowX: 'hidden'
               }}
             >
-              <div className="grid grid-cols-5 gap-3">
+              <div className="grid grid-cols-8 gap-2">
                 {getSortedCards().map((card, index) => (
                   <div key={card.id} className="flex flex-col items-center bg-gray-700 rounded p-2 hover:bg-gray-600 cursor-pointer">
                     <img
