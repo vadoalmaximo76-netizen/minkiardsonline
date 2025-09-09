@@ -123,7 +123,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
       {/* Deck Browser Modal */}
       {showBrowser && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
-          <div className="bg-gray-800 rounded-lg p-4 max-w-[95vw] w-full max-h-[95vh] overflow-y-auto">
+          <div className="bg-gray-800 rounded-lg p-4 w-[85vw] h-[90vh] landscape:w-[95vw] landscape:h-[90vh] sm:w-[90vw] sm:h-[85vh] md:w-[95vw] md:h-[90vh] lg:w-[98vw] lg:h-[90vh] xl:w-[98vw] xl:h-[95vh] max-w-[1600px] max-h-[1200px] min-w-[320px] min-h-[400px] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-white font-bold text-xl" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>Scegli una carta da {name}</h3>
               <Button
