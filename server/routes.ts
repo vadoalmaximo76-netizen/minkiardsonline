@@ -20,14 +20,36 @@ async function analyzePersonaggioCard(imageUrl: string): Promise<{ pti: number, 
       messages: [
         {
           role: "system",
-          content: "You are an expert at reading MINKIARDS card game images. Extract the PTI (life points), stars (damage multiplier), and any special powers from the card. Respond with JSON format: {\"pti\": number, \"stars\": number, \"powers\": \"description\", \"name\": \"card name\"}"
+          content: `You are an expert at reading MINKIARDS card game images. MINKIARDS cards display specific numeric values that you must extract accurately:
+
+PTI (Punti Totali Iniziali): The character's life points - this is usually a large number prominently displayed (e.g., 250, 500, 750, 1000, 1250, etc.)
+STELLE (Stars): The damage multiplier - usually shown as small star symbols or numbers ranging from 1-5
+POTERI (Powers): Any special abilities or powers written on the card
+
+Look for these specific elements:
+- PTI is often displayed as a large number in a circle or prominent area
+- Stars are typically small symbols (★) or numbers near the character image
+- Character names are usually at the top or bottom of the card
+- Powers/abilities are described in text boxes
+
+Respond with accurate JSON format: {"pti": number, "stars": number, "powers": "description", "name": "card name"}`
         },
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: "Extract PTI (life points), stars (damage multiplier), and powers from this MINKIARDS PERSONAGGI card. Look carefully at all numbers and symbols on the card."
+              text: `Analyze this MINKIARDS PERSONAGGI card carefully. Extract the exact numeric values:
+
+1. PTI (life points) - look for the largest number on the card, often in a circle or prominent display
+2. STELLE (stars) - count star symbols (★) or look for a number from 1-5 indicating damage multiplier
+3. Character name - usually clearly displayed at top or bottom
+4. Any special powers or abilities described in text
+
+Be very precise with the numbers. PTI values are typically: 250, 500, 750, 1000, 1250, 1500, etc.
+Star values are typically: 1, 2, 3, 4, or 5.
+
+Return accurate values, not defaults.`
             },
             {
               type: "image_url",
@@ -39,17 +61,48 @@ async function analyzePersonaggioCard(imageUrl: string): Promise<{ pti: number, 
         }
       ],
       response_format: { type: "json_object" },
-      max_tokens: 300
+      max_tokens: 500,
+      temperature: 0.1 // Lower temperature for more consistent results
     });
 
     const analysis = JSON.parse(response.choices[0].message.content || '{}');
     console.log('Card analysis result:', analysis);
     
+    // More thorough parsing with validation
+    let pti = 1000; // default
+    let stars = 1; // default
+    
+    // Try multiple possible field names for PTI
+    if (analysis.pti && typeof analysis.pti === 'number') {
+      pti = analysis.pti;
+    } else if (analysis.PTI && typeof analysis.PTI === 'number') {
+      pti = analysis.PTI;
+    } else if (analysis.points && typeof analysis.points === 'number') {
+      pti = analysis.points;
+    } else if (analysis.life && typeof analysis.life === 'number') {
+      pti = analysis.life;
+    } else if (analysis.hp && typeof analysis.hp === 'number') {
+      pti = analysis.hp;
+    }
+    
+    // Try multiple possible field names for stars
+    if (analysis.stars && typeof analysis.stars === 'number') {
+      stars = Math.max(1, Math.min(5, analysis.stars));
+    } else if (analysis.stelle && typeof analysis.stelle === 'number') {
+      stars = Math.max(1, Math.min(5, analysis.stelle));
+    } else if (analysis.star && typeof analysis.star === 'number') {
+      stars = Math.max(1, Math.min(5, analysis.star));
+    } else if (analysis.damage && typeof analysis.damage === 'number') {
+      stars = Math.max(1, Math.min(5, analysis.damage));
+    }
+    
+    console.log(`Parsed values: PTI=${pti}, Stars=${stars}`);
+    
     return {
-      pti: analysis.pti || analysis.points || 1000,
-      stars: analysis.stars || analysis.stelle || 1,
-      powers: analysis.powers || analysis.poteri || '',
-      name: analysis.name || analysis.nome || ''
+      pti: pti,
+      stars: stars,
+      powers: analysis.powers || analysis.poteri || analysis.abilities || '',
+      name: analysis.name || analysis.nome || analysis.character || ''
     };
   } catch (error: any) {
     console.error('Error analyzing PERSONAGGI card:', error);
@@ -398,12 +451,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Auto-analyze and populate PTI/Stars for all players (human and CPU)
           try {
+            console.log(`Starting analysis for ${playerName}'s PERSONAGGI card: ${cardName}`);
             const cardAnalysis = await analyzePersonaggioCard(result.card.frontImage);
             if (cardAnalysis) {
-              const notes = `PTI: ${cardAnalysis.pti} | Stelle: ${cardAnalysis.stars}` + 
-                          (cardAnalysis.powers ? ` | Poteri: ${cardAnalysis.powers}` : '');
+              let notes = `PTI: ${cardAnalysis.pti} | Stelle: ${cardAnalysis.stars}`;
               
-              console.log(`Auto-populating notes for ${playerName}'s ${cardName}: ${notes}`);
+              if (cardAnalysis.powers && cardAnalysis.powers.trim()) {
+                notes += ` | Poteri: ${cardAnalysis.powers}`;
+              }
+              
+              if (cardAnalysis.name && cardAnalysis.name.trim()) {
+                notes = `${cardAnalysis.name} - ${notes}`;
+              }
+              
+              console.log(`Auto-populating notes for ${playerName}'s ${cardName}:`);
+              console.log(`- PTI: ${cardAnalysis.pti}`);
+              console.log(`- Stelle: ${cardAnalysis.stars}`);
+              console.log(`- Final notes: ${notes}`);
               
               // Update the card text with extracted information
               gameManager.updateCardText(gameId, result.card.id, notes);
@@ -411,9 +475,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Send updated game state
               const updatedGameState = gameManager.getSanitizedGameState(gameId);
               io.to(gameId).emit('game-state-update', updatedGameState);
+              
+              // Send notification about successful analysis
+              io.to(gameId).emit('card-analysis-complete', {
+                playerName,
+                cardName,
+                pti: cardAnalysis.pti,
+                stars: cardAnalysis.stars,
+                powers: cardAnalysis.powers
+              });
+            } else {
+              console.log(`No analysis result returned for ${playerName}'s ${cardName}`);
             }
           } catch (error) {
             console.error('Error auto-analyzing PERSONAGGI card:', error);
+            // Fallback to manual entry
+            io.to(gameId).emit('card-analysis-failed', {
+              playerName,
+              cardName,
+              message: 'Analisi automatica fallita. Inserisci manualmente PTI e stelle nelle note.'
+            });
           }
         }
       }
