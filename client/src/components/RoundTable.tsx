@@ -189,31 +189,8 @@ export const RoundTable: React.FC = () => {
 
   const cardScale = getCardScale(allPlayerNames.length);
 
-  // Calculate dynamic deck scale based on table usage
-  const getDeckScale = () => {
-    const totalCardsInPlay = Object.values(cardsByPlayer).reduce((total, cards) => total + cards.length, 0);
-    const playerCount = allPlayerNames.length;
-    
-    // Very crowded table (many cards and players)
-    if (totalCardsInPlay > 16 || playerCount > 6) {
-      return 'scale-25 landscape:scale-50 sm:scale-45 md:scale-55 lg:scale-60';
-    }
-    
-    // Moderately crowded table
-    if (totalCardsInPlay > 12 || playerCount > 4) {
-      return 'scale-30 landscape:scale-55 sm:scale-50 md:scale-60 lg:scale-65';
-    }
-    
-    // Some cards in play
-    if (totalCardsInPlay > 8 || playerCount > 2) {
-      return 'scale-35 landscape:scale-60 sm:scale-55 md:scale-65 lg:scale-70';
-    }
-    
-    // Light usage - more space available
-    return 'scale-40 landscape:scale-75 sm:scale-70 md:scale-80 lg:scale-85';
-  };
-
-  const deckScale = getDeckScale();
+  // Use the same scale as field cards for consistency
+  const deckScale = cardScale;
 
   return (
     <div className="mb-4 md:mb-8">

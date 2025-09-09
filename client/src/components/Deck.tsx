@@ -93,7 +93,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
         <img
           src={backImage}
           alt={`${name} back`}
-          className={`w-20 h-28 rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg ${isShuffling ? 'animate-shuffle' : ''}`}
+          className={`w-24 h-32 rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg ${isShuffling ? 'animate-shuffle' : ''}`}
           onClick={handlePickCard}
         />
         
