@@ -63,9 +63,10 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
       setShowActions(!showActions);
       setSelectedMosseCard(null);
     } else if (location === 'hand') {
-      // For cards in hand, toggle the action buttons visibility
+      // For cards in hand, only toggle the action buttons visibility (don't open modal)
       setShowActions(!showActions);
       setSelectedMosseCard(null);
+      // Don't set selectedCard to avoid opening the modal
     }
   };
 
