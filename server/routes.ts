@@ -142,7 +142,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   });
                   
                   // After attack, return the used card to its deck and draw replacement
-                  setTimeout(() => {
+                  setTimeout(async () => {
                     console.log(`CPU ${cpuName} returning used MOSSE card to deck`);
                     gameManager.returnToDeck(gameId, currentAction.data.cardId, currentAction.data.playerName);
                     
