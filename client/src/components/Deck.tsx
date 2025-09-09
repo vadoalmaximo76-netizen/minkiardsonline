@@ -124,11 +124,12 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
       {/* Deck Browser Modal */}
       {showBrowser && (
         <div 
-          className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-95 flex items-center justify-center"
+          className="fixed top-0 left-0 w-screen h-screen bg-black flex items-center justify-center"
           style={{ 
-            zIndex: 99999999,
+            zIndex: 999999999,
             position: 'fixed',
-            inset: 0
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.98)'
           }}
         >
           <div 
