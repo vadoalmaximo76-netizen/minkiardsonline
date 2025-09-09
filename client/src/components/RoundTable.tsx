@@ -153,13 +153,14 @@ export const RoundTable: React.FC = () => {
       
       {/* Rectangular Table Container */}
       <div 
-        className="relative w-[80vw] h-[85vh] landscape:w-[95vw] landscape:h-[70vh] sm:w-[90vw] sm:h-[75vh] md:w-[95vw] md:h-[80vh] lg:w-[98vw] lg:h-[85vh] xl:w-[98vw] xl:h-[90vh] max-w-[1400px] max-h-[900px] min-w-[320px] min-h-[400px] mx-auto border-4 md:border-8 border-amber-700 shadow-2xl bg-no-repeat overflow-hidden touch-manipulation"
+        className="relative w-[80vw] h-[85vh] landscape:w-[95vw] landscape:h-[70vh] sm:w-[90vw] sm:h-[75vh] md:w-[95vw] md:h-[80vh] lg:w-[98vw] lg:h-[85vh] xl:w-[98vw] xl:h-[90vh] max-w-[1400px] max-h-[900px] min-w-[320px] min-h-[400px] mx-auto border-4 md:border-8 border-white bg-no-repeat overflow-hidden touch-manipulation"
         style={{
           borderRadius: '16px',
           backgroundImage: `url('https://i.ibb.co/B2yVVMkJ/wallpaper-2547293.png')`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          touchAction: 'pinch-zoom'
+          touchAction: 'pinch-zoom',
+          boxShadow: '0 0 20px rgba(255, 255, 255, 0.6), 0 0 40px rgba(255, 255, 255, 0.4), 0 0 60px rgba(255, 255, 255, 0.2)'
         }}
       >
         
