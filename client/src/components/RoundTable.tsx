@@ -216,6 +216,76 @@ export const RoundTable: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* CARTE IN CAMPO section for all players */}
+      <div className="mt-8">
+        <h3 className="text-white font-bold text-xl mb-4 text-center">CARTE IN CAMPO</h3>
+        <div className="bg-blue-800/30 rounded-lg p-4">
+          {allPlayerNames.length > 0 ? (
+            allPlayerNames.map((player) => {
+              const playerCards = cardsByPlayer[player] || [];
+              const isCurrentPlayer = player === playerName;
+              
+              return (
+                <div key={player} className="mb-4 last:mb-0">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className={`font-semibold ${isCurrentPlayer ? 'text-yellow-400' : 'text-white'}`}>
+                      {player} {isCurrentPlayer && '(Tu)'}
+                    </h4>
+                    <span className="text-white/60 text-sm">
+                      {playerCards.length} carte
+                    </span>
+                  </div>
+                  
+                  <div className="flex gap-2 flex-wrap">
+                    {playerCards.length > 0 ? (
+                      playerCards.map((card, index) => (
+                        <div key={card.id} className="flex items-center gap-1">
+                          {/* Left Arrow for current player */}
+                          {isCurrentPlayer && (
+                            <Button
+                              onClick={() => handleMoveCard(card.id, 'left')}
+                              disabled={index === 0}
+                              className="p-1 h-6 w-6 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
+                              size="sm"
+                            >
+                              <ChevronLeft size={12} />
+                            </Button>
+                          )}
+                          
+                          {/* Card */}
+                          <div className="scale-75">
+                            <Card
+                              card={card}
+                              location="field"
+                            />
+                          </div>
+                          
+                          {/* Right Arrow for current player */}
+                          {isCurrentPlayer && (
+                            <Button
+                              onClick={() => handleMoveCard(card.id, 'right')}
+                              disabled={index === playerCards.length - 1}
+                              className="p-1 h-6 w-6 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
+                              size="sm"
+                            >
+                              <ChevronRight size={12} />
+                            </Button>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-white/60 italic">Nessuna carta in campo</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <p className="text-white/60 italic text-center">Nessun giocatore</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
