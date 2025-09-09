@@ -22,7 +22,7 @@ import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
-import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, Music, Music2 } from "lucide-react";
+import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X } from "lucide-react";
 
 export const GameBoard: React.FC = () => {
   const [chatOpen, setChatOpen] = useState(false);
@@ -59,7 +59,7 @@ export const GameBoard: React.FC = () => {
     playerName: string;
   }>>([]);
   const { selectedCard, gameId, playerName, gameState } = useGameState();
-  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, initAudioContext, toggleMute, isMuted, updateMusicForGameEvent, startDynamicMusic, stopDynamicMusic, dynamicMusic } = useAudio();
+  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, initAudioContext, toggleMute, isMuted } = useAudio();
 
 
   const shareInviteLink = () => {
@@ -86,19 +86,16 @@ export const GameBoard: React.FC = () => {
       socket.emit('reset-game', { gameId });
       // Reset scenario cards state when game is reset
       setScenarioCardsActive(false);
-      updateMusicForGameEvent('game_end');
     }
   };
 
   const handleStartGame = () => {
     socket.emit('start-game', { gameId, playerName });
-    updateMusicForGameEvent('game_start');
   };
 
   const handleLeaveGame = () => {
     if (confirm("Sei sicuro di voler lasciare la partita? Diventerai uno spettatore.")) {
       socket.emit('leave-game', { gameId, playerName });
-      updateMusicForGameEvent('game_end');
     }
   };
 
@@ -115,7 +112,6 @@ export const GameBoard: React.FC = () => {
     // Play game start sound after a brief delay
     setTimeout(() => {
       playGameStart();
-      updateMusicForGameEvent('game_start');
     }, 500);
   }, []);
 
@@ -127,7 +123,6 @@ export const GameBoard: React.FC = () => {
     const handlePlayerJoined = ({ playerName: newPlayer }: { playerName: string }) => {
       // Play sound when a new player joins
       playPlayerJoin();
-      updateMusicForGameEvent('player_join');
     };
 
     const handleCardShown = ({ cardImage, fromPlayer, message }: { cardImage: string, fromPlayer: string, message: string }) => {
@@ -164,7 +159,6 @@ export const GameBoard: React.FC = () => {
       
       // Play dice roll sound when anyone rolls the dice
       playDiceRoll();
-      updateMusicForGameEvent('action');
     };
 
     const handleDiceWindowOpen = ({ playerName: opener }: { playerName: string }) => {
@@ -204,7 +198,6 @@ export const GameBoard: React.FC = () => {
       console.log(`${fromPlayer} attacked ${toPlayer}'s ${targetCardName}`);
       // Play damage sound when cards are attacked
       playDamageSound();
-      updateMusicForGameEvent('attack_initiated');
     };
 
     const handleCardToGraveyard = ({ cardName }: { cardName: string }) => {
@@ -213,7 +206,6 @@ export const GameBoard: React.FC = () => {
       
       // Play lose sound when card goes to graveyard
       playCardToGraveyard();
-      updateMusicForGameEvent('damage_dealt');
       
       // Auto-hide after 3 seconds
       setTimeout(() => {
@@ -227,7 +219,6 @@ export const GameBoard: React.FC = () => {
       setPersonaggioMessage(message);
       setPersonaggioCardImage(cardImage);
       setPersonaggioNotificationVisible(true);
-      updateMusicForGameEvent('card_played');
       
       // Auto-hide after 4 seconds
       setTimeout(() => {
@@ -262,19 +253,16 @@ export const GameBoard: React.FC = () => {
     const handleGameStarted = ({ playerOrder }: { playerOrder: string[] }) => {
       setPlayerOrder(playerOrder);
       setPlayerOrderVisible(true);
-      updateMusicForGameEvent('game_start');
     };
 
     const handleNextTurn = ({ nextPlayer }: { nextPlayer: string }) => {
       setNextTurnPlayer(nextPlayer);
       setNextTurnVisible(true);
-      updateMusicForGameEvent('player_turn_start');
     };
 
     const handlePlayerLeft = ({ playerName }: { playerName: string }) => {
       setLeavingPlayer(playerName);
       setLeaveGameVisible(true);
-      updateMusicForGameEvent('idle');
     };
 
     const handleOpenSuperDice = ({ playerName: dicePlayerName }: { playerName: string }) => {
@@ -450,49 +438,18 @@ export const GameBoard: React.FC = () => {
           <Graveyard onClose={() => setGraveyardOpen(false)} />
         )}
 
-        {/* Audio Controls */}
-        <div className="fixed bottom-2 landscape:bottom-4 md:bottom-4 left-2 landscape:left-4 md:left-4 z-60 flex flex-col gap-2">
-          {/* Sound Toggle Button */}
-          <Button
-            onClick={() => {
-              initAudioContext();
-              toggleMute();
-            }}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
-            title={isMuted ? "Enable sound" : "Disable sound"}
-          >
-            {isMuted ? <VolumeX size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" /> : <Volume2 size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />}
-          </Button>
-          
-          {/* Dynamic Music Controls */}
-          {!isMuted && (
-            <div className="flex flex-col gap-1">
-              <Button
-                onClick={() => {
-                  if (dynamicMusic.musicContext.isPlaying) {
-                    stopDynamicMusic();
-                  } else {
-                    startDynamicMusic();
-                  }
-                }}
-                className={`${dynamicMusic.musicContext.isPlaying ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-600 hover:bg-gray-700'} text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200`}
-                title={dynamicMusic.musicContext.isPlaying ? "Stop dynamic music" : "Start dynamic music"}
-              >
-                {dynamicMusic.musicContext.isPlaying ? <Music2 size={14} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" /> : <Music size={14} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" />}
-              </Button>
-              
-              {/* Music Intensity Indicator */}
-              {dynamicMusic.musicContext.isPlaying && (
-                <div className="bg-black/70 text-white text-xs px-2 py-1 rounded-md shadow-lg max-w-20">
-                  <div className="text-center font-semibold uppercase">{dynamicMusic.currentIntensity}</div>
-                  {dynamicMusic.isTransitioning && (
-                    <div className="text-center text-orange-300 text-xs">→ {dynamicMusic.targetIntensity}</div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        {/* Sound Toggle Button */}
+        <Button
+          onClick={() => {
+            initAudioContext();
+            toggleMute();
+          }}
+          className="fixed bottom-2 landscape:bottom-4 md:bottom-4 left-2 landscape:left-4 md:left-4 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
+          style={{ position: 'fixed' }}
+          title={isMuted ? "Enable sound" : "Disable sound"}
+        >
+          {isMuted ? <VolumeX size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" /> : <Volume2 size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />}
+        </Button>
 
         {/* Game controls */}
         <div className="fixed bottom-2 landscape:bottom-4 md:bottom-4 right-2 landscape:right-4 md:right-4 flex flex-col gap-1 landscape:gap-2 md:gap-2 z-50">
