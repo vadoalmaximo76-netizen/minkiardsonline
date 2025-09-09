@@ -48,6 +48,8 @@ Cards are defined with front/back images, ownership tracking, and custom text an
 
 ### Automatic Card Mechanics
 - **Auto-Draw System (CPU Only)**: When CPU players play a card, they automatically draw a replacement of the same type. Human players must draw manually.
+- **Auto-Analysis System**: When any player plays a PERSONAGGI card, it's automatically analyzed using AI to extract PTI (life points), stars (damage multiplier), and special powers. This information is automatically populated in the card's notes.
+- **Auto-Death System**: When a PERSONAGGI card's PTI reaches 0 (either manually entered or through damage), the character automatically dies and goes to the graveyard.
 - **Card Return System**: Used cards automatically return to their respective decks
 - **Field Management**: Cards must be placed on field before use, maintaining proper game flow
 
