@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
@@ -24,6 +24,11 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const [showPlayerSelect, setShowPlayerSelect] = useState(false);
   const [showTransferSelect, setShowTransferSelect] = useState(false);
   const [isEliminated, setIsEliminated] = useState(false);
+
+  // Sync local cardText state with incoming card.text prop (for real-time updates)
+  useEffect(() => {
+    setCardText(card.text || "");
+  }, [card.text]);
   const { 
     setSelectedCard, 
     playerName, 
