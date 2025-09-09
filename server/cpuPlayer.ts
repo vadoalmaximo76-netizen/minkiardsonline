@@ -582,11 +582,11 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           this.sendChatMessage(`Uso la carta MOSSE "${cardName}" per attaccare ${targetName}!`);
           
           return {
-            type: 'use-card-attack',
+            type: 'mosse-attack',
             data: {
-              cardId: mosseOnField.id,
-              playerName: this.playerName,
+              mosseCardId: mosseOnField.id,
               targetCardId: action.target,
+              attackerName: this.playerName,
               targetOwner: targetCard.owner,
               cardName,
               targetName
