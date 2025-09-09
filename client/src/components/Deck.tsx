@@ -125,37 +125,57 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
       </div>
 
       {/* Deck Browser Modal */}
-      {console.log('Rendering modal, showBrowser:', showBrowser)}
       {showBrowser && (
-        <div className="fixed inset-0 bg-black/90 flex items-center justify-center" style={{ zIndex: 9999 }}>
-          <div className="bg-gray-900 rounded-lg overflow-hidden max-w-[95vw] max-h-[95vh]" style={{ width: 'min(1270px, 95vw)', height: 'min(720px, 95vh)' }}>
+        <div 
+          className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-90 flex items-center justify-center"
+          style={{ 
+            zIndex: 999999,
+            position: 'fixed',
+            inset: 0
+          }}
+        >
+          <div 
+            className="bg-gray-900 rounded-lg shadow-2xl border-2 border-gray-600"
+            style={{ 
+              width: '1270px',
+              height: '720px',
+              maxWidth: '95vw',
+              maxHeight: '95vh',
+              position: 'relative'
+            }}
+          >
             {/* Header */}
-            <div className="flex justify-between items-center p-4 bg-gray-900 border-b border-gray-700">
-              <h3 className="text-white font-bold text-2xl" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+            <div className="flex justify-between items-center p-4 bg-gray-800 border-b-2 border-gray-600 rounded-t-lg">
+              <h3 className="text-white font-bold text-2xl">
                 Scegli una carta da {name}
               </h3>
               <Button
                 onClick={() => setShowBrowser(false)}
-                className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 text-lg font-bold"
-                style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
+                className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 text-lg font-bold rounded"
               >
-                Chiudi
+                CHIUDI
               </Button>
             </div>
             
-            {/* Grid Cards Container */}
-            <div className="bg-gray-800 overflow-y-auto overflow-x-hidden p-6" style={{ height: 'calc(720px - 80px)' }}>
-              <div className="grid grid-cols-5 gap-4 w-full">
+            {/* Cards Grid */}
+            <div 
+              className="bg-gray-800 p-4 overflow-y-auto rounded-b-lg"
+              style={{ 
+                height: 'calc(100% - 80px)',
+                overflowX: 'hidden'
+              }}
+            >
+              <div className="grid grid-cols-5 gap-3">
                 {getSortedCards().map((card, index) => (
-                  <div key={card.id} className="flex flex-col items-center">
+                  <div key={card.id} className="flex flex-col items-center bg-gray-700 rounded p-2 hover:bg-gray-600 cursor-pointer">
                     <img
                       src={card.frontImage}
                       alt="Card"
-                      className="w-full aspect-[3/4] rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg border border-white/20 hover:border-white/60 object-cover"
+                      className="w-full h-32 object-cover rounded border border-gray-500 hover:border-white transition-all"
                       onClick={() => handleCardClick(card)}
                     />
-                    <span className="text-white text-xs mt-1 text-center truncate w-full" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
-                      {card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').substring(0, 15)}
+                    <span className="text-white text-xs mt-1 text-center truncate w-full">
+                      {card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').substring(0, 12)}
                     </span>
                   </div>
                 ))}
