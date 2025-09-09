@@ -37,10 +37,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
   };
 
   const handleChooseCard = () => {
-    console.log('SCEGLI clicked, setting showBrowser to true');
-    console.log('Current gameState:', gameState);
-    console.log('Deck type:', type);
-    console.log('Available cards:', gameState?.decks?.[type]?.length || 0);
+    console.log('SCEGLI clicked - PANNELLO ORIZZONTALE 1800x500');
     setShowBrowser(true);
   };
 
