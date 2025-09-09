@@ -224,8 +224,8 @@ export const RoundTable: React.FC = () => {
         }}
       >
         
-        {/* Center Area - Decks */}
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+        {/* Center Area - Decks with protection zone */}
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
           <div className="flex gap-0.5 landscape:gap-1 sm:gap-1 items-center justify-center">
             <div className={`flex flex-col items-center ${deckScale}`}>
               <Deck
