@@ -134,10 +134,10 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
           <div 
             className="bg-gray-900 rounded-lg shadow-2xl border-2 border-gray-600"
             style={{ 
-              width: '1800px',
-              height: '500px',
-              maxWidth: '95vw',
-              maxHeight: '95vh',
+              width: '90vw',
+              height: '40vh',
+              minWidth: '1600px',
+              minHeight: '400px',
               position: 'relative'
             }}
           >
@@ -162,17 +162,17 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
                 overflowX: 'hidden'
               }}
             >
-              <div className="grid grid-cols-8 gap-2">
+              <div className="grid grid-cols-10 gap-1">
                 {getSortedCards().map((card, index) => (
-                  <div key={card.id} className="flex flex-col items-center bg-gray-700 rounded p-2 hover:bg-gray-600 cursor-pointer">
+                  <div key={card.id} className="flex flex-col items-center bg-gray-700 rounded p-1 hover:bg-gray-600 cursor-pointer">
                     <img
                       src={card.frontImage}
                       alt="Card"
-                      className="w-full aspect-[3/4] object-cover rounded border border-gray-500 hover:border-white transition-all"
+                      className="w-full h-20 object-cover rounded border border-gray-500 hover:border-white transition-all"
                       onClick={() => handleCardClick(card)}
                     />
                     <span className="text-white text-xs mt-1 text-center truncate w-full">
-                      {card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').substring(0, 12)}
+                      {card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').substring(0, 8)}
                     </span>
                   </div>
                 ))}
