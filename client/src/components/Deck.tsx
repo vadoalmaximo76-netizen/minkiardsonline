@@ -87,7 +87,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
 
   return (
     <div className="flex flex-col items-center gap-1 sm:gap-2 md:gap-3">
-      <h3 className="text-white font-bold text-xs sm:text-sm md:text-base lg:text-lg">{name}</h3>
+      <h3 className="text-white font-bold text-xs sm:text-sm md:text-base lg:text-lg" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>{name}</h3>
       
       <div className="relative">
         <img
@@ -107,12 +107,14 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
         <Button
           onClick={handleShuffle}
           className="bg-sky-blue hover:bg-sky-blue/80 text-white font-bold px-2 py-1 text-xs"
+          style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
         >
           MISCHIA
         </Button>
         <Button
           onClick={handleChooseCard}
           className="bg-green-600 hover:bg-green-700 text-white font-bold px-2 py-1 text-xs"
+          style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
         >
           SCEGLI
         </Button>
@@ -123,7 +125,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 rounded-lg p-6 max-w-4xl w-full max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-white font-bold text-lg">Scegli una carta da {name}</h3>
+              <h3 className="text-white font-bold text-lg" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>Scegli una carta da {name}</h3>
               <Button
                 onClick={() => setShowBrowser(false)}
                 className="bg-red-600 hover:bg-red-700 text-white px-4 py-2"

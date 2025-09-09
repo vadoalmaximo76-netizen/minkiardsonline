@@ -302,13 +302,14 @@ export const GameBoard: React.FC = () => {
             </Button>
             
             <div className="text-6xl mb-4">📱</div>
-            <h2 className="text-xl font-bold mb-2">Ruota il dispositivo</h2>
-            <p className="text-sm opacity-80 mb-4">Per la migliore esperienza di gioco, ruota il tuo smartphone in modalità orizzontale</p>
+            <h2 className="text-xl font-bold mb-2" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>Ruota il dispositivo</h2>
+            <p className="text-sm opacity-80 mb-4" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>Per la migliore esperienza di gioco, ruota il tuo smartphone in modalità orizzontale</p>
             
             {/* Optional continue button */}
             <Button
               onClick={() => setShowRotationWarning(false)}
               className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2"
+              style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
             >
               Continua comunque
             </Button>
@@ -321,9 +322,9 @@ export const GameBoard: React.FC = () => {
         {/* Header */}
         <div className="flex flex-col landscape:flex-row md:flex-row justify-between items-center mb-4 md:mb-6 gap-4">
           <div className="text-center landscape:text-left md:text-left">
-            <h1 className="text-2xl landscape:text-4xl md:text-4xl font-bold text-white">MINKIARDS</h1>
+            <h1 className="text-2xl landscape:text-4xl md:text-4xl font-bold text-white" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>MINKIARDS</h1>
             {gameId && gameId.startsWith('room-') && (
-              <p className="text-white/80 text-xs landscape:text-sm md:text-sm mt-1">
+              <p className="text-white/80 text-xs landscape:text-sm md:text-sm mt-1" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
                 Stanza: {gameId.replace('room-', '')}
               </p>
             )}
@@ -334,12 +335,14 @@ export const GameBoard: React.FC = () => {
               <Button
                 onClick={() => window.open('https://minkiards.wixsite.com/minkiards/post/regolamento-ufficiale', '_blank')}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
+                style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 REGOLAMENTO
               </Button>
               <Button
                 onClick={handleStartGame}
                 className="bg-green-600 hover:bg-green-700 text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
+                style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 COMINCIA
               </Button>
@@ -350,12 +353,14 @@ export const GameBoard: React.FC = () => {
               <Button
                 onClick={shareInviteLink}
                 className="bg-sky-blue hover:bg-sky-blue/80 text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
+                style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 INVITA AMICI
               </Button>
               <Button
                 onClick={handleResetGame}
                 className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
+                style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 RICOMINCIA PARTITA
               </Button>

@@ -209,7 +209,7 @@ export const RoundTable: React.FC = () => {
 
   return (
     <div className="mb-4 md:mb-8">
-      <h2 className="text-white font-bold text-lg landscape:text-2xl md:text-2xl mb-2 landscape:mb-4 md:mb-4 text-center">TAVOLO DA GIOCO</h2>
+      <h2 className="text-white font-bold text-lg landscape:text-2xl md:text-2xl mb-2 landscape:mb-4 md:mb-4 text-center" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>TAVOLO DA GIOCO</h2>
       
       {/* Rectangular Table Container */}
       <div 
@@ -274,7 +274,7 @@ export const RoundTable: React.FC = () => {
                   top: `${playerPosition.y}%`,
                 }}
               >
-                <span className="bg-blue-800/80 text-white font-bold px-2 py-1 rounded-full text-xs shadow-lg whitespace-nowrap">
+                <span className="bg-blue-800/80 text-white font-bold px-2 py-1 rounded-full text-xs shadow-lg whitespace-nowrap" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
                   {player}
                 </span>
               </div>
@@ -313,7 +313,7 @@ export const RoundTable: React.FC = () => {
                     top: `${playerPosition.y + 8}%`,
                   }}
                 >
-                  <div className="text-white/60 text-xs italic">
+                  <div className="text-white/60 text-xs italic" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
                     Nessuna carta
                   </div>
                 </div>
@@ -392,7 +392,7 @@ export const RoundTable: React.FC = () => {
 
       {/* CARTE IN CAMPO section for all players */}
       <div className="mt-4 md:mt-8">
-        <h3 className="text-white font-bold text-lg md:text-xl mb-2 md:mb-4 text-center">CARTE IN CAMPO</h3>
+        <h3 className="text-white font-bold text-lg md:text-xl mb-2 md:mb-4 text-center" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>CARTE IN CAMPO</h3>
         <div className="bg-blue-800/30 rounded-lg p-2 md:p-4">
           {allPlayerNames.length > 0 ? (
             (() => {
@@ -409,10 +409,10 @@ export const RoundTable: React.FC = () => {
                 return (
                 <div key={player} className="mb-3 md:mb-4 last:mb-0">
                   <div className="flex items-center justify-between mb-1 md:mb-2">
-                    <h4 className={`font-semibold text-sm md:text-base ${isCurrentPlayer ? 'text-yellow-400' : 'text-white'}`}>
+                    <h4 className={`font-semibold text-sm md:text-base ${isCurrentPlayer ? 'text-yellow-400' : 'text-white'}`} style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
                       {player} {isCurrentPlayer && '(Tu)'}
                     </h4>
-                    <span className="text-white/60 text-xs md:text-sm">
+                    <span className="text-white/60 text-xs md:text-sm" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
                       {playerCards.length} carte
                     </span>
                   </div>
