@@ -47,7 +47,7 @@ The application uses Drizzle ORM configured for PostgreSQL with Neon Database fo
 Cards are defined with front/back images, ownership tracking, and custom text annotations. Four deck types each have specific back images and predetermined front image collections. Cards can exist in multiple zones: decks, player hands, game field, or graveyard.
 
 ### Automatic Card Mechanics
-- **Auto-Draw System**: When playing a card, automatically draw replacement of same type
+- **Auto-Draw System (CPU Only)**: When CPU players play a card, they automatically draw a replacement of the same type. Human players must draw manually.
 - **Card Return System**: Used cards automatically return to their respective decks
 - **Field Management**: Cards must be placed on field before use, maintaining proper game flow
 
