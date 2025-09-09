@@ -40,6 +40,7 @@ export class CPUPlayer {
   private currentQuestion: string = '';
   private conversationHistory: Array<{type: 'question' | 'answer', content: string, timestamp: number}> = [];
   private socketEmitter: any;
+  private lastAdvice: any = null;
 
   constructor(playerName: string, gameId: string, socketEmitter?: any) {
     this.playerName = playerName;
@@ -542,7 +543,7 @@ export class CPUPlayer {
     return situationResponses[Math.floor(Math.random() * situationResponses.length)];
   }
 
-  // Main CPU turn logic - uses simple strategy (no API calls)  
+  // Main CPU turn logic - uses simple strategy with correct game rules
   async takeTurn(gameState: any) {
     try {
       console.log(`CPU ${this.playerName} is thinking...`);
@@ -559,45 +560,92 @@ export class CPUPlayer {
         return null;
       }
       
-      // If CPU has no cards, try to pick cards first
-      if (!cpuPlayer.hand || cpuPlayer.hand.length === 0) {
-        console.log(`CPU ${this.playerName} has no cards, trying to pick cards`);
-        const pickAction = this.decideCardToPick(gameState);
-        if (pickAction) {
-          this.sendChatMessage("Devo pescare qualche carta prima!");
-          return pickAction;
+      // Check if there's recent advice to follow
+      if (this.lastAdvice && (Date.now() - this.lastAdvice.timestamp) < 60000) { // Follow advice within 1 minute
+        console.log(`CPU ${this.playerName} following advice from ${this.lastAdvice.from}:`, this.lastAdvice);
+        
+        if (this.lastAdvice.type === 'pick-card') {
+          const advisedPickAction = {
+            type: 'pick-card',
+            data: {
+              deckType: this.lastAdvice.deckType,
+              playerName: this.playerName
+            }
+          };
+          
+          // Check if the advised deck is available
+          if (gameState.decks[this.lastAdvice.deckType] && gameState.decks[this.lastAdvice.deckType].length > 0) {
+            this.sendChatMessage(`Seguo il consiglio di ${this.lastAdvice.from}!`);
+            this.lastAdvice = null; // Clear advice after using
+            return advisedPickAction;
+          } else {
+            this.sendChatMessage(`Purtroppo non ci sono più carte ${this.lastAdvice.deckType} disponibili!`);
+            this.lastAdvice = null;
+          }
+        } else if (this.lastAdvice.type === 'wait') {
+          this.sendChatMessage(`Come mi ha consigliato ${this.lastAdvice.from}, aspetto il momento giusto.`);
+          this.lastAdvice = null;
+          return null;
         }
       }
       
-      // If still no cards after trying to pick, can't play
-      if (!cpuPlayer.hand || cpuPlayer.hand.length === 0) {
-        console.log(`CPU ${this.playerName} still has no cards after pick attempt`);
-        this.sendChatMessage(this.getRandomChatResponse('no_actions'));
-        return null;
+      // Check if CPU understands the correct game rules
+      const handAnalysis = this.analyzeHandForGameRules(cpuPlayer.hand || []);
+      
+      // If doesn't have required cards, ask for advice or pick cards
+      if (!handAnalysis.canPlay) {
+        if (handAnalysis.missingTypes.length > 0) {
+          // Ask human for advice about strategy (less frequently if following advice)
+          if (!this.lastAdvice && Math.random() < 0.6) {
+            this.askForAdvice(handAnalysis);
+            return null;
+          }
+          
+          // Try to pick missing card types
+          const pickAction = this.decideCardToPickBasedOnRules(gameState, handAnalysis);
+          if (pickAction) {
+            this.sendChatMessage(`Mi servono carte di tipo ${handAnalysis.missingTypes.join(', ')}!`);
+            return pickAction;
+          }
+        }
+        
+        if (!cpuPlayer.hand || cpuPlayer.hand.length === 0) {
+          console.log(`CPU ${this.playerName} has no cards`);
+          const pickAction = this.decideCardToPick(gameState);
+          if (pickAction) {
+            this.sendChatMessage("Devo pescare qualche carta prima!");
+            return pickAction;
+          }
+        }
       }
       
-      // Use simple analysis (no OpenAI calls)
-      const analysis = this.analyzeGameStateSimple(gameState);
-      
-      // Send a thinking message
-      this.sendChatMessage(this.getRandomChatResponse('thinking'));
-      
-      console.log(`CPU ${this.playerName} strategy:`, analysis.recommendedAction.reasoning);
-      
-      // Announce strategy before acting
-      const strategy = this.getStrategyAnnouncement(analysis);
-      if (strategy) {
-        setTimeout(() => {
-          this.sendChatMessage(strategy);
-        }, 1000);
-      }
-      
-      // Execute the decided action
-      const action = await this.executeAction(gameState, analysis.recommendedAction);
-      
-      if (action) {
-        console.log(`CPU ${this.playerName} executes:`, action.type);
-        return action;
+      // If can play according to rules, proceed with strategy
+      if (handAnalysis.canPlay) {
+        console.log(`CPU ${this.playerName} has correct cards to play:`, handAnalysis);
+        
+        // Use simple analysis (no OpenAI calls)
+        const analysis = this.analyzeGameStateSimple(gameState);
+        
+        // Send a thinking message
+        this.sendChatMessage(this.getRandomChatResponse('thinking'));
+        
+        console.log(`CPU ${this.playerName} strategy:`, analysis.recommendedAction.reasoning);
+        
+        // Announce strategy before acting
+        const strategy = this.getStrategyAnnouncement(analysis);
+        if (strategy) {
+          setTimeout(() => {
+            this.sendChatMessage(strategy);
+          }, 1000);
+        }
+        
+        // Execute the decided action
+        const action = await this.executeAction(gameState, analysis.recommendedAction);
+        
+        if (action) {
+          console.log(`CPU ${this.playerName} executes:`, action.type);
+          return action;
+        }
       }
       
       console.log(`CPU ${this.playerName} has no valid actions, trying to play any card`);
@@ -625,12 +673,56 @@ export class CPUPlayer {
     }
   }
   
-  // Decide which type of card to pick
-  decideCardToPick(gameState: any): any {
-    const cpuPlayer = gameState.players[this.playerName];
-    if (!cpuPlayer) return null;
+  // Analyze hand to check if player can play according to rules
+  analyzeHandForGameRules(hand: any[]): {canPlay: boolean, hasPersonaggi: boolean, hasMosse: boolean, hasBonus: boolean, missingTypes: string[]} {
+    const hasPersonaggi = hand.some(card => card.type === 'personaggi' || card.type === 'personaggi_speciali');
+    const hasMosse = hand.some(card => card.type === 'mosse');
+    const hasBonus = hand.some(card => card.type === 'bonus');
     
-    // Check which decks have cards available
+    const missingTypes = [];
+    if (!hasPersonaggi) missingTypes.push('PERSONAGGI');
+    if (!hasMosse) missingTypes.push('MOSSE');
+    if (!hasBonus) missingTypes.push('BONUS');
+    
+    const canPlay = hasPersonaggi && hasMosse && hasBonus;
+    
+    console.log(`CPU ${this.playerName} hand analysis: PERSONAGGI=${hasPersonaggi}, MOSSE=${hasMosse}, BONUS=${hasBonus}, canPlay=${canPlay}`);
+    
+    return {
+      canPlay,
+      hasPersonaggi,
+      hasMosse,
+      hasBonus,
+      missingTypes
+    };
+  }
+  
+  // Ask human players for advice
+  askForAdvice(handAnalysis: any) {
+    const questions = [
+      `Ho solo ${handAnalysis.missingTypes.length > 0 ? 'alcune' : 'tutte le'} carte necessarie. Cosa mi consigli di fare?`,
+      `Mi mancano carte di tipo: ${handAnalysis.missingTypes.join(', ')}. Quale dovrei pescare prima?`,
+      `Non riesco a giocare perché mi servono 3 tipi di carte diverse. Aiutami con la strategia!`,
+      `So che per giocare servono PERSONAGGI, MOSSE e BONUS. Mi mancano: ${handAnalysis.missingTypes.join(', ')}. Che faccio?`
+    ];
+    
+    const question = questions[Math.floor(Math.random() * questions.length)];
+    this.currentQuestion = question;
+    this.waitingForResponse = true;
+    
+    this.sendChatMessage(question);
+    
+    // Set timeout to stop waiting for response after 30 seconds
+    setTimeout(() => {
+      if (this.waitingForResponse) {
+        this.waitingForResponse = false;
+        this.sendChatMessage("Ok, proverò da solo allora!");
+      }
+    }, 30000);
+  }
+  
+  // Decide card to pick based on game rules
+  decideCardToPickBasedOnRules(gameState: any, handAnalysis: any): any {
     const availableDecks = [];
     
     if (gameState.decks.personaggi && gameState.decks.personaggi.length > 0) {
@@ -646,33 +738,22 @@ export class CPUPlayer {
       availableDecks.push('personaggi_speciali');
     }
     
-    if (availableDecks.length === 0) {
-      console.log(`CPU ${this.playerName} no decks have cards available`);
-      return null;
-    }
+    if (availableDecks.length === 0) return null;
     
-    // Check if CPU needs a character
-    const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName && card.type === 'personaggi');
-    
-    // Priority: character first if don't have one, then varied strategy
+    // Priority based on missing types
     let preferredDeck;
     
-    if (!myCharacter && availableDecks.includes('personaggi')) {
+    if (!handAnalysis.hasPersonaggi && availableDecks.includes('personaggi')) {
       preferredDeck = 'personaggi';
-      console.log(`CPU ${this.playerName} needs a character, picking from personaggi`);
+    } else if (!handAnalysis.hasPersonaggi && availableDecks.includes('personaggi_speciali')) {
+      preferredDeck = 'personaggi_speciali';
+    } else if (!handAnalysis.hasMosse && availableDecks.includes('mosse')) {
+      preferredDeck = 'mosse';
+    } else if (!handAnalysis.hasBonus && availableDecks.includes('bonus')) {
+      preferredDeck = 'bonus';
     } else {
-      // Pick randomly but with some strategy
-      const rand = Math.random();
-      if (rand < 0.4 && availableDecks.includes('mosse')) {
-        preferredDeck = 'mosse';
-      } else if (rand < 0.7 && availableDecks.includes('bonus')) {
-        preferredDeck = 'bonus'; 
-      } else if (availableDecks.includes('personaggi')) {
-        preferredDeck = 'personaggi';
-      } else {
-        preferredDeck = availableDecks[0];
-      }
-      console.log(`CPU ${this.playerName} picking from ${preferredDeck}`);
+      // Pick any available deck
+      preferredDeck = availableDecks[0];
     }
     
     return {
@@ -682,6 +763,15 @@ export class CPUPlayer {
         playerName: this.playerName
       }
     };
+  }
+  
+  // Decide which type of card to pick (fallback method)
+  decideCardToPick(gameState: any): any {
+    const cpuPlayer = gameState.players[this.playerName];
+    if (!cpuPlayer) return null;
+    
+    const handAnalysis = this.analyzeHandForGameRules(cpuPlayer.hand || []);
+    return this.decideCardToPickBasedOnRules(gameState, handAnalysis);
   }
 
   // Generate strategy announcement with more variety
@@ -707,15 +797,32 @@ export class CPUPlayer {
     }
   }
 
-  // Process human chat messages to respond appropriately
+  // Process human chat messages to respond appropriately and follow advice
   processHumanChat(message: string, senderName: string): boolean {
     const lowerMessage = message.toLowerCase();
+    
+    // If waiting for response to our question, process the advice
+    if (this.waitingForResponse) {
+      this.processAdvice(message, senderName);
+      return true;
+    }
     
     // Respond to greetings
     if (lowerMessage.includes('ciao') || lowerMessage.includes('salve') || lowerMessage.includes('buongiorno')) {
       setTimeout(() => {
-        this.sendChatMessage(`Ciao ${senderName}! Come va la partita?`);
-      }, 1000 + Math.random() * 2000); // Random delay
+        this.sendChatMessage(`Ciao ${senderName}! Dimmi, conosci bene le regole di MINKIARDS?`);
+      }, 1000 + Math.random() * 2000);
+      return true;
+    }
+    
+    // Respond to advice/instructions (even when not explicitly waiting)
+    if (lowerMessage.includes('pesca') || lowerMessage.includes('prendi') || lowerMessage.includes('carta')) {
+      this.processAdvice(message, senderName);
+      return true;
+    }
+    
+    if (lowerMessage.includes('gioca') || lowerMessage.includes('usa') || lowerMessage.includes('attacca')) {
+      this.processAdvice(message, senderName);
       return true;
     }
     
@@ -723,10 +830,10 @@ export class CPUPlayer {
     if (lowerMessage.includes('strategia') || lowerMessage.includes('cosa fai') || lowerMessage.includes('che farai')) {
       setTimeout(() => {
         const responses = [
-          "Sto pensando alla mossa migliore!",
-          "La mia strategia è segreta per ora",
-          "Adatterò la strategia alla situazione",
-          "Vedremo chi avrà la meglio!"
+          "Sto imparando le regole: servono 3 tipi di carte per giocare bene!",
+          "Vorrei capire meglio quando è il momento giusto per attaccare",
+          "Mi stai insegnando molto su questo gioco!",
+          "Hai qualche consiglio per la mia prossima mossa?"
         ];
         this.sendChatMessage(responses[Math.floor(Math.random() * responses.length)]);
       }, 1000 + Math.random() * 2000);
@@ -737,16 +844,93 @@ export class CPUPlayer {
     if (lowerMessage.includes(this.playerName.toLowerCase()) || lowerMessage.includes('cpu')) {
       setTimeout(() => {
         const responses = [
-          "Sì?",
-          "Dimmi tutto!",
-          "Ti ascolto",
-          "Cosa posso fare per te?"
+          "Sì? Hai un consiglio per me?",
+          "Ti ascolto! Cosa devo fare?",
+          "Dimmi, cosa mi consigli?",
+          "Sono qui, aiutami a migliorare!"
         ];
         this.sendChatMessage(responses[Math.floor(Math.random() * responses.length)]);
       }, 500 + Math.random() * 1500);
       return true;
     }
     
+    // Ask occasional questions about the game
+    if (Math.random() < 0.3) {
+      setTimeout(() => {
+        const questions = [
+          "È vero che servono PERSONAGGI, MOSSE e BONUS per giocare bene?",
+          "Quando è il momento migliore per attaccare?",
+          "Cosa fai di solito quando hai poche carte?",
+          "Mi spieghi la tua strategia?"
+        ];
+        this.sendChatMessage(questions[Math.floor(Math.random() * questions.length)]);
+      }, 2000 + Math.random() * 3000);
+      return true;
+    }
+    
     return false;
+  }
+  
+  // Process advice from human players
+  processAdvice(message: string, senderName: string) {
+    const lowerMessage = message.toLowerCase();
+    this.conversationHistory.push({
+      type: 'answer',
+      content: message,
+      timestamp: Date.now()
+    });
+    
+    // Extract deck type from advice
+    let advisedDeck = null;
+    if (lowerMessage.includes('personaggi') || lowerMessage.includes('personaggio')) {
+      advisedDeck = 'personaggi';
+    } else if (lowerMessage.includes('mosse') || lowerMessage.includes('mossa')) {
+      advisedDeck = 'mosse';
+    } else if (lowerMessage.includes('bonus')) {
+      advisedDeck = 'bonus';
+    } else if (lowerMessage.includes('speciali') || lowerMessage.includes('speciale')) {
+      advisedDeck = 'personaggi_speciali';
+    }
+    
+    // Respond to the advice
+    setTimeout(() => {
+      if (advisedDeck) {
+        this.sendChatMessage(`Perfetto ${senderName}! Proverò a pescare da ${advisedDeck}. Grazie del consiglio!`);
+        // Store the advice for next turn
+        this.lastAdvice = {
+          type: 'pick-card',
+          deckType: advisedDeck,
+          from: senderName,
+          timestamp: Date.now()
+        };
+      } else if (lowerMessage.includes('gioca') || lowerMessage.includes('attacca')) {
+        this.sendChatMessage(`Hai ragione ${senderName}! Seguirò il tuo consiglio nella prossima mossa.`);
+        this.lastAdvice = {
+          type: 'play-aggressive',
+          from: senderName,
+          timestamp: Date.now()
+        };
+      } else if (lowerMessage.includes('aspetta') || lowerMessage.includes('calma') || lowerMessage.includes('pazienza')) {
+        this.sendChatMessage(`Ok ${senderName}, sarò più paziente e aspetterò il momento giusto.`);
+        this.lastAdvice = {
+          type: 'wait',
+          from: senderName,
+          timestamp: Date.now()
+        };
+      } else {
+        this.sendChatMessage(`Grazie ${senderName}! Terrò a mente il tuo consiglio.`);
+        this.lastAdvice = {
+          type: 'general',
+          advice: message,
+          from: senderName,
+          timestamp: Date.now()
+        };
+      }
+      
+      // Stop waiting for response if we were
+      if (this.waitingForResponse) {
+        this.waitingForResponse = false;
+      }
+    }, 1000 + Math.random() * 2000);
   }
 }
