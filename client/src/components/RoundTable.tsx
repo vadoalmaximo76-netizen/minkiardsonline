@@ -396,11 +396,18 @@ export const RoundTable: React.FC = () => {
         <h3 className="text-white font-bold text-lg md:text-xl mb-2 md:mb-4 text-center">CARTE IN CAMPO</h3>
         <div className="bg-blue-800/30 rounded-lg p-2 md:p-4">
           {allPlayerNames.length > 0 ? (
-            allPlayerNames.map((player) => {
-              const playerCards = cardsByPlayer[player] || [];
-              const isCurrentPlayer = player === playerName;
+            (() => {
+              // Reorder players to put current player first
+              const orderedPlayers = [
+                playerName,
+                ...allPlayerNames.filter(player => player !== playerName)
+              ];
               
-              return (
+              return orderedPlayers.map((player) => {
+                const playerCards = cardsByPlayer[player] || [];
+                const isCurrentPlayer = player === playerName;
+                
+                return (
                 <div key={player} className="mb-3 md:mb-4 last:mb-0">
                   <div className="flex items-center justify-between mb-1 md:mb-2">
                     <h4 className={`font-semibold text-sm md:text-base ${isCurrentPlayer ? 'text-yellow-400' : 'text-white'}`}>
@@ -454,7 +461,8 @@ export const RoundTable: React.FC = () => {
                   </div>
                 </div>
               );
-            })
+            });
+            })()
           ) : (
             <p className="text-white/60 italic text-center">Nessun giocatore</p>
           )}
