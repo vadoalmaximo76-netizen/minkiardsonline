@@ -6,6 +6,7 @@ import { CPUControls } from "./CPUControls";
 import { RoundTable } from "./RoundTable";
 import { Graveyard } from "./Graveyard";
 import { Chat } from "./Chat";
+import { ChatNotification } from "./ChatNotification";
 import { Calculator } from "./Calculator";
 import { CardModal } from "./CardModal";
 import { DiceModal } from "./DiceModal";
@@ -52,6 +53,11 @@ export const GameBoard: React.FC = () => {
   const [leavingPlayer, setLeavingPlayer] = useState<string>("");
   const [superDiceOpen, setSuperDiceOpen] = useState(false);
   const [showCpuControls, setShowCpuControls] = useState(false);
+  const [chatNotifications, setChatNotifications] = useState<Array<{
+    id: string;
+    message: string;
+    playerName: string;
+  }>>([]);
   const { selectedCard, gameId, playerName, gameState } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, initAudioContext, toggleMute, isMuted } = useAudio();
 
@@ -60,6 +66,19 @@ export const GameBoard: React.FC = () => {
     const link = `${window.location.origin}?game=${gameId}`;
     navigator.clipboard.writeText(link);
     alert("Invitation link copied to clipboard!");
+  };
+
+  const handleOpenChat = () => {
+    setChatOpen(true);
+    setUnreadMessages(0); // Reset unread count when opening chat
+  };
+
+  const handleCloseChat = () => {
+    setChatOpen(false);
+  };
+
+  const removeChatNotification = (notificationId: string) => {
+    setChatNotifications(prev => prev.filter(n => n.id !== notificationId));
   };
 
   const handleResetGame = () => {
@@ -155,9 +174,17 @@ export const GameBoard: React.FC = () => {
       setNotificationVisible(true);
     };
 
-    const handleChatMessage = () => {
-      if (!chatOpen) {
+    const handleChatMessage = (message: { id: string; playerName: string; message: string; timestamp: number }) => {
+      if (!chatOpen && message.playerName !== playerName) {
+        // Increment unread count
         setUnreadMessages(prev => prev + 1);
+        
+        // Show notification popup
+        setChatNotifications(prev => [...prev, {
+          id: message.id,
+          message: message.message,
+          playerName: message.playerName
+        }]);
       }
       // Play chat message sound
       playChatMessage();
@@ -428,9 +455,10 @@ export const GameBoard: React.FC = () => {
         <div className="fixed bottom-2 landscape:bottom-4 md:bottom-4 right-2 landscape:right-4 md:right-4 flex flex-col gap-1 landscape:gap-2 md:gap-2 z-50">
           <Button
             onClick={() => {
-              setChatOpen(!chatOpen);
-              if (!chatOpen) {
-                setUnreadMessages(0);
+              if (chatOpen) {
+                handleCloseChat();
+              } else {
+                handleOpenChat();
               }
             }}
             className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200 relative"
@@ -485,7 +513,7 @@ export const GameBoard: React.FC = () => {
             className="fixed bottom-16 landscape:bottom-20 md:bottom-52 right-1 landscape:right-4 md:right-4 w-[calc(100vw-1rem)] max-w-64 landscape:w-72 md:w-80 h-72 landscape:h-80 md:h-96 z-40 animate-in slide-in-from-right-5 fade-in duration-300"
             style={{ position: 'fixed' }}
           >
-            <Chat onClose={() => setChatOpen(false)} />
+            <Chat onClose={handleCloseChat} />
           </div>
         )}
 
@@ -585,6 +613,17 @@ export const GameBoard: React.FC = () => {
           currentRoll={diceResult}
           playerWhoRolled={playerWhoRolled}
         />
+
+        {/* Chat Notifications */}
+        {chatNotifications.map((notification) => (
+          <ChatNotification
+            key={notification.id}
+            message={notification.message}
+            playerName={notification.playerName}
+            onClose={() => removeChatNotification(notification.id)}
+            onOpenChat={handleOpenChat}
+          />
+        ))}
 
         {/* Graveyard Milestone Notification */}
         <FullScreenNotification
