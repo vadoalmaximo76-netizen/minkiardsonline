@@ -59,7 +59,7 @@ export const GameBoard: React.FC = () => {
     playerName: string;
   }>>([]);
   const { selectedCard, gameId, playerName, gameState } = useGameState();
-  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, initAudioContext, toggleMute, isMuted } = useAudio();
+  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, initAudioContext, toggleMute, isMuted, updateMusicForGameEvent, startDynamicMusic } = useAudio();
 
 
   const shareInviteLink = () => {
@@ -86,16 +86,19 @@ export const GameBoard: React.FC = () => {
       socket.emit('reset-game', { gameId });
       // Reset scenario cards state when game is reset
       setScenarioCardsActive(false);
+      updateMusicForGameEvent('game_end');
     }
   };
 
   const handleStartGame = () => {
     socket.emit('start-game', { gameId, playerName });
+    updateMusicForGameEvent('game_start');
   };
 
   const handleLeaveGame = () => {
     if (confirm("Sei sicuro di voler lasciare la partita? Diventerai uno spettatore.")) {
       socket.emit('leave-game', { gameId, playerName });
+      updateMusicForGameEvent('game_end');
     }
   };
 
@@ -112,6 +115,7 @@ export const GameBoard: React.FC = () => {
     // Play game start sound after a brief delay
     setTimeout(() => {
       playGameStart();
+      updateMusicForGameEvent('game_start');
     }, 500);
   }, []);
 
@@ -123,6 +127,7 @@ export const GameBoard: React.FC = () => {
     const handlePlayerJoined = ({ playerName: newPlayer }: { playerName: string }) => {
       // Play sound when a new player joins
       playPlayerJoin();
+      updateMusicForGameEvent('player_join');
     };
 
     const handleCardShown = ({ cardImage, fromPlayer, message }: { cardImage: string, fromPlayer: string, message: string }) => {
@@ -159,6 +164,7 @@ export const GameBoard: React.FC = () => {
       
       // Play dice roll sound when anyone rolls the dice
       playDiceRoll();
+      updateMusicForGameEvent('action');
     };
 
     const handleDiceWindowOpen = ({ playerName: opener }: { playerName: string }) => {
@@ -198,6 +204,7 @@ export const GameBoard: React.FC = () => {
       console.log(`${fromPlayer} attacked ${toPlayer}'s ${targetCardName}`);
       // Play damage sound when cards are attacked
       playDamageSound();
+      updateMusicForGameEvent('attack_initiated');
     };
 
     const handleCardToGraveyard = ({ cardName }: { cardName: string }) => {
@@ -206,6 +213,7 @@ export const GameBoard: React.FC = () => {
       
       // Play lose sound when card goes to graveyard
       playCardToGraveyard();
+      updateMusicForGameEvent('damage_dealt');
       
       // Auto-hide after 3 seconds
       setTimeout(() => {
@@ -219,6 +227,7 @@ export const GameBoard: React.FC = () => {
       setPersonaggioMessage(message);
       setPersonaggioCardImage(cardImage);
       setPersonaggioNotificationVisible(true);
+      updateMusicForGameEvent('card_played');
       
       // Auto-hide after 4 seconds
       setTimeout(() => {
@@ -253,16 +262,19 @@ export const GameBoard: React.FC = () => {
     const handleGameStarted = ({ playerOrder }: { playerOrder: string[] }) => {
       setPlayerOrder(playerOrder);
       setPlayerOrderVisible(true);
+      updateMusicForGameEvent('game_start');
     };
 
     const handleNextTurn = ({ nextPlayer }: { nextPlayer: string }) => {
       setNextTurnPlayer(nextPlayer);
       setNextTurnVisible(true);
+      updateMusicForGameEvent('player_turn_start');
     };
 
     const handlePlayerLeft = ({ playerName }: { playerName: string }) => {
       setLeavingPlayer(playerName);
       setLeaveGameVisible(true);
+      updateMusicForGameEvent('idle');
     };
 
     const handleOpenSuperDice = ({ playerName: dicePlayerName }: { playerName: string }) => {
