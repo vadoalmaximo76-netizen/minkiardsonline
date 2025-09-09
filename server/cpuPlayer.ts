@@ -9,6 +9,7 @@ interface CardAnalysis {
   stars?: number;
   damage?: number;
   effect?: string;
+  powers?: string;
   canCounter?: boolean;
   canBeCountered?: boolean;
   powerCost?: number;
@@ -59,29 +60,38 @@ export class CPUPlayer {
   // Analyze a card image using OpenAI Vision API
   async analyzeCardImage(imageUrl: string): Promise<CardAnalysis> {
     try {
+      // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
       const response = await openai.chat.completions.create({
-        model: "gpt-4o", // Use GPT-4 with vision capabilities
+        model: "gpt-5",
         messages: [
           {
             role: "system",
-            content: `You are an expert MINKIARDS card game analyzer. Analyze the card image and extract:
-            1. Card type (personaggi/mosse/bonus/personaggi_speciali)
-            2. Character/card name
-            3. Points (PTI) if it's a character
-            4. Stars if it's a character
-            5. Damage value if it's a move (-XX format)
-            6. Any special effects or powers described in red text
-            7. Transformation indicators (E=evolution, T=taroccata, S=super, PS=supreme)
-            8. Counter indicators (+ green = can counter, - red = can be countered)
-            
-            Respond with JSON format only.`
+            content: `You are an expert MINKIARDS card game analyzer following the official rules. Extract precise information:
+
+PERSONAGGI CARDS:
+- Points (PTI): Look for numbers in bottom left (e.g., "2800", "1500")
+- Stars: Look for star symbols in bottom right (count them: ⭐⭐⭐ = 3 stars)
+- Name: Character name in the header
+- Powers: Red text describing special abilities
+- Transformations: Colored dots with letters (E=evolution, T=taroccata, S=super, PS=supreme)
+
+MOSSE CARDS:
+- Damage value: Negative number (e.g., "-80", "-120")
+- Counter indicators: + green (can counter), - red (can be countered)
+- Special conditions: Look for "Per tutti" or specific character restrictions
+
+BONUS CARDS:
+- Effects: Special abilities or power-ups
+- Conditions: When/how they can be used
+
+Extract EXACT numbers and text as they appear on the card. Return JSON format only.`
           },
           {
             role: "user",
             content: [
               {
                 type: "text",
-                text: "Analyze this MINKIARDS card and extract all relevant game information:"
+                text: "Read this MINKIARDS card carefully and extract ALL visible information, especially PTI and stars for characters, damage values for moves:"
               },
               {
                 type: "image_url",
@@ -93,10 +103,12 @@ export class CPUPlayer {
           }
         ],
         response_format: { type: "json_object" },
-        max_tokens: 500
+        max_tokens: 700
       });
 
-      return JSON.parse(response.choices[0].message.content || '{}');
+      const analysis = JSON.parse(response.choices[0].message.content || '{}');
+      console.log(`CPU ${this.playerName} analyzed card ${imageUrl}:`, analysis);
+      return analysis;
     } catch (error) {
       console.error('Error analyzing card image:', error);
       return {
@@ -106,6 +118,120 @@ export class CPUPlayer {
         stars: 1
       };
     }
+  }
+
+  // Auto-update card notes when CPU plays a PERSONAGGI card
+  async autoUpdateCardNotes(cardId: string, cardImage: string, gameState: any) {
+    try {
+      console.log(`CPU ${this.playerName} auto-updating notes for card ${cardId}`);
+      
+      // Analyze the card image to extract PTI and stars
+      const cardAnalysis = await this.analyzeCardImage(cardImage);
+      
+      if (cardAnalysis.cardType === 'personaggi' || cardAnalysis.cardType === 'personaggi_speciali') {
+        const pti = cardAnalysis.points || 1000;
+        const stars = cardAnalysis.stars || 1;
+        const powers = cardAnalysis.effect || cardAnalysis.powers || '';
+        
+        // Create comprehensive notes
+        const notes = `PTI: ${pti} | Stelle: ${stars}` + (powers ? ` | Poteri: ${powers}` : '');
+        
+        console.log(`CPU ${this.playerName} setting notes for ${cardAnalysis.name}: ${notes}`);
+        
+        // Update the card notes on the server
+        if (this.socketEmitter) {
+          this.socketEmitter.emit('update-card-notes', {
+            cardId: cardId,
+            notes: notes,
+            playerName: this.playerName
+          });
+        }
+        
+        // Send chat message about the analysis
+        this.sendChatMessage(`Ho analizzato ${cardAnalysis.name}: ${pti} PTI, ${stars} stelle!`);
+        
+        return { pti, stars, powers, name: cardAnalysis.name };
+      }
+    } catch (error) {
+      console.error(`Error auto-updating notes for CPU ${this.playerName}:`, error);
+    }
+    
+    return null;
+  }
+
+  // Calculate and apply damage when a character is attacked
+  async handleCharacterAttacked(attackedCardId: string, damageValue: number, attackerStars: number, gameState: any) {
+    try {
+      console.log(`CPU ${this.playerName} handling character attack: card ${attackedCardId}, damage ${damageValue}, attacker stars ${attackerStars}`);
+      
+      // Find the attacked card in the field
+      const attackedCard = gameState.field.find((card: any) => card.id === attackedCardId && card.owner === this.playerName);
+      
+      if (!attackedCard) {
+        console.log(`CPU ${this.playerName}: Attacked card not found or not owned by CPU`);
+        return;
+      }
+      
+      // Calculate total damage: damage value × attacker stars
+      const totalDamage = Math.abs(damageValue) * attackerStars;
+      
+      // Parse current PTI from notes or use default
+      let currentPTI = 1000; // default
+      if (attackedCard.notes) {
+        const ptiMatch = attackedCard.notes.match(/PTI:\s*(\d+)/);
+        if (ptiMatch) {
+          currentPTI = parseInt(ptiMatch[1]);
+        }
+      }
+      
+      // Calculate new PTI after damage
+      const newPTI = Math.max(0, currentPTI - totalDamage);
+      
+      console.log(`CPU ${this.playerName}: ${attackedCard.id} PTI: ${currentPTI} → ${newPTI} (damage: ${totalDamage})`);
+      
+      // Update the notes with new PTI
+      const updatedNotes = attackedCard.notes.replace(/PTI:\s*\d+/, `PTI: ${newPTI}`);
+      
+      // Send update to server
+      if (this.socketEmitter) {
+        this.socketEmitter.emit('update-card-notes', {
+          cardId: attackedCardId,
+          notes: updatedNotes,
+          playerName: this.playerName
+        });
+      }
+      
+      // Send chat message about the damage
+      if (newPTI > 0) {
+        this.sendChatMessage(`Il mio personaggio ha subito ${totalDamage} danni! PTI rimanenti: ${newPTI}`);
+      } else {
+        this.sendChatMessage(`Nooo! Il mio personaggio è stato eliminato con ${totalDamage} danni!`);
+      }
+      
+      return { newPTI, totalDamage, eliminated: newPTI === 0 };
+      
+    } catch (error) {
+      console.error(`Error handling character attack for CPU ${this.playerName}:`, error);
+    }
+    
+    return null;
+  }
+
+  // Monitor and analyze move cards to extract damage values  
+  async analyzeMoveCard(cardImage: string) {
+    try {
+      const analysis = await this.analyzeCardImage(cardImage);
+      
+      if (analysis.cardType === 'mosse') {
+        const damage = analysis.damage || 0;
+        console.log(`CPU ${this.playerName} analyzed move card: ${analysis.name}, damage: ${damage}`);
+        return { name: analysis.name, damage, canCounter: analysis.canCounter, canBeCountered: analysis.canBeCountered };
+      }
+    } catch (error) {
+      console.error(`Error analyzing move card for CPU ${this.playerName}:`, error);
+    }
+    
+    return null;
   }
 
   // Analyze current game state and decide next move with conversation context
@@ -247,6 +373,15 @@ export class CPUPlayer {
         
         if (cardToPlay) {
           console.log(`CPU ${this.playerName} playing card: ${cardToPlay.id}`);
+          
+          // Auto-analyze PERSONAGGI cards when played
+          if ((cardToPlay.type === 'personaggi' || cardToPlay.type === 'personaggi_speciali') && cardToPlay.frontImage) {
+            // Schedule auto-update after a delay to allow the card to be played first
+            setTimeout(async () => {
+              await this.autoUpdateCardNotes(cardToPlay.id, cardToPlay.frontImage, gameState);
+            }, 2000);
+          }
+          
           return {
             type: 'play-card',
             data: {
