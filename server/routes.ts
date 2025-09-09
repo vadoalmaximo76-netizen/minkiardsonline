@@ -785,8 +785,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('send-chat-message', ({ message, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
+        console.log(`Chat message received: ${playerName}: ${message}`);
+        
         // Check if this is a response to a CPU question
         const cpuProcessed = gameManager.processCPUResponse(gameId, message, playerName);
+        console.log(`CPU processed response: ${cpuProcessed}`);
         
         const chatMessage = {
           id: `${Date.now()}-${Math.random()}`,
@@ -798,6 +801,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Let CPU players respond to human chat messages
         if (!playerName.startsWith('CPU-')) {
+          console.log(`Processing CPU chat responses for: ${message}`);
           gameManager.processCPUChatResponses(gameId, message, playerName);
         }
         

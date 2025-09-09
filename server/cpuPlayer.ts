@@ -1328,16 +1328,19 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
 
   // Process human chat messages to respond appropriately and follow advice
   processHumanChat(message: string, senderName: string): boolean {
+    console.log(`CPU ${this.playerName} processing human chat: "${message}" from ${senderName}`);
     const lowerMessage = message.toLowerCase();
     
     // If waiting for response to our question, process the advice
     if (this.waitingForResponse) {
+      console.log(`CPU ${this.playerName} was waiting for response, processing advice`);
       this.processAdvice(message, senderName);
       return true;
     }
     
     // Respond to greetings
     if (lowerMessage.includes('ciao') || lowerMessage.includes('salve') || lowerMessage.includes('buongiorno')) {
+      console.log(`CPU ${this.playerName} responding to greeting`);
       setTimeout(() => {
         this.sendChatMessage(`Ciao ${senderName}! Dimmi, conosci bene le regole di MINKIARDS?`);
       }, 1000 + Math.random() * 2000);
@@ -1371,6 +1374,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     
     // Respond to direct questions to the CPU
     if (lowerMessage.includes(this.playerName.toLowerCase()) || lowerMessage.includes('cpu')) {
+      console.log(`CPU ${this.playerName} responding to direct question`);
       setTimeout(() => {
         const responses = [
           "Sì? Hai un consiglio per me?",
@@ -1383,8 +1387,30 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       return true;
     }
     
+    // Always respond to any human message with a simple response (fallback)
+    if (Math.random() < 0.4) { // 40% chance to respond to any message
+      console.log(`CPU ${this.playerName} giving random response to message`);
+      setTimeout(() => {
+        const responses = [
+          "Interessante!",
+          "Capisco...",
+          "Grazie per il suggerimento!",
+          "Sto imparando molto da voi!",
+          "Buona strategia!",
+          "Dici davvero?",
+          "Hmm, ci penserò!"
+        ];
+        this.sendChatMessage(responses[Math.floor(Math.random() * responses.length)]);
+      }, 2000 + Math.random() * 3000);
+      return true;
+    }
+    
+    console.log(`CPU ${this.playerName} finished processing chat message, no specific response triggered`);
+    return false;
+    
+    // Note: Removed the occasional questions feature that used OpenAI API
     // Ask occasional questions about the game
-    if (Math.random() < 0.3) {
+    /*if (Math.random() < 0.3) {
       setTimeout(() => {
         const questions = [
           "È vero che servono PERSONAGGI, MOSSE e BONUS per giocare bene?",
