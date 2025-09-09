@@ -2,6 +2,60 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { Server as SocketServer } from "socket.io";
 import { GameManager } from "./gameManager";
+import OpenAI from "openai";
+
+// Initialize OpenAI
+const openai = new OpenAI({ 
+  apiKey: process.env.OPENAI_API_KEY 
+});
+
+// Function to analyze PERSONAGGI card and auto-populate notes with PTI and stars
+async function analyzePersonaggioCard(imageUrl: string): Promise<{ pti: number, stars: number, powers?: string, name?: string } | null> {
+  try {
+    console.log('Analyzing PERSONAGGI card:', imageUrl);
+    
+    // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+    const response = await openai.chat.completions.create({
+      model: "gpt-5",
+      messages: [
+        {
+          role: "system",
+          content: "You are an expert at reading MINKIARDS card game images. Extract the PTI (life points), stars (damage multiplier), and any special powers from the card. Respond with JSON format: {\"pti\": number, \"stars\": number, \"powers\": \"description\", \"name\": \"card name\"}"
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Extract PTI (life points), stars (damage multiplier), and powers from this MINKIARDS PERSONAGGI card. Look carefully at all numbers and symbols on the card."
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: imageUrl
+              }
+            }
+          ]
+        }
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 300
+    });
+
+    const analysis = JSON.parse(response.choices[0].message.content || '{}');
+    console.log('Card analysis result:', analysis);
+    
+    return {
+      pti: analysis.pti || analysis.points || 1000,
+      stars: analysis.stars || analysis.stelle || 1,
+      powers: analysis.powers || analysis.poteri || '',
+      name: analysis.name || analysis.nome || ''
+    };
+  } catch (error) {
+    console.error('Error analyzing PERSONAGGI card:', error);
+    return { pti: 1000, stars: 1 }; // Default values
+  }
+}
 
 // Function to determine sound type based on character name
 function getCharacterSoundType(cardName: string): string | null {
@@ -336,6 +390,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
               playerName,
               soundType
             });
+          }
+          
+          // Auto-analyze and populate PTI/Stars for all players (human and CPU)
+          try {
+            const cardAnalysis = await analyzePersonaggioCard(result.card.frontImage);
+            if (cardAnalysis) {
+              const notes = `PTI: ${cardAnalysis.pti} | Stelle: ${cardAnalysis.stars}` + 
+                          (cardAnalysis.powers ? ` | Poteri: ${cardAnalysis.powers}` : '');
+              
+              console.log(`Auto-populating notes for ${playerName}'s ${cardName}: ${notes}`);
+              
+              // Update the card text with extracted information
+              gameManager.updateCardText(gameId, result.card.id, notes);
+              
+              // Send updated game state
+              const updatedGameState = gameManager.getSanitizedGameState(gameId);
+              io.to(gameId).emit('game-state-update', updatedGameState);
+            }
+          } catch (error) {
+            console.error('Error auto-analyzing PERSONAGGI card:', error);
           }
         }
       }
