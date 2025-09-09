@@ -51,6 +51,7 @@ export const GameBoard: React.FC = () => {
   const [leaveGameVisible, setLeaveGameVisible] = useState(false);
   const [leavingPlayer, setLeavingPlayer] = useState<string>("");
   const [superDiceOpen, setSuperDiceOpen] = useState(false);
+  const [showCpuControls, setShowCpuControls] = useState(false);
   const { selectedCard, gameId, playerName, gameState } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, initAudioContext, toggleMute, isMuted } = useAudio();
 
@@ -348,7 +349,7 @@ export const GameBoard: React.FC = () => {
             )}
           </div>
           <div className="flex flex-col gap-2">
-            {/* First row: REGOLAMENTO and COMINCIA */}
+            {/* First row: REGOLAMENTO, CPU BETA and COMINCIA */}
             <div className="flex gap-1 landscape:gap-2 md:gap-2 justify-center landscape:justify-end md:justify-end">
               <Button
                 onClick={() => window.open('https://minkiards.wixsite.com/minkiards/post/regolamento-ufficiale', '_blank')}
@@ -356,6 +357,13 @@ export const GameBoard: React.FC = () => {
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 REGOLAMENTO
+              </Button>
+              <Button
+                onClick={() => setShowCpuControls(!showCpuControls)}
+                className={`${showCpuControls ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-600 hover:bg-gray-700'} text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2`}
+                style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
+              >
+                GIOCA CONTRO CPU (BETA)
               </Button>
               <Button
                 onClick={handleStartGame}
@@ -389,8 +397,8 @@ export const GameBoard: React.FC = () => {
         {/* Player Hand */}
         <PlayerHand />
 
-        {/* CPU Controls */}
-        <CPUControls />
+        {/* CPU Controls - conditional */}
+        {showCpuControls && <CPUControls />}
 
         {/* Other Players' Hands */}
         <OtherPlayersHands />
