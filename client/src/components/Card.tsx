@@ -131,16 +131,22 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     setCardText(newText);
     socket.emit('update-card-text', { cardId: card.id, text: newText });
     
-    // Check if "0" was entered for a PERSONAGGI card
-    if (newText === "0" && card.type === 'personaggi' && location === 'field') {
-      // Trigger elimination animation
-      setIsEliminated(true);
+    // Check if PTI has reached 0 for a PERSONAGGI card on field
+    if (card.type === 'personaggi' && location === 'field') {
+      // Check for explicit "0" or PTI: 0 pattern
+      const isZero = newText === "0";
+      const ptiZeroMatch = newText.match(/PTI:\s*0(?:\s|$)/);
       
-      // Send elimination event to server after animation delay
-      setTimeout(() => {
-        socket.emit('eliminate-personaggi', { cardId: card.id, playerName: card.owner });
-        setIsEliminated(false);
-      }, 2000); // 2 second animation
+      if (isZero || ptiZeroMatch) {
+        // Trigger elimination animation
+        setIsEliminated(true);
+        
+        // Send elimination event to server after animation delay
+        setTimeout(() => {
+          socket.emit('eliminate-personaggi', { cardId: card.id, playerName: card.owner });
+          setIsEliminated(false);
+        }, 2000); // 2 second animation
+      }
     }
   };
 

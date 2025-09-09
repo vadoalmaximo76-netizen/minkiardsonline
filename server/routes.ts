@@ -597,7 +597,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
         gameManager.updateCardText(gameId, cardId, text);
+        
+        // Check for automatic death if PTI reaches 0
         const gameState = gameManager.getSanitizedGameState(gameId);
+        const card = gameState?.field?.find((c: any) => c.id === cardId);
+        
+        if (card && card.type === 'personaggi') {
+          // Check if PTI is 0
+          const ptiZeroMatch = text.match(/PTI:\s*0(?:\s|$|\/)/);
+          if (ptiZeroMatch || text === "0") {
+            console.log(`Auto-eliminating ${card.owner}'s personaggio with PTI 0:`, cardId);
+            
+            // Auto-eliminate the personaggio
+            setTimeout(async () => {
+              const result = await gameManager.eliminatePersonaggi(gameId, cardId, card.owner);
+              if (result.success) {
+                const updatedGameState = gameManager.getSanitizedGameState(gameId);
+                io.to(gameId).emit('game-state-update', updatedGameState);
+
+                // Get card name from image URL for "Ciao ciao" notification
+                if (result.cardImage) {
+                  const getCardNameFromUrl = (url: string) => {
+                    const parts = url.split('/');
+                    const filename = parts[parts.length - 1];
+                    return filename
+                      .toLowerCase()
+                      .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+                      .replace(/[-_]/g, ' ')
+                      .split(' ')
+                      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                      .join(' ');
+                  };
+                  
+                  const cardName = getCardNameFromUrl(result.cardImage);
+                  
+                  // Emit "Ciao ciao" notification
+                  io.to(gameId).emit('card-to-graveyard', {
+                    cardName,
+                    playerName: card.owner
+                  });
+                }
+              }
+            }, 100); // Small delay to let UI update first
+          }
+        }
+        
         io.to(gameId).emit('game-state-update', gameState);
       }
     });

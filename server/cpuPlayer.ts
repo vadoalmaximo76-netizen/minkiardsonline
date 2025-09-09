@@ -298,12 +298,19 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       // Calculate total damage: damage value × attacker stars
       const totalDamage = Math.abs(damageValue) * attackerStars;
       
-      // Parse current PTI from notes or use default
+      // Parse current PTI and stars from notes or use defaults
       let currentPTI = 1000; // default
-      if (attackedCard.notes) {
-        const ptiMatch = attackedCard.notes.match(/PTI:\s*(\d+)/);
+      let attackedStars = 1; // default stars for damage calculation
+      if (attackedCard.notes || attackedCard.text) {
+        const notes = attackedCard.notes || attackedCard.text || '';
+        const ptiMatch = notes.match(/PTI:\s*(\d+)/);
+        const starsMatch = notes.match(/Stelle:\s*(\d+)/);
+        
         if (ptiMatch) {
           currentPTI = parseInt(ptiMatch[1]);
+        }
+        if (starsMatch) {
+          attackedStars = parseInt(starsMatch[1]);
         }
       }
       
@@ -312,8 +319,13 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       
       console.log(`CPU ${this.playerName}: ${attackedCard.id} PTI: ${currentPTI} → ${newPTI} (damage: ${totalDamage})`);
       
-      // Update the notes with new PTI
-      const updatedNotes = attackedCard.notes.replace(/PTI:\s*\d+/, `PTI: ${newPTI}`);
+      // Update the notes with new PTI, preserving stars and powers
+      let updatedNotes = (attackedCard.notes || attackedCard.text || '').replace(/PTI:\s*\d+/, `PTI: ${newPTI}`);
+      
+      // If notes don't exist, create them with stars
+      if (!updatedNotes.includes('Stelle:')) {
+        updatedNotes = updatedNotes.replace(/PTI:\s*\d+/, `PTI: ${newPTI} | Stelle: ${attackedStars}`);
+      }
       
       // Send update to server
       if (this.socketEmitter) {
