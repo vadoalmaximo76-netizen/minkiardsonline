@@ -135,9 +135,9 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
             className="bg-gray-900 rounded-lg shadow-2xl border-2 border-gray-600"
             style={{ 
               width: '70vw',
-              height: '35vh',
+              height: '50vh',
               minWidth: '1000px',
-              minHeight: '350px',
+              minHeight: '450px',
               position: 'relative'
             }}
           >
