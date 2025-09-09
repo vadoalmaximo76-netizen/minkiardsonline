@@ -137,17 +137,20 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
             </Button>
           </div>
           
-          {/* Horizontal Cards Container */}
-          <div className="bg-gray-800 overflow-x-auto overflow-y-hidden p-6" style={{ height: 'calc(100vh - 80px)' }}>
-            <div className="flex gap-2 items-center" style={{ height: '100%' }}>
+          {/* Grid Cards Container */}
+          <div className="bg-gray-800 overflow-y-auto overflow-x-hidden p-6" style={{ height: 'calc(100vh - 80px)' }}>
+            <div className="grid grid-cols-5 gap-4 w-full">
               {getSortedCards().map((card, index) => (
-                <div key={card.id} className="flex-shrink-0">
+                <div key={card.id} className="flex flex-col items-center">
                   <img
                     src={card.frontImage}
                     alt="Card"
-                    className="w-16 h-22 sm:w-20 sm:h-28 md:w-24 md:h-32 lg:w-28 lg:h-36 rounded cursor-pointer hover:scale-110 transition-transform shadow-lg border border-white/20 hover:border-white/60"
+                    className="w-full aspect-[3/4] rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg border border-white/20 hover:border-white/60 object-cover"
                     onClick={() => handleCardClick(card)}
                   />
+                  <span className="text-white text-xs mt-1 text-center truncate w-full" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                    {card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').substring(0, 15)}
+                  </span>
                 </div>
               ))}
             </div>
