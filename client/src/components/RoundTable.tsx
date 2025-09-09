@@ -145,9 +145,11 @@ export const RoundTable: React.FC = () => {
       
       {/* Round Table Container */}
       <div 
-        className="relative rounded-full w-[900px] h-[700px] mx-auto border-8 border-amber-700 shadow-2xl bg-cover bg-center bg-no-repeat"
+        className="relative rounded-full w-[900px] h-[700px] mx-auto border-8 border-amber-700 shadow-2xl bg-no-repeat overflow-hidden"
         style={{
-          backgroundImage: `url('https://i.ibb.co/Kp8HSg1V/wallpaper-2547293.png')`
+          backgroundImage: `url('https://i.ibb.co/Kp8HSg1V/wallpaper-2547293.png')`,
+          backgroundSize: '100% 100%',
+          backgroundPosition: 'center'
         }}
       >
         
