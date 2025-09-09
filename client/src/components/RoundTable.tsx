@@ -173,12 +173,12 @@ export const RoundTable: React.FC = () => {
 
   // Calculate card size based on number of players and screen size
   const getCardScale = (playerCount: number) => {
-    // Much smaller scales for smartphone to prevent overlapping
+    // Mobile portrait small, landscape same as desktop
     const mobileScales = {
-      2: 'scale-45 landscape:scale-65 sm:scale-75 md:scale-85 lg:scale-95',
-      4: 'scale-35 landscape:scale-55 sm:scale-65 md:scale-75 lg:scale-85', 
-      6: 'scale-25 landscape:scale-45 sm:scale-55 md:scale-65 lg:scale-75',
-      8: 'scale-20 landscape:scale-35 sm:scale-45 md:scale-55 lg:scale-65'
+      2: 'scale-45 landscape:scale-95 sm:scale-75 md:scale-85 lg:scale-95',
+      4: 'scale-35 landscape:scale-85 sm:scale-65 md:scale-75 lg:scale-85', 
+      6: 'scale-25 landscape:scale-75 sm:scale-55 md:scale-65 lg:scale-75',
+      8: 'scale-20 landscape:scale-65 sm:scale-45 md:scale-55 lg:scale-65'
     };
     
     if (playerCount <= 2) return mobileScales[2];
@@ -195,7 +195,7 @@ export const RoundTable: React.FC = () => {
       
       {/* Rectangular Table Container */}
       <div 
-        className="relative w-[80vw] h-[85vh] landscape:w-[95vw] landscape:h-[70vh] sm:w-[90vw] sm:h-[75vh] md:w-[95vw] md:h-[80vh] lg:w-[98vw] lg:h-[85vh] xl:w-[98vw] xl:h-[90vh] max-w-[1400px] max-h-[900px] min-w-[320px] min-h-[400px] mx-auto border-4 md:border-8 border-white bg-no-repeat overflow-hidden touch-manipulation"
+        className="relative w-[80vw] h-[85vh] landscape:w-[98vw] landscape:h-[85vh] sm:w-[90vw] sm:h-[75vh] md:w-[95vw] md:h-[80vh] lg:w-[98vw] lg:h-[85vh] xl:w-[98vw] xl:h-[90vh] max-w-[1400px] max-h-[900px] min-w-[320px] min-h-[400px] mx-auto border-4 landscape:border-8 md:border-8 border-white bg-no-repeat overflow-hidden touch-manipulation"
         style={{
           borderRadius: '16px',
           backgroundImage: `url('https://i.ibb.co/B2yVVMkJ/wallpaper-2547293.png')`,
@@ -208,22 +208,22 @@ export const RoundTable: React.FC = () => {
         
         {/* Center Area - Decks */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-          <div className="flex gap-0.5 landscape:gap-1 sm:gap-2 items-center justify-center">
-            <div className="flex flex-col items-center scale-50 landscape:scale-75 sm:scale-85 md:scale-95 lg:scale-105">
+          <div className="flex gap-0.5 landscape:gap-2 sm:gap-2 items-center justify-center">
+            <div className="flex flex-col items-center scale-50 landscape:scale-105 sm:scale-85 md:scale-95 lg:scale-105">
               <Deck
                 name="PERSONAGGI"
                 backImage="https://i.imgur.com/r1rfUAB.png"
                 type="personaggi"
               />
             </div>
-            <div className="flex flex-col items-center scale-50 landscape:scale-75 sm:scale-85 md:scale-95 lg:scale-105">
+            <div className="flex flex-col items-center scale-50 landscape:scale-105 sm:scale-85 md:scale-95 lg:scale-105">
               <Deck
                 name="MOSSE"
                 backImage="https://i.imgur.com/6MUXCZO.png"
                 type="mosse"
               />
             </div>
-            <div className="flex flex-col items-center scale-50 landscape:scale-75 sm:scale-85 md:scale-95 lg:scale-105">
+            <div className="flex flex-col items-center scale-50 landscape:scale-105 sm:scale-85 md:scale-95 lg:scale-105">
               <Deck
                 name="BONUS"
                 backImage="https://i.imgur.com/lEROr3r.png"
@@ -249,7 +249,7 @@ export const RoundTable: React.FC = () => {
                 </label>
               </div>
             </div>
-            <div className="flex flex-col items-center scale-50 landscape:scale-75 sm:scale-85 md:scale-95 lg:scale-105">
+            <div className="flex flex-col items-center scale-50 landscape:scale-105 sm:scale-85 md:scale-95 lg:scale-105">
               <Deck
                 name="SPECIALI"
                 backImage="https://i.imgur.com/ipVd57A.png"
