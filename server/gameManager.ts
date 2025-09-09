@@ -462,52 +462,84 @@ export class GameManager {
     const game = this.games.get(gameId);
     if (!game || !game.players[player1] || !game.players[player2]) return;
 
-    // Helper function to find and remove card from field or hand
-    const findAndRemoveCard = (cardId: string, owner: string): Card | undefined => {
+    // Helper function to find and remove card from field or hand, tracking location
+    const findAndRemoveCard = (cardId: string, owner: string): { card: Card; wasInField: boolean } | undefined => {
       // Check field first
       let cardIndex = game.field.findIndex(c => c.id === cardId && c.owner === owner);
       if (cardIndex !== -1) {
-        return game.field.splice(cardIndex, 1)[0];
+        const card = game.field.splice(cardIndex, 1)[0];
+        return { card, wasInField: true };
       }
       
       // Check player's hand
       cardIndex = game.players[owner].hand.findIndex(c => c.id === cardId);
       if (cardIndex !== -1) {
-        return game.players[owner].hand.splice(cardIndex, 1)[0];
+        const card = game.players[owner].hand.splice(cardIndex, 1)[0];
+        return { card, wasInField: false };
       }
       
       return undefined;
     };
 
-    // Find both cards
-    const card1 = findAndRemoveCard(card1Id, player1);
-    const card2 = findAndRemoveCard(card2Id, player2);
+    // Find both cards and track their original locations
+    const card1Result = findAndRemoveCard(card1Id, player1);
+    const card2Result = findAndRemoveCard(card2Id, player2);
 
-    if (card1 && card2 && card1.type === 'personaggi' && card2.type === 'personaggi') {
+    if (card1Result && card2Result && 
+        card1Result.card.type === 'personaggi' && card2Result.card.type === 'personaggi') {
+      
+      const card1 = card1Result.card;
+      const card2 = card2Result.card;
+      
       // Swap ownership
       card1.owner = player2;
       card2.owner = player1;
 
-      // Add cards to their new owners' hands
-      game.players[player2].hand.push(card1);
-      game.players[player1].hand.push(card2);
+      // Place cards in their original locations but with new owners
+      if (card1Result.wasInField) {
+        // Card1 was in field, so put it back in field with new owner (player2)
+        game.field.push(card1);
+      } else {
+        // Card1 was in hand, so put it in new owner's hand (player2)
+        game.players[player2].hand.push(card1);
+      }
+
+      if (card2Result.wasInField) {
+        // Card2 was in field, so put it back in field with new owner (player1)
+        game.field.push(card2);
+      } else {
+        // Card2 was in hand, so put it in new owner's hand (player1)
+        game.players[player1].hand.push(card2);
+      }
 
       // Record swap event
       await this.recordEvent(gameId, 'swap-personaggi-cards', {
         player1,
         card1Id: card1.id,
         card1Name: this.getCardNameFromUrl(card1.frontImage),
+        card1Location: card1Result.wasInField ? 'field' : 'hand',
         player2,
         card2Id: card2.id,
-        card2Name: this.getCardNameFromUrl(card2.frontImage)
+        card2Name: this.getCardNameFromUrl(card2.frontImage),
+        card2Location: card2Result.wasInField ? 'field' : 'hand'
       }, player1);
     } else {
       // If cards couldn't be found or aren't PERSONAGGI, put them back
-      if (card1) {
-        card1.owner === player1 ? game.players[player1].hand.push(card1) : game.field.push(card1);
+      if (card1Result) {
+        const card = card1Result.card;
+        if (card1Result.wasInField) {
+          game.field.push(card);
+        } else {
+          game.players[player1].hand.push(card);
+        }
       }
-      if (card2) {
-        card2.owner === player2 ? game.players[player2].hand.push(card2) : game.field.push(card2);
+      if (card2Result) {
+        const card = card2Result.card;
+        if (card2Result.wasInField) {
+          game.field.push(card);
+        } else {
+          game.players[player2].hand.push(card);
+        }
       }
     }
   }
