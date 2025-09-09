@@ -24,11 +24,32 @@ The game state is managed both on the client (for UI reactivity) and server (as 
 - Graveyard with cards marked by eliminating player
 - Real-time synchronization ensures all players see consistent game state
 
+## CPU Player Intelligence System
+Advanced AI-powered CPU players that understand complete MINKIARDS rules:
+- **Card Analysis**: Detailed image recognition for PTI, stars, powers, and special effects
+- **Strategic Decision Making**: AI evaluates game state and makes optimal plays
+- **Rule Compliance**: Follows official MINKIARDS rules including card sequencing and usage
+- **Italian Communication**: CPU players chat in Italian explaining their actions
+- **Adaptive Learning**: Responds to human player advice and conversation context
+
+### CPU Rule Understanding
+- **Character Management**: Knows PTI (life), stars (damage multiplier), and power systems
+- **Combat Calculations**: Precise damage calculations (base × attacker stars)
+- **Card Usage Sequence**: Must play cards on field before using, then return to deck
+- **Power Economics**: Understands "Banca dei poteri" for purchasing character abilities
+- **Counter Systems**: Can identify and use counter-attack opportunities
+- **Turn Restrictions**: Respects one action per turn (card OR character switch)
+
 ## Data Storage
 The application uses Drizzle ORM configured for PostgreSQL with Neon Database for user management. Currently implements basic user schema with username/password authentication. Game state is maintained in memory during active sessions.
 
 ## Card System
 Cards are defined with front/back images, ownership tracking, and custom text annotations. Four deck types each have specific back images and predetermined front image collections. Cards can exist in multiple zones: decks, player hands, game field, or graveyard.
+
+### Automatic Card Mechanics
+- **Auto-Draw System**: When playing a card, automatically draw replacement of same type
+- **Card Return System**: Used cards automatically return to their respective decks
+- **Field Management**: Cards must be placed on field before use, maintaining proper game flow
 
 ## Development Tools
 Vite is used for the build system with React plugin and GLSL shader support. ESBuild handles server-side bundling for production. The development setup includes hot module replacement and runtime error overlays.
