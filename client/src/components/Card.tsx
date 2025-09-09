@@ -161,7 +161,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const isMinkiard300 = getCardName(card.frontImage) === 'MINKIARD N 300';
   
   const handleSuperDice = () => {
-    socket.emit('open-super-dice', { gameId, playerName });
+    socket.emit('open-super-dice', { gameId: gameState?.id, playerName });
   };
   
   const otherPlayers = Object.keys(gameState?.players || {}).filter(p => p !== playerName);

@@ -135,13 +135,14 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
               </Button>
             </div>
             
-            <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 lg:grid-cols-9 xl:grid-cols-11 2xl:grid-cols-13 gap-2 md:gap-3">
+            <div className="flex overflow-x-auto gap-2 pb-4" style={{ height: 'calc(100% - 120px)' }}>
               {getSortedCards().map((card) => (
-                <div key={card.id} className="flex flex-col items-center">
+                <div key={card.id} className="flex-shrink-0 flex flex-col items-center">
                   <img
                     src={card.frontImage}
                     alt="Card"
-                    className="w-24 h-32 sm:w-28 sm:h-36 md:w-32 md:h-40 rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg"
+                    className="h-full max-h-[calc(100vh-200px)] w-auto rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg"
+                    style={{ aspectRatio: '3/4' }}
                     onClick={() => handleCardClick(card)}
                   />
                 </div>
