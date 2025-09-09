@@ -33,6 +33,7 @@ export const GameBoard: React.FC = () => {
   const [notificationTitle, setNotificationTitle] = useState<string>("");
   const [unreadMessages, setUnreadMessages] = useState<number>(0);
   const [scenarioCardsActive, setScenarioCardsActive] = useState<boolean>(false);
+  const [showRotationWarning, setShowRotationWarning] = useState(true);
   const [ciaoNotificationVisible, setCiaoNotificationVisible] = useState(false);
   const [ciaoCardName, setCiaoCardName] = useState<string>("");
   const [personaggioNotificationVisible, setPersonaggioNotificationVisible] = useState(false);
@@ -287,14 +288,33 @@ export const GameBoard: React.FC = () => {
         }}
       />
 
-      {/* Portrait mode message - only show on mobile portrait */}
-      <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 portrait:flex landscape:hidden sm:hidden">
-        <div className="text-center text-white">
-          <div className="text-6xl mb-4">📱</div>
-          <h2 className="text-xl font-bold mb-2">Ruota il dispositivo</h2>
-          <p className="text-sm opacity-80">Per la migliore esperienza di gioco, ruota il tuo smartphone in modalità orizzontale</p>
+      {/* Portrait mode message - only show on mobile portrait if not dismissed */}
+      {showRotationWarning && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 portrait:flex landscape:hidden sm:hidden">
+          <div className="relative text-center text-white bg-gray-800 rounded-lg p-6 max-w-sm mx-4">
+            {/* Close button */}
+            <Button
+              onClick={() => setShowRotationWarning(false)}
+              className="absolute top-2 right-2 bg-transparent hover:bg-gray-700 text-white p-1 h-8 w-8 rounded-full"
+              size="sm"
+            >
+              <X size={16} />
+            </Button>
+            
+            <div className="text-6xl mb-4">📱</div>
+            <h2 className="text-xl font-bold mb-2">Ruota il dispositivo</h2>
+            <p className="text-sm opacity-80 mb-4">Per la migliore esperienza di gioco, ruota il tuo smartphone in modalità orizzontale</p>
+            
+            {/* Optional continue button */}
+            <Button
+              onClick={() => setShowRotationWarning(false)}
+              className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2"
+            >
+              Continua comunque
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
       
       {/* Game content */}
       <div className="relative z-10">
