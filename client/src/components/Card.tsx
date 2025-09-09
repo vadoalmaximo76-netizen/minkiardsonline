@@ -62,9 +62,9 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     } else if (location === 'graveyard') {
       setShowActions(!showActions);
       setSelectedMosseCard(null);
-    } else {
-      // For cards in hand (including MOSSE cards), open the modal
-      setSelectedCard(card);
+    } else if (location === 'hand') {
+      // For cards in hand, toggle the action buttons visibility
+      setShowActions(!showActions);
       setSelectedMosseCard(null);
     }
   };
@@ -180,8 +180,8 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         disabled={!isOwner && location === 'hand'}
       />
 
-      {/* Action Buttons */}
-      {location === 'hand' && isOwner && (
+      {/* Action Buttons - only show when card is clicked */}
+      {location === 'hand' && isOwner && showActions && (
         <div className="flex flex-col gap-1">
           <Button
             onClick={handlePlay}
