@@ -184,8 +184,8 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
       {/* Zoomed Card Modal */}
       {selectedCardForZoom && (
         <div 
-          className="fixed inset-0 bg-black/90 flex items-center justify-center p-4"
-          style={{ zIndex: 9999 }}
+          className="fixed inset-0 bg-black/95 flex items-center justify-center p-4"
+          style={{ zIndex: 999999999 }}
         >
           <div className="bg-gray-800 rounded-xl p-8 max-w-lg w-full text-center border-2 border-white/20">
             {/* Card Name */}
@@ -203,17 +203,24 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
             </div>
             
             {/* Action Buttons */}
-            <div className="flex gap-4 justify-center">
+            <div className="flex gap-3 justify-center">
               <Button
                 onClick={() => handleCardSelect(selectedCardForZoom.id)}
-                className="bg-green-600 hover:bg-green-700 text-white font-bold px-8 py-4 text-lg rounded-lg"
+                className="bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-3 text-lg rounded-lg"
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 PESCA QUESTA CARTA
               </Button>
               <Button
+                onClick={() => handleRemoveCard(selectedCardForZoom.id)}
+                className="bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-3 text-lg rounded-lg"
+                style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
+              >
+                ELIMINA CARTA
+              </Button>
+              <Button
                 onClick={handleCloseZoom}
-                className="bg-gray-600 hover:bg-gray-700 text-white font-bold px-8 py-4 text-lg rounded-lg"
+                className="bg-gray-600 hover:bg-gray-700 text-white font-bold px-6 py-3 text-lg rounded-lg"
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 Chiudi
