@@ -3,13 +3,13 @@ import OpenAI from "openai";
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 interface CardAnalysis {
-  cardType: 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali';
+  cardType: 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali' | string;
   name: string;
   points?: number;
   stars?: number;
   damage?: number;
   effect?: string;
-  powers?: string;
+  powers?: string | string[];
   canCounter?: boolean;
   canBeCountered?: boolean;
   powerCost?: number;
@@ -19,6 +19,10 @@ interface CardAnalysis {
     super?: string;
     supreme?: string;
   };
+  // New detailed analysis fields
+  pti?: number;
+  baseDamage?: number;
+  characterSpecific?: string;
 }
 
 interface GameAnalysis {
@@ -46,11 +50,14 @@ export class CPUPlayer {
     phase: 'pick-initial' | 'play-character' | 'pick-replacement' | 'completed';
     pickedCards: string[];
   } = { phase: 'pick-initial', pickedCards: [] };
+  
+  private openaiApiKey: string | undefined;
 
   constructor(playerName: string, gameId: string, socketEmitter?: any) {
     this.playerName = playerName;
     this.gameId = gameId;
     this.socketEmitter = socketEmitter;
+    this.openaiApiKey = process.env.OPENAI_API_KEY;
   }
 
   // Reset opening sequence for new game
@@ -68,6 +75,109 @@ export class CPUPlayer {
 
   get isWaitingForResponse(): boolean {
     return this.waitingForResponse;
+  }
+
+  // Detailed card analysis with MINKIARDS rules
+  async analyzeCardImageDetailed(imageUrl: string, cardType: string): Promise<CardAnalysis> {
+    try {
+      if (!this.openaiApiKey) {
+        return { 
+          name: this.getCardNameFromUrl(imageUrl), 
+          cardType, 
+          effect: 'No analysis available',
+          pti: 0,
+          stars: 0,
+          powers: '',
+          baseDamage: 0
+        };
+      }
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+        messages: [
+          {
+            role: "system",
+            content: `Analyze this MINKIARDS card image following these rules:
+
+            For PERSONAGGI cards, identify:
+            - Name of character
+            - PTI (points/life) - number on bottom left
+            - Stars (stelle) - on bottom right  
+            - Powers (red text) - special abilities
+            - Transformation markers (colored dots: E=evolution, S=super, PS=supreme)
+
+            For MOSSE cards, identify:
+            - Name of move
+            - Base damage value (negative number like -80)
+            - Special effects or conditions
+            - Counter symbols (+ green = can counter, - red = can be countered)
+            - Character-specific bonuses
+
+            For BONUS cards, identify:
+            - Name and effect
+            - PTI bonuses (+numbers)
+            - Special powers granted
+            - Game dynamic changes
+
+            Respond with JSON: {
+              "name": "card name",
+              "cardType": "${cardType}",
+              "effect": "detailed effect description",
+              "pti": number (for characters),
+              "stars": number (for characters), 
+              "powers": ["list of powers"],
+              "baseDamage": number (for moves, negative),
+              "canCounter": boolean,
+              "canBeCountered": boolean,
+              "characterSpecific": "character name if applicable"
+            }`
+          },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `Analyze this ${cardType} card following MINKIARDS rules:`
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: imageUrl
+                }
+              }
+            ]
+          }
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 300
+      });
+
+      const analysis = JSON.parse(response.choices[0].message.content || '{}');
+      return {
+        name: analysis.name || this.getCardNameFromUrl(imageUrl),
+        cardType,
+        effect: analysis.effect || 'Standard effect',
+        pti: analysis.pti || 0,
+        stars: analysis.stars || 0,
+        powers: Array.isArray(analysis.powers) ? analysis.powers.join(', ') : (analysis.powers || ''),
+        baseDamage: analysis.baseDamage || 0,
+        canCounter: analysis.canCounter || false,
+        canBeCountered: analysis.canBeCountered !== false,
+        characterSpecific: analysis.characterSpecific
+      };
+
+    } catch (error) {
+      console.error('Error analyzing card image:', error);
+      return { 
+        name: this.getCardNameFromUrl(imageUrl), 
+        cardType, 
+        effect: 'Analysis failed',
+        pti: 0,
+        stars: 0,
+        powers: '',
+        baseDamage: 0
+      };
+    }
   }
 
   // Analyze a card image using OpenAI Vision API
@@ -264,21 +374,28 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         card.owner !== this.playerName && card.type === 'personaggi'
       );
 
-      // Analyze hand cards
+      // Analyze hand cards with detailed MINKIARDS rules
       const handAnalyses = await Promise.all(
-        cpuPlayer.hand.map((card: any) => this.analyzeCardImage(card.frontImage))
+        cpuPlayer.hand.map((card: any) => this.analyzeCardImageDetailed(card.frontImage, card.type))
       );
 
       // Get conversation context for enhanced decision making
       const conversationContext = this.getConversationContext();
 
-      // Create game situation description
+      // Analyze field cards for strategic planning
+      const myFieldCards = gameState.field.filter((c: any) => c.owner === this.playerName);
+      const fieldAnalyses = await Promise.all(
+        myFieldCards.map((card: any) => this.analyzeCardImageDetailed(card.frontImage, card.type))
+      );
+
+      // Create detailed game situation description
       const situationDesc = `
-        My character: ${myCharacter ? `${myCharacter.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '')}` : 'None'}
-        Enemy characters: ${enemyCharacters.map((c: any) => c.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '')).join(', ')}
-        Hand cards: ${handAnalyses.map(a => `${a.name} (${a.cardType})`).join(', ')}
-        Field situation: ${gameState.field.length} cards on field
-        Previous conversation: ${conversationContext || 'Nessuna conversazione precedente'}
+        MY CHARACTER: ${myCharacter ? `${this.getCardNameFromUrl(myCharacter.frontImage)} (PTI: ${myCharacter.text || 'unknown'}, Stars: unknown)` : 'NONE - MUST PLAY ONE!'}
+        ENEMY CHARACTERS: ${enemyCharacters.map((c: any) => `${this.getCardNameFromUrl(c.frontImage)} (Owner: ${c.owner})`).join(', ')}
+        MY HAND: ${handAnalyses.map(a => `${a.name} (${a.cardType}) - ${a.effect || 'Standard effect'}`).join(', ')}
+        MY FIELD CARDS: ${fieldAnalyses.map(a => `${a.name} (${a.cardType})`).join(', ')}
+        TOTAL CARDS ON FIELD: ${gameState.field.length}
+        CONVERSATION CONTEXT: ${conversationContext || 'Nessuna conversazione precedente'}
       `;
 
       const response = await openai.chat.completions.create({
@@ -286,36 +403,63 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         messages: [
           {
             role: "system",
-            content: `You are an expert MINKIARDS player that can communicate in Italian. Based on the game rules:
+            content: `You are an expert MINKIARDS player that can communicate in Italian. Based on the complete game rules:
             
-            RULES SUMMARY:
-            - Each player needs a character (personaggio) on the field to take actions
-            - Goal: Eliminate enemy characters by reducing their points to 0
-            - Move cards (mosse) deal damage = base damage × character's stars
-            - Bonus cards provide special effects
-            - Characters have points (life), stars (damage multiplier), and special powers
-            - Can counter attacks if you have a move with equal/higher damage
-            - Can buy powers by spending character points
-            - Can switch characters from hand to field
+            CORE RULES:
+            - WITHOUT a character (personaggio) on field, you CANNOT perform any actions
+            - Goal: Eliminate enemy characters by reducing their PTI (points) to 0
+            - ONE card per turn OR character substitution (not both)
+            - When placing a character, immediately draw another of same type
             
-            IMPORTANT CARD USAGE RULES:
-            - To use a card, you must first play it on the field
-            - Once used, the card returns to its deck
-            - When you play a card, you automatically draw a replacement of the same type
-            - You cannot use cards directly from hand - they must be on the field first
+            CHARACTERS (PERSONAGGI):
+            - PTI (points) = character's life/health
+            - Stars (stelle) = damage multiplier for moves
+            - Powers can be bought from "Banca dei poteri" by spending PTI
+            - Multiple powers cost exponentially more (2x, 3x, 4x, etc.)
+            - Can substitute field character with hand character (costs your turn)
+            
+            MOVES (MOSSE):
+            - Damage = base value × attacker's stars
+            - Cannot use moves if character has 0 stars
+            - Can counter/block attacks with equal/higher damage moves
+            - After use, card returns to bottom of deck
+            - Must announce target before using
+            
+            BONUS CARDS:
+            - Can strengthen your characters (+PTI, +powers, etc.)
+            - Can change game dynamics (shields, special effects)
+            - Apply only to your own characters unless stated otherwise
+            
+            CARD USAGE SEQUENCE:
+            1. Play card on field first
+            2. Use the card for its effect
+            3. Card returns to its deck
+            4. Automatically draw replacement of same type
+            
+            STRATEGIC CONSIDERATIONS:
+            - Balance PTI spending on powers vs survival
+            - Counter-attack opportunities with green (+) moves
+            - Timing of shields and defensive bonuses
+            - Character switching for better stats/powers
             
             Consider previous conversation with human players to adapt your strategy.
             If humans have given you specific instructions or clarifications, prioritize those.
             
             Analyze the current situation and recommend the best action. Consider:
-            1. Do I have a character on field? If not, play one
-            2. Can I deal lethal damage to an enemy?
-            3. Should I defend against incoming threats?
-            4. Should I use bonus cards for advantage?
-            5. Should I switch to a stronger character?
-            6. Any specific human guidance from previous conversation?
+            1. Do I have a character on field? If not, MUST play one immediately
+            2. Can I deal lethal damage to eliminate an enemy character?
+            3. Should I strengthen my character with bonus cards (+PTI)?
+            4. Should I buy powers from "Banca dei poteri" using PTI?
+            5. Do I need defensive measures (shields, blocks)?
+            6. Should I switch to a stronger character from hand?
+            7. Can I counter-attack with higher damage moves?
+            8. Are there special card effects I should utilize?
+            9. Any specific human guidance from previous conversation?
             
-            Respond with JSON containing your analysis and recommended action.`
+            Remember: Only ONE action per turn - either play/use a card OR switch characters.
+            All moves must be calculated: base damage × my character's stars.
+            
+            Respond with JSON containing your detailed analysis and recommended action.`
           },
           {
             role: "user",
