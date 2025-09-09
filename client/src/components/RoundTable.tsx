@@ -144,7 +144,12 @@ export const RoundTable: React.FC = () => {
       <h2 className="text-white font-bold text-2xl mb-4 text-center">TAVOLO DA GIOCO</h2>
       
       {/* Round Table Container */}
-      <div className="relative bg-gradient-to-br from-green-800 to-green-900 rounded-full w-[900px] h-[700px] mx-auto border-8 border-amber-700 shadow-2xl">
+      <div 
+        className="relative rounded-full w-[900px] h-[700px] mx-auto border-8 border-amber-700 shadow-2xl bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: `url('https://i.ibb.co/Kp8HSg1V/wallpaper-2547293.png')`
+        }}
+      >
         
         {/* Center Area - Decks */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
