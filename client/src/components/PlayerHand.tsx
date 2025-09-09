@@ -15,7 +15,7 @@ export const PlayerHand: React.FC = () => {
 
   return (
     <div className="mb-8">
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex items-center gap-4 mb-4">
         <h2 className="text-white font-bold text-2xl">CARTE IN MANO</h2>
         <Button
           onClick={handleEndTurn}
