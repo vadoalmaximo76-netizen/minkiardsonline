@@ -22,7 +22,7 @@ import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
-import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X } from "lucide-react";
+import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, Music, Music2 } from "lucide-react";
 
 export const GameBoard: React.FC = () => {
   const [chatOpen, setChatOpen] = useState(false);
@@ -59,7 +59,7 @@ export const GameBoard: React.FC = () => {
     playerName: string;
   }>>([]);
   const { selectedCard, gameId, playerName, gameState } = useGameState();
-  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, initAudioContext, toggleMute, isMuted, updateMusicForGameEvent, startDynamicMusic } = useAudio();
+  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, initAudioContext, toggleMute, isMuted, updateMusicForGameEvent, startDynamicMusic, stopDynamicMusic, dynamicMusic } = useAudio();
 
 
   const shareInviteLink = () => {
@@ -450,18 +450,49 @@ export const GameBoard: React.FC = () => {
           <Graveyard onClose={() => setGraveyardOpen(false)} />
         )}
 
-        {/* Sound Toggle Button */}
-        <Button
-          onClick={() => {
-            initAudioContext();
-            toggleMute();
-          }}
-          className="fixed bottom-2 landscape:bottom-4 md:bottom-4 left-2 landscape:left-4 md:left-4 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
-          style={{ position: 'fixed' }}
-          title={isMuted ? "Enable sound" : "Disable sound"}
-        >
-          {isMuted ? <VolumeX size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" /> : <Volume2 size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />}
-        </Button>
+        {/* Audio Controls */}
+        <div className="fixed bottom-2 landscape:bottom-4 md:bottom-4 left-2 landscape:left-4 md:left-4 z-60 flex flex-col gap-2">
+          {/* Sound Toggle Button */}
+          <Button
+            onClick={() => {
+              initAudioContext();
+              toggleMute();
+            }}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
+            title={isMuted ? "Enable sound" : "Disable sound"}
+          >
+            {isMuted ? <VolumeX size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" /> : <Volume2 size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />}
+          </Button>
+          
+          {/* Dynamic Music Controls */}
+          {!isMuted && (
+            <div className="flex flex-col gap-1">
+              <Button
+                onClick={() => {
+                  if (dynamicMusic.musicContext.isPlaying) {
+                    stopDynamicMusic();
+                  } else {
+                    startDynamicMusic();
+                  }
+                }}
+                className={`${dynamicMusic.musicContext.isPlaying ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-600 hover:bg-gray-700'} text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200`}
+                title={dynamicMusic.musicContext.isPlaying ? "Stop dynamic music" : "Start dynamic music"}
+              >
+                {dynamicMusic.musicContext.isPlaying ? <Music2 size={14} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" /> : <Music size={14} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" />}
+              </Button>
+              
+              {/* Music Intensity Indicator */}
+              {dynamicMusic.musicContext.isPlaying && (
+                <div className="bg-black/70 text-white text-xs px-2 py-1 rounded-md shadow-lg max-w-20">
+                  <div className="text-center font-semibold uppercase">{dynamicMusic.currentIntensity}</div>
+                  {dynamicMusic.isTransitioning && (
+                    <div className="text-center text-orange-300 text-xs">→ {dynamicMusic.targetIntensity}</div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Game controls */}
         <div className="fixed bottom-2 landscape:bottom-4 md:bottom-4 right-2 landscape:right-4 md:right-4 flex flex-col gap-1 landscape:gap-2 md:gap-2 z-50">
