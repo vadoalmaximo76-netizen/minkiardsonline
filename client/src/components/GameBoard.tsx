@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Deck } from "./Deck";
 import { PlayerHand } from "./PlayerHand";
-import { GameField } from "./GameField";
+import { RoundTable } from "./RoundTable";
 import { Graveyard } from "./Graveyard";
 import { Chat } from "./Chat";
 import { Calculator } from "./Calculator";
@@ -143,7 +143,6 @@ export const GameBoard: React.FC = () => {
     };
 
     const handleChatMessage = () => {
-      // Only increment unread count if chat is closed
       if (!chatOpen) {
         setUnreadMessages(prev => prev + 1);
       }
@@ -155,19 +154,10 @@ export const GameBoard: React.FC = () => {
       setScenarioCardsActive(active);
     };
 
-    const handleCardAttacked = ({ targetCardId }: { targetCardId: string }) => {
-      const { addShakingCard, removeShakingCard } = useGameState.getState();
-      
-      // Start shaking animation
-      addShakingCard(targetCardId);
-      
-      // Play damage sound effect
+    const handleCardAttacked = ({ targetCardName, fromPlayer, toPlayer }: { targetCardName: string, fromPlayer: string, toPlayer: string }) => {
+      console.log(`${fromPlayer} attacked ${toPlayer}'s ${targetCardName}`);
+      // Play damage sound when cards are attacked
       playDamageSound();
-      
-      // Stop shaking after 2 seconds
-      setTimeout(() => {
-        removeShakingCard(targetCardId);
-      }, 2000);
     };
 
     const handleCardToGraveyard = ({ cardName }: { cardName: string }) => {
@@ -337,57 +327,11 @@ export const GameBoard: React.FC = () => {
           </div>
         </div>
 
-        {/* Decks */}
-        <div className="flex gap-4 mb-8 justify-center">
-          <Deck
-            name="PERSONAGGI"
-            backImage="https://i.imgur.com/r1rfUAB.png"
-            type="personaggi"
-          />
-          <Deck
-            name="MOSSE"
-            backImage="https://i.imgur.com/6MUXCZO.png"
-            type="mosse"
-          />
-          <div className="flex flex-col items-center">
-            <Deck
-              name="BONUS"
-              backImage="https://i.imgur.com/lEROr3r.png"
-              type="bonus"
-            />
-            {/* ATTIVA SCENARI checkbox */}
-            <div className="flex items-center space-x-2 mt-2">
-              <Checkbox
-                id="attiva-scenari"
-                checked={scenarioCardsActive}
-                onCheckedChange={(checked) => {
-                  setScenarioCardsActive(checked as boolean);
-                  socket.emit('toggle-scenario-cards', { 
-                    gameId, 
-                    active: checked as boolean 
-                  });
-                }}
-              />
-              <label
-                htmlFor="attiva-scenari"
-                className="text-sm font-medium text-white cursor-pointer select-none"
-              >
-                ATTIVA SCENARI
-              </label>
-            </div>
-          </div>
-          <Deck
-            name="PERSONAGGI SPECIALI"
-            backImage="https://i.imgur.com/ipVd57A.png"
-            type="personaggi_speciali"
-          />
-        </div>
-
         {/* Player Hand */}
         <PlayerHand />
 
-        {/* Game Field */}
-        <GameField />
+        {/* Round Table - replaces the old decks and game field */}
+        <RoundTable />
 
         {/* Graveyard Modal */}
         {graveyardOpen && (
@@ -407,64 +351,55 @@ export const GameBoard: React.FC = () => {
           {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
         </Button>
 
-        {/* Calculator Button */}
-        <Button
-          onClick={() => setCalculatorOpen(!calculatorOpen)}
-          className="fixed bottom-20 right-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-full p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
-          style={{ position: 'fixed' }}
-        >
-          <CalcIcon size={24} />
-        </Button>
-
-
-        {/* DADO Button */}
-        <Button
-          onClick={() => {
-            setDiceOpen(true);
-            // Notify all players that the dice window is being opened
-            socket.emit('open-dice-window', { gameId, playerName });
-          }}
-          className="fixed right-2 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-full p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
-          style={{ position: 'fixed', bottom: '17rem' }}
-        >
-          <Dice6 size={24} />
-        </Button>
-
-        {/* CIMITERO Button */}
-        <Button
-          onClick={() => setGraveyardOpen(!graveyardOpen)}
-          className="fixed bottom-52 right-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-full p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
-          style={{ position: 'fixed' }}
-        >
-          <Skull size={24} />
-        </Button>
-
-        {/* Chat Button */}
-        <Button
-          onClick={() => {
-            setChatOpen(!chatOpen);
-            // Reset unread count when opening chat
-            if (!chatOpen) {
-              setUnreadMessages(0);
-            }
-          }}
-          className="fixed bottom-36 right-2 bg-sky-blue hover:bg-sky-blue/80 text-white font-bold rounded-full p-3 relative z-60 shadow-lg hover:shadow-xl transition-all duration-200"
-          style={{ position: 'fixed' }}
-        >
-          <MessageCircle size={24} />
-          {/* Notification Badge */}
-          {unreadMessages > 0 && !chatOpen && (
-            <div className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center min-w-[24px] animate-pulse">
-              {unreadMessages > 99 ? '99+' : unreadMessages}
-            </div>
-          )}
-        </Button>
-
+        {/* Game controls */}
+        <div className="fixed bottom-4 left-4 flex flex-col gap-2 z-40">
+          <Button
+            onClick={() => {
+              setChatOpen(!chatOpen);
+              if (!chatOpen) {
+                setUnreadMessages(0);
+              }
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-3 shadow-lg hover:shadow-xl transition-all duration-200 relative"
+            title="Chat"
+          >
+            <MessageCircle size={24} />
+            {unreadMessages > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full text-xs w-6 h-6 flex items-center justify-center font-bold">
+                {unreadMessages > 9 ? '9+' : unreadMessages}
+              </span>
+            )}
+          </Button>
+          
+          <Button
+            onClick={() => setCalculatorOpen(!calculatorOpen)}
+            className="bg-green-600 hover:bg-green-700 text-white rounded-full p-3 shadow-lg hover:shadow-xl transition-all duration-200"
+            title="Calculator"
+          >
+            <CalcIcon size={24} />
+          </Button>
+          
+          <Button
+            onClick={() => setGraveyardOpen(true)}
+            className="bg-gray-600 hover:bg-gray-700 text-white rounded-full p-3 shadow-lg hover:shadow-xl transition-all duration-200"
+            title="Graveyard"
+          >
+            <Skull size={24} />
+          </Button>
+          
+          <Button
+            onClick={() => setDiceOpen(true)}
+            className="bg-orange-600 hover:bg-orange-700 text-white rounded-full p-3 shadow-lg hover:shadow-xl transition-all duration-200"
+            title="Roll Dice"
+          >
+            <Dice6 size={24} />
+          </Button>
+        </div>
 
         {/* Calculator */}
         {calculatorOpen && (
           <div 
-            className="fixed bottom-32 right-2 w-80 h-96 z-40 animate-in slide-in-from-right-5 fade-in duration-300"
+            className="fixed bottom-52 left-2 w-80 z-40 animate-in slide-in-from-left-5 fade-in duration-300"
             style={{ position: 'fixed' }}
           >
             <Calculator onClose={() => setCalculatorOpen(false)} />
