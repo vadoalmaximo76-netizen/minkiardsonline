@@ -14,6 +14,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
   const [showBrowser, setShowBrowser] = useState(false);
   const [selectedCardForZoom, setSelectedCardForZoom] = useState<any>(null);
   const [isShuffling, setIsShuffling] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   
   const remainingCards = gameState?.decks?.[type]?.length || 0;
 
@@ -72,7 +73,27 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
   const getSortedCards = () => {
     if (!gameState?.decks?.[type]) return [];
     
-    return [...gameState.decks[type]].sort((a, b) => {
+    let filteredCards = [...gameState.decks[type]];
+    
+    // Apply search filter if searchTerm exists
+    if (searchTerm.trim()) {
+      filteredCards = filteredCards.filter(card => {
+        const getFileName = (url: string) => {
+          const parts = url.split('/');
+          const filename = parts[parts.length - 1];
+          // Remove file extension and convert spaces/dashes
+          return filename.toLowerCase()
+            .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+            .replace(/-/g, ' ')
+            .replace(/_/g, ' ');
+        };
+        
+        const cardName = getFileName(card.frontImage);
+        return cardName.includes(searchTerm.toLowerCase().trim());
+      });
+    }
+    
+    return filteredCards.sort((a, b) => {
       // Extract filename from URL
       const getFileName = (url: string) => {
         const parts = url.split('/');
@@ -144,23 +165,58 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
             }}
           >
             {/* Header */}
-            <div className="flex justify-between items-center p-4 bg-gray-800 border-b-2 border-gray-600 rounded-t-lg">
-              <h3 className="text-white font-bold text-2xl">
-                Scegli una carta da {name}
-              </h3>
-              <Button
-                onClick={() => setShowBrowser(false)}
-                className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 text-lg font-bold rounded"
-              >
-                CHIUDI
-              </Button>
+            <div className="p-4 bg-gray-800 border-b-2 border-gray-600 rounded-t-lg">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-white font-bold text-2xl">
+                  Scegli una carta da {name}
+                </h3>
+                <Button
+                  onClick={() => {
+                    setShowBrowser(false);
+                    setSearchTerm(''); // Reset search when closing
+                  }}
+                  className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 text-lg font-bold rounded"
+                >
+                  CHIUDI
+                </Button>
+              </div>
+              
+              {/* Search input */}
+              <div className="flex items-center gap-2">
+                <span className="text-white font-semibold text-sm">Cerca:</span>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Scrivi il nome della carta..."
+                  className="flex-1 px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none text-sm"
+                />
+                {searchTerm && (
+                  <Button
+                    onClick={() => setSearchTerm('')}
+                    className="bg-gray-600 hover:bg-gray-500 text-white px-3 py-2 text-sm rounded"
+                  >
+                    Cancella
+                  </Button>
+                )}
+              </div>
+              
+              {/* Search results info */}
+              {searchTerm && (
+                <div className="mt-2 text-white/70 text-xs">
+                  {getSortedCards().length === 0 ? 
+                    'Nessuna carta trovata' : 
+                    `${getSortedCards().length} carte trovate`
+                  }
+                </div>
+              )}
             </div>
             
             {/* Cards Grid */}
             <div 
               className="bg-gray-800 p-4 overflow-y-auto overflow-x-hidden rounded-b-lg"
               style={{ 
-                height: 'calc(100% - 80px)'
+                height: 'calc(100% - 140px)'
               }}
             >
               <div className="grid grid-cols-6 gap-3">
