@@ -18,12 +18,45 @@ interface ChatMessage {
 export const Chat: React.FC<ChatProps> = ({ onClose }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
-  const { playerName } = useGameState();
+  const { playerName, gameId } = useGameState();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load persisted messages when chat opens
+  useEffect(() => {
+    const loadPersistedMessages = () => {
+      if (gameId) {
+        const storedMessages = localStorage.getItem(`chat_messages_${gameId}`);
+        if (storedMessages) {
+          try {
+            const parsedMessages = JSON.parse(storedMessages);
+            setMessages(parsedMessages);
+          } catch (error) {
+            console.error('Error loading chat messages:', error);
+          }
+        }
+      }
+    };
+
+    loadPersistedMessages();
+  }, [gameId]);
+
+  // Persist messages to localStorage whenever they change
+  useEffect(() => {
+    if (gameId && messages.length > 0) {
+      localStorage.setItem(`chat_messages_${gameId}`, JSON.stringify(messages));
+    }
+  }, [messages, gameId]);
 
   useEffect(() => {
     const handleChatMessage = (message: ChatMessage) => {
-      setMessages(prev => [...prev, message]);
+      setMessages(prev => {
+        const newMessages = [...prev, message];
+        // Persist immediately when new message arrives
+        if (gameId) {
+          localStorage.setItem(`chat_messages_${gameId}`, JSON.stringify(newMessages));
+        }
+        return newMessages;
+      });
     };
 
     socket.on('chat-message', handleChatMessage);
@@ -31,7 +64,7 @@ export const Chat: React.FC<ChatProps> = ({ onClose }) => {
     return () => {
       socket.off('chat-message', handleChatMessage);
     };
-  }, []);
+  }, [gameId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
