@@ -109,7 +109,7 @@ export const RoundTable: React.FC = () => {
     if (cardCount === 1) return [playerPos];
     
     // For multiple cards, spread them horizontally or vertically based on position
-    const spacing = Math.min(6, 30 / cardCount); // Adaptive spacing
+    const spacing = Math.max(4, Math.min(8, 40 / cardCount)); // Improved adaptive spacing with minimum
     
     return playerCards.map((_, cardIndex) => {
       const offset = (cardIndex - (cardCount - 1) / 2) * spacing;
@@ -160,7 +160,7 @@ export const RoundTable: React.FC = () => {
     }
     
     // Spread cards horizontally at bottom
-    const cardSpacing = Math.min(8, 40 / cardCount); // Adjust spacing based on card count
+    const cardSpacing = Math.max(6, Math.min(12, 50 / cardCount)); // Improved spacing with minimum
     const totalWidth = (cardCount - 1) * cardSpacing;
     const startX = centerX - totalWidth / 2;
     
@@ -198,7 +198,7 @@ export const RoundTable: React.FC = () => {
       
       {/* Rectangular Table Container */}
       <div 
-        className="relative w-[75vw] h-[85vh] landscape:w-[90vw] landscape:h-[85vh] sm:w-[85vw] sm:h-[75vh] md:w-[88vw] md:h-[80vh] lg:w-[92vw] lg:h-[85vh] xl:w-[95vw] xl:h-[90vh] max-w-[1300px] max-h-[900px] min-w-[320px] min-h-[400px] mx-auto border-4 landscape:border-8 md:border-8 border-white bg-no-repeat overflow-hidden touch-manipulation"
+        className="relative w-[85vw] h-[90vh] landscape:w-[95vw] landscape:h-[90vh] sm:w-[90vw] sm:h-[85vh] md:w-[95vw] md:h-[90vh] lg:w-[98vw] lg:h-[90vh] xl:w-[98vw] xl:h-[95vh] max-w-[1600px] max-h-[1200px] min-w-[320px] min-h-[400px] mx-auto border-4 landscape:border-8 md:border-8 border-white bg-no-repeat overflow-hidden touch-manipulation"
         style={{
           borderRadius: '16px',
           backgroundImage: `url('https://i.ibb.co/B2yVVMkJ/wallpaper-2547293.png')`,
