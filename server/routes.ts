@@ -74,53 +74,125 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const cpuAction = await gameManager.processCPUTurn(gameId, cpuName, io);
           if (cpuAction) {
             // Execute the CPU's action
-            switch (cpuAction.type) {
-              case 'pick-card':
-                const pickSuccess = await gameManager.pickCard(gameId, cpuAction.data.deckType, cpuAction.data.playerName);
-                if (pickSuccess) {
-                  const pickGameState = gameManager.getSanitizedGameState(gameId);
-                  io.to(gameId).emit('game-state-update', pickGameState);
-                }
-                break;
-                
-              case 'play-card':
-                const result = await gameManager.playCard(gameId, cpuAction.data.cardId, cpuAction.data.playerName);
-                const updatedGameState = gameManager.getSanitizedGameState(gameId);
-                io.to(gameId).emit('game-state-update', updatedGameState);
-                
-                if (result.isPersonaggio && result.card) {
-                  const getCardNameFromUrl = (url: string) => {
-                    const parts = url.split('/');
-                    const filename = parts[parts.length - 1];
-                    return filename
-                      .toLowerCase()
-                      .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
-                      .replace(/[-_]/g, ' ')
-                      .split(' ')
-                      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                      .join(' ');
-                  };
+            // CPU opening sequence handling - continue processing until sequence is complete
+            const continueCPUTurn = async (currentAction: any): Promise<void> => {
+              if (!currentAction) return;
+              
+              switch (currentAction.type) {
+                case 'pick-opening-cards':
+                  console.log(`CPU ${cpuName} picking opening cards:`, currentAction.data.types);
+                  const openingSuccess = await gameManager.pickOpeningCards(gameId, currentAction.data.types, currentAction.data.playerName);
+                  if (openingSuccess) {
+                    const openingGameState = gameManager.getSanitizedGameState(gameId);
+                    io.to(gameId).emit('game-state-update', openingGameState);
+                    
+                    // Continue with the next phase of opening sequence
+                    setTimeout(async () => {
+                      const nextAction = await gameManager.processCPUTurn(gameId, cpuName, io);
+                      await continueCPUTurn(nextAction);
+                    }, 1000);
+                  }
+                  break;
                   
-                  const cardName = getCardNameFromUrl(result.card.frontImage);
-                  io.to(gameId).emit('personaggio-enters', {
-                    cardName,
-                    message: 'SI UNISCE ALLA ZUFFA',
-                    playerName: cpuName,
-                    cardImage: result.card.frontImage
+                case 'play-card-and-continue':
+                  console.log(`CPU ${cpuName} playing character and continuing sequence`);
+                  const playResult = await gameManager.playCard(gameId, currentAction.data.cardId, currentAction.data.playerName);
+                  const playGameState = gameManager.getSanitizedGameState(gameId);
+                  io.to(gameId).emit('game-state-update', playGameState);
+                  
+                  if (playResult.isPersonaggio && playResult.card) {
+                    const getCardNameFromUrl = (url: string) => {
+                      const parts = url.split('/');
+                      const filename = parts[parts.length - 1];
+                      return filename
+                        .toLowerCase()
+                        .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+                        .replace(/[-_]/g, ' ')
+                        .split(' ')
+                        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                        .join(' ');
+                    };
+                    
+                    const cardName = getCardNameFromUrl(playResult.card.frontImage);
+                    io.to(gameId).emit('personaggio-enters', {
+                      cardName,
+                      message: 'ENTRA IN SCENA',
+                      playerName: cpuName,
+                      cardImage: playResult.card.frontImage
+                    });
+                  }
+                  
+                  // Continue with the next phase
+                  setTimeout(async () => {
+                    const nextAction = await gameManager.processCPUTurn(gameId, cpuName, io);
+                    await continueCPUTurn(nextAction);
+                  }, 1000);
+                  break;
+                  
+                case 'pick-card-and-end-opening':
+                  console.log(`CPU ${cpuName} picking replacement and ending opening sequence`);
+                  const replacementSuccess = await gameManager.pickCard(gameId, currentAction.data.deckType, currentAction.data.playerName);
+                  if (replacementSuccess) {
+                    const finalGameState = gameManager.getSanitizedGameState(gameId);
+                    io.to(gameId).emit('game-state-update', finalGameState);
+                  }
+                  // Opening sequence complete - turn ends naturally
+                  break;
+                  
+                case 'opening-complete':
+                  console.log(`CPU ${cpuName} opening sequence completed`);
+                  // Turn ends naturally
+                  break;
+                  
+                case 'pick-card':
+                  const pickSuccess = await gameManager.pickCard(gameId, currentAction.data.deckType, currentAction.data.playerName);
+                  if (pickSuccess) {
+                    const pickGameState = gameManager.getSanitizedGameState(gameId);
+                    io.to(gameId).emit('game-state-update', pickGameState);
+                  }
+                  break;
+                  
+                case 'play-card':
+                  const result = await gameManager.playCard(gameId, currentAction.data.cardId, currentAction.data.playerName);
+                  const updatedGameState = gameManager.getSanitizedGameState(gameId);
+                  io.to(gameId).emit('game-state-update', updatedGameState);
+                  
+                  if (result.isPersonaggio && result.card) {
+                    const getCardNameFromUrl = (url: string) => {
+                      const parts = url.split('/');
+                      const filename = parts[parts.length - 1];
+                      return filename
+                        .toLowerCase()
+                        .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+                        .replace(/[-_]/g, ' ')
+                        .split(' ')
+                        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                        .join(' ');
+                    };
+                    
+                    const cardName = getCardNameFromUrl(result.card.frontImage);
+                    io.to(gameId).emit('personaggio-enters', {
+                      cardName,
+                      message: 'SI UNISCE ALLA ZUFFA',
+                      playerName: cpuName,
+                      cardImage: result.card.frontImage
+                    });
+                  }
+                  break;
+                  
+                case 'mosse-attack':
+                  io.to(gameId).emit('card-attacked', {
+                    mosseCardId: currentAction.data.mosseCardId,
+                    targetCardId: currentAction.data.targetCardId,
+                    attackerName: currentAction.data.attackerName,
+                    targetOwner: currentAction.data.targetOwner,
+                    timestamp: Date.now()
                   });
-                }
-                break;
-                
-              case 'mosse-attack':
-                io.to(gameId).emit('card-attacked', {
-                  mosseCardId: cpuAction.data.mosseCardId,
-                  targetCardId: cpuAction.data.targetCardId,
-                  attackerName: cpuAction.data.attackerName,
-                  targetOwner: cpuAction.data.targetOwner,
-                  timestamp: Date.now()
-                });
-                break;
-            }
+                  break;
+              }
+            };
+            
+            await continueCPUTurn(cpuAction);
           }
         }, 2000); // 2 second delay for CPU thinking
         

@@ -968,50 +968,38 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       default:
         console.log(`CPU ${this.playerName} opening sequence completed`);
         this.openingSequenceState.phase = 'completed';
-        return null;
+        return { type: 'opening-complete' }; // Signal that opening is done
     }
   }
 
-  // Phase 1: Pick initial 3 cards (PERSONAGGI, MOSSE, BONUS)
+  // Phase 1: Pick initial 3 cards (PERSONAGGI, MOSSE, BONUS) - all at once
   executeInitialCardPicking(gameState: any): any {
     const neededTypes = ['personaggi', 'mosse', 'bonus'];
     const remainingTypes = neededTypes.filter(type => 
       !this.openingSequenceState.pickedCards.includes(type)
     );
     
-    if (remainingTypes.length > 0) {
-      const typeToPick = remainingTypes[0];
+    console.log(`CPU ${this.playerName} executing initial card picking. Remaining types:`, remainingTypes);
+    
+    // Check if we need to pick all 3 cards at once
+    if (remainingTypes.length === 3) {
+      this.sendChatMessage("Inizio partita! Pesco le mie 3 carte iniziali: PERSONAGGI, MOSSE e BONUS.");
       
-      // Check if deck has cards
-      if (gameState.decks[typeToPick] && gameState.decks[typeToPick].length > 0) {
-        console.log(`CPU ${this.playerName} picking initial ${typeToPick} card (${remainingTypes.length} remaining)`);
-        
-        if (remainingTypes.length === 3) {
-          this.sendChatMessage("Inizio partita! Pesco le mie 3 carte iniziali: PERSONAGGI, MOSSE e BONUS.");
-        } else if (remainingTypes.length === 2) {
-          this.sendChatMessage(`Pesco la seconda carta: ${typeToPick.toUpperCase()}`);
-        } else if (remainingTypes.length === 1) {
-          this.sendChatMessage(`Pesco la terza carta: ${typeToPick.toUpperCase()}`);
+      // Mark all types as picked and move to next phase
+      this.openingSequenceState.pickedCards = ['personaggi', 'mosse', 'bonus'];
+      this.openingSequenceState.phase = 'play-character';
+      
+      // Return action to pick all 3 cards
+      return {
+        type: 'pick-opening-cards',
+        data: {
+          types: ['personaggi', 'mosse', 'bonus'],
+          playerName: this.playerName
         }
-        
-        this.openingSequenceState.pickedCards.push(typeToPick);
-        
-        // If all 3 cards picked, move to next phase
-        if (this.openingSequenceState.pickedCards.length === 3) {
-          this.openingSequenceState.phase = 'play-character';
-        }
-        
-        return {
-          type: 'pick-card',
-          data: {
-            deckType: typeToPick,
-            playerName: this.playerName
-          }
-        };
-      }
+      };
     }
     
-    // If we can't pick more cards, move to next phase
+    // If we somehow end up here, move to next phase
     this.openingSequenceState.phase = 'play-character';
     return null;
   }

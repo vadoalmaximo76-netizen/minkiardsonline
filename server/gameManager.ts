@@ -276,6 +276,33 @@ export class GameManager {
     return true;
   }
 
+  // Pick multiple cards for opening sequence
+  async pickOpeningCards(gameId: string, types: string[], playerName: string): Promise<boolean> {
+    const game = this.games.get(gameId);
+    if (!game || !game.players[playerName]) return false;
+
+    console.log(`Picking opening cards for ${playerName}:`, types);
+    
+    for (const deckType of types) {
+      const deck = game.decks[deckType as keyof GameState['decks']];
+      if (deck && deck.length > 0) {
+        const card = deck.pop()!;
+        card.owner = playerName;
+        game.players[playerName].hand.push(card);
+
+        // Record each pick card event
+        await this.recordEvent(gameId, 'pick-card', {
+          cardId: card.id,
+          deckType,
+          cardType: card.type,
+          frontImage: card.frontImage
+        }, playerName);
+      }
+    }
+
+    return true;
+  }
+
   chooseSpecificCard(gameId: string, deckType: keyof GameState['decks'], cardId: string, playerName: string): boolean {
     const game = this.games.get(gameId);
     if (!game || !game.players[playerName]) return false;
