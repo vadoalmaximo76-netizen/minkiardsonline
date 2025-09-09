@@ -247,25 +247,6 @@ export const RoundTable: React.FC = () => {
                 backImage="https://i.imgur.com/lEROr3r.png"
                 type="bonus"
               />
-              {/* ATTIVA SCENARI checkbox */}
-              <div className="flex items-center space-x-1 mt-1">
-                <Checkbox
-                  id="attiva-scenari-round"
-                  checked={scenarioCardsActive}
-                  onCheckedChange={(checked) => {
-                    socket.emit('toggle-scenario-cards', { 
-                      gameId, 
-                      active: checked as boolean 
-                    });
-                  }}
-                />
-                <label
-                  htmlFor="attiva-scenari-round"
-                  className="text-xs font-medium text-white cursor-pointer select-none hidden landscape:block sm:block"
-                >
-                  SCENARI
-                </label>
-              </div>
             </div>
             <div className={`flex flex-col items-center ${deckScale}`}>
               <Deck

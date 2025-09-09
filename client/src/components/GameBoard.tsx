@@ -46,7 +46,7 @@ export const GameBoard: React.FC = () => {
   const [nextTurnPlayer, setNextTurnPlayer] = useState<string>("");
   const [leaveGameVisible, setLeaveGameVisible] = useState(false);
   const [leavingPlayer, setLeavingPlayer] = useState<string>("");
-  const { selectedCard, gameId, playerName } = useGameState();
+  const { selectedCard, gameId, playerName, gameState } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, initAudioContext, toggleMute, isMuted } = useAudio();
 
 
@@ -73,6 +73,13 @@ export const GameBoard: React.FC = () => {
       socket.emit('leave-game', { gameId, playerName });
     }
   };
+
+  // Sync scenarioCardsActive with game state
+  useEffect(() => {
+    if (gameState?.scenarioCardsActive !== undefined) {
+      setScenarioCardsActive(gameState.scenarioCardsActive);
+    }
+  }, [gameState?.scenarioCardsActive]);
 
   // Initialize audio context and play game start sound on mount
   useEffect(() => {
@@ -475,7 +482,7 @@ export const GameBoard: React.FC = () => {
         />
 
 
-        {/* Add Cards and Leave Game Buttons - Bottom of page */}
+        {/* Add Cards, Scenari and Leave Game Buttons - Bottom of page */}
         <div className="mt-8 md:mt-16 mb-4 md:mb-8 flex flex-col sm:flex-row justify-center gap-2 md:gap-4 px-4">
           <Button
             onClick={() => setAddCardsModalOpen(true)}
@@ -483,6 +490,19 @@ export const GameBoard: React.FC = () => {
           >
             <Plus size={16} className="md:w-6 md:h-6" />
             <span className="text-sm md:text-base">AGGIUNGI CARTE</span>
+          </Button>
+          <Button
+            onClick={() => {
+              socket.emit('toggle-scenario-cards', { 
+                gameId, 
+                active: !scenarioCardsActive 
+              });
+            }}
+            className={`${scenarioCardsActive ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-600 hover:bg-gray-700'} text-white font-bold rounded-lg px-4 md:px-6 py-2 md:py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 md:gap-3`}
+          >
+            <span className="text-sm md:text-base text-black bg-white px-2 py-1 rounded">
+              SCENARI {scenarioCardsActive ? 'ON' : 'OFF'}
+            </span>
           </Button>
           <Button
             onClick={handleLeaveGame}
