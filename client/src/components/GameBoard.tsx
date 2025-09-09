@@ -344,7 +344,7 @@ export const GameBoard: React.FC = () => {
             initAudioContext();
             toggleMute();
           }}
-          className="fixed bottom-4 right-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-full p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
+          className="fixed bottom-4 left-4 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-full p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
           style={{ position: 'fixed' }}
           title={isMuted ? "Enable sound" : "Disable sound"}
         >
