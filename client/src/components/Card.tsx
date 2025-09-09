@@ -33,6 +33,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     setSelectedCard, 
     playerName, 
     gameState, 
+    gameId,
     selectedMosseCard, 
     setSelectedMosseCard, 
     shakingCards, 
@@ -161,7 +162,8 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const isMinkiard300 = getCardName(card.frontImage) === 'MINKIARD N 300';
   
   const handleSuperDice = () => {
-    socket.emit('open-super-dice', { gameId: gameState?.id, playerName });
+    console.log('SUPER DICE button clicked for MINKIARD N 300');
+    socket.emit('open-super-dice', { gameId, playerName });
   };
   
   const otherPlayers = Object.keys(gameState?.players || {}).filter(p => p !== playerName);
