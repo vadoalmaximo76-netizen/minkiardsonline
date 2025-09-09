@@ -638,7 +638,7 @@ export class GameManager {
     if (!game) return null;
 
     for (const [playerName, player] of Object.entries(game.players)) {
-      if (player.isCPU && player.cpuInstance && player.cpuInstance.waitingForResponse) {
+      if (player.isCPU && player.cpuInstance && player.cpuInstance.isWaitingForResponse) {
         return playerName;
       }
     }

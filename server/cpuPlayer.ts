@@ -51,6 +51,10 @@ export class CPUPlayer {
     this.socketEmitter = emitter;
   }
 
+  get isWaitingForResponse(): boolean {
+    return this.waitingForResponse;
+  }
+
   // Analyze a card image using OpenAI Vision API
   async analyzeCardImage(imageUrl: string): Promise<CardAnalysis> {
     try {
@@ -103,7 +107,7 @@ export class CPUPlayer {
     }
   }
 
-  // Analyze current game state and decide next move
+  // Analyze current game state and decide next move with conversation context
   async analyzeGameState(gameState: any): Promise<GameAnalysis> {
     try {
       // Get CPU player's information
@@ -125,12 +129,16 @@ export class CPUPlayer {
         cpuPlayer.hand.map((card: any) => this.analyzeCardImage(card.frontImage))
       );
 
+      // Get conversation context for enhanced decision making
+      const conversationContext = this.getConversationContext();
+
       // Create game situation description
       const situationDesc = `
         My character: ${myCharacter ? `${myCharacter.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '')}` : 'None'}
         Enemy characters: ${enemyCharacters.map((c: any) => c.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '')).join(', ')}
         Hand cards: ${handAnalyses.map(a => `${a.name} (${a.cardType})`).join(', ')}
         Field situation: ${gameState.field.length} cards on field
+        Previous conversation: ${conversationContext || 'Nessuna conversazione precedente'}
       `;
 
       const response = await openai.chat.completions.create({
@@ -138,7 +146,7 @@ export class CPUPlayer {
         messages: [
           {
             role: "system",
-            content: `You are an expert MINKIARDS player. Based on the game rules:
+            content: `You are an expert MINKIARDS player that can communicate in Italian. Based on the game rules:
             
             RULES SUMMARY:
             - Each player needs a character (personaggio) on the field to take actions
@@ -150,12 +158,16 @@ export class CPUPlayer {
             - Can buy powers by spending character points
             - Can switch characters from hand to field
             
+            Consider previous conversation with human players to adapt your strategy.
+            If humans have given you specific instructions or clarifications, prioritize those.
+            
             Analyze the current situation and recommend the best action. Consider:
             1. Do I have a character on field? If not, play one
             2. Can I deal lethal damage to an enemy?
             3. Should I defend against incoming threats?
             4. Should I use bonus cards for advantage?
             5. Should I switch to a stronger character?
+            6. Any specific human guidance from previous conversation?
             
             Respond with JSON containing your analysis and recommended action.`
           },
@@ -168,7 +180,7 @@ export class CPUPlayer {
             - Switch character (if I have one in hand)
             - Buy a power (if my character has enough points)
             
-            What should I do and why?`
+            What should I do and why? Consider any previous human guidance.`
           }
         ],
         response_format: { type: "json_object" },
