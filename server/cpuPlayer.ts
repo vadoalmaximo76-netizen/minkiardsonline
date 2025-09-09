@@ -987,7 +987,11 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         console.log(`CPU ${this.playerName} picking initial ${typeToPick} card (${remainingTypes.length} remaining)`);
         
         if (remainingTypes.length === 3) {
-          this.sendChatMessage("Inizio partita! Pesco le mie 3 carte iniziali.");
+          this.sendChatMessage("Inizio partita! Pesco le mie 3 carte iniziali: PERSONAGGI, MOSSE e BONUS.");
+        } else if (remainingTypes.length === 2) {
+          this.sendChatMessage(`Pesco la seconda carta: ${typeToPick.toUpperCase()}`);
+        } else if (remainingTypes.length === 1) {
+          this.sendChatMessage(`Pesco la terza carta: ${typeToPick.toUpperCase()}`);
         }
         
         this.openingSequenceState.pickedCards.push(typeToPick);
