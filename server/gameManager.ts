@@ -670,6 +670,50 @@ export class GameManager {
     }
   }
 
+  async placeSuperDiceCard(gameId: string, playerName: string, cardData: { name: string, image: string, type: string }): Promise<{ success: boolean }> {
+    const game = this.games.get(gameId);
+    if (!game) return { success: false };
+
+    try {
+      // Create a new card object for the super dice card
+      const newCard = {
+        id: `super-dice-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        frontImage: cardData.image,
+        backImage: this.getBackImageForType(cardData.type),
+        owner: playerName,
+        type: cardData.type as 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali',
+        faceDown: false,
+        text: ''
+      };
+
+      // Add the card directly to the field
+      game.field.push(newCard);
+
+      // Record the super dice placement event
+      await this.recordEvent(gameId, 'place-super-dice-card', {
+        cardId: newCard.id,
+        cardName: cardData.name,
+        cardType: cardData.type,
+        frontImage: cardData.image
+      }, playerName);
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error placing super dice card:', error);
+      return { success: false };
+    }
+  }
+
+  private getBackImageForType(type: string): string {
+    const backImages = {
+      'personaggi': 'https://i.imgur.com/r1rfUAB.png',
+      'mosse': 'https://i.imgur.com/6MUXCZO.png',
+      'bonus': 'https://i.imgur.com/lEROr3r.png',
+      'personaggi_speciali': 'https://i.imgur.com/ipVd57A.png'
+    };
+    return backImages[type as keyof typeof backImages] || backImages.bonus;
+  }
+
   moveCardPosition(gameId: string, cardId: string, direction: 'left' | 'right'): boolean {
     const game = this.games.get(gameId);
     if (!game) return false;

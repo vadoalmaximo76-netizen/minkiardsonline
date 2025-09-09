@@ -380,6 +380,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // Super Dice Events
+    socket.on('open-super-dice', ({ gameId, playerName }) => {
+      const playerGameId = gameManager.getPlayerGameId(socket.id);
+      if (playerGameId === gameId) {
+        // Broadcast super dice window open to all players in the game
+        io.to(gameId).emit('super-dice-opened', {
+          playerName,
+          timestamp: Date.now()
+        });
+      }
+    });
+
+    socket.on('super-dice-rolled', ({ gameId, playerName, rolledCard }) => {
+      const playerGameId = gameManager.getPlayerGameId(socket.id);
+      if (playerGameId === gameId) {
+        // Broadcast super dice result to all players in the game
+        io.to(gameId).emit('super-dice-rolled', {
+          playerName,
+          rolledCard,
+          timestamp: Date.now()
+        });
+      }
+    });
+
+    socket.on('place-super-dice-card', async ({ gameId, playerName, cardData }) => {
+      const playerGameId = gameManager.getPlayerGameId(socket.id);
+      if (playerGameId === gameId) {
+        // Create a card object for the rolled card and place it on the field
+        const result = await gameManager.placeSuperDiceCard(gameId, playerName, cardData);
+        
+        if (result.success) {
+          const gameState = gameManager.getGameState(gameId);
+          io.to(gameId).emit('game-state-update', gameState);
+          
+          // Emit notification that the super dice card was placed
+          io.to(gameId).emit('super-dice-card-placed', {
+            playerName,
+            cardName: cardData.name,
+            cardImage: cardData.image,
+            timestamp: Date.now()
+          });
+        }
+      }
+    });
+
     socket.on('add-custom-cards', ({ gameId, playerName, deckType, images }) => {
       const playerGameId = gameManager.getPlayerGameId(socket.id);
       
