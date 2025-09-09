@@ -53,6 +53,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       socket.to(gameId).emit('player-joined', { playerName });
     });
 
+    socket.on('add-cpu-player', async ({ gameId }) => {
+      try {
+        const cpuName = await gameManager.addCPUPlayer(gameId);
+        const gameState = gameManager.getGameState(gameId);
+        io.to(gameId).emit('game-state-update', gameState);
+        io.to(gameId).emit('player-joined', { playerName: cpuName });
+        
+        // Start CPU turn after a short delay
+        setTimeout(async () => {
+          const cpuAction = await gameManager.processCPUTurn(gameId, cpuName);
+          if (cpuAction) {
+            // Execute the CPU's action
+            switch (cpuAction.type) {
+              case 'play-card':
+                const result = await gameManager.playCard(gameId, cpuAction.data.cardId, cpuAction.data.playerName);
+                const updatedGameState = gameManager.getGameState(gameId);
+                io.to(gameId).emit('game-state-update', updatedGameState);
+                
+                if (result.isPersonaggio && result.card) {
+                  const getCardNameFromUrl = (url: string) => {
+                    const parts = url.split('/');
+                    const filename = parts[parts.length - 1];
+                    return filename
+                      .toLowerCase()
+                      .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+                      .replace(/[-_]/g, ' ')
+                      .split(' ')
+                      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                      .join(' ');
+                  };
+                  
+                  const cardName = getCardNameFromUrl(result.card.frontImage);
+                  io.to(gameId).emit('personaggio-enters', {
+                    cardName,
+                    message: 'SI UNISCE ALLA ZUFFA',
+                    playerName: cpuName,
+                    cardImage: result.card.frontImage
+                  });
+                }
+                break;
+                
+              case 'mosse-attack':
+                io.to(gameId).emit('card-attacked', {
+                  mosseCardId: cpuAction.data.mosseCardId,
+                  targetCardId: cpuAction.data.targetCardId,
+                  attackerName: cpuAction.data.attackerName,
+                  targetOwner: cpuAction.data.targetOwner,
+                  timestamp: Date.now()
+                });
+                break;
+            }
+          }
+        }, 2000); // 2 second delay for CPU thinking
+        
+      } catch (error) {
+        socket.emit('error', { message: 'Failed to add CPU player' });
+      }
+    });
+
     socket.on('shuffle-deck', ({ deckType }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {

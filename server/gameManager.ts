@@ -1,6 +1,7 @@
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from '../client/src/lib/cardData';
 import { db } from './db';
 import { matches, gameEvents, type InsertMatch, type InsertGameEvent } from '../shared/schema';
+import { CPUPlayer } from './cpuPlayer';
 
 interface Card {
   id: string;
@@ -17,6 +18,8 @@ interface Player {
   name: string;
   hand: Card[];
   socketId: string;
+  isCPU?: boolean;
+  cpuInstance?: CPUPlayer;
 }
 
 interface GameState {
@@ -81,7 +84,7 @@ export class GameManager {
     return gameState;
   }
 
-  async addPlayer(gameId: string, playerName: string, socketId: string): Promise<void> {
+  async addPlayer(gameId: string, playerName: string, socketId: string, isCPU: boolean = false): Promise<void> {
     if (!this.games.has(gameId)) {
       this.games.set(gameId, this.initializeGame(gameId));
       // Create match record when first player joins
@@ -89,16 +92,23 @@ export class GameManager {
     }
 
     const game = this.games.get(gameId)!;
-    game.players[playerName] = {
+    const player: Player = {
       name: playerName,
       hand: [],
-      socketId
+      socketId,
+      isCPU
     };
+
+    if (isCPU) {
+      player.cpuInstance = new CPUPlayer(playerName, gameId);
+    }
+
+    game.players[playerName] = player;
 
     this.playerToGame.set(socketId, gameId);
     
     // Record player join event
-    await this.recordEvent(gameId, 'player-join', { playerName }, playerName);
+    await this.recordEvent(gameId, 'player-join', { playerName, isCPU }, playerName);
   }
 
   private async createMatchRecord(gameId: string): Promise<void> {
@@ -556,6 +566,52 @@ export class GameManager {
     } catch {
       return 'UNKNOWN CARD';
     }
+  }
+
+  async addCPUPlayer(gameId: string): Promise<string> {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    // Generate CPU player name
+    const cpuNames = ['CPU-Alessio', 'CPU-Marco', 'CPU-Giulia', 'CPU-Francesco', 'CPU-Sara'];
+    const existingPlayers = Object.keys(game.players);
+    const availableNames = cpuNames.filter(name => !existingPlayers.includes(name));
+    
+    if (availableNames.length === 0) {
+      throw new Error('No more CPU slots available');
+    }
+
+    const cpuName = availableNames[0];
+    const fakeSocketId = `cpu-${Date.now()}-${Math.random()}`;
+    
+    await this.addPlayer(gameId, cpuName, fakeSocketId, true);
+    
+    return cpuName;
+  }
+
+  async processCPUTurn(gameId: string, cpuPlayerName: string): Promise<any> {
+    const game = this.games.get(gameId);
+    if (!game) return null;
+
+    const cpuPlayer = game.players[cpuPlayerName];
+    if (!cpuPlayer?.isCPU || !cpuPlayer.cpuInstance) return null;
+
+    try {
+      const action = await cpuPlayer.cpuInstance.takeTurn(game);
+      return action;
+    } catch (error) {
+      console.error(`Error processing CPU turn for ${cpuPlayerName}:`, error);
+      return null;
+    }
+  }
+
+  getCPUPlayers(gameId: string): string[] {
+    const game = this.games.get(gameId);
+    if (!game) return [];
+
+    return Object.values(game.players)
+      .filter(player => player.isCPU)
+      .map(player => player.name);
   }
 
   updateCardText(gameId: string, cardId: string, text: string): void {
