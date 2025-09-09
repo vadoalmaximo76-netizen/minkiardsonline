@@ -63,8 +63,8 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
       setShowActions(!showActions);
       setSelectedMosseCard(null);
     } else if (location === 'hand') {
-      // For cards in hand, toggle action buttons
-      setShowActions(!showActions);
+      // For cards in hand, open the modal window
+      setSelectedCard(card);
       setSelectedMosseCard(null);
     }
   };
@@ -180,79 +180,15 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         disabled={!isOwner && location === 'hand'}
       />
 
-      {/* Action Buttons for cards in hand - show when clicked */}
-      {location === 'hand' && isOwner && showActions && (
+      {/* Reveal button for face-down cards in field */}
+      {location === 'field' && isOwner && card.faceDown && (
         <div className="flex flex-col gap-1">
           <Button
-            onClick={handlePlay}
-            className="bg-sky-blue hover:bg-sky-blue/80 text-white font-bold text-xs px-2 py-1"
+            onClick={handleReveal}
+            className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold text-xs px-2 py-1"
             size="sm"
           >
-            GIOCA
-          </Button>
-          <Button
-            onClick={handlePlayFaceDown}
-            className="bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs px-2 py-1"
-            size="sm"
-          >
-            GIOCA CARTA COPERTA
-          </Button>
-          <Button
-            onClick={handleShowCard}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-2 py-1"
-            size="sm"
-          >
-            MOSTRA
-          </Button>
-          <Button
-            onClick={handleTransferCard}
-            className="bg-green-600 hover:bg-green-700 text-white font-bold text-xs px-2 py-1"
-            size="sm"
-          >
-            CEDI
-          </Button>
-        </div>
-      )}
-
-      {/* Action Buttons for cards in field */}
-      {location === 'field' && isOwner && showActions && (
-        <div className="flex flex-col gap-1">
-          {card.faceDown && (
-            <Button
-              onClick={handleReveal}
-              className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold text-xs px-2 py-1"
-              size="sm"
-            >
-              SCOPRI
-            </Button>
-          )}
-          <Button
-            onClick={handleReturnToHand}
-            className="bg-sky-blue hover:bg-sky-blue/80 text-white font-bold text-xs px-2 py-1"
-            size="sm"
-          >
-            RIMETTI IN MANO
-          </Button>
-          <Button
-            onClick={handleReturnToDeck}
-            className="bg-sky-blue hover:bg-sky-blue/80 text-white font-bold text-xs px-2 py-1"
-            size="sm"
-          >
-            RIMETTI NEL MAZZO
-          </Button>
-          <Button
-            onClick={handleMoveToGraveyard}
-            className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-2 py-1"
-            size="sm"
-          >
-            METTI NEL CIMITERO
-          </Button>
-          <Button
-            onClick={handleTransferCard}
-            className="bg-green-600 hover:bg-green-700 text-white font-bold text-xs px-2 py-1"
-            size="sm"
-          >
-            CEDI
+            SCOPRI
           </Button>
         </div>
       )}
