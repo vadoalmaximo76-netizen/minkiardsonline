@@ -131,12 +131,12 @@ export const RoundTable: React.FC = () => {
 
   // Calculate card size based on number of players and screen size
   const getCardScale = (playerCount: number) => {
-    // Mobile scales (smaller)
+    // Mobile scales with landscape support
     const mobileScales = {
-      2: 'scale-50 sm:scale-60 md:scale-75 lg:scale-90',
-      4: 'scale-40 sm:scale-50 md:scale-60 lg:scale-75', 
-      6: 'scale-30 sm:scale-40 md:scale-50 lg:scale-60',
-      8: 'scale-25 sm:scale-30 md:scale-40 lg:scale-50'
+      2: 'scale-50 landscape:scale-75 sm:scale-60 md:scale-75 lg:scale-90',
+      4: 'scale-40 landscape:scale-60 sm:scale-50 md:scale-60 lg:scale-75', 
+      6: 'scale-30 landscape:scale-50 sm:scale-40 md:scale-50 lg:scale-60',
+      8: 'scale-25 landscape:scale-40 sm:scale-30 md:scale-40 lg:scale-50'
     };
     
     if (playerCount <= 2) return mobileScales[2];
@@ -153,7 +153,7 @@ export const RoundTable: React.FC = () => {
       
       {/* Round Table Container */}
       <div 
-        className="relative rounded-full w-[350px] h-[350px] sm:w-[450px] sm:h-[450px] md:w-[600px] md:h-[600px] lg:w-[800px] lg:h-[650px] xl:w-[900px] xl:h-[700px] mx-auto border-4 md:border-8 border-amber-700 shadow-2xl bg-no-repeat overflow-hidden touch-manipulation"
+        className="relative rounded-full w-[350px] h-[350px] landscape:w-[700px] landscape:h-[550px] sm:w-[450px] sm:h-[450px] md:w-[600px] md:h-[600px] lg:w-[800px] lg:h-[650px] xl:w-[900px] xl:h-[700px] mx-auto border-4 md:border-8 border-amber-700 shadow-2xl bg-no-repeat overflow-hidden touch-manipulation"
         style={{
           backgroundImage: `url('https://i.ibb.co/B2yVVMkJ/wallpaper-2547293.png')`,
           backgroundSize: 'cover',
@@ -165,21 +165,21 @@ export const RoundTable: React.FC = () => {
         {/* Center Area - Decks */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
           <div className="flex gap-1 sm:gap-2 items-center justify-center">
-            <div className="flex flex-col items-center scale-50 sm:scale-60 md:scale-75">
+            <div className="flex flex-col items-center scale-50 landscape:scale-75 sm:scale-60 md:scale-75">
               <Deck
                 name="PERSONAGGI"
                 backImage="https://i.imgur.com/r1rfUAB.png"
                 type="personaggi"
               />
             </div>
-            <div className="flex flex-col items-center scale-50 sm:scale-60 md:scale-75">
+            <div className="flex flex-col items-center scale-50 landscape:scale-75 sm:scale-60 md:scale-75">
               <Deck
                 name="MOSSE"
                 backImage="https://i.imgur.com/6MUXCZO.png"
                 type="mosse"
               />
             </div>
-            <div className="flex flex-col items-center scale-50 sm:scale-60 md:scale-75">
+            <div className="flex flex-col items-center scale-50 landscape:scale-75 sm:scale-60 md:scale-75">
               <Deck
                 name="BONUS"
                 backImage="https://i.imgur.com/lEROr3r.png"
@@ -199,13 +199,13 @@ export const RoundTable: React.FC = () => {
                 />
                 <label
                   htmlFor="attiva-scenari-round"
-                  className="text-xs font-medium text-white cursor-pointer select-none hidden sm:block"
+                  className="text-xs font-medium text-white cursor-pointer select-none hidden landscape:block sm:block"
                 >
                   SCENARI
                 </label>
               </div>
             </div>
-            <div className="flex flex-col items-center scale-50 sm:scale-60 md:scale-75">
+            <div className="flex flex-col items-center scale-50 landscape:scale-75 sm:scale-60 md:scale-75">
               <Deck
                 name="SPECIALI"
                 backImage="https://i.imgur.com/ipVd57A.png"
@@ -384,7 +384,7 @@ export const RoundTable: React.FC = () => {
                           )}
                           
                           {/* Card */}
-                          <div className="scale-50 sm:scale-60 md:scale-75">
+                          <div className="scale-50 landscape:scale-75 sm:scale-60 md:scale-75">
                             <Card
                               card={card}
                               location="field"
