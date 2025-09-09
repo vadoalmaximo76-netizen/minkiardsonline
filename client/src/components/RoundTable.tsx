@@ -153,7 +153,7 @@ export const RoundTable: React.FC = () => {
       
       {/* Elliptical Table Container */}
       <div 
-        className="relative w-[70vw] h-[90vw] landscape:w-[90vw] landscape:h-[65vw] sm:w-[85vw] sm:h-[65vw] md:w-[90vw] md:h-[65vw] lg:w-[95vw] lg:h-[70vw] max-w-[1200px] max-h-[900px] min-w-[280px] min-h-[350px] mx-auto border-4 md:border-8 border-amber-700 shadow-2xl bg-no-repeat overflow-hidden touch-manipulation"
+        className="relative w-[65vw] h-[75vh] landscape:w-[80vw] landscape:h-[55vh] sm:w-[75vw] sm:h-[60vh] md:w-[80vw] md:h-[65vh] lg:w-[85vw] lg:h-[70vh] xl:w-[90vw] xl:h-[75vh] max-w-[1000px] max-h-[700px] min-w-[280px] min-h-[300px] mx-auto border-4 md:border-8 border-amber-700 shadow-2xl bg-no-repeat overflow-hidden touch-manipulation"
         style={{
           borderRadius: '50%',
           backgroundImage: `url('https://i.ibb.co/B2yVVMkJ/wallpaper-2547293.png')`,
