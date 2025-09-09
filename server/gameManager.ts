@@ -586,6 +586,11 @@ export class GameManager {
     
     await this.addPlayer(gameId, cpuName, fakeSocketId, true);
     
+    // If there's already a turn order, add CPU to it
+    if (game.turnOrder && game.turnOrder.length > 0) {
+      game.turnOrder.push(cpuName);
+    }
+    
     return cpuName;
   }
 

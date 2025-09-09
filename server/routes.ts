@@ -619,10 +619,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('end-turn', ({ gameId, playerName }) => {
+    socket.on('end-turn', async ({ gameId, playerName }) => {
       const nextPlayer = gameManager.endTurn(gameId, playerName);
       if (nextPlayer) {
         io.to(gameId).emit('next-turn', { nextPlayer });
+        
+        // Check if next player is CPU and automatically process their turn
+        const gameState = gameManager.getGameState(gameId);
+        const nextPlayerData = gameState?.players[nextPlayer];
+        
+        if (nextPlayerData && nextPlayer.startsWith('CPU-')) {
+          // Give a moment for UI to update, then process CPU turn
+          setTimeout(async () => {
+            try {
+              console.log(`Processing automated turn for CPU: ${nextPlayer}`);
+              
+              const cpuAction = await gameManager.processCPUTurn(gameId, nextPlayer);
+              if (cpuAction) {
+                // Execute the CPU's action
+                switch (cpuAction.type) {
+                  case 'play-card':
+                    const result = await gameManager.playCard(gameId, cpuAction.data.cardId, cpuAction.data.playerName);
+                    const updatedGameState = gameManager.getGameState(gameId);
+                    io.to(gameId).emit('game-state-update', updatedGameState);
+                    
+                    if (result.isPersonaggio && result.card) {
+                      const getCardNameFromUrl = (url: string) => {
+                        const parts = url.split('/');
+                        const filename = parts[parts.length - 1];
+                        return filename
+                          .toLowerCase()
+                          .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+                          .replace(/[-_]/g, ' ')
+                          .split(' ')
+                          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                          .join(' ');
+                      };
+                      
+                      const cardName = getCardNameFromUrl(result.card.frontImage);
+                      io.to(gameId).emit('personaggio-enters', {
+                        cardName,
+                        message: 'SI UNISCE ALLA ZUFFA',
+                        playerName: nextPlayer,
+                        cardImage: result.card.frontImage
+                      });
+                    }
+                    break;
+                    
+                  case 'mosse-attack':
+                    io.to(gameId).emit('card-attacked', {
+                      mosseCardId: cpuAction.data.mosseCardId,
+                      targetCardId: cpuAction.data.targetCardId,
+                      attackerName: cpuAction.data.attackerName,
+                      targetOwner: cpuAction.data.targetOwner,
+                      timestamp: Date.now()
+                    });
+                    break;
+                }
+                
+                // After CPU action, automatically end their turn
+                setTimeout(() => {
+                  const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
+                  if (nextAfterCPU) {
+                    io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                  }
+                }, 1500); // Give time to see CPU's action
+                
+              } else {
+                // CPU had no valid actions, just end turn
+                const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
+                if (nextAfterCPU) {
+                  io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                }
+              }
+            } catch (error) {
+              console.error(`Error processing CPU turn for ${nextPlayer}:`, error);
+              // If CPU fails, just end their turn
+              const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
+              if (nextAfterCPU) {
+                io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+              }
+            }
+          }, 3000); // 3 second delay to show "TOCCA A TE" message for CPU
+        }
       }
     });
 
