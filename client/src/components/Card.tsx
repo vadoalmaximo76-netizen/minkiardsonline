@@ -144,6 +144,26 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   };
 
   const isOwner = card.owner === playerName;
+  
+  // Helper function to get card name from image URL
+  const getCardName = (imageUrl: string) => {
+    try {
+      const url = new URL(imageUrl);
+      const pathname = url.pathname;
+      const filename = pathname.split('/').pop() || '';
+      return filename.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase();
+    } catch {
+      return '';
+    }
+  };
+  
+  // Check if this is the MINKIARD N 300 card
+  const isMinkiard300 = getCardName(card.frontImage) === 'MINKIARD N 300';
+  
+  const handleSuperDice = () => {
+    socket.emit('open-super-dice', { gameId, playerName });
+  };
+  
   const otherPlayers = Object.keys(gameState?.players || {}).filter(p => p !== playerName);
   const isShaking = shakingCards.has(card.id);
   const isMosseSelected = selectedMosseCard?.id === card.id;
@@ -194,6 +214,20 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
             size="sm"
           >
             SCOPRI
+          </Button>
+        </div>
+      )}
+
+      {/* Super Dice button for MINKIARD N 300 card on field */}
+      {location === 'field' && isMinkiard300 && !card.faceDown && (
+        <div className="flex flex-col gap-1">
+          <Button
+            onClick={handleSuperDice}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-2 py-1"
+            size="sm"
+            style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
+          >
+            LANCIA IL SUPER DADO
           </Button>
         </div>
       )}
