@@ -68,17 +68,17 @@ export const RoundTable: React.FC = () => {
   const getPlayerPosition = (index: number, totalOtherPlayers: number) => {
     if (totalOtherPlayers === 0) return { x: 50, y: 50, angle: 0 };
     
-    // Define fixed positions around the rectangular perimeter with better spacing
+    // Define fixed positions around the rectangular perimeter with better spacing and buffer zones
     const positions = [
-      // Top positions
-      { x: 50, y: 12, angle: -90 },   // Top center
-      { x: 25, y: 15, angle: -135 },  // Top left
-      { x: 75, y: 15, angle: -45 },   // Top right
-      // Side positions with more spacing
-      { x: 12, y: 35, angle: 180 },   // Left side upper
-      { x: 88, y: 35, angle: 0 },     // Right side upper
-      { x: 12, y: 55, angle: 180 },   // Left side lower  
-      { x: 88, y: 55, angle: 0 },     // Right side lower
+      // Top positions (further from center to avoid deck overlap)
+      { x: 50, y: 8, angle: -90 },    // Top center
+      { x: 22, y: 12, angle: -135 },  // Top left
+      { x: 78, y: 12, angle: -45 },   // Top right
+      // Side positions with more spacing and buffer from edges
+      { x: 8, y: 30, angle: 180 },    // Left side upper
+      { x: 92, y: 30, angle: 0 },     // Right side upper
+      { x: 8, y: 60, angle: 180 },    // Left side lower  
+      { x: 92, y: 60, angle: 0 },     // Right side lower
     ];
     
     // For different player counts, select optimal positions
@@ -152,7 +152,7 @@ export const RoundTable: React.FC = () => {
     const cardCount = playerCards.length;
     if (cardCount === 0) return [];
     
-    const bottomY = 88; // Bottom position
+    const bottomY = 85; // Bottom position with more space
     const centerX = 50;
     
     if (cardCount === 1) {
