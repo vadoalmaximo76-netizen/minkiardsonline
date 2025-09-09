@@ -124,9 +124,9 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
       {/* Deck Browser Modal */}
       {showBrowser && (
         <div 
-          className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-95 flex items-center justify-center"
+          className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-90 flex items-center justify-center"
           style={{ 
-            zIndex: 9999999,
+            zIndex: 999999,
             position: 'fixed',
             inset: 0
           }}
@@ -134,10 +134,10 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
           <div 
             className="bg-gray-900 rounded-lg shadow-2xl border-2 border-gray-600"
             style={{ 
-              width: '1200px',
-              height: '650px',
-              maxWidth: '85vw',
-              maxHeight: '85vh',
+              width: '90vw',
+              height: '40vh',
+              minWidth: '1600px',
+              minHeight: '400px',
               position: 'relative'
             }}
           >
@@ -161,17 +161,17 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
                 height: 'calc(100% - 80px)'
               }}
             >
-              <div className="grid grid-cols-8 gap-3">
+              <div className="grid grid-cols-10 gap-1">
                 {getSortedCards().map((card, index) => (
-                  <div key={card.id} className="flex flex-col items-center bg-gray-700 rounded p-2 hover:bg-gray-600 cursor-pointer">
+                  <div key={card.id} className="flex flex-col items-center bg-gray-700 rounded p-1 hover:bg-gray-600 cursor-pointer">
                     <img
                       src={card.frontImage}
                       alt="Card"
-                      className="w-full aspect-[3/4] object-cover rounded border border-gray-500 hover:border-white transition-all"
+                      className="w-full h-20 object-cover rounded border border-gray-500 hover:border-white transition-all"
                       onClick={() => handleCardClick(card)}
                     />
                     <span className="text-white text-xs mt-1 text-center truncate w-full">
-                      {card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').substring(0, 10)}
+                      {card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').substring(0, 8)}
                     </span>
                   </div>
                 ))}
