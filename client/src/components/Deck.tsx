@@ -122,25 +122,26 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
 
       {/* Deck Browser Modal */}
       {showBrowser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-lg p-6 max-w-4xl w-full max-h-[80vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-white font-bold text-lg" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>Scegli una carta da {name}</h3>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2">
+          <div className="bg-gray-800 rounded-lg p-4 max-w-[95vw] w-full max-h-[95vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-white font-bold text-xl" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>Scegli una carta da {name}</h3>
               <Button
                 onClick={() => setShowBrowser(false)}
                 className="bg-red-600 hover:bg-red-700 text-white px-4 py-2"
+                style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 Chiudi
               </Button>
             </div>
             
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-7 lg:grid-cols-9 xl:grid-cols-11 2xl:grid-cols-13 gap-2 md:gap-3">
               {getSortedCards().map((card) => (
                 <div key={card.id} className="flex flex-col items-center">
                   <img
                     src={card.frontImage}
                     alt="Card"
-                    className="w-20 h-28 rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg"
+                    className="w-24 h-32 sm:w-28 sm:h-36 md:w-32 md:h-40 rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg"
                     onClick={() => handleCardClick(card)}
                   />
                 </div>
