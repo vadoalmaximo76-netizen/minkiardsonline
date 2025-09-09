@@ -348,26 +348,26 @@ export const RoundTable: React.FC = () => {
       </div>
 
       {/* CARTE IN CAMPO section for all players */}
-      <div className="mt-8">
-        <h3 className="text-white font-bold text-xl mb-4 text-center">CARTE IN CAMPO</h3>
-        <div className="bg-blue-800/30 rounded-lg p-4">
+      <div className="mt-4 md:mt-8">
+        <h3 className="text-white font-bold text-lg md:text-xl mb-2 md:mb-4 text-center">CARTE IN CAMPO</h3>
+        <div className="bg-blue-800/30 rounded-lg p-2 md:p-4">
           {allPlayerNames.length > 0 ? (
             allPlayerNames.map((player) => {
               const playerCards = cardsByPlayer[player] || [];
               const isCurrentPlayer = player === playerName;
               
               return (
-                <div key={player} className="mb-4 last:mb-0">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className={`font-semibold ${isCurrentPlayer ? 'text-yellow-400' : 'text-white'}`}>
+                <div key={player} className="mb-3 md:mb-4 last:mb-0">
+                  <div className="flex items-center justify-between mb-1 md:mb-2">
+                    <h4 className={`font-semibold text-sm md:text-base ${isCurrentPlayer ? 'text-yellow-400' : 'text-white'}`}>
                       {player} {isCurrentPlayer && '(Tu)'}
                     </h4>
-                    <span className="text-white/60 text-sm">
+                    <span className="text-white/60 text-xs md:text-sm">
                       {playerCards.length} carte
                     </span>
                   </div>
                   
-                  <div className="flex gap-2 flex-wrap">
+                  <div className="flex gap-1 md:gap-2 flex-wrap">
                     {playerCards.length > 0 ? (
                       playerCards.map((card, index) => (
                         <div key={card.id} className="flex items-center gap-1">
@@ -376,15 +376,15 @@ export const RoundTable: React.FC = () => {
                             <Button
                               onClick={() => handleMoveCard(card.id, 'left')}
                               disabled={index === 0}
-                              className="p-1 h-6 w-6 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
+                              className="p-1 h-4 w-4 md:h-6 md:w-6 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
                               size="sm"
                             >
-                              <ChevronLeft size={12} />
+                              <ChevronLeft size={8} className="md:w-3 md:h-3" />
                             </Button>
                           )}
                           
                           {/* Card */}
-                          <div className="scale-75">
+                          <div className="scale-50 sm:scale-60 md:scale-75">
                             <Card
                               card={card}
                               location="field"
@@ -396,10 +396,10 @@ export const RoundTable: React.FC = () => {
                             <Button
                               onClick={() => handleMoveCard(card.id, 'right')}
                               disabled={index === playerCards.length - 1}
-                              className="p-1 h-6 w-6 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
+                              className="p-1 h-4 w-4 md:h-6 md:w-6 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
                               size="sm"
                             >
-                              <ChevronRight size={12} />
+                              <ChevronRight size={8} className="md:w-3 md:h-3" />
                             </Button>
                           )}
                         </div>

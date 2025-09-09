@@ -283,43 +283,43 @@ export const GameBoard: React.FC = () => {
       {/* Game content */}
       <div className="relative z-10">
         {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-4xl font-bold text-white">MINKIARDS</h1>
+        <div className="flex flex-col md:flex-row justify-between items-center mb-4 md:mb-6 gap-4">
+          <div className="text-center md:text-left">
+            <h1 className="text-2xl md:text-4xl font-bold text-white">MINKIARDS</h1>
             {gameId && gameId.startsWith('room-') && (
-              <p className="text-white/80 text-sm mt-1">
+              <p className="text-white/80 text-xs md:text-sm mt-1">
                 Stanza: {gameId.replace('room-', '')}
               </p>
             )}
           </div>
           <div className="flex flex-col gap-2">
             {/* First row: REGOLAMENTO and COMINCIA */}
-            <div className="flex gap-2 justify-end">
+            <div className="flex gap-1 md:gap-2 justify-center md:justify-end">
               <Button
                 onClick={() => window.open('https://minkiards.wixsite.com/minkiards/post/regolamento-ufficiale', '_blank')}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs md:text-sm px-2 md:px-4 py-1 md:py-2"
               >
                 REGOLAMENTO
               </Button>
               <Button
                 onClick={handleStartGame}
-                className="bg-green-600 hover:bg-green-700 text-white font-bold"
+                className="bg-green-600 hover:bg-green-700 text-white font-bold text-xs md:text-sm px-2 md:px-4 py-1 md:py-2"
               >
                 COMINCIA
               </Button>
             </div>
             
             {/* Second row: INVITA AMICI and RICOMINCIA PARTITA */}
-            <div className="flex gap-2 justify-end">
+            <div className="flex gap-1 md:gap-2 justify-center md:justify-end">
               <Button
                 onClick={shareInviteLink}
-                className="bg-sky-blue hover:bg-sky-blue/80 text-white font-bold"
+                className="bg-sky-blue hover:bg-sky-blue/80 text-white font-bold text-xs md:text-sm px-2 md:px-4 py-1 md:py-2"
               >
                 INVITA AMICI
               </Button>
               <Button
                 onClick={handleResetGame}
-                className="bg-red-600 hover:bg-red-700 text-white font-bold"
+                className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs md:text-sm px-2 md:px-4 py-1 md:py-2"
               >
                 RICOMINCIA PARTITA
               </Button>
@@ -344,15 +344,15 @@ export const GameBoard: React.FC = () => {
             initAudioContext();
             toggleMute();
           }}
-          className="fixed bottom-4 left-4 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-full p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
+          className="fixed bottom-2 md:bottom-4 left-2 md:left-4 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-full p-2 md:p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
           style={{ position: 'fixed' }}
           title={isMuted ? "Enable sound" : "Disable sound"}
         >
-          {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+          {isMuted ? <VolumeX size={16} className="md:w-6 md:h-6" /> : <Volume2 size={16} className="md:w-6 md:h-6" />}
         </Button>
 
         {/* Game controls */}
-        <div className="fixed bottom-4 right-4 flex flex-col gap-2 z-40">
+        <div className="fixed bottom-2 md:bottom-4 right-2 md:right-4 flex flex-col gap-1 md:gap-2 z-40">
           <Button
             onClick={() => {
               setChatOpen(!chatOpen);
@@ -360,12 +360,12 @@ export const GameBoard: React.FC = () => {
                 setUnreadMessages(0);
               }
             }}
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-3 shadow-lg hover:shadow-xl transition-all duration-200 relative"
+            className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200 relative"
             title="Chat"
           >
-            <MessageCircle size={24} />
+            <MessageCircle size={16} className="md:w-6 md:h-6" />
             {unreadMessages > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full text-xs w-6 h-6 flex items-center justify-center font-bold">
+              <span className="absolute -top-1 md:-top-2 -right-1 md:-right-2 bg-red-500 text-white rounded-full text-xs w-4 h-4 md:w-6 md:h-6 flex items-center justify-center font-bold">
                 {unreadMessages > 9 ? '9+' : unreadMessages}
               </span>
             )}
@@ -373,33 +373,33 @@ export const GameBoard: React.FC = () => {
           
           <Button
             onClick={() => setCalculatorOpen(!calculatorOpen)}
-            className="bg-green-600 hover:bg-green-700 text-white rounded-full p-3 shadow-lg hover:shadow-xl transition-all duration-200"
+            className="bg-green-600 hover:bg-green-700 text-white rounded-full p-2 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
             title="Calculator"
           >
-            <CalcIcon size={24} />
+            <CalcIcon size={16} className="md:w-6 md:h-6" />
           </Button>
           
           <Button
             onClick={() => setGraveyardOpen(true)}
-            className="bg-gray-600 hover:bg-gray-700 text-white rounded-full p-3 shadow-lg hover:shadow-xl transition-all duration-200"
+            className="bg-gray-600 hover:bg-gray-700 text-white rounded-full p-2 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
             title="Graveyard"
           >
-            <Skull size={24} />
+            <Skull size={16} className="md:w-6 md:h-6" />
           </Button>
           
           <Button
             onClick={() => setDiceOpen(true)}
-            className="bg-orange-600 hover:bg-orange-700 text-white rounded-full p-3 shadow-lg hover:shadow-xl transition-all duration-200"
+            className="bg-orange-600 hover:bg-orange-700 text-white rounded-full p-2 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
             title="Roll Dice"
           >
-            <Dice6 size={24} />
+            <Dice6 size={16} className="md:w-6 md:h-6" />
           </Button>
         </div>
 
         {/* Calculator */}
         {calculatorOpen && (
           <div 
-            className="fixed bottom-52 right-2 w-80 z-40 animate-in slide-in-from-right-5 fade-in duration-300"
+            className="fixed bottom-16 md:bottom-52 right-2 w-72 md:w-80 z-40 animate-in slide-in-from-right-5 fade-in duration-300"
             style={{ position: 'fixed' }}
           >
             <Calculator onClose={() => setCalculatorOpen(false)} />
@@ -409,7 +409,7 @@ export const GameBoard: React.FC = () => {
         {/* Chat */}
         {chatOpen && (
           <div 
-            className="fixed bottom-52 right-2 w-80 h-96 z-40 animate-in slide-in-from-right-5 fade-in duration-300"
+            className="fixed bottom-16 md:bottom-52 right-2 w-72 md:w-80 h-80 md:h-96 z-40 animate-in slide-in-from-right-5 fade-in duration-300"
             style={{ position: 'fixed' }}
           >
             <Chat onClose={() => setChatOpen(false)} />
@@ -467,20 +467,20 @@ export const GameBoard: React.FC = () => {
 
 
         {/* Add Cards and Leave Game Buttons - Bottom of page */}
-        <div className="mt-16 mb-8 flex justify-center gap-4">
+        <div className="mt-8 md:mt-16 mb-4 md:mb-8 flex flex-col sm:flex-row justify-center gap-2 md:gap-4 px-4">
           <Button
             onClick={() => setAddCardsModalOpen(true)}
-            className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold rounded-lg px-6 py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-3"
+            className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold rounded-lg px-4 md:px-6 py-2 md:py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 md:gap-3"
           >
-            <Plus size={24} />
-            AGGIUNGI CARTE
+            <Plus size={16} className="md:w-6 md:h-6" />
+            <span className="text-sm md:text-base">AGGIUNGI CARTE</span>
           </Button>
           <Button
             onClick={handleLeaveGame}
-            className="bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg px-6 py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-3"
+            className="bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg px-4 md:px-6 py-2 md:py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 md:gap-3"
           >
-            <X size={24} />
-            LASCIA LA PARTITA
+            <X size={16} className="md:w-6 md:h-6" />
+            <span className="text-sm md:text-base">LASCIA LA PARTITA</span>
           </Button>
         </div>
 
