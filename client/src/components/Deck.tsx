@@ -10,7 +10,7 @@ interface DeckProps {
 }
 
 export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
-  const { gameState, playerName, showBrowser: globalShowBrowser, setShowBrowser: setGlobalShowBrowser } = useGameState();
+  const { gameState, playerName } = useGameState();
   const [showBrowser, setShowBrowser] = useState(false);
   const [selectedCardForZoom, setSelectedCardForZoom] = useState<any>(null);
   const [isShuffling, setIsShuffling] = useState(false);
@@ -41,7 +41,6 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
     console.log('Setting showBrowser to true for deck:', name);
     console.log('Current cards in deck:', getSortedCards().length);
     setShowBrowser(true);
-    setGlobalShowBrowser(true);
   };
 
   const handleCardClick = (card: any) => {
@@ -52,7 +51,6 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
     socket.emit('choose-specific-card', { deckType: type, cardId, playerName });
     setSelectedCardForZoom(null);
     setShowBrowser(false);
-    setGlobalShowBrowser(false);
   };
 
   const handleCloseZoom = () => {
@@ -68,7 +66,6 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
     });
     setSelectedCardForZoom(null);
     setShowBrowser(false);
-    setGlobalShowBrowser(false);
   };
 
   // Function to extract filename from URL and sort alphabetically
@@ -152,10 +149,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
                 Scegli una carta da {name}
               </h3>
               <Button
-                onClick={() => {
-                  setShowBrowser(false);
-                  setGlobalShowBrowser(false);
-                }}
+                onClick={() => setShowBrowser(false)}
                 className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 text-lg font-bold rounded"
               >
                 CHIUDI
