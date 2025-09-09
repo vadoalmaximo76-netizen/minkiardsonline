@@ -487,10 +487,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('eliminate-personaggi', ({ cardId, playerName }) => {
+    socket.on('eliminate-personaggi', async ({ cardId, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
-        const result = gameManager.eliminatePersonaggi(gameId, cardId, playerName);
+        const result = await gameManager.eliminatePersonaggi(gameId, cardId, playerName);
         if (result.success) {
           const gameState = gameManager.getGameState(gameId);
           io.to(gameId).emit('game-state-update', gameState);
