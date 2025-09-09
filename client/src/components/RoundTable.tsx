@@ -18,13 +18,30 @@ export const RoundTable: React.FC = () => {
 
   // Determine player order for positioning around the table
   const getOrderedPlayers = () => {
+    let orderedList;
     if (turnOrder.length > 0) {
-      // Use turn order if available, excluding current player
-      return turnOrder.filter(name => name !== playerName);
+      // Use turn order if available
+      orderedList = [...turnOrder];
     } else {
-      // Fallback to all players except current player if no turn order yet
-      return allPlayerNames.filter(name => name !== playerName);
+      // Fallback to all players if no turn order yet
+      orderedList = [...allPlayerNames];
     }
+
+    // Find current player index
+    const currentPlayerIndex = orderedList.indexOf(playerName);
+    if (currentPlayerIndex === -1) return orderedList.filter(name => name !== playerName);
+
+    // Rearrange so current player is at bottom, others arranged clockwise starting from top
+    const reorderedPlayers = [];
+    const totalPlayers = orderedList.length;
+    
+    // Add other players in order, starting from the next player after current
+    for (let i = 1; i < totalPlayers; i++) {
+      const playerIndex = (currentPlayerIndex + i) % totalPlayers;
+      reorderedPlayers.push(orderedList[playerIndex]);
+    }
+    
+    return reorderedPlayers;
   };
 
   const otherPlayers = getOrderedPlayers();
@@ -47,20 +64,29 @@ export const RoundTable: React.FC = () => {
     });
   };
 
-  // Calculate positions for players around the table
-  const getPlayerPosition = (index: number, total: number) => {
-    // Start from the top and distribute evenly around the circle
-    const startAngle = -90; // Start from top
-    const angle = startAngle + (index * 360) / total;
-    const radius = 38; // Percentage from center - slightly closer to avoid edge overflow
+  // Calculate positions for other players around the table (current player is always at bottom)
+  const getPlayerPosition = (index: number, totalOtherPlayers: number) => {
+    // Distribute other players around the table, starting from top
+    // Leave bottom position for current player
+    const availableAngle = 270; // 360 - 90 degrees reserved for bottom
+    const startAngle = -135; // Start from top-left
+    
+    let angle;
+    if (totalOtherPlayers === 1) {
+      angle = -90; // Single other player at top
+    } else {
+      angle = startAngle + (index * availableAngle) / (totalOtherPlayers - 1);
+    }
+    
+    const radius = 38; // Percentage from center
     const x = 50 + radius * Math.cos((angle * Math.PI) / 180);
     const y = 50 + radius * Math.sin((angle * Math.PI) / 180);
     return { x, y, angle };
   };
 
   // Calculate individual card positions for a player's cards
-  const getCardPositions = (playerCards: any[], playerIndex: number, totalPlayers: number) => {
-    const playerPos = getPlayerPosition(playerIndex, totalPlayers);
+  const getCardPositions = (playerCards: any[], playerIndex: number, totalOtherPlayers: number) => {
+    const playerPos = getPlayerPosition(playerIndex, totalOtherPlayers);
     const cardCount = playerCards.length;
     
     if (cardCount === 0) return [];
@@ -77,6 +103,30 @@ export const RoundTable: React.FC = () => {
       const y = 50 + cardRadius * Math.sin((cardAngle * Math.PI) / 180);
       return { x, y, angle: cardAngle };
     });
+  };
+
+  // Calculate positions for current player's cards (always at bottom)
+  const getCurrentPlayerCardPositions = (playerCards: any[]) => {
+    const cardCount = playerCards.length;
+    if (cardCount === 0) return [];
+    
+    const bottomY = 88; // Bottom position
+    const centerX = 50;
+    
+    if (cardCount === 1) {
+      return [{ x: centerX, y: bottomY, angle: 0 }];
+    }
+    
+    // Spread cards horizontally at bottom
+    const cardSpacing = Math.min(8, 40 / cardCount); // Adjust spacing based on card count
+    const totalWidth = (cardCount - 1) * cardSpacing;
+    const startX = centerX - totalWidth / 2;
+    
+    return playerCards.map((_, cardIndex) => ({
+      x: startX + cardIndex * cardSpacing,
+      y: bottomY,
+      angle: 0
+    }));
   };
 
   // Calculate card size based on number of players
@@ -213,52 +263,71 @@ export const RoundTable: React.FC = () => {
           );
         })}
 
-        {/* Current Player's Field Cards Indicator */}
+        {/* Current Player's Field Cards (always at bottom) */}
         {cardsByPlayer[playerName] && cardsByPlayer[playerName].length > 0 && (
-          <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2">
-            <div className="text-center mb-2">
-              <span className="bg-yellow-600/80 text-white font-bold px-3 py-1 rounded-full text-sm shadow-lg">
-                Le tue carte in campo
+          <>
+            {/* Player Name at bottom */}
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+              <span className="bg-yellow-600/80 text-white font-bold px-2 py-1 rounded-full text-xs shadow-lg whitespace-nowrap">
+                {playerName} (Tu)
               </span>
             </div>
-            <div className={`flex gap-1 justify-center ${cardScale}`}>
-              {cardsByPlayer[playerName].map((card, index) => {
-                const playerCards = cardsByPlayer[playerName];
-                const canMoveLeft = index > 0;
-                const canMoveRight = index < playerCards.length - 1;
+            
+            {/* Current player's cards positioned individually */}
+            {(() => {
+              const currentPlayerCards = cardsByPlayer[playerName];
+              const cardPositions = getCurrentPlayerCardPositions(currentPlayerCards);
+              
+              return currentPlayerCards.map((card, cardIndex) => {
+                const cardPos = cardPositions[cardIndex];
+                if (!cardPos) return null;
+                
+                const canMoveLeft = cardIndex > 0;
+                const canMoveRight = cardIndex < currentPlayerCards.length - 1;
                 
                 return (
-                  <div key={card.id} className="flex items-center gap-1">
-                    {/* Left Arrow */}
-                    <Button
-                      onClick={() => handleMoveCard(card.id, 'left')}
-                      disabled={!canMoveLeft}
-                      className="p-1 h-6 w-6 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
-                      size="sm"
-                    >
-                      <ChevronLeft size={12} />
-                    </Button>
-                    
-                    {/* Card */}
-                    <Card
-                      card={card}
-                      location="field"
-                    />
-                    
-                    {/* Right Arrow */}
-                    <Button
-                      onClick={() => handleMoveCard(card.id, 'right')}
-                      disabled={!canMoveRight}
-                      className="p-1 h-6 w-6 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
-                      size="sm"
-                    >
-                      <ChevronRight size={12} />
-                    </Button>
+                  <div
+                    key={card.id}
+                    className="absolute transform -translate-x-1/2 -translate-y-1/2"
+                    style={{
+                      left: `${cardPos.x}%`,
+                      top: `${cardPos.y}%`,
+                    }}
+                  >
+                    <div className="flex items-center gap-1">
+                      {/* Left Arrow */}
+                      <Button
+                        onClick={() => handleMoveCard(card.id, 'left')}
+                        disabled={!canMoveLeft}
+                        className="p-1 h-5 w-5 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
+                        size="sm"
+                      >
+                        <ChevronLeft size={10} />
+                      </Button>
+                      
+                      {/* Card */}
+                      <div className={`${cardScale}`}>
+                        <Card
+                          card={card}
+                          location="field"
+                        />
+                      </div>
+                      
+                      {/* Right Arrow */}
+                      <Button
+                        onClick={() => handleMoveCard(card.id, 'right')}
+                        disabled={!canMoveRight}
+                        className="p-1 h-5 w-5 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
+                        size="sm"
+                      >
+                        <ChevronRight size={10} />
+                      </Button>
+                    </div>
                   </div>
                 );
-              })}
-            </div>
-          </div>
+              });
+            })()}
+          </>
         )}
       </div>
 
