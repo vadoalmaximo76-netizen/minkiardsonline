@@ -13,6 +13,7 @@ import { AddCardsModal } from "./AddCardsModal";
 import { PlayerOrderNotification } from "./PlayerOrderNotification";
 import { NextTurnNotification } from "./NextTurnNotification";
 import { LeaveGameNotification } from "./LeaveGameNotification";
+import { SuperDice } from "./SuperDice";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
@@ -47,6 +48,7 @@ export const GameBoard: React.FC = () => {
   const [nextTurnPlayer, setNextTurnPlayer] = useState<string>("");
   const [leaveGameVisible, setLeaveGameVisible] = useState(false);
   const [leavingPlayer, setLeavingPlayer] = useState<string>("");
+  const [superDiceOpen, setSuperDiceOpen] = useState(false);
   const { selectedCard, gameId, playerName, gameState } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, initAudioContext, toggleMute, isMuted } = useAudio();
 
@@ -233,6 +235,16 @@ export const GameBoard: React.FC = () => {
       setLeaveGameVisible(true);
     };
 
+    const handleOpenSuperDice = ({ playerName: dicePlayerName }: { playerName: string }) => {
+      console.log(`Super dice opened by ${dicePlayerName}`);
+      setSuperDiceOpen(true);
+    };
+
+    const handleSuperDiceRolled = ({ playerName: rollerName, rolledCard }: { playerName: string, rolledCard: any }) => {
+      console.log(`Super dice rolled by ${rollerName}:`, rolledCard);
+      // The dice will remain visible until closed
+    };
+
     socket.on('game-reset', handleGameReset);
     socket.on('card-shown', handleCardShown);
     socket.on('card-show-confirmed', handleCardShowConfirmed);
@@ -253,6 +265,8 @@ export const GameBoard: React.FC = () => {
     socket.on('game-started', handleGameStarted);
     socket.on('next-turn', handleNextTurn);
     socket.on('player-left', handlePlayerLeft);
+    socket.on('super-dice-opened', handleOpenSuperDice);
+    socket.on('super-dice-rolled', handleSuperDiceRolled);
 
     return () => {
       socket.off('game-reset', handleGameReset);
@@ -275,6 +289,8 @@ export const GameBoard: React.FC = () => {
       socket.off('game-started', handleGameStarted);
       socket.off('next-turn', handleNextTurn);
       socket.off('player-left', handlePlayerLeft);
+      socket.off('super-dice-opened', handleOpenSuperDice);
+      socket.off('super-dice-rolled', handleSuperDiceRolled);
     };
   }, []);
 
@@ -504,6 +520,14 @@ export const GameBoard: React.FC = () => {
         <AddCardsModal
           isOpen={addCardsModalOpen}
           onClose={() => setAddCardsModalOpen(false)}
+        />
+
+        {/* Super Dice Modal */}
+        <SuperDice
+          isOpen={superDiceOpen}
+          onClose={() => setSuperDiceOpen(false)}
+          gameId={gameId || ''}
+          playerName={playerName || ''}
         />
 
 
