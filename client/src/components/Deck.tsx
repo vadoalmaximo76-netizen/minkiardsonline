@@ -122,26 +122,30 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
 
       {/* Deck Browser Modal */}
       {showBrowser && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800 rounded-lg p-6 w-[98vw] h-[95vh] overflow-hidden">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-white font-bold text-2xl" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>Scegli una carta da {name}</h3>
-              <Button
-                onClick={() => setShowBrowser(false)}
-                className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 text-lg"
-                style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
-              >
-                Chiudi
-              </Button>
-            </div>
-            
-            <div className="flex overflow-x-auto gap-3 pb-4" style={{ height: 'calc(100% - 100px)' }}>
+        <div className="fixed inset-0 bg-black/90 z-50">
+          {/* Header */}
+          <div className="flex justify-between items-center p-6 bg-gray-900 border-b border-gray-700">
+            <h3 className="text-white font-bold text-3xl" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+              Scegli una carta da {name}
+            </h3>
+            <Button
+              onClick={() => setShowBrowser(false)}
+              className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 text-xl font-bold"
+              style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
+            >
+              Chiudi
+            </Button>
+          </div>
+          
+          {/* Cards Container */}
+          <div className="h-full overflow-x-auto overflow-y-hidden p-6" style={{ height: 'calc(100vh - 120px)' }}>
+            <div className="flex gap-4 h-full items-center">
               {getSortedCards().map((card) => (
-                <div key={card.id} className="flex-shrink-0 flex flex-col items-center">
+                <div key={card.id} className="flex-shrink-0">
                   <img
                     src={card.frontImage}
                     alt="Card"
-                    className="w-24 h-32 sm:w-28 sm:h-36 md:w-32 md:h-40 lg:w-36 lg:h-48 rounded-lg cursor-pointer hover:scale-110 transition-transform shadow-lg"
+                    className="w-32 h-44 rounded-lg cursor-pointer hover:scale-110 transition-all duration-200 shadow-2xl hover:shadow-white/20"
                     onClick={() => handleCardClick(card)}
                   />
                 </div>
