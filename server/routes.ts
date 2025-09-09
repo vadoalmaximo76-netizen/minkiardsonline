@@ -129,6 +129,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   }, 1000);
                   break;
                   
+                case 'play-card-for-attack':
+                  console.log(`CPU ${cpuName} playing MOSSE card for attack`);
+                  const attackPlayResult = await gameManager.playCard(gameId, currentAction.data.cardId, currentAction.data.playerName);
+                  const attackGameState = gameManager.getSanitizedGameState(gameId);
+                  io.to(gameId).emit('game-state-update', attackGameState);
+                  
+                  // After playing the card, execute the attack
+                  setTimeout(() => {
+                    console.log(`CPU ${cpuName} now executing attack with played card`);
+                    io.to(gameId).emit('card-attacked', {
+                      mosseCardId: currentAction.data.cardId,
+                      targetCardId: currentAction.data.targetCardId,
+                      attackerName: currentAction.data.playerName,
+                      targetOwner: currentAction.data.targetOwner,
+                      timestamp: Date.now()
+                    });
+                  }, 1500); // Short delay to let the card be visible on field first
+                  break;
+                  
                 case 'pick-card-and-end-opening':
                   console.log(`CPU ${cpuName} picking replacement and ending opening sequence`);
                   const replacementSuccess = await gameManager.pickCard(gameId, currentAction.data.deckType, currentAction.data.playerName);

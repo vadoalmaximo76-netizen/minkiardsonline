@@ -406,24 +406,36 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         break;
 
       case 'attack':
-        // Find a move card and attack specified target
+        // Find a move card and target card
         const moveCard = cpuPlayer.hand.find((c: any) => c.type === 'mosse');
         const targetCard = gameState.field.find((c: any) => c.id === action.target);
         
         if (moveCard && targetCard) {
-          console.log(`CPU ${this.playerName} attacking with: ${moveCard.id}`);
+          // CPU must first play the MOSSE card on the field, then use it
+          console.log(`CPU ${this.playerName} needs to play MOSSE card first: ${moveCard.id}`);
+          
+          // Get card name for announcement
+          const cardName = this.getCardNameFromUrl(moveCard.frontImage);
+          const targetName = this.getCardNameFromUrl(targetCard.frontImage);
+          
+          this.sendChatMessage(`Gioco la carta MOSSE "${cardName}" e la uso per attaccare ${targetName}!`);
+          
           return {
-            type: 'mosse-attack',
+            type: 'play-card-for-attack',
             data: {
-              mosseCardId: moveCard.id,
+              cardId: moveCard.id,
+              playerName: this.playerName,
               targetCardId: action.target,
-              attackerName: this.playerName,
-              targetOwner: targetCard.owner
+              targetOwner: targetCard.owner,
+              cardName,
+              targetName
             }
           };
         } else {
           // Fallback to playing the move card normally
           if (moveCard) {
+            const cardName = this.getCardNameFromUrl(moveCard.frontImage);
+            this.sendChatMessage(`Gioco la carta MOSSE "${cardName}" sul campo.`);
             return {
               type: 'play-card',
               data: {
@@ -928,6 +940,21 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     
     const handAnalysis = this.analyzeHandForGameRules(cpuPlayer.hand || []);
     return this.decideCardToPickBasedOnRules(gameState, handAnalysis);
+  }
+
+  // Helper function to extract card name from URL
+  getCardNameFromUrl(url: string): string {
+    if (!url) return "Carta Sconosciuta";
+    
+    const parts = url.split('/');
+    const filename = parts[parts.length - 1];
+    return filename
+      .toLowerCase()
+      .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+      .replace(/[-_]/g, ' ')
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   }
 
   // Check if this is the opening sequence
