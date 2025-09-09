@@ -155,7 +155,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         <img
           src={showBack || card.faceDown ? card.backImage : card.frontImage}
           alt="Card"
-          className={`w-20 h-28 rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg 
+          className={`w-20 h-28 rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg object-contain
             ${isShaking ? 'animate-shake' : ''} 
             ${isMosseSelected ? 'ring-4 ring-red-500 ring-opacity-70' : ''}
             ${card.faceDown ? 'ring-2 ring-orange-400 ring-opacity-50' : ''}`}

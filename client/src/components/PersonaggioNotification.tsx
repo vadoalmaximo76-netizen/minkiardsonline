@@ -24,7 +24,7 @@ export const PersonaggioNotification: React.FC<PersonaggioNotificationProps> = (
             <img
               src={cardImage}
               alt={cardName}
-              className="w-32 h-44 rounded-lg border-4 border-orange-500 shadow-2xl"
+              className="w-32 h-44 rounded-lg border-4 border-orange-500 shadow-2xl object-contain"
               style={{
                 filter: 'drop-shadow(0 0 20px rgba(255, 165, 0, 0.8))',
                 animation: 'zoom-pulse 1s ease-in-out infinite alternate'
