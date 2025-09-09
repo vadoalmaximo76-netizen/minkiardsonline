@@ -93,12 +93,12 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
         <img
           src={backImage}
           alt={`${name} back`}
-          className={`w-28 h-40 rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg ${isShuffling ? 'animate-shuffle' : ''}`}
+          className={`w-20 h-28 rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg ${isShuffling ? 'animate-shuffle' : ''}`}
           onClick={handlePickCard}
         />
         
         {/* Card count */}
-        <div className="absolute -bottom-2 -right-2 bg-white text-black rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">
+        <div className="absolute -bottom-1 -right-1 bg-white text-black rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs">
           {remainingCards}
         </div>
       </div>
@@ -106,13 +106,13 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
       <div className="flex flex-col gap-2">
         <Button
           onClick={handleShuffle}
-          className="bg-sky-blue hover:bg-sky-blue/80 text-white font-bold px-4 py-2"
+          className="bg-sky-blue hover:bg-sky-blue/80 text-white font-bold px-2 py-1 text-xs"
         >
           MISCHIA
         </Button>
         <Button
           onClick={handleChooseCard}
-          className="bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2"
+          className="bg-green-600 hover:bg-green-700 text-white font-bold px-2 py-1 text-xs"
         >
           SCEGLI
         </Button>
