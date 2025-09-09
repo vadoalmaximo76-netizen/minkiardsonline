@@ -68,17 +68,22 @@ export const RoundTable: React.FC = () => {
   const getPlayerPosition = (index: number, totalOtherPlayers: number) => {
     if (totalOtherPlayers === 0) return { x: 50, y: 50, angle: 0 };
     
-    // Define fixed positions around the rectangular perimeter with better spacing and buffer zones
+    // Define fixed positions around the rectangular perimeter with extra buffer for mobile
+    // Check if mobile portrait mode (narrow screen)
+    const isMobile = window.innerWidth < 768;
+    const isPortrait = window.innerHeight > window.innerWidth;
+    const mobileBuffer = isMobile && isPortrait ? 6 : 0; // Extra buffer for mobile portrait
+    
     const positions = [
-      // Top positions (further from center to avoid deck overlap)
-      { x: 50, y: 8, angle: -90 },    // Top center
-      { x: 22, y: 12, angle: -135 },  // Top left
-      { x: 78, y: 12, angle: -45 },   // Top right
-      // Side positions with more spacing and buffer from edges
-      { x: 8, y: 30, angle: 180 },    // Left side upper
-      { x: 92, y: 30, angle: 0 },     // Right side upper
-      { x: 8, y: 60, angle: 180 },    // Left side lower  
-      { x: 92, y: 60, angle: 0 },     // Right side lower
+      // Top positions (much further from center to avoid deck overlap on mobile)
+      { x: 50, y: Math.max(5, 8 - mobileBuffer), angle: -90 },    // Top center
+      { x: 18 + mobileBuffer, y: Math.max(8, 12 - mobileBuffer), angle: -135 },  // Top left
+      { x: 82 - mobileBuffer, y: Math.max(8, 12 - mobileBuffer), angle: -45 },   // Top right
+      // Side positions with much more spacing and buffer from center
+      { x: Math.max(4, 8 - mobileBuffer), y: 25 + mobileBuffer, angle: 180 },    // Left side upper
+      { x: Math.min(96, 92 + mobileBuffer), y: 25 + mobileBuffer, angle: 0 },     // Right side upper
+      { x: Math.max(4, 8 - mobileBuffer), y: 65 + mobileBuffer, angle: 180 },    // Left side lower  
+      { x: Math.min(96, 92 + mobileBuffer), y: 65 + mobileBuffer, angle: 0 },     // Right side lower
     ];
     
     // For different player counts, select optimal positions
@@ -109,7 +114,12 @@ export const RoundTable: React.FC = () => {
     if (cardCount === 1) return [playerPos];
     
     // For multiple cards, spread them horizontally or vertically based on position
-    const spacing = Math.max(4, Math.min(8, 40 / cardCount)); // Improved adaptive spacing with minimum
+    // Reduce spacing on mobile to prevent deck overlap
+    const isMobile = window.innerWidth < 768;
+    const isPortrait = window.innerHeight > window.innerWidth;
+    const maxSpacing = isMobile && isPortrait ? 30 : 40;
+    const minSpacing = isMobile && isPortrait ? 3 : 4;
+    const spacing = Math.max(minSpacing, Math.min(6, maxSpacing / cardCount)); // Tighter spacing on mobile
     
     return playerCards.map((_, cardIndex) => {
       const offset = (cardIndex - (cardCount - 1) / 2) * spacing;
@@ -152,7 +162,7 @@ export const RoundTable: React.FC = () => {
     const cardCount = playerCards.length;
     if (cardCount === 0) return [];
     
-    const bottomY = 85; // Bottom position with more space
+    const bottomY = 82; // Bottom position with even more space for mobile
     const centerX = 50;
     
     if (cardCount === 1) {
@@ -160,7 +170,12 @@ export const RoundTable: React.FC = () => {
     }
     
     // Spread cards horizontally at bottom
-    const cardSpacing = Math.max(6, Math.min(12, 50 / cardCount)); // Improved spacing with minimum
+    // Tighter spacing on mobile to prevent overflow
+    const isMobile = window.innerWidth < 768;
+    const isPortrait = window.innerHeight > window.innerWidth;
+    const maxSpacing = isMobile && isPortrait ? 40 : 50;
+    const minSpacing = isMobile && isPortrait ? 4 : 6;
+    const cardSpacing = Math.max(minSpacing, Math.min(10, maxSpacing / cardCount)); // Tighter spacing on mobile
     const totalWidth = (cardCount - 1) * cardSpacing;
     const startX = centerX - totalWidth / 2;
     
