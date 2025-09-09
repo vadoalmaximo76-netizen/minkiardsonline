@@ -1,6 +1,7 @@
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from '../client/src/lib/cardData';
 import { db } from './db';
 import { matches, gameEvents, type InsertMatch, type InsertGameEvent } from '../shared/schema';
+import { eq } from 'drizzle-orm';
 import { CPUPlayer } from './cpuPlayer';
 
 interface Card {
@@ -12,6 +13,7 @@ interface Card {
   text?: string;
   eliminatedBy?: string;
   faceDown?: boolean;
+  section?: string;
 }
 
 interface Player {
@@ -174,7 +176,7 @@ export class GameManager {
           duration,
           players: playerList
         })
-        .where({ id: game.matchId });
+        .where(eq(matches.id, game.matchId));
 
     } catch (error) {
       console.error('Failed to complete match:', error);

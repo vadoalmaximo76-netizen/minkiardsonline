@@ -121,11 +121,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('pick-card', ({ deckType, playerName }) => {
+    socket.on('pick-card', async ({ deckType, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
-        const success = gameManager.pickCard(gameId, deckType, playerName);
-        if (success === true) {
+        const success = await gameManager.pickCard(gameId, deckType, playerName);
+        if (success) {
           const gameState = gameManager.getGameState(gameId);
           io.to(gameId).emit('game-state-update', gameState);
         }
