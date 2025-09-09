@@ -187,40 +187,41 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
           className="fixed inset-0 bg-black/95 flex items-center justify-center p-4"
           style={{ zIndex: 999999999 }}
         >
-          <div className="bg-gray-800 rounded-xl p-8 max-w-lg w-full text-center border-2 border-white/20">
+          <div className="bg-gray-800 rounded-xl p-6 text-center border-2 border-white/20" style={{ width: '500px', height: '500px' }}>
             {/* Card Name */}
-            <h4 className="text-white font-bold text-xl mb-4" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+            <h4 className="text-white font-bold text-lg mb-3" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
               {selectedCardForZoom.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase()}
             </h4>
             
             {/* Large Card Image */}
-            <div className="mb-6">
+            <div className="mb-4 flex items-center justify-center" style={{ height: '280px' }}>
               <img
                 src={selectedCardForZoom.frontImage}
                 alt="Selected Card"
-                className="w-64 h-auto rounded-xl mx-auto shadow-2xl border-2 border-white/10"
+                className="max-w-full max-h-full rounded-xl shadow-2xl border-2 border-white/10"
+                style={{ objectFit: 'contain' }}
               />
             </div>
             
             {/* Action Buttons */}
-            <div className="flex gap-3 justify-center">
+            <div className="flex flex-col gap-2">
               <Button
                 onClick={() => handleCardSelect(selectedCardForZoom.id)}
-                className="bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-3 text-lg rounded-lg"
+                className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 text-sm rounded-lg w-full"
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 PESCA QUESTA CARTA
               </Button>
               <Button
                 onClick={() => handleRemoveCard(selectedCardForZoom.id)}
-                className="bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-3 text-lg rounded-lg"
+                className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 text-sm rounded-lg w-full"
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 ELIMINA CARTA
               </Button>
               <Button
                 onClick={handleCloseZoom}
-                className="bg-gray-600 hover:bg-gray-700 text-white font-bold px-6 py-3 text-lg rounded-lg"
+                className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 text-sm rounded-lg w-full"
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 Chiudi
