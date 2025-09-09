@@ -37,6 +37,10 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
   };
 
   const handleChooseCard = () => {
+    console.log('SCEGLI clicked, setting showBrowser to true');
+    console.log('Current gameState:', gameState);
+    console.log('Deck type:', type);
+    console.log('Available cards:', gameState?.decks?.[type]?.length || 0);
     setShowBrowser(true);
   };
 
@@ -121,6 +125,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
       </div>
 
       {/* Deck Browser Modal */}
+      {console.log('Rendering modal, showBrowser:', showBrowser)}
       {showBrowser && (
         <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center">
           <div className="bg-gray-900 rounded-lg overflow-hidden" style={{ width: '1270px', height: '720px' }}>
