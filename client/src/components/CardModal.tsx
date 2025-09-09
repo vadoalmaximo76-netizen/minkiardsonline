@@ -156,6 +156,22 @@ export const CardModal: React.FC = () => {
               >
                 METTI NEL CIMITERO
               </Button>
+
+              {/* CEDI buttons for field cards */}
+              {players.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-white text-sm">CEDI A:</p>
+                  {players.map((player) => (
+                    <Button
+                      key={player}
+                      onClick={() => handleCedi(player)}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2"
+                    >
+                      {player}
+                    </Button>
+                  ))}
+                </div>
+              )}
             </>
           )}
 
