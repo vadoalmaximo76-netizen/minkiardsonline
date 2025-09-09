@@ -352,7 +352,7 @@ export const GameBoard: React.FC = () => {
         </Button>
 
         {/* Game controls */}
-        <div className="fixed bottom-4 left-4 flex flex-col gap-2 z-40">
+        <div className="fixed bottom-4 right-4 flex flex-col gap-2 z-40">
           <Button
             onClick={() => {
               setChatOpen(!chatOpen);
@@ -399,7 +399,7 @@ export const GameBoard: React.FC = () => {
         {/* Calculator */}
         {calculatorOpen && (
           <div 
-            className="fixed bottom-52 left-2 w-80 z-40 animate-in slide-in-from-left-5 fade-in duration-300"
+            className="fixed bottom-52 right-2 w-80 z-40 animate-in slide-in-from-right-5 fade-in duration-300"
             style={{ position: 'fixed' }}
           >
             <Calculator onClose={() => setCalculatorOpen(false)} />
