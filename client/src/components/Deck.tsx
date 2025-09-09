@@ -127,8 +127,8 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
       {/* Deck Browser Modal */}
       {console.log('Rendering modal, showBrowser:', showBrowser)}
       {showBrowser && (
-        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center">
-          <div className="bg-gray-900 rounded-lg overflow-hidden" style={{ width: '1270px', height: '720px' }}>
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center" style={{ zIndex: 9999 }}>
+          <div className="bg-gray-900 rounded-lg overflow-hidden max-w-[95vw] max-h-[95vh]" style={{ width: 'min(1270px, 95vw)', height: 'min(720px, 95vh)' }}>
             {/* Header */}
             <div className="flex justify-between items-center p-4 bg-gray-900 border-b border-gray-700">
               <h3 className="text-white font-bold text-2xl" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
