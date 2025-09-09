@@ -49,11 +49,34 @@ export const RoundTable: React.FC = () => {
 
   // Calculate positions for players around the table
   const getPlayerPosition = (index: number, total: number) => {
-    const angle = (index * 360) / total;
-    const radius = 45; // Percentage from center
+    // Start from the top and distribute evenly around the circle
+    const startAngle = -90; // Start from top
+    const angle = startAngle + (index * 360) / total;
+    const radius = 38; // Percentage from center - slightly closer to avoid edge overflow
     const x = 50 + radius * Math.cos((angle * Math.PI) / 180);
     const y = 50 + radius * Math.sin((angle * Math.PI) / 180);
     return { x, y, angle };
+  };
+
+  // Calculate individual card positions for a player's cards
+  const getCardPositions = (playerCards: any[], playerIndex: number, totalPlayers: number) => {
+    const playerPos = getPlayerPosition(playerIndex, totalPlayers);
+    const cardCount = playerCards.length;
+    
+    if (cardCount === 0) return [];
+    if (cardCount === 1) return [playerPos];
+    
+    // For multiple cards, spread them in an arc around the player's position
+    const arcSpan = Math.min(45, cardCount * 8); // Maximum arc of 45 degrees
+    const startAngle = playerPos.angle - arcSpan / 2;
+    
+    return playerCards.map((_, cardIndex) => {
+      const cardAngle = startAngle + (cardIndex * arcSpan) / (cardCount - 1);
+      const cardRadius = playerPos.angle >= -45 && playerPos.angle <= 135 ? 40 : 36; // Adjust radius based on position
+      const x = 50 + cardRadius * Math.cos((cardAngle * Math.PI) / 180);
+      const y = 50 + cardRadius * Math.sin((cardAngle * Math.PI) / 180);
+      return { x, y, angle: cardAngle };
+    });
   };
 
   // Calculate card size based on number of players
@@ -127,43 +150,65 @@ export const RoundTable: React.FC = () => {
         </div>
 
         {/* Other Players' Cards around the table */}
-        {otherPlayers.map((player, index) => {
-          const position = getPlayerPosition(index, otherPlayers.length);
+        {otherPlayers.map((player, playerIndex) => {
           const playerCards = cardsByPlayer[player] || [];
+          const cardPositions = getCardPositions(playerCards, playerIndex, otherPlayers.length);
+          const playerPosition = getPlayerPosition(playerIndex, otherPlayers.length);
           
           return (
-            <div
-              key={player}
-              className="absolute transform -translate-x-1/2 -translate-y-1/2"
-              style={{
-                left: `${position.x}%`,
-                top: `${position.y}%`,
-              }}
-            >
+            <div key={player}>
               {/* Player Name */}
-              <div className="text-center mb-2">
-                <span className="bg-blue-800/80 text-white font-bold px-3 py-1 rounded-full text-sm shadow-lg">
+              <div
+                className="absolute transform -translate-x-1/2 -translate-y-1/2"
+                style={{
+                  left: `${playerPosition.x}%`,
+                  top: `${playerPosition.y}%`,
+                }}
+              >
+                <span className="bg-blue-800/80 text-white font-bold px-2 py-1 rounded-full text-xs shadow-lg whitespace-nowrap">
                   {player}
                 </span>
               </div>
               
-              {/* Player's Cards */}
-              <div className={`flex gap-1 justify-center ${cardScale}`}>
-                {playerCards.length > 0 ? (
-                  playerCards.map((card) => (
-                    <div key={card.id} className="transform">
-                      <Card
-                        card={card}
-                        location="field"
-                      />
+              {/* Player's Cards positioned individually */}
+              {playerCards.length > 0 ? (
+                playerCards.map((card, cardIndex) => {
+                  const cardPos = cardPositions[cardIndex];
+                  if (!cardPos) return null;
+                  
+                  return (
+                    <div
+                      key={card.id}
+                      className="absolute transform -translate-x-1/2 -translate-y-1/2"
+                      style={{
+                        left: `${cardPos.x}%`,
+                        top: `${cardPos.y}%`,
+                        transform: `translate(-50%, -50%) rotate(${cardPos.angle + 90}deg)`,
+                      }}
+                    >
+                      <div className={`${cardScale}`}>
+                        <Card
+                          card={card}
+                          location="field"
+                        />
+                      </div>
                     </div>
-                  ))
-                ) : (
+                  );
+                })
+              ) : (
+                // Show "no cards" message at player position
+                <div
+                  className="absolute transform -translate-x-1/2 -translate-y-1/2"
+                  style={{
+                    left: `${playerPosition.x}%`,
+                    top: `${playerPosition.y + 8}%`,
+                  }}
+                >
                   <div className="text-white/60 text-xs italic">
                     Nessuna carta
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           );
         })}
