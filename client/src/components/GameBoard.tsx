@@ -279,13 +279,22 @@ export const GameBoard: React.FC = () => {
           backgroundImage: 'url(https://files.123freevectors.com/wp-content/original/113342-royal-blue-blurred-background-vector.jpg)'
         }}
       />
+
+      {/* Portrait mode message - only show on mobile portrait */}
+      <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 portrait:flex landscape:hidden sm:hidden">
+        <div className="text-center text-white">
+          <div className="text-6xl mb-4">📱</div>
+          <h2 className="text-xl font-bold mb-2">Ruota il dispositivo</h2>
+          <p className="text-sm opacity-80">Per la migliore esperienza di gioco, ruota il tuo smartphone in modalità orizzontale</p>
+        </div>
+      </div>
       
       {/* Game content */}
       <div className="relative z-10">
         {/* Header */}
         <div className="flex flex-col landscape:flex-row md:flex-row justify-between items-center mb-4 md:mb-6 gap-4">
           <div className="text-center landscape:text-left md:text-left">
-            <h1 className="text-2xl landscape:text-3xl md:text-4xl font-bold text-white">MINKIARDS</h1>
+            <h1 className="text-2xl landscape:text-4xl md:text-4xl font-bold text-white">MINKIARDS</h1>
             {gameId && gameId.startsWith('room-') && (
               <p className="text-white/80 text-xs landscape:text-sm md:text-sm mt-1">
                 Stanza: {gameId.replace('room-', '')}
@@ -297,13 +306,13 @@ export const GameBoard: React.FC = () => {
             <div className="flex gap-1 landscape:gap-2 md:gap-2 justify-center landscape:justify-end md:justify-end">
               <Button
                 onClick={() => window.open('https://minkiards.wixsite.com/minkiards/post/regolamento-ufficiale', '_blank')}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-3 md:px-4 py-1 landscape:py-2 md:py-2"
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
               >
                 REGOLAMENTO
               </Button>
               <Button
                 onClick={handleStartGame}
-                className="bg-green-600 hover:bg-green-700 text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-3 md:px-4 py-1 landscape:py-2 md:py-2"
+                className="bg-green-600 hover:bg-green-700 text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
               >
                 COMINCIA
               </Button>
@@ -313,13 +322,13 @@ export const GameBoard: React.FC = () => {
             <div className="flex gap-1 landscape:gap-2 md:gap-2 justify-center landscape:justify-end md:justify-end">
               <Button
                 onClick={shareInviteLink}
-                className="bg-sky-blue hover:bg-sky-blue/80 text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-3 md:px-4 py-1 landscape:py-2 md:py-2"
+                className="bg-sky-blue hover:bg-sky-blue/80 text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
               >
                 INVITA AMICI
               </Button>
               <Button
                 onClick={handleResetGame}
-                className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-3 md:px-4 py-1 landscape:py-2 md:py-2"
+                className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
               >
                 RICOMINCIA PARTITA
               </Button>

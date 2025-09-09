@@ -191,7 +191,7 @@ export const RoundTable: React.FC = () => {
 
   return (
     <div className="mb-4 md:mb-8">
-      <h2 className="text-white font-bold text-lg md:text-2xl mb-2 md:mb-4 text-center">TAVOLO DA GIOCO</h2>
+      <h2 className="text-white font-bold text-lg landscape:text-2xl md:text-2xl mb-2 landscape:mb-4 md:mb-4 text-center">TAVOLO DA GIOCO</h2>
       
       {/* Rectangular Table Container */}
       <div 
