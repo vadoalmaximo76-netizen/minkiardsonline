@@ -64,24 +64,40 @@ export const RoundTable: React.FC = () => {
     });
   };
 
-  // Calculate positions for other players around the table (current player is always at bottom)
+  // Calculate positions for other players around the rectangular table (current player is always at bottom)
   const getPlayerPosition = (index: number, totalOtherPlayers: number) => {
-    // Distribute other players around the table, starting from top
-    // Leave bottom position for current player
-    const availableAngle = 270; // 360 - 90 degrees reserved for bottom
-    const startAngle = -135; // Start from top-left
+    if (totalOtherPlayers === 0) return { x: 50, y: 50, angle: 0 };
     
-    let angle;
+    // Define fixed positions around the rectangular perimeter with better spacing
+    const positions = [
+      // Top positions
+      { x: 50, y: 12, angle: -90 },   // Top center
+      { x: 25, y: 15, angle: -135 },  // Top left
+      { x: 75, y: 15, angle: -45 },   // Top right
+      // Side positions with more spacing
+      { x: 12, y: 35, angle: 180 },   // Left side upper
+      { x: 88, y: 35, angle: 0 },     // Right side upper
+      { x: 12, y: 55, angle: 180 },   // Left side lower  
+      { x: 88, y: 55, angle: 0 },     // Right side lower
+    ];
+    
+    // For different player counts, select optimal positions
+    let selectedPositions = [];
+    
     if (totalOtherPlayers === 1) {
-      angle = -90; // Single other player at top
+      selectedPositions = [positions[0]]; // Top center only
+    } else if (totalOtherPlayers === 2) {
+      selectedPositions = [positions[1], positions[2]]; // Top left and right
+    } else if (totalOtherPlayers === 3) {
+      selectedPositions = [positions[1], positions[0], positions[2]]; // Top left, center, right
+    } else if (totalOtherPlayers === 4) {
+      selectedPositions = [positions[1], positions[2], positions[3], positions[4]]; // Top and sides
     } else {
-      angle = startAngle + (index * availableAngle) / (totalOtherPlayers - 1);
+      // Use all available positions with good spacing
+      selectedPositions = positions.slice(0, Math.min(totalOtherPlayers, positions.length));
     }
     
-    const radius = 38; // Percentage from center
-    const x = 50 + radius * Math.cos((angle * Math.PI) / 180);
-    const y = 50 + radius * Math.sin((angle * Math.PI) / 180);
-    return { x, y, angle };
+    return selectedPositions[index] || selectedPositions[index % selectedPositions.length];
   };
 
   // Calculate individual card positions for a player's cards
@@ -92,16 +108,42 @@ export const RoundTable: React.FC = () => {
     if (cardCount === 0) return [];
     if (cardCount === 1) return [playerPos];
     
-    // For multiple cards, spread them in an arc around the player's position
-    const arcSpan = Math.min(45, cardCount * 8); // Maximum arc of 45 degrees
-    const startAngle = playerPos.angle - arcSpan / 2;
+    // For multiple cards, spread them horizontally or vertically based on position
+    const spacing = Math.min(6, 30 / cardCount); // Adaptive spacing
     
     return playerCards.map((_, cardIndex) => {
-      const cardAngle = startAngle + (cardIndex * arcSpan) / (cardCount - 1);
-      const cardRadius = playerPos.angle >= -45 && playerPos.angle <= 135 ? 40 : 36; // Adjust radius based on position
-      const x = 50 + cardRadius * Math.cos((cardAngle * Math.PI) / 180);
-      const y = 50 + cardRadius * Math.sin((cardAngle * Math.PI) / 180);
-      return { x, y, angle: cardAngle };
+      const offset = (cardIndex - (cardCount - 1) / 2) * spacing;
+      
+      // Adjust positioning based on player location
+      if (playerPos.y < 25) {
+        // Top positions - spread horizontally
+        return {
+          x: playerPos.x + offset,
+          y: playerPos.y,
+          angle: playerPos.angle
+        };
+      } else if (playerPos.x < 25) {
+        // Left positions - spread vertically  
+        return {
+          x: playerPos.x,
+          y: playerPos.y + offset,
+          angle: playerPos.angle
+        };
+      } else if (playerPos.x > 75) {
+        // Right positions - spread vertically
+        return {
+          x: playerPos.x,
+          y: playerPos.y + offset,
+          angle: playerPos.angle
+        };
+      } else {
+        // Default horizontal spread
+        return {
+          x: playerPos.x + offset,
+          y: playerPos.y,
+          angle: playerPos.angle
+        };
+      }
     });
   };
 
