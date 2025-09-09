@@ -167,7 +167,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
                     <img
                       src={card.frontImage}
                       alt="Card"
-                      className="w-full h-20 object-cover rounded border border-gray-500 hover:border-white transition-all"
+                      className="w-full aspect-[3/4] object-cover rounded border border-gray-500 hover:border-white transition-all"
                       onClick={() => handleCardClick(card)}
                     />
                     <span className="text-white text-xs mt-1 text-center truncate w-full">
