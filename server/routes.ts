@@ -1155,6 +1155,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Process the game instruction using AI
           const result = await gameManager.processGameInstruction(gameId, playerName, instruction);
           
+          // Check for player elimination from character limit (PTI modifications)
+          if (result && typeof result === 'object' && 'eliminationCheck' in result && result.eliminationCheck) {
+            console.log(`Player ${playerName} has reached character limit via game instruction - automatically eliminating`);
+            
+            const eliminationSuccess = gameManager.markPlayerEliminated(gameId, playerName);
+            if (eliminationSuccess) {
+              console.log(`Player ${playerName} automatically eliminated due to character limit`);
+              io.to(gameId).emit('player-eliminated', { playerName });
+              
+              // Check for game victory
+              const winner = gameManager.checkForGameVictory(gameId);
+              if (winner) {
+                console.log(`Game won by: ${winner}`);
+                io.to(gameId).emit('game-victory', { winner });
+              }
+            }
+          }
+          
           // Check if it's a conversational question
           if (result && typeof result === 'object' && 'isQuestion' in result && result.isQuestion) {
             // Send as conversational prompt, not error
@@ -1293,9 +1311,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Check if character dies (PTI <= 0)
             if (newPTI <= 0) {
               setTimeout(() => {
-                // Auto-eliminate dead character
-                const eliminateSuccess = gameManager.moveToGraveyard(gameId, targetCardId, targetCard.owner);
-                if (eliminateSuccess) {
+                // Auto-eliminate dead character - CHECK FOR PLAYER ELIMINATION
+                const result = gameManager.moveToGraveyard(gameId, targetCardId, targetCard.owner);
+                if (result.success) {
                   console.log(`${targetCard.owner}'s character automatically eliminated (PTI: ${newPTI})`);
                   
                   io.to(gameId).emit('chat-message', {
@@ -1304,6 +1322,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     message: `💀 Il personaggio di ${targetCard.owner} è morto! (PTI: ${newPTI})`,
                     timestamp: Date.now()
                   });
+
+                  // Check if player should be eliminated due to character limit
+                  if (result.eliminationCheck) {
+                    console.log(`Player ${targetCard.owner} has reached character limit - automatically eliminating`);
+                    
+                    const eliminationSuccess = gameManager.markPlayerEliminated(gameId, targetCard.owner);
+                    if (eliminationSuccess) {
+                      console.log(`Player ${targetCard.owner} automatically eliminated due to character limit`);
+                      io.to(gameId).emit('player-eliminated', { playerName: targetCard.owner });
+                      
+                      // Check for game victory
+                      const winner = gameManager.checkForGameVictory(gameId);
+                      if (winner) {
+                        console.log(`Game won by: ${winner}`);
+                        io.to(gameId).emit('game-victory', { winner });
+                      }
+                    }
+                  }
 
                   // Send updated game state
                   const updatedGameState = gameManager.getSanitizedGameState(gameId);

@@ -2359,13 +2359,15 @@ Rispondi SOLO in JSON:`;
       card.text = `PTI: ${finalPTI}`;
     }
 
-    // Auto-eliminate if PTI reaches 0
+    // Auto-eliminate if PTI reaches 0 - USE PROPER ELIMINATION CHECK
+    let eliminationCheck = false;
     if (finalPTI === 0 && card.type === 'personaggi') {
-      const cardIndex = game.field.findIndex(c => c.id === card.id);
-      if (cardIndex !== -1) {
-        const eliminatedCard = game.field.splice(cardIndex, 1)[0];
-        eliminatedCard.eliminatedBy = playerName;
-        game.graveyard.push(eliminatedCard);
+      // Use moveToGraveyard which properly checks character limit for player elimination
+      const result = this.moveToGraveyard(gameId, card.id, playerName);
+      if (result.success && result.eliminationCheck) {
+        // Player has reached character limit
+        console.log(`Player ${playerName} reached character limit after PTI modification`);
+        eliminationCheck = true;
       }
     }
 
@@ -2377,7 +2379,10 @@ Rispondi SOLO in JSON:`;
       operation
     }, playerName);
 
-    return { message: `⚡ ${playerName} ha modificato PTI della carta: ${finalPTI} ${finalPTI === 0 ? '(carta eliminata!)' : ''}` };
+    return { 
+      message: `⚡ ${playerName} ha modificato PTI della carta: ${finalPTI} ${finalPTI === 0 ? '(carta eliminata!)' : ''}`,
+      eliminationCheck
+    };
   }
 
   private async transferCard(gameId: string, playerName: string, instruction: string, cardId: string | undefined, cardType: string | undefined, fromPlayer: string, toPlayer: string, count: number) {
