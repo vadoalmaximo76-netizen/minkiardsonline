@@ -802,7 +802,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       .join('\n');
   }
 
-  // Simple game analysis without AI (fallback)
+  // Simple game analysis without AI (fallback) - follows MINKIARDS rules strictly
   analyzeGameStateSimple(gameState: any): GameAnalysis {
     const cpuPlayer = gameState.players[this.playerName];
     if (!cpuPlayer) {
@@ -812,72 +812,92 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName && card.type === 'personaggi');
     const enemyCharacters = gameState.field.filter((card: any) => card.owner !== this.playerName && card.type === 'personaggi');
 
-    // Enhanced strategy: 
-    // 1. Play a character if I don't have one
-    // 2. Consider character swap if I have a better character in hand
-    // 3. Use MOSSE cards to attack enemies
-    // 4. Play BONUS cards strategically
-    // 5. Maintain only 1 card per type in hand
+    // MINKIARDS RULES IMPLEMENTATION:
+    // RULE 1: WITHOUT a character on field, you CANNOT perform any actions except playing a character
+    // RULE 2: ONE card per turn OR character substitution (not both)
+    // RULE 3: Card sequence: play → use → return to deck → auto-draw replacement
+    // RULE 4: Attack damage = base damage × attacker stars (need stars > 0 to attack)
     let recommendedAction;
 
+    // RULE 1: Must have character on field to do anything
     if (!myCharacter) {
-      // Need a character
       const characterCard = cpuPlayer.hand.find((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
       if (characterCard) {
         recommendedAction = {
           type: 'play_card' as const,
           cardId: characterCard.id,
-          reasoning: 'Ho bisogno di un personaggio in campo'
+          reasoning: 'REGOLA FONDAMENTALE: devo avere un personaggio in campo per giocare'
         };
       } else {
+        // No character in hand - will be handled by shouldDrawCards system
         recommendedAction = {
           type: 'play_card' as const,
-          reasoning: 'Gioco una carta qualsiasi'
+          reasoning: 'Attendo di pescare un personaggio tramite shouldDrawCards'
         };
       }
     } else {
-      // I have a character, play strategically
+      // I have a character on field - can perform actions
       const moveCard = cpuPlayer.hand.find((c: any) => c.type === 'mosse');
       const bonusCard = cpuPlayer.hand.find((c: any) => c.type === 'bonus');
       const handCharacterCard = cpuPlayer.hand.find((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
       
-      // Consider character swap if we have a new character
-      if (handCharacterCard && Math.random() < 0.3) { // 30% chance to swap character
+      // Parse character stats from notes (same as other parts of codebase)
+      const characterText = myCharacter.notes || myCharacter.text || '';
+      const ptiMatch = characterText.match(/PTI[:\s]*(\d+)/i);
+      const starsMatch = characterText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
+      const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100; // fallback PTI
+      const currentStars = starsMatch ? parseInt(starsMatch[1]) : 0; // RULE: no stars = cannot attack
+      
+      // Check if character is dying (proportional to PTI, not fixed threshold)
+      const ptiThreshold = Math.max(50, Math.floor(currentPTI * 0.25)); // 25% of current PTI or minimum 50
+      if (currentPTI <= ptiThreshold && handCharacterCard) {
+        // Strategic character replacement when current one is weak
         recommendedAction = {
           type: 'switch_character' as const,
           cardId: handCharacterCard.id,
-          reasoning: 'Cambio il personaggio in campo'
+          reasoning: `Il mio personaggio ha PTI bassi (${currentPTI}), lo sostituisco strategicamente`
         };
       }
-      // Prioritize attacks if we have enemies and MOSSE cards
-      else if (moveCard && enemyCharacters.length > 0) {
+      // RULE 4: Attack only if we have stars > 0 and enemies exist
+      else if (moveCard && enemyCharacters.length > 0 && currentStars > 0) {
+        // Find weakest enemy for targeting
+        const targetEnemy = enemyCharacters[0]; // Simplified target selection
         recommendedAction = {
           type: 'attack' as const,
           cardId: moveCard.id,
-          target: enemyCharacters[0].id,
-          reasoning: 'Attacco un personaggio nemico'
+          target: targetEnemy.id,
+          reasoning: `Attacco con ${currentStars} stelle contro ${targetEnemy.owner}`
         };
-      } 
-      // Use BONUS cards strategically (higher priority now)
-      else if (bonusCard && Math.random() < 0.7) { // 70% chance to play BONUS
+      }
+      // Use BONUS cards to strengthen character (proportional threshold)
+      else if (bonusCard && currentPTI < Math.max(150, currentPTI * 0.5)) { // Use BONUS when PTI below 50% or 150
         recommendedAction = {
           type: 'play_card' as const,
           cardId: bonusCard.id,
-          reasoning: 'Uso una carta BONUS per vantaggi strategici'
+          reasoning: 'Rafforzo il mio personaggio con carta BONUS'
         };
-      } 
-      // Play any available card as fallback
+      }
+      // Character substitution for critically low stats  
+      else if (handCharacterCard && currentPTI < Math.max(30, Math.floor(currentPTI * 0.15))) {
+        recommendedAction = {
+          type: 'switch_character' as const,
+          cardId: handCharacterCard.id,
+          reasoning: 'Sostituisco il personaggio con uno più forte'
+        };
+      }
+      // Fallback: play any available card
       else if (cpuPlayer.hand.length > 0) {
+        const availableCard = bonusCard || moveCard || handCharacterCard || cpuPlayer.hand[0];
         recommendedAction = {
           type: 'play_card' as const,
-          cardId: cpuPlayer.hand[0].id,
-          reasoning: 'Gioco una carta disponibile'
+          cardId: availableCard.id,
+          reasoning: 'Gioco una carta disponibile seguendo le regole'
         };
       } else {
-        // No valid actions available - try to play any card or just end turn
+        // No valid actions - end turn
         recommendedAction = {
           type: 'play_card' as const,
-          reasoning: 'Non ho azioni valide disponibili'
+          reasoning: 'Fine turno - nessuna azione valida disponibile'
         };
       }
     }
@@ -904,29 +924,29 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     };
   }
 
-  // Random chat responses for more personality
+  // Random chat responses following MINKIARDS rules
   getRandomChatResponse(situation: string): string {
     const responses = {
       thinking: [
-        "Fammi pensare un attimo...",
-        "Sto valutando le mie opzioni",
-        "Interessante situazione...",
-        "Vediamo cosa posso fare"
+        "Analizzo la situazione seguendo le regole MINKIARDS...",
+        "Controllo i miei PTI e le stelle",
+        "Strategia: personaggio prima, poi azione!",
+        "Devo rispettare la sequenza di gioco"
       ],
       playing_character: [
-        "È ora di entrare in azione!",
-        "Ecco il mio campione!",
-        "Questo personaggio farà la differenza",
-        "Preparatevi alla battaglia!"
+        "Metto in campo il personaggio - regola fondamentale!",
+        "Senza personaggio non posso fare nulla",
+        "Ora posso finalmente agire!",
+        "Personaggio in campo: check!"
       ],
       attacking: [
-        "Attacco!",
-        "È ora di fare sul serio!",
-        "Prendi questa!",
-        "Difenditi se puoi!"
+        "Attacco calcolando: danno base × mie stelle!",
+        "Le mie stelle mi permettono di attaccare!",
+        "Danno preciso seguendo le regole!",
+        "Carta MOSSE in azione!"
       ],
       no_actions: [
-        "Non posso fare molto per ora",
+        "Devo prima seguire le regole base",
         "Passo il turno",
         "Tocca a voi",
         "Aspetto il momento giusto"
@@ -990,16 +1010,33 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         return await this.executeOpeningSequence(gameState);
       }
       
-      // NEW RULE: Can draw cards during turn as needed
+      // MINKIARDS RULE: Can draw cards during turn, but must follow proper sequence
       const needsToDraw = this.shouldDrawCards(cpuPlayer, gameState);
       if (needsToDraw.shouldDraw) {
-        this.sendChatMessage(`Pesco una carta ${needsToDraw.deckType} e poi la gioco subito!`);
+        // RULE: Must have character on field to draw other cards
+        const hasCharacter = gameState.field.find((card: any) => 
+          card.owner === this.playerName && card.type === 'personaggi'
+        );
+        
+        if (!hasCharacter && needsToDraw.deckType !== 'personaggi') {
+          this.sendChatMessage(`Devo prima avere un personaggio in campo!`);
+          return {
+            type: 'draw-and-play',
+            data: {
+              deckType: 'personaggi',
+              playerName: this.playerName,
+              immediate: true
+            }
+          };
+        }
+        
+        this.sendChatMessage(`Pesco ${needsToDraw.deckType} seguendo le regole MINKIARDS!`);
         return {
           type: 'draw-and-play',
           data: {
             deckType: needsToDraw.deckType,
             playerName: this.playerName,
-            immediate: true // Play immediately after drawing
+            immediate: true
           }
         };
       }
@@ -1121,22 +1158,41 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
   shouldDrawCards(cpuPlayer: any, gameState: any): { shouldDraw: boolean, deckType?: string } {
     const hand = cpuPlayer.hand || [];
     const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName && card.type === 'personaggi');
+    const enemies = gameState.field.filter((card: any) => card.owner !== this.playerName && card.type === 'personaggi');
     
-    // If no character on field and no PERSONAGGI in hand, draw one
+    // MINKIARDS RULE PRIORITY: CHARACTER FIRST
+    // If no character on field and no PERSONAGGI in hand, MUST draw one
     if (!myCharacter && !hand.find((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali')) {
       return { shouldDraw: true, deckType: 'personaggi' };
     }
     
-    // If has character but wants to play MOSSE and doesn't have one
-    if (myCharacter && !hand.find((c: any) => c.type === 'mosse')) {
-      const enemies = gameState.field.filter((card: any) => card.owner !== this.playerName && card.type === 'personaggi');
-      if (enemies.length > 0 && Math.random() < 0.6) { // 60% chance to draw MOSSE for attack
+    // STRATEGIC DRAWS (only if character is on field)
+    if (myCharacter && enemies.length > 0) {
+      // Parse my character's stats (consistent with other parts of codebase)
+      const characterText = myCharacter.notes || myCharacter.text || '';
+      const ptiMatch = characterText.match(/PTI[:\s]*(\d+)/i);
+      const starsMatch = characterText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
+      const myPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100;
+      const myStars = starsMatch ? parseInt(starsMatch[1]) : 0; // Default to 0 for safety
+      
+      // Priority 1: Draw MOSSE to attack if I can deal damage (have stars > 0)
+      if (myStars > 0 && !hand.find((c: any) => c.type === 'mosse')) {
         return { shouldDraw: true, deckType: 'mosse' };
+      }
+      
+      // Priority 2: Draw BONUS to strengthen if PTI is low
+      if (myPTI <= 100 && !hand.find((c: any) => c.type === 'bonus')) {
+        return { shouldDraw: true, deckType: 'bonus' };
+      }
+      
+      // Priority 3: Draw backup PERSONAGGI if current one is dying
+      if (myPTI <= 50 && !hand.find((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali')) {
+        return { shouldDraw: true, deckType: 'personaggi' };
       }
     }
     
-    // If wants to use BONUS but doesn't have one
-    if (myCharacter && !hand.find((c: any) => c.type === 'bonus') && Math.random() < 0.4) { // 40% chance to draw BONUS
+    // If I have character but no enemies, focus on strengthening
+    if (myCharacter && enemies.length === 0 && !hand.find((c: any) => c.type === 'bonus')) {
       return { shouldDraw: true, deckType: 'bonus' };
     }
     
