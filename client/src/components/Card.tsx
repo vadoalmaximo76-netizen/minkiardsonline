@@ -3,6 +3,8 @@ import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
 import { X } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+import { Input } from "./ui/input";
 
 interface CardProps {
   card: {
@@ -24,6 +26,9 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const [showPlayerSelect, setShowPlayerSelect] = useState(false);
   const [showTransferSelect, setShowTransferSelect] = useState(false);
   const [isEliminated, setIsEliminated] = useState(false);
+  const [showDamageInput, setShowDamageInput] = useState(false);
+  const [damageValue, setDamageValue] = useState("");
+  const [targetCard, setTargetCard] = useState<any>(null);
 
   // Sync local cardText state with incoming card.text prop (for real-time updates)
   useEffect(() => {
@@ -48,16 +53,9 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         card.type === 'personaggi' && 
         card.owner !== playerName) {
       
-      // Attack: Make the PERSONAGGI card shake
-      socket.emit('mosse-attack', { 
-        mosseCardId: selectedMosseCard.id,
-        targetCardId: card.id,
-        attackerName: playerName,
-        targetOwner: card.owner
-      });
-      
-      // Clear the selected MOSSE card
-      setSelectedMosseCard(null);
+      // Open damage input dialog instead of attacking immediately
+      setTargetCard(card);
+      setShowDamageInput(true);
       return;
     }
 
@@ -101,6 +99,35 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
 
   const handleShowCard = () => {
     setShowPlayerSelect(true);
+  };
+
+  const handleDamageConfirm = () => {
+    const damage = parseInt(damageValue);
+    if (isNaN(damage) || damage <= 0) {
+      alert("Inserisci un valore di danno valido (numero positivo)");
+      return;
+    }
+
+    // Attack with damage value
+    socket.emit('mosse-attack', { 
+      mosseCardId: selectedMosseCard?.id,
+      targetCardId: targetCard?.id,
+      attackerName: playerName,
+      targetOwner: targetCard?.owner,
+      damageValue: damage
+    });
+
+    // Clear states
+    setSelectedMosseCard(null);
+    setShowDamageInput(false);
+    setDamageValue("");
+    setTargetCard(null);
+  };
+
+  const handleDamageCancel = () => {
+    setShowDamageInput(false);
+    setDamageValue("");
+    setTargetCard(null);
   };
 
   const handleTransferCard = () => {
@@ -322,6 +349,43 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
           </div>
         </div>
       )}
+
+      {/* Damage Input Dialog */}
+      <Dialog open={showDamageInput} onOpenChange={setShowDamageInput}>
+        <DialogContent className="bg-gray-800 border-gray-600 max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-white">Inserisci Danno</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-gray-300 text-sm">
+              Quanto danno fa la tua carta MOSSE a {targetCard?.owner}?
+            </p>
+            <Input
+              type="number"
+              value={damageValue}
+              onChange={(e) => setDamageValue(e.target.value)}
+              placeholder="Inserisci PTI di danno..."
+              className="bg-gray-700 border-gray-600 text-white"
+              min="1"
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <Button
+                onClick={handleDamageConfirm}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              >
+                ATTACCA
+              </Button>
+              <Button
+                onClick={handleDamageCancel}
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white"
+              >
+                ANNULLA
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
