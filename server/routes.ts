@@ -339,25 +339,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     timestamp: Date.now()
                   });
                   
-                  // After attack, return the used card to its deck and draw replacement
+                  // MANUAL RETURN: CPU must manually return MOSSE cards like humans
                   setTimeout(async () => {
-                    console.log(`CPU ${cpuName} returning used MOSSE card to deck`);
+                    console.log(`CPU ${cpuName} manually returning used MOSSE card to deck bottom`);
                     gameManager.returnToDeck(gameId, currentAction.data.mosseCardId, currentAction.data.attackerName);
-                    
-                    // CPU automatically draws a replacement card of the same type
-                    const drawnCard = await gameManager.pickCard(gameId, 'mosse', currentAction.data.attackerName);
-                    if (drawnCard) {
-                      console.log(`CPU ${cpuName} drew replacement MOSSE card`);
-                    }
                     
                     const updatedGameState = gameManager.getSanitizedGameState(gameId);
                     io.to(gameId).emit('game-state-update', updatedGameState);
+                    
+                    // CPU announces the manual return
+                    io.to(gameId).emit('chat-message', {
+                      id: `${Date.now()}-cpu-return`,
+                      playerName: cpuName,
+                      message: 'Rimetto la carta MOSSE in fondo al mazzo.',
+                      timestamp: Date.now()
+                    });
                     
                     setTimeout(async () => {
                       const nextAction = await gameManager.processCPUTurn(gameId, cpuName, io);
                       await continueCPUTurn(nextAction);
                     }, 1000);
-                  }, 2000);
+                  }, 3000); // 3 seconds for manual return
                   break;
                   
                 case 'pick-card-and-end-opening':
@@ -1050,19 +1052,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
           timestamp: Date.now()
         });
         
-        // After attack animation, return the MOSSE card to deck (for all players)
+        // MANUAL RETURN SYSTEM: Players must manually return MOSSE cards to deck
+        console.log(`MOSSE card ${mosseCardId} used by ${attackerName} - awaiting manual return to deck bottom`);
+        
+        // Notify all players that the card needs to be manually returned
         setTimeout(() => {
-          console.log(`Returning MOSSE card ${mosseCardId} to deck for ${attackerName}`);
-          gameManager.returnToDeck(gameId, mosseCardId, attackerName);
+          io.to(gameId).emit('mosse-return-required', {
+            cardId: mosseCardId,
+            playerName: attackerName,
+            cardType: 'mosse',
+            message: `${attackerName} deve rimettere manualmente la carta MOSSE nel mazzo (in fondo)`
+          });
           
-          // For CPU players, automatically draw a replacement
+          // For CPU players, automatically trigger manual return after a delay
           if (attackerName.startsWith('CPU-')) {
-            gameManager.pickCard(gameId, 'mosse', attackerName);
-            console.log(`CPU ${attackerName} drew replacement MOSSE card`);
+            setTimeout(() => {
+              console.log(`CPU ${attackerName} manually returning MOSSE card to deck bottom`);
+              gameManager.returnToDeck(gameId, mosseCardId, attackerName);
+              
+              // Send updated game state
+              const updatedGameState = gameManager.getSanitizedGameState(gameId);
+              io.to(gameId).emit('game-state-update', updatedGameState);
+              
+              // CPU says they returned the card
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-cpu-return`,
+                playerName: attackerName,
+                message: 'Ho rimesso la carta MOSSE in fondo al mazzo.',
+                timestamp: Date.now()
+              });
+            }, 3000); // CPU returns card 3 seconds after attack
           }
-          
-          const updatedGameState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', updatedGameState);
         }, 2000); // 2 second delay for attack animation
       }
     });
@@ -1198,20 +1218,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       timestamp: Date.now()
                     });
                     
-                    // After attack, return the used MOSSE card to deck and draw replacement for CPU
+                    // MANUAL RETURN: CPU manually returns MOSSE card to deck bottom
                     setTimeout(async () => {
-                      console.log(`CPU ${nextPlayer} returning used MOSSE card to deck`);
+                      console.log(`CPU ${nextPlayer} manually returning used MOSSE card to deck bottom`);
                       gameManager.returnToDeck(gameId, cpuAction.data.mosseCardId, cpuAction.data.attackerName);
-                      
-                      // CPU automatically draws a replacement card
-                      const drawnCard = await gameManager.pickCard(gameId, 'mosse', cpuAction.data.attackerName);
-                      if (drawnCard) {
-                        console.log(`CPU ${nextPlayer} drew replacement MOSSE card`);
-                      }
                       
                       const updatedGameState = gameManager.getSanitizedGameState(gameId);
                       io.to(gameId).emit('game-state-update', updatedGameState);
-                    }, 2000);
+                      
+                      // CPU announces the manual return
+                      io.to(gameId).emit('chat-message', {
+                        id: `${Date.now()}-cpu-return`,
+                        playerName: nextPlayer,
+                        message: 'Ho rimesso la mia carta MOSSE in fondo al mazzo.',
+                        timestamp: Date.now()
+                      });
+                    }, 3000); // 3 seconds for manual return
                     break;
                 }
                 

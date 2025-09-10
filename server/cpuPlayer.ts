@@ -1407,27 +1407,10 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     
     console.log(`CPU ${this.playerName} finished processing chat message, no specific response triggered`);
     return false;
-    
-    // Note: Removed the occasional questions feature that used OpenAI API
-    // Ask occasional questions about the game
-    /*if (Math.random() < 0.3) {
-      setTimeout(() => {
-        const questions = [
-          "È vero che servono PERSONAGGI, MOSSE e BONUS per giocare bene?",
-          "Quando è il momento migliore per attaccare?",
-          "Cosa fai di solito quando hai poche carte?",
-          "Mi spieghi la tua strategia?"
-        ];
-        this.sendChatMessage(questions[Math.floor(Math.random() * questions.length)]);
-      }, 2000 + Math.random() * 3000);
-      return true;
-    }
-    
-    return false;
   }
-  
+    
   // Process advice from human players
-  processAdvice(message: string, senderName: string) {
+  processAdvice(message: string, senderName: string): void {
     const lowerMessage = message.toLowerCase();
     this.conversationHistory.push({
       type: 'answer',

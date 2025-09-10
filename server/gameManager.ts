@@ -536,9 +536,10 @@ export class GameManager {
       card.eliminatedBy = '';
       
       const deckType = card.type as keyof GameState['decks'];
-      game.decks[deckType].push(card);
+      // Add to BOTTOM of deck using unshift instead of push
+      game.decks[deckType].unshift(card);
       
-      console.log(`Returned ${card.type} card ${cardId} to deck for ${playerName}`);
+      console.log(`Returned ${card.type} card ${cardId} to BOTTOM of deck for ${playerName}`);
     }
   }
 
