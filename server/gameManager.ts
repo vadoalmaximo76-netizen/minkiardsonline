@@ -430,37 +430,81 @@ export class GameManager {
       const OpenAI = (await import('openai')).default;
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-      const prompt = `Analizza questa istruzione per un gioco di carte italiano chiamato MINKIARDS: "${instruction}"
+      // Get current game state for context
+      const game = this.games.get(gameId);
+      if (!game) return null;
+      
+      const gameState = {
+        players: Object.keys(game.players),
+        field: game.field.map(c => ({ id: c.id, type: c.type, text: c.text || '', owner: c.owner })),
+        graveyard: game.graveyard.map(c => ({ id: c.id, type: c.type, owner: c.owner })),
+        deckCounts: {
+          personaggi: game.decks.personaggi.length,
+          mosse: game.decks.mosse.length,
+          bonus: game.decks.bonus.length,
+          personaggi_speciali: game.decks.personaggi_speciali.length
+        }
+      };
 
-Determina l'azione richiesta e rispondi in formato JSON:
+      const prompt = `Sei un interprete di istruzioni per MINKIARDS, un gioco di carte italiano. Analizza questa istruzione e converti in azione JSON:
 
-Azioni supportate:
-1. "reverse-turns" - invertire l'ordine dei turni
-2. "distribute-cards" - far pescare carte ai giocatori (include numero e tipo: personaggi, mosse, bonus, personaggi_speciali)
-3. "cover-cards" - coprire tutte le carte in campo
-4. "uncover-cards" - scoprire tutte le carte in campo
-5. "unknown" - se non riconosci l'azione
+**ISTRUZIONE:** "${instruction}"
 
-Formato risposta:
-{
-  "action": "distribute-cards",
-  "parameters": {
-    "count": 3,
-    "cardType": "mosse",
-    "target": "all"
-  }
-}
+**STATO CORRENTE:**
+- Giocatori: ${gameState.players.join(', ')}
+- Carte in campo: ${gameState.field.length}
+- Carte cimitero: ${gameState.graveyard.length}
+- Mazzi disponibili: ${Object.entries(gameState.deckCounts).map(([k,v]) => `${k} (${v})`).join(', ')}
 
-o per azioni senza parametri:
-{
-  "action": "reverse-turns"
-}`;
+**AZIONI SUPPORTATE (comprendine TUTTE le variazioni e sinonimi):**
+
+**GESTIONE TURNI:**
+- "reverse-turns" - invertire ordine turni
+- "skip-turn" - saltare turno giocatore specifico {playerName}
+- "set-turn" - impostare di chi è il turno {playerName}
+
+**DISTRIBUZIONE CARTE:**
+- "distribute-cards" - far pescare carte {count, cardType, target: "all"|playerName}
+- "give-cards" - dare carte specifiche {cardIds, fromPlayer, toPlayer}
+
+**GESTIONE CAMPO:**
+- "cover-cards" - coprire carte {target: "all"|"field"|playerName}
+- "uncover-cards" - scoprire carte {target: "all"|"field"|playerName}
+- "move-card" - spostare carta specifica {cardId, from: "field"|"hand"|"graveyard", to: "field"|"hand"|"graveyard"|"deck", targetPlayer?}
+
+**MODIFICHE CARTE:**
+- "modify-pti" - modificare PTI {cardId, newPTI, operation: "set"|"add"|"subtract"}
+- "modify-notes" - modificare note carta {cardId, newNotes}
+- "eliminate-card" - eliminare carta specifica {cardId}
+
+**TRASFERIMENTI:**
+- "transfer-card" - trasferire carte tra giocatori {cardId?, cardType?, fromPlayer, toPlayer, count?}
+- "swap-cards" - scambiare carte {player1, player2, cardType?}
+
+**AZIONI GLOBALI:**
+- "shuffle-deck" - mescolare mazzo {deckType}
+- "reset-game" - resettare partita
+- "eliminate-player" - eliminare giocatore {playerName}
+
+**ESEMPI:**
+- "Marco pesca 2 personaggi" → {"action": "distribute-cards", "parameters": {"count": 2, "cardType": "personaggi", "target": "Marco"}}
+- "Il personaggio di Luca va a Sara" → {"action": "transfer-card", "parameters": {"cardType": "personaggi", "fromPlayer": "Luca", "toPlayer": "Sara"}}
+- "Azzera PTI del barbone" → {"action": "modify-pti", "parameters": {"cardId": "identifica dalle note/campo", "newPTI": 0, "operation": "set"}}
+- "Scambia le mosse tra tutti" → {"action": "swap-cards", "parameters": {"cardType": "mosse"}}
+
+**IMPORTANTE:** 
+- Identifica giocatori, tipi carte e azioni dalle parole chiave italiane
+- Se menzioni carta specifica, cerca di identificarla dal campo/nome
+- Se non specifichi target, applica a "all"
+- Se azione non è chiara, usa "unknown"
+
+Rispondi SOLO in JSON:`;
 
       const response = await openai.chat.completions.create({
         model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
-        max_tokens: 200
+        max_tokens: 500
       });
 
       const aiResponse = JSON.parse(response.choices[0].message.content || '{"action": "unknown"}');
@@ -470,14 +514,63 @@ o per azioni senza parametri:
           return await this.reverseTurnOrder(gameId, playerName, instruction);
           
         case 'distribute-cards':
-          const { count = 1, cardType = 'mosse' } = aiResponse.parameters || {};
-          return await this.distributeCards(gameId, playerName, instruction, count, cardType);
+          const { count = 1, cardType = 'mosse', target = 'all' } = aiResponse.parameters || {};
+          return await this.distributeCards(gameId, playerName, instruction, count, cardType, target);
           
         case 'cover-cards':
+          const { target: coverTarget = 'all' } = aiResponse.parameters || {};
           return await this.coverAllCards(gameId, playerName, instruction);
           
         case 'uncover-cards':
+          const { target: uncoverTarget = 'all' } = aiResponse.parameters || {};
           return await this.uncoverAllCards(gameId, playerName, instruction);
+          
+        case 'move-card':
+          const { cardId, from, to, targetPlayer } = aiResponse.parameters || {};
+          return await this.moveCard(gameId, playerName, instruction, cardId, from, to, targetPlayer);
+          
+        case 'modify-pti':
+          const { cardId: ptiCardId, newPTI, operation = 'set' } = aiResponse.parameters || {};
+          return await this.modifyCardPTI(gameId, playerName, instruction, ptiCardId, newPTI, operation);
+          
+        case 'transfer-card':
+          const { cardId: transferCardId, cardType: transferType, fromPlayer, toPlayer, count: transferCount = 1 } = aiResponse.parameters || {};
+          return await this.transferCard(gameId, playerName, instruction, transferCardId, transferType, fromPlayer, toPlayer, transferCount);
+          
+        case 'swap-cards':
+          const { player1, player2, cardType: swapType } = aiResponse.parameters || {};
+          return await this.swapCards(gameId, playerName, instruction, player1, player2, swapType);
+          
+        case 'eliminate-card':
+          const { cardId: elimCardId } = aiResponse.parameters || {};
+          return await this.eliminateCard(gameId, playerName, instruction, elimCardId);
+          
+        case 'eliminate-player':
+          const { playerName: elimPlayerName } = aiResponse.parameters || {};
+          return await this.eliminatePlayer(gameId, playerName, instruction, elimPlayerName);
+          
+        case 'skip-turn':
+          const { playerName: skipPlayerName } = aiResponse.parameters || {};
+          return await this.skipPlayerTurn(gameId, playerName, instruction, skipPlayerName);
+          
+        case 'set-turn':
+          const { playerName: setTurnPlayer } = aiResponse.parameters || {};
+          return await this.setPlayerTurn(gameId, playerName, instruction, setTurnPlayer);
+          
+        case 'modify-notes':
+          const { cardId: notesCardId, newNotes } = aiResponse.parameters || {};
+          return await this.modifyCardNotes(gameId, playerName, instruction, notesCardId, newNotes);
+          
+        case 'shuffle-deck':
+          const { deckType } = aiResponse.parameters || {};
+          return await this.shuffleDeckInstruction(gameId, playerName, instruction, deckType);
+          
+        case 'reset-game':
+          return await this.resetGameInstruction(gameId, playerName, instruction);
+          
+        case 'give-cards':
+          const { cardIds, fromPlayer: giveFromPlayer, toPlayer: giveToPlayer } = aiResponse.parameters || {};
+          return await this.giveSpecificCards(gameId, playerName, instruction, cardIds, giveFromPlayer, giveToPlayer);
           
         default:
           return null; // Fall back to pattern matching
@@ -550,7 +643,7 @@ o per azioni senza parametri:
     };
   }
 
-  private async distributeCards(gameId: string, playerName: string, instruction: string, count: number, deckType: string) {
+  private async distributeCards(gameId: string, playerName: string, instruction: string, count: number, deckType: string, target: string = 'all') {
     const game = this.games.get(gameId);
     if (!game) throw new Error('Game not found');
 
@@ -561,10 +654,20 @@ o per azioni senza parametri:
       throw new Error(`Tipo di carta non valido: ${deckType}`);
     }
 
-    // Distribute cards to all players
-    for (const playerName of Object.keys(game.players)) {
+    // Determine target players
+    let targetPlayers: string[];
+    if (target === 'all') {
+      targetPlayers = Object.keys(game.players);
+    } else if (game.players[target]) {
+      targetPlayers = [target];
+    } else {
+      throw new Error(`Giocatore non trovato: ${target}`);
+    }
+
+    // Distribute cards to target players
+    for (const targetPlayer of targetPlayers) {
       for (let i = 0; i < count; i++) {
-        this.pickCard(gameId, normalizedDeckType, playerName);
+        this.pickCard(gameId, normalizedDeckType, targetPlayer);
       }
     }
 
@@ -575,9 +678,10 @@ o per azioni senza parametri:
       deckType: normalizedDeckType
     }, playerName);
 
-    console.log(`Game instruction executed: Distributed ${count} ${deckType} cards to all players`);
+    const targetDescription = target === 'all' ? 'tutti i giocatori' : target;
+    console.log(`Game instruction executed: Distributed ${count} ${deckType} cards to ${targetDescription}`);
     return { 
-      message: `🎴 ${playerName} ha fatto pescare ${count} carte ${deckType.toUpperCase()} a tutti i giocatori!`
+      message: `🎴 ${playerName} ha fatto pescare ${count} carte ${deckType.toUpperCase()} a ${targetDescription}!`
     };
   }
 
@@ -1883,5 +1987,485 @@ o per azioni senza parametri:
     game.currentTurnIndex = 0;
 
     return { message: `🔄 Partita completamente resettata! Tutti i giocatori possono ricominciare.` };
+  }
+
+  // Enhanced instruction system methods
+  private async moveCard(gameId: string, playerName: string, instruction: string, cardId: string, from: string, to: string, targetPlayer?: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    // Find the card
+    let card: Card | undefined;
+    let sourceLocation: string = '';
+
+    // Remove from source
+    if (from === 'field') {
+      const index = game.field.findIndex(c => c.id === cardId);
+      if (index !== -1) {
+        card = game.field.splice(index, 1)[0];
+        sourceLocation = 'campo';
+      }
+    } else if (from === 'graveyard') {
+      const index = game.graveyard.findIndex(c => c.id === cardId);
+      if (index !== -1) {
+        card = game.graveyard.splice(index, 1)[0];
+        sourceLocation = 'cimitero';
+      }
+    } else if (from === 'hand' && targetPlayer && game.players[targetPlayer]) {
+      const index = game.players[targetPlayer].hand.findIndex(c => c.id === cardId);
+      if (index !== -1) {
+        card = game.players[targetPlayer].hand.splice(index, 1)[0];
+        sourceLocation = `mano di ${targetPlayer}`;
+      }
+    }
+
+    if (!card) {
+      throw new Error(`Carta ${cardId} non trovata in ${from}`);
+    }
+
+    // Add to destination
+    let destLocation: string = '';
+    if (to === 'field') {
+      game.field.push(card);
+      destLocation = 'campo';
+    } else if (to === 'graveyard') {
+      game.graveyard.push(card);
+      destLocation = 'cimitero';
+    } else if (to === 'hand' && targetPlayer && game.players[targetPlayer]) {
+      game.players[targetPlayer].hand.push(card);
+      destLocation = `mano di ${targetPlayer}`;
+    } else if (to === 'deck') {
+      // Return to appropriate deck
+      const deckType = card.type as keyof GameState['decks'];
+      if (game.decks[deckType]) {
+        game.decks[deckType].push(card);
+        destLocation = `mazzo ${deckType}`;
+      }
+    }
+
+    await this.recordEvent(gameId, 'instruction-executed', {
+      instruction,
+      action: 'move-card',
+      cardId,
+      from: sourceLocation,
+      to: destLocation
+    }, playerName);
+
+    return { message: `🔄 ${playerName} ha spostato una carta da ${sourceLocation} a ${destLocation}` };
+  }
+
+  private async modifyCardPTI(gameId: string, playerName: string, instruction: string, cardId: string, newPTI: number, operation: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    // Find card in field or hands
+    let card: Card | undefined;
+    for (const fieldCard of game.field) {
+      if (fieldCard.id === cardId || (fieldCard.text && fieldCard.text.toLowerCase().includes(cardId.toLowerCase()))) {
+        card = fieldCard;
+        break;
+      }
+    }
+
+    if (!card) {
+      // Search in hands by name or ID
+      for (const player of Object.values(game.players)) {
+        for (const handCard of player.hand) {
+          if (handCard.id === cardId || (handCard.text && handCard.text.toLowerCase().includes(cardId.toLowerCase()))) {
+            card = handCard;
+            break;
+          }
+        }
+        if (card) break;
+      }
+    }
+
+    if (!card) {
+      throw new Error(`Carta ${cardId} non trovata`);
+    }
+
+    // Extract current PTI from text/notes
+    let currentPTI = 0;
+    const ptiMatch = card.text?.match(/PTI[:\s]*(\d+)/i);
+    if (ptiMatch) {
+      currentPTI = parseInt(ptiMatch[1]);
+    }
+
+    // Calculate new PTI
+    let finalPTI = newPTI;
+    if (operation === 'add') {
+      finalPTI = currentPTI + newPTI;
+    } else if (operation === 'subtract') {
+      finalPTI = Math.max(0, currentPTI - newPTI);
+    }
+
+    // Update card text with new PTI
+    if (card.text) {
+      card.text = card.text.replace(/PTI[:\s]*\d+/i, `PTI: ${finalPTI}`);
+    } else {
+      card.text = `PTI: ${finalPTI}`;
+    }
+
+    // Auto-eliminate if PTI reaches 0
+    if (finalPTI === 0 && card.type === 'personaggi') {
+      const cardIndex = game.field.findIndex(c => c.id === card.id);
+      if (cardIndex !== -1) {
+        const eliminatedCard = game.field.splice(cardIndex, 1)[0];
+        eliminatedCard.eliminatedBy = playerName;
+        game.graveyard.push(eliminatedCard);
+      }
+    }
+
+    await this.recordEvent(gameId, 'instruction-executed', {
+      instruction,
+      action: 'modify-pti',
+      cardId: card.id,
+      newPTI: finalPTI,
+      operation
+    }, playerName);
+
+    return { message: `⚡ ${playerName} ha modificato PTI della carta: ${finalPTI} ${finalPTI === 0 ? '(carta eliminata!)' : ''}` };
+  }
+
+  private async transferCard(gameId: string, playerName: string, instruction: string, cardId: string | undefined, cardType: string | undefined, fromPlayer: string, toPlayer: string, count: number) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    if (!game.players[fromPlayer] || !game.players[toPlayer]) {
+      throw new Error(`Giocatore non trovato: ${fromPlayer} o ${toPlayer}`);
+    }
+
+    let transferredCards = 0;
+    
+    if (cardId) {
+      // Transfer specific card
+      const cardIndex = game.players[fromPlayer].hand.findIndex(c => c.id === cardId);
+      if (cardIndex !== -1) {
+        const card = game.players[fromPlayer].hand.splice(cardIndex, 1)[0];
+        game.players[toPlayer].hand.push(card);
+        transferredCards = 1;
+      }
+    } else if (cardType) {
+      // Transfer cards of specific type
+      const normalizedType = cardType.toLowerCase().replace(' ', '_');
+      for (let i = 0; i < count; i++) {
+        const cardIndex = game.players[fromPlayer].hand.findIndex(c => c.type === normalizedType);
+        if (cardIndex !== -1) {
+          const card = game.players[fromPlayer].hand.splice(cardIndex, 1)[0];
+          game.players[toPlayer].hand.push(card);
+          transferredCards++;
+        } else {
+          break; // No more cards of this type
+        }
+      }
+    }
+
+    await this.recordEvent(gameId, 'instruction-executed', {
+      instruction,
+      action: 'transfer-card',
+      fromPlayer,
+      toPlayer,
+      cardType,
+      count: transferredCards
+    }, playerName);
+
+    return { message: `🔄 ${playerName} ha trasferito ${transferredCards} carte da ${fromPlayer} a ${toPlayer}` };
+  }
+
+  private async swapCards(gameId: string, playerName: string, instruction: string, player1?: string, player2?: string, cardType?: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    const players = Object.keys(game.players);
+    
+    // If no specific players mentioned, swap between all players
+    if (!player1 || !player2) {
+      // Shuffle cards of specified type between all players
+      if (cardType) {
+        const normalizedType = cardType.toLowerCase().replace(' ', '_');
+        const allCardsOfType: Card[] = [];
+        
+        // Collect all cards of this type
+        for (const player of players) {
+          const cardsToSwap = game.players[player].hand.filter(c => c.type === normalizedType);
+          allCardsOfType.push(...cardsToSwap);
+          game.players[player].hand = game.players[player].hand.filter(c => c.type !== normalizedType);
+        }
+
+        // Shuffle and redistribute
+        for (let i = allCardsOfType.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [allCardsOfType[i], allCardsOfType[j]] = [allCardsOfType[j], allCardsOfType[i]];
+        }
+
+        // Redistribute evenly
+        let playerIndex = 0;
+        for (const card of allCardsOfType) {
+          game.players[players[playerIndex]].hand.push(card);
+          playerIndex = (playerIndex + 1) % players.length;
+        }
+
+        await this.recordEvent(gameId, 'instruction-executed', {
+          instruction,
+          action: 'swap-cards',
+          cardType,
+          playerCount: players.length
+        }, playerName);
+
+        return { message: `🔄 ${playerName} ha mescolato le carte ${cardType.toUpperCase()} tra tutti i giocatori!` };
+      }
+    } else {
+      // Swap specific cards between two players
+      if (!game.players[player1] || !game.players[player2]) {
+        throw new Error(`Giocatore non trovato: ${player1} o ${player2}`);
+      }
+
+      if (cardType) {
+        const normalizedType = cardType.toLowerCase().replace(' ', '_');
+        const cards1 = game.players[player1].hand.filter(c => c.type === normalizedType);
+        const cards2 = game.players[player2].hand.filter(c => c.type === normalizedType);
+
+        // Remove cards from original hands
+        game.players[player1].hand = game.players[player1].hand.filter(c => c.type !== normalizedType);
+        game.players[player2].hand = game.players[player2].hand.filter(c => c.type !== normalizedType);
+
+        // Swap them
+        game.players[player1].hand.push(...cards2);
+        game.players[player2].hand.push(...cards1);
+
+        await this.recordEvent(gameId, 'instruction-executed', {
+          instruction,
+          action: 'swap-cards',
+          player1,
+          player2,
+          cardType
+        }, playerName);
+
+        return { message: `🔄 ${playerName} ha scambiato le carte ${cardType.toUpperCase()} tra ${player1} e ${player2}` };
+      }
+    }
+
+    return { message: `❌ Parametri non validi per lo scambio carte` };
+  }
+
+  private async eliminateCard(gameId: string, playerName: string, instruction: string, cardId: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    let card: Card | undefined;
+    let location = '';
+
+    // Find and remove card from field
+    const fieldIndex = game.field.findIndex(c => c.id === cardId || (c.text && c.text.toLowerCase().includes(cardId.toLowerCase())));
+    if (fieldIndex !== -1) {
+      card = game.field.splice(fieldIndex, 1)[0];
+      location = 'campo';
+    } else {
+      // Find in hands
+      for (const [pName, player] of Object.entries(game.players)) {
+        const handIndex = player.hand.findIndex(c => c.id === cardId || (c.text && c.text.toLowerCase().includes(cardId.toLowerCase())));
+        if (handIndex !== -1) {
+          card = player.hand.splice(handIndex, 1)[0];
+          location = `mano di ${pName}`;
+          break;
+        }
+      }
+    }
+
+    if (!card) {
+      throw new Error(`Carta ${cardId} non trovata`);
+    }
+
+    // Add to graveyard
+    card.eliminatedBy = playerName;
+    game.graveyard.push(card);
+
+    await this.recordEvent(gameId, 'instruction-executed', {
+      instruction,
+      action: 'eliminate-card',
+      cardId: card.id,
+      originalLocation: location
+    }, playerName);
+
+    return { message: `💀 ${playerName} ha eliminato una carta dal ${location}` };
+  }
+
+  private async eliminatePlayer(gameId: string, playerName: string, instruction: string, elimPlayerName: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    if (!game.players[elimPlayerName]) {
+      throw new Error(`Giocatore ${elimPlayerName} non trovato`);
+    }
+
+    // Move all player's cards to graveyard
+    const playerCards = [...game.players[elimPlayerName].hand];
+    for (const card of playerCards) {
+      card.eliminatedBy = playerName;
+      game.graveyard.push(card);
+    }
+    game.players[elimPlayerName].hand = [];
+
+    // Move player's field cards to graveyard
+    const playerFieldCards = game.field.filter(c => c.owner === elimPlayerName);
+    for (const card of playerFieldCards) {
+      card.eliminatedBy = playerName;
+      game.graveyard.push(card);
+    }
+    game.field = game.field.filter(c => c.owner !== elimPlayerName);
+
+    await this.recordEvent(gameId, 'instruction-executed', {
+      instruction,
+      action: 'eliminate-player',
+      eliminatedPlayer: elimPlayerName,
+      cardsCount: playerCards.length + playerFieldCards.length
+    }, playerName);
+
+    return { message: `💀 ${playerName} ha eliminato ${elimPlayerName} dalla partita!` };
+  }
+
+  private async skipPlayerTurn(gameId: string, playerName: string, instruction: string, skipPlayerName: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    if (!game.players[skipPlayerName]) {
+      throw new Error(`Giocatore ${skipPlayerName} non trovato`);
+    }
+
+    // Simple turn skip implementation
+    const players = Object.keys(game.players);
+    const currentIndex = players.indexOf(skipPlayerName);
+    if (currentIndex !== -1) {
+      game.currentTurnIndex = (currentIndex + 1) % players.length;
+    }
+
+    await this.recordEvent(gameId, 'instruction-executed', {
+      instruction,
+      action: 'skip-turn',
+      skippedPlayer: skipPlayerName
+    }, playerName);
+
+    return { message: `⏭️ ${playerName} ha saltato il turno di ${skipPlayerName}` };
+  }
+
+  private async setPlayerTurn(gameId: string, playerName: string, instruction: string, setTurnPlayer: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    if (!game.players[setTurnPlayer]) {
+      throw new Error(`Giocatore ${setTurnPlayer} non trovato`);
+    }
+
+    const players = Object.keys(game.players);
+    const playerIndex = players.indexOf(setTurnPlayer);
+    if (playerIndex !== -1) {
+      game.currentTurnIndex = playerIndex;
+    }
+
+    await this.recordEvent(gameId, 'instruction-executed', {
+      instruction,
+      action: 'set-turn',
+      newTurnPlayer: setTurnPlayer
+    }, playerName);
+
+    return { message: `🎯 ${playerName} ha impostato il turno di ${setTurnPlayer}` };
+  }
+
+  private async modifyCardNotes(gameId: string, playerName: string, instruction: string, cardId: string, newNotes: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    // Find card
+    let card: Card | undefined;
+    for (const fieldCard of game.field) {
+      if (fieldCard.id === cardId || (fieldCard.text && fieldCard.text.toLowerCase().includes(cardId.toLowerCase()))) {
+        card = fieldCard;
+        break;
+      }
+    }
+
+    if (!card) {
+      // Search in hands
+      for (const player of Object.values(game.players)) {
+        for (const handCard of player.hand) {
+          if (handCard.id === cardId || (handCard.text && handCard.text.toLowerCase().includes(cardId.toLowerCase()))) {
+            card = handCard;
+            break;
+          }
+        }
+        if (card) break;
+      }
+    }
+
+    if (!card) {
+      throw new Error(`Carta ${cardId} non trovata`);
+    }
+
+    card.text = newNotes;
+
+    await this.recordEvent(gameId, 'instruction-executed', {
+      instruction,
+      action: 'modify-notes',
+      cardId: card.id,
+      newNotes
+    }, playerName);
+
+    return { message: `📝 ${playerName} ha modificato le note di una carta` };
+  }
+
+  private async shuffleDeckInstruction(gameId: string, playerName: string, instruction: string, deckType: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    const normalizedDeckType = deckType.toLowerCase().replace(' ', '_') as keyof GameState['decks'];
+    
+    if (!game.decks[normalizedDeckType]) {
+      throw new Error(`Tipo mazzo non valido: ${deckType}`);
+    }
+
+    // Shuffle the deck
+    const deck = game.decks[normalizedDeckType];
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+
+    await this.recordEvent(gameId, 'instruction-executed', {
+      instruction,
+      action: 'shuffle-deck',
+      deckType: normalizedDeckType
+    }, playerName);
+
+    return { message: `🔀 ${playerName} ha mescolato il mazzo ${deckType.toUpperCase()}` };
+  }
+
+  private async giveSpecificCards(gameId: string, playerName: string, instruction: string, cardIds: string[], fromPlayer: string, toPlayer: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    if (!game.players[fromPlayer] || !game.players[toPlayer]) {
+      throw new Error(`Giocatore non trovato: ${fromPlayer} o ${toPlayer}`);
+    }
+
+    let transferredCount = 0;
+    for (const cardId of cardIds || []) {
+      const cardIndex = game.players[fromPlayer].hand.findIndex(c => c.id === cardId);
+      if (cardIndex !== -1) {
+        const card = game.players[fromPlayer].hand.splice(cardIndex, 1)[0];
+        game.players[toPlayer].hand.push(card);
+        transferredCount++;
+      }
+    }
+
+    await this.recordEvent(gameId, 'instruction-executed', {
+      instruction,
+      action: 'give-cards',
+      fromPlayer,
+      toPlayer,
+      cardIds,
+      transferredCount
+    }, playerName);
+
+    return { message: `🎁 ${playerName} ha trasferito ${transferredCount} carte specifiche da ${fromPlayer} a ${toPlayer}` };
   }
 }
