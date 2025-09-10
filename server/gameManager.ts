@@ -926,10 +926,15 @@ Rispondi SOLO in JSON:`;
       // Check if it's a PERSONAGGI card
       const isPersonaggio = card.type === 'personaggi';
       
-      // Auto-analyze PERSONAGGI cards for CPU players
-      if (isPersonaggio && player.isCPU && (!card.text || card.text.trim() === '' || card.text.trim() === 'PTI:  | Stelle:  ')) {
-        // Trigger automatic analysis for CPU players
-        this.autoAnalyzePersonaggioCard(gameId, card, playerName);
+      // Auto-analyze cards for CPU players
+      if (player.isCPU && (!card.text || card.text.trim() === '')) {
+        if (isPersonaggio) {
+          // Trigger automatic analysis for PERSONAGGI cards
+          this.autoAnalyzePersonaggioCard(gameId, card, playerName);
+        } else if (card.type === 'mosse') {
+          // Trigger automatic analysis for MOSSE cards
+          this.autoAnalyzeMosseCard(gameId, card, playerName);
+        }
       } else if (isPersonaggio && (!card.text || card.text.trim() === '')) {
         // Auto-fill empty notes for human players
         card.text = 'PTI:  | Stelle:  ';
@@ -1025,6 +1030,61 @@ Rispondi SOLO in JSON:`;
       console.error(`Error in auto-analysis for CPU ${cpuPlayerName}:`, error);
       // Fallback text on error
       card.text = 'PTI: errore analisi | Stelle: errore analisi';
+    }
+  }
+
+  // AUTO-ANALYZE MOSSE CARDS FOR CPU PLAYERS
+  private async autoAnalyzeMosseCard(gameId: string, card: any, cpuPlayerName: string) {
+    try {
+      console.log(`Auto-analyzing MOSSE card for CPU ${cpuPlayerName}: ${card.frontImage}`);
+      
+      // Get the CPU player instance to use their analysis method
+      const cpuPlayer = this.cpuPlayers.get(cpuPlayerName);
+      if (!cpuPlayer) {
+        console.log(`CPU player ${cpuPlayerName} not found for MOSSE auto-analysis`);
+        return;
+      }
+
+      // Use the CPU's detailed analysis method
+      const analysis = await cpuPlayer.analyzeCardImageDetailed(card.frontImage, 'mosse');
+      
+      if (analysis && analysis.baseDamage) {
+        // Format the analysis results for MOSSE cards
+        let autoText = `Danno: ${Math.abs(analysis.baseDamage)}`;
+        
+        if (analysis.canCounter !== undefined || analysis.canBeCountered !== undefined) {
+          autoText += ' | ';
+          if (analysis.canCounter) autoText += '+🛡️';
+          if (analysis.canBeCountered) autoText += '-⚔️';
+        }
+        
+        if (analysis.effect && typeof analysis.effect === 'string') {
+          autoText += `\nEffetto: ${analysis.effect}`;
+        }
+        
+        // Update the card's text with analyzed information
+        card.text = autoText;
+        
+        console.log(`CPU ${cpuPlayerName} auto-analyzed MOSSE card: ${autoText}`);
+        
+        // Emit chat message about the analysis
+        if (this.io) {
+          this.io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-mosse-analysis`,
+            playerName: cpuPlayerName,
+            message: `Ho analizzato la mia carta MOSSE: ${analysis.name || 'Mossa'} - Danno base: ${Math.abs(analysis.baseDamage)}`,
+            timestamp: Date.now()
+          });
+        }
+      } else {
+        // Fallback if analysis fails - use standard damage value
+        card.text = 'Danno: 80 (analisi fallita)';
+        console.log(`MOSSE auto-analysis failed for CPU ${cpuPlayerName}, using fallback value`);
+      }
+    } catch (error) {
+      console.error(`Error in MOSSE auto-analysis for CPU ${cpuPlayerName}:`, error);
+      // Fallback text on error
+      card.text = 'Danno: 80 (errore analisi)';
     }
   }
 

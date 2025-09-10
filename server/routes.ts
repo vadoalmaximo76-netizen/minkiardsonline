@@ -1112,7 +1112,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('mosse-attack', ({ mosseCardId, targetCardId, attackerName, targetOwner, damageValue }) => {
+    socket.on('mosse-attack', ({ mosseCardId, targetCardId, attackerName, targetOwner }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
         // Get the card to check its frontImage
@@ -1123,6 +1123,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`MOSSE card ${mosseCardId} not found on field`);
           return;
         }
+
+        // CALCULATE DAMAGE ACCORDING TO MINKIARDS RULES: Damage = Move Base Value × Attacker Stars
+        let calculatedDamage = 0;
+        
+        // 1. Get attacker's character card to extract stars
+        const attackerCharacter = gameState?.field?.find((c: any) => 
+          c.owner === attackerName && c.type === 'personaggi' && !c.faceDown
+        );
+        
+        let attackerStars = 1; // Default to 1 if no stars found
+        if (attackerCharacter && attackerCharacter.text) {
+          const starsMatch = attackerCharacter.text.match(/Stelle:\s*(\d+)/i);
+          if (starsMatch) {
+            attackerStars = parseInt(starsMatch[1]) || 1;
+          }
+        }
+        
+        // 2. Get MOSSE card base damage value (will be analyzed from image)
+        // For now, try to extract from card notes if available
+        let baseDamage = 80; // Default fallback value
+        if (mosseCard.text) {
+          const damageMatch = mosseCard.text.match(/[-]?\d+/);
+          if (damageMatch) {
+            baseDamage = Math.abs(parseInt(damageMatch[0]));
+          }
+        }
+        
+        // Calculate final damage according to MINKIARDS rules
+        calculatedDamage = baseDamage * attackerStars;
+        
+        console.log(`MINKIARDS Damage Calculation: ${attackerName} attacks with ${baseDamage} base damage × ${attackerStars} stars = ${calculatedDamage} total damage`);
+        
+        const damageValue = calculatedDamage;
         
         // Check if player is CPU - only CPU players have reuse restrictions
         const gameStateForCPUCheck = gameManager.getSanitizedGameState(gameId);
@@ -1181,11 +1214,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             console.log(`${targetCard.owner}'s ${targetCard.frontImage} took ${damageValue} damage: ${currentPTI} → ${newPTI} PTI`);
             
-            // Broadcast the damage calculation
+            // Broadcast the damage calculation with details
             io.to(gameId).emit('chat-message', {
               id: `${Date.now()}-damage`,
               playerName: 'Sistema',
-              message: `${targetCard.owner} subisce ${damageValue} danni! PTI: ${currentPTI} → ${newPTI}`,
+              message: `⚔️ ${attackerName} attacca! Danno: ${baseDamage} × ${attackerStars} stelle = ${damageValue} | ${targetCard.owner}: PTI ${currentPTI} → ${newPTI}`,
               timestamp: Date.now()
             });
 
