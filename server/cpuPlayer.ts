@@ -102,40 +102,33 @@ export class CPUPlayer {
         messages: [
           {
             role: "system",
-            content: `Analyze this MINKIARDS card image following these rules:
+            content: `You are an expert at reading MINKIARDS Italian trading cards. Look carefully at this card image and extract ALL visible information.
 
-            For PERSONAGGI cards, identify:
-            - Name of character
-            - PTI (points/life) - number on bottom left
-            - Stars (stelle) - on bottom right  
-            - Powers (red text) - special abilities
-            - Transformation markers (colored dots: E=evolution, S=super, PS=supreme)
+            CRITICAL READING INSTRUCTIONS:
 
-            For MOSSE cards, identify:
-            - Name of move
-            - Base damage value (negative number like -80)
-            - Special effects or conditions
-            - Counter symbols (+ green = can counter, - red = can be countered)
-            - Character-specific bonuses
+            For PERSONAGGI cards:
+            - Character NAME: Read the main title text at the top
+            - PTI (Punti Totali di Impatto): Look for a NUMBER in the BOTTOM LEFT corner (typically 700-2000)  
+            - STELLE (Stars): Look for STAR SYMBOLS or NUMBER in the BOTTOM RIGHT corner (typically 1-5)
+            - POTERI (Powers): Read any RED or COLORED text describing special abilities
+            - TRANSFORMATION: Look for colored dots (E, S, PS markers)
+            - VISUAL DETAILS: Describe the character appearance to confirm identity
 
-            For BONUS cards, identify:
-            - Name and effect
-            - PTI bonuses (+numbers)
-            - Special powers granted
-            - Game dynamic changes
+            For MOSSE cards:
+            - MOVE NAME: Title text
+            - DAMAGE VALUE: Find negative numbers (like -80, -120, -150)
+            - COUNTER SYMBOLS: Green + (can counter), Red - (can be countered)  
+            - CHARACTER SPECIFIC: Any character names mentioned
 
-            Respond with JSON: {
-              "name": "card name",
-              "cardType": "${cardType}",
-              "effect": "detailed effect description",
-              "pti": number (for characters),
-              "stars": number (for characters), 
-              "powers": ["list of powers"],
-              "baseDamage": number (for moves, negative),
-              "canCounter": boolean,
-              "canBeCountered": boolean,
-              "characterSpecific": "character name if applicable"
-            }`
+            For BONUS cards:
+            - EFFECT NAME: Main title
+            - PTI BONUS: Any +numbers for point increases
+            - SPECIAL EFFECTS: Game rule changes
+
+            IMPORTANT: Be precise with numbers! PTI and Stars are crucial for gameplay.
+            If you cannot clearly see a number, estimate based on the character's apparent strength.
+
+            Return accurate JSON with all extracted data:`
           },
           {
             role: "user",
@@ -154,7 +147,7 @@ export class CPUPlayer {
           }
         ],
         response_format: { type: "json_object" },
-        max_tokens: 300
+        max_tokens: 500
       });
 
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
@@ -201,9 +194,11 @@ export class CPUPlayer {
       // Character-specific analysis based on common MINKIARDS card patterns
       if (name.includes('goku') || name.includes('vegeta') || name.includes('saiyan')) {
         pti = 1800; stars = 4; powers = 'Guerriero Saiyan';
-      } else if (name.includes('superman') || name.includes('hulk')) {
+      } else if (name.includes('superman') || name.includes('hulk') || name.includes('incredibile')) {
         pti = 2000; stars = 5; powers = 'Forza sovrumana';
-      } else if (name.includes('batman') || name.includes('iron') || name.includes('man')) {
+      } else if (name.includes('the rock') || name.includes('rock') || name.includes('dwayne')) {
+        pti = 1700; stars = 4; powers = 'Forza fisica'; 
+      } else if (name.includes('batman') || (name.includes('iron') && name.includes('man'))) {
         pti = 1400; stars = 3; powers = 'Tecnologia avanzata';
       } else if (name.includes('homer') || name.includes('simpson')) {
         pti = 800; stars = 2; powers = 'Resistenza al dolore';
@@ -211,7 +206,7 @@ export class CPUPlayer {
         pti = 1200; stars = 2; powers = 'Salto potenziato';
       } else if (name.includes('pikachu') || name.includes('pokemon')) {
         pti = 1000; stars = 3; powers = 'Attacco elettrico';
-      } else if (name.includes('spider') || name.includes('man')) {
+      } else if (name.includes('spider') && name.includes('man')) {
         pti = 1300; stars = 3; powers = 'Agilità sovrumana';
       } else if (name.includes('dragon') || name.includes('drago')) {
         pti = 2200; stars = 5; powers = 'Soffio di fuoco';
@@ -221,6 +216,14 @@ export class CPUPlayer {
         pti = 1600; stars = 4; powers = 'Leadership';
       } else if (name.includes('warrior') || name.includes('guerriero')) {
         pti = 1400; stars = 3; powers = 'Esperienza di combattimento';
+      } else if (name.includes('holly') || name.includes('terence')) {
+        pti = 1300; stars = 3; powers = 'Stile western';
+      } else if (name.includes('gidi') || name.includes('gideon')) {
+        pti = 1100; stars = 2; powers = 'Abilità speciali';
+      } else if (name.includes('emis') || name.includes('killa')) {
+        pti = 1000; stars = 3; powers = 'Rap battle';
+      } else if (name.includes('tony') || name.includes('tammaro')) {
+        pti = 900; stars = 2; powers = 'Melodia neomelodica';
       } else {
         // Default ranges based on name characteristics
         const nameLength = name.length;
@@ -596,7 +599,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           }
         ],
         response_format: { type: "json_object" },
-        max_tokens: 300
+        max_tokens: 500
       });
 
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
@@ -1250,7 +1253,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         const action = await this.executeAction(gameState, analysis.recommendedAction);
         
         if (action) {
-          console.log(`CPU ${this.playerName} executes:`, action.type);
+          console.log(`CPU ${this.playerName} executes:`, action.type || 'unknown');
           return action;
         }
       }
