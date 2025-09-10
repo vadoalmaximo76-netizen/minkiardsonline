@@ -945,6 +945,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
   // 2. Can play cards immediately after drawing
   // 3. Cards activate immediately when played
   // 4. Turn ends automatically after using a card
+  // 5. Auto-eliminate PERSONAGGI with PTI: 0
   async takeTurn(gameState: any) {
     try {
       console.log(`CPU ${this.playerName} is thinking...`);
@@ -959,6 +960,13 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       if (!cpuPlayer) {
         console.log(`CPU ${this.playerName} not found in game state`);
         return null;
+      }
+      
+      // NEW: Check for dead characters (PTI: 0) and move to graveyard automatically
+      const deadCharacterAction = this.checkAndEliminateDeadCharacters(gameState);
+      if (deadCharacterAction) {
+        console.log(`CPU ${this.playerName} found dead character to eliminate`);
+        return deadCharacterAction;
       }
       
       // Check if this is the opening sequence (no cards in hand, no character on field)
@@ -1120,6 +1128,37 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     }
     
     return { shouldDraw: false };
+  }
+  
+  // NEW: Check for PERSONAGGI cards with PTI: 0 and automatically eliminate them
+  checkAndEliminateDeadCharacters(gameState: any): any {
+    // Find CPU's PERSONAGGI cards on the field with PTI: 0
+    const myCharacters = gameState.field.filter((card: any) => 
+      card.owner === this.playerName && 
+      (card.type === 'personaggi' || card.type === 'personaggi_speciali')
+    );
+    
+    for (const character of myCharacters) {
+      const notes = character.notes || character.text || '';
+      
+      // Check if notes contain "PTI: 0" (even with other text)
+      const ptiMatch = notes.match(/PTI:\s*0\b/i);
+      if (ptiMatch) {
+        console.log(`CPU ${this.playerName} found dead character ${character.id} with PTI: 0`);
+        this.sendChatMessage(`Il mio personaggio è morto (PTI: 0). Lo metto nel cimitero.`);
+        
+        return {
+          type: 'eliminate-dead-character',
+          data: {
+            cardId: character.id,
+            playerName: this.playerName,
+            reason: 'PTI reached 0'
+          }
+        };
+      }
+    }
+    
+    return null;
   }
   
   // Analyze hand to check if player can play according to rules

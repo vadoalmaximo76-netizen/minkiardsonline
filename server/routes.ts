@@ -1315,6 +1315,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     }, 3000); // 3 seconds for manual return
                     return; // Return early to prevent generic end-turn
                     
+                  case 'eliminate-dead-character':
+                    // NEW: CPU eliminates character with PTI: 0
+                    console.log(`CPU ${nextPlayer} eliminating dead character: ${cpuAction.data.cardId}`);
+                    const eliminateResult = gameManager.moveToGraveyard(gameId, cpuAction.data.cardId, cpuAction.data.playerName);
+                    
+                    if (eliminateResult.success) {
+                      const updatedGameState = gameManager.getSanitizedGameState(gameId);
+                      io.to(gameId).emit('game-state-update', updatedGameState);
+                      
+                      // Notify about the elimination
+                      io.to(gameId).emit('chat-message', {
+                        id: `${Date.now()}-cpu-eliminate`,
+                        playerName: nextPlayer,
+                        message: 'Il mio personaggio è morto (PTI: 0) ed è stato eliminato.',
+                        timestamp: Date.now()
+                      });
+                      
+                      console.log(`CPU ${nextPlayer} successfully eliminated dead character`);
+                    }
+                    
+                    // Turn continues after elimination (can still act)
+                    setTimeout(async () => {
+                      // Process another CPU action if available
+                      const followUpAction = await gameManager.processCPUTurn(gameId, nextPlayer, io);
+                      if (!followUpAction) {
+                        // No more actions, end turn
+                        const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
+                        if (nextAfterCPU) {
+                          io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                          console.log(`Turn ended for ${nextPlayer} after elimination, next: ${nextAfterCPU}`);
+                        }
+                      }
+                    }, 1500);
+                    return; // Return early to prevent generic end-turn
+                    
                   case 'draw-and-play':
                     // NEW: Draw a card and immediately play it in the same turn
                     const drawnCard = await gameManager.pickCard(gameId, cpuAction.data.deckType, cpuAction.data.playerName);
@@ -1350,7 +1385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 
                 // NOTE: Turn ending is now handled individually by each action type
                 // Only end turn generically for actions that don't handle it themselves
-                if (!['play-card', 'mosse-attack', 'draw-and-play'].includes(cpuAction.type)) {
+                if (!['play-card', 'mosse-attack', 'draw-and-play', 'eliminate-dead-character'].includes(cpuAction.type)) {
                   setTimeout(() => {
                     const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
                     if (nextAfterCPU) {
