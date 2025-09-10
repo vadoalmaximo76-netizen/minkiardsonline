@@ -926,8 +926,12 @@ Rispondi SOLO in JSON:`;
       // Check if it's a PERSONAGGI card
       const isPersonaggio = card.type === 'personaggi';
       
-      // Auto-fill empty notes for PERSONAGGI cards
-      if (isPersonaggio && (!card.text || card.text.trim() === '')) {
+      // Auto-analyze PERSONAGGI cards for CPU players
+      if (isPersonaggio && player.isCPU && (!card.text || card.text.trim() === '' || card.text.trim() === 'PTI:  | Stelle:  ')) {
+        // Trigger automatic analysis for CPU players
+        this.autoAnalyzePersonaggioCard(gameId, card, playerName);
+      } else if (isPersonaggio && (!card.text || card.text.trim() === '')) {
+        // Auto-fill empty notes for human players
         card.text = 'PTI:  | Stelle:  ';
       }
       
@@ -968,6 +972,60 @@ Rispondi SOLO in JSON:`;
     }
     
     return {};
+  }
+
+  // AUTO-ANALYZE PERSONAGGI CARDS FOR CPU PLAYERS
+  private async autoAnalyzePersonaggioCard(gameId: string, card: any, cpuPlayerName: string) {
+    try {
+      console.log(`Auto-analyzing PERSONAGGI card for CPU ${cpuPlayerName}: ${card.frontImage}`);
+      
+      // Get the CPU player instance to use their analysis method
+      const cpuPlayer = this.cpuPlayers.get(cpuPlayerName);
+      if (!cpuPlayer) {
+        console.log(`CPU player ${cpuPlayerName} not found for auto-analysis`);
+        return;
+      }
+
+      // Use the CPU's detailed analysis method
+      const analysis = await cpuPlayer.analyzeCardImageDetailed(card.frontImage, 'personaggi');
+      
+      if (analysis && (analysis.pti > 0 || analysis.stars > 0)) {
+        // Format the analysis results according to MINKIARDS rules
+        let autoText = '';
+        if (analysis.pti > 0) autoText += `PTI: ${analysis.pti}`;
+        if (analysis.stars > 0) {
+          if (autoText) autoText += ' | ';
+          autoText += `Stelle: ${analysis.stars}`;
+        }
+        if (analysis.powers && analysis.powers.length > 0) {
+          if (autoText) autoText += '\n';
+          autoText += `Poteri: ${Array.isArray(analysis.powers) ? analysis.powers.join(', ') : analysis.powers}`;
+        }
+        
+        // Update the card's text with analyzed information
+        card.text = autoText;
+        
+        console.log(`CPU ${cpuPlayerName} auto-analyzed card: ${autoText}`);
+        
+        // Emit chat message about the analysis
+        if (this.io) {
+          this.io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-analysis`,
+            playerName: cpuPlayerName,
+            message: `Ho analizzato la mia carta: ${analysis.name || 'Personaggio'} - ${autoText}`,
+            timestamp: Date.now()
+          });
+        }
+      } else {
+        // Fallback if analysis fails
+        card.text = 'PTI: analisi fallita | Stelle: analisi fallita';
+        console.log(`Auto-analysis failed for CPU ${cpuPlayerName}, using fallback text`);
+      }
+    } catch (error) {
+      console.error(`Error in auto-analysis for CPU ${cpuPlayerName}:`, error);
+      // Fallback text on error
+      card.text = 'PTI: errore analisi | Stelle: errore analisi';
+    }
   }
 
   async revealCard(gameId: string, cardId: string, playerName: string): Promise<{ card?: any, isPersonaggio?: boolean }> {
