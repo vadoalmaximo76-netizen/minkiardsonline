@@ -208,6 +208,80 @@ export class GameManager {
       }
     }
 
+    // Advanced swap/transfer patterns
+    if ((lowercaseInstruction.includes('scambi') || lowercaseInstruction.includes('scambia')) && 
+        lowercaseInstruction.includes('personaggi') && 
+        (lowercaseInstruction.includes('tutti') || lowercaseInstruction.includes('tra'))) {
+      return await this.swapPersonaggiCards(gameId, playerName, instruction);
+    }
+
+    // Player-specific transfer patterns
+    const gameState = this.getGameState(gameId);
+    const players = gameState ? Object.keys(gameState.players) : [];
+    
+    // Check for player mentions and transfer actions
+    const transferKeywords = ['passa', 'va', 'trasferisce', 'scambia', 'dai', 'manda'];
+    const hasTransferKeyword = transferKeywords.some(keyword => lowercaseInstruction.includes(keyword));
+    
+    if (hasTransferKeyword && lowercaseInstruction.includes('personaggi')) {
+      const mentionedPlayers = players.filter(player => 
+        lowercaseInstruction.includes(player.toLowerCase())
+      );
+      
+      if (mentionedPlayers.length >= 2) {
+        return await this.transferPersonaggioCard(gameId, mentionedPlayers[0], mentionedPlayers[1], instruction);
+      }
+    }
+
+    // Elimination patterns
+    if ((lowercaseInstruction.includes('elimina') || lowercaseInstruction.includes('rimuovi') ||
+         lowercaseInstruction.includes('espelli') || lowercaseInstruction.includes('togli')) && 
+        (lowercaseInstruction.includes('utente') || lowercaseInstruction.includes('giocatore'))) {
+      
+      const mentionedPlayer = players.find(p => lowercaseInstruction.includes(p.toLowerCase()));
+      if (mentionedPlayer) {
+        return await this.penalizePlayer(gameId, mentionedPlayer, instruction);
+      }
+    }
+
+    // Card position changes (field swaps)
+    if ((lowercaseInstruction.includes('cambia') || lowercaseInstruction.includes('sposta')) && 
+        (lowercaseInstruction.includes('posizioni') || lowercaseInstruction.includes('campo'))) {
+      return await this.swapFieldPositions(gameId, playerName, instruction);
+    }
+
+    // Individual player card distribution
+    const playerCardMatch = players.find(player => {
+      const playerWords = player.toLowerCase().split(/[-_\s]/);
+      return playerWords.some(word => lowercaseInstruction.includes(word)) && 
+             (lowercaseInstruction.includes('pesca') || lowercaseInstruction.includes('prendi') || 
+              lowercaseInstruction.includes('ricevi') || lowercaseInstruction.includes('dai'));
+    });
+
+    if (playerCardMatch) {
+      const numbers = instruction.match(/\d+/g);
+      const count = numbers && numbers[0] ? parseInt(numbers[0]) : 1;
+      
+      let cardType: 'personaggi' | 'mosse' | 'bonus' = 'personaggi';
+      if (lowercaseInstruction.includes('mosse')) cardType = 'mosse';
+      else if (lowercaseInstruction.includes('bonus')) cardType = 'bonus';
+      
+      return await this.distributeCardsToPlayer(gameId, playerCardMatch, cardType, count, instruction);
+    }
+
+    // PTI/Stats modification patterns
+    const ptiMatch = instruction.match(/(?:imposta|setta|cambia).*?pti\s*(\d+)/i);
+    if (ptiMatch) {
+      const newPTI = parseInt(ptiMatch[1]);
+      return await this.setAllPersonaggiPTI(gameId, newPTI, instruction);
+    }
+
+    // Game state management
+    if (lowercaseInstruction.includes('reset') || 
+        (lowercaseInstruction.includes('ricomincia') && lowercaseInstruction.includes('partita'))) {
+      return await this.resetGame(gameId, playerName, instruction);
+    }
+
     // If no pattern matched, ask clarifying questions
     console.log(`Unrecognized game instruction: "${instruction}"`);
     return await this.askClarifyingQuestion(gameId, playerName, instruction);
@@ -216,60 +290,127 @@ export class GameManager {
   private async askClarifyingQuestion(gameId: string, playerName: string, instruction: string) {
     const lowercaseInstruction = instruction.toLowerCase();
     
-    // Return conversational responses instead of throwing errors
-    // Analyze what the user might want based on keywords
-    if (lowercaseInstruction.includes('scambi') || lowercaseInstruction.includes('cambi') || lowercaseInstruction.includes('switch')) {
-      return {
-        isQuestion: true,
-        message: `🤔 Vuoi scambiare delle carte?\n\nChiarifica cosa intendi:\n• "Scambia i PERSONAGGI tra tutti i giocatori"\n• "Inverti i turni"\n• "Cambia le posizioni delle carte in campo"\n\nScrivi la tua istruzione più specifica!`
-      };
+    // Get current game state for context-aware suggestions
+    const gameState = this.getGameState(gameId);
+    const players = gameState ? Object.keys(gameState.players) : [];
+    const currentPlayerNames = players.length > 0 ? players.join(", ") : "giocatori";
+    
+    // Advanced keyword analysis with action detection
+    const actionKeywords = {
+      transfer: ['scambi', 'scambia', 'passa', 'trasferis', 'dai', 'manda', 'cambia', 'switch'],
+      eliminate: ['elimina', 'rimuovi', 'espelli', 'butta', 'togli', 'uccidi', 'morti', 'muore'],
+      distribute: ['pesca', 'prendi', 'dai', 'distribuisci', 'assegna', 'ricevi'],
+      control: ['inverti', 'cambia turno', 'salta', 'passa turno', 'controllo'],
+      visibility: ['copri', 'scopri', 'nascondi', 'mostra', 'rivela', 'gira'],
+      modify: ['modifica', 'aggiorna', 'imposta', 'setta', 'cambia valore', 'PTI', 'stelle', 'stats'],
+      game: ['fine', 'termina', 'reset', 'ricomincia', 'nuovo', 'vittoria', 'vince']
+    };
+
+    const entityKeywords = {
+      cards: ['carte', 'personaggi', 'mosse', 'bonus', 'speciali'],
+      players: ['utenti', 'giocatori', 'tutti', 'partecipanti', 'cpu', 'umani'],
+      locations: ['campo', 'mano', 'deck', 'cimitero', 'graveyard', 'mazzo']
+    };
+
+    // Analyze instruction intent
+    let detectedAction = null;
+    let detectedEntities = [];
+    
+    for (const [action, keywords] of Object.entries(actionKeywords)) {
+      if (keywords.some(keyword => lowercaseInstruction.includes(keyword))) {
+        detectedAction = action;
+        break;
+      }
     }
     
-    if (lowercaseInstruction.includes('abbandon') || lowercaseInstruction.includes('esce') || lowercaseInstruction.includes('lascia')) {
+    for (const [entity, keywords] of Object.entries(entityKeywords)) {
+      if (keywords.some(keyword => lowercaseInstruction.includes(keyword))) {
+        detectedEntities.push(entity);
+      }
+    }
+
+    // Context-aware responses based on detected intent
+    if (detectedAction === 'transfer' && detectedEntities.includes('cards')) {
       return {
         isQuestion: true,
-        message: `🤔 Qualcuno deve abbandonare?\n\nPer ora non posso far abbandonare i giocatori, ma puoi:\n• "Inverti i turni" per cambiare l'ordine\n• "Tutti pescano carte" per dare carte\n• "Copri tutte le carte" per nasconderle\n\nCosa vorresti fare invece?`
+        message: `🔄 Vuoi trasferire delle carte tra giocatori!\n\n**Opzioni disponibili:**\n• "Scambia i PERSONAGGI tra ${currentPlayerNames}"\n• "Il PERSONAGGIO di [nome] va a [altro nome]"\n• "Tutti si scambiano le carte in mano"\n• "Ruota i PERSONAGGI in campo"\n\n**Giocatori attuali:** ${currentPlayerNames}\n\nSpecifica esattamente cosa vuoi scambiare e tra chi!`
       };
     }
-    
-    if (lowercaseInstruction.includes('vinc') || lowercaseInstruction.includes('fine') || lowercaseInstruction.includes('termina')) {
+
+    if (detectedAction === 'eliminate' && detectedEntities.includes('players')) {
       return {
         isQuestion: true,
-        message: `🤔 Vuoi terminare la partita?\n\nPer ora non posso dichiarare un vincitore, ma puoi:\n• "Inverti i turni" per cambiare l'ordine\n• "Tutti pescano carte" per continuare a giocare\n• "Copri/Scopri le carte" per gestire la visibilità\n\nCosa vorresti fare?`
+        message: `⚠️ Vuoi eliminare un giocatore!\n\n**Attenzione:** Non posso rimuovere giocatori dalla partita, ma posso:\n• Azzerare le carte di un giocatore: "Togli tutte le carte a [nome]"\n• Mandare le carte al cimitero: "Il PERSONAGGIO di [nome] muore"\n• Penalizzare: "Tutti pescano 3 carte tranne [nome]"\n\n**Giocatori attuali:** ${currentPlayerNames}\n\nCosa vuoi fare esattamente?`
       };
     }
-    
-    if (lowercaseInstruction.includes('mett') && lowercaseInstruction.includes('campo')) {
-      return {
-        isQuestion: true,
-        message: `🤔 Vuoi che i giocatori mettano carte in campo?\n\nPer ora posso solo far pescare carte:\n• "Tutti pescano 2 PERSONAGGI"\n• "Partecipanti prendono 3 MOSSE"\n• "Giocatori pescano 1 BONUS"\n\nI giocatori dovranno poi giocare le carte manualmente. Va bene?`
-      };
-    }
-    
-    if (lowercaseInstruction.includes('gioca') && (lowercaseInstruction.includes('personaggi') || 
-        lowercaseInstruction.includes('mosse') || lowercaseInstruction.includes('bonus'))) {
-      return {
-        isQuestion: true,
-        message: `🤔 Vuoi che i giocatori giochino delle carte?\n\nPer ora posso far pescare carte che poi i giocatori possono giocare:\n• "Tutti pescano 2 PERSONAGGI"\n• "Partecipanti prendono 3 MOSSE"\n• "Giocatori pescano 1 BONUS"\n\nVa bene se faccio pescare le carte?`
-      };
-    }
-    
-    // Check if it might be a card distribution request
-    if ((lowercaseInstruction.includes('tutti') || lowercaseInstruction.includes('partecipanti') || 
-         lowercaseInstruction.includes('giocatori') || lowercaseInstruction.includes('utenti')) &&
-        (lowercaseInstruction.includes('carte') || lowercaseInstruction.includes('personaggi') || 
-         lowercaseInstruction.includes('mosse') || lowercaseInstruction.includes('bonus'))) {
+
+    if (detectedAction === 'distribute' && detectedEntities.includes('cards')) {
+      const numbers = instruction.match(/\d+/g);
+      const suggestedNumber = numbers && numbers[0] ? numbers[0] : '1';
       
       return {
         isQuestion: true,
-        message: `🤔 Vuoi far pescare delle carte?\n\nSpecifica meglio:\n• Quante carte? (esempio: "3 carte")\n• Che tipo? PERSONAGGI, MOSSE, BONUS\n• A chi? "tutti", "partecipanti", "giocatori"\n\nEsempio: "Tutti pescano 3 carte MOSSE"\n\nRiprova con più dettagli!`
+        message: `🎴 Vuoi far pescare delle carte!\n\n**Formato corretto:**\n• "Tutti pescano ${suggestedNumber} PERSONAGGI"\n• "${currentPlayerNames.split(',')[0]?.trim() || 'Nome'} pesca 2 MOSSE"\n• "I giocatori prendono 3 BONUS"\n\n**Tipi disponibili:** PERSONAGGI, MOSSE, BONUS, SPECIALI\n**Giocatori:** ${currentPlayerNames}\n\nSpecifica: chi, quante, che tipo!`
       };
     }
+
+    if (detectedAction === 'control') {
+      return {
+        isQuestion: true,
+        message: `🎮 Vuoi gestire i turni!\n\n**Opzioni disponibili:**\n• "Inverti l'ordine dei turni"\n• "Salta il turno di [nome]"\n• "Passa il turno a [nome]"\n• "Cambia l'ordine: [nome1], [nome2]..."\n\n**Giocatori attuali:** ${currentPlayerNames}\n\nSpecifica come vuoi modificare i turni!`
+      };
+    }
+
+    if (detectedAction === 'visibility') {
+      return {
+        isQuestion: true,
+        message: `👁️ Vuoi gestire la visibilità delle carte!\n\n**Opzioni disponibili:**\n• "Copri tutte le carte in campo"\n• "Scopri i PERSONAGGI di tutti"\n• "Nascondi le carte di [nome]"\n• "Mostra le carte in mano a tutti"\n\n**Posizioni:** campo, mano, deck\n**Giocatori:** ${currentPlayerNames}\n\nSpecifica cosa vuoi nascondere/mostrare!`
+      };
+    }
+
+    if (detectedAction === 'modify') {
+      return {
+        isQuestion: true,
+        message: `⚙️ Vuoi modificare le statistiche delle carte!\n\n**Opzioni disponibili:**\n• "Imposta PTI 5 al PERSONAGGIO di [nome]"\n• "Aggiungi 2 stelle alla carta [nome carta]"\n• "Modifica le note della carta: [testo]"\n• "Azzera i PTI di tutti i PERSONAGGI"\n\n**Statistiche:** PTI (vita), stelle (danno), note\n\nSpecifica quale carta e cosa modificare!`
+      };
+    }
+
+    if (detectedAction === 'game') {
+      return {
+        isQuestion: true,
+        message: `🏁 Vuoi gestire lo stato della partita!\n\n**Opzioni disponibili:**\n• "Dichiarare vincitore: [nome]"\n• "Reset completo della partita"\n• "Termina la partita"\n• "Nuovo round per tutti"\n\n**Nota:** Alcune azioni potrebbero cancellare il progresso!\n\nConfermi cosa vuoi fare?`
+      };
+    }
+
+    // Player name detection
+    const mentionedPlayers = players.filter(player => 
+      lowercaseInstruction.includes(player.toLowerCase())
+    );
     
-    // Generic help if nothing specific detected
+    if (mentionedPlayers.length > 0) {
+      return {
+        isQuestion: true,
+        message: `👤 Hai menzionato: **${mentionedPlayers.join(', ')}**\n\n**Cosa vuoi fare con questi giocatori?**\n• Trasferire carte: "Il PERSONAGGIO di ${mentionedPlayers[0]} va a ${players.find(p => p !== mentionedPlayers[0]) || 'altro giocatore'}"\n• Far pescare: "${mentionedPlayers[0]} pesca 2 MOSSE"\n• Gestire turni: "Salta il turno di ${mentionedPlayers[0]}"\n• Modificare carte: "Copri le carte di ${mentionedPlayers[0]}"\n\n**Tutti i giocatori:** ${currentPlayerNames}\n\nSii più specifico sull'azione!`
+      };
+    }
+
+    // Card type detection
+    const cardTypes = ['personaggi', 'mosse', 'bonus', 'speciali'];
+    const mentionedCardTypes = cardTypes.filter(type => 
+      lowercaseInstruction.includes(type)
+    );
+    
+    if (mentionedCardTypes.length > 0) {
+      return {
+        isQuestion: true,
+        message: `🃏 Hai menzionato: **${mentionedCardTypes.join(', ').toUpperCase()}**\n\n**Cosa vuoi fare con queste carte?**\n• Far pescare: "Tutti pescano 2 ${mentionedCardTypes[0].toUpperCase()}"\n• Trasferire: "Scambia i ${mentionedCardTypes[0].toUpperCase()} tra tutti"\n• Gestire: "Copri tutti i ${mentionedCardTypes[0].toUpperCase()} in campo"\n• Modificare: "Azzera i PTI dei ${mentionedCardTypes[0].toUpperCase()}"\n\n**Giocatori:** ${currentPlayerNames}\n\nSpecifica l'azione esatta!`
+      };
+    }
+
+    // Generic intelligent help
     return {
       isQuestion: true,
-      message: `🤔 Non ho capito: "${instruction}"\n\nCosa vorresti fare? Posso aiutarti con:\n\n🎴 **Far pescare carte:**\n• "Tutti pescano 3 MOSSE"\n• "Partecipanti prendono 2 PERSONAGGI"\n\n⚡ **Gestire il gioco:**\n• "Inverti i turni"\n• "Copri tutte le carte"\n• "Scopri le carte"\n\n💬 **Dimmi cosa vuoi fare** e ti aiuto a formulare l'istruzione giusta!`
+      message: `🤔 Analizzo: "${instruction}"\n\n**Non ho capito l'azione. Ti aiuto:**\n\n🎯 **Azioni comuni:**\n• **Pescare:** "Tutti pescano 2 PERSONAGGI"\n• **Scambiare:** "Scambia i PERSONAGGI tra tutti"\n• **Gestire:** "Inverti i turni" / "Copri le carte"\n• **Modificare:** "Imposta PTI 5 al personaggio di [nome]"\n\n📋 **Elementi disponibili:**\n• **Giocatori:** ${currentPlayerNames}\n• **Carte:** PERSONAGGI, MOSSE, BONUS, SPECIALI\n• **Posizioni:** campo, mano, deck, cimitero\n\n💡 **Scrivi in modo chiaro:** CHI fa COSA a QUALE CARTA/GIOCATORE\n\nRiformula la tua istruzione!`
     };
   }
 
@@ -1506,5 +1647,197 @@ o per azioni senza parametri:
     gameState.graveyard = gameState.graveyard.filter(card => card.owner !== playerName);
 
     return true;
+  }
+
+  // Advanced instruction implementation methods
+  private async swapPersonaggiCards(gameId: string, playerName: string, instruction: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    const players = Object.keys(game.players);
+    if (players.length < 2) {
+      return { message: '❌ Servono almeno 2 giocatori per scambiare i PERSONAGGI!' };
+    }
+
+    // Find all PERSONAGGI cards on the field
+    const fieldPersonaggi: Array<{player: string, card: any}> = [];
+    
+    for (const playerName of players) {
+      const player = game.players[playerName];
+      if (player.field && player.field.length > 0) {
+        const personaggiOnField = player.field.filter(card => card.cardType === 'personaggi');
+        personaggiOnField.forEach(card => {
+          fieldPersonaggi.push({ player: playerName, card });
+        });
+      }
+    }
+
+    if (fieldPersonaggi.length < 2) {
+      return { message: '❌ Servono almeno 2 PERSONAGGI in campo per lo scambio!' };
+    }
+
+    // Swap the first two PERSONAGGI found
+    const card1 = fieldPersonaggi[0];
+    const card2 = fieldPersonaggi[1];
+    
+    // Remove cards from current positions
+    game.players[card1.player].field = game.players[card1.player].field.filter(c => c.cardId !== card1.card.cardId);
+    game.players[card2.player].field = game.players[card2.player].field.filter(c => c.cardId !== card2.card.cardId);
+    
+    // Add cards to new positions
+    game.players[card2.player].field.push(card1.card);
+    game.players[card1.player].field.push(card2.card);
+
+    return { message: `🔄 PERSONAGGI scambiati tra ${card1.player} e ${card2.player}!` };
+  }
+
+  private async transferPersonaggioCard(gameId: string, fromPlayer: string, toPlayer: string, instruction: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    const fromPlayerData = game.players[fromPlayer];
+    const toPlayerData = game.players[toPlayer];
+    
+    if (!fromPlayerData || !toPlayerData) {
+      return { message: `❌ Giocatori non trovati: ${fromPlayer}, ${toPlayer}` };
+    }
+
+    // Find PERSONAGGIO card on field
+    const personaggioCard = fromPlayerData.field?.find(card => card.cardType === 'personaggi');
+    if (!personaggioCard) {
+      return { message: `❌ ${fromPlayer} non ha PERSONAGGI in campo!` };
+    }
+
+    // Transfer the card
+    fromPlayerData.field = fromPlayerData.field.filter(c => c.cardId !== personaggioCard.cardId);
+    if (!toPlayerData.field) toPlayerData.field = [];
+    toPlayerData.field.push(personaggioCard);
+
+    return { message: `🔄 PERSONAGGIO trasferito da ${fromPlayer} a ${toPlayer}!` };
+  }
+
+  private async penalizePlayer(gameId: string, targetPlayer: string, instruction: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    const player = game.players[targetPlayer];
+    if (!player) {
+      return { message: `❌ Giocatore ${targetPlayer} non trovato!` };
+    }
+
+    // Move all player's cards to graveyard
+    const removedCards = [];
+    
+    if (player.field && player.field.length > 0) {
+      removedCards.push(...player.field);
+      player.field = [];
+    }
+    
+    if (player.hand && player.hand.length > 0) {
+      removedCards.push(...player.hand);
+      player.hand = [];
+    }
+
+    // Add cards to graveyard
+    removedCards.forEach(card => {
+      game.graveyard.push({
+        ...card,
+        eliminatedBy: targetPlayer,
+        eliminatedAt: new Date()
+      });
+    });
+
+    return { message: `⚠️ ${targetPlayer} penalizzato: ${removedCards.length} carte rimosse!` };
+  }
+
+  private async swapFieldPositions(gameId: string, playerName: string, instruction: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    const players = Object.keys(game.players);
+    let swapCount = 0;
+
+    // Swap field cards between all players
+    for (let i = 0; i < players.length - 1; i++) {
+      const player1 = game.players[players[i]];
+      const player2 = game.players[players[i + 1]];
+      
+      if (player1.field && player1.field.length > 0 && player2.field && player2.field.length > 0) {
+        const temp = player1.field[0];
+        player1.field[0] = player2.field[0];
+        player2.field[0] = temp;
+        swapCount++;
+      }
+    }
+
+    return { message: `🔄 Posizioni delle carte in campo cambiate! (${swapCount} scambi)` };
+  }
+
+  private async distributeCardsToPlayer(gameId: string, targetPlayer: string, cardType: 'personaggi' | 'mosse' | 'bonus', count: number, instruction: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    const player = game.players[targetPlayer];
+    if (!player) {
+      return { message: `❌ Giocatore ${targetPlayer} non trovato!` };
+    }
+
+    let distributed = 0;
+    for (let i = 0; i < count; i++) {
+      const card = this.drawCardFromDeck(game, cardType);
+      if (card) {
+        if (!player.hand) player.hand = [];
+        player.hand.push(card);
+        distributed++;
+      }
+    }
+
+    return { message: `🎴 ${targetPlayer} ha pescato ${distributed} carta/e ${cardType.toUpperCase()}!` };
+  }
+
+  private async setAllPersonaggiPTI(gameId: string, newPTI: number, instruction: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    let updatedCount = 0;
+    const players = Object.keys(game.players);
+
+    for (const playerName of players) {
+      const player = game.players[playerName];
+      if (player.field) {
+        player.field.forEach(card => {
+          if (card.cardType === 'personaggi') {
+            if (!card.notes) card.notes = '';
+            card.notes = card.notes.replace(/PTI:\s*\d+/g, '').trim();
+            if (card.notes) card.notes += ` | PTI: ${newPTI}`;
+            else card.notes = `PTI: ${newPTI}`;
+            updatedCount++;
+          }
+        });
+      }
+    }
+
+    return { message: `⚙️ PTI di ${updatedCount} PERSONAGGI impostato a ${newPTI}!` };
+  }
+
+  private async resetGame(gameId: string, playerName: string, instruction: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    // Reset all player data but keep players in game
+    const players = Object.keys(game.players);
+    for (const player of players) {
+      game.players[player] = {
+        hand: [],
+        field: [],
+        selectedCard: null
+      };
+    }
+
+    // Reset game state
+    game.graveyard = [];
+    game.currentPlayerIndex = 0;
+
+    return { message: `🔄 Partita completamente resettata! Tutti i giocatori possono ricominciare.` };
   }
 }
