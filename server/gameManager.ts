@@ -337,6 +337,11 @@ export class GameManager {
       // Check if it's a PERSONAGGI card
       const isPersonaggio = card.type === 'personaggi';
       
+      // Auto-fill empty notes for PERSONAGGI cards
+      if (isPersonaggio && (!card.text || card.text.trim() === '')) {
+        card.text = 'PTI:  | Stelle:  ';
+      }
+      
       // Record play card event
       await this.recordEvent(gameId, 'play-card', {
         cardId: card.id,
