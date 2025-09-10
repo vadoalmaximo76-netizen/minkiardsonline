@@ -1116,7 +1116,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('mosse-attack', ({ mosseCardId, targetCardId, attackerName, targetOwner }) => {
+    socket.on('mosse-attack', ({ mosseCardId, targetCardId, attackerName, targetOwner, damageValue }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
         // Get the card to check its frontImage
@@ -1128,38 +1128,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return;
         }
 
-        // CALCULATE DAMAGE ACCORDING TO MINKIARDS RULES: Damage = Move Base Value × Attacker Stars
-        let calculatedDamage = 0;
-        
-        // 1. Get attacker's character card to extract stars
-        const attackerCharacter = gameState?.field?.find((c: any) => 
-          c.owner === attackerName && c.type === 'personaggi' && !c.faceDown
-        );
-        
-        let attackerStars = 1; // Default to 1 if no stars found
-        if (attackerCharacter && attackerCharacter.text) {
-          const starsMatch = attackerCharacter.text.match(/Stelle:\s*(\d+)/i);
-          if (starsMatch) {
-            attackerStars = parseInt(starsMatch[1]) || 1;
-          }
+        // USE MANUAL DAMAGE INPUT FROM USER
+        if (!damageValue || damageValue <= 0) {
+          console.log(`Invalid damage value: ${damageValue}. Attack cancelled.`);
+          socket.emit('attack-error', { 
+            message: 'Inserisci un valore di danno valido!'
+          });
+          return;
         }
         
-        // 2. Get MOSSE card base damage value (will be analyzed from image)
-        // For now, try to extract from card notes if available
-        let baseDamage = 80; // Default fallback value
-        if (mosseCard.text) {
-          const damageMatch = mosseCard.text.match(/[-]?\d+/);
-          if (damageMatch) {
-            baseDamage = Math.abs(parseInt(damageMatch[0]));
-          }
-        }
-        
-        // Calculate final damage according to MINKIARDS rules
-        calculatedDamage = baseDamage * attackerStars;
-        
-        console.log(`MINKIARDS Damage Calculation: ${attackerName} attacks with ${baseDamage} base damage × ${attackerStars} stars = ${calculatedDamage} total damage`);
-        
-        const damageValue = calculatedDamage;
+        console.log(`Manual damage input: ${attackerName} attacks with ${damageValue} damage`);
         
         // Check if player is CPU - only CPU players have reuse restrictions
         const gameStateForCPUCheck = gameManager.getSanitizedGameState(gameId);
