@@ -680,10 +680,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         }
         break;
       
-      case 'pass_turn':
-        console.log(`CPU ${this.playerName} passing turn - no valid actions`);
-        this.sendChatMessage("Passo il turno.");
-        return null;
+      // Removed pass_turn case as it's not a supported action type
     }
 
     console.log(`CPU ${this.playerName} could not execute action, returning null`);
@@ -874,9 +871,10 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           reasoning: 'Gioco una carta disponibile'
         };
       } else {
+        // No valid actions available - try to play any card or just end turn
         recommendedAction = {
-          type: 'pass_turn' as const,
-          reasoning: 'Non ho azioni disponibili'
+          type: 'play_card' as const,
+          reasoning: 'Non ho azioni valide disponibili'
         };
       }
     }
