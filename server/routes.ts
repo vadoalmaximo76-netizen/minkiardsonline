@@ -1290,17 +1290,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gameId) {
         const result = gameManager.moveToGraveyard(gameId, cardId, playerName);
         if (result.success) {
-          // Check if this triggers elimination check
+          // ENHANCED ELIMINATION SYSTEM: Automatic elimination when limit reached
           if (result.eliminationCheck) {
-            io.to(gameId).emit('elimination-check', { playerName });
+            console.log(`Player ${playerName} has reached character limit - automatically eliminating`);
+            
+            // Automatically eliminate player when they reach the character limit  
+            const eliminationSuccess = gameManager.markPlayerEliminated(gameId, playerName);
+            if (eliminationSuccess) {
+              console.log(`Player ${playerName} automatically eliminated due to character limit`);
+              io.to(gameId).emit('player-eliminated', { playerName });
+              
+              // Send message about elimination
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-auto-elimination`,
+                playerName: 'Sistema',
+                message: `${playerName} è stato eliminato! Ha raggiunto il limite di personaggi nel cimitero.`,
+                timestamp: Date.now()
+              });
+            }
           }
           
           const gameState = gameManager.getSanitizedGameState(gameId);
           io.to(gameId).emit('game-state-update', gameState);
           
-          // Check for game victory after potential elimination
+          // ALWAYS check for game victory after any graveyard change
           const winner = gameManager.checkForGameVictory(gameId);
           if (winner) {
+            console.log(`Game victory detected! Winner: ${winner}`);
             io.to(gameId).emit('game-victory', { winner });
           }
         }
@@ -1591,6 +1607,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
               cardName,
               playerName
             });
+          }
+          
+          // CRITICAL FIX: Check if this elimination causes player elimination
+          if (result.eliminationCheck) {
+            console.log(`Player ${playerName} has reached character limit - checking for automatic elimination`);
+            
+            // Automatically eliminate player when they reach the character limit
+            const eliminationSuccess = gameManager.markPlayerEliminated(gameId, playerName);
+            if (eliminationSuccess) {
+              console.log(`Player ${playerName} automatically eliminated due to character limit`);
+              io.to(gameId).emit('player-eliminated', { playerName });
+              
+              // Send message about elimination
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-auto-elimination`,
+                playerName: 'Sistema',
+                message: `${playerName} è stato eliminato! Ha raggiunto il limite di personaggi nel cimitero.`,
+                timestamp: Date.now()
+              });
+              
+              // Check for game victory after elimination
+              const winner = gameManager.checkForGameVictory(gameId);
+              if (winner) {
+                console.log(`Game victory detected! Winner: ${winner}`);
+                io.to(gameId).emit('game-victory', { winner });
+              }
+            }
+          } else {
+            // Even if no elimination, still check for victory (in case other conditions changed)
+            const winner = gameManager.checkForGameVictory(gameId);
+            if (winner) {
+              console.log(`Game victory detected after character elimination! Winner: ${winner}`);
+              io.to(gameId).emit('game-victory', { winner });
+            }
           }
         }
       }
