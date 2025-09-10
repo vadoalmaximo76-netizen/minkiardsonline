@@ -101,27 +101,57 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     setShowPlayerSelect(true);
   };
 
-  const handleDamageConfirm = () => {
-    const damage = parseInt(damageValue);
-    if (isNaN(damage) || damage <= 0) {
-      alert("Inserisci un valore di danno valido (numero positivo)");
-      return;
+  const evaluateExpression = (expression: string): number => {
+    try {
+      // Replace 'x' with '*' for multiplication
+      let cleanExpr = expression.replace(/x/gi, '*');
+      
+      // Remove any non-math characters (keep numbers, +, -, *, /, ., (, ))
+      cleanExpr = cleanExpr.replace(/[^0-9+\-*/().\s]/g, '');
+      
+      // Simple validation - check for basic math operators
+      if (!/^[0-9+\-*/().\s]+$/.test(cleanExpr)) {
+        throw new Error('Invalid expression');
+      }
+      
+      // Use Function constructor for safe evaluation (safer than eval)
+      const result = new Function(`"use strict"; return (${cleanExpr})`)();
+      
+      if (typeof result !== 'number' || isNaN(result)) {
+        throw new Error('Result is not a number');
+      }
+      
+      return Math.round(result); // Round to integer
+    } catch (error) {
+      throw new Error('Espressione matematica non valida');
     }
+  };
 
-    // Attack with damage value
-    socket.emit('mosse-attack', { 
-      mosseCardId: selectedMosseCard?.id,
-      targetCardId: targetCard?.id,
-      attackerName: playerName,
-      targetOwner: targetCard?.owner,
-      damageValue: damage
-    });
+  const handleDamageConfirm = () => {
+    try {
+      const damage = evaluateExpression(damageValue.trim());
+      if (damage <= 0) {
+        alert("Il risultato deve essere un numero positivo");
+        return;
+      }
 
-    // Clear states
-    setSelectedMosseCard(null);
-    setShowDamageInput(false);
-    setDamageValue("");
-    setTargetCard(null);
+      // Attack with damage value
+      socket.emit('mosse-attack', { 
+        mosseCardId: selectedMosseCard?.id,
+        targetCardId: targetCard?.id,
+        attackerName: playerName,
+        targetOwner: targetCard?.owner,
+        damageValue: damage
+      });
+
+      // Clear states
+      setSelectedMosseCard(null);
+      setShowDamageInput(false);
+      setDamageValue("");
+      setTargetCard(null);
+    } catch (error: any) {
+      alert(error.message || "Errore nel calcolo del danno");
+    }
   };
 
   const handleDamageCancel = () => {
