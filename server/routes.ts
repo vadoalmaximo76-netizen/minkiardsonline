@@ -1070,43 +1070,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
 
             // Update the card in the game state
-            const success = gameManager.updateCardText(gameId, targetCardId, updatedNotes);
-            if (success) {
-              console.log(`${targetCard.owner}'s ${targetCard.frontImage} took ${damageValue} damage: ${currentPTI} → ${newPTI} PTI`);
-              
-              // Broadcast the damage calculation
-              io.to(gameId).emit('chat-message', {
-                id: `${Date.now()}-damage`,
-                playerName: 'Sistema',
-                message: `${targetCard.owner} subisce ${damageValue} danni! PTI: ${currentPTI} → ${newPTI}`,
-                timestamp: Date.now()
-              });
+            gameManager.updateCardText(gameId, targetCardId, updatedNotes);
+            
+            console.log(`${targetCard.owner}'s ${targetCard.frontImage} took ${damageValue} damage: ${currentPTI} → ${newPTI} PTI`);
+            
+            // Broadcast the damage calculation
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-damage`,
+              playerName: 'Sistema',
+              message: `${targetCard.owner} subisce ${damageValue} danni! PTI: ${currentPTI} → ${newPTI}`,
+              timestamp: Date.now()
+            });
 
-              // Check if character dies (PTI: 0)
-              if (newPTI <= 0) {
-                setTimeout(() => {
-                  // Auto-eliminate dead character
-                  const eliminateSuccess = gameManager.moveToGraveyard(gameId, targetCardId, targetCard.owner);
-                  if (eliminateSuccess) {
-                    console.log(`${targetCard.owner}'s character automatically eliminated (PTI: 0)`);
-                    
-                    io.to(gameId).emit('chat-message', {
-                      id: `${Date.now()}-death`,
-                      playerName: 'Sistema', 
-                      message: `💀 ${targetCard.owner} è morto! (PTI: 0)`,
-                      timestamp: Date.now()
-                    });
+            // Check if character dies (PTI: 0)
+            if (newPTI <= 0) {
+              setTimeout(() => {
+                // Auto-eliminate dead character
+                const eliminateSuccess = gameManager.moveToGraveyard(gameId, targetCardId, targetCard.owner);
+                if (eliminateSuccess) {
+                  console.log(`${targetCard.owner}'s character automatically eliminated (PTI: 0)`);
+                  
+                  io.to(gameId).emit('chat-message', {
+                    id: `${Date.now()}-death`,
+                    playerName: 'Sistema', 
+                    message: `💀 ${targetCard.owner} è morto! (PTI: 0)`,
+                    timestamp: Date.now()
+                  });
 
-                    // Send updated game state
-                    const updatedGameState = gameManager.getSanitizedGameState(gameId);
-                    io.to(gameId).emit('game-state-update', updatedGameState);
-                  }
-                }, 1000);
-              } else {
-                // Send updated game state for PTI change
-                const updatedGameState = gameManager.getSanitizedGameState(gameId);
-                io.to(gameId).emit('game-state-update', updatedGameState);
-              }
+                  // Send updated game state
+                  const updatedGameState = gameManager.getSanitizedGameState(gameId);
+                  io.to(gameId).emit('game-state-update', updatedGameState);
+                }
+              }, 1000);
+            } else {
+              // Send updated game state for PTI change
+              const updatedGameState = gameManager.getSanitizedGameState(gameId);
+              io.to(gameId).emit('game-state-update', updatedGameState);
             }
           }
         }
@@ -1363,7 +1362,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // First play the MOSSE card
             const playResult = await gameManager.playCard(gameId, mosseCard.id, playerName);
-            if (playResult && playResult.success) {
+            if (playResult && playResult.card) {
               
               // Then execute attack
               setTimeout(() => {
