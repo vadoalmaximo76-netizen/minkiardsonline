@@ -22,7 +22,7 @@ import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
-import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink } from "lucide-react";
+import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star } from "lucide-react";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 
@@ -73,6 +73,14 @@ export const GameBoard: React.FC = () => {
     message: string;
     timestamp: number;
   }>>([]);
+  const [characterLimitDialogOpen, setCharacterLimitDialogOpen] = useState(false);
+  const [eliminationDialogOpen, setEliminationDialogOpen] = useState(false);
+  const [victoryDialogOpen, setVictoryDialogOpen] = useState(false);
+  const [victoryPlayer, setVictoryPlayer] = useState<string>('');
+  const [playerEliminationNotification, setPlayerEliminationNotification] = useState<{
+    visible: boolean;
+    player: string;
+  }>({ visible: false, player: '' });
   const { selectedCard, gameId, playerName, gameState } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, initAudioContext, toggleMute, isMuted } = useAudio();
 
@@ -134,7 +142,13 @@ export const GameBoard: React.FC = () => {
   };
 
   const handleStartGame = () => {
-    socket.emit('start-game', { gameId, playerName });
+    // Show character limit selection dialog first
+    setCharacterLimitDialogOpen(true);
+  };
+
+  const handleCharacterLimitSelected = (limit: string) => {
+    setCharacterLimitDialogOpen(false);
+    socket.emit('start-game', { gameId, playerName, characterLimit: limit });
   };
 
   const handleLeaveGame = () => {
@@ -403,11 +417,37 @@ export const GameBoard: React.FC = () => {
       }
     };
 
+    const handleEliminationCheck = ({ playerName: targetPlayer }: { playerName: string }) => {
+      if (targetPlayer === playerName) {
+        setEliminationDialogOpen(true);
+      }
+    };
+
+    const handlePlayerEliminated = ({ playerName: eliminatedPlayer }: { playerName: string }) => {
+      setPlayerEliminationNotification({
+        visible: true,
+        player: eliminatedPlayer
+      });
+      
+      // Hide notification after 3 seconds
+      setTimeout(() => {
+        setPlayerEliminationNotification({ visible: false, player: '' });
+      }, 3000);
+    };
+
+    const handleGameVictory = ({ winner }: { winner: string }) => {
+      setVictoryPlayer(winner);
+      setVictoryDialogOpen(true);
+    };
+
     socket.on('instruction-executed', handleInstructionExecuted);
     socket.on('instruction-success', handleInstructionSuccess);
     socket.on('instruction-error', handleInstructionError);
     socket.on('instruction-question', handleInstructionQuestion);
     socket.on('instruction-dialogue', handleInstructionDialogue);
+    socket.on('elimination-check', handleEliminationCheck);
+    socket.on('player-eliminated', handlePlayerEliminated);
+    socket.on('game-victory', handleGameVictory);
 
     return () => {
       socket.off('game-reset', handleGameReset);
@@ -437,6 +477,9 @@ export const GameBoard: React.FC = () => {
       socket.off('instruction-error', handleInstructionError);
       socket.off('instruction-question', handleInstructionQuestion);
       socket.off('instruction-dialogue', handleInstructionDialogue);
+      socket.off('elimination-check', handleEliminationCheck);
+      socket.off('player-eliminated', handlePlayerEliminated);
+      socket.off('game-victory', handleGameVictory);
     };
   }, []);
 
@@ -479,6 +522,105 @@ export const GameBoard: React.FC = () => {
         </div>
       )}
       
+      {/* Character Limit Selection Dialog */}
+      {characterLimitDialogOpen && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h2 className="text-xl font-bold text-center mb-6 text-gray-800">
+              Da quanti personaggi è questa partita?
+            </h2>
+            <div className="space-y-3">
+              {['1', '2', '3', '5'].map((limit) => (
+                <Button
+                  key={limit}
+                  onClick={() => handleCharacterLimitSelected(limit)}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 text-lg"
+                >
+                  {limit} personaggi
+                </Button>
+              ))}
+              <Button
+                onClick={() => handleCharacterLimitSelected('unlimited')}
+                className="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 text-lg"
+              >
+                NON SPECIFICARE
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Elimination Confirmation Dialog */}
+      {eliminationDialogOpen && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h2 className="text-xl font-bold text-center mb-6 text-gray-800">
+              È morto il tuo ultimo personaggio, confermi di aver perso la partita?
+            </h2>
+            <div className="space-y-3">
+              <Button
+                onClick={() => {
+                  setEliminationDialogOpen(false);
+                  socket.emit('confirm-elimination', { gameId, playerName, confirmed: true });
+                }}
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 text-lg"
+              >
+                Sì, mi arrendo
+              </Button>
+              <Button
+                onClick={() => {
+                  setEliminationDialogOpen(false);
+                  socket.emit('confirm-elimination', { gameId, playerName, confirmed: false });
+                }}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 text-lg"
+              >
+                No, continuo a giocare
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Victory Dialog */}
+      {victoryDialogOpen && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg p-8 w-full max-w-md mx-4 text-center border-4 border-yellow-300">
+            <div className="mb-4">
+              <Crown className="w-16 h-16 mx-auto text-yellow-800 mb-2" />
+              <div className="flex justify-center space-x-1 mb-4">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="w-6 h-6 text-yellow-800 fill-current" />
+                ))}
+              </div>
+            </div>
+            <h2 className="text-2xl font-bold text-yellow-900 mb-2">
+              {victoryPlayer}
+            </h2>
+            <h3 className="text-xl font-bold text-yellow-900 mb-6">
+              VINCE LA PARTITA!
+            </h3>
+            <Button
+              onClick={() => setVictoryDialogOpen(false)}
+              className="bg-yellow-700 hover:bg-yellow-800 text-white font-bold py-2 px-6"
+            >
+              Chiudi
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Player Elimination Notification */}
+      {playerEliminationNotification.visible && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg z-50">
+          <div className="flex items-center space-x-2">
+            <Skull className="w-5 h-5" />
+            <span className="font-bold">
+              {playerEliminationNotification.player} è stato eliminato dalla partita!
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Game content */}
       <div className="relative z-10">
         {/* Header */}
