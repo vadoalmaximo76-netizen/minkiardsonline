@@ -208,13 +208,56 @@ export class GameManager {
       }
     }
 
-    // If no pattern matched, try to give helpful suggestions
+    // If no pattern matched, ask clarifying questions
     console.log(`Unrecognized game instruction: "${instruction}"`);
-    throw new Error(`Istruzione non compresa: "${instruction}"\n\nEsempi validi:\n• "Inverti i turni"\n• "Tutti pescano 3 carte MOSSE"\n• "Copri tutte le carte"\n• "Scopri le carte"\n• "Partecipanti prendono 2 PERSONAGGI"`);
+    return await this.askClarifyingQuestion(gameId, playerName, instruction);
+  }
+
+  private async askClarifyingQuestion(gameId: string, playerName: string, instruction: string) {
+    const lowercaseInstruction = instruction.toLowerCase();
+    
+    // Analyze what the user might want based on keywords
+    if (lowercaseInstruction.includes('scambi') || lowercaseInstruction.includes('cambi') || lowercaseInstruction.includes('switch')) {
+      throw new Error(`🤔 Vuoi scambiare delle carte?\n\nChiarifica cosa intendi:\n• "Scambia i PERSONAGGI tra tutti i giocatori"\n• "Inverti i turni"\n• "Cambia le posizioni delle carte in campo"\n\nScrivi la tua istruzione più specifica!`);
+    }
+    
+    if (lowercaseInstruction.includes('abbandon') || lowercaseInstruction.includes('esce') || lowercaseInstruction.includes('lascia')) {
+      throw new Error(`🤔 Qualcuno deve abbandonare?\n\nPer ora non posso far abbandonare i giocatori, ma puoi:\n• "Inverti i turni" per cambiare l'ordine\n• "Tutti pescano carte" per dare carte\n• "Copri tutte le carte" per nasconderle\n\nCosa vorresti fare invece?`);
+    }
+    
+    if (lowercaseInstruction.includes('vinc') || lowercaseInstruction.includes('fine') || lowercaseInstruction.includes('termina')) {
+      throw new Error(`🤔 Vuoi terminare la partita?\n\nPer ora non posso dichiarare un vincitore, ma puoi:\n• "Inverti i turni" per cambiare l'ordine\n• "Tutti pescano carte" per continuare a giocare\n• "Copri/Scopri le carte" per gestire la visibilità\n\nCosa vorresti fare?`);
+    }
+    
+    if (lowercaseInstruction.includes('mett') && lowercaseInstruction.includes('campo')) {
+      throw new Error(`🤔 Vuoi che i giocatori mettano carte in campo?\n\nPer ora posso solo far pescare carte:\n• "Tutti pescano 2 PERSONAGGI"\n• "Partecipanti prendono 3 MOSSE"\n• "Giocatori pescano 1 BONUS"\n\nI giocatori dovranno poi giocare le carte manualmente. Va bene?`);
+    }
+    
+    if (lowercaseInstruction.includes('gioca') && (lowercaseInstruction.includes('personaggi') || 
+        lowercaseInstruction.includes('mosse') || lowercaseInstruction.includes('bonus'))) {
+      throw new Error(`🤔 Vuoi che i giocatori giochino delle carte?\n\nPer ora posso far pescare carte che poi i giocatori possono giocare:\n• "Tutti pescano 2 PERSONAGGI"\n• "Partecipanti prendono 3 MOSSE"\n• "Giocatori pescano 1 BONUS"\n\nVa bene se faccio pescare le carte?`);
+    }
+    
+    // Check if it might be a card distribution request
+    if ((lowercaseInstruction.includes('tutti') || lowercaseInstruction.includes('partecipanti') || 
+         lowercaseInstruction.includes('giocatori') || lowercaseInstruction.includes('utenti')) &&
+        (lowercaseInstruction.includes('carte') || lowercaseInstruction.includes('personaggi') || 
+         lowercaseInstruction.includes('mosse') || lowercaseInstruction.includes('bonus'))) {
+      
+      throw new Error(`🤔 Vuoi far pescare delle carte?\n\nSpecifica meglio:\n• Quante carte? (esempio: "3 carte")\n• Che tipo? PERSONAGGI, MOSSE, BONUS\n• A chi? "tutti", "partecipanti", "giocatori"\n\nEsempio: "Tutti pescano 3 carte MOSSE"\n\nRiprova con più dettagli!`);
+    }
+    
+    // Generic help if nothing specific detected
+    throw new Error(`🤔 Non ho capito: "${instruction}"\n\nCosa vorresti fare? Posso aiutarti con:\n\n🎴 **Far pescare carte:**\n• "Tutti pescano 3 MOSSE"\n• "Partecipanti prendono 2 PERSONAGGI"\n\n⚡ **Gestire il gioco:**\n• "Inverti i turni"\n• "Copri tutte le carte"\n• "Scopri le carte"\n\n💬 **Dimmi cosa vuoi fare** e ti aiuto a formulare l'istruzione giusta!`);
   }
 
   private async processInstructionWithAI(gameId: string, playerName: string, instruction: string) {
     try {
+      // Skip AI if we know we have quota issues, rely on pattern matching
+      if (!process.env.OPENAI_API_KEY) {
+        return null;
+      }
+
       const OpenAI = (await import('openai')).default;
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
