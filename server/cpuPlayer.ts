@@ -940,7 +940,11 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     return situationResponses[Math.floor(Math.random() * situationResponses.length)];
   }
 
-  // Main CPU turn logic - uses simple strategy with correct game rules
+  // Enhanced CPU turn logic with new MINKIARDS rules:
+  // 1. Can draw cards during turn
+  // 2. Can play cards immediately after drawing
+  // 3. Cards activate immediately when played
+  // 4. Turn ends automatically after using a card
   async takeTurn(gameState: any) {
     try {
       console.log(`CPU ${this.playerName} is thinking...`);
@@ -963,6 +967,20 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       if (isOpeningSequence) {
         console.log(`CPU ${this.playerName} executing opening sequence`);
         return await this.executeOpeningSequence(gameState);
+      }
+      
+      // NEW RULE: Can draw cards during turn as needed
+      const needsToDraw = this.shouldDrawCards(cpuPlayer, gameState);
+      if (needsToDraw.shouldDraw) {
+        this.sendChatMessage(`Pesco una carta ${needsToDraw.deckType} e poi la gioco subito!`);
+        return {
+          type: 'draw-and-play',
+          data: {
+            deckType: needsToDraw.deckType,
+            playerName: this.playerName,
+            immediate: true // Play immediately after drawing
+          }
+        };
       }
       
       // Check if there's recent advice to follow (but not during opening sequence)
@@ -1076,6 +1094,32 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       this.sendChatMessage(this.getRandomChatResponse('no_actions'));
       return null;
     }
+  }
+  
+  // NEW: Determine if CPU should draw cards during turn
+  shouldDrawCards(cpuPlayer: any, gameState: any): { shouldDraw: boolean, deckType?: string } {
+    const hand = cpuPlayer.hand || [];
+    const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName && card.type === 'personaggi');
+    
+    // If no character on field and no PERSONAGGI in hand, draw one
+    if (!myCharacter && !hand.find((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali')) {
+      return { shouldDraw: true, deckType: 'personaggi' };
+    }
+    
+    // If has character but wants to play MOSSE and doesn't have one
+    if (myCharacter && !hand.find((c: any) => c.type === 'mosse')) {
+      const enemies = gameState.field.filter((card: any) => card.owner !== this.playerName && card.type === 'personaggi');
+      if (enemies.length > 0 && Math.random() < 0.6) { // 60% chance to draw MOSSE for attack
+        return { shouldDraw: true, deckType: 'mosse' };
+      }
+    }
+    
+    // If wants to use BONUS but doesn't have one
+    if (myCharacter && !hand.find((c: any) => c.type === 'bonus') && Math.random() < 0.4) { // 40% chance to draw BONUS
+      return { shouldDraw: true, deckType: 'bonus' };
+    }
+    
+    return { shouldDraw: false };
   }
   
   // Analyze hand to check if player can play according to rules

@@ -1116,6 +1116,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`Successfully returned MOSSE card ${cardId} to deck for ${playerName}`);
       }
     });
+    
+    // NEW: Handle draw-and-play action for enhanced CPU turns
+    socket.on('draw-and-play-card', async ({ deckType, playerName, cardIdToPlay }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        console.log(`${playerName} drawing from ${deckType} and immediately playing card ${cardIdToPlay || 'next drawn'}`);
+        
+        // First, draw the card
+        const drawnCard = await gameManager.pickCard(gameId, deckType, playerName);
+        if (drawnCard) {
+          console.log(`${playerName} drew ${deckType} card: ${drawnCard.id}`);
+          
+          // Determine which card to play (if specified or the just-drawn one)
+          const cardToPlay = cardIdToPlay || drawnCard.id;
+          
+          // Play the card immediately (same turn activation)
+          setTimeout(async () => {
+            const playResult = await gameManager.playCard(gameId, cardToPlay, playerName);
+            if (playResult.success) {
+              console.log(`${playerName} immediately played card: ${cardToPlay}`);
+              
+              // Send updated game state
+              const gameState = gameManager.getSanitizedGameState(gameId);
+              io.to(gameId).emit('game-state-update', gameState);
+              
+              // NEW RULE: Turn ends after using a card
+              setTimeout(() => {
+                const nextPlayer = gameManager.endTurn(gameId, playerName);
+                if (nextPlayer) {
+                  io.to(gameId).emit('next-turn', { nextPlayer });
+                  console.log(`Turn ended for ${playerName}, next: ${nextPlayer}`);
+                }
+              }, 1000);
+            }
+          }, 500); // Brief delay for smooth UX
+        }
+        
+        // Send immediate game state update after drawing
+        const gameState = gameManager.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', gameState);
+      }
+    });
 
     socket.on('eliminate-personaggi', async ({ cardId, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
