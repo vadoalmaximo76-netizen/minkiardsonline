@@ -1,7 +1,7 @@
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from '../client/src/lib/cardData';
 import { db } from './db';
-import { matches, gameEvents, type InsertMatch, type InsertGameEvent } from '../shared/schema';
-import { eq } from 'drizzle-orm';
+import { matches, gameEvents, personaggi, type InsertMatch, type InsertGameEvent } from '../shared/schema';
+import { eq, ilike } from 'drizzle-orm';
 import { CPUPlayer } from './cpuPlayer';
 
 interface Card {
@@ -932,15 +932,10 @@ Rispondi SOLO in JSON:`;
       // Check if it's a PERSONAGGI card
       const isPersonaggio = card.type === 'personaggi';
       
-      // Auto-analyze cards for CPU players (PERSONAGGI only)
-      if (player.isCPU && (!card.text || card.text.trim() === '')) {
-        if (isPersonaggio) {
-          // Trigger automatic analysis for PERSONAGGI cards
-          this.autoAnalyzePersonaggioCard(gameId, card, playerName);
-        }
-      } else if (isPersonaggio && (!card.text || card.text.trim() === '')) {
-        // Auto-fill empty notes for human players
-        card.text = 'PTI:  | Stelle:  ';
+      // Auto-analyze cards for ALL players (PERSONAGGI only)
+      if (isPersonaggio && (!card.text || card.text.trim() === '')) {
+        // Trigger automatic analysis for PERSONAGGI cards (both CPU and human players)
+        await this.autoAnalyzePersonaggioCard(gameId, card, playerName);
       }
       
       // Record play card event
@@ -982,56 +977,115 @@ Rispondi SOLO in JSON:`;
     return {};
   }
 
-  // AUTO-ANALYZE PERSONAGGI CARDS FOR CPU PLAYERS
-  private async autoAnalyzePersonaggioCard(gameId: string, card: any, cpuPlayerName: string) {
-    try {
-      console.log(`Auto-analyzing PERSONAGGI card for CPU ${cpuPlayerName}: ${card.frontImage}`);
-      
-      // Get the CPU player instance from game state
-      const game = this.games.get(gameId);
-      if (!game || !game.players[cpuPlayerName]) {
-        console.log(`Game or CPU player ${cpuPlayerName} not found for auto-analysis`);
-        return;
-      }
-      
-      const player = game.players[cpuPlayerName];
-      const cpuPlayer = player.cpuInstance;
-      if (!cpuPlayer) {
-        console.log(`CPU instance for ${cpuPlayerName} not found for auto-analysis`);
-        return;
-      }
+  // Helper function to extract card name from URL
+  private getCardNameFromUrl(url: string): string {
+    if (!url) return "Carta Sconosciuta";
+    
+    const parts = url.split('/');
+    const filename = parts[parts.length - 1];
+    return filename
+      .toLowerCase()
+      .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+      .replace(/[-_]/g, ' ')
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  }
 
-      // Use the CPU's detailed analysis method
-      const analysis = await cpuPlayer.analyzeCardImageDetailed(card.frontImage, 'personaggi');
+  // Look up PERSONAGGI data from database
+  private async getPersonaggioFromDatabase(cardName: string): Promise<{ pti: number | null, stars: number | null } | null> {
+    try {
+      console.log(`🔍 Looking up ${cardName} in PERSONAGGI database...`);
       
-      if (analysis && ((analysis.pti && analysis.pti > 0) || (analysis.stars && analysis.stars > 0))) {
-        // Format the analysis results according to MINKIARDS rules
-        let autoText = '';
-        if (analysis.pti && analysis.pti > 0) autoText += `PTI: ${analysis.pti}`;
-        if (analysis.stars && analysis.stars > 0) {
-          if (autoText) autoText += ' | ';
-          autoText += `Stelle: ${analysis.stars}`;
+      // First try exact match
+      let result = await db.select().from(personaggi).where(eq(personaggi.name, cardName.toUpperCase())).limit(1);
+      
+      // If no exact match, try fuzzy search
+      if (result.length === 0) {
+        result = await db.select().from(personaggi).where(ilike(personaggi.name, `%${cardName.toUpperCase()}%`)).limit(1);
+      }
+      
+      // If still no match, try parts of the name
+      if (result.length === 0) {
+        const nameParts = cardName.toUpperCase().split(' ');
+        for (const part of nameParts) {
+          if (part.length > 3) { // Only search meaningful parts
+            result = await db.select().from(personaggi).where(ilike(personaggi.name, `%${part}%`)).limit(1);
+            if (result.length > 0) break;
+          }
         }
-        if (analysis.powers && analysis.powers.length > 0) {
-          if (autoText) autoText += '\n';
-          autoText += `Poteri: ${Array.isArray(analysis.powers) ? analysis.powers.join(', ') : analysis.powers}`;
-        }
+      }
+      
+      if (result.length > 0) {
+        console.log(`✅ Found in database: ${result[0].name} - PTI: ${result[0].pti}, Stelle: ${result[0].stars}`);
+        return {
+          pti: result[0].pti,
+          stars: result[0].stars
+        };
+      }
+      
+      console.log(`❌ Not found in database: ${cardName}`);
+      return null;
+    } catch (error) {
+      console.error('Error querying PERSONAGGI database:', error);
+      return null;
+    }
+  }
+
+  // AUTO-ANALYZE PERSONAGGI CARDS FOR ALL PLAYERS (using database lookup)
+  private async autoAnalyzePersonaggioCard(gameId: string, card: any, playerName: string) {
+    try {
+      console.log(`Auto-analyzing PERSONAGGI card for ${playerName}: ${card.frontImage}`);
+      
+      // Extract card name from URL
+      const cardName = this.getCardNameFromUrl(card.frontImage);
+      
+      // First try database lookup for exact data
+      const dbResult = await this.getPersonaggioFromDatabase(cardName);
+      
+      if (dbResult && (dbResult.pti !== null || dbResult.stars !== null)) {
+        // Found exact data in database
+        const pti = dbResult.pti || 1000;
+        const stars = dbResult.stars || 1;
         
-        // Update the card's text with analyzed information
+        let autoText = `PTI: ${pti} | Stelle: ${stars}`;
+        
         card.text = autoText;
+        console.log(`${playerName} auto-analyzed from database: ${autoText}`);
         
-        console.log(`CPU ${cpuPlayerName} auto-analyzed card: ${autoText}`);
-        
-        // Note: Chat messages are handled by routes.ts after card analysis
       } else {
-        // Fallback if analysis fails
-        card.text = 'PTI: analisi fallita | Stelle: analisi fallita';
-        console.log(`Auto-analysis failed for CPU ${cpuPlayerName}, using fallback text`);
+        // Fallback for CPU players using AI analysis
+        const game = this.games.get(gameId);
+        const player = game?.players[playerName];
+        
+        if (player?.isCPU && player.cpuInstance) {
+          // Use CPU's detailed analysis method as fallback
+          const analysis = await player.cpuInstance.analyzeCardImageDetailed(card.frontImage, 'personaggi');
+          
+          if (analysis && ((analysis.pti && analysis.pti > 0) || (analysis.stars && analysis.stars > 0))) {
+            let autoText = '';
+            if (analysis.pti && analysis.pti > 0) autoText += `PTI: ${analysis.pti}`;
+            if (analysis.stars && analysis.stars > 0) {
+              if (autoText) autoText += ' | ';
+              autoText += `Stelle: ${analysis.stars}`;
+            }
+            
+            card.text = autoText;
+            console.log(`CPU ${playerName} auto-analyzed with AI fallback: ${autoText}`);
+          } else {
+            card.text = 'PTI: 1000 | Stelle: 1';
+            console.log(`Auto-analysis failed for CPU ${playerName}, using default values`);
+          }
+        } else {
+          // For human players, use reasonable defaults if not in database
+          card.text = 'PTI: 1000 | Stelle: 1';
+          console.log(`Human player ${playerName}: card not in database, using default values`);
+        }
       }
     } catch (error) {
-      console.error(`Error in auto-analysis for CPU ${cpuPlayerName}:`, error);
+      console.error(`Error in auto-analysis for ${playerName}:`, error);
       // Fallback text on error
-      card.text = 'PTI: errore analisi | Stelle: errore analisi';
+      card.text = 'PTI: 1000 | Stelle: 1';
     }
   }
 
@@ -1323,19 +1377,6 @@ Rispondi SOLO in JSON:`;
     }
   }
 
-  private getCardNameFromUrl(url: string): string {
-    try {
-      const parts = url.split('/');
-      const filename = parts[parts.length - 1];
-      return filename
-        .toLowerCase()
-        .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
-        .replace(/-/g, ' ')
-        .toUpperCase();
-    } catch {
-      return 'UNKNOWN CARD';
-    }
-  }
 
   async addCPUPlayer(gameId: string): Promise<string> {
     const game = this.games.get(gameId);

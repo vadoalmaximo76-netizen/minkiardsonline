@@ -1,6 +1,14 @@
 import OpenAI from "openai";
+import { neon } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-http';
+import { personaggi } from '../shared/schema.js';
+import { eq, ilike } from 'drizzle-orm';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// Database connection for PERSONAGGI lookup
+const sql = neon(process.env.DATABASE_URL!);
+const db = drizzle(sql);
 
 interface CardAnalysis {
   cardType: 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali' | string;
@@ -85,7 +93,7 @@ export class CPUPlayer {
     try {
       if (!this.openaiApiKey) {
         const cardName = this.getCardNameFromUrl(imageUrl);
-        const fallbackAnalysis = this.getFallbackCardAnalysis(cardName, cardType);
+        const fallbackAnalysis = await this.getFallbackCardAnalysis(cardName, cardType);
         return { 
           name: cardName, 
           cardType, 
@@ -168,7 +176,7 @@ export class CPUPlayer {
       console.error('Error analyzing card image:', error);
       // Use intelligent fallback based on card name/URL patterns
       const cardName = this.getCardNameFromUrl(imageUrl);
-      const fallbackAnalysis = this.getFallbackCardAnalysis(cardName, cardType);
+      const fallbackAnalysis = await this.getFallbackCardAnalysis(cardName, cardType);
       return { 
         name: cardName, 
         cardType, 
@@ -181,11 +189,64 @@ export class CPUPlayer {
     }
   }
 
+  // Look up PERSONAGGI data from database first
+  private async getPersonaggioFromDatabase(cardName: string): Promise<{ pti: number | null, stars: number | null } | null> {
+    try {
+      console.log(`🔍 Looking up ${cardName} in PERSONAGGI database...`);
+      
+      // First try exact match
+      let result = await db.select().from(personaggi).where(eq(personaggi.name, cardName.toUpperCase())).limit(1);
+      
+      // If no exact match, try fuzzy search
+      if (result.length === 0) {
+        result = await db.select().from(personaggi).where(ilike(personaggi.name, `%${cardName.toUpperCase()}%`)).limit(1);
+      }
+      
+      // If still no match, try parts of the name
+      if (result.length === 0) {
+        const nameParts = cardName.toUpperCase().split(' ');
+        for (const part of nameParts) {
+          if (part.length > 3) { // Only search meaningful parts
+            result = await db.select().from(personaggi).where(ilike(personaggi.name, `%${part}%`)).limit(1);
+            if (result.length > 0) break;
+          }
+        }
+      }
+      
+      if (result.length > 0) {
+        console.log(`✅ Found in database: ${result[0].name} - PTI: ${result[0].pti}, Stelle: ${result[0].stars}`);
+        return {
+          pti: result[0].pti,
+          stars: result[0].stars
+        };
+      }
+      
+      console.log(`❌ Not found in database: ${cardName}`);
+      return null;
+    } catch (error) {
+      console.error('Error querying PERSONAGGI database:', error);
+      return null;
+    }
+  }
+
   // Intelligent fallback analysis for when OpenAI is not available
-  private getFallbackCardAnalysis(cardName: string, cardType: string): { effect: string, pti: number, stars: number, powers: string, baseDamage: number } {
+  private async getFallbackCardAnalysis(cardName: string, cardType: string): Promise<{ effect: string, pti: number, stars: number, powers: string, baseDamage: number }> {
     const name = cardName.toLowerCase();
     
     if (cardType === 'personaggi' || cardType === 'personaggi_speciali') {
+      // First check database for exact data
+      const dbResult = await this.getPersonaggioFromDatabase(cardName);
+      if (dbResult && (dbResult.pti !== null || dbResult.stars !== null)) {
+        const pti = dbResult.pti || 1000; // Default if null
+        const stars = dbResult.stars || 1; // Default if null
+        return {
+          effect: `Personaggio verificato dal database`,
+          pti,
+          stars,
+          powers: 'Poteri specifici del personaggio',
+          baseDamage: 0
+        };
+      }
       // Intelligent PERSONAGGI card analysis based on name patterns
       let pti = 1000; // Default PTI
       let stars = 1; // Default stars

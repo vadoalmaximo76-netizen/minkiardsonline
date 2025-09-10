@@ -30,6 +30,14 @@ export const gameEvents = pgTable("game_events", {
   eventOrder: integer("event_order").notNull(), // Sequential order within the match
 });
 
+export const personaggi = pgTable("personaggi", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  pti: integer("pti"), // Can be null for unknown values (marked with ? in original list)
+  stars: integer("stars"), // Can be null for unknown values
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -37,10 +45,17 @@ export const insertUserSchema = createInsertSchema(users).pick({
 
 export const insertMatchSchema = createInsertSchema(matches);
 export const insertGameEventSchema = createInsertSchema(gameEvents);
+export const insertPersonaggioSchema = createInsertSchema(personaggi).pick({
+  name: true,
+  pti: true,
+  stars: true,
+});
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type Match = typeof matches.$inferSelect;
 export type GameEvent = typeof gameEvents.$inferSelect;
+export type Personaggio = typeof personaggi.$inferSelect;
 export type InsertMatch = z.infer<typeof insertMatchSchema>;
 export type InsertGameEvent = z.infer<typeof insertGameEventSchema>;
+export type InsertPersonaggio = z.infer<typeof insertPersonaggioSchema>;
