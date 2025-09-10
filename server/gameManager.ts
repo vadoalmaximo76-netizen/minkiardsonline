@@ -146,97 +146,227 @@ export class GameManager {
 
     console.log(`Processing game instruction from ${playerName}: "${instruction}"`);
 
-    // Analyze instruction using simple keyword matching and AI
+    // Use AI to understand and process the instruction
+    try {
+      const result = await this.processInstructionWithAI(gameId, playerName, instruction);
+      if (result) {
+        return result;
+      }
+    } catch (error) {
+      console.error('AI instruction processing failed, falling back to pattern matching:', error);
+    }
+
+    // Fallback to pattern matching for known instructions
     const lowercaseInstruction = instruction.toLowerCase();
 
-    // Example instruction processing - can be expanded
-    if (lowercaseInstruction.includes('inverti') && lowercaseInstruction.includes('turni')) {
-      // Reverse player order
-      const playerNames = Object.keys(game.players);
-      const reversedOrder = playerNames.reverse();
-      
-      // Add currentPlayerIndex if it doesn't exist
-      if (typeof game.currentPlayerIndex !== 'number') {
-        game.currentPlayerIndex = 0;
-      }
-      game.currentPlayerIndex = reversedOrder.length - 1 - game.currentPlayerIndex;
-      
-      await this.recordEvent(gameId, 'instruction-executed', {
-        instruction,
-        action: 'reverse-turn-order',
-        newOrder: reversedOrder
-      }, playerName);
-
-      console.log(`Game instruction executed: Reversed turn order for game ${gameId}`);
-      return { 
-        message: `⚡ ${playerName} ha invertito l'ordine dei turni! Nuovo ordine: ${reversedOrder.join(' → ')}`
-      };
+    // More flexible pattern matching for turn reversal
+    if ((lowercaseInstruction.includes('inverti') || lowercaseInstruction.includes('cambia') || lowercaseInstruction.includes('reverse')) && 
+        (lowercaseInstruction.includes('turni') || lowercaseInstruction.includes('ordine'))) {
+      return await this.reverseTurnOrder(gameId, playerName, instruction);
     }
 
-    if (lowercaseInstruction.includes('carte') && lowercaseInstruction.includes('coperte')) {
-      // Cover all field cards
-      game.field.forEach(card => {
-        card.faceDown = true;
-      });
-
-      await this.recordEvent(gameId, 'instruction-executed', {
-        instruction,
-        action: 'cover-field-cards'
-      }, playerName);
-
-      console.log(`Game instruction executed: Covered all field cards for game ${gameId}`);
-      return { 
-        message: `🙈 ${playerName} ha coperto tutte le carte in campo! Le carte sono ora nascoste.`
-      };
+    // More flexible pattern matching for covering cards
+    if ((lowercaseInstruction.includes('copri') || lowercaseInstruction.includes('nascondi')) && 
+        lowercaseInstruction.includes('carte')) {
+      return await this.coverAllCards(gameId, playerName, instruction);
     }
 
-    if (lowercaseInstruction.includes('carte') && lowercaseInstruction.includes('scoperte')) {
-      // Uncover all field cards
-      game.field.forEach(card => {
-        card.faceDown = false;
-      });
-
-      await this.recordEvent(gameId, 'instruction-executed', {
-        instruction,
-        action: 'uncover-field-cards'
-      }, playerName);
-
-      console.log(`Game instruction executed: Uncovered all field cards for game ${gameId}`);
-      return { 
-        message: `👁️ ${playerName} ha scoperto tutte le carte in campo! Le carte sono ora visibili.`
-      };
+    // More flexible pattern matching for uncovering cards
+    if ((lowercaseInstruction.includes('scopri') || lowercaseInstruction.includes('mostra') || lowercaseInstruction.includes('rivela')) && 
+        lowercaseInstruction.includes('carte')) {
+      return await this.uncoverAllCards(gameId, playerName, instruction);
     }
 
-    // Extract number of cards and type for distribution
-    const cardDistributionMatch = instruction.match(/(\d+)\s+carte?\s+(personaggi|mosse|bonus|personaggi_speciali)/i);
-    if (cardDistributionMatch && lowercaseInstruction.includes('tutti')) {
-      const [, cardCount, deckType] = cardDistributionMatch;
-      const count = parseInt(cardCount);
-      const normalizedDeckType = deckType.toLowerCase().replace(' ', '_') as keyof GameState['decks'];
+    // More flexible card distribution patterns
+    const distributionPatterns = [
+      /(\d+)\s*carte?\s*(personaggi|mosse|bonus|personaggi_speciali)/i,
+      /(\d+)\s*(personaggi|mosse|bonus|personaggi_speciali)/i,
+      /(personaggi|mosse|bonus|personaggi_speciali)\s*(\d+)/i,
+      /(\d+)\s*carte/i
+    ];
 
-      // Distribute cards to all players
-      for (const playerName of Object.keys(game.players)) {
-        for (let i = 0; i < count; i++) {
-          this.pickCard(gameId, normalizedDeckType, playerName);
+    for (const pattern of distributionPatterns) {
+      const match = instruction.match(pattern);
+      if (match && (lowercaseInstruction.includes('tutti') || lowercaseInstruction.includes('partecipanti') || 
+                   lowercaseInstruction.includes('giocatori') || lowercaseInstruction.includes('utenti') ||
+                   lowercaseInstruction.includes('pescano') || lowercaseInstruction.includes('prendono'))) {
+        
+        let count = 1;
+        let deckType = 'mosse';
+        
+        if (pattern.source.includes('\\d+')) {
+          const numberMatch = instruction.match(/(\d+)/);
+          if (numberMatch) count = parseInt(numberMatch[1]);
         }
+        
+        const typeMatch = instruction.match(/(personaggi|mosse|bonus|personaggi_speciali)/i);
+        if (typeMatch) {
+          deckType = typeMatch[1].toLowerCase().replace(' ', '_');
+        }
+        
+        return await this.distributeCards(gameId, playerName, instruction, count, deckType);
       }
-
-      await this.recordEvent(gameId, 'instruction-executed', {
-        instruction,
-        action: 'distribute-cards',
-        cardCount: count,
-        deckType: normalizedDeckType
-      }, playerName);
-
-      console.log(`Game instruction executed: Distributed ${count} ${deckType} cards to all players`);
-      return { 
-        message: `🎴 ${playerName} ha fatto pescare ${count} carte ${deckType.toUpperCase()} a tutti i giocatori!`
-      };
     }
 
-    // If no specific instruction matched, log for future implementation
+    // If no pattern matched, try to give helpful suggestions
     console.log(`Unrecognized game instruction: "${instruction}"`);
-    throw new Error(`Istruzione non riconosciuta: "${instruction}". Prova con esempi come "Inverti i turni", "Copri tutte le carte", o "Tutti prendono 3 carte MOSSE"`);
+    throw new Error(`Istruzione non compresa: "${instruction}"\n\nEsempi validi:\n• "Inverti i turni"\n• "Tutti pescano 3 carte MOSSE"\n• "Copri tutte le carte"\n• "Scopri le carte"\n• "Partecipanti prendono 2 PERSONAGGI"`);
+  }
+
+  private async processInstructionWithAI(gameId: string, playerName: string, instruction: string) {
+    try {
+      const OpenAI = (await import('openai')).default;
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+      const prompt = `Analizza questa istruzione per un gioco di carte italiano chiamato MINKIARDS: "${instruction}"
+
+Determina l'azione richiesta e rispondi in formato JSON:
+
+Azioni supportate:
+1. "reverse-turns" - invertire l'ordine dei turni
+2. "distribute-cards" - far pescare carte ai giocatori (include numero e tipo: personaggi, mosse, bonus, personaggi_speciali)
+3. "cover-cards" - coprire tutte le carte in campo
+4. "uncover-cards" - scoprire tutte le carte in campo
+5. "unknown" - se non riconosci l'azione
+
+Formato risposta:
+{
+  "action": "distribute-cards",
+  "parameters": {
+    "count": 3,
+    "cardType": "mosse",
+    "target": "all"
+  }
+}
+
+o per azioni senza parametri:
+{
+  "action": "reverse-turns"
+}`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        max_tokens: 200
+      });
+
+      const aiResponse = JSON.parse(response.choices[0].message.content || '{"action": "unknown"}');
+
+      switch (aiResponse.action) {
+        case 'reverse-turns':
+          return await this.reverseTurnOrder(gameId, playerName, instruction);
+          
+        case 'distribute-cards':
+          const { count = 1, cardType = 'mosse' } = aiResponse.parameters || {};
+          return await this.distributeCards(gameId, playerName, instruction, count, cardType);
+          
+        case 'cover-cards':
+          return await this.coverAllCards(gameId, playerName, instruction);
+          
+        case 'uncover-cards':
+          return await this.uncoverAllCards(gameId, playerName, instruction);
+          
+        default:
+          return null; // Fall back to pattern matching
+      }
+    } catch (error) {
+      console.error('AI processing error:', error);
+      return null; // Fall back to pattern matching
+    }
+  }
+
+  private async reverseTurnOrder(gameId: string, playerName: string, instruction: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    const playerNames = Object.keys(game.players);
+    const reversedOrder = playerNames.reverse();
+    
+    if (typeof game.currentPlayerIndex !== 'number') {
+      game.currentPlayerIndex = 0;
+    }
+    game.currentPlayerIndex = reversedOrder.length - 1 - game.currentPlayerIndex;
+    
+    await this.recordEvent(gameId, 'instruction-executed', {
+      instruction,
+      action: 'reverse-turn-order',
+      newOrder: reversedOrder
+    }, playerName);
+
+    console.log(`Game instruction executed: Reversed turn order for game ${gameId}`);
+    return { 
+      message: `⚡ ${playerName} ha invertito l'ordine dei turni! Nuovo ordine: ${reversedOrder.join(' → ')}`
+    };
+  }
+
+  private async coverAllCards(gameId: string, playerName: string, instruction: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    game.field.forEach(card => {
+      card.faceDown = true;
+    });
+
+    await this.recordEvent(gameId, 'instruction-executed', {
+      instruction,
+      action: 'cover-field-cards'
+    }, playerName);
+
+    console.log(`Game instruction executed: Covered all field cards for game ${gameId}`);
+    return { 
+      message: `🙈 ${playerName} ha coperto tutte le carte in campo! Le carte sono ora nascoste.`
+    };
+  }
+
+  private async uncoverAllCards(gameId: string, playerName: string, instruction: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    game.field.forEach(card => {
+      card.faceDown = false;
+    });
+
+    await this.recordEvent(gameId, 'instruction-executed', {
+      instruction,
+      action: 'uncover-field-cards'
+    }, playerName);
+
+    console.log(`Game instruction executed: Uncovered all field cards for game ${gameId}`);
+    return { 
+      message: `👁️ ${playerName} ha scoperto tutte le carte in campo! Le carte sono ora visibili.`
+    };
+  }
+
+  private async distributeCards(gameId: string, playerName: string, instruction: string, count: number, deckType: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    const normalizedDeckType = deckType.toLowerCase().replace(' ', '_') as keyof GameState['decks'];
+
+    // Validate deck type
+    if (!game.decks[normalizedDeckType]) {
+      throw new Error(`Tipo di carta non valido: ${deckType}`);
+    }
+
+    // Distribute cards to all players
+    for (const playerName of Object.keys(game.players)) {
+      for (let i = 0; i < count; i++) {
+        this.pickCard(gameId, normalizedDeckType, playerName);
+      }
+    }
+
+    await this.recordEvent(gameId, 'instruction-executed', {
+      instruction,
+      action: 'distribute-cards',
+      cardCount: count,
+      deckType: normalizedDeckType
+    }, playerName);
+
+    console.log(`Game instruction executed: Distributed ${count} ${deckType} cards to all players`);
+    return { 
+      message: `🎴 ${playerName} ha fatto pescare ${count} carte ${deckType.toUpperCase()} a tutti i giocatori!`
+    };
   }
 
   private async recordEvent(gameId: string, eventType: string, eventData: any, playerName: string): Promise<void> {
