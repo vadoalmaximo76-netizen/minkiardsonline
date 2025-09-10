@@ -1537,6 +1537,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     }, 1500);
                     return; // Return early to prevent generic end-turn
                     
+                  case 'show-card-to-player':
+                    // NEW: CPU shows card to specific player
+                    console.log(`CPU ${nextPlayer} showing card to player: ${cpuAction.data.toPlayer}`);
+                    const showGameState = gameManager.getSanitizedGameState(gameId);
+                    const targetPlayer = showGameState?.players[cpuAction.data.toPlayer];
+                    
+                    if (targetPlayer && targetPlayer.socketId) {
+                      // Send card to specific player
+                      io.to(targetPlayer.socketId).emit('card-shown', {
+                        cardId: cpuAction.data.cardId,
+                        fromPlayer: cpuAction.data.fromPlayer,
+                        cardImage: cpuAction.data.cardImage,
+                        message: `${cpuAction.data.fromPlayer} ti ha mostrato la sua carta su tua richiesta`
+                      });
+                      
+                      // Notify all players about the action
+                      io.to(gameId).emit('chat-message', {
+                        id: `${Date.now()}-show-order`,
+                        playerName: 'Sistema',
+                        message: cpuAction.data.orderMessage,
+                        timestamp: Date.now()
+                      });
+                      
+                      console.log(`CPU ${nextPlayer} successfully showed card to ${cpuAction.data.toPlayer}`);
+                    }
+                    break;
+                    
                   case 'draw-and-play':
                     // NEW: Draw a card and immediately play it in the same turn
                     const drawnCard = await gameManager.pickCard(gameId, cpuAction.data.deckType, cpuAction.data.playerName);

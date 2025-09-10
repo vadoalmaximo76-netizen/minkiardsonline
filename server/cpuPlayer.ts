@@ -72,6 +72,9 @@ export class CPUPlayer {
   setSocketEmitter(emitter: any) {
     this.socketEmitter = emitter;
   }
+  
+  // NEW: Pending order system for executing user commands
+  private pendingOrder: any = null;
 
   get isWaitingForResponse(): boolean {
     return this.waitingForResponse;
@@ -962,6 +965,16 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         return null;
       }
       
+      // NEW: Process pending orders from human players first
+      if (this.pendingOrder) {
+        console.log(`CPU ${this.playerName} processing pending order:`, this.pendingOrder);
+        const orderAction = this.processPendingOrder(gameState);
+        this.pendingOrder = null; // Clear after processing
+        if (orderAction) {
+          return orderAction;
+        }
+      }
+      
       // NEW: Check for dead characters (PTI: 0) and move to graveyard automatically
       const deadCharacterAction = this.checkAndEliminateDeadCharacters(gameState);
       if (deadCharacterAction) {
@@ -1159,6 +1172,116 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     }
     
     return null;
+  }
+  
+  // NEW: Process pending orders from human players
+  processPendingOrder(gameState: any): any {
+    if (!this.pendingOrder) return null;
+    
+    const order = this.pendingOrder;
+    console.log(`CPU ${this.playerName} executing pending order:`, order);
+    
+    switch (order.type) {
+      case 'show-card':
+        return this.executeShowCardAction(order, gameState);
+      case 'pick-card':
+        return this.executePickCardAction(order, gameState);
+      case 'play-card':
+        return this.executePlayCardAction(order, gameState);
+      case 'attack':
+        return this.executeAttackAction(order, gameState);
+      default:
+        console.log(`CPU ${this.playerName} unknown order type:`, order.type);
+        return null;
+    }
+  }
+  
+  // Execute show card action
+  executeShowCardAction(order: any, gameState: any): any {
+    const cpuPlayer = gameState.players[this.playerName];
+    if (!cpuPlayer || !cpuPlayer.hand) return null;
+    
+    const requestedCard = cpuPlayer.hand.find((card: any) => card.type === order.cardType);
+    if (requestedCard) {
+      this.sendChatMessage(`Ecco la mia carta ${order.cardType.toUpperCase()} per ${order.senderName}!`);
+      return {
+        type: 'show-card-to-player',
+        data: {
+          cardId: requestedCard.id,
+          cardImage: requestedCard.frontImage,
+          fromPlayer: this.playerName,
+          toPlayer: order.senderName,
+          orderMessage: order.message
+        }
+      };
+    } else {
+      this.sendChatMessage(`Mi dispiace ${order.senderName}, non ho carte di tipo ${order.cardType.toUpperCase()}!`);
+      return null;
+    }
+  }
+  
+  // Execute pick card action
+  executePickCardAction(order: any, gameState: any): any {
+    this.sendChatMessage(`Pesco ${order.deckType.toUpperCase()} come richiesto da ${order.senderName}!`);
+    return {
+      type: 'pick-card',
+      data: {
+        deckType: order.deckType,
+        playerName: this.playerName
+      }
+    };
+  }
+  
+  // Execute play card action
+  executePlayCardAction(order: any, gameState: any): any {
+    const cpuPlayer = gameState.players[this.playerName];
+    if (!cpuPlayer || !cpuPlayer.hand) return null;
+    
+    let cardToPlay;
+    if (order.cardType) {
+      cardToPlay = cpuPlayer.hand.find((card: any) => card.type === order.cardType);
+    } else {
+      cardToPlay = cpuPlayer.hand[0]; // Play any card
+    }
+    
+    if (cardToPlay) {
+      this.sendChatMessage(`Gioco ${cardToPlay.type.toUpperCase()} come richiesto da ${order.senderName}!`);
+      return {
+        type: 'play-card',
+        data: {
+          cardId: cardToPlay.id,
+          playerName: this.playerName
+        }
+      };
+    } else {
+      this.sendChatMessage(`Non ho carte ${order.cardType ? order.cardType.toUpperCase() : 'disponibili'} da giocare!`);
+      return null;
+    }
+  }
+  
+  // Execute attack action
+  executeAttackAction(order: any, gameState: any): any {
+    const cpuPlayer = gameState.players[this.playerName];
+    const enemies = gameState.field.filter((card: any) => card.owner !== this.playerName && card.type === 'personaggi');
+    
+    if (!cpuPlayer || !cpuPlayer.hand) return null;
+    
+    const mosseCard = cpuPlayer.hand.find((card: any) => card.type === 'mosse');
+    if (mosseCard && enemies.length > 0) {
+      this.sendChatMessage(`Attacco come richiesto da ${order.senderName}!`);
+      return {
+        type: 'mosse-attack',
+        data: {
+          mosseCardId: mosseCard.id,
+          targetCardId: enemies[0].id,
+          attackerName: this.playerName,
+          targetOwner: enemies[0].owner
+        }
+      };
+    } else {
+      this.sendChatMessage(`Non posso attaccare! ${!mosseCard ? 'Nessuna carta MOSSE' : 'Nessun nemico'}`);
+      return null;
+    }
   }
   
   // Analyze hand to check if player can play according to rules
@@ -1640,15 +1763,15 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     setTimeout(() => {
       this.sendChatMessage(`Certo ${senderName}! Ti mostro la mia carta ${cardType.toUpperCase()}.`);
       
-      // Emit order to show card - this will need to be handled by the game
-      if (this.socketEmitter) {
-        this.socketEmitter.emit('cpu-show-card-order', {
-          cardType: cardType,
-          fromPlayer: this.playerName,
-          toPlayer: senderName,
-          orderMessage: `${this.playerName} sta mostrando la sua carta ${cardType.toUpperCase()} su richiesta di ${senderName}`
-        });
-      }
+      // Store the order for processing during next CPU turn
+      this.pendingOrder = {
+        type: 'show-card',
+        cardType: cardType,
+        senderName: senderName,
+        message: `${this.playerName} sta mostrando la sua carta ${cardType.toUpperCase()} su richiesta di ${senderName}`
+      };
+      
+      console.log(`CPU ${this.playerName} stored pending show card order:`, this.pendingOrder);
     }, 1000);
   }
   
@@ -1659,13 +1782,14 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     setTimeout(() => {
       this.sendChatMessage(`D'accordo ${senderName}! Pesco una carta dal mazzo ${deckType.toUpperCase()}.`);
       
-      if (this.socketEmitter) {
-        this.socketEmitter.emit('cpu-pick-card-order', {
-          deckType: deckType,
-          playerName: this.playerName,
-          orderedBy: senderName
-        });
-      }
+      // Store the order for processing during next CPU turn
+      this.pendingOrder = {
+        type: 'pick-card',
+        deckType: deckType,
+        senderName: senderName
+      };
+      
+      console.log(`CPU ${this.playerName} stored pending pick card order:`, this.pendingOrder);
     }, 1000);
   }
   
@@ -1676,13 +1800,14 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     setTimeout(() => {
       this.sendChatMessage(`Come desideri ${senderName}! Gioco la mia carta ${cardType ? cardType.toUpperCase() : 'dalla mano'}.`);
       
-      if (this.socketEmitter) {
-        this.socketEmitter.emit('cpu-play-card-order', {
-          cardType: cardType,
-          playerName: this.playerName,
-          orderedBy: senderName
-        });
-      }
+      // Store the order for processing during next CPU turn
+      this.pendingOrder = {
+        type: 'play-card',
+        cardType: cardType,
+        senderName: senderName
+      };
+      
+      console.log(`CPU ${this.playerName} stored pending play card order:`, this.pendingOrder);
     }, 1000);
   }
   
@@ -1693,12 +1818,13 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     setTimeout(() => {
       this.sendChatMessage(`Va bene ${senderName}! Userò la mia carta MOSSE per attaccare!`);
       
-      if (this.socketEmitter) {
-        this.socketEmitter.emit('cpu-attack-order', {
-          playerName: this.playerName,
-          orderedBy: senderName
-        });
-      }
+      // Store the order for processing during next CPU turn
+      this.pendingOrder = {
+        type: 'attack',
+        senderName: senderName
+      };
+      
+      console.log(`CPU ${this.playerName} stored pending attack order:`, this.pendingOrder);
     }, 1000);
   }
 }
