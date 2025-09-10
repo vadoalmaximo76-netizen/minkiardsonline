@@ -1622,7 +1622,7 @@ Rispondi SOLO in JSON:`;
     }
   }
 
-  async eliminatePersonaggi(gameId: string, cardId: string, playerName: string): Promise<{ success: boolean, cardImage?: string }> {
+  async eliminatePersonaggi(gameId: string, cardId: string, playerName: string): Promise<{ success: boolean, cardImage?: string, eliminationCheck?: boolean }> {
     const game = this.games.get(gameId);
     if (!game) return { success: false };
 
@@ -1637,6 +1637,20 @@ Rispondi SOLO in JSON:`;
       card.eliminatedBy = playerName;
       game.graveyard.push(card);
       
+      // Count PERSONAGGI cards in graveyard for this player (only personaggi count for elimination)
+      const graveyardCount = game.graveyard.filter(
+        graveyardCard => graveyardCard.eliminatedBy === playerName && graveyardCard.type === 'personaggi'
+      ).length;
+
+      // Check if player should be eliminated (only if it's a personaggi card)
+      let eliminationCheck = false;
+      if (card.type === 'personaggi' && game.characterLimit !== 'unlimited') {
+        const limit = parseInt(game.characterLimit);
+        if (graveyardCount >= limit && !game.eliminatedPlayers.has(playerName)) {
+          eliminationCheck = true;
+        }
+      }
+      
       // Record elimination event
       await this.recordEvent(gameId, 'eliminate-personaggi', {
         cardId: card.id,
@@ -1645,7 +1659,7 @@ Rispondi SOLO in JSON:`;
         eliminatedBy: playerName
       }, playerName);
 
-      return { success: true, cardImage: card.frontImage };
+      return { success: true, cardImage: card.frontImage, eliminationCheck };
     } catch (error) {
       console.error('Error eliminating personaggi card:', error);
       return { success: false };

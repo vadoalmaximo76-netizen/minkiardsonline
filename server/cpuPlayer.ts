@@ -1052,11 +1052,10 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           data: {
             deckType: needsToDraw.deckType,
             playerName: this.playerName,
-              immediate: true
-            }
-          };
-        }
-        
+            immediate: true
+          }
+        };
+      } else {
         this.sendChatMessage(`Pesco ${needsToDraw.deckType} seguendo le regole MINKIARDS!`);
         return {
           type: 'draw-and-play',
@@ -1069,7 +1068,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       }
       
       // Check if there's recent advice to follow (but not during opening sequence)
-      if (!isOpeningSequence && this.lastAdvice && (Date.now() - this.lastAdvice.timestamp) < 60000) { // Follow advice within 1 minute
+      if (!this.isOpeningSequence(cpuPlayer, gameState) && this.lastAdvice && (Date.now() - this.lastAdvice.timestamp) < 60000) { // Follow advice within 1 minute
         console.log(`CPU ${this.playerName} following advice from ${this.lastAdvice.from}:`, this.lastAdvice);
         
         if (this.lastAdvice.type === 'pick-card') {
@@ -1104,7 +1103,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       if (!handAnalysis.canPlay) {
         if (handAnalysis.missingTypes.length > 0) {
           // Ask human for advice about strategy (less frequently if following advice, and not during opening)
-          if (!isOpeningSequence && !this.lastAdvice && Math.random() < 0.6) {
+          if (!this.isOpeningSequence(cpuPlayer, gameState) && !this.lastAdvice && Math.random() < 0.6) {
             this.askForAdvice(handAnalysis);
             return null;
           }
