@@ -1268,7 +1268,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         cardImage: result.card.frontImage
                       });
                     }
-                    break;
+                    
+                    // NEW RULE: Turn ends automatically after playing a card
+                    setTimeout(() => {
+                      const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
+                      if (nextAfterCPU) {
+                        io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                        console.log(`Turn ended for ${nextPlayer} after playing card, next: ${nextAfterCPU}`);
+                      }
+                    }, 1500);
+                    return; // Return early to prevent generic end-turn
                     
                   case 'mosse-attack':
                     io.to(gameId).emit('card-attacked', {
@@ -1294,17 +1303,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         message: 'Ho rimesso la mia carta MOSSE in fondo al mazzo.',
                         timestamp: Date.now()
                       });
+                      
+                      // NEW RULE: Turn ends after MOSSE attack
+                      setTimeout(() => {
+                        const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
+                        if (nextAfterCPU) {
+                          io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                          console.log(`Turn ended for ${nextPlayer} after MOSSE attack, next: ${nextAfterCPU}`);
+                        }
+                      }, 1000);
                     }, 3000); // 3 seconds for manual return
-                    break;
+                    return; // Return early to prevent generic end-turn
+                    
+                  case 'draw-and-play':
+                    // NEW: Draw a card and immediately play it in the same turn
+                    const drawnCard = await gameManager.pickCard(gameId, cpuAction.data.deckType, cpuAction.data.playerName);
+                    if (drawnCard) {
+                      console.log(`CPU ${nextPlayer} drew ${cpuAction.data.deckType} card: ${drawnCard.id} and will play it immediately`);
+                      
+                      // Update game state after drawing
+                      const drawGameState = gameManager.getSanitizedGameState(gameId);
+                      io.to(gameId).emit('game-state-update', drawGameState);
+                      
+                      // Play the card immediately (same turn activation)
+                      setTimeout(async () => {
+                        const immediatePlayResult = await gameManager.playCard(gameId, drawnCard.id, cpuAction.data.playerName);
+                        if (immediatePlayResult.success) {
+                          console.log(`CPU ${nextPlayer} immediately played drawn card: ${drawnCard.id}`);
+                          
+                          const playGameState = gameManager.getSanitizedGameState(gameId);
+                          io.to(gameId).emit('game-state-update', playGameState);
+                          
+                          // Turn ends after using the card
+                          setTimeout(() => {
+                            const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
+                            if (nextAfterCPU) {
+                              io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                              console.log(`Turn ended for ${nextPlayer} after draw-and-play, next: ${nextAfterCPU}`);
+                            }
+                          }, 1000);
+                        }
+                      }, 1000); // Brief delay to show the draw then play
+                    }
+                    return; // Return early to prevent generic end-turn
                 }
                 
-                // After CPU action, automatically end their turn
-                setTimeout(() => {
-                  const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
-                  if (nextAfterCPU) {
-                    io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
-                  }
-                }, 1500); // Give time to see CPU's action
+                // NOTE: Turn ending is now handled individually by each action type
+                // Only end turn generically for actions that don't handle it themselves
+                if (!['play-card', 'mosse-attack', 'draw-and-play'].includes(cpuAction.type)) {
+                  setTimeout(() => {
+                    const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
+                    if (nextAfterCPU) {
+                      io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                      console.log(`Turn ended generically for ${nextPlayer}, next: ${nextAfterCPU}`);
+                    }
+                  }, 1500);
+                }
                 
               } else {
                 // CPU had no valid actions, just end turn
