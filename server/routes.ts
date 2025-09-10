@@ -1097,6 +1097,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
     });
+    
+    // Manual return of MOSSE cards to deck bottom
+    socket.on('return-mosse-to-deck', ({ cardId, playerName }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        console.log(`${playerName} manually returning MOSSE card ${cardId} to bottom of deck`);
+        
+        // Return the card to the bottom of the deck
+        gameManager.returnToDeck(gameId, cardId, playerName);
+        
+        // Send updated game state
+        const gameState = gameManager.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', gameState);
+        
+        // Notify players about the manual return
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-manual-return`,
+          playerName: 'Sistema',
+          message: `${playerName} ha rimesso la carta MOSSE in fondo al mazzo.`,
+          timestamp: Date.now()
+        });
+        
+        console.log(`Successfully returned MOSSE card ${cardId} to deck for ${playerName}`);
+      }
+    });
 
     socket.on('eliminate-personaggi', async ({ cardId, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
