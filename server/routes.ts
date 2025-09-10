@@ -1158,6 +1158,193 @@ export async function registerRoutes(app: Express): Promise<Server> {
         io.to(gameId).emit('game-state-update', gameState);
       }
     });
+    
+    // NEW: Handle CPU orders from human players
+    socket.on('cpu-show-card-order', ({ cardType, fromPlayer, toPlayer, orderMessage }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId && fromPlayer.startsWith('CPU-')) {
+        console.log(`Processing show card order: ${fromPlayer} showing ${cardType} to ${toPlayer}`);
+        
+        // Get CPU's hand to find the requested card type
+        const gameState = gameManager.getSanitizedGameState(gameId);
+        const cpuPlayer = gameState?.players[fromPlayer];
+        
+        if (cpuPlayer && cpuPlayer.hand) {
+          const requestedCard = cpuPlayer.hand.find((card: any) => card.type === cardType);
+          
+          if (requestedCard) {
+            // Find target player's socket ID
+            const targetPlayer = gameState.players[toPlayer];
+            if (targetPlayer && targetPlayer.socketId) {
+              
+              // Send card to specific player
+              io.to(targetPlayer.socketId).emit('card-shown', {
+                cardId: requestedCard.id,
+                fromPlayer: fromPlayer,
+                cardImage: requestedCard.frontImage,
+                message: `${fromPlayer} ti ha mostrato la sua carta ${cardType.toUpperCase()} su tua richiesta`
+              });
+              
+              // Notify all players about the action
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-show-order`,
+                playerName: 'Sistema',
+                message: orderMessage,
+                timestamp: Date.now()
+              });
+              
+              console.log(`CPU ${fromPlayer} showed ${cardType} card to ${toPlayer}`);
+            }
+          } else {
+            // CPU doesn't have the requested card type
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-no-card`,
+              playerName: fromPlayer,
+              message: `Mi dispiace ${toPlayer}, non ho carte di tipo ${cardType.toUpperCase()} in mano!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+      }
+    });
+    
+    socket.on('cpu-pick-card-order', async ({ deckType, playerName, orderedBy }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId && playerName.startsWith('CPU-')) {
+        console.log(`Processing pick card order: ${playerName} picking ${deckType} ordered by ${orderedBy}`);
+        
+        const pickedCard = await gameManager.pickCard(gameId, deckType, playerName);
+        if (pickedCard) {
+          const gameState = gameManager.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', gameState);
+          
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-pick-order`,
+            playerName: 'Sistema',
+            message: `${playerName} ha pescato una carta ${deckType.toUpperCase()} su richiesta di ${orderedBy}`,
+            timestamp: Date.now()
+          });
+        }
+      }
+    });
+    
+    socket.on('cpu-play-card-order', async ({ cardType, playerName, orderedBy }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId && playerName.startsWith('CPU-')) {
+        console.log(`Processing play card order: ${playerName} playing ${cardType || 'any'} ordered by ${orderedBy}`);
+        
+        const gameState = gameManager.getSanitizedGameState(gameId);
+        const cpuPlayer = gameState?.players[playerName];
+        
+        if (cpuPlayer && cpuPlayer.hand && cpuPlayer.hand.length > 0) {
+          let cardToPlay;
+          
+          if (cardType) {
+            // Find specific card type
+            cardToPlay = cpuPlayer.hand.find((card: any) => card.type === cardType);
+          } else {
+            // Play any card
+            cardToPlay = cpuPlayer.hand[0];
+          }
+          
+          if (cardToPlay) {
+            const result = await gameManager.playCard(gameId, cardToPlay.id, playerName);
+            if (result.success) {
+              const updatedGameState = gameManager.getSanitizedGameState(gameId);
+              io.to(gameId).emit('game-state-update', updatedGameState);
+              
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-play-order`,
+                playerName: 'Sistema',
+                message: `${playerName} ha giocato una carta su richiesta di ${orderedBy}`,
+                timestamp: Date.now()
+              });
+              
+              // NEW RULE: Turn ends after playing a card
+              setTimeout(() => {
+                const nextPlayer = gameManager.endTurn(gameId, playerName);
+                if (nextPlayer) {
+                  io.to(gameId).emit('next-turn', { nextPlayer });
+                  console.log(`Turn ended for ${playerName} after ordered card play, next: ${nextPlayer}`);
+                }
+              }, 1500);
+            }
+          } else {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-no-card-type`,
+              playerName: playerName,
+              message: `Mi dispiace ${orderedBy}, non ho carte di tipo ${cardType ? cardType.toUpperCase() : 'disponibili'} da giocare!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+      }
+    });
+    
+    socket.on('cpu-attack-order', async ({ playerName, orderedBy }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId && playerName.startsWith('CPU-')) {
+        console.log(`Processing attack order: ${playerName} attacking ordered by ${orderedBy}`);
+        
+        const gameState = gameManager.getSanitizedGameState(gameId);
+        const cpuPlayer = gameState?.players[playerName];
+        
+        if (cpuPlayer && cpuPlayer.hand) {
+          const mosseCard = cpuPlayer.hand.find((card: any) => card.type === 'mosse');
+          const enemies = gameState.field.filter((card: any) => card.owner !== playerName && card.type === 'personaggi');
+          
+          if (mosseCard && enemies.length > 0) {
+            const target = enemies[0]; // Attack first enemy
+            
+            // First play the MOSSE card
+            const playResult = await gameManager.playCard(gameId, mosseCard.id, playerName);
+            if (playResult.success) {
+              
+              // Then execute attack
+              setTimeout(() => {
+                io.to(gameId).emit('card-attacked', {
+                  mosseCardId: mosseCard.id,
+                  targetCardId: target.id,
+                  attackerName: playerName,
+                  targetOwner: target.owner,
+                  timestamp: Date.now()
+                });
+                
+                io.to(gameId).emit('chat-message', {
+                  id: `${Date.now()}-attack-order`,
+                  playerName: 'Sistema',
+                  message: `${playerName} ha attaccato ${target.owner} su richiesta di ${orderedBy}!`,
+                  timestamp: Date.now()
+                });
+                
+                // Manual return of MOSSE card
+                setTimeout(() => {
+                  gameManager.returnToDeck(gameId, mosseCard.id, playerName);
+                  const updatedGameState = gameManager.getSanitizedGameState(gameId);
+                  io.to(gameId).emit('game-state-update', updatedGameState);
+                  
+                  // Turn ends after attack
+                  setTimeout(() => {
+                    const nextPlayer = gameManager.endTurn(gameId, playerName);
+                    if (nextPlayer) {
+                      io.to(gameId).emit('next-turn', { nextPlayer });
+                      console.log(`Turn ended for ${playerName} after ordered attack, next: ${nextPlayer}`);
+                    }
+                  }, 1000);
+                }, 2000);
+              }, 1000);
+            }
+          } else {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-no-attack`,
+              playerName: playerName,
+              message: `Mi dispiace ${orderedBy}, non posso attaccare! ${!mosseCard ? 'Non ho carte MOSSE' : 'Non ci sono nemici'}`,
+              timestamp: Date.now()
+            });
+          }
+        }
+      }
+    });
 
     socket.on('eliminate-personaggi', async ({ cardId, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);

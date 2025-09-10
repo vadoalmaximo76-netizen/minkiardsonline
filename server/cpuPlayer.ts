@@ -1441,6 +1441,12 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       return true;
     }
     
+    // NEW: Execute direct orders from human players
+    const orderResult = this.executeDirectOrder(message, senderName, lowerMessage);
+    if (orderResult) {
+      return true;
+    }
+    
     // Respond to greetings
     if (lowerMessage.includes('ciao') || lowerMessage.includes('salve') || lowerMessage.includes('buongiorno')) {
       console.log(`CPU ${this.playerName} responding to greeting`);
@@ -1573,5 +1579,126 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         this.waitingForResponse = false;
       }
     }, 1000 + Math.random() * 2000);
+  }
+  
+  // NEW: Execute direct orders from human players
+  executeDirectOrder(message: string, senderName: string, lowerMessage: string): boolean {
+    console.log(`CPU ${this.playerName} checking for direct orders from ${senderName}: "${message}"`);
+    
+    // Order: Show specific card type
+    if (lowerMessage.includes('mostra') || lowerMessage.includes('fammi vedere') || lowerMessage.includes('fai vedere')) {
+      let cardType = '';
+      if (lowerMessage.includes('bonus')) cardType = 'bonus';
+      else if (lowerMessage.includes('mosse') || lowerMessage.includes('mossa')) cardType = 'mosse';
+      else if (lowerMessage.includes('personaggi') || lowerMessage.includes('personaggio')) cardType = 'personaggi';
+      
+      if (cardType) {
+        this.executeShowCard(cardType, senderName);
+        return true;
+      }
+    }
+    
+    // Order: Pick/Draw a card
+    if ((lowerMessage.includes('pesca') || lowerMessage.includes('prendi')) && lowerMessage.includes('carta')) {
+      let deckType = '';
+      if (lowerMessage.includes('bonus')) deckType = 'bonus';
+      else if (lowerMessage.includes('mosse') || lowerMessage.includes('mossa')) deckType = 'mosse';
+      else if (lowerMessage.includes('personaggi') || lowerMessage.includes('personaggio')) deckType = 'personaggi';
+      else if (lowerMessage.includes('speciali')) deckType = 'personaggi_speciali';
+      
+      if (deckType) {
+        this.executePickCard(deckType, senderName);
+        return true;
+      }
+    }
+    
+    // Order: Play a card
+    if (lowerMessage.includes('gioca') && (lowerMessage.includes('carta') || lowerMessage.includes('mano'))) {
+      let cardType = '';
+      if (lowerMessage.includes('bonus')) cardType = 'bonus';
+      else if (lowerMessage.includes('mosse') || lowerMessage.includes('mossa')) cardType = 'mosse';
+      else if (lowerMessage.includes('personaggi') || lowerMessage.includes('personaggio')) cardType = 'personaggi';
+      
+      this.executePlayCard(cardType, senderName);
+      return true;
+    }
+    
+    // Order: Attack with MOSSE
+    if (lowerMessage.includes('attacca') || lowerMessage.includes('usa') && (lowerMessage.includes('mosse') || lowerMessage.includes('mossa'))) {
+      this.executeAttack(senderName);
+      return true;
+    }
+    
+    return false;
+  }
+  
+  // Execute show card order
+  executeShowCard(cardType: string, senderName: string): void {
+    console.log(`CPU ${this.playerName} executing show card order: ${cardType} to ${senderName}`);
+    
+    // Get current game state to find the card
+    setTimeout(() => {
+      this.sendChatMessage(`Certo ${senderName}! Ti mostro la mia carta ${cardType.toUpperCase()}.`);
+      
+      // Emit order to show card - this will need to be handled by the game
+      if (this.socketEmitter) {
+        this.socketEmitter.emit('cpu-show-card-order', {
+          cardType: cardType,
+          fromPlayer: this.playerName,
+          toPlayer: senderName,
+          orderMessage: `${this.playerName} sta mostrando la sua carta ${cardType.toUpperCase()} su richiesta di ${senderName}`
+        });
+      }
+    }, 1000);
+  }
+  
+  // Execute pick card order
+  executePickCard(deckType: string, senderName: string): void {
+    console.log(`CPU ${this.playerName} executing pick card order: ${deckType} requested by ${senderName}`);
+    
+    setTimeout(() => {
+      this.sendChatMessage(`D'accordo ${senderName}! Pesco una carta dal mazzo ${deckType.toUpperCase()}.`);
+      
+      if (this.socketEmitter) {
+        this.socketEmitter.emit('cpu-pick-card-order', {
+          deckType: deckType,
+          playerName: this.playerName,
+          orderedBy: senderName
+        });
+      }
+    }, 1000);
+  }
+  
+  // Execute play card order
+  executePlayCard(cardType: string, senderName: string): void {
+    console.log(`CPU ${this.playerName} executing play card order: ${cardType} requested by ${senderName}`);
+    
+    setTimeout(() => {
+      this.sendChatMessage(`Come desideri ${senderName}! Gioco la mia carta ${cardType ? cardType.toUpperCase() : 'dalla mano'}.`);
+      
+      if (this.socketEmitter) {
+        this.socketEmitter.emit('cpu-play-card-order', {
+          cardType: cardType,
+          playerName: this.playerName,
+          orderedBy: senderName
+        });
+      }
+    }, 1000);
+  }
+  
+  // Execute attack order
+  executeAttack(senderName: string): void {
+    console.log(`CPU ${this.playerName} executing attack order requested by ${senderName}`);
+    
+    setTimeout(() => {
+      this.sendChatMessage(`Va bene ${senderName}! Userò la mia carta MOSSE per attaccare!`);
+      
+      if (this.socketEmitter) {
+        this.socketEmitter.emit('cpu-attack-order', {
+          playerName: this.playerName,
+          orderedBy: senderName
+        });
+      }
+    }, 1000);
   }
 }
