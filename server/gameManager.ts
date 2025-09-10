@@ -49,6 +49,7 @@ interface GameState {
   spectators: string[]; // Players who left the game but are still spectating
   characterLimit: string; // '1', '2', '3', '5', 'unlimited'
   eliminatedPlayers: Set<string>; // Players eliminated from the game
+  gameEnded: boolean; // Prevent multiple victory notifications
 }
 
 export class GameManager {
@@ -92,7 +93,8 @@ export class GameManager {
       currentTurnIndex: 0,
       spectators: [],
       characterLimit: 'unlimited',
-      eliminatedPlayers: new Set<string>()
+      eliminatedPlayers: new Set<string>(),
+      gameEnded: false
     };
 
     // Auto-shuffle all decks when starting a new game
@@ -2747,6 +2749,11 @@ Rispondi SOLO in JSON:`;
     const game = this.games.get(gameId);
     if (!game) return null;
 
+    // Prevent multiple victory notifications - check if game has already ended
+    if (game.gameEnded) {
+      return null;
+    }
+
     // Get all non-CPU players who are not eliminated
     const activePlayers = Object.keys(game.players)
       .filter(playerName => 
@@ -2756,6 +2763,9 @@ Rispondi SOLO in JSON:`;
 
     // If only one active player remains, they win
     if (activePlayers.length === 1) {
+      // Mark game as ended to prevent multiple victory notifications
+      game.gameEnded = true;
+      console.log(`Game victory declared for ${activePlayers[0]} - game marked as ended`);
       return activePlayers[0];
     }
 
