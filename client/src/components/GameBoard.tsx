@@ -348,9 +348,27 @@ export const GameBoard: React.FC = () => {
       alert(`❌ ${message}`);
     };
 
+    const handleInstructionQuestion = ({ playerName: instructorName, instruction, question, timestamp }: { 
+      playerName: string, instruction: string, question: string, timestamp: number 
+    }) => {
+      // Show conversational question to the instructor
+      alert(`💬 ASSISTANT: ${question}`);
+    };
+
+    const handleInstructionDialogue = ({ playerName: instructorName, instruction, question, timestamp }: { 
+      playerName: string, instruction: string, question: string, timestamp: number 
+    }) => {
+      // Show to all players that there's a conversation happening
+      if (instructorName !== playerName) {
+        alert(`💬 ${instructorName} sta dialogando con l'assistente:\n"${instruction}"\n\nAssistente: ${question}`);
+      }
+    };
+
     socket.on('instruction-executed', handleInstructionExecuted);
     socket.on('instruction-success', handleInstructionSuccess);
     socket.on('instruction-error', handleInstructionError);
+    socket.on('instruction-question', handleInstructionQuestion);
+    socket.on('instruction-dialogue', handleInstructionDialogue);
 
     return () => {
       socket.off('game-reset', handleGameReset);
@@ -378,6 +396,8 @@ export const GameBoard: React.FC = () => {
       socket.off('instruction-executed', handleInstructionExecuted);
       socket.off('instruction-success', handleInstructionSuccess);
       socket.off('instruction-error', handleInstructionError);
+      socket.off('instruction-question', handleInstructionQuestion);
+      socket.off('instruction-dialogue', handleInstructionDialogue);
     };
   }, []);
 

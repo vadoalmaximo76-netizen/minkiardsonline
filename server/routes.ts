@@ -1019,6 +1019,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Process the game instruction using AI
           const result = await gameManager.processGameInstruction(gameId, playerName, instruction);
           
+          // Check if it's a conversational question
+          if (result && result.isQuestion) {
+            // Send as conversational prompt, not error
+            socket.emit('instruction-question', {
+              playerName,
+              instruction,
+              question: result.message,
+              timestamp: Date.now()
+            });
+            
+            // Also broadcast to all players so they can see the conversation
+            io.to(gameId).emit('instruction-dialogue', {
+              playerName,
+              instruction,
+              question: result.message,
+              timestamp: Date.now()
+            });
+            return;
+          }
+          
           // Get updated game state after instruction
           const updatedGameState = gameManager.getSanitizedGameState(gameId);
           
@@ -1040,7 +1060,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (error) {
           console.error('Error processing game instruction:', error);
           socket.emit('instruction-error', {
-            message: 'Errore nell\'esecuzione dell\'istruzione. Riprova o fornisci maggiori dettagli.'
+            message: error.message || 'Errore nell\'esecuzione dell\'istruzione. Riprova o fornisci maggiori dettagli.'
           });
         }
       }
