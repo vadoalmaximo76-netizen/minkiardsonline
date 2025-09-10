@@ -43,6 +43,8 @@ interface GameState {
   turnOrder: string[]; // Player turn order
   currentTurnIndex: number; // Index of current player in turn order
   spectators: string[]; // Players who left the game but are still spectating
+  characterLimit: string; // '1', '2', '3', '5', 'unlimited'
+  eliminatedPlayers: Set<string>; // Players eliminated from the game
 }
 
 export class GameManager {
@@ -84,7 +86,9 @@ export class GameManager {
       startTime: new Date(),
       turnOrder: [],
       currentTurnIndex: 0,
-      spectators: []
+      spectators: [],
+      characterLimit: 'unlimited',
+      eliminatedPlayers: new Set<string>()
     };
 
     // Auto-shuffle all decks when starting a new game
@@ -795,7 +799,9 @@ Rispondi SOLO in JSON:`;
       startTime: gameState.startTime,
       turnOrder: gameState.turnOrder,
       currentTurnIndex: gameState.currentTurnIndex,
-      spectators: gameState.spectators
+      spectators: gameState.spectators,
+      characterLimit: gameState.characterLimit,
+      eliminatedPlayers: Array.from(gameState.eliminatedPlayers) // Convert Set to Array for JSON serialization
     };
 
     // Sanitize players by removing cpuInstance references
@@ -1197,7 +1203,7 @@ Rispondi SOLO in JSON:`;
     }
   }
 
-  moveToGraveyard(gameId: string, cardId: string, playerName: string): { success: boolean, graveyardCount?: number, cardImage?: string } {
+  moveToGraveyard(gameId: string, cardId: string, playerName: string): { success: boolean, graveyardCount?: number, cardImage?: string, eliminationCheck?: boolean } {
     const game = this.games.get(gameId);
     if (!game) return { success: false };
 
@@ -1209,12 +1215,21 @@ Rispondi SOLO in JSON:`;
         card.eliminatedBy = playerName;
         game.graveyard.push(card);
 
-        // Count cards in graveyard for this player
+        // Count PERSONAGGI cards in graveyard for this player (only personaggi count for elimination)
         const graveyardCount = game.graveyard.filter(
-          graveyardCard => graveyardCard.eliminatedBy === playerName
+          graveyardCard => graveyardCard.eliminatedBy === playerName && graveyardCard.type === 'personaggi'
         ).length;
 
-        return { success: true, graveyardCount, cardImage: card.frontImage };
+        // Check if player should be eliminated (only if it's a personaggi card)
+        let eliminationCheck = false;
+        if (card.type === 'personaggi' && game.characterLimit !== 'unlimited') {
+          const limit = parseInt(game.characterLimit);
+          if (graveyardCount >= limit && !game.eliminatedPlayers.has(playerName)) {
+            eliminationCheck = true;
+          }
+        }
+
+        return { success: true, graveyardCount, cardImage: card.frontImage, eliminationCheck };
       }
     }
     
@@ -1713,9 +1728,13 @@ Rispondi SOLO in JSON:`;
     return true;
   }
 
-  startGame(gameId: string): string[] | null {
+  startGame(gameId: string, characterLimit: string = 'unlimited'): string[] | null {
     const gameState = this.games.get(gameId);
     if (!gameState) return null;
+
+    // Set character limit for the game
+    gameState.characterLimit = characterLimit;
+    gameState.eliminatedPlayers = new Set<string>();
 
     // Get all player names and randomize order
     const playerNames = Object.keys(gameState.players);
@@ -2496,5 +2515,33 @@ Rispondi SOLO in JSON:`;
     }, playerName);
 
     return { message: `🎁 ${playerName} ha trasferito ${transferredCount} carte specifiche da ${fromPlayer} a ${toPlayer}` };
+  }
+
+  // Add methods for elimination system
+  markPlayerEliminated(gameId: string, playerName: string): boolean {
+    const game = this.games.get(gameId);
+    if (!game) return false;
+
+    game.eliminatedPlayers.add(playerName);
+    return true;
+  }
+
+  checkForGameVictory(gameId: string): string | null {
+    const game = this.games.get(gameId);
+    if (!game) return null;
+
+    // Get all non-CPU players who are not eliminated
+    const activePlayers = Object.keys(game.players)
+      .filter(playerName => 
+        !game.players[playerName].isCPU && 
+        !game.eliminatedPlayers.has(playerName)
+      );
+
+    // If only one active player remains, they win
+    if (activePlayers.length === 1) {
+      return activePlayers[0];
+    }
+
+    return null;
   }
 }

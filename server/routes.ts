@@ -1270,10 +1270,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('remove-card-to-graveyard', ({ deckType, cardId, playerName, section }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
-        const success = gameManager.removeCardToGraveyard(gameId, deckType, cardId, playerName, section);
-        if (success) {
+        const result = gameManager.moveToGraveyard(gameId, cardId, playerName);
+        if (result.success) {
+          // Check if this triggers elimination check
+          if (result.eliminationCheck) {
+            io.to(gameId).emit('elimination-check', { playerName });
+          }
+          
           const gameState = gameManager.getSanitizedGameState(gameId);
           io.to(gameId).emit('game-state-update', gameState);
+          
+          // Check for game victory after potential elimination
+          const winner = gameManager.checkForGameVictory(gameId);
+          if (winner) {
+            io.to(gameId).emit('game-victory', { winner });
+          }
         }
       }
     });
@@ -1578,10 +1589,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('start-game', ({ gameId, playerName }) => {
+    socket.on('start-game', ({ gameId, playerName, characterLimit }) => {
       const gameState = gameManager.getSanitizedGameState(gameId);
       if (gameState) {
-        const playerOrder = gameManager.startGame(gameId);
+        const playerOrder = gameManager.startGame(gameId, characterLimit);
         if (playerOrder) {
           io.to(gameId).emit('game-started', { playerOrder });
         }
@@ -1822,6 +1833,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         io.to(gameId).emit('game-state-update', gameState);
         io.to(gameId).emit('player-left', { playerName });
       }
+    });
+
+    // Handle elimination confirmation
+    socket.on('confirm-elimination', ({ gameId, playerName, confirmed }) => {
+      if (confirmed) {
+        // Player confirms elimination
+        const success = gameManager.markPlayerEliminated(gameId, playerName);
+        if (success) {
+          io.to(gameId).emit('player-eliminated', { playerName });
+          
+          // Check for game victory
+          const winner = gameManager.checkForGameVictory(gameId);
+          if (winner) {
+            io.to(gameId).emit('game-victory', { winner });
+          }
+          
+          // Update game state
+          const gameState = gameManager.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', gameState);
+        }
+      }
+      // If not confirmed, player continues playing and will get asked again next time
     });
 
     socket.on('disconnect', () => {
