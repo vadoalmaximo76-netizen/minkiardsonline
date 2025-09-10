@@ -390,13 +390,15 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
             <p className="text-gray-300 text-sm">
               Quanto danno fa la tua carta MOSSE a {targetCard?.owner}?
             </p>
+            <p className="text-gray-400 text-xs">
+              Puoi inserire operazioni: 50x3, 100+20, 200-50, ecc.
+            </p>
             <Input
-              type="number"
+              type="text"
               value={damageValue}
               onChange={(e) => setDamageValue(e.target.value)}
-              placeholder="Inserisci PTI di danno..."
+              placeholder="es: 50x3, 100+50, 150..."
               className="bg-gray-700 border-gray-600 text-white"
-              min="1"
               autoFocus
             />
             <div className="flex gap-2">
