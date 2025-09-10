@@ -984,21 +984,28 @@ Rispondi SOLO in JSON:`;
     try {
       console.log(`Auto-analyzing PERSONAGGI card for CPU ${cpuPlayerName}: ${card.frontImage}`);
       
-      // Get the CPU player instance to use their analysis method
-      const cpuPlayer = this.cpuPlayers.get(cpuPlayerName);
+      // Get the CPU player instance from game state
+      const game = this.games.get(gameId);
+      if (!game || !game.players[cpuPlayerName]) {
+        console.log(`Game or CPU player ${cpuPlayerName} not found for auto-analysis`);
+        return;
+      }
+      
+      const player = game.players[cpuPlayerName];
+      const cpuPlayer = player.cpuInstance;
       if (!cpuPlayer) {
-        console.log(`CPU player ${cpuPlayerName} not found for auto-analysis`);
+        console.log(`CPU instance for ${cpuPlayerName} not found for auto-analysis`);
         return;
       }
 
       // Use the CPU's detailed analysis method
       const analysis = await cpuPlayer.analyzeCardImageDetailed(card.frontImage, 'personaggi');
       
-      if (analysis && (analysis.pti > 0 || analysis.stars > 0)) {
+      if (analysis && ((analysis.pti && analysis.pti > 0) || (analysis.stars && analysis.stars > 0))) {
         // Format the analysis results according to MINKIARDS rules
         let autoText = '';
-        if (analysis.pti > 0) autoText += `PTI: ${analysis.pti}`;
-        if (analysis.stars > 0) {
+        if (analysis.pti && analysis.pti > 0) autoText += `PTI: ${analysis.pti}`;
+        if (analysis.stars && analysis.stars > 0) {
           if (autoText) autoText += ' | ';
           autoText += `Stelle: ${analysis.stars}`;
         }
@@ -1012,15 +1019,7 @@ Rispondi SOLO in JSON:`;
         
         console.log(`CPU ${cpuPlayerName} auto-analyzed card: ${autoText}`);
         
-        // Emit chat message about the analysis
-        if (this.io) {
-          this.io.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-analysis`,
-            playerName: cpuPlayerName,
-            message: `Ho analizzato la mia carta: ${analysis.name || 'Personaggio'} - ${autoText}`,
-            timestamp: Date.now()
-          });
-        }
+        // Note: Chat messages are handled by routes.ts after card analysis
       } else {
         // Fallback if analysis fails
         card.text = 'PTI: analisi fallita | Stelle: analisi fallita';
@@ -1038,10 +1037,17 @@ Rispondi SOLO in JSON:`;
     try {
       console.log(`Auto-analyzing MOSSE card for CPU ${cpuPlayerName}: ${card.frontImage}`);
       
-      // Get the CPU player instance to use their analysis method
-      const cpuPlayer = this.cpuPlayers.get(cpuPlayerName);
+      // Get the CPU player instance from game state
+      const game = this.games.get(gameId);
+      if (!game || !game.players[cpuPlayerName]) {
+        console.log(`Game or CPU player ${cpuPlayerName} not found for MOSSE auto-analysis`);
+        return;
+      }
+      
+      const player = game.players[cpuPlayerName];
+      const cpuPlayer = player.cpuInstance;
       if (!cpuPlayer) {
-        console.log(`CPU player ${cpuPlayerName} not found for MOSSE auto-analysis`);
+        console.log(`CPU instance for ${cpuPlayerName} not found for MOSSE auto-analysis`);
         return;
       }
 
@@ -1067,15 +1073,7 @@ Rispondi SOLO in JSON:`;
         
         console.log(`CPU ${cpuPlayerName} auto-analyzed MOSSE card: ${autoText}`);
         
-        // Emit chat message about the analysis
-        if (this.io) {
-          this.io.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-mosse-analysis`,
-            playerName: cpuPlayerName,
-            message: `Ho analizzato la mia carta MOSSE: ${analysis.name || 'Mossa'} - Danno base: ${Math.abs(analysis.baseDamage)}`,
-            timestamp: Date.now()
-          });
-        }
+        // Note: Chat messages are handled by routes.ts after card analysis
       } else {
         // Fallback if analysis fails - use standard damage value
         card.text = 'Danno: 80 (analisi fallita)';
