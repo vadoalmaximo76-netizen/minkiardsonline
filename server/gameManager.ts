@@ -628,18 +628,20 @@ Rispondi SOLO in JSON:`;
     const game = this.games.get(gameId);
     if (!game) throw new Error('Game not found');
 
+    // Uncover all field cards
     game.field.forEach(card => {
       card.faceDown = false;
     });
 
     await this.recordEvent(gameId, 'instruction-executed', {
       instruction,
-      action: 'uncover-field-cards'
+      action: 'uncover-field-cards',
+      cardsUncovered: game.field.length
     }, playerName);
 
-    console.log(`Game instruction executed: Uncovered all field cards for game ${gameId}`);
+    console.log(`Game instruction executed: Uncovered ${game.field.length} field cards for game ${gameId}`);
     return { 
-      message: `👁️ ${playerName} ha scoperto tutte le carte in campo! Le carte sono ora visibili.`
+      message: `👁️ ${playerName} ha scoperto tutte le carte in campo! ${game.field.length} carte sono ora visibili.`
     };
   }
 
@@ -1159,39 +1161,6 @@ Rispondi SOLO in JSON:`;
     return { success: false };
   }
 
-  async transferCard(gameId: string, cardId: string, fromPlayer: string, toPlayer: string): Promise<void> {
-    const game = this.games.get(gameId);
-    if (!game || !game.players[fromPlayer] || !game.players[toPlayer]) return;
-
-    // Find card in field or fromPlayer's hand
-    let card: Card | undefined;
-    
-    // Check field
-    let cardIndex = game.field.findIndex(c => c.id === cardId && c.owner === fromPlayer);
-    if (cardIndex !== -1) {
-      card = game.field.splice(cardIndex, 1)[0];
-    } else {
-      // Check fromPlayer's hand
-      cardIndex = game.players[fromPlayer].hand.findIndex(c => c.id === cardId);
-      if (cardIndex !== -1) {
-        card = game.players[fromPlayer].hand.splice(cardIndex, 1)[0];
-      }
-    }
-
-    if (card) {
-      card.owner = toPlayer;
-      game.players[toPlayer].hand.push(card);
-      
-      // Record transfer event
-      await this.recordEvent(gameId, 'transfer-card', {
-        cardId: card.id,
-        cardType: card.type,
-        fromPlayer,
-        toPlayer,
-        fromLocation: game.field.find(c => c.id === cardId) ? 'field' : 'hand'
-      }, fromPlayer);
-    }
-  }
 
   async swapPersonaggiCards(gameId: string, player1: string, card1Id: string, player2: string, card2Id: string): Promise<void> {
     const game = this.games.get(gameId);
