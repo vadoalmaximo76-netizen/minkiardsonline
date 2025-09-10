@@ -66,6 +66,13 @@ export const GameBoard: React.FC = () => {
   });
   const [instructionsOpen, setInstructionsOpen] = useState(false);
   const [gameInstruction, setGameInstruction] = useState('');
+  const [conversationMode, setConversationMode] = useState(false);
+  const [assistantQuestion, setAssistantQuestion] = useState('');
+  const [conversationHistory, setConversationHistory] = useState<Array<{
+    type: 'user' | 'assistant';
+    message: string;
+    timestamp: number;
+  }>>([]);
   const { selectedCard, gameId, playerName, gameState } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, initAudioContext, toggleMute, isMuted } = useAudio();
 
@@ -96,6 +103,14 @@ export const GameBoard: React.FC = () => {
       return;
     }
 
+    // Add user message to conversation history
+    const userMessage = {
+      type: 'user' as const,
+      message: gameInstruction.trim(),
+      timestamp: Date.now()
+    };
+    setConversationHistory(prev => [...prev, userMessage]);
+
     // Send instruction to server for AI processing
     socket.emit('game-instruction', {
       gameId,
@@ -104,10 +119,6 @@ export const GameBoard: React.FC = () => {
     });
 
     setGameInstruction('');
-    setInstructionsOpen(false);
-    
-    // Show confirmation
-    alert(`Istruzione inviata: "${gameInstruction.trim()}"`);
   };
 
   const removeChatNotification = (notificationId: string) => {
@@ -336,11 +347,29 @@ export const GameBoard: React.FC = () => {
     }) => {
       // Show notification to all players about the executed instruction
       alert(`🎮 ISTRUZIONE ESEGUITA:\n${result}`);
+      
+      // Clear conversation mode since instruction was successful
+      setConversationMode(false);
+      setAssistantQuestion('');
+      setConversationHistory([]);
     };
 
     const handleInstructionSuccess = ({ message }: { message: string }) => {
-      // Show success message to the instructor
-      alert(`✅ ${message}`);
+      // Add success message to conversation
+      const successMessage = {
+        type: 'assistant' as const,
+        message: `✅ ${message}`,
+        timestamp: Date.now()
+      };
+      setConversationHistory(prev => [...prev, successMessage]);
+      
+      // Clear conversation mode after success
+      setTimeout(() => {
+        setConversationMode(false);
+        setAssistantQuestion('');
+        setConversationHistory([]);
+        setInstructionsOpen(false);
+      }, 2000);
     };
 
     const handleInstructionError = ({ message }: { message: string }) => {
@@ -351,8 +380,18 @@ export const GameBoard: React.FC = () => {
     const handleInstructionQuestion = ({ playerName: instructorName, instruction, question, timestamp }: { 
       playerName: string, instruction: string, question: string, timestamp: number 
     }) => {
-      // Show conversational question to the instructor
-      alert(`💬 ASSISTANT: ${question}`);
+      // Add assistant question to conversation history
+      const assistantMessage = {
+        type: 'assistant' as const,
+        message: question,
+        timestamp
+      };
+      setConversationHistory(prev => [...prev, assistantMessage]);
+      setConversationMode(true);
+      setAssistantQuestion(question);
+      
+      // Keep the instructions panel open for response
+      setInstructionsOpen(true);
     };
 
     const handleInstructionDialogue = ({ playerName: instructorName, instruction, question, timestamp }: { 
@@ -797,17 +836,50 @@ export const GameBoard: React.FC = () => {
               </div>
               
               <div className="space-y-4">
+                {/* Conversation History */}
+                {conversationHistory.length > 0 && (
+                  <div className="bg-gray-700 rounded-lg p-3 max-h-48 overflow-y-auto">
+                    <h3 className="text-white text-sm font-medium mb-2">💬 Conversazione</h3>
+                    <div className="space-y-2">
+                      {conversationHistory.map((message, index) => (
+                        <div key={index} className={`text-sm ${message.type === 'user' ? 'text-blue-300' : 'text-green-300'}`}>
+                          <span className="font-medium">
+                            {message.type === 'user' ? '👤 Tu: ' : '🤖 Assistente: '}
+                          </span>
+                          <span className="whitespace-pre-wrap">{message.message}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <label className="text-white text-sm font-medium mb-2 block">
-                    Indica al sistema come modificare il gioco
+                    {conversationMode 
+                      ? "💬 Rispondi all'assistente" 
+                      : "Indica al sistema come modificare il gioco"}
                   </label>
-                  <p className="text-gray-400 text-xs mb-3">
-                    Esempi: "Inverti i turni di gioco", "Tutte le carte in campo vengono coperte", "Tutti prendono 3 carte MOSSE"
-                  </p>
+                  
+                  {/* Current Assistant Question */}
+                  {conversationMode && assistantQuestion && (
+                    <div className="bg-green-900 border border-green-600 rounded-lg p-3 mb-3">
+                      <div className="text-green-300 text-sm font-medium mb-1">🤖 Assistente chiede:</div>
+                      <div className="text-green-100 text-sm whitespace-pre-wrap">{assistantQuestion}</div>
+                    </div>
+                  )}
+                  
+                  {!conversationMode && (
+                    <p className="text-gray-400 text-xs mb-3">
+                      Esempi: "Inverti i turni di gioco", "Tutte le carte in campo vengono coperte", "Tutti prendono 3 carte MOSSE"
+                    </p>
+                  )}
+                  
                   <Textarea
                     value={gameInstruction}
                     onChange={(e) => setGameInstruction(e.target.value)}
-                    placeholder="Scrivi qui la tua istruzione..."
+                    placeholder={conversationMode 
+                      ? "Scrivi qui la tua risposta..." 
+                      : "Scrivi qui la tua istruzione..."}
                     className="bg-gray-700 border-gray-600 text-white resize-none"
                     rows={4}
                   />
@@ -818,13 +890,33 @@ export const GameBoard: React.FC = () => {
                     onClick={handleExecuteGameInstruction}
                     className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2"
                   >
-                    ESEGUI ISTRUZIONE
+                    {conversationMode ? "💬 RISPONDI" : "🎮 ESEGUI ISTRUZIONE"}
                   </Button>
+                  
+                  {conversationMode && (
+                    <Button
+                      onClick={() => {
+                        setConversationMode(false);
+                        setAssistantQuestion('');
+                        setConversationHistory([]);
+                        setGameInstruction('');
+                      }}
+                      className="bg-orange-600 hover:bg-orange-700 text-white py-2 px-4"
+                    >
+                      🔄 Ricomincia
+                    </Button>
+                  )}
+                  
                   <Button
-                    onClick={() => setInstructionsOpen(false)}
+                    onClick={() => {
+                      setInstructionsOpen(false);
+                      setConversationMode(false);
+                      setAssistantQuestion('');
+                      setGameInstruction('');
+                    }}
                     className="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4"
                   >
-                    Annulla
+                    ❌ Chiudi
                   </Button>
                 </div>
               </div>
