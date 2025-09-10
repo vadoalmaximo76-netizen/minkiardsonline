@@ -121,6 +121,29 @@ export const CardModal: React.FC = () => {
     setSelectedCard(null);
   };
 
+  // FUSION SYSTEM HANDLERS
+  const handleFusion = () => {
+    setShowFusionSelect(true);
+  };
+
+  const handleFuseWith = (targetCardId: string) => {
+    socket.emit('fuse-cards', {
+      leaderCardId: selectedCard.id,
+      targetCardId: targetCardId,
+      playerName: playerName
+    });
+    setShowFusionSelect(false);
+    setSelectedCard(null);
+  };
+
+  const handleSeparate = () => {
+    socket.emit('separate-cards', {
+      cardId: selectedCard.id,
+      playerName: playerName
+    });
+    setSelectedCard(null);
+  };
+
   // Get PERSONAGGI cards from other players in the field
   const getOtherPlayersPersonaggiCards = () => {
     if (!gameState?.field) return [];
@@ -128,6 +151,17 @@ export const CardModal: React.FC = () => {
     return gameState.field.filter(card => 
       card.type === 'personaggi' && 
       card.owner !== playerName
+    );
+  };
+
+  // Get ALL PERSONAGGI cards in the field for fusion (any player)
+  const getAllPersonaggiCards = () => {
+    if (!gameState?.field) return [];
+    
+    return gameState.field.filter(card => 
+      card.type === 'personaggi' && 
+      card.id !== selectedCard.id && // Exclude the current card
+      !card.isFused // Exclude already fused cards
     );
   };
 
@@ -210,6 +244,32 @@ export const CardModal: React.FC = () => {
                   >
                     SCAMBIA
                   </Button>
+                )}
+
+                {/* FUSION SYSTEM buttons only for PERSONAGGI cards */}
+                {selectedCard.type === 'personaggi' && (
+                  <>
+                    {/* FONDI button - show only if card is NOT fused */}
+                    {!selectedCard.isFused && (
+                      <Button
+                        onClick={handleFusion}
+                        className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3"
+                        disabled={getAllPersonaggiCards().length === 0}
+                      >
+                        FONDI
+                      </Button>
+                    )}
+
+                    {/* SEPARA button - show only if card IS fused */}
+                    {selectedCard.isFused && (
+                      <Button
+                        onClick={handleSeparate}
+                        className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3"
+                      >
+                        SEPARA
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
             </>
@@ -373,6 +433,57 @@ export const CardModal: React.FC = () => {
               </div>
             ) : (
               <p className="text-white text-center">Nessuna carta PERSONAGGI disponibile per lo scambio</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Card Fusion Modal for PERSONAGGI */}
+      {showFusionSelect && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-white font-bold text-lg">Fondi con quale PERSONAGGIO:</h3>
+              <Button
+                onClick={() => setShowFusionSelect(false)}
+                className="bg-red-600 hover:bg-red-700 text-white px-2 py-1"
+                size="sm"
+              >
+                Chiudi
+              </Button>
+            </div>
+            
+            {getAllPersonaggiCards().length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {getAllPersonaggiCards().map((card) => {
+                  const cardName = card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase() || 'CARTA';
+                  
+                  return (
+                    <div 
+                      key={card.id} 
+                      className="bg-gray-700 rounded-lg p-3 hover:bg-gray-600 cursor-pointer transition-colors"
+                      onClick={() => handleFuseWith(card.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={card.frontImage}
+                          alt={cardName}
+                          className="w-16 h-20 rounded object-cover"
+                        />
+                        <div className="flex-1">
+                          <h4 className="text-white font-bold text-sm mb-1">{cardName}</h4>
+                          <p className="text-gray-300 text-xs">Proprietario: {card.owner}</p>
+                          {card.text && (
+                            <p className="text-gray-400 text-xs mt-1">Note: {card.text}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-white text-center">Nessun PERSONAGGIO disponibile per la fusione</p>
             )}
           </div>
         </div>

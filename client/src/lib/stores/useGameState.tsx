@@ -10,6 +10,10 @@ interface Card {
   owner: string;
   text?: string;
   eliminatedBy?: string;
+  // Fusion system
+  fusedWith?: string[]; // Array of card IDs that are fused with this card
+  isFused?: boolean; // True if this card is part of a fusion
+  fusionLeader?: string; // ID of the card that leads the fusion group
 }
 
 interface Player {
