@@ -1125,7 +1125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // First, draw the card
         const drawnCard = await gameManager.pickCard(gameId, deckType, playerName);
-        if (drawnCard) {
+        if (drawnCard && typeof drawnCard === 'object') {
           console.log(`${playerName} drew ${deckType} card: ${drawnCard.id}`);
           
           // Determine which card to play (if specified or the just-drawn one)
@@ -1134,7 +1134,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Play the card immediately (same turn activation)
           setTimeout(async () => {
             const playResult = await gameManager.playCard(gameId, cardToPlay, playerName);
-            if (playResult.success) {
+            if (playResult && playResult.card) {
               console.log(`${playerName} immediately played card: ${cardToPlay}`);
               
               // Send updated game state
@@ -1249,7 +1249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           if (cardToPlay) {
             const result = await gameManager.playCard(gameId, cardToPlay.id, playerName);
-            if (result.success) {
+            if (result && result.card) {
               const updatedGameState = gameManager.getSanitizedGameState(gameId);
               io.to(gameId).emit('game-state-update', updatedGameState);
               
@@ -1298,7 +1298,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // First play the MOSSE card
             const playResult = await gameManager.playCard(gameId, mosseCard.id, playerName);
-            if (playResult.success) {
+            if (playResult && playResult.success) {
               
               // Then execute attack
               setTimeout(() => {
@@ -1567,7 +1567,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   case 'draw-and-play':
                     // NEW: Draw a card and immediately play it in the same turn
                     const drawnCard = await gameManager.pickCard(gameId, cpuAction.data.deckType, cpuAction.data.playerName);
-                    if (drawnCard) {
+                    if (drawnCard && typeof drawnCard === 'object') {
                       console.log(`CPU ${nextPlayer} drew ${cpuAction.data.deckType} card: ${drawnCard.id} and will play it immediately`);
                       
                       // Update game state after drawing
@@ -1577,7 +1577,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       // Play the card immediately (same turn activation)
                       setTimeout(async () => {
                         const immediatePlayResult = await gameManager.playCard(gameId, drawnCard.id, cpuAction.data.playerName);
-                        if (immediatePlayResult.success) {
+                        if (immediatePlayResult && immediatePlayResult.card) {
                           console.log(`CPU ${nextPlayer} immediately played drawn card: ${drawnCard.id}`);
                           
                           const playGameState = gameManager.getSanitizedGameState(gameId);
@@ -1599,7 +1599,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 
                 // NOTE: Turn ending is now handled individually by each action type
                 // Only end turn generically for actions that don't handle it themselves
-                if (!['play-card', 'mosse-attack', 'draw-and-play', 'eliminate-dead-character'].includes(cpuAction.type)) {
+                if (!['play-card', 'mosse-attack', 'draw-and-play', 'eliminate-dead-character', 'show-card-to-player'].includes(cpuAction.type)) {
                   setTimeout(() => {
                     const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
                     if (nextAfterCPU) {
