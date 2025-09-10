@@ -512,12 +512,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('choose-specific-card', ({ deckType, cardId, playerName }) => {
+    socket.on('choose-specific-card', async ({ deckType, cardId, playerName }) => {
+      console.log(`CHOOSE-SPECIFIC-CARD event received:`, { deckType, cardId, playerName });
       const gameId = gameManager.getPlayerGameId(socket.id);
+      console.log(`GameId for player ${playerName}:`, gameId);
+      
       if (gameId) {
-        gameManager.chooseSpecificCard(gameId, deckType, cardId, playerName);
-        const gameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        const success = gameManager.chooseSpecificCard(gameId, deckType, cardId, playerName);
+        console.log(`ChooseSpecificCard result for ${playerName}:`, success);
+        
+        if (success) {
+          const gameState = gameManager.getSanitizedGameState(gameId);
+          console.log(`Emitting game-state-update to room ${gameId}`);
+          io.to(gameId).emit('game-state-update', gameState);
+          console.log(`Game state updated after ${playerName} picked card ${cardId}`);
+          
+          // Log the updated player hand count from sanitized game state
+          const playerHandCount = gameState?.players[playerName]?.hand.length || 0;
+          console.log(`${playerName} now has ${playerHandCount} cards in hand (from sanitized state)`);
+        } else {
+          console.log(`FAILED to choose specific card for ${playerName}`);
+          socket.emit('error', { message: 'Failed to pick card' });
+        }
+      } else {
+        console.log(`No gameId found for player ${playerName} (socketId: ${socket.id})`);
       }
     });
 

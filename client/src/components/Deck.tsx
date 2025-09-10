@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
@@ -17,6 +17,22 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
   const [searchTerm, setSearchTerm] = useState('');
   
   const remainingCards = gameState?.decks?.[type]?.length || 0;
+
+  // Handle Escape key to close modal
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && showBrowser) {
+        console.log('ESC pressed - closing deck browser for:', name);
+        setShowBrowser(false);
+        setSearchTerm('');
+      }
+    };
+
+    if (showBrowser) {
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
+    }
+  }, [showBrowser, name]);
 
   const handleShuffle = () => {
     // Start shuffle animation
@@ -49,6 +65,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
   };
 
   const handleCardSelect = (cardId: string) => {
+    console.log('PESCA QUESTA CARTA clicked:', { deckType: type, cardId, playerName });
     socket.emit('choose-specific-card', { deckType: type, cardId, playerName });
     setSelectedCardForZoom(null);
     setShowBrowser(false);
@@ -149,7 +166,15 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
         <div 
           className="fixed inset-0 bg-black bg-opacity-95 flex items-center justify-center p-4"
           style={{ 
-            zIndex: 99999999
+            zIndex: 50
+          }}
+          data-backdrop="true"
+          role="presentation"
+          onClick={(e) => {
+            // Always close modal when clicking on backdrop (outer div)
+            console.log('Backdrop clicked - closing deck browser for:', name, 'target:', e.target, 'current:', e.currentTarget);
+            setShowBrowser(false);
+            setSearchTerm('');
           }}
         >
           <div 
@@ -162,6 +187,10 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
               maxWidth: '90vw',
               maxHeight: '90vh'
             }}
+            onClick={(e) => {
+              // Prevent backdrop click when clicking inside modal
+              e.stopPropagation();
+            }}
           >
             {/* Header */}
             <div className="p-4 bg-gray-800 border-b-2 border-gray-600 rounded-t-lg">
@@ -170,11 +199,15 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
                   Scegli una carta da {name}
                 </h3>
                 <Button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('CHIUDI clicked for deck:', name);
                     setShowBrowser(false);
                     setSearchTerm(''); // Reset search when closing
                   }}
-                  className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 text-lg font-bold rounded"
+                  className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 text-lg font-bold rounded relative z-50"
+                  style={{ pointerEvents: 'auto' }}
                 >
                   CHIUDI
                 </Button>
