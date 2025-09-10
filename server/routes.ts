@@ -1024,18 +1024,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return;
         }
         
-        // Check if this type of MOSSE card has already been used this turn
-        if (gameManager.hasCardTypeBeenUsed(gameId, mosseCard.frontImage, attackerName)) {
-          console.log(`${attackerName} attempted to reuse MOSSE card type ${mosseCard.frontImage} - attack blocked`);
+        // Check if player is CPU - only CPU players have reuse restrictions
+        const gameStateForCPUCheck = gameManager.getSanitizedGameState(gameId);
+        const playerData = gameStateForCPUCheck?.players?.[attackerName];
+        const isCPUPlayer = playerData?.isCPU || attackerName.startsWith('CPU-');
+        
+        // Only block reuse for CPU players
+        if (isCPUPlayer && gameManager.hasCardTypeBeenUsed(gameId, mosseCard.frontImage, attackerName)) {
+          console.log(`${attackerName} attempted to reuse MOSSE card type ${mosseCard.frontImage} - attack blocked (CPU restriction)`);
           socket.emit('attack-blocked', { 
-            message: 'Non puoi riutilizzare la stessa carta MOSSE nello stesso turno!',
+            message: 'I CPU non possono riutilizzare la stessa carta MOSSE nello stesso turno!',
             cardId: mosseCardId 
           });
           return;
         }
         
-        // Mark this type of MOSSE card as used this turn
-        gameManager.markCardTypeAsUsed(gameId, mosseCard.frontImage, attackerName);
+        // Mark this type of MOSSE card as used this turn (only for CPU players)
+        if (isCPUPlayer) {
+          gameManager.markCardTypeAsUsed(gameId, mosseCard.frontImage, attackerName);
+        }
         
         // Broadcast the attack to all players so they can see the shaking animation
         io.to(gameId).emit('card-attacked', {
