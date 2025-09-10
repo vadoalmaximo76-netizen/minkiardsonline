@@ -22,7 +22,9 @@ import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
-import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X } from "lucide-react";
+import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink } from "lucide-react";
+import { Input } from "./ui/input";
+import { Textarea } from "./ui/textarea";
 
 export const GameBoard: React.FC = () => {
   const [chatOpen, setChatOpen] = useState(false);
@@ -58,6 +60,12 @@ export const GameBoard: React.FC = () => {
     message: string;
     playerName: string;
   }>>([]);
+  const [rankiardOpen, setRankiardOpen] = useState(false);
+  const [rankiardPoints, setRankiardPoints] = useState<string>(() => {
+    return localStorage.getItem('rankiard-points') || '';
+  });
+  const [instructionsOpen, setInstructionsOpen] = useState(false);
+  const [gameInstruction, setGameInstruction] = useState('');
   const { selectedCard, gameId, playerName, gameState } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, initAudioContext, toggleMute, isMuted } = useAudio();
 
@@ -75,6 +83,31 @@ export const GameBoard: React.FC = () => {
 
   const handleCloseChat = () => {
     setChatOpen(false);
+  };
+
+  const handleRankiardPointsChange = (value: string) => {
+    setRankiardPoints(value);
+    localStorage.setItem('rankiard-points', value);
+  };
+
+  const handleExecuteGameInstruction = () => {
+    if (!gameInstruction.trim()) {
+      alert("Inserisci un'istruzione per modificare il gioco");
+      return;
+    }
+
+    // Send instruction to server for AI processing
+    socket.emit('game-instruction', {
+      gameId,
+      playerName,
+      instruction: gameInstruction.trim()
+    });
+
+    setGameInstruction('');
+    setInstructionsOpen(false);
+    
+    // Show confirmation
+    alert(`Istruzione inviata: "${gameInstruction.trim()}"`);
   };
 
   const removeChatNotification = (notificationId: string) => {
@@ -401,7 +434,7 @@ export const GameBoard: React.FC = () => {
               </Button>
             </div>
             
-            {/* Second row: INVITA AMICI and RICOMINCIA PARTITA */}
+            {/* Second row: INVITA AMICI, RANKIARD and RICOMINCIA PARTITA */}
             <div className="flex gap-1 landscape:gap-2 md:gap-2 justify-center landscape:justify-end md:justify-end">
               <Button
                 onClick={shareInviteLink}
@@ -409,6 +442,13 @@ export const GameBoard: React.FC = () => {
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 INVITA AMICI
+              </Button>
+              <Button
+                onClick={() => setRankiardOpen(!rankiardOpen)}
+                className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
+                style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
+              >
+                RANKIARD
               </Button>
               <Button
                 onClick={handleResetGame}
@@ -453,6 +493,13 @@ export const GameBoard: React.FC = () => {
 
         {/* Game controls */}
         <div className="fixed bottom-2 landscape:bottom-4 md:bottom-4 right-2 landscape:right-4 md:right-4 flex flex-col gap-1 landscape:gap-2 md:gap-2 z-50">
+          <Button
+            onClick={() => setInstructionsOpen(!instructionsOpen)}
+            className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
+            title="Istruzioni"
+          >
+            <span className="text-xs landscape:text-sm md:text-sm font-bold">!</span>
+          </Button>
           <Button
             onClick={() => {
               if (chatOpen) {
@@ -633,6 +680,112 @@ export const GameBoard: React.FC = () => {
           title={notificationTitle}
           onClose={() => setNotificationVisible(false)}
         />
+
+        {/* Rankiard Modal */}
+        {rankiardOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full border border-gray-600">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-white">RANKIARD</h2>
+                <Button
+                  onClick={() => setRankiardOpen(false)}
+                  className="bg-red-600 hover:bg-red-700 text-white rounded-full p-1"
+                >
+                  <X size={16} />
+                </Button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="text-white text-sm font-medium mb-2 block">
+                    Punti Rankiard residui
+                  </label>
+                  <Textarea
+                    value={rankiardPoints}
+                    onChange={(e) => handleRankiardPointsChange(e.target.value)}
+                    placeholder="Inserisci i tuoi punti Rankiard..."
+                    className="bg-gray-700 border-gray-600 text-white resize-none"
+                    rows={3}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-1 gap-2">
+                  <Button
+                    onClick={() => window.open('https://drive.google.com/file/d/12bbZFsDw6AFFpqexTS-rHTMlkPhcRZgG/view', '_blank')}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 flex items-center justify-center gap-2"
+                  >
+                    <ExternalLink size={16} />
+                    CLASSIFICA RANKIARD
+                  </Button>
+                  <Button
+                    onClick={() => window.open('https://drive.google.com/file/d/1IEyFgz3stHj4W7k8VZrl8opIwkmP_7WC/view', '_blank')}
+                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 flex items-center justify-center gap-2"
+                  >
+                    <ExternalLink size={16} />
+                    ASSEGNAZIONE PUNTI RANKIARD
+                  </Button>
+                  <Button
+                    onClick={() => window.open('https://drive.google.com/file/d/1KSPlXXs2lDg3-0MqlJvkgippLUBCnEbz/view', '_blank')}
+                    className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 flex items-center justify-center gap-2"
+                  >
+                    <ExternalLink size={16} />
+                    BANCA POTERI
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Instructions Modal */}
+        {instructionsOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full border border-gray-600">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-white">ISTRUZIONI</h2>
+                <Button
+                  onClick={() => setInstructionsOpen(false)}
+                  className="bg-red-600 hover:bg-red-700 text-white rounded-full p-1"
+                >
+                  <X size={16} />
+                </Button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="text-white text-sm font-medium mb-2 block">
+                    Indica al sistema come modificare il gioco
+                  </label>
+                  <p className="text-gray-400 text-xs mb-3">
+                    Esempi: "Inverti i turni di gioco", "Tutte le carte in campo vengono coperte", "Tutti prendono 3 carte MOSSE"
+                  </p>
+                  <Textarea
+                    value={gameInstruction}
+                    onChange={(e) => setGameInstruction(e.target.value)}
+                    placeholder="Scrivi qui la tua istruzione..."
+                    className="bg-gray-700 border-gray-600 text-white resize-none"
+                    rows={4}
+                  />
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleExecuteGameInstruction}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2"
+                  >
+                    ESEGUI ISTRUZIONE
+                  </Button>
+                  <Button
+                    onClick={() => setInstructionsOpen(false)}
+                    className="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4"
+                  >
+                    Annulla
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
