@@ -140,6 +140,93 @@ export class GameManager {
     }
   }
 
+  async processGameInstruction(gameId: string, playerName: string, instruction: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    console.log(`Processing game instruction from ${playerName}: "${instruction}"`);
+
+    // Analyze instruction using simple keyword matching and AI
+    const lowercaseInstruction = instruction.toLowerCase();
+
+    // Example instruction processing - can be expanded
+    if (lowercaseInstruction.includes('inverti') && lowercaseInstruction.includes('turni')) {
+      // Reverse player order
+      const playerNames = Object.keys(game.players);
+      const reversedOrder = playerNames.reverse();
+      game.currentPlayerIndex = reversedOrder.length - 1 - game.currentPlayerIndex;
+      
+      await this.recordEvent(gameId, 'instruction-executed', {
+        instruction,
+        action: 'reverse-turn-order',
+        newOrder: reversedOrder
+      }, playerName);
+
+      // Broadcast change
+      console.log(`Game instruction executed: Reversed turn order for game ${gameId}`);
+      return;
+    }
+
+    if (lowercaseInstruction.includes('carte') && lowercaseInstruction.includes('coperte')) {
+      // Cover all field cards
+      game.field.forEach(card => {
+        card.faceDown = true;
+      });
+
+      await this.recordEvent(gameId, 'instruction-executed', {
+        instruction,
+        action: 'cover-field-cards'
+      }, playerName);
+
+      console.log(`Game instruction executed: Covered all field cards for game ${gameId}`);
+      return;
+    }
+
+    if (lowercaseInstruction.includes('carte') && lowercaseInstruction.includes('scoperte')) {
+      // Uncover all field cards
+      game.field.forEach(card => {
+        card.faceDown = false;
+      });
+
+      await this.recordEvent(gameId, 'instruction-executed', {
+        instruction,
+        action: 'uncover-field-cards'
+      }, playerName);
+
+      console.log(`Game instruction executed: Uncovered all field cards for game ${gameId}`);
+      return;
+    }
+
+    // Extract number of cards and type for distribution
+    const cardDistributionMatch = instruction.match(/(\d+)\s+carte?\s+(personaggi|mosse|bonus|personaggi_speciali)/i);
+    if (cardDistributionMatch && lowercaseInstruction.includes('tutti')) {
+      const [, cardCount, deckType] = cardDistributionMatch;
+      const count = parseInt(cardCount);
+      const normalizedDeckType = deckType.toLowerCase().replace(' ', '_') as keyof GameState['decks'];
+
+      // Distribute cards to all players
+      for (const playerName of Object.keys(game.players)) {
+        for (let i = 0; i < count; i++) {
+          this.pickCard(gameId, normalizedDeckType, playerName);
+        }
+      }
+
+      await this.recordEvent(gameId, 'instruction-executed', {
+        instruction,
+        action: 'distribute-cards',
+        cardCount: count,
+        deckType: normalizedDeckType
+      }, playerName);
+
+      console.log(`Game instruction executed: Distributed ${count} ${deckType} cards to all players`);
+      return;
+    }
+
+    // If no specific instruction matched, log for future implementation
+    console.log(`Unrecognized game instruction: "${instruction}"`);
+    throw new Error(`Istruzione non riconosciuta: "${instruction}". Prova con esempi come "Inverti i turni", "Copri tutte le carte", o "Tutti prendono 3 carte MOSSE"`);
+  }
+
   private async recordEvent(gameId: string, eventType: string, eventData: any, playerName: string): Promise<void> {
     try {
       const game = this.games.get(gameId);

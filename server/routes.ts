@@ -1012,6 +1012,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on('game-instruction', async ({ gameId, playerName, instruction }) => {
+      const playerGameId = gameManager.getPlayerGameId(socket.id);
+      if (playerGameId === gameId) {
+        try {
+          // Process the game instruction using AI
+          await gameManager.processGameInstruction(gameId, playerName, instruction);
+          
+          // Broadcast instruction execution to all players
+          io.to(gameId).emit('instruction-executed', {
+            playerName,
+            instruction,
+            timestamp: Date.now()
+          });
+        } catch (error) {
+          console.error('Error processing game instruction:', error);
+          socket.emit('instruction-error', {
+            message: 'Errore nell\'esecuzione dell\'istruzione. Riprova o fornisci maggiori dettagli.'
+          });
+        }
+      }
+    });
+
     socket.on('mosse-attack', ({ mosseCardId, targetCardId, attackerName, targetOwner, damageValue }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
