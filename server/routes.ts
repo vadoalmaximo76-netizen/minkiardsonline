@@ -748,9 +748,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('transfer-card', ({ cardId, fromPlayer, toPlayer }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
-        gameManager.transferCard(gameId, cardId, fromPlayer, toPlayer);
-        const gameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        // Use the instruction system to transfer the card
+        gameManager.processGameInstruction(gameId, fromPlayer, `Trasferisci la carta ${cardId} a ${toPlayer}`).then(() => {
+          const gameState = gameManager.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', gameState);
+        }).catch(error => {
+          console.error('Error transferring card:', error);
+        });
       }
     });
 
