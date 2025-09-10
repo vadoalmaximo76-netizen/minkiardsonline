@@ -713,6 +713,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gameId) {
         const result = gameManager.moveToGraveyard(gameId, cardId, playerName);
         if (result.success) {
+          // Check for player elimination from character limit
+          if (result.eliminationCheck) {
+            console.log(`Player ${playerName} has reached character limit via manual move-to-graveyard - automatically eliminating`);
+            
+            const eliminationSuccess = gameManager.markPlayerEliminated(gameId, playerName);
+            if (eliminationSuccess) {
+              console.log(`Player ${playerName} automatically eliminated due to character limit`);
+              io.to(gameId).emit('player-eliminated', { playerName });
+              
+              // Check for game victory
+              const winner = gameManager.checkForGameVictory(gameId);
+              if (winner) {
+                console.log(`Game won by: ${winner}`);
+                io.to(gameId).emit('game-victory', { winner });
+              }
+            }
+          }
+          
           const gameState = gameManager.getSanitizedGameState(gameId);
           io.to(gameId).emit('game-state-update', gameState);
 
@@ -1715,35 +1733,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // CRITICAL FIX: Check if this elimination causes player elimination
           if (result.eliminationCheck) {
-            console.log(`Player ${playerName} has reached character limit - checking for automatic elimination`);
+            console.log(`Player ${playerName} has reached character limit via eliminate-personaggi - automatically eliminating`);
             
-            // Automatically eliminate player when they reach the character limit
             const eliminationSuccess = gameManager.markPlayerEliminated(gameId, playerName);
             if (eliminationSuccess) {
               console.log(`Player ${playerName} automatically eliminated due to character limit`);
               io.to(gameId).emit('player-eliminated', { playerName });
               
-              // Send message about elimination
-              io.to(gameId).emit('chat-message', {
-                id: `${Date.now()}-auto-elimination`,
-                playerName: 'Sistema',
-                message: `${playerName} è stato eliminato! Ha raggiunto il limite di personaggi nel cimitero.`,
-                timestamp: Date.now()
-              });
-              
-              // Check for game victory after elimination
+              // Check for game victory
               const winner = gameManager.checkForGameVictory(gameId);
               if (winner) {
-                console.log(`Game victory detected! Winner: ${winner}`);
+                console.log(`Game won by: ${winner}`);
                 io.to(gameId).emit('game-victory', { winner });
               }
-            }
-          } else {
-            // Even if no elimination, still check for victory (in case other conditions changed)
-            const winner = gameManager.checkForGameVictory(gameId);
-            if (winner) {
-              console.log(`Game victory detected after character elimination! Winner: ${winner}`);
-              io.to(gameId).emit('game-victory', { winner });
             }
           }
         }
@@ -1877,6 +1879,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     const eliminateResult = gameManager.moveToGraveyard(gameId, cpuAction.data.cardId, cpuAction.data.playerName);
                     
                     if (eliminateResult.success) {
+                      // Check for player elimination from character limit
+                      if (eliminateResult.eliminationCheck) {
+                        console.log(`Player ${cpuAction.data.playerName} has reached character limit via CPU elimination - automatically eliminating`);
+                        
+                        const eliminationSuccess = gameManager.markPlayerEliminated(gameId, cpuAction.data.playerName);
+                        if (eliminationSuccess) {
+                          console.log(`Player ${cpuAction.data.playerName} automatically eliminated due to character limit`);
+                          io.to(gameId).emit('player-eliminated', { playerName: cpuAction.data.playerName });
+                          
+                          // Check for game victory
+                          const winner = gameManager.checkForGameVictory(gameId);
+                          if (winner) {
+                            console.log(`Game won by: ${winner}`);
+                            io.to(gameId).emit('game-victory', { winner });
+                          }
+                        }
+                      }
+                      
                       const updatedGameState = gameManager.getSanitizedGameState(gameId);
                       io.to(gameId).emit('game-state-update', updatedGameState);
                       

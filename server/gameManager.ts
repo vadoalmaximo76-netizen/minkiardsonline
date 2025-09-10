@@ -2732,7 +2732,14 @@ Rispondi SOLO in JSON:`;
     const game = this.games.get(gameId);
     if (!game) return false;
 
+    // Check if player is already eliminated (idempotent behavior)
+    if (game.eliminatedPlayers.has(playerName)) {
+      console.log(`Player ${playerName} already eliminated, skipping duplicate elimination`);
+      return false;
+    }
+
     game.eliminatedPlayers.add(playerName);
+    console.log(`Player ${playerName} marked as eliminated`);
     return true;
   }
 
