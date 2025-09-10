@@ -251,6 +251,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       socket.to(gameId).emit('player-joined', { playerName });
     });
 
+    socket.on('rejoin-game', ({ gameId, playerName, sessionId }) => {
+      console.log(`Player ${playerName} attempting to rejoin game ${gameId} with session ${sessionId}`);
+      
+      try {
+        const game = gameManager.getGameState(gameId);
+        
+        if (!game) {
+          console.log(`Game ${gameId} not found`);
+          socket.emit('join-game-error', { message: 'Game not found' });
+          return;
+        }
+
+        const player = game.players[playerName];
+        if (!player) {
+          console.log(`Player ${playerName} not found in game ${gameId}`);
+          socket.emit('join-game-error', { message: 'Player not found in game' });
+          return;
+        }
+
+        // Rejoin the room and update socket ID
+        socket.join(gameId);
+        const oldSocketId = player.socketId;
+        player.socketId = socket.id;
+        player.disconnectedAt = undefined; // Clear disconnection timestamp
+        
+        // Update player-to-game mapping and clean up old mapping
+        gameManager.setPlayerToGame(socket.id, gameId);
+        if (oldSocketId) {
+          gameManager.cleanupOldSocketMapping(oldSocketId);
+        }
+        
+        console.log(`Player ${playerName} successfully rejoined game ${gameId} (was disconnected: ${player.disconnectedAt ? 'yes' : 'no'})`);
+        
+        // Send current game state to the reconnected player
+        const gameState = gameManager.getSanitizedGameState(gameId);
+        socket.emit('game-state-update', gameState);
+        
+        // Notify other players about the reconnection
+        socket.to(gameId).emit('player-reconnected', { playerName });
+        
+      } catch (error) {
+        console.error('Error during rejoin-game:', error);
+        socket.emit('join-game-error', { message: 'Failed to rejoin game' });
+      }
+    });
+
     socket.on('add-cpu-player', async ({ gameId }) => {
       try {
         const cpuName = await gameManager.addCPUPlayer(gameId);
@@ -1020,7 +1066,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const result = await gameManager.processGameInstruction(gameId, playerName, instruction);
           
           // Check if it's a conversational question
-          if (result && result.isQuestion) {
+          if (result && typeof result === 'object' && 'isQuestion' in result && result.isQuestion) {
             // Send as conversational prompt, not error
             socket.emit('instruction-question', {
               playerName,
@@ -1060,7 +1106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (error) {
           console.error('Error processing game instruction:', error);
           socket.emit('instruction-error', {
-            message: error.message || 'Errore nell\'esecuzione dell\'istruzione. Riprova o fornisci maggiori dettagli.'
+            message: (error instanceof Error ? error.message : String(error)) || 'Errore nell\'esecuzione dell\'istruzione. Riprova o fornisci maggiori dettagli.'
           });
         }
       }
@@ -1249,7 +1295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`${playerName} drawing from ${deckType} and immediately playing card ${cardIdToPlay || 'next drawn'}`);
         
         // First, draw the card
-        const drawnCard = await gameManager.pickCard(gameId, deckType, playerName);
+        const drawnCard = await gameManager.pickCardAndReturn(gameId, deckType, playerName);
         if (drawnCard && typeof drawnCard === 'object') {
           console.log(`${playerName} drew ${deckType} card: ${drawnCard.id}`);
           
@@ -1691,7 +1737,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     
                   case 'draw-and-play':
                     // NEW: Draw a card and immediately play it in the same turn
-                    const drawnCard = await gameManager.pickCard(gameId, cpuAction.data.deckType, cpuAction.data.playerName);
+                    const drawnCard = await gameManager.pickCardAndReturn(gameId, cpuAction.data.deckType, cpuAction.data.playerName);
                     if (drawnCard && typeof drawnCard === 'object') {
                       console.log(`CPU ${nextPlayer} drew ${cpuAction.data.deckType} card: ${drawnCard.id} and will play it immediately`);
                       

@@ -13,29 +13,67 @@ const queryClient = new QueryClient();
 function App() {
   const [showNameDialog, setShowNameDialog] = useState(true);
   const [showRoomDialog, setShowRoomDialog] = useState(false);
-  const { setPlayerName, playerName, gameId, setGameId } = useGameState();
+  const [isInitializing, setIsInitializing] = useState(true);
+  const { 
+    setPlayerName, 
+    playerName, 
+    gameId, 
+    setGameId, 
+    hasActiveSession, 
+    restoreSession, 
+    generateSessionId, 
+    isReconnecting 
+  } = useGameState();
 
   useEffect(() => {
-    // Get game ID from URL if present
-    const urlParams = new URLSearchParams(window.location.search);
-    const gameIdFromUrl = urlParams.get('game');
-    
-    if (gameIdFromUrl) {
-      setGameId(gameIdFromUrl);
-      // If there's a game ID in URL, skip room selection
-      setShowRoomDialog(false);
-    }
+    const initializeApp = async () => {
+      try {
+        // Connect to socket first
+        socket.connect();
+        
+        // Check if we have an active session
+        if (hasActiveSession()) {
+          console.log('Found active session, attempting to restore...');
+          const restored = await restoreSession();
+          
+          if (restored) {
+            console.log('Session restored successfully');
+            setShowNameDialog(false);
+            setShowRoomDialog(false);
+            setIsInitializing(false);
+            return;
+          } else {
+            console.log('Session restoration failed, showing login');
+          }
+        }
+        
+        // Get game ID from URL if present
+        const urlParams = new URLSearchParams(window.location.search);
+        const gameIdFromUrl = urlParams.get('game');
+        
+        if (gameIdFromUrl) {
+          setGameId(gameIdFromUrl);
+          // If there's a game ID in URL, skip room selection
+          setShowRoomDialog(false);
+        }
+        
+        setIsInitializing(false);
+      } catch (error) {
+        console.error('Error initializing app:', error);
+        setIsInitializing(false);
+      }
+    };
 
-    // Connect to socket
-    socket.connect();
+    initializeApp();
 
     return () => {
       socket.disconnect();
     };
-  }, [setGameId]);
+  }, [setGameId, hasActiveSession, restoreSession]);
 
   const handleNameSubmit = (name: string) => {
     setPlayerName(name);
+    generateSessionId(); // Create a new session ID for this player
     setShowNameDialog(false);
     
     // Check if we have a game ID from URL
@@ -53,6 +91,8 @@ function App() {
 
   const handleRoomSubmit = (roomCode: string) => {
     const newGameId = `room-${roomCode}`;
+    console.log(`Attempting to join room: ${newGameId} with player: ${playerName}`);
+    
     setGameId(newGameId);
     setShowRoomDialog(false);
     
@@ -61,8 +101,25 @@ function App() {
     window.history.pushState(null, '', newUrl);
     
     // Join the game room
+    console.log(`Emitting join-game event for ${playerName} to ${newGameId}`);
     socket.emit('join-game', { gameId: newGameId, playerName });
   };
+
+  // Show loading screen during initialization or reconnection
+  if (isInitializing || isReconnecting) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <div className="min-h-screen bg-royal-blue flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
+            <p className="text-white text-xl">
+              {isInitializing ? 'Inizializzazione...' : 'Ripristino sessione...'}
+            </p>
+          </div>
+        </div>
+      </QueryClientProvider>
+    );
+  }
 
   if (showNameDialog || !playerName) {
     return (

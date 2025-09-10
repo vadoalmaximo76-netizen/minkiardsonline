@@ -19,10 +19,11 @@ interface Card {
 interface Player {
   name: string;
   hand: Card[];
-  socketId: string;
+  socketId: string | null;
   isCPU?: boolean;
   cpuInstance?: CPUPlayer;
   usedCardsThisTurn?: string[]; // Track card images used this turn to prevent reuse
+  disconnectedAt?: Date; // When player disconnected (null if connected)
 }
 
 interface GameState {
@@ -47,6 +48,11 @@ interface GameState {
 export class GameManager {
   private games: Map<string, GameState> = new Map();
   private playerToGame: Map<string, string> = new Map();
+
+  // Public method to update player-to-game mapping
+  setPlayerToGame(socketId: string, gameId: string): void {
+    this.playerToGame.set(socketId, gameId);
+  }
 
   private createInitialDeck(type: keyof typeof CARD_DATA): Card[] {
     const frontImages = CARD_DATA[type];
@@ -212,7 +218,7 @@ export class GameManager {
     if ((lowercaseInstruction.includes('scambi') || lowercaseInstruction.includes('scambia')) && 
         lowercaseInstruction.includes('personaggi') && 
         (lowercaseInstruction.includes('tutti') || lowercaseInstruction.includes('tra'))) {
-      return await this.swapPersonaggiCards(gameId, playerName, instruction);
+      return await this.swapPersonaggiCardsInstruction(gameId, playerName, instruction);
     }
 
     // Player-specific transfer patterns
@@ -279,7 +285,7 @@ export class GameManager {
     // Game state management
     if (lowercaseInstruction.includes('reset') || 
         (lowercaseInstruction.includes('ricomincia') && lowercaseInstruction.includes('partita'))) {
-      return await this.resetGame(gameId, playerName, instruction);
+      return await this.resetGameInstruction(gameId, playerName, instruction);
     }
 
     // If no pattern matched, ask clarifying questions
@@ -489,10 +495,10 @@ o per azioni senza parametri:
     const playerNames = Object.keys(game.players);
     const reversedOrder = playerNames.reverse();
     
-    if (typeof game.currentPlayerIndex !== 'number') {
-      game.currentPlayerIndex = 0;
+    if (typeof game.currentTurnIndex !== 'number') {
+      game.currentTurnIndex = 0;
     }
-    game.currentPlayerIndex = reversedOrder.length - 1 - game.currentPlayerIndex;
+    game.currentTurnIndex = reversedOrder.length - 1 - game.currentTurnIndex;
     
     await this.recordEvent(gameId, 'instruction-executed', {
       instruction,
@@ -623,24 +629,43 @@ o per azioni senza parametri:
   }
 
   removePlayer(socketId: string): void {
+    // Use markPlayerDisconnected instead of removing player completely
+    this.markPlayerDisconnected(socketId);
+  }
+
+  markPlayerDisconnected(socketId: string): void {
     const gameId = this.playerToGame.get(socketId);
     if (gameId) {
       const game = this.games.get(gameId);
       if (game) {
-        // Find and remove player
+        // Mark player as disconnected instead of removing
         for (const [playerName, player] of Object.entries(game.players)) {
           if (player.socketId === socketId) {
-            delete game.players[playerName];
+            player.socketId = null; // Mark as disconnected
+            player.disconnectedAt = new Date();
+            console.log(`Player ${playerName} disconnected from game ${gameId}, marked as offline`);
             break;
           }
         }
       }
-      this.playerToGame.delete(socketId);
+      // Keep the mapping for rejoin - don't delete it immediately
+      // this.playerToGame.delete(socketId);
     }
+  }
+
+  getGameIdBySocketId(socketId: string): string | undefined {
+    return this.playerToGame.get(socketId);
   }
 
   getPlayerGameId(socketId: string): string | undefined {
     return this.playerToGame.get(socketId);
+  }
+
+  // Clean up old socket mappings when player reconnects
+  cleanupOldSocketMapping(oldSocketId: string): void {
+    if (oldSocketId) {
+      this.playerToGame.delete(oldSocketId);
+    }
   }
 
   getGameState(gameId: string): GameState | null {
@@ -712,6 +737,29 @@ o per azioni senza parametri:
     }, playerName);
 
     return true;
+  }
+
+  // Pick a card and return the card object (for cases where the card is needed immediately)
+  async pickCardAndReturn(gameId: string, deckType: keyof GameState['decks'], playerName: string): Promise<Card | null> {
+    const game = this.games.get(gameId);
+    if (!game || !game.players[playerName]) return null;
+
+    const deck = game.decks[deckType];
+    if (deck.length === 0) return null;
+
+    const card = deck.pop()!;
+    card.owner = playerName;
+    game.players[playerName].hand.push(card);
+
+    // Record pick card event
+    await this.recordEvent(gameId, 'pick-card', {
+      cardId: card.id,
+      deckType,
+      cardType: card.type,
+      frontImage: card.frontImage
+    }, playerName);
+
+    return card;
   }
 
   // Pick multiple cards for opening sequence
@@ -1650,7 +1698,7 @@ o per azioni senza parametri:
   }
 
   // Advanced instruction implementation methods
-  private async swapPersonaggiCards(gameId: string, playerName: string, instruction: string) {
+  private async swapPersonaggiCardsInstruction(gameId: string, playerName: string, instruction: string) {
     const game = this.games.get(gameId);
     if (!game) throw new Error('Game not found');
 
@@ -1664,12 +1712,11 @@ o per azioni senza parametri:
     
     for (const playerName of players) {
       const player = game.players[playerName];
-      if (player.field && player.field.length > 0) {
-        const personaggiOnField = player.field.filter(card => card.cardType === 'personaggi');
-        personaggiOnField.forEach(card => {
-          fieldPersonaggi.push({ player: playerName, card });
-        });
-      }
+      // Get player's cards from game field
+      const playerCardsOnField = game.field.filter(card => card.owner === playerName && card.type === 'personaggi');
+      playerCardsOnField.forEach(card => {
+        fieldPersonaggi.push({ player: playerName, card });
+      });
     }
 
     if (fieldPersonaggi.length < 2) {
@@ -1680,13 +1727,16 @@ o per azioni senza parametri:
     const card1 = fieldPersonaggi[0];
     const card2 = fieldPersonaggi[1];
     
-    // Remove cards from current positions
-    game.players[card1.player].field = game.players[card1.player].field.filter(c => c.cardId !== card1.card.cardId);
-    game.players[card2.player].field = game.players[card2.player].field.filter(c => c.cardId !== card2.card.cardId);
+    // Update ownership in game field
+    const card1FieldIndex = game.field.findIndex(c => c.id === card1.card.id);
+    const card2FieldIndex = game.field.findIndex(c => c.id === card2.card.id);
     
-    // Add cards to new positions
-    game.players[card2.player].field.push(card1.card);
-    game.players[card1.player].field.push(card2.card);
+    if (card1FieldIndex !== -1) {
+      game.field[card1FieldIndex].owner = card2.player;
+    }
+    if (card2FieldIndex !== -1) {
+      game.field[card2FieldIndex].owner = card1.player;
+    }
 
     return { message: `🔄 PERSONAGGI scambiati tra ${card1.player} e ${card2.player}!` };
   }
@@ -1703,15 +1753,13 @@ o per azioni senza parametri:
     }
 
     // Find PERSONAGGIO card on field
-    const personaggioCard = fromPlayerData.field?.find(card => card.cardType === 'personaggi');
+    const personaggioCard = game.field.find(card => card.owner === fromPlayer && card.type === 'personaggi');
     if (!personaggioCard) {
       return { message: `❌ ${fromPlayer} non ha PERSONAGGI in campo!` };
     }
 
-    // Transfer the card
-    fromPlayerData.field = fromPlayerData.field.filter(c => c.cardId !== personaggioCard.cardId);
-    if (!toPlayerData.field) toPlayerData.field = [];
-    toPlayerData.field.push(personaggioCard);
+    // Transfer the card ownership
+    personaggioCard.owner = toPlayer;
 
     return { message: `🔄 PERSONAGGIO trasferito da ${fromPlayer} a ${toPlayer}!` };
   }
@@ -1728,10 +1776,10 @@ o per azioni senza parametri:
     // Move all player's cards to graveyard
     const removedCards = [];
     
-    if (player.field && player.field.length > 0) {
-      removedCards.push(...player.field);
-      player.field = [];
-    }
+    // Get player's cards from game field and move them back to decks
+    const playerFieldCards = game.field.filter(card => card.owner === targetPlayer);
+    removedCards.push(...playerFieldCards);
+    game.field = game.field.filter(card => card.owner !== targetPlayer);
     
     if (player.hand && player.hand.length > 0) {
       removedCards.push(...player.hand);
@@ -1739,12 +1787,9 @@ o per azioni senza parametri:
     }
 
     // Add cards to graveyard
-    removedCards.forEach(card => {
-      game.graveyard.push({
-        ...card,
-        eliminatedBy: targetPlayer,
-        eliminatedAt: new Date()
-      });
+    removedCards.forEach((card: Card) => {
+      card.eliminatedBy = targetPlayer;
+      game.graveyard.push(card);
     });
 
     return { message: `⚠️ ${targetPlayer} penalizzato: ${removedCards.length} carte rimosse!` };
@@ -1759,13 +1804,16 @@ o per azioni senza parametri:
 
     // Swap field cards between all players
     for (let i = 0; i < players.length - 1; i++) {
-      const player1 = game.players[players[i]];
-      const player2 = game.players[players[i + 1]];
+      const player1Name = players[i];
+      const player2Name = players[i + 1];
       
-      if (player1.field && player1.field.length > 0 && player2.field && player2.field.length > 0) {
-        const temp = player1.field[0];
-        player1.field[0] = player2.field[0];
-        player2.field[0] = temp;
+      const player1Cards = game.field.filter(card => card.owner === player1Name);
+      const player2Cards = game.field.filter(card => card.owner === player2Name);
+      
+      if (player1Cards.length > 0 && player2Cards.length > 0) {
+        // Swap ownership of first cards
+        player1Cards[0].owner = player2Name;
+        player2Cards[0].owner = player1Name;
         swapCount++;
       }
     }
@@ -1784,10 +1832,8 @@ o per azioni senza parametri:
 
     let distributed = 0;
     for (let i = 0; i < count; i++) {
-      const card = this.drawCardFromDeck(game, cardType);
-      if (card) {
-        if (!player.hand) player.hand = [];
-        player.hand.push(card);
+      const success = await this.pickCard(gameId, cardType, targetPlayer);
+      if (success) {
         distributed++;
       }
     }
@@ -1804,39 +1850,37 @@ o per azioni senza parametri:
 
     for (const playerName of players) {
       const player = game.players[playerName];
-      if (player.field) {
-        player.field.forEach(card => {
-          if (card.cardType === 'personaggi') {
-            if (!card.notes) card.notes = '';
-            card.notes = card.notes.replace(/PTI:\s*\d+/g, '').trim();
-            if (card.notes) card.notes += ` | PTI: ${newPTI}`;
-            else card.notes = `PTI: ${newPTI}`;
-            updatedCount++;
-          }
-        });
-      }
+      // Get player's field cards from game.field
+      const playerFieldCards = game.field.filter(card => card.owner === playerName && card.type === 'personaggi');
+      playerFieldCards.forEach((card: Card) => {
+        if (!card.text) card.text = '';
+        card.text = card.text.replace(/PTI:\s*\d+/g, '').trim();
+        if (card.text) card.text += ` | PTI: ${newPTI}`;
+        else card.text = `PTI: ${newPTI}`;
+        updatedCount++;
+      });
     }
 
     return { message: `⚙️ PTI di ${updatedCount} PERSONAGGI impostato a ${newPTI}!` };
   }
 
-  private async resetGame(gameId: string, playerName: string, instruction: string) {
+  private async resetGameInstruction(gameId: string, playerName: string, instruction: string) {
     const game = this.games.get(gameId);
     if (!game) throw new Error('Game not found');
 
     // Reset all player data but keep players in game
     const players = Object.keys(game.players);
     for (const player of players) {
-      game.players[player] = {
-        hand: [],
-        field: [],
-        selectedCard: null
-      };
+      game.players[player].hand = [];
+      // Clear other player data while preserving the Player interface structure
+      if (game.players[player].usedCardsThisTurn) {
+        game.players[player].usedCardsThisTurn = [];
+      }
     }
 
     // Reset game state
     game.graveyard = [];
-    game.currentPlayerIndex = 0;
+    game.currentTurnIndex = 0;
 
     return { message: `🔄 Partita completamente resettata! Tutti i giocatori possono ricominciare.` };
   }
