@@ -8,6 +8,7 @@ export const CardModal: React.FC = () => {
   const [showPlayerSelect, setShowPlayerSelect] = useState(false);
   const [showTransferSelect, setShowTransferSelect] = useState(false);
   const [showSwapSelect, setShowSwapSelect] = useState(false);
+  const [showFusionSelect, setShowFusionSelect] = useState(false);
   const { selectedCard, setSelectedCard, playerName, gameState, setSelectedMosseCard } = useGameState();
 
   if (!selectedCard) return null;

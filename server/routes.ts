@@ -846,6 +846,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // FUSION SYSTEM HANDLERS
+    socket.on('fuse-cards', async ({ leaderCardId, targetCardId, playerName }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        console.log(`Fusion request: ${playerName} wants to fuse ${leaderCardId} with ${targetCardId}`);
+        
+        const result = await gameManager.fuseCards(gameId, leaderCardId, targetCardId, playerName);
+        
+        if (result.success) {
+          // Update game state for all players
+          const gameState = gameManager.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', gameState);
+          
+          // Notify all players about the fusion
+          io.to(gameId).emit('cards-fused', {
+            playerName,
+            leaderCardId,
+            targetCardId,
+            message: `${playerName} ha fuso due PERSONAGGI!`,
+            timestamp: Date.now()
+          });
+          
+          console.log(`Cards successfully fused by ${playerName}`);
+        } else {
+          // Send error back to the requesting player
+          socket.emit('fusion-error', {
+            message: result.message || 'Errore durante la fusione',
+            timestamp: Date.now()
+          });
+          
+          console.log(`Fusion failed: ${result.message}`);
+        }
+      }
+    });
+
+    socket.on('separate-cards', async ({ cardId, playerName }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        console.log(`Separation request: ${playerName} wants to separate card ${cardId}`);
+        
+        const result = await gameManager.separateCards(gameId, cardId, playerName);
+        
+        if (result.success) {
+          // Update game state for all players
+          const gameState = gameManager.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', gameState);
+          
+          // Notify all players about the separation
+          io.to(gameId).emit('cards-separated', {
+            playerName,
+            cardId,
+            message: `${playerName} ha separato i PERSONAGGI fusi!`,
+            timestamp: Date.now()
+          });
+          
+          console.log(`Cards successfully separated by ${playerName}`);
+        } else {
+          // Send error back to the requesting player
+          socket.emit('separation-error', {
+            message: result.message || 'Errore durante la separazione',
+            timestamp: Date.now()
+          });
+          
+          console.log(`Separation failed: ${result.message}`);
+        }
+      }
+    });
+
     socket.on('send-chat-message', ({ message, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
