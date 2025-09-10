@@ -1010,21 +1010,48 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         return await this.executeOpeningSequence(gameState);
       }
       
-      // MINKIARDS RULE: Can draw cards during turn, but must follow proper sequence
-      const needsToDraw = this.shouldDrawCards(cpuPlayer, gameState);
-      if (needsToDraw.shouldDraw) {
-        // RULE: Must have character on field to draw other cards
-        const hasCharacter = gameState.field.find((card: any) => 
-          card.owner === this.playerName && card.type === 'personaggi'
+      // MINKIARDS FUNDAMENTAL RULE: Must have character on field to do ANY action except playing a character
+      const hasCharacter = gameState.field.find((card: any) => 
+        card.owner === this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali')
+      );
+      
+      if (!hasCharacter) {
+        // First priority: Play character from hand if available
+        const characterInHand = cpuPlayer.hand.find((c: any) => 
+          c.type === 'personaggi' || c.type === 'personaggi_speciali'
         );
         
-        if (!hasCharacter && needsToDraw.deckType !== 'personaggi') {
-          this.sendChatMessage(`Devo prima avere un personaggio in campo!`);
+        if (characterInHand) {
+          this.sendChatMessage(`Devo mettere un personaggio in campo!`);
           return {
-            type: 'draw-and-play',
+            type: 'play-card',
             data: {
-              deckType: 'personaggi',
-              playerName: this.playerName,
+              cardId: characterInHand.id,
+              playerName: this.playerName
+            }
+          };
+        }
+        
+        // Second priority: Draw a character if no character in hand
+        this.sendChatMessage(`Non ho un personaggio! Devo pescarne uno.`);
+        return {
+          type: 'pick-card',
+          data: {
+            deckType: 'personaggi',
+            playerName: this.playerName
+          }
+        };
+      }
+      
+      // Now I have a character on field - can perform normal actions
+      const needsToDraw = this.shouldDrawCards(cpuPlayer, gameState);
+      if (needsToDraw.shouldDraw) {
+        this.sendChatMessage(`Pesco una carta ${needsToDraw.deckType}!`);
+        return {
+          type: 'pick-card',
+          data: {
+            deckType: needsToDraw.deckType,
+            playerName: this.playerName,
               immediate: true
             }
           };
