@@ -1191,68 +1191,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           timestamp: Date.now()
         });
 
-        // NEW: Automatic PTI calculation and damage application
-        if (damageValue && targetCardId) {
-          const targetCard = gameState?.field?.find((c: any) => c.id === targetCardId);
-          if (targetCard && targetCard.type === 'personaggi') {
-            // Extract current PTI from card notes
-            const currentNotes = targetCard.text || '';
-            const ptiMatch = currentNotes.match(/PTI:\s*(\d+)/i);
-            let currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 0;
-
-            // Calculate new PTI after damage
-            const newPTI = Math.max(0, currentPTI - damageValue);
-
-            // Update card notes with new PTI
-            let updatedNotes = currentNotes;
-            if (ptiMatch) {
-              // Replace existing PTI value
-              updatedNotes = currentNotes.replace(/PTI:\s*\d+/i, `PTI: ${newPTI}`);
-            } else {
-              // Add PTI if not present
-              updatedNotes = currentNotes ? `${currentNotes}\nPTI: ${newPTI}` : `PTI: ${newPTI}`;
-            }
-
-            // Update the card in the game state
-            gameManager.updateCardText(gameId, targetCardId, updatedNotes);
-            
-            console.log(`${targetCard.owner}'s ${targetCard.frontImage} took ${damageValue} damage: ${currentPTI} → ${newPTI} PTI`);
-            
-            // Broadcast the damage calculation with details
-            io.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-damage`,
-              playerName: 'Sistema',
-              message: `⚔️ ${attackerName} attacca! Danno: ${baseDamage} × ${attackerStars} stelle = ${damageValue} | ${targetCard.owner}: PTI ${currentPTI} → ${newPTI}`,
-              timestamp: Date.now()
-            });
-
-            // Check if character dies (PTI: 0)
-            if (newPTI <= 0) {
-              setTimeout(() => {
-                // Auto-eliminate dead character
-                const eliminateSuccess = gameManager.moveToGraveyard(gameId, targetCardId, targetCard.owner);
-                if (eliminateSuccess) {
-                  console.log(`${targetCard.owner}'s character automatically eliminated (PTI: 0)`);
-                  
-                  io.to(gameId).emit('chat-message', {
-                    id: `${Date.now()}-death`,
-                    playerName: 'Sistema', 
-                    message: `💀 ${targetCard.owner} è morto! (PTI: 0)`,
-                    timestamp: Date.now()
-                  });
-
-                  // Send updated game state
-                  const updatedGameState = gameManager.getSanitizedGameState(gameId);
-                  io.to(gameId).emit('game-state-update', updatedGameState);
-                }
-              }, 1000);
-            } else {
-              // Send updated game state for PTI change
-              const updatedGameState = gameManager.getSanitizedGameState(gameId);
-              io.to(gameId).emit('game-state-update', updatedGameState);
-            }
-          }
-        }
+        // Manual damage system: Users input damage manually via ATTACCA button
         
         // MANUAL RETURN SYSTEM: Players must manually return MOSSE cards to deck
         console.log(`MOSSE card ${mosseCardId} used by ${attackerName} - awaiting manual return to deck bottom`);
