@@ -666,9 +666,10 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
 
       case 'switch_character':
         // Switch to a character from hand
-        const characterCard = cpuPlayer.hand.find((c: any) => c.type === 'personaggi');
+        const characterCard = cpuPlayer.hand.find((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
         if (characterCard) {
           console.log(`CPU ${this.playerName} switching to character: ${characterCard.id}`);
+          this.sendChatMessage("Cambio il mio personaggio in campo!");
           return {
             type: 'play-card',
             data: {
@@ -678,6 +679,11 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           };
         }
         break;
+      
+      case 'pass_turn':
+        console.log(`CPU ${this.playerName} passing turn - no valid actions`);
+        this.sendChatMessage("Passo il turno.");
+        return null;
     }
 
     console.log(`CPU ${this.playerName} could not execute action, returning null`);
@@ -806,15 +812,17 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName && card.type === 'personaggi');
     const enemyCharacters = gameState.field.filter((card: any) => card.owner !== this.playerName && card.type === 'personaggi');
 
-    // Simple strategy: 
+    // Enhanced strategy: 
     // 1. Play a character if I don't have one
-    // 2. Play a move/bonus card if I have a character
-    // 3. Otherwise just play any card
+    // 2. Consider character swap if I have a better character in hand
+    // 3. Use MOSSE cards to attack enemies
+    // 4. Play BONUS cards strategically
+    // 5. Maintain only 1 card per type in hand
     let recommendedAction;
 
     if (!myCharacter) {
       // Need a character
-      const characterCard = cpuPlayer.hand.find((c: any) => c.type === 'personaggi');
+      const characterCard = cpuPlayer.hand.find((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
       if (characterCard) {
         recommendedAction = {
           type: 'play_card' as const,
@@ -831,21 +839,35 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       // I have a character, play strategically
       const moveCard = cpuPlayer.hand.find((c: any) => c.type === 'mosse');
       const bonusCard = cpuPlayer.hand.find((c: any) => c.type === 'bonus');
+      const handCharacterCard = cpuPlayer.hand.find((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
       
-      if (moveCard && enemyCharacters.length > 0) {
+      // Consider character swap if we have a new character
+      if (handCharacterCard && Math.random() < 0.3) { // 30% chance to swap character
+        recommendedAction = {
+          type: 'switch_character' as const,
+          cardId: handCharacterCard.id,
+          reasoning: 'Cambio il personaggio in campo'
+        };
+      }
+      // Prioritize attacks if we have enemies and MOSSE cards
+      else if (moveCard && enemyCharacters.length > 0) {
         recommendedAction = {
           type: 'attack' as const,
           cardId: moveCard.id,
           target: enemyCharacters[0].id,
           reasoning: 'Attacco un personaggio nemico'
         };
-      } else if (bonusCard) {
+      } 
+      // Use BONUS cards strategically (higher priority now)
+      else if (bonusCard && Math.random() < 0.7) { // 70% chance to play BONUS
         recommendedAction = {
           type: 'play_card' as const,
           cardId: bonusCard.id,
-          reasoning: 'Uso una carta bonus'
+          reasoning: 'Uso una carta BONUS per vantaggi strategici'
         };
-      } else if (cpuPlayer.hand.length > 0) {
+      } 
+      // Play any available card as fallback
+      else if (cpuPlayer.hand.length > 0) {
         recommendedAction = {
           type: 'play_card' as const,
           cardId: cpuPlayer.hand[0].id,
@@ -853,8 +875,8 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         };
       } else {
         recommendedAction = {
-          type: 'play_card' as const,
-          reasoning: 'Passo il turno'
+          type: 'pass_turn' as const,
+          reasoning: 'Non ho azioni disponibili'
         };
       }
     }

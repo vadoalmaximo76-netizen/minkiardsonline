@@ -480,16 +480,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gameId) {
         const result = await gameManager.playCard(gameId, cardId, playerName);
         
-        // According to MINKIARDS rules: when a CPU plays a card, it automatically draws a replacement of the same type
-        // Human players must draw manually
+        // FIXED: CPU should maintain only 1 card of each type (PERSONAGGI, MOSSE, BONUS)
+        // Removed automatic replacement draw that caused duplicates
         if (result.card && playerName.startsWith('CPU-')) {
-          const cardType = result.card.type;
-          if (cardType === 'personaggi' || cardType === 'mosse' || cardType === 'bonus' || cardType === 'personaggi_speciali') {
-            const replacementDrawn = await gameManager.pickCard(gameId, cardType, playerName);
-            if (replacementDrawn) {
-              console.log(`${playerName} drew replacement ${cardType} card after playing`);
-            }
-          }
+          console.log(`CPU ${playerName} played ${result.card.type} card - maintaining hand limit (1 card per type)`);
         }
         
         const gameState = gameManager.getSanitizedGameState(gameId);
