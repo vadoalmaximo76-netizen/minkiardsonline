@@ -1017,13 +1017,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (playerGameId === gameId) {
         try {
           // Process the game instruction using AI
-          await gameManager.processGameInstruction(gameId, playerName, instruction);
+          const result = await gameManager.processGameInstruction(gameId, playerName, instruction);
           
-          // Broadcast instruction execution to all players
+          // Get updated game state after instruction
+          const updatedGameState = gameManager.getSanitizedGameState(gameId);
+          
+          // Broadcast updated game state to all players
+          io.to(gameId).emit('game-state-update', updatedGameState);
+          
+          // Broadcast instruction execution notification to all players
           io.to(gameId).emit('instruction-executed', {
             playerName,
             instruction,
+            result: result?.message || `Istruzione eseguita: ${instruction}`,
             timestamp: Date.now()
+          });
+          
+          // Send success message to the instructor
+          socket.emit('instruction-success', {
+            message: result?.message || `Istruzione eseguita con successo: ${instruction}`
           });
         } catch (error) {
           console.error('Error processing game instruction:', error);

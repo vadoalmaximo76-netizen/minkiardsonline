@@ -154,6 +154,11 @@ export class GameManager {
       // Reverse player order
       const playerNames = Object.keys(game.players);
       const reversedOrder = playerNames.reverse();
+      
+      // Add currentPlayerIndex if it doesn't exist
+      if (typeof game.currentPlayerIndex !== 'number') {
+        game.currentPlayerIndex = 0;
+      }
       game.currentPlayerIndex = reversedOrder.length - 1 - game.currentPlayerIndex;
       
       await this.recordEvent(gameId, 'instruction-executed', {
@@ -162,9 +167,10 @@ export class GameManager {
         newOrder: reversedOrder
       }, playerName);
 
-      // Broadcast change
       console.log(`Game instruction executed: Reversed turn order for game ${gameId}`);
-      return;
+      return { 
+        message: `⚡ ${playerName} ha invertito l'ordine dei turni! Nuovo ordine: ${reversedOrder.join(' → ')}`
+      };
     }
 
     if (lowercaseInstruction.includes('carte') && lowercaseInstruction.includes('coperte')) {
@@ -179,7 +185,9 @@ export class GameManager {
       }, playerName);
 
       console.log(`Game instruction executed: Covered all field cards for game ${gameId}`);
-      return;
+      return { 
+        message: `🙈 ${playerName} ha coperto tutte le carte in campo! Le carte sono ora nascoste.`
+      };
     }
 
     if (lowercaseInstruction.includes('carte') && lowercaseInstruction.includes('scoperte')) {
@@ -194,7 +202,9 @@ export class GameManager {
       }, playerName);
 
       console.log(`Game instruction executed: Uncovered all field cards for game ${gameId}`);
-      return;
+      return { 
+        message: `👁️ ${playerName} ha scoperto tutte le carte in campo! Le carte sono ora visibili.`
+      };
     }
 
     // Extract number of cards and type for distribution
@@ -219,7 +229,9 @@ export class GameManager {
       }, playerName);
 
       console.log(`Game instruction executed: Distributed ${count} ${deckType} cards to all players`);
-      return;
+      return { 
+        message: `🎴 ${playerName} ha fatto pescare ${count} carte ${deckType.toUpperCase()} a tutti i giocatori!`
+      };
     }
 
     // If no specific instruction matched, log for future implementation

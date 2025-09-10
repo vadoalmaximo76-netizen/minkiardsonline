@@ -331,6 +331,27 @@ export const GameBoard: React.FC = () => {
     socket.on('super-dice-opened', handleOpenSuperDice);
     socket.on('super-dice-rolled', handleSuperDiceRolled);
 
+    const handleInstructionExecuted = ({ playerName: instructorName, instruction, result, timestamp }: { 
+      playerName: string, instruction: string, result: string, timestamp: number 
+    }) => {
+      // Show notification to all players about the executed instruction
+      alert(`🎮 ISTRUZIONE ESEGUITA:\n${result}`);
+    };
+
+    const handleInstructionSuccess = ({ message }: { message: string }) => {
+      // Show success message to the instructor
+      alert(`✅ ${message}`);
+    };
+
+    const handleInstructionError = ({ message }: { message: string }) => {
+      // Show error message to the instructor
+      alert(`❌ ${message}`);
+    };
+
+    socket.on('instruction-executed', handleInstructionExecuted);
+    socket.on('instruction-success', handleInstructionSuccess);
+    socket.on('instruction-error', handleInstructionError);
+
     return () => {
       socket.off('game-reset', handleGameReset);
       socket.off('card-shown', handleCardShown);
@@ -354,6 +375,9 @@ export const GameBoard: React.FC = () => {
       socket.off('player-left', handlePlayerLeft);
       socket.off('super-dice-opened', handleOpenSuperDice);
       socket.off('super-dice-rolled', handleSuperDiceRolled);
+      socket.off('instruction-executed', handleInstructionExecuted);
+      socket.off('instruction-success', handleInstructionSuccess);
+      socket.off('instruction-error', handleInstructionError);
     };
   }, []);
 
