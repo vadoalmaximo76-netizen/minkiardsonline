@@ -84,14 +84,16 @@ export class CPUPlayer {
   async analyzeCardImageDetailed(imageUrl: string, cardType: string): Promise<CardAnalysis> {
     try {
       if (!this.openaiApiKey) {
+        const cardName = this.getCardNameFromUrl(imageUrl);
+        const fallbackAnalysis = this.getFallbackCardAnalysis(cardName, cardType);
         return { 
-          name: this.getCardNameFromUrl(imageUrl), 
+          name: cardName, 
           cardType, 
-          effect: 'No analysis available',
-          pti: 0,
-          stars: 0,
-          powers: '',
-          baseDamage: 0
+          effect: fallbackAnalysis.effect,
+          pti: fallbackAnalysis.pti,
+          stars: fallbackAnalysis.stars,
+          powers: fallbackAnalysis.powers,
+          baseDamage: fallbackAnalysis.baseDamage
         };
       }
 
@@ -171,16 +173,114 @@ export class CPUPlayer {
 
     } catch (error) {
       console.error('Error analyzing card image:', error);
+      // Use intelligent fallback based on card name/URL patterns
+      const cardName = this.getCardNameFromUrl(imageUrl);
+      const fallbackAnalysis = this.getFallbackCardAnalysis(cardName, cardType);
       return { 
-        name: this.getCardNameFromUrl(imageUrl), 
+        name: cardName, 
         cardType, 
-        effect: 'Analysis failed',
+        effect: fallbackAnalysis.effect,
+        pti: fallbackAnalysis.pti,
+        stars: fallbackAnalysis.stars,
+        powers: fallbackAnalysis.powers,
+        baseDamage: fallbackAnalysis.baseDamage
+      };
+    }
+  }
+
+  // Intelligent fallback analysis for when OpenAI is not available
+  private getFallbackCardAnalysis(cardName: string, cardType: string): { effect: string, pti: number, stars: number, powers: string, baseDamage: number } {
+    const name = cardName.toLowerCase();
+    
+    if (cardType === 'personaggi' || cardType === 'personaggi_speciali') {
+      // Intelligent PERSONAGGI card analysis based on name patterns
+      let pti = 1000; // Default PTI
+      let stars = 1; // Default stars
+      let powers = '';
+      
+      // Character-specific analysis based on common MINKIARDS card patterns
+      if (name.includes('goku') || name.includes('vegeta') || name.includes('saiyan')) {
+        pti = 1800; stars = 4; powers = 'Guerriero Saiyan';
+      } else if (name.includes('superman') || name.includes('hulk')) {
+        pti = 2000; stars = 5; powers = 'Forza sovrumana';
+      } else if (name.includes('batman') || name.includes('iron') || name.includes('man')) {
+        pti = 1400; stars = 3; powers = 'Tecnologia avanzata';
+      } else if (name.includes('homer') || name.includes('simpson')) {
+        pti = 800; stars = 2; powers = 'Resistenza al dolore';
+      } else if (name.includes('mario') || name.includes('luigi')) {
+        pti = 1200; stars = 2; powers = 'Salto potenziato';
+      } else if (name.includes('pikachu') || name.includes('pokemon')) {
+        pti = 1000; stars = 3; powers = 'Attacco elettrico';
+      } else if (name.includes('spider') || name.includes('man')) {
+        pti = 1300; stars = 3; powers = 'Agilità sovrumana';
+      } else if (name.includes('dragon') || name.includes('drago')) {
+        pti = 2200; stars = 5; powers = 'Soffio di fuoco';
+      } else if (name.includes('naruto') || name.includes('sasuke')) {
+        pti = 1500; stars = 3; powers = 'Tecniche ninja';
+      } else if (name.includes('king') || name.includes('re')) {
+        pti = 1600; stars = 4; powers = 'Leadership';
+      } else if (name.includes('warrior') || name.includes('guerriero')) {
+        pti = 1400; stars = 3; powers = 'Esperienza di combattimento';
+      } else {
+        // Default ranges based on name characteristics
+        const nameLength = name.length;
+        if (nameLength > 15) {
+          pti = 1600; stars = 4; // Longer names = stronger characters
+        } else if (nameLength > 10) {
+          pti = 1300; stars = 3;
+        } else if (nameLength > 6) {
+          pti = 1100; stars = 2;
+        }
+        powers = 'Abilità speciale';
+      }
+      
+      return {
+        effect: `Personaggio: ${powers}`,
+        pti,
+        stars,
+        powers,
+        baseDamage: 0
+      };
+      
+    } else if (cardType === 'mosse') {
+      // MOSSE card fallback
+      let damage = -80; // Default damage
+      
+      if (name.includes('potente') || name.includes('forte') || name.includes('devastante')) {
+        damage = -120;
+      } else if (name.includes('leggero') || name.includes('veloce') || name.includes('rapido')) {
+        damage = -50;
+      } else if (name.includes('fatale') || name.includes('mortale') || name.includes('definitivo')) {
+        damage = -150;
+      }
+      
+      return {
+        effect: `Mossa di attacco: ${Math.abs(damage)} danni base`,
         pti: 0,
         stars: 0,
         powers: '',
+        baseDamage: damage
+      };
+      
+    } else if (cardType === 'bonus') {
+      // BONUS card fallback
+      return {
+        effect: 'Carta bonus: effetto speciale',
+        pti: 0,
+        stars: 0,
+        powers: 'Potenziamento',
         baseDamage: 0
       };
     }
+    
+    // Generic fallback
+    return {
+      effect: 'Carta con effetto standard',
+      pti: cardType === 'personaggi' ? 1000 : 0,
+      stars: cardType === 'personaggi' ? 1 : 0,
+      powers: '',
+      baseDamage: 0
+    };
   }
 
   // Analyze a card image using OpenAI Vision API
