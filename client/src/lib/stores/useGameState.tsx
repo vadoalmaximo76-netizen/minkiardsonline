@@ -10,6 +10,7 @@ interface Card {
   owner: string;
   text?: string;
   eliminatedBy?: string;
+  faceDown?: boolean; // True if the card is face-down
   // Fusion system
   fusedWith?: string[]; // Array of card IDs that are fused with this card
   isFused?: boolean; // True if this card is part of a fusion

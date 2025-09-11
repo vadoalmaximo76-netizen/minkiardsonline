@@ -16,6 +16,9 @@ export const CardModal: React.FC = () => {
   const isOwner = selectedCard.owner === playerName;
   const players = Object.keys(gameState?.players || {}).filter(p => p !== playerName);
   
+  // Check if this is a face-down card belonging to another player
+  const isEnemyFaceDownCard = selectedCard.faceDown && !isOwner;
+  
   // Extract card name from the frontImage URL
   const getCardName = (imageUrl: string) => {
     try {
@@ -29,7 +32,8 @@ export const CardModal: React.FC = () => {
     }
   };
 
-  const cardName = getCardName(selectedCard.frontImage);
+  // For enemy face-down cards, show generic name
+  const cardName = isEnemyFaceDownCard ? 'CARTA COPERTA' : getCardName(selectedCard.frontImage);
   
   // Determine the card location (we need to check where the card is)
   const isInField = gameState?.field?.some(card => card.id === selectedCard.id);
@@ -192,16 +196,30 @@ export const CardModal: React.FC = () => {
         {/* Large card image */}
         <div className="flex justify-center mb-6">
           <img
-            src={selectedCard.frontImage}
+            src={isEnemyFaceDownCard ? selectedCard.backImage : selectedCard.frontImage}
             alt="Card"
-            className="w-64 h-80 rounded-lg shadow-lg"
+            className={`w-64 h-80 rounded-lg shadow-lg ${isEnemyFaceDownCard ? 'ring-4 ring-orange-400 ring-opacity-50' : ''}`}
           />
         </div>
 
-        {/* Action buttons */}
-        <div className="space-y-3">
-          {/* MOSSE card ATTACCA button - show for MOSSE cards in hand or field */}
-          {selectedCard.type === 'mosse' && isOwner && (
+        {/* Face-down card message for enemy cards */}
+        {isEnemyFaceDownCard && (
+          <div className="text-center mb-6">
+            <p className="text-orange-400 font-bold text-lg mb-2">🔒 CARTA COPERTA</p>
+            <p className="text-gray-400 text-sm">
+              Questa carta appartiene a <span className="text-white font-semibold">{selectedCard.owner}</span> ed è coperta.
+            </p>
+            <p className="text-gray-400 text-sm">
+              Sarà rivelata quando il proprietario la scoperchia o usa "MOSTRA".
+            </p>
+          </div>
+        )}
+
+        {/* Action buttons - hidden for enemy face-down cards */}
+        {!isEnemyFaceDownCard && (
+          <div className="space-y-3">
+            {/* MOSSE card ATTACCA button - show for MOSSE cards in hand or field */}
+            {selectedCard.type === 'mosse' && isOwner && (
             <Button
               onClick={handleAttacca}
               className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 flex items-center justify-center gap-2"
@@ -330,7 +348,8 @@ export const CardModal: React.FC = () => {
               )}
             </>
           )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Player Selection Modal for MOSTRA */}
