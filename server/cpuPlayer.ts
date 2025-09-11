@@ -1209,20 +1209,10 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       
       // Now I have a character on field - can perform normal actions
       const needsToDraw = this.shouldDrawCards(cpuPlayer, gameState);
-      if (needsToDraw.shouldDraw) {
-        this.sendChatMessage(`Pesco una carta ${needsToDraw.deckType}!`);
+      if (needsToDraw.shouldDraw && needsToDraw.deckType) {
+        this.sendChatMessage(`Pesco una carta ${needsToDraw.deckType} seguendo le regole MINKIARDS!`);
         return {
           type: 'pick-card',
-          data: {
-            deckType: needsToDraw.deckType,
-            playerName: this.playerName,
-            immediate: true
-          }
-        };
-      } else {
-        this.sendChatMessage(`Pesco ${needsToDraw.deckType} seguendo le regole MINKIARDS!`);
-        return {
-          type: 'draw-and-play',
           data: {
             deckType: needsToDraw.deckType,
             playerName: this.playerName,
@@ -1344,48 +1334,30 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     }
   }
   
-  // NEW: Determine if CPU should draw cards during turn
+  // MINKIARDS RULES: Always maintain exactly 1 card of each type (PERSONAGGI, MOSSE, BONUS) in hand
   shouldDrawCards(cpuPlayer: any, gameState: any): { shouldDraw: boolean, deckType?: string } {
     const hand = cpuPlayer.hand || [];
     const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName && card.type === 'personaggi');
-    const enemies = gameState.field.filter((card: any) => card.owner !== this.playerName && card.type === 'personaggi');
     
-    // MINKIARDS RULE PRIORITY: CHARACTER FIRST
-    // If no character on field and no PERSONAGGI in hand, MUST draw one
-    if (!myCharacter && !hand.find((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali')) {
+    // MINKIARDS RULE 1: Must always have 1 PERSONAGGI card in hand (unless one is on field)
+    const hasPersonaggioInHand = hand.find((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+    if (!hasPersonaggioInHand && !myCharacter) {
       return { shouldDraw: true, deckType: 'personaggi' };
     }
     
-    // STRATEGIC DRAWS (only if character is on field)
-    if (myCharacter && enemies.length > 0) {
-      // Parse my character's stats (consistent with other parts of codebase)
-      const characterText = myCharacter.notes || myCharacter.text || '';
-      const ptiMatch = characterText.match(/PTI[:\s]*(\d+)/i);
-      const starsMatch = characterText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
-      const myPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100;
-      const myStars = starsMatch ? parseInt(starsMatch[1]) : 0; // Default to 0 for safety
-      
-      // Priority 1: Draw MOSSE to attack if I can deal damage (have stars > 0)
-      if (myStars > 0 && !hand.find((c: any) => c.type === 'mosse')) {
-        return { shouldDraw: true, deckType: 'mosse' };
-      }
-      
-      // Priority 2: Draw BONUS to strengthen if PTI is low
-      if (myPTI <= 100 && !hand.find((c: any) => c.type === 'bonus')) {
-        return { shouldDraw: true, deckType: 'bonus' };
-      }
-      
-      // Priority 3: Draw backup PERSONAGGI if current one is dying
-      if (myPTI <= 50 && !hand.find((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali')) {
-        return { shouldDraw: true, deckType: 'personaggi' };
-      }
+    // MINKIARDS RULE 2: Always maintain exactly 1 MOSSE card in hand
+    const hasMosseInHand = hand.find((c: any) => c.type === 'mosse');
+    if (!hasMosseInHand) {
+      return { shouldDraw: true, deckType: 'mosse' };
     }
     
-    // If I have character but no enemies, focus on strengthening
-    if (myCharacter && enemies.length === 0 && !hand.find((c: any) => c.type === 'bonus')) {
+    // MINKIARDS RULE 3: Always maintain exactly 1 BONUS card in hand  
+    const hasBonusInHand = hand.find((c: any) => c.type === 'bonus');
+    if (!hasBonusInHand) {
       return { shouldDraw: true, deckType: 'bonus' };
     }
     
+    // If we have all required cards, don't draw more
     return { shouldDraw: false };
   }
   
