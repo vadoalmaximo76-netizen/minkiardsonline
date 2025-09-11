@@ -978,6 +978,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       }
                       break;
                       
+                    case 'play-and-draw':
+                      // MINKIARDS RULE: Play card and immediately draw replacement of same type
+                      const playResult = await gameManager.playCard(gameId, cpuAction.data.playCardId, cpuAction.data.playerName);
+                      
+                      if (playResult.card) {
+                        // Draw replacement of same type
+                        const drawSuccess = await gameManager.pickCard(gameId, cpuAction.data.drawType, cpuAction.data.playerName);
+                        if (drawSuccess) {
+                          console.log(`CPU ${cpuAction.data.playerName} successfully played and drew replacement ${cpuAction.data.drawType}`);
+                        }
+                      }
+                      
+                      const playAndDrawGameState = gameManager.getSanitizedGameState(gameId);
+                      io.to(gameId).emit('game-state-update', playAndDrawGameState);
+                      break;
+                      
                     case 'play-card':
                       const result = await gameManager.playCard(gameId, cpuAction.data.cardId, cpuAction.data.playerName);
                       const updatedGameState = gameManager.getSanitizedGameState(gameId);
@@ -1799,6 +1815,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       io.to(gameId).emit('game-state-update', pickGameState);
                     }
                     break;
+                    
+                  case 'play-and-draw':
+                    // MINKIARDS RULE: Play card and immediately draw replacement of same type
+                    console.log(`CPU ${nextPlayer} play-and-draw: ${cpuAction.data.playCardId} -> draw ${cpuAction.data.drawType}`);
+                    const playDrawResult = await gameManager.playCard(gameId, cpuAction.data.playCardId, cpuAction.data.playerName);
+                    
+                    if (playDrawResult.card) {
+                      // Draw replacement of same type
+                      const drawSuccess = await gameManager.pickCard(gameId, cpuAction.data.drawType, cpuAction.data.playerName);
+                      if (drawSuccess) {
+                        console.log(`CPU ${nextPlayer} successfully played and drew replacement ${cpuAction.data.drawType}`);
+                      }
+                    }
+                    
+                    const playDrawGameState = gameManager.getSanitizedGameState(gameId);
+                    io.to(gameId).emit('game-state-update', playDrawGameState);
+                    
+                    if (playDrawResult.isPersonaggio && playDrawResult.card) {
+                      const getCardNameFromUrl = (url: string) => {
+                        const parts = url.split('/');
+                        const filename = parts[parts.length - 1];
+                        return filename
+                          .toLowerCase()
+                          .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+                          .replace(/[-_]/g, ' ')
+                          .split(' ')
+                          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                          .join(' ');
+                      };
+                      
+                      const cardName = getCardNameFromUrl(playDrawResult.card.frontImage);
+                      io.to(gameId).emit('personaggio-enters', {
+                        cardName,
+                        message: 'SI UNISCE ALLA ZUFFA',
+                        playerName: nextPlayer,
+                        cardImage: playDrawResult.card.frontImage
+                      });
+                    }
+                    
+                    // Turn ends automatically after playing a card
+                    setTimeout(() => {
+                      const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
+                      if (nextAfterCPU) {
+                        io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                        console.log(`Turn ended for ${nextPlayer} after play-and-draw, next: ${nextAfterCPU}`);
+                      }
+                    }, 1500);
+                    return; // Return early to prevent generic end-turn
                     
                   case 'play-card':
                     const result = await gameManager.playCard(gameId, cpuAction.data.cardId, cpuAction.data.playerName);
