@@ -992,6 +992,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       
                       const playAndDrawGameState = gameManager.getSanitizedGameState(gameId);
                       io.to(gameId).emit('game-state-update', playAndDrawGameState);
+                      
+                      // SPECIAL RULE: If it's a MOSSE card, automatically attack
+                      if (cpuAction.data.drawType === 'mosse' && playResult.card) {
+                        console.log(`CPU ${cpuAction.data.playerName} played MOSSE - triggering automatic attack`);
+                        
+                        // Find enemy to attack
+                        const currentGameState = gameManager.getSanitizedGameState(gameId);
+                        const enemies = currentGameState?.field.filter((card: any) => 
+                          card.owner !== cpuAction.data.playerName && 
+                          (card.type === 'personaggi' || card.type === 'personaggi_speciali')
+                        );
+                        
+                        if (enemies && enemies.length > 0) {
+                          const target = enemies[0]; // Attack first enemy
+                          
+                          // Get card name for chat message
+                          const getCardNameFromUrl = (url: string) => {
+                            const parts = url.split('/');
+                            const filename = parts[parts.length - 1];
+                            return filename
+                              .toLowerCase()
+                              .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+                              .replace(/[-_]/g, ' ')
+                              .split(' ')
+                              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                              .join(' ');
+                          };
+                          
+                          const mosseName = getCardNameFromUrl(playResult.card.frontImage);
+                          const targetName = getCardNameFromUrl(target.frontImage);
+                          
+                          // Emit chat message and attack
+                          io.to(gameId).emit('chat-message', {
+                            id: `${Date.now()}-cpu-attack`,
+                            playerName: cpuAction.data.playerName,
+                            message: `Attacco automaticamente con "${mosseName}" contro ${targetName}!`,
+                            timestamp: Date.now()
+                          });
+                          
+                          // Trigger automatic attack
+                          setTimeout(() => {
+                            io.to(gameId).emit('mosse-attack', {
+                              attackingCard: playResult.card,
+                              targetCard: target,
+                              playerName: cpuAction.data.playerName,
+                              automatic: true
+                            });
+                          }, 800);
+                        }
+                      }
                       break;
                       
                     case 'play-card':
@@ -1852,6 +1902,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         playerName: nextPlayer,
                         cardImage: playDrawResult.card.frontImage
                       });
+                    }
+                    
+                    // SPECIAL RULE: If it's a MOSSE card, automatically attack
+                    if (cpuAction.data.drawType === 'mosse' && playDrawResult.card) {
+                      console.log(`CPU ${nextPlayer} played MOSSE - triggering automatic attack`);
+                      
+                      // Find enemy to attack
+                      const currentGameState = gameManager.getSanitizedGameState(gameId);
+                      const enemies = currentGameState?.field.filter((card: any) => 
+                        card.owner !== nextPlayer && 
+                        (card.type === 'personaggi' || card.type === 'personaggi_speciali')
+                      );
+                      
+                      if (enemies && enemies.length > 0) {
+                        const target = enemies[0]; // Attack first enemy
+                        
+                        // Get card name for chat message
+                        const getCardNameFromUrl = (url: string) => {
+                          const parts = url.split('/');
+                          const filename = parts[parts.length - 1];
+                          return filename
+                            .toLowerCase()
+                            .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+                            .replace(/[-_]/g, ' ')
+                            .split(' ')
+                            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                            .join(' ');
+                        };
+                        
+                        const mosseName = getCardNameFromUrl(playDrawResult.card.frontImage);
+                        const targetName = getCardNameFromUrl(target.frontImage);
+                        
+                        // Emit chat message and attack
+                        io.to(gameId).emit('chat-message', {
+                          id: `${Date.now()}-cpu-attack`,
+                          playerName: nextPlayer,
+                          message: `Attacco automaticamente con "${mosseName}" contro ${targetName}!`,
+                          timestamp: Date.now()
+                        });
+                        
+                        // Trigger automatic attack
+                        setTimeout(() => {
+                          io.to(gameId).emit('mosse-attack', {
+                            attackingCard: playDrawResult.card,
+                            targetCard: target,
+                            playerName: nextPlayer,
+                            automatic: true
+                          });
+                        }, 800);
+                      }
                     }
                     
                     // Turn ends automatically after playing a card

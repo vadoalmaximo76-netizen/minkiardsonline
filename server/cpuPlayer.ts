@@ -1357,46 +1357,72 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName && card.type === 'personaggi');
     const enemies = gameState.field.filter((card: any) => card.owner !== this.playerName && card.type === 'personaggi');
     
+    // Check what cards I already have on field to avoid duplicates
+    const myFieldCards = gameState.field.filter((card: any) => card.owner === this.playerName);
+    const hasPersonaggioOnField = myFieldCards.some((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+    const hasMosseOnField = myFieldCards.some((c: any) => c.type === 'mosse');  
+    const hasBonusOnField = myFieldCards.some((c: any) => c.type === 'bonus');
+    
+    console.log(`CPU ${this.playerName} field check: PERSONAGGI=${hasPersonaggioOnField}, MOSSE=${hasMosseOnField}, BONUS=${hasBonusOnField}`);
+    
     // Priority 1: If no character on field, play PERSONAGGI first
-    if (!myCharacter) {
+    if (!hasPersonaggioOnField) {
       const personaggio = hand.find((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
-      if (personaggio) return personaggio;
+      if (personaggio) {
+        console.log(`CPU ${this.playerName} playing PERSONAGGI (no character on field)`);
+        return personaggio;
+      }
     }
     
-    // Priority 2: If character is low on PTI, play BONUS to heal
-    if (myCharacter) {
+    // Priority 2: If character is low on PTI and no BONUS on field, play BONUS to heal
+    if (myCharacter && !hasBonusOnField) {
       const characterText = myCharacter.notes || myCharacter.text || '';
       const ptiMatch = characterText.match(/PTI[:\s]*(\d+)/i);
       const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100;
       
       if (currentPTI <= 200) {
         const bonus = hand.find((c: any) => c.type === 'bonus');
-        if (bonus) return bonus;
+        if (bonus) {
+          console.log(`CPU ${this.playerName} playing BONUS (low PTI: ${currentPTI})`);
+          return bonus;
+        }
       }
     }
     
-    // Priority 3: If enemies present and can attack, play MOSSE
-    if (enemies.length > 0 && myCharacter) {
+    // Priority 3: If enemies present, can attack, and no MOSSE on field, play MOSSE
+    if (enemies.length > 0 && myCharacter && !hasMosseOnField) {
       const characterText = myCharacter.notes || myCharacter.text || '';
       const starsMatch = characterText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
       const currentStars = starsMatch ? parseInt(starsMatch[1]) : 0;
       
       if (currentStars > 0) {
         const mosse = hand.find((c: any) => c.type === 'mosse');
-        if (mosse) return mosse;
+        if (mosse) {
+          console.log(`CPU ${this.playerName} playing MOSSE (can attack with ${currentStars} stars)`);
+          return mosse;
+        }
       }
     }
     
-    // Priority 4: Play any card to maintain flow (prefer in order: BONUS, MOSSE, PERSONAGGI)
-    const bonus = hand.find((c: any) => c.type === 'bonus');
-    if (bonus) return bonus;
+    // Priority 4: Play any card to maintain flow, but avoid field duplicates
+    if (!hasBonusOnField) {
+      const bonus = hand.find((c: any) => c.type === 'bonus');
+      if (bonus) {
+        console.log(`CPU ${this.playerName} playing BONUS (no BONUS on field)`);
+        return bonus;
+      }
+    }
     
-    const mosse = hand.find((c: any) => c.type === 'mosse');
-    if (mosse) return mosse;
+    if (!hasMosseOnField) {
+      const mosse = hand.find((c: any) => c.type === 'mosse');
+      if (mosse) {
+        console.log(`CPU ${this.playerName} playing MOSSE (no MOSSE on field)`);
+        return mosse;
+      }
+    }
     
-    const personaggio = hand.find((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
-    if (personaggio) return personaggio;
-    
+    // Last resort: don't play more cards of same type on field
+    console.log(`CPU ${this.playerName} cannot play - would create field duplicates`);
     return null;
   }
 
@@ -1405,25 +1431,33 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     const hand = cpuPlayer.hand || [];
     const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName && card.type === 'personaggi');
     
-    // MINKIARDS RULE 1: Must always have 1 PERSONAGGI card in hand (unless one is on field)
-    const hasPersonaggioInHand = hand.find((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
-    if (!hasPersonaggioInHand && !myCharacter) {
+    // Count cards of each type in hand to avoid duplicates
+    const personaggiInHand = hand.filter((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali').length;
+    const mosseInHand = hand.filter((c: any) => c.type === 'mosse').length;
+    const bonusInHand = hand.filter((c: any) => c.type === 'bonus').length;
+    
+    console.log(`CPU ${this.playerName} hand count: PERSONAGGI=${personaggiInHand}, MOSSE=${mosseInHand}, BONUS=${bonusInHand}`);
+    
+    // MINKIARDS RULE 1: Must have 1 PERSONAGGI card in hand (if no character on field)
+    // Don't draw more than 1 PERSONAGGI
+    if (personaggiInHand === 0 && !myCharacter) {
       return { shouldDraw: true, deckType: 'personaggi' };
     }
     
     // MINKIARDS RULE 2: Always maintain exactly 1 MOSSE card in hand
-    const hasMosseInHand = hand.find((c: any) => c.type === 'mosse');
-    if (!hasMosseInHand) {
+    // Don't draw more than 1 MOSSE  
+    if (mosseInHand === 0) {
       return { shouldDraw: true, deckType: 'mosse' };
     }
     
-    // MINKIARDS RULE 3: Always maintain exactly 1 BONUS card in hand  
-    const hasBonusInHand = hand.find((c: any) => c.type === 'bonus');
-    if (!hasBonusInHand) {
+    // MINKIARDS RULE 3: Always maintain exactly 1 BONUS card in hand
+    // Don't draw more than 1 BONUS
+    if (bonusInHand === 0) {
       return { shouldDraw: true, deckType: 'bonus' };
     }
     
-    // If we have all required cards, don't draw more
+    // If we have exactly 1 of each required type, don't draw more
+    console.log(`CPU ${this.playerName} has optimal hand composition - no drawing needed`);
     return { shouldDraw: false };
   }
   
