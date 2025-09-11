@@ -1221,6 +1221,23 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         };
       }
       
+      // MINKIARDS RULE: Play a card and simultaneously draw a replacement of the same type
+      const cardToPlay = this.selectCardToPlay(cpuPlayer, gameState);
+      if (cardToPlay) {
+        const cardType = cardToPlay.type;
+        const cardName = this.getCardNameFromUrl(cardToPlay.frontImage);
+        this.sendChatMessage(`Gioco "${cardName}" e pesco subito una sostituzione ${cardType.toUpperCase()}!`);
+        
+        return {
+          type: 'play-and-draw',
+          data: {
+            playCardId: cardToPlay.id,
+            drawType: cardType,
+            playerName: this.playerName
+          }
+        };
+      }
+      
       // Check if there's recent advice to follow (but not during opening sequence)
       if (!this.isOpeningSequence(cpuPlayer, gameState) && this.lastAdvice && (Date.now() - this.lastAdvice.timestamp) < 60000) { // Follow advice within 1 minute
         console.log(`CPU ${this.playerName} following advice from ${this.lastAdvice.from}:`, this.lastAdvice);
@@ -1334,6 +1351,55 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     }
   }
   
+  // Select which card to play based on strategic priorities
+  selectCardToPlay(cpuPlayer: any, gameState: any): any {
+    const hand = cpuPlayer.hand || [];
+    const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName && card.type === 'personaggi');
+    const enemies = gameState.field.filter((card: any) => card.owner !== this.playerName && card.type === 'personaggi');
+    
+    // Priority 1: If no character on field, play PERSONAGGI first
+    if (!myCharacter) {
+      const personaggio = hand.find((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+      if (personaggio) return personaggio;
+    }
+    
+    // Priority 2: If character is low on PTI, play BONUS to heal
+    if (myCharacter) {
+      const characterText = myCharacter.notes || myCharacter.text || '';
+      const ptiMatch = characterText.match(/PTI[:\s]*(\d+)/i);
+      const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100;
+      
+      if (currentPTI <= 200) {
+        const bonus = hand.find((c: any) => c.type === 'bonus');
+        if (bonus) return bonus;
+      }
+    }
+    
+    // Priority 3: If enemies present and can attack, play MOSSE
+    if (enemies.length > 0 && myCharacter) {
+      const characterText = myCharacter.notes || myCharacter.text || '';
+      const starsMatch = characterText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
+      const currentStars = starsMatch ? parseInt(starsMatch[1]) : 0;
+      
+      if (currentStars > 0) {
+        const mosse = hand.find((c: any) => c.type === 'mosse');
+        if (mosse) return mosse;
+      }
+    }
+    
+    // Priority 4: Play any card to maintain flow (prefer in order: BONUS, MOSSE, PERSONAGGI)
+    const bonus = hand.find((c: any) => c.type === 'bonus');
+    if (bonus) return bonus;
+    
+    const mosse = hand.find((c: any) => c.type === 'mosse');
+    if (mosse) return mosse;
+    
+    const personaggio = hand.find((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+    if (personaggio) return personaggio;
+    
+    return null;
+  }
+
   // MINKIARDS RULES: Always maintain exactly 1 card of each type (PERSONAGGI, MOSSE, BONUS) in hand
   shouldDrawCards(cpuPlayer: any, gameState: any): { shouldDraw: boolean, deckType?: string } {
     const hand = cpuPlayer.hand || [];
