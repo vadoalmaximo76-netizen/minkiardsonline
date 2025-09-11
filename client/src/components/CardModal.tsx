@@ -318,12 +318,12 @@ export const CardModal: React.FC = () => {
                 CEDI
               </Button>
               
-              {/* SCAMBIA button only for PERSONAGGI cards in hand */}
-              {selectedCard.type === 'personaggi' && (
+              {/* SCAMBIA button for all card types in hand */}
+              {(selectedCard.type === 'personaggi' || selectedCard.type === 'bonus' || selectedCard.type === 'mosse' || selectedCard.type === 'personaggi_speciali') && (
                 <Button
                   onClick={() => setShowSwapSelect(true)}
                   className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3"
-                  disabled={getOtherPlayersPersonaggiCards().length === 0}
+                  disabled={getOtherPlayersCardsOfSameType().length === 0}
                 >
                   SCAMBIA
                 </Button>
