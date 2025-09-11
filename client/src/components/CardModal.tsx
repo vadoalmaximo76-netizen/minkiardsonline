@@ -158,14 +158,30 @@ export const CardModal: React.FC = () => {
     );
   };
 
-  // Get cards of the same type as selected card from other players in the field
+  // Get cards of the same type as selected card from other players in field and hand
   const getOtherPlayersCardsOfSameType = () => {
-    if (!gameState?.field) return [];
+    const cards = [];
     
-    return gameState.field.filter(card => 
-      card.type === selectedCard.type && 
-      card.owner !== playerName
-    );
+    // Add cards from field
+    if (gameState?.field) {
+      cards.push(...gameState.field.filter(card => 
+        card.type === selectedCard.type && 
+        card.owner !== playerName
+      ));
+    }
+    
+    // Add cards from other players' hands
+    if (gameState?.players) {
+      Object.entries(gameState.players).forEach(([otherPlayerName, player]) => {
+        if (otherPlayerName !== playerName) { // Not current player
+          cards.push(...player.hand.filter(card => 
+            card.type === selectedCard.type
+          ));
+        }
+      });
+    }
+    
+    return cards;
   };
 
   // Get ALL PERSONAGGI cards in the field for fusion (any player)
@@ -434,25 +450,37 @@ export const CardModal: React.FC = () => {
             {getOtherPlayersCardsOfSameType().length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {getOtherPlayersCardsOfSameType().map((card) => {
-                  const cardName = card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase() || 'CARTA';
+                  // Check if card is in field (visible) or in hand (private) or face-down (private)
+                  const isInField = gameState?.field?.some(fieldCard => fieldCard.id === card.id);
+                  const isCardPrivate = !isInField || card.faceDown;
+                  
+                  const cardName = isCardPrivate 
+                    ? 'CARTA NASCOSTA' 
+                    : (card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase() || 'CARTA');
+                  
+                  const cardImage = isCardPrivate ? card.backImage : card.frontImage;
                   
                   return (
                     <div 
                       key={card.id} 
-                      className="bg-gray-700 rounded-lg p-3 hover:bg-gray-600 cursor-pointer transition-colors"
+                      className={`bg-gray-700 rounded-lg p-3 hover:bg-gray-600 cursor-pointer transition-colors ${isCardPrivate ? 'ring-2 ring-orange-400 ring-opacity-50' : ''}`}
                       onClick={() => handleSwapCards(card.owner, card.id)}
                     >
                       <div className="flex items-center gap-3">
                         <img
-                          src={card.frontImage}
+                          src={cardImage}
                           alt={cardName}
                           className="w-16 h-20 rounded object-cover"
                         />
                         <div className="flex-1">
                           <h4 className="text-white font-bold text-sm mb-1">{cardName}</h4>
                           <p className="text-gray-300 text-xs">Proprietario: {card.owner}</p>
-                          {card.text && (
-                            <p className="text-gray-400 text-xs mt-1">Note: {card.text}</p>
+                          {isCardPrivate ? (
+                            <p className="text-orange-400 text-xs mt-1">🔒 Carta nascosta</p>
+                          ) : (
+                            card.text && (
+                              <p className="text-gray-400 text-xs mt-1">Note: {card.text}</p>
+                            )
                           )}
                         </div>
                       </div>
