@@ -111,7 +111,7 @@ export const CardModal: React.FC = () => {
   };
 
   const handleSwapCards = (targetPlayer: string, targetCardId: string) => {
-    socket.emit('swap-personaggi-cards', {
+    socket.emit('swap-cards', {
       player1: playerName,
       card1Id: selectedCard.id,
       player2: targetPlayer,
@@ -150,6 +150,16 @@ export const CardModal: React.FC = () => {
     
     return gameState.field.filter(card => 
       card.type === 'personaggi' && 
+      card.owner !== playerName
+    );
+  };
+
+  // Get cards of the same type as selected card from other players in the field
+  const getOtherPlayersCardsOfSameType = () => {
+    if (!gameState?.field) return [];
+    
+    return gameState.field.filter(card => 
+      card.type === selectedCard.type && 
       card.owner !== playerName
     );
   };
@@ -235,12 +245,12 @@ export const CardModal: React.FC = () => {
                   CEDI
                 </Button>
                 
-                {/* SCAMBIA button only for PERSONAGGI cards */}
-                {selectedCard.type === 'personaggi' && (
+                {/* SCAMBIA button for all card types */}
+                {(selectedCard.type === 'personaggi' || selectedCard.type === 'bonus' || selectedCard.type === 'mosse' || selectedCard.type === 'personaggi_speciali') && (
                   <Button
                     onClick={() => setShowSwapSelect(true)}
                     className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3"
-                    disabled={getOtherPlayersPersonaggiCards().length === 0}
+                    disabled={getOtherPlayersCardsOfSameType().length === 0}
                   >
                     SCAMBIA
                   </Button>
@@ -387,12 +397,12 @@ export const CardModal: React.FC = () => {
         </div>
       )}
 
-      {/* Card Swap Modal for PERSONAGGI */}
+      {/* Card Swap Modal for all card types */}
       {showSwapSelect && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-60 p-4">
           <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-white font-bold text-lg">Scambia con carta PERSONAGGI:</h3>
+              <h3 className="text-white font-bold text-lg">Scambia con carta {selectedCard.type.toUpperCase()}:</h3>
               <Button
                 onClick={() => setShowSwapSelect(false)}
                 className="bg-red-600 hover:bg-red-700 text-white px-2 py-1"
@@ -402,9 +412,9 @@ export const CardModal: React.FC = () => {
               </Button>
             </div>
             
-            {getOtherPlayersPersonaggiCards().length > 0 ? (
+            {getOtherPlayersCardsOfSameType().length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {getOtherPlayersPersonaggiCards().map((card) => {
+                {getOtherPlayersCardsOfSameType().map((card) => {
                   const cardName = card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase() || 'CARTA';
                   
                   return (
@@ -432,7 +442,7 @@ export const CardModal: React.FC = () => {
                 })}
               </div>
             ) : (
-              <p className="text-white text-center">Nessuna carta PERSONAGGI disponibile per lo scambio</p>
+              <p className="text-white text-center">Nessuna carta {selectedCard.type.toUpperCase()} disponibile per lo scambio</p>
             )}
           </div>
         </div>

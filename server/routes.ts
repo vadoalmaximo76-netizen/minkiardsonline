@@ -811,6 +811,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on('swap-cards', ({ player1, card1Id, player2, card2Id }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        gameManager.swapCardsBetweenPlayers(gameId, player1, card1Id, player2, card2Id);
+        const gameState = gameManager.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', gameState);
+        
+        // Emit notification to all players about the swap
+        io.to(gameId).emit('cards-swapped', {
+          player1,
+          player2,
+          message: `${player1} e ${player2} hanno scambiato delle carte!`,
+          timestamp: Date.now()
+        });
+      }
+    });
+
     socket.on('update-card-text', ({ cardId, text }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
