@@ -1603,10 +1603,26 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     // STEP 5: Preme su "FINE TURNO" - Completa la sequenza nello stesso turno come richiesto
     this.markActionExecuted('execute');
     
-    // CRITICAL FIX: Completa la sequenza nello stesso turno con sostituzione carta MOSSE e fine turno
+    // CRITICAL FIX: Return used MOSSE card to BOTTOM of deck and draw replacement
+    console.log(`🎯 CPU ${this.playerName}: Returning MOSSE card ${cardId} to bottom of deck and drawing replacement`);
+    
+    // Return the used MOSSE card to the bottom of the deck
+    if (this.gameManager) {
+      this.gameManager.returnToDeck(this.gameId, cardId, this.playerName);
+      console.log(`🎯 CPU ${this.playerName}: MOSSE card ${cardId} returned to bottom of deck`);
+    }
+    
+    // Draw replacement MOSSE card
     await this.drawReplacementAndEndTurn('mosse');
     
-    return null; // Sequenza MOSSE completata
+    // Return end-turn action to complete the sequence
+    console.log(`🎯 CPU ${this.playerName}: MOSSE SEQUENCE COMPLETED - preparing to end turn`);
+    this.turnState.phase = 'turn_end';
+    
+    return {
+      type: 'end-turn',
+      data: { playerName: this.playerName }
+    };
   }
 
   // CRITICAL FIX: Execute BONUS card action and draw replacement  
