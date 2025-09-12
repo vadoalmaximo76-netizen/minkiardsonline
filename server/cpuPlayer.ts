@@ -1344,27 +1344,38 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       return this.handleTurnEnd();
     }
 
+    // CRITICAL FIX: Draw replacement card first, then execute action
+    console.log(`CPU ${this.playerName} drawing replacement ${playedCardType} card after playing`);
+    
+    const deckType = playedCardType === 'personaggi_speciali' ? 'personaggi' : playedCardType;
+    
     // Execute based on card type
     switch (playedCardType) {
       case 'mosse':
-        return this.executeMovesCard(playedCardId, gameState);
+        this.executeMovesCardAndDrawReplacement(playedCardId, gameState, deckType);
+        break;
         
       case 'bonus':
-        return this.executeBonusCard(playedCardId, gameState);
+        this.executeBonusCardAndDrawReplacement(playedCardId, gameState, deckType);
+        break;
         
       case 'personaggi':
       case 'personaggi_speciali':
-        // Character cards are automatically analyzed when played, mark as executed
+        // Character cards are automatically analyzed when played
         this.sendChatMessage(`Personaggio attivato e analizzato!`);
-        this.markActionExecuted('execute');
-        this.turnState.phase = 'turn_end';
-        return this.handleTurnEnd();
+        this.drawReplacementAndEndTurn(deckType);
+        break;
         
       default:
-        this.markActionExecuted('execute');
-        this.turnState.phase = 'turn_end';
-        return this.handleTurnEnd();
+        this.sendChatMessage(`Carta ${playedCardType} attivata!`);
+        this.drawReplacementAndEndTurn(deckType);
     }
+    
+    // After handling all cases, ensure we end the turn
+    this.markActionExecuted('execute');
+    this.turnState.phase = 'turn_end';
+    
+    return this.handleTurnEnd();
   }
 
   // Handle turn end
@@ -1378,6 +1389,45 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       this.resetTurnState();
       return null;
     }
+  }
+
+  // CRITICAL FIX: Execute MOSSE card action and draw replacement
+  executeMovesCardAndDrawReplacement(cardId: string, gameState: any, deckType: string): void {
+    const enemies = gameState.field.filter((card: any) => 
+      card.owner !== this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali')
+    );
+    
+    if (enemies.length > 0) {
+      this.sendChatMessage(`Uso la carta MOSSE per attaccare!`);
+    } else {
+      this.sendChatMessage(`Nessun nemico da attaccare, carta MOSSE attivata comunque.`);
+    }
+    
+    // Draw replacement card
+    this.drawReplacementAndEndTurn(deckType);
+  }
+
+  // CRITICAL FIX: Execute BONUS card action and draw replacement  
+  executeBonusCardAndDrawReplacement(cardId: string, gameState: any, deckType: string): void {
+    this.sendChatMessage(`Carta BONUS attivata!`);
+    
+    // Draw replacement card
+    this.drawReplacementAndEndTurn(deckType);
+  }
+
+  // CRITICAL FIX: Draw replacement card and signal game manager
+  drawReplacementAndEndTurn(deckType: string): void {
+    console.log(`CPU ${this.playerName} drawing replacement ${deckType} card to maintain hand composition`);
+    
+    // Signal to game manager to draw replacement card for CPU
+    if (this.socketEmitter) {
+      this.socketEmitter('cpu-draw-replacement', {
+        playerName: this.playerName,
+        deckType: deckType
+      });
+    }
+    
+    this.sendChatMessage(`Pesco una carta di ricambio e termino il turno!`);
   }
 
   // Execute MOSSE card automatically

@@ -569,6 +569,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // CRITICAL FIX: Handle CPU drawing replacement cards after playing
+    socket.on('cpu-draw-replacement', async ({ deckType, playerName }) => {
+      console.log(`CPU ${playerName} requesting replacement ${deckType} card`);
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        const success = await gameManager.pickCard(gameId, deckType, playerName);
+        if (success) {
+          console.log(`CPU ${playerName} drew replacement ${deckType} card successfully`);
+          const gameState = gameManager.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', gameState);
+          
+          // Send chat message to notify players
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-cpu-replacement`,
+            playerName: 'Sistema',
+            message: `${playerName} ha pescato una carta ${deckType.toUpperCase()} di ricambio`,
+            timestamp: Date.now()
+          });
+        } else {
+          console.log(`❌ CPU ${playerName} failed to draw replacement ${deckType} card`);
+        }
+      }
+    });
+
     socket.on('choose-specific-card', async ({ deckType, cardId, playerName }) => {
       console.log(`CHOOSE-SPECIFIC-CARD event received:`, { deckType, cardId, playerName });
       const gameId = gameManager.getPlayerGameId(socket.id);
