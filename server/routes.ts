@@ -2658,5 +2658,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // DEBUG ENDPOINT: Add CPU to test MOSSE sequence  
+  app.post('/api/debug/add-cpu-player', async (req, res) => {
+    try {
+      const { gameId } = req.body;
+      console.log(`🎯 DEBUG: Adding CPU to game ${gameId}`);
+      
+      const cpuName = await gameManager.addCPUPlayer(gameId);
+      const gameState = gameManager.getSanitizedGameState(gameId);
+      
+      // Broadcast to all clients in that game
+      io.to(gameId).emit('game-state-update', gameState);
+      io.to(gameId).emit('player-joined', { playerName: cpuName });
+      
+      console.log(`🎯 DEBUG: CPU ${cpuName} added successfully to game ${gameId}`);
+      res.json({ success: true, cpuName, gameId });
+    } catch (error) {
+      console.error('🎯 DEBUG: Error adding CPU:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   return httpServer;
 }
