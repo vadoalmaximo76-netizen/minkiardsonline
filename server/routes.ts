@@ -1571,6 +1571,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             console.log(`${targetCard.owner}'s ${targetCard.frontImage} took ${damageValue} damage: ${currentPTI} → ${newPTI} PTI`);
             
+            // CRITICAL: Mark action as completed for CPU turn flow
+            if (attackerName.startsWith('CPU-')) {
+              console.log(`Marking MOSSE action as completed for ${attackerName}`);
+              gameManager.markActionExecuted(gameId, attackerName);
+            }
+            
             // Broadcast the damage result
             io.to(gameId).emit('chat-message', {
               id: `${Date.now()}-damage`,
@@ -1598,35 +1604,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   });
                 }
                 
-                if (attackerCharacter && currentPTI > 0) {
+                // HARDENED PTI ABSORPTION: Solo se il personaggio è effettivamente eliminato (PTI ≤ 0)
+                if (attackerCharacter && currentPTI > 0 && newPTI <= 0) {
                   // Estrai PTI corrente dell'attaccante
                   const attackerNotes = attackerCharacter.text || '';
                   const attackerPtiMatch = attackerNotes.match(/PTI:\s*(\d+)/i);
                   let attackerCurrentPTI = attackerPtiMatch ? parseInt(attackerPtiMatch[1]) : 100;
                   
-                  // Aggiungi i PTI del personaggio eliminato
-                  const absorbedPTI = Math.max(0, currentPTI); // Usa PTI originale, non quello dopo il danno
-                  const newAttackerPTI = attackerCurrentPTI + absorbedPTI;
+                  // Aggiungi i PTI del personaggio eliminato (usa PTI originale prima del danno)
+                  const absorbedPTI = Math.max(0, currentPTI);
+                  const newAttackerPTI = Math.min(9999, attackerCurrentPTI + absorbedPTI); // Cap massimo per evitare overflow
                   
-                  // Aggiorna le note dell'attaccante
-                  let updatedAttackerNotes = attackerNotes;
-                  if (attackerPtiMatch) {
-                    updatedAttackerNotes = attackerNotes.replace(/PTI:\s*\d+/i, `PTI: ${newAttackerPTI}`);
+                  // Validazione: evita assorbimento se dati non validi
+                  if (absorbedPTI > 0 && newAttackerPTI > attackerCurrentPTI) {
+                    // Aggiorna le note dell'attaccante
+                    let updatedAttackerNotes = attackerNotes;
+                    if (attackerPtiMatch) {
+                      updatedAttackerNotes = attackerNotes.replace(/PTI:\s*\d+/i, `PTI: ${newAttackerPTI}`);
+                    } else {
+                      updatedAttackerNotes = attackerNotes + `\nPTI: ${newAttackerPTI}`;
+                    }
+                    
+                    gameManager.updateCardText(gameId, attackerCharacter.id, updatedAttackerNotes);
+                    
+                    // AUDIT LOG: Record PTI absorption event
+                    console.log(`PTI ABSORPTION AUDIT: ${attackerName} [${attackerCharacter.id}] gains ${absorbedPTI} PTI from eliminated ${targetCard.owner} [${targetCardId}] (${attackerCurrentPTI} → ${newAttackerPTI})`);
+                    
+                    // Notifica l'assorbimento PTI
+                    io.to(gameId).emit('chat-message', {
+                      id: `${Date.now()}-absorption`,
+                      playerName: 'Sistema',
+                      message: `🔥 ${attackerName} assorbe ${absorbedPTI} PTI dal personaggio eliminato! (${attackerCurrentPTI} → ${newAttackerPTI} PTI)`,
+                      timestamp: Date.now()
+                    });
+                    
+                    // Record absorption event for replay/audit
+                    gameManager.recordEvent(gameId, 'pti-absorbed', {
+                      attackerId: attackerCharacter.id,
+                      attackerName,
+                      eliminatedCardId: targetCardId,
+                      eliminatedOwner: targetCard.owner,
+                      ptiTransferred: absorbedPTI,
+                      attackerPTI: { before: attackerCurrentPTI, after: newAttackerPTI }
+                    }, attackerName);
                   } else {
-                    updatedAttackerNotes = attackerNotes + `\nPTI: ${newAttackerPTI}`;
+                    console.log(`PTI ABSORPTION SKIPPED: Invalid data (absorbedPTI=${absorbedPTI}, newPTI=${newAttackerPTI})`);
                   }
-                  
-                  gameManager.updateCardText(gameId, attackerCharacter.id, updatedAttackerNotes);
-                  
-                  console.log(`PTI ABSORPTION: ${attackerName} gains ${absorbedPTI} PTI (${attackerCurrentPTI} → ${newAttackerPTI})`);
-                  
-                  // Notifica l'assorbimento PTI
-                  io.to(gameId).emit('chat-message', {
-                    id: `${Date.now()}-absorption`,
-                    playerName: 'Sistema',
-                    message: `🔥 ${attackerName} assorbe ${absorbedPTI} PTI dal personaggio eliminato! (${attackerCurrentPTI} → ${newAttackerPTI} PTI)`,
-                    timestamp: Date.now()
-                  });
+                } else if (!attackerCharacter) {
+                  console.log(`PTI ABSORPTION SKIPPED: No attacker character found for ${attackerName}`);
                 }
                 
                 // Auto-eliminate dead character - CHECK FOR PLAYER ELIMINATION
