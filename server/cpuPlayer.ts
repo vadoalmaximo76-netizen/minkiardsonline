@@ -126,6 +126,68 @@ export class CPUPlayer {
     console.log(`CPU ${this.playerName} marked ${actionType} as completed. New phase: ${this.turnState.phase}`);
   }
 
+  // NEW: Deterministic target selection for MOSSE attacks
+  pickEnemyTarget(gameId: string): { cardId: string; owner: string; name: string } | null {
+    const gameState = GameManager.getInstance().getGameState(gameId);
+    if (!gameState) return null;
+
+    // Find all enemy characters on field
+    const enemies = gameState.field.filter((card: any) => 
+      card.type === 'personaggi' && 
+      card.owner !== this.playerName && 
+      !card.eliminatedBy && 
+      !card.faceDown
+    );
+
+    if (enemies.length === 0) return null;
+
+    // Choose target: lowest PTI if available, else first
+    let target = enemies[0];
+    
+    // Try to find lowest PTI target if we have metadata
+    for (const enemy of enemies) {
+      if (enemy.notes && enemy.notes.includes('PTI:')) {
+        const ptiMatch = enemy.notes.match(/PTI:\s*(\d+)/);
+        if (ptiMatch) {
+          const currentPti = parseInt(ptiMatch[1]);
+          
+          if (target.notes && target.notes.includes('PTI:')) {
+            const targetPtiMatch = target.notes.match(/PTI:\s*(\d+)/);
+            if (targetPtiMatch) {
+              const targetPti = parseInt(targetPtiMatch[1]);
+              if (currentPti < targetPti) {
+                target = enemy;
+              }
+            }
+          } else {
+            target = enemy; // Prefer enemy with known PTI
+          }
+        }
+      }
+    }
+
+    // Extract name from frontImage URL
+    let targetName = 'personaggio nemico';
+    if (target.frontImage) {
+      try {
+        const url = new URL(target.frontImage);
+        const pathname = url.pathname;
+        const filename = pathname.split('/').pop() || '';
+        targetName = filename.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase();
+      } catch {
+        targetName = 'personaggio nemico';
+      }
+    }
+
+    console.log(`CPU ${this.playerName} selected target: ${target.id} (${targetName}) owned by ${target.owner}`);
+    
+    return {
+      cardId: target.id,
+      owner: target.owner,
+      name: targetName
+    };
+  }
+
   canEndTurn(): boolean {
     return this.turnState.executedThisTurn && this.turnState.phase === 'turn_end';
   }
