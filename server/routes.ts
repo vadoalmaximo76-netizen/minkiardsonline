@@ -2454,6 +2454,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   switch (cpuAction.type) {
                     case 'play-card':
                       const playResult = await gameManager.playCard(gameId, cpuAction.data.cardId, cpuAction.data.playerName);
+                      
+                      // According to MINKIARDS rules: when you play a card, you automatically draw a replacement of the same type
+                      if (playResult.card) {
+                        const cardType = playResult.card.type;
+                        if (cardType === 'personaggi' || cardType === 'mosse' || cardType === 'bonus' || cardType === 'personaggi_speciali') {
+                          const replacementDrawn = await gameManager.pickCard(gameId, cardType, cpuAction.data.playerName);
+                          if (replacementDrawn) {
+                            console.log(`CPU ${nextPlayer} drew replacement ${cardType} card after playing`);
+                          }
+                        }
+                      }
+                      
                       const playGameState = gameManager.getSanitizedGameState(gameId);
                       io.to(gameId).emit('game-state-update', playGameState);
                       
@@ -2466,8 +2478,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       break;
                       
                     case 'mosse-attack':
-                      // Handle MOSSE attack for CPU
+                      // Handle MOSSE attack for CPU - Execute the actual attack
                       console.log(`CPU ${nextPlayer} performing MOSSE attack`);
+                      
+                      // Execute the attack using the card
+                      io.to(gameId).emit('card-attacked', {
+                        mosseCardId: cpuAction.data.mosseCardId,
+                        targetCardId: cpuAction.data.targetCardId,
+                        attackerName: cpuAction.data.playerName,
+                        targetOwner: cpuAction.data.targetOwner,
+                        timestamp: Date.now()
+                      });
+                      
+                      // MANUAL RETURN: CPU must manually return MOSSE cards like humans
+                      setTimeout(async () => {
+                        console.log(`CPU ${nextPlayer} manually returning used MOSSE card to deck bottom`);
+                        gameManager.returnToDeck(gameId, cpuAction.data.mosseCardId, cpuAction.data.playerName);
+                        
+                        const gameState = gameManager.getSanitizedGameState(gameId);
+                        io.to(gameId).emit('game-state-update', gameState);
+                        
+                        // Draw replacement card
+                        const pickResult = await gameManager.pickCard(gameId, 'mosse', cpuAction.data.playerName);
+                        if (pickResult) {
+                          console.log(`CPU ${nextPlayer} drew replacement MOSSE card`);
+                          const pickGameState = gameManager.getSanitizedGameState(gameId);
+                          io.to(gameId).emit('game-state-update', pickGameState);
+                        }
+                        
+                        // End turn after completing action
+                        setTimeout(() => {
+                          const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
+                          if (nextAfterCPU) {
+                            io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                          }
+                        }, 1000);
+                      }, 2000);
+                      break;
+                      
+                    case 'pick-card':
+                      // Handle card picking for CPU
+                      const pickSuccess = await gameManager.pickCard(gameId, cpuAction.data.deckType, cpuAction.data.playerName);
+                      if (pickSuccess) {
+                        console.log(`CPU ${nextPlayer} picked ${cpuAction.data.deckType} card`);
+                        const pickGameState = gameManager.getSanitizedGameState(gameId);
+                        io.to(gameId).emit('game-state-update', pickGameState);
+                      }
+                      
                       setTimeout(() => {
                         const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
                         if (nextAfterCPU) {
