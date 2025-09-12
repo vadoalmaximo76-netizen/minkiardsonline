@@ -1467,7 +1467,8 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     );
     
     if (enemies.length > 0) {
-      this.sendChatMessage(`Uso la carta MOSSE per attaccare!`);
+      const target = enemies[0];
+      this.sendChatMessage(`Uso la carta MOSSE per attaccare ${target.notes || 'il personaggio nemico'}!`);
       this.markActionExecuted('execute');
       this.turnState.phase = 'turn_end';
       
@@ -1475,8 +1476,10 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         type: 'mosse-attack',
         data: {
           mosseCardId: cardId,
-          targetCardId: enemies[0].id,
-          playerName: this.playerName
+          targetCardId: target.id,
+          playerName: this.playerName,
+          attackerName: this.playerName,
+          targetOwner: target.owner
         }
       };
     } else {
