@@ -492,6 +492,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // NEW: CPU instruction handler for natural language commands
+    socket.on('cpu-instruction', async ({ gameId, instruction }) => {
+      try {
+        const socketGameId = gameManager.getPlayerGameId(socket.id);
+        if (!socketGameId || socketGameId !== gameId) {
+          socket.emit('instruction-error', { message: 'Accesso non autorizzato a questo gioco' });
+          return;
+        }
+
+        console.log(`Processing CPU instruction in game ${gameId}: "${instruction}"`);
+        
+        // Find player name from socket
+        const game = gameManager.getGameState(gameId);
+        if (!game) {
+          socket.emit('instruction-error', { message: 'Gioco non trovato' });
+          return;
+        }
+        
+        const playerName = Object.values(game.players).find(p => p.socketId === socket.id)?.name;
+        if (!playerName) {
+          socket.emit('instruction-error', { message: 'Giocatore non trovato' });
+          return;
+        }
+
+        // Process the instruction using GameManager's natural language processing
+        const result = await gameManager.processGameInstruction(gameId, playerName, instruction);
+        
+        if (result && result.message) {
+          // Broadcast the result to all players in the game
+          io.to(gameId).emit('chat-message', {
+            playerName: 'Sistema',
+            message: result.message,
+            timestamp: Date.now()
+          });
+          
+          // Update game state 
+          const gameState = gameManager.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', gameState);
+          
+          // Send success response to the instructor
+          socket.emit('instruction-success', {
+            message: `✅ Istruzione eseguita: "${instruction}"`
+          });
+        } else {
+          socket.emit('instruction-error', {
+            message: `❌ Istruzione non riconosciuta: "${instruction}". Prova con comandi più specifici come "CPU-Nome pesca PERSONAGGI" o "CPU-Nome gioca carta".`
+          });
+        }
+        
+      } catch (error) {
+        console.error('Error processing CPU instruction:', error);
+        socket.emit('instruction-error', {
+          message: `❌ Errore nell'esecuzione dell'istruzione: ${error instanceof Error ? error.message : 'Errore sconosciuto'}`
+        });
+      }
+    });
+
     socket.on('shuffle-deck', ({ deckType }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {

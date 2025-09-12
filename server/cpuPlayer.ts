@@ -59,6 +59,21 @@ export class CPUPlayer {
     pickedCards: string[];
   } = { phase: 'pick-initial', pickedCards: [] };
   
+  // NEW: Turn state machine for new CPU behavior
+  private turnState: {
+    phase: 'draw_needed' | 'play_card' | 'execute_action' | 'turn_end';
+    drawnThisTurn: boolean;
+    playedThisTurn: boolean;
+    executedThisTurn: boolean;
+    playedCardId?: string;
+    playedCardType?: string;
+  } = { 
+    phase: 'draw_needed', 
+    drawnThisTurn: false, 
+    playedThisTurn: false, 
+    executedThisTurn: false 
+  };
+  
   private openaiApiKey: string | undefined;
 
   constructor(playerName: string, gameId: string, socketEmitter?: any) {
@@ -75,6 +90,41 @@ export class CPUPlayer {
       pickedCards: [] 
     };
     console.log(`CPU ${this.playerName} opening sequence reset for new game`);
+  }
+
+  // NEW: Turn state management methods
+  resetTurnState() {
+    this.turnState = {
+      phase: 'draw_needed',
+      drawnThisTurn: false,
+      playedThisTurn: false,
+      executedThisTurn: false
+    };
+    console.log(`CPU ${this.playerName} turn state reset`);
+  }
+
+  markActionExecuted(actionType: 'draw' | 'play' | 'execute', cardId?: string, cardType?: string) {
+    switch (actionType) {
+      case 'draw':
+        this.turnState.drawnThisTurn = true;
+        this.turnState.phase = 'play_card';
+        break;
+      case 'play':
+        this.turnState.playedThisTurn = true;
+        this.turnState.playedCardId = cardId;
+        this.turnState.playedCardType = cardType;
+        this.turnState.phase = 'execute_action';
+        break;
+      case 'execute':
+        this.turnState.executedThisTurn = true;
+        this.turnState.phase = 'turn_end';
+        break;
+    }
+    console.log(`CPU ${this.playerName} marked ${actionType} as completed. New phase: ${this.turnState.phase}`);
+  }
+
+  canEndTurn(): boolean {
+    return this.turnState.executedThisTurn && this.turnState.phase === 'turn_end';
   }
 
   setSocketEmitter(emitter: any) {
@@ -1127,15 +1177,10 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     return situationResponses[Math.floor(Math.random() * situationResponses.length)];
   }
 
-  // Enhanced CPU turn logic with new MINKIARDS rules:
-  // 1. Can draw cards during turn
-  // 2. Can play cards immediately after drawing
-  // 3. Cards activate immediately when played
-  // 4. Turn ends automatically after using a card
-  // 5. Auto-eliminate PERSONAGGI with PTI: 0
+  // NEW CPU TURN LOGIC: State machine for pesca → gioca → esegui azione → fine turno
   async takeTurn(gameState: any) {
     try {
-      console.log(`CPU ${this.playerName} is thinking...`);
+      console.log(`CPU ${this.playerName} is thinking... Current phase: ${this.turnState.phase}`);
       
       // If waiting for response, don't take action
       if (this.waitingForResponse) {
@@ -1168,7 +1213,6 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       
       // Check if this is the opening sequence (no cards in hand, no character on field)
       const isOpeningSequence = this.isOpeningSequence(cpuPlayer, gameState);
-      
       if (isOpeningSequence) {
         console.log(`CPU ${this.playerName} executing opening sequence`);
         return await this.executeOpeningSequence(gameState);
@@ -1187,6 +1231,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         
         if (characterInHand) {
           this.sendChatMessage(`Devo mettere un personaggio in campo!`);
+          this.markActionExecuted('execute'); // This counts as an action
           return {
             type: 'play-card',
             data: {
@@ -1206,149 +1251,168 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           }
         };
       }
-      
-      // Now I have a character on field - can perform normal actions
-      const needsToDraw = this.shouldDrawCards(cpuPlayer, gameState);
-      if (needsToDraw.shouldDraw && needsToDraw.deckType) {
-        this.sendChatMessage(`Pesco una carta ${needsToDraw.deckType} seguendo le regole MINKIARDS!`);
-        return {
-          type: 'pick-card',
-          data: {
-            deckType: needsToDraw.deckType,
-            playerName: this.playerName,
-            immediate: true
-          }
-        };
-      }
-      
-      // MINKIARDS RULE: Play a card and simultaneously draw a replacement of the same type
-      const cardToPlay = this.selectCardToPlay(cpuPlayer, gameState);
-      if (cardToPlay) {
-        const cardType = cardToPlay.type;
-        const cardName = this.getCardNameFromUrl(cardToPlay.frontImage);
-        this.sendChatMessage(`Gioco "${cardName}" e pesco subito una sostituzione ${cardType.toUpperCase()}!`);
-        
-        return {
-          type: 'play-and-draw',
-          data: {
-            playCardId: cardToPlay.id,
-            drawType: cardType,
-            playerName: this.playerName
-          }
-        };
-      }
-      
-      // Check if there's recent advice to follow (but not during opening sequence)
-      if (!this.isOpeningSequence(cpuPlayer, gameState) && this.lastAdvice && (Date.now() - this.lastAdvice.timestamp) < 60000) { // Follow advice within 1 minute
-        console.log(`CPU ${this.playerName} following advice from ${this.lastAdvice.from}:`, this.lastAdvice);
-        
-        if (this.lastAdvice.type === 'pick-card') {
-          const advisedPickAction = {
-            type: 'pick-card',
-            data: {
-              deckType: this.lastAdvice.deckType,
-              playerName: this.playerName
-            }
-          };
+
+      // NEW STATE MACHINE LOGIC
+      switch (this.turnState.phase) {
+        case 'draw_needed':
+          return this.handleDrawPhase(cpuPlayer, gameState);
           
-          // Check if the advised deck is available
-          if (gameState.decks[this.lastAdvice.deckType] && gameState.decks[this.lastAdvice.deckType].length > 0) {
-            this.sendChatMessage(`Seguo il consiglio di ${this.lastAdvice.from}!`);
-            this.lastAdvice = null; // Clear advice after using
-            return advisedPickAction;
+        case 'play_card':
+          return this.handlePlayPhase(cpuPlayer, gameState);
+          
+        case 'execute_action':
+          return this.handleExecutePhase(cpuPlayer, gameState);
+          
+        case 'turn_end':
+          if (this.canEndTurn()) {
+            this.sendChatMessage(`Finisco il turno!`);
+            this.resetTurnState(); // Reset for next turn
+            return { type: 'end-turn', data: { playerName: this.playerName } };
           } else {
-            this.sendChatMessage(`Purtroppo non ci sono più carte ${this.lastAdvice.deckType} disponibili!`);
-            this.lastAdvice = null;
-          }
-        } else if (this.lastAdvice.type === 'wait') {
-          this.sendChatMessage(`Come mi ha consigliato ${this.lastAdvice.from}, aspetto il momento giusto.`);
-          this.lastAdvice = null;
-          return null;
-        }
-      }
-      
-      // Check if CPU understands the correct game rules
-      const handAnalysis = this.analyzeHandForGameRules(cpuPlayer.hand || []);
-      
-      // If doesn't have required cards, ask for advice or pick cards (but not during opening)
-      if (!handAnalysis.canPlay) {
-        if (handAnalysis.missingTypes.length > 0) {
-          // Ask human for advice about strategy (less frequently if following advice, and not during opening)
-          if (!this.isOpeningSequence(cpuPlayer, gameState) && !this.lastAdvice && Math.random() < 0.6) {
-            this.askForAdvice(handAnalysis);
-            return null;
+            console.log(`CPU ${this.playerName} cannot end turn - missing execution`);
+            this.turnState.phase = 'draw_needed'; // Reset to beginning
+            return this.handleDrawPhase(cpuPlayer, gameState);
           }
           
-          // Try to pick missing card types
-          const pickAction = this.decideCardToPickBasedOnRules(gameState, handAnalysis);
-          if (pickAction) {
-            this.sendChatMessage(`Mi servono carte di tipo ${handAnalysis.missingTypes.join(', ')}!`);
-            return pickAction;
-          }
-        }
-        
-        if (!cpuPlayer.hand || cpuPlayer.hand.length === 0) {
-          console.log(`CPU ${this.playerName} has no cards`);
-          const pickAction = this.decideCardToPick(gameState);
-          if (pickAction) {
-            this.sendChatMessage("Devo pescare qualche carta prima!");
-            return pickAction;
-          }
-        }
+        default:
+          console.log(`CPU ${this.playerName} unknown phase: ${this.turnState.phase}`);
+          this.resetTurnState();
+          return this.handleDrawPhase(cpuPlayer, gameState);
       }
-      
-      // If can play according to rules, proceed with strategy
-      if (handAnalysis.canPlay) {
-        console.log(`CPU ${this.playerName} has correct cards to play:`, handAnalysis);
-        
-        // Use simple analysis (no OpenAI calls)
-        const analysis = this.analyzeGameStateSimple(gameState);
-        
-        // Send a thinking message
-        this.sendChatMessage(this.getRandomChatResponse('thinking'));
-        
-        console.log(`CPU ${this.playerName} strategy:`, analysis.recommendedAction.reasoning);
-        
-        // Announce strategy before acting
-        const strategy = this.getStrategyAnnouncement(analysis);
-        if (strategy) {
-          setTimeout(() => {
-            this.sendChatMessage(strategy);
-          }, 1000);
-        }
-        
-        // Execute the decided action
-        const action = await this.executeAction(gameState, analysis.recommendedAction);
-        
-        if (action) {
-          console.log(`CPU ${this.playerName} executes:`, action.type || 'unknown');
-          return action;
-        }
-      }
-      
-      console.log(`CPU ${this.playerName} has no valid actions, trying to play any card`);
-      
-      // Fallback: try to play any available card
-      if (cpuPlayer.hand && cpuPlayer.hand.length > 0) {
-        const anyCard = cpuPlayer.hand[0];
-        this.sendChatMessage("Gioco una carta a caso!");
-        return {
-          type: 'play-card',
-          data: {
-            cardId: anyCard.id,
-            playerName: this.playerName
-          }
-        };
-      }
-      
-      this.sendChatMessage(this.getRandomChatResponse('no_actions'));
-      return null;
       
     } catch (error) {
       console.error(`Error in CPU ${this.playerName} turn:`, error);
       this.sendChatMessage(this.getRandomChatResponse('no_actions'));
+      this.resetTurnState();
       return null;
     }
+  }
+
+  // Handle the draw phase: ensure CPU has exactly 1 card per type
+  handleDrawPhase(cpuPlayer: any, gameState: any): any {
+    const needsToDraw = this.shouldDrawCards(cpuPlayer, gameState);
+    if (needsToDraw.shouldDraw && needsToDraw.deckType) {
+      this.sendChatMessage(`Pesco una carta ${needsToDraw.deckType.toUpperCase()} - devo avere 1 per tipo!`);
+      return {
+        type: 'pick-card',
+        data: {
+          deckType: needsToDraw.deckType,
+          playerName: this.playerName
+        }
+      };
+    }
+    
+    // All cards are optimal, move to play phase
+    console.log(`CPU ${this.playerName} hand composition optimal - moving to play phase`);
+    this.turnState.phase = 'play_card';
+    return this.handlePlayPhase(cpuPlayer, gameState);
+  }
+
+  // Handle the play phase: select and play a card
+  handlePlayPhase(cpuPlayer: any, gameState: any): any {
+    const cardToPlay = this.selectCardToPlay(cpuPlayer, gameState);
+    if (cardToPlay) {
+      const cardName = this.getCardNameFromUrl(cardToPlay.frontImage);
+      this.sendChatMessage(`Gioco "${cardName}" in campo!`);
+      this.markActionExecuted('play', cardToPlay.id, cardToPlay.type);
+      
+      return {
+        type: 'play-card',
+        data: {
+          cardId: cardToPlay.id,
+          playerName: this.playerName
+        }
+      };
+    }
+    
+    // No card to play, end turn
+    this.sendChatMessage(`Non ho carte da giocare, finisco il turno.`);
+    this.markActionExecuted('execute'); // Mark as executed to allow turn end
+    this.turnState.phase = 'turn_end';
+    return { type: 'end-turn', data: { playerName: this.playerName } };
+  }
+
+  // Handle the execute phase: execute the action of the played card
+  handleExecutePhase(cpuPlayer: any, gameState: any): any {
+    const playedCardType = this.turnState.playedCardType;
+    const playedCardId = this.turnState.playedCardId;
+    
+    if (!playedCardType || !playedCardId) {
+      console.log(`CPU ${this.playerName} no played card to execute`);
+      this.markActionExecuted('execute');
+      this.turnState.phase = 'turn_end';
+      return this.handleTurnEnd();
+    }
+
+    // Execute based on card type
+    switch (playedCardType) {
+      case 'mosse':
+        return this.executeMovesCard(playedCardId, gameState);
+        
+      case 'bonus':
+        return this.executeBonusCard(playedCardId, gameState);
+        
+      case 'personaggi':
+      case 'personaggi_speciali':
+        // Character cards are automatically analyzed when played, mark as executed
+        this.sendChatMessage(`Personaggio attivato e analizzato!`);
+        this.markActionExecuted('execute');
+        this.turnState.phase = 'turn_end';
+        return this.handleTurnEnd();
+        
+      default:
+        this.markActionExecuted('execute');
+        this.turnState.phase = 'turn_end';
+        return this.handleTurnEnd();
+    }
+  }
+
+  // Handle turn end
+  handleTurnEnd(): any {
+    if (this.canEndTurn()) {
+      this.sendChatMessage(`Ho completato le mie azioni, finisco il turno!`);
+      this.resetTurnState(); // Reset for next turn
+      return { type: 'end-turn', data: { playerName: this.playerName } };
+    } else {
+      // Should not happen with the new logic, but safety fallback
+      this.resetTurnState();
+      return null;
+    }
+  }
+
+  // Execute MOSSE card automatically
+  executeMovesCard(cardId: string, gameState: any): any {
+    const enemies = gameState.field.filter((card: any) => 
+      card.owner !== this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali')
+    );
+    
+    if (enemies.length > 0) {
+      this.sendChatMessage(`Uso la carta MOSSE per attaccare!`);
+      this.markActionExecuted('execute');
+      this.turnState.phase = 'turn_end';
+      
+      return {
+        type: 'mosse-attack',
+        data: {
+          mosseCardId: cardId,
+          targetCardId: enemies[0].id,
+          playerName: this.playerName
+        }
+      };
+    } else {
+      this.sendChatMessage(`Nessun nemico da attaccare, carta MOSSE attivata comunque.`);
+      this.markActionExecuted('execute');
+      this.turnState.phase = 'turn_end';
+      return this.handleTurnEnd();
+    }
+  }
+
+  // Execute BONUS card (usually healing or effects)
+  executeBonusCard(cardId: string, gameState: any): any {
+    this.sendChatMessage(`Carta BONUS attivata!`);
+    this.markActionExecuted('execute');
+    this.turnState.phase = 'turn_end';
+    return this.handleTurnEnd();
   }
   
   // Select which card to play based on strategic priorities

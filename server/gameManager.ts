@@ -842,6 +842,12 @@ Rispondi SOLO in JSON:`;
     const deck = game.decks[deckType];
     if (deck.length === 0) return false;
 
+    // Check CPU invariants before drawing
+    if (!this.canCPUDraw(gameId, playerName, deckType)) {
+      console.log(`❌ CPU ${playerName} cannot draw ${deckType} - already has 1 in hand`);
+      return false;
+    }
+
     const card = deck.pop()!;
     card.owner = playerName;
     game.players[playerName].hand.push(card);
@@ -864,6 +870,12 @@ Rispondi SOLO in JSON:`;
 
     const deck = game.decks[deckType];
     if (deck.length === 0) return null;
+
+    // Check CPU invariants before drawing
+    if (!this.canCPUDraw(gameId, playerName, deckType)) {
+      console.log(`❌ CPU ${playerName} cannot draw ${deckType} - already has 1 in hand`);
+      return null;
+    }
 
     const card = deck.pop()!;
     card.owner = playerName;
@@ -905,6 +917,61 @@ Rispondi SOLO in JSON:`;
     }
 
     return true;
+  }
+
+  // INVARIANT HELPERS FOR CPU CARD LIMITS
+  countCardsInHand(gameId: string, playerName: string, cardType: string): number {
+    const game = this.games.get(gameId);
+    if (!game || !game.players[playerName]) return 0;
+    
+    const hand = game.players[playerName].hand;
+    return hand.filter(card => {
+      if (cardType === 'personaggi') {
+        return card.type === 'personaggi' || card.type === 'personaggi_speciali';
+      }
+      return card.type === cardType;
+    }).length;
+  }
+
+  countCardsOnField(gameId: string, playerName: string, cardType: string): number {
+    const game = this.games.get(gameId);
+    if (!game) return 0;
+    
+    return game.field.filter(card => {
+      if (card.owner !== playerName) return false;
+      if (cardType === 'personaggi') {
+        return card.type === 'personaggi' || card.type === 'personaggi_speciali';
+      }
+      return card.type === cardType;
+    }).length;
+  }
+
+  canCPUDraw(gameId: string, playerName: string, cardType: string): boolean {
+    const game = this.games.get(gameId);
+    if (!game || !game.players[playerName] || !game.players[playerName].isCPU) {
+      return true; // Non-CPU players can always draw
+    }
+    
+    const handsCount = this.countCardsInHand(gameId, playerName, cardType);
+    return handsCount < 1; // CPU can only draw if they have 0 of this type
+  }
+
+  canCPUPlayOnField(gameId: string, playerName: string, cardType: string): boolean {
+    const game = this.games.get(gameId);
+    if (!game || !game.players[playerName] || !game.players[playerName].isCPU) {
+      return true; // Non-CPU players can always play
+    }
+    
+    const fieldCount = this.countCardsOnField(gameId, playerName, cardType);
+    return fieldCount < 1; // CPU can only play if they have 0 of this type on field
+  }
+
+  hasPlayedActionThisTurn(gameId: string, playerName: string): boolean {
+    const game = this.games.get(gameId);
+    if (!game || !game.players[playerName]) return false;
+    
+    const usedCards = game.players[playerName].usedCardsThisTurn || [];
+    return usedCards.length > 0;
   }
 
   chooseSpecificCard(gameId: string, deckType: keyof GameState['decks'], cardId: string, playerName: string): boolean {
@@ -2057,6 +2124,13 @@ Rispondi SOLO in JSON:`;
     // Verify it's the current player's turn
     const currentPlayer = gameState.turnOrder[gameState.currentTurnIndex];
     if (currentPlayer !== playerName) return null;
+
+    // Check CPU turn requirements: must have played an action this turn
+    const player = gameState.players[playerName];
+    if (player && player.isCPU && !this.hasPlayedActionThisTurn(gameId, playerName)) {
+      console.log(`❌ CPU ${playerName} cannot end turn without playing an action`);
+      return null; // CPU cannot end turn without executing an action
+    }
 
     // Reset usedCardsThisTurn for the current player when their turn ends
     if (gameState.players[playerName]) {
