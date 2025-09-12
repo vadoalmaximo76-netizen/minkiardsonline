@@ -1097,7 +1097,24 @@ Rispondi SOLO in JSON:`;
       outcome: 'awaiting_damage_input'
     }, attackerName);
 
-    console.log(`MOSSE attack initiated: ${attackerName} targeting ${targetCard.owner}'s ${targetCardId} - awaiting damage input`);
+    console.log(`MOSSE attack initiated: ${attackerName} targeting ${targetCard.owner}'s ${targetCardId} - awaiting defense response`);
+
+    // NEW: Interactive defense system - create pending defense request
+    const attackId = `attack-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const defenseCreated = this.setPendingDefense(gameId, {
+      attackId,
+      attacker: attackerName,
+      defender: targetCard.owner,
+      damage: 0, // Damage TBD based on defense response
+      targetCardId: targetCardId, // Character being attacked
+      mosseCardId: mosseCardId, // MOSSE card used for attack
+      deckType: 'mosse'
+    });
+
+    if (!defenseCreated) {
+      console.log(`Failed to create pending defense for attack ${attackId}`);
+      return { success: false, error: 'Failed to create defense request' };
+    }
 
     return { 
       success: true, 
@@ -1106,8 +1123,9 @@ Rispondi SOLO in JSON:`;
         targetOwner: targetCard.owner,
         mosseCardId: mosseCardId,
         attackerName: attackerName,
-        requiresDamageInput: true,
-        message: `${attackerName} attacca ${targetCard.owner}! Inserisci il valore del danno.`
+        requiresDefenseResponse: true,
+        attackId: attackId,
+        message: `${attackerName} attacca ${targetCard.owner}! In attesa della risposta di difesa...`
       }
     };
   }

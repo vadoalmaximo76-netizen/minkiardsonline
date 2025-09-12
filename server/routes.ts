@@ -2652,6 +2652,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // DEFENSE SYSTEM: Handle defense response from player
+    socket.on('defense:response', ({ gameId, defends, attackId }) => {
+      console.log(`Defense response received: ${defends ? 'DEFEND' : 'ACCEPT'} for attack ${attackId}`);
+      
+      const pendingDefense = gameManager.getPendingDefense(gameId);
+      if (!pendingDefense || pendingDefense.attackId !== attackId) {
+        console.log(`Invalid defense response: no matching pending defense for attack ${attackId}`);
+        return;
+      }
+
+      // CRITICAL SECURITY CHECK: Verify the socket belongs to the defender
+      const defenderSocketId = gameManager.getPlayerSocketId(gameId, pendingDefense.defender);
+      if (socket.id !== defenderSocketId) {
+        console.log(`SECURITY: Unauthorized defense response from socket ${socket.id}, expected ${defenderSocketId} for defender ${pendingDefense.defender}`);
+        return;
+      }
+      
+      // Clear the pending defense
+      gameManager.clearPendingDefense(gameId);
+      
+      if (defends) {
+        // Player chooses to DEFEND - block the attack
+        console.log(`${pendingDefense.defender} successfully defended against ${pendingDefense.attacker}'s attack (${pendingDefense.damage} damage blocked)`);
+        
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-defense-success`,
+          playerName: 'Sistema',
+          message: `🛡️ ${pendingDefense.defender} ha respinto l'attacco di ${pendingDefense.attacker}! (${pendingDefense.damage} danni bloccati)`,
+          timestamp: Date.now()
+        });
+        
+        // Return MOSSE card to bottom of deck using exact mosseCardId from pendingDefense
+        gameManager.returnToDeck(gameId, (pendingDefense as any).mosseCardId, pendingDefense.attacker);
+        
+        // End attacker's turn since attack was blocked
+        const nextPlayer = gameManager.endTurn(gameId, pendingDefense.attacker);
+        if (nextPlayer) {
+          io.to(gameId).emit('next-turn', { nextPlayer });
+        }
+        
+        // Update game state
+        const updatedGameState = gameManager.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', updatedGameState);
+        
+      } else {
+        // Player chooses NOT to defend - apply damage normally
+        console.log(`${pendingDefense.defender} chose not to defend - applying damage normally`);
+        
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-defense-declined`,
+          playerName: 'Sistema',
+          message: `⚔️ ${pendingDefense.defender} ha accettato l'attacco di ${pendingDefense.attacker}. Inserisci il valore del danno.`,
+          timestamp: Date.now()
+        });
+        
+        // Continue with normal damage input flow - emit damage input request with correct IDs
+        io.to(gameId).emit('damage-input-required', {
+          attackerName: pendingDefense.attacker,
+          targetCardId: (pendingDefense as any).targetCardId, // Character being attacked
+          targetOwner: pendingDefense.defender,
+          mosseCardId: (pendingDefense as any).mosseCardId, // MOSSE card used for attack
+          message: `${pendingDefense.attacker} attacca ${pendingDefense.defender}! Inserisci il valore del danno.`
+        });
+      }
+    });
+
     socket.on('disconnect', () => {
       console.log('Player disconnected:', socket.id);
       gameManager.removePlayer(socket.id);
