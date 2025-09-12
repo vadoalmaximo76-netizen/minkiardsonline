@@ -30,6 +30,15 @@ interface Player {
   disconnectedAt?: Date; // When player disconnected (null if connected)
 }
 
+interface TransferRequest {
+  id: string;
+  cardId: string;
+  fromPlayer: string;
+  toPlayer: string;
+  timestamp: Date;
+  message: string;
+}
+
 interface GameState {
   decks: {
     personaggi: Card[];
@@ -50,6 +59,7 @@ interface GameState {
   characterLimit: string; // '1', '2', '3', '5', 'unlimited'
   eliminatedPlayers: Set<string>; // Players eliminated from the game
   gameEnded: boolean; // Prevent multiple victory notifications
+  pendingTransferRequests: TransferRequest[]; // Pending card transfer requests between human players
 }
 
 export class GameManager {
@@ -94,7 +104,8 @@ export class GameManager {
       spectators: [],
       characterLimit: 'unlimited',
       eliminatedPlayers: new Set<string>(),
-      gameEnded: false
+      gameEnded: false,
+      pendingTransferRequests: []
     };
 
     // Auto-shuffle all decks when starting a new game
@@ -1813,6 +1824,104 @@ Rispondi SOLO in JSON:`;
     for (const player of Object.values(game.players)) {
       if (findAndUpdateCard(player.hand)) return;
     }
+  }
+
+  // Transfer request management for human-to-human transfers
+  createTransferRequest(gameId: string, cardId: string, fromPlayer: string, toPlayer: string): string {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    // Check if both players are human (not CPU)
+    const fromPlayerData = game.players[fromPlayer];
+    const toPlayerData = game.players[toPlayer];
+    
+    if (!fromPlayerData || !toPlayerData) {
+      throw new Error('Player not found');
+    }
+
+    if (fromPlayerData.isCPU || toPlayerData.isCPU) {
+      throw new Error('Transfer requests are only for human-to-human transfers');
+    }
+
+    // Check if card exists in fromPlayer's hand
+    const card = fromPlayerData.hand.find(c => c.id === cardId);
+    if (!card) {
+      throw new Error('Card not found in player hand');
+    }
+
+    // Create transfer request
+    const requestId = `transfer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const transferRequest: TransferRequest = {
+      id: requestId,
+      cardId,
+      fromPlayer,
+      toPlayer,
+      timestamp: new Date(),
+      message: `${fromPlayer} vuole trasferire una carta ${card.type.toUpperCase()} a ${toPlayer}`
+    };
+
+    game.pendingTransferRequests.push(transferRequest);
+    return requestId;
+  }
+
+  acceptTransferRequest(gameId: string, requestId: string): boolean {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    const requestIndex = game.pendingTransferRequests.findIndex(req => req.id === requestId);
+    if (requestIndex === -1) {
+      throw new Error('Transfer request not found');
+    }
+
+    const request = game.pendingTransferRequests[requestIndex];
+    
+    // Check if card still exists in fromPlayer's hand
+    const fromPlayerData = game.players[request.fromPlayer];
+    const toPlayerData = game.players[request.toPlayer];
+    
+    if (!fromPlayerData || !toPlayerData) {
+      // Remove invalid request
+      game.pendingTransferRequests.splice(requestIndex, 1);
+      throw new Error('Player not found');
+    }
+
+    const cardIndex = fromPlayerData.hand.findIndex(c => c.id === request.cardId);
+    if (cardIndex === -1) {
+      // Remove invalid request
+      game.pendingTransferRequests.splice(requestIndex, 1);
+      throw new Error('Card no longer available');
+    }
+
+    // Execute the transfer
+    const card = fromPlayerData.hand.splice(cardIndex, 1)[0];
+    toPlayerData.hand.push(card);
+    
+    // Remove the request
+    game.pendingTransferRequests.splice(requestIndex, 1);
+    
+    return true;
+  }
+
+  declineTransferRequest(gameId: string, requestId: string): boolean {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    const requestIndex = game.pendingTransferRequests.findIndex(req => req.id === requestId);
+    if (requestIndex === -1) {
+      throw new Error('Transfer request not found');
+    }
+
+    // Simply remove the request
+    game.pendingTransferRequests.splice(requestIndex, 1);
+    return true;
+  }
+
+  getPendingTransferRequests(gameId: string, playerName: string): TransferRequest[] {
+    const game = this.games.get(gameId);
+    if (!game) return [];
+
+    // Return requests where this player is the recipient
+    return game.pendingTransferRequests.filter(req => req.toPlayer === playerName);
   }
 
   private shuffleGameDecks(game: GameState): void {

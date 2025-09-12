@@ -851,6 +851,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // Accept transfer request
+    socket.on('accept-transfer', ({ requestId }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        try {
+          // Get request details before accepting
+          const game = gameManager.getGameState(gameId);
+          const request = game?.pendingTransferRequests.find(req => req.id === requestId);
+          
+          if (!request) {
+            socket.emit('transfer-error', { message: 'Richiesta di trasferimento non trovata' });
+            return;
+          }
+
+          // SECURITY: Verify that the socket belongs to the intended recipient
+          const recipientPlayer = game.players[request.toPlayer];
+          if (!recipientPlayer || recipientPlayer.socketId !== socket.id) {
+            socket.emit('transfer-error', { message: 'Non autorizzato ad accettare questa richiesta' });
+            return;
+          }
+
+          gameManager.acceptTransferRequest(gameId, requestId);
+            
+            // Notify all players about the successful transfer
+            io.to(gameId).emit('chat-message', {
+              playerName: 'Sistema',
+              message: `✅ ${request.fromPlayer} ha trasferito una carta a ${request.toPlayer}`,
+              timestamp: Date.now()
+            });
+            
+            // Update game state
+            const gameState = gameManager.getSanitizedGameState(gameId);
+            io.to(gameId).emit('game-state-update', gameState);
+            
+            // Notify sender that transfer was accepted
+            const fromPlayerData = game.players[request.fromPlayer];
+            if (fromPlayerData?.socketId) {
+              io.to(fromPlayerData.socketId).emit('transfer-accepted', {
+                message: `${request.toPlayer} ha accettato il trasferimento`
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error accepting transfer:', error);
+          socket.emit('transfer-error', { 
+            message: error instanceof Error ? error.message : 'Errore nell\'accettazione del trasferimento' 
+          });
+        }
+      }
+    });
+
+    // Decline transfer request
+    socket.on('decline-transfer', ({ requestId }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        try {
+          // Get request details before declining
+          const game = gameManager.getGameState(gameId);
+          const request = game?.pendingTransferRequests.find(req => req.id === requestId);
+          
+          if (!request) {
+            socket.emit('transfer-error', { message: 'Richiesta di trasferimento non trovata' });
+            return;
+          }
+
+          // SECURITY: Verify that the socket belongs to the intended recipient
+          const recipientPlayer = game.players[request.toPlayer];
+          if (!recipientPlayer || recipientPlayer.socketId !== socket.id) {
+            socket.emit('transfer-error', { message: 'Non autorizzato a rifiutare questa richiesta' });
+            return;
+          }
+          
+          gameManager.declineTransferRequest(gameId, requestId);
+            
+            // Notify sender that transfer was declined
+            const fromPlayerData = game.players[request.fromPlayer];
+            if (fromPlayerData?.socketId) {
+              io.to(fromPlayerData.socketId).emit('transfer-declined', {
+                message: `${request.toPlayer} ha rifiutato il trasferimento`
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error declining transfer:', error);
+          socket.emit('transfer-error', { 
+            message: error instanceof Error ? error.message : 'Errore nel rifiuto del trasferimento' 
+          });
+        }
+      }
+    });
+
     socket.on('swap-personaggi-cards', ({ player1, card1Id, player2, card2Id }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {

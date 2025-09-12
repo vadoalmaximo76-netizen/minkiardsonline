@@ -17,6 +17,7 @@ import { PlayerOrderNotification } from "./PlayerOrderNotification";
 import { NextTurnNotification } from "./NextTurnNotification";
 import { LeaveGameNotification } from "./LeaveGameNotification";
 import { SuperDice } from "./SuperDice";
+import { TransferRequestDialog } from "./TransferRequestDialog";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
@@ -1065,6 +1066,9 @@ export const GameBoard: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Transfer Request Dialog */}
+        <TransferRequestDialog />
       </div>
     </div>
   );
