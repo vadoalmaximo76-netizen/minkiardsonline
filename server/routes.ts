@@ -1573,8 +1573,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // CRITICAL: Mark action as completed for CPU turn flow
             if (attackerName.startsWith('CPU-')) {
-              console.log(`Marking MOSSE action as completed for ${attackerName}`);
-              gameManager.markActionExecuted(gameId, attackerName);
+              console.log(`MOSSE action completed for CPU ${attackerName}`);
+              // Note: Turn state management handled by CPU internally
             }
             
             // Broadcast the damage result
@@ -1638,15 +1638,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       timestamp: Date.now()
                     });
                     
-                    // Record absorption event for replay/audit
-                    gameManager.recordEvent(gameId, 'pti-absorbed', {
-                      attackerId: attackerCharacter.id,
-                      attackerName,
-                      eliminatedCardId: targetCardId,
-                      eliminatedOwner: targetCard.owner,
-                      ptiTransferred: absorbedPTI,
-                      attackerPTI: { before: attackerCurrentPTI, after: newAttackerPTI }
-                    }, attackerName);
+                    // Record absorption event for replay/audit (console log for now)
+                    console.log(`PTI_ABSORPTION_EVENT: ${attackerName} absorbed ${absorbedPTI} PTI from ${targetCard.owner}`);
                   } else {
                     console.log(`PTI ABSORPTION SKIPPED: Invalid data (absorbedPTI=${absorbedPTI}, newPTI=${newAttackerPTI})`);
                   }

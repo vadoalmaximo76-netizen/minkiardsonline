@@ -1423,11 +1423,13 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     switch (playedCardType) {
       case 'mosse':
         // CRITICAL FIX: Handle attack action return value
+        console.log(`🎯 CPU ${this.playerName}: CALLING 5-STEP MOSSE SEQUENCE for cardId=${playedCardId}`);
         const attackAction = await this.executeMovesCardAndDrawReplacement(playedCardId, gameState, deckType);
         if (attackAction) {
-          console.log(`CPU ${this.playerName} executing MOSSE attack action`);
+          console.log(`🎯 CPU ${this.playerName}: MOSSE SEQUENCE COMPLETED - returning attack action`);
           return attackAction; // Return the attack action to be processed immediately
         }
+        console.log(`🎯 CPU ${this.playerName}: MOSSE SEQUENCE returned null`);
         break;
         
       case 'bonus':
@@ -1468,6 +1470,8 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
 
   // NEW: Execute MOSSE card with authoritative server-side attack
   async executeMovesCardAndDrawReplacement(cardId: string, gameState: any, deckType: string): Promise<any> {
+    console.log(`🎯 CPU ${this.playerName}: STARTING 5-STEP MOSSE SEQUENCE for card ${cardId}`);
+    
     // Validate gameManager availability
     if (!this.gameManager) {
       console.error(`CPU ${this.playerName}: No gameManager for MOSSE attack execution`);
