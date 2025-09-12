@@ -1611,8 +1611,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   const attackerPtiMatch = attackerNotes.match(/PTI:\s*(\d+)/i);
                   let attackerCurrentPTI = attackerPtiMatch ? parseInt(attackerPtiMatch[1]) : 100;
                   
-                  // Aggiungi i PTI del personaggio eliminato (usa PTI originale prima del danno)
-                  const absorbedPTI = Math.max(0, currentPTI);
+                  // NUOVO: Aggiungi sempre +100 PTI fissi per ogni eliminazione MOSSE (non più i PTI della vittima)
+                  const absorbedPTI = 100;
                   const newAttackerPTI = Math.min(9999, attackerCurrentPTI + absorbedPTI); // Cap massimo per evitare overflow
                   
                   // Validazione: evita assorbimento se dati non validi
@@ -1627,19 +1627,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     
                     gameManager.updateCardText(gameId, attackerCharacter.id, updatedAttackerNotes);
                     
-                    // AUDIT LOG: Record PTI absorption event
-                    console.log(`PTI ABSORPTION AUDIT: ${attackerName} [${attackerCharacter.id}] gains ${absorbedPTI} PTI from eliminated ${targetCard.owner} [${targetCardId}] (${attackerCurrentPTI} → ${newAttackerPTI})`);
+                    // AUDIT LOG: Record PTI absorption event (fixed +100 PTI system)
+                    console.log(`PTI ABSORPTION AUDIT: ${attackerName} [${attackerCharacter.id}] gains +100 PTI for eliminating ${targetCard.owner} [${targetCardId}] (${attackerCurrentPTI} → ${newAttackerPTI})`);
                     
-                    // Notifica l'assorbimento PTI
+                    // Notifica l'assorbimento PTI (sistema fisso +100 PTI)
                     io.to(gameId).emit('chat-message', {
                       id: `${Date.now()}-absorption`,
                       playerName: 'Sistema',
-                      message: `🔥 ${attackerName} assorbe ${absorbedPTI} PTI dal personaggio eliminato! (${attackerCurrentPTI} → ${newAttackerPTI} PTI)`,
+                      message: `🔥 ${attackerName} guadagna +100 PTI per aver eliminato il personaggio! (${attackerCurrentPTI} → ${newAttackerPTI} PTI)`,
                       timestamp: Date.now()
                     });
                     
-                    // Record absorption event for replay/audit (console log for now)
-                    console.log(`PTI_ABSORPTION_EVENT: ${attackerName} absorbed ${absorbedPTI} PTI from ${targetCard.owner}`);
+                    // Record absorption event for replay/audit (fixed +100 PTI system)
+                    console.log(`PTI_ABSORPTION_EVENT: ${attackerName} gained +100 PTI for eliminating ${targetCard.owner}`);
                   } else {
                     console.log(`PTI ABSORPTION SKIPPED: Invalid data (absorbedPTI=${absorbedPTI}, newPTI=${newAttackerPTI})`);
                   }
@@ -2675,7 +2675,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true, cpuName, gameId });
     } catch (error) {
       console.error('🎯 DEBUG: Error adding CPU:', error);
-      res.status(500).json({ success: false, error: error.message });
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 
