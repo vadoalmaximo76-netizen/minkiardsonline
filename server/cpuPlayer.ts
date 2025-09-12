@@ -3,6 +3,7 @@ import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { personaggi } from '../shared/schema.js';
 import { eq, ilike } from 'drizzle-orm';
+import { GameManager } from './gameManager.js';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -1468,9 +1469,29 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     
     if (enemies.length > 0) {
       const target = enemies[0];
-      this.sendChatMessage(`Uso la carta MOSSE per attaccare ${target.notes || 'il personaggio nemico'}!`);
+      
+      // Extract character name from image URL or notes
+      let targetName = 'il personaggio nemico';
+      if (target.notes) {
+        targetName = target.notes;
+      } else if (target.frontImage) {
+        // Extract name from URL like "https://i.postimg.cc/xyz/chuck-norris.png"
+        const imageUrl = target.frontImage;
+        const matches = imageUrl.match(/([^\/]+)\.(png|jpg|jpeg)$/i);
+        if (matches) {
+          const fileName = matches[1];
+          // Convert "chuck-norris" to "Chuck Norris"  
+          targetName = fileName.split('-').map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+          ).join(' ');
+        }
+      }
+      
+      this.sendChatMessage(`Uso la carta MOSSE per attaccare ${targetName}!`);
       this.markActionExecuted('execute');
       this.turnState.phase = 'turn_end';
+      
+      console.log(`CPU ${this.playerName} executing MOSSE attack: targeting ${target.id} (${targetName}) owned by ${target.owner}`);
       
       return {
         type: 'mosse-attack',
