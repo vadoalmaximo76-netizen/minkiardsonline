@@ -892,7 +892,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 message: `${request.toPlayer} ha accettato il trasferimento`
               });
             }
-          }
         } catch (error) {
           console.error('Error accepting transfer:', error);
           socket.emit('transfer-error', { 
@@ -932,7 +931,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 message: `${request.toPlayer} ha rifiutato il trasferimento`
               });
             }
-          }
         } catch (error) {
           console.error('Error declining transfer:', error);
           socket.emit('transfer-error', { 
