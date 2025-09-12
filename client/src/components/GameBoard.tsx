@@ -82,7 +82,7 @@ export const GameBoard: React.FC = () => {
     visible: boolean;
     player: string;
   }>({ visible: false, player: '' });
-  const { selectedCard, gameId, playerName, gameState } = useGameState();
+  const { selectedCard, gameId, playerName, gameState, setGameId } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, initAudioContext, toggleMute, isMuted } = useAudio();
 
 
@@ -139,6 +139,24 @@ export const GameBoard: React.FC = () => {
       socket.emit('reset-game', { gameId });
       // Reset scenario cards state when game is reset
       setScenarioCardsActive(false);
+    }
+  };
+
+  const handleNewGame = () => {
+    if (confirm("Sei sicuro di voler creare una nuova partita? Entrerai in una nuova stanza di gioco.")) {
+      // Generate a new room code (6 characters uppercase)
+      const newGameId = Math.random().toString(36).substring(2, 8).toUpperCase();
+      
+      // Update game ID in state
+      setGameId(newGameId);
+      
+      // Update URL
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.set('game', newGameId);
+      window.history.pushState({}, '', newUrl);
+      
+      // Join the new game room
+      socket.emit('join-game', { gameId: newGameId, playerName });
     }
   };
 
@@ -660,7 +678,7 @@ export const GameBoard: React.FC = () => {
               </Button>
             </div>
             
-            {/* Second row: INVITA AMICI, RANKIARD and RICOMINCIA PARTITA */}
+            {/* Second row: INVITA AMICI, RANKIARD, NUOVA PARTITA and RICOMINCIA PARTITA */}
             <div className="flex gap-1 landscape:gap-2 md:gap-2 justify-center landscape:justify-end md:justify-end">
               <Button
                 onClick={shareInviteLink}
@@ -675,6 +693,13 @@ export const GameBoard: React.FC = () => {
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 RANKIARD
+              </Button>
+              <Button
+                onClick={handleNewGame}
+                className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
+                style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
+              >
+                NUOVA PARTITA
               </Button>
               <Button
                 onClick={handleResetGame}
