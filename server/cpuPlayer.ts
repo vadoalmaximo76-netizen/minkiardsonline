@@ -1480,20 +1480,107 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     this.turnState.needsReplacementDraw = true;
     this.turnState.replacementDeckType = deckType === 'personaggi_speciali' ? 'personaggi' : deckType;
 
-    // Use deterministic target selection
+    // Use deterministic target selection  
     const target = this.pickEnemyTarget();
     if (!target) {
       console.log(`CPU ${this.playerName}: No valid targets for MOSSE attack`);
       this.sendChatMessage(`Nessun nemico da attaccare, carta MOSSE attivata comunque.`);
       this.markActionExecuted('execute');
-      await this.drawReplacementAndEndTurn(deckType);
+      await this.drawReplacementAndEndTurn('mosse');
+      return null;
+    }
+    
+    // STRICT NULL GUARD: Verify target before proceeding
+    if (!target.name || !target.cardId || !target.owner) {
+      console.error(`CPU ${this.playerName}: Invalid target data:`, target);
+      this.sendChatMessage(`Errore: target non valido per l'attacco.`);
+      this.markActionExecuted('execute');
+      await this.drawReplacementAndEndTurn('mosse');
       return null;
     }
 
-    // Execute authoritative server-side attack
-    console.log(`CPU ${this.playerName}: Executing MOSSE attack against ${target.name} (${target.cardId})`);
-    this.sendChatMessage(`Uso la carta MOSSE per attaccare ${target.name}!`);
+    // SEQUENZA COMPLETA RICHIESTA: Implementazione della sequenza specifica per carte MOSSE
     
+    // STEP 1: PIAZZA AUTORIZZATIVAMENTE la carta MOSSE in campo (se non è già presente)
+    let mosseCard = gameState.field.find((c: any) => c.id === cardId && c.owner === this.playerName);
+    if (!mosseCard) {
+      console.log(`CPU ${this.playerName}: STEP 1 - Carta MOSSE ${cardId} non in campo, la piazzo ora`);
+      
+      // Trova la carta MOSSE nella mano del CPU
+      const cpuPlayer = gameState.players[this.playerName];
+      const mosseCardInHand = cpuPlayer?.hand?.find((c: any) => c.id === cardId && c.type === 'mosse');
+      
+      if (!mosseCardInHand) {
+        console.error(`CPU ${this.playerName}: MOSSE card ${cardId} not found in hand - cannot execute sequence`);
+        this.sendChatMessage(`Errore: carta MOSSE non trovata in mano.`);
+        this.markActionExecuted('execute');
+        await this.drawReplacementAndEndTurn('mosse');
+        return null;
+      }
+      
+      // Piazza la carta MOSSE in campo usando il gameManager
+      if (!this.gameManager) {
+        console.error(`CPU ${this.playerName}: No gameManager available for placing MOSSE card`);
+        this.sendChatMessage(`Errore interno: impossibile piazzare carta.`);
+        this.markActionExecuted('execute');
+        await this.drawReplacementAndEndTurn('mosse');
+        return null;
+      }
+      
+      try {
+        const playResult = await this.gameManager.playCard(this.gameId, cardId, this.playerName);
+        if (!playResult) {
+          console.error(`CPU ${this.playerName}: Failed to place MOSSE card ${cardId} on field`);
+          this.sendChatMessage(`Impossibile piazzare la carta MOSSE in campo.`);
+          this.markActionExecuted('execute');
+          await this.drawReplacementAndEndTurn('mosse');
+          return null;
+        }
+        
+        console.log(`CPU ${this.playerName}: STEP 1 COMPLETED - MOSSE card ${cardId} successfully placed on field`);
+        
+        // CRITICAL: Mark the play action as executed for turn FSM
+        this.markActionExecuted('play', cardId, 'mosse');
+        
+        // Aggiorna il game state per riflettere la carta appena piazzata
+        const updatedGameState = this.gameManager.getSanitizedGameState(this.gameId);
+        mosseCard = updatedGameState.field.find((c: any) => c.id === cardId && c.owner === this.playerName);
+        
+      } catch (error) {
+        console.error(`CPU ${this.playerName}: Error placing MOSSE card:`, error);
+        this.sendChatMessage(`Errore nel piazzamento della carta MOSSE.`);
+        this.markActionExecuted('execute');
+        await this.drawReplacementAndEndTurn('mosse');
+        return null;
+      }
+    } else {
+      console.log(`CPU ${this.playerName}: STEP 1 - Carta MOSSE ${cardId} già in campo`);
+    }
+    
+    // STEP 2: Scelta del personaggio avversario (già fatto con pickEnemyTarget)
+    // STEP 3: SIMULA: Preme sulla carta MOSSE, poi su "ATTACCA" e sul personaggio avversario
+    console.log(`CPU ${this.playerName}: SEQUENZA MOSSE AUTORATIVA - Selecting card ${cardId}, pressing ATTACCA, targeting ${target.name} (${target.cardId})`);
+    
+    // STEP 4: Messaggio in chat nel formato richiesto: "Uso la carta [nome carta] su [nome personaggio avversario] di [nome utente avversario]"
+    let mosseCardName = 'MOSSE';
+    
+    // MIGLIORATA: Estrazione nome carta con fallback robusto
+    if (mosseCard && mosseCard.frontImage) {
+      try {
+        const urlParts = mosseCard.frontImage.split('/');
+        const filename = urlParts[urlParts.length - 1];
+        const cardName = filename.replace(/\.(png|jpg|jpeg|gif)$/i, '').replace(/[-_]/g, ' ').trim();
+        if (cardName.length > 2) {
+          mosseCardName = cardName.charAt(0).toUpperCase() + cardName.slice(1).toLowerCase();
+        }
+      } catch (error) {
+        console.log(`CPU ${this.playerName}: Could not extract card name from ${mosseCard.frontImage}, using default`);
+      }
+    }
+    
+    this.sendChatMessage(`Uso la carta ${mosseCardName} su ${target.name} di ${target.owner}`);
+    
+    // Execute server-side attack (attendendo input utente come da nuova implementazione)
     const attackResult = await this.gameManager.executeMossaAttack(
       this.gameId,
       this.playerName,
@@ -1501,19 +1588,21 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       target.cardId
     );
 
+    // Non dichiariamo più risultato automatico - il sistema ora richiede input utente
     if (attackResult.success) {
-      console.log(`CPU ${this.playerName}: MOSSE attack successful - ${target.name} eliminated`);
-      this.sendChatMessage(`Attacco riuscito! ${target.name} è stato eliminato!`);
+      console.log(`CPU ${this.playerName}: MOSSE attack initiated successfully - awaiting manual damage input`);
     } else {
       console.error(`CPU ${this.playerName}: MOSSE attack failed - ${attackResult.error}`);
       this.sendChatMessage(`Attacco fallito: ${attackResult.error}`);
     }
 
-    // Mark action executed and handle replacement draw
+    // STEP 5: Preme su "FINE TURNO" - Completa la sequenza nello stesso turno come richiesto
     this.markActionExecuted('execute');
-    await this.drawReplacementAndEndTurn(deckType);
     
-    return null; // Let existing end-turn flow handle the rest
+    // CRITICAL FIX: Completa la sequenza nello stesso turno con sostituzione carta MOSSE e fine turno
+    await this.drawReplacementAndEndTurn('mosse');
+    
+    return null; // Sequenza MOSSE completata
   }
 
   // CRITICAL FIX: Execute BONUS card action and draw replacement  
