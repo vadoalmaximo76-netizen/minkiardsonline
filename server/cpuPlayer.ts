@@ -1818,9 +1818,15 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         return this.executePickReplacement(gameState);
         
       default:
-        console.log(`CPU ${this.playerName} opening sequence completed`);
+        console.log(`CPU ${this.playerName} opening sequence completed - starting regular turn logic`);
         this.openingSequenceState.phase = 'completed';
-        return { type: 'opening-complete' }; // Signal that opening is done
+        
+        // CRITICAL FIX: Reset turn state and start normal turn logic
+        this.resetTurnState();
+        this.turnState.phase = 'draw_needed';
+        
+        // Start the normal turn logic immediately
+        return this.handleDrawPhase(gameState.players[this.playerName], gameState);
     }
   }
 
