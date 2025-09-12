@@ -44,7 +44,8 @@ interface PendingDefense {
   attacker: string;
   defender: string;
   damage: number;
-  cardId: string;
+  targetCardId: string;   // the character being attacked
+  mosseCardId: string;    // the attack (MOSSE) card used
   deckType: string;
   createdAt: Date;
   timeoutId?: NodeJS.Timeout;
@@ -1049,7 +1050,7 @@ Rispondi SOLO in JSON:`;
   }
 
   // NEW: Authoritative MOSSE attack execution
-  async executeMossaAttack(gameId: string, attackerName: string, mosseCardId: string, targetCardId: string): Promise<{ success: boolean; result?: any; error?: string }> {
+  async executeMossaAttack(gameId: string, attackerName: string, mosseCardId: string, targetCardId: string, defenseRequestEmitter?: (data: any) => void): Promise<{ success: boolean; result?: any; error?: string }> {
     const game = this.games.get(gameId);
     if (!game) {
       return { success: false, error: 'Game not found' };
@@ -1114,6 +1115,20 @@ Rispondi SOLO in JSON:`;
     if (!defenseCreated) {
       console.log(`Failed to create pending defense for attack ${attackId}`);
       return { success: false, error: 'Failed to create defense request' };
+    }
+
+    // CRITICAL: Emit defense:request if callback is provided
+    if (defenseRequestEmitter) {
+      console.log(`🛡️ ${attackerName}: Emitting defense:request to ${targetCard.owner} via callback`);
+      defenseRequestEmitter({
+        gameId,
+        attackId,
+        attackerName,
+        defenderName: targetCard.owner,
+        mosseCardId,
+        targetCardId,
+        message: `${attackerName} ti sta attaccando! Vuoi respingere l'attacco?`
+      });
     }
 
     return { 
@@ -3171,6 +3186,43 @@ Rispondi SOLO in JSON:`;
     
     game.pendingDefense = undefined;
     console.log(`Defense request cleared for game ${gameId}`);
+  }
+
+  // Helper method to emit defense:request when Socket.IO is available
+  emitDefenseRequest(gameId: string, io: any): boolean {
+    const pendingDefense = this.getPendingDefense(gameId);
+    if (!pendingDefense) {
+      console.log(`No pending defense found for game ${gameId}`);
+      return false;
+    }
+
+    const defenderSocketId = this.getPlayerSocketId(gameId, pendingDefense.defender);
+    if (!defenderSocketId) {
+      console.log(`Defender ${pendingDefense.defender} not found or offline`);
+      return false;
+    }
+
+    console.log(`🛡️ Emitting defense:request to ${pendingDefense.defender} (socket: ${defenderSocketId})`);
+    
+    // Emit targeted defense:request to the defender
+    io.to(defenderSocketId).emit('defense:request', {
+      gameId,
+      attackId: pendingDefense.attackId,
+      attackerName: pendingDefense.attacker,
+      defenderName: pendingDefense.defender,
+      mosseCardId: pendingDefense.mosseCardId,
+      targetCardId: pendingDefense.targetCardId,
+      message: `${pendingDefense.attacker} ti sta attaccando! Vuoi respingere l'attacco?`
+    });
+    
+    // Also send a system message to the room
+    io.to(gameId).emit('chat-message', {
+      playerName: 'Sistema',
+      message: `🛡️ ${pendingDefense.attacker} attacca ${pendingDefense.defender}! In attesa della decisione di difesa...`,
+      timestamp: Date.now()
+    });
+
+    return true;
   }
 
   getPendingDefense(gameId: string): PendingDefense | undefined {

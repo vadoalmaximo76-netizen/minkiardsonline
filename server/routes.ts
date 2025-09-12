@@ -2684,7 +2684,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         
         // Return MOSSE card to bottom of deck using exact mosseCardId from pendingDefense
-        gameManager.returnToDeck(gameId, (pendingDefense as any).mosseCardId, pendingDefense.attacker);
+        gameManager.returnToDeck(gameId, pendingDefense.mosseCardId, pendingDefense.attacker);
         
         // End attacker's turn since attack was blocked
         const nextPlayer = gameManager.endTurn(gameId, pendingDefense.attacker);
@@ -2710,9 +2710,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Continue with normal damage input flow - emit damage input request with correct IDs
         io.to(gameId).emit('damage-input-required', {
           attackerName: pendingDefense.attacker,
-          targetCardId: (pendingDefense as any).targetCardId, // Character being attacked
+          targetCardId: pendingDefense.targetCardId, // Character being attacked
           targetOwner: pendingDefense.defender,
-          mosseCardId: (pendingDefense as any).mosseCardId, // MOSSE card used for attack
+          mosseCardId: pendingDefense.mosseCardId, // MOSSE card used for attack
           message: `${pendingDefense.attacker} attacca ${pendingDefense.defender}! Inserisci il valore del danno.`
         });
       }

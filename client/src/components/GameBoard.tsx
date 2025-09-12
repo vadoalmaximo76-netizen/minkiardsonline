@@ -18,6 +18,7 @@ import { NextTurnNotification } from "./NextTurnNotification";
 import { LeaveGameNotification } from "./LeaveGameNotification";
 import { SuperDice } from "./SuperDice";
 import { TransferRequestDialog } from "./TransferRequestDialog";
+import { DefenseDialog } from "./DefenseDialog";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
@@ -1092,6 +1093,9 @@ export const GameBoard: React.FC = () => {
           </div>
         )}
 
+        {/* Defense System Dialog */}
+        <DefenseDialog />
+        
         {/* Transfer Request Dialog */}
         <TransferRequestDialog />
       </div>

@@ -1589,12 +1589,20 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       this.gameId,
       this.playerName,
       cardId,
-      target.cardId
+      target.cardId,
+      undefined // TODO: Need to implement callback bridge for Socket.IO emission
     );
 
     // Non dichiariamo più risultato automatico - il sistema ora richiede input utente
     if (attackResult.success) {
       console.log(`CPU ${this.playerName}: MOSSE attack initiated successfully - awaiting manual damage input`);
+      
+      // CRITICAL: Store attack result for potential defense:request emission by routes.ts
+      if (attackResult.result && attackResult.result.requiresDefenseResponse) {
+        console.log(`🛡️ CPU ${this.playerName}: Attack requires defense response - will be handled by routes.ts`);
+        // The defense:request emission will be handled by the calling code in routes.ts
+        // which has access to Socket.IO instance
+      }
     } else {
       console.error(`CPU ${this.playerName}: MOSSE attack failed - ${attackResult.error}`);
       this.sendChatMessage(`Attacco fallito: ${attackResult.error}`);
