@@ -1069,44 +1069,33 @@ Rispondi SOLO in JSON:`;
 
     console.log(`Executing MOSSE attack: ${attackerName} uses ${mosseCardId} to attack ${targetCard.owner}'s ${targetCardId}`);
     
-    // Execute attack: MOSSE eliminates target
-    const fieldIndex = game.field.findIndex(c => c.id === targetCardId);
-    if (fieldIndex !== -1) {
-      const eliminatedCard = game.field.splice(fieldIndex, 1)[0];
-      eliminatedCard.eliminatedBy = mosseCardId;
-      game.graveyard.push(eliminatedCard);
-    }
-
-    // Move MOSSE card to graveyard (consumed by attack)
-    const mosseFieldIndex = game.field.findIndex(c => c.id === mosseCardId);
-    if (mosseFieldIndex !== -1) {
-      const usedMosse = game.field.splice(mosseFieldIndex, 1)[0];
-      game.graveyard.push(usedMosse);
-    }
-
+    // NUOVO SISTEMA: Non eliminare automaticamente, richiedere input umano per il danno
     // Track card usage to prevent reuse
     if (!attacker.usedCardsThisTurn) {
       attacker.usedCardsThisTurn = [];
     }
     attacker.usedCardsThisTurn.push(mosseCard.frontImage);
 
-    // Record attack event
+    // Record attack initiation event (maintain backward compatibility)
     await this.recordEvent(gameId, 'mosse-attack', {
       attackerName,
       mosseCardId,
       targetCardId,
       targetOwner: targetCard.owner,
-      outcome: 'eliminated'
+      outcome: 'awaiting_damage_input'
     }, attackerName);
 
-    console.log(`MOSSE attack completed: ${targetCard.owner}'s ${targetCardId} eliminated by ${attackerName}`);
+    console.log(`MOSSE attack initiated: ${attackerName} targeting ${targetCard.owner}'s ${targetCardId} - awaiting damage input`);
 
     return { 
       success: true, 
       result: {
-        targetEliminated: targetCardId,
+        targetCardId: targetCardId,
         targetOwner: targetCard.owner,
-        mosseCardUsed: mosseCardId
+        mosseCardId: mosseCardId,
+        attackerName: attackerName,
+        requiresDamageInput: true,
+        message: `${attackerName} attacca ${targetCard.owner}! Inserisci il valore del danno.`
       }
     };
   }

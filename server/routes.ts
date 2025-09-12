@@ -1582,6 +1582,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Check if character dies (PTI <= 0)
             if (newPTI <= 0) {
               setTimeout(() => {
+                // NUOVO: ASSORBIMENTO PTI - Il personaggio attaccante assorbe i PTI del personaggio eliminato
+                // Trova il personaggio del giocatore attaccante che ha più PTI (probabilmente quello che ha attaccato)
+                const attackerCharacters = gameState?.field?.filter((c: any) => 
+                  c.owner === attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+                ) || [];
+                
+                // Seleziona il personaggio con più PTI come ricevente dell'assorbimento
+                let attackerCharacter = null;
+                if (attackerCharacters.length > 0) {
+                  attackerCharacter = attackerCharacters.reduce((best: any, current: any) => {
+                    const bestPti = (best.text || '').match(/PTI:\s*(\d+)/i)?.[1] || 0;
+                    const currentPti = (current.text || '').match(/PTI:\s*(\d+)/i)?.[1] || 0;
+                    return parseInt(currentPti) > parseInt(bestPti) ? current : best;
+                  });
+                }
+                
+                if (attackerCharacter && currentPTI > 0) {
+                  // Estrai PTI corrente dell'attaccante
+                  const attackerNotes = attackerCharacter.text || '';
+                  const attackerPtiMatch = attackerNotes.match(/PTI:\s*(\d+)/i);
+                  let attackerCurrentPTI = attackerPtiMatch ? parseInt(attackerPtiMatch[1]) : 100;
+                  
+                  // Aggiungi i PTI del personaggio eliminato
+                  const absorbedPTI = Math.max(0, currentPTI); // Usa PTI originale, non quello dopo il danno
+                  const newAttackerPTI = attackerCurrentPTI + absorbedPTI;
+                  
+                  // Aggiorna le note dell'attaccante
+                  let updatedAttackerNotes = attackerNotes;
+                  if (attackerPtiMatch) {
+                    updatedAttackerNotes = attackerNotes.replace(/PTI:\s*\d+/i, `PTI: ${newAttackerPTI}`);
+                  } else {
+                    updatedAttackerNotes = attackerNotes + `\nPTI: ${newAttackerPTI}`;
+                  }
+                  
+                  gameManager.updateCardText(gameId, attackerCharacter.id, updatedAttackerNotes);
+                  
+                  console.log(`PTI ABSORPTION: ${attackerName} gains ${absorbedPTI} PTI (${attackerCurrentPTI} → ${newAttackerPTI})`);
+                  
+                  // Notifica l'assorbimento PTI
+                  io.to(gameId).emit('chat-message', {
+                    id: `${Date.now()}-absorption`,
+                    playerName: 'Sistema',
+                    message: `🔥 ${attackerName} assorbe ${absorbedPTI} PTI dal personaggio eliminato! (${attackerCurrentPTI} → ${newAttackerPTI} PTI)`,
+                    timestamp: Date.now()
+                  });
+                }
+                
                 // Auto-eliminate dead character - CHECK FOR PLAYER ELIMINATION
                 const result = gameManager.moveToGraveyard(gameId, targetCardId, targetCard.owner);
                 if (result.success) {
