@@ -1435,9 +1435,8 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     
     this.sendChatMessage(`Pesco una carta di ricambio e termino il turno!`);
     
-    // Import GameManager to pick card directly
-    const { GameManager } = await import('./gameManager');
-    const gameManager = GameManager.getInstance();
+    // Create gameManager instance to pick card directly
+    const gameManager = new GameManager();
     
     // Pick replacement card directly through gameManager
     try {
@@ -1481,7 +1480,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         if (matches) {
           const fileName = matches[1];
           // Convert "chuck-norris" to "Chuck Norris"  
-          targetName = fileName.split('-').map(word => 
+          targetName = fileName.split('-').map((word: string) => 
             word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
           ).join(' ');
         }
