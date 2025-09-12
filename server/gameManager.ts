@@ -1044,7 +1044,7 @@ Rispondi SOLO in JSON:`;
     }
 
     // Validate it's attacker's turn
-    const currentPlayer = this.getCurrentPlayer(gameId);
+    const currentPlayer = game.turnOrder[game.currentTurnIndex];
     if (currentPlayer !== attackerName) {
       return { success: false, error: `Not ${attackerName}'s turn (current: ${currentPlayer})` };
     }

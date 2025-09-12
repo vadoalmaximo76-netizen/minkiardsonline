@@ -1630,8 +1630,50 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       }
     }
     
-    // Last resort: don't play more cards of same type on field
-    console.log(`CPU ${this.playerName} cannot play - would create field duplicates`);
+    // Priority 5: If all types are on field, prefer using existing cards instead of playing new ones
+    // This handles the case where CPU has all card types on field and in hand
+    
+    // First, try to use MOSSE if there are enemies and we have MOSSE on field
+    if (enemies.length > 0 && hasMosseOnField && myCharacter) {
+      const characterText = myCharacter.notes || myCharacter.text || '';
+      const starsMatch = characterText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
+      const currentStars = starsMatch ? parseInt(starsMatch[1]) : 0;
+      
+      if (currentStars > 0) {
+        // Find existing MOSSE card on field to use
+        const existingMosse = myFieldCards.find((c: any) => c.type === 'mosse');
+        if (existingMosse) {
+          console.log(`CPU ${this.playerName} using existing MOSSE on field to attack (${currentStars} stars)`);
+          return existingMosse; // Return existing card to use it
+        }
+      }
+    }
+    
+    // Second, try to use BONUS if character needs healing and we have BONUS on field
+    if (myCharacter && hasBonusOnField) {
+      const characterText = myCharacter.notes || myCharacter.text || '';
+      const ptiMatch = characterText.match(/PTI[:\s]*(\d+)/i);
+      const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100;
+      
+      if (currentPTI <= 300) {
+        // Find existing BONUS card on field to use
+        const existingBonus = myFieldCards.find((c: any) => c.type === 'bonus');
+        if (existingBonus) {
+          console.log(`CPU ${this.playerName} using existing BONUS on field to heal (PTI: ${currentPTI})`);
+          return existingBonus; // Return existing card to use it
+        }
+      }
+    }
+    
+    // Final fallback: play ANY card if we have space, even if it creates "duplicates"
+    // In MINKIARDS, cards get used and returned to deck, so duplicates are temporary
+    const anyCard = hand.find((c: any) => c.type === 'mosse' || c.type === 'bonus');
+    if (anyCard) {
+      console.log(`CPU ${this.playerName} playing ${anyCard.type} card (maintenance turn)`);
+      return anyCard;
+    }
+    
+    console.log(`CPU ${this.playerName} has no actionable cards this turn`);
     return null;
   }
 
