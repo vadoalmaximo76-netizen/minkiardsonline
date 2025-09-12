@@ -2258,6 +2258,33 @@ Rispondi SOLO in JSON:`;
     return nextPlayer;
   }
 
+  // Force end turn - bypasses all turn validation checks (for admin/universal turn control)
+  forceEndTurn(gameId: string): string | null {
+    const gameState = this.games.get(gameId);
+    if (!gameState || gameState.turnOrder.length === 0) return null;
+
+    const currentPlayerName = gameState.turnOrder[gameState.currentTurnIndex];
+    if (!currentPlayerName) return null;
+
+    console.log(`🔨 Force ending turn for ${currentPlayerName} (bypassing validation)`);
+
+    // Reset usedCardsThisTurn for the current player when their turn ends
+    if (gameState.players[currentPlayerName]) {
+      gameState.players[currentPlayerName].usedCardsThisTurn = [];
+    }
+
+    // Move to next player
+    gameState.currentTurnIndex = (gameState.currentTurnIndex + 1) % gameState.turnOrder.length;
+    const nextPlayer = gameState.turnOrder[gameState.currentTurnIndex];
+
+    // Initialize usedCardsThisTurn for the next player if not exists
+    if (gameState.players[nextPlayer] && !gameState.players[nextPlayer].usedCardsThisTurn) {
+      gameState.players[nextPlayer].usedCardsThisTurn = [];
+    }
+
+    return nextPlayer;
+  }
+
   leaveGame(gameId: string, playerName: string): boolean {
     const gameState = this.games.get(gameId);
     if (!gameState) return false;

@@ -2423,8 +2423,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         console.log(`Force ending turn for ${currentPlayerName} (requested by player)`);
 
-        // End the current player's turn
-        const nextPlayer = gameManager.endTurn(gameId, currentPlayerName);
+        // Force end the current player's turn (bypasses validation)
+        const nextPlayer = gameManager.forceEndTurn(gameId);
         
         if (nextPlayer) {
           // Broadcast turn change to all players
@@ -2441,6 +2441,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
             message: `Turn ended for ${currentPlayerName}`, 
             nextPlayer 
           });
+
+          // Process next player's turn if they are a CPU
+          if (nextPlayer?.startsWith('CPU-')) {
+            console.log(`Processing automated turn for CPU: ${nextPlayer}`);
+            setTimeout(async () => {
+              try {
+                const cpuAction = await gameManager.processCPUTurn(gameId, nextPlayer, io);
+                if (cpuAction) {
+                  console.log(`CPU ${nextPlayer} action:`, cpuAction.type);
+                  // Handle CPU action processing (simplified for now)
+                  switch (cpuAction.type) {
+                    case 'play-card':
+                      const playResult = await gameManager.playCard(gameId, cpuAction.data.cardId, cpuAction.data.playerName);
+                      const playGameState = gameManager.getSanitizedGameState(gameId);
+                      io.to(gameId).emit('game-state-update', playGameState);
+                      
+                      setTimeout(() => {
+                        const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
+                        if (nextAfterCPU) {
+                          io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                        }
+                      }, 1500);
+                      break;
+                      
+                    case 'mosse-attack':
+                      // Handle MOSSE attack for CPU
+                      console.log(`CPU ${nextPlayer} performing MOSSE attack`);
+                      setTimeout(() => {
+                        const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
+                        if (nextAfterCPU) {
+                          io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                        }
+                      }, 1500);
+                      break;
+                      
+                    default:
+                      // For other actions, just end turn after delay
+                      setTimeout(() => {
+                        const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
+                        if (nextAfterCPU) {
+                          io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                        }
+                      }, 1500);
+                  }
+                } else {
+                  // CPU had no valid actions, just end turn
+                  const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
+                  if (nextAfterCPU) {
+                    io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                  }
+                }
+              } catch (error) {
+                console.error(`Error processing CPU turn for ${nextPlayer}:`, error);
+                // If CPU fails, just end their turn
+                const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
+                if (nextAfterCPU) {
+                  io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                }
+              }
+            }, 3000); // 3 second delay to show "TOCCA A TE" message for CPU
+          }
         } else {
           socket.emit('force-end-turn-error', { message: 'Failed to end turn' });
         }
