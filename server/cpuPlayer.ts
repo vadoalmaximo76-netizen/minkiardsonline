@@ -1900,12 +1900,18 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       card.type === 'personaggi' || card.type === 'personaggi_speciali'
     );
 
-    // If CPU already has a personaggio in hand, don't draw another one
+    // If CPU already has a personaggio in hand, complete opening and start normal gameplay
     if (hasPersonaggioInHand) {
-      console.log(`CPU ${this.playerName} already has personaggio in hand, completing sequence`);
-      this.sendChatMessage("Ho già un personaggio in mano, sequenza completata!");
+      console.log(`CPU ${this.playerName} already has personaggio in hand, starting normal gameplay`);
+      this.sendChatMessage("Ho già le carte, ora gioco attivamente!");
       this.openingSequenceState.phase = 'completed';
-      return null;
+      
+      // CRITICAL FIX: Reset turn state and start normal turn logic
+      this.resetTurnState();
+      this.turnState.phase = 'draw_needed';
+      
+      // Start the normal turn logic immediately
+      return this.handleDrawPhase(cpuPlayer, gameState);
     }
 
     // Check if PERSONAGGI deck has cards and CPU can draw
