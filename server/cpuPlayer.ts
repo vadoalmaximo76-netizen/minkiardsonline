@@ -1344,15 +1344,20 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       return this.handleTurnEnd();
     }
 
-    // CRITICAL FIX: Draw replacement card first, then execute action
-    console.log(`CPU ${this.playerName} drawing replacement ${playedCardType} card after playing`);
+    // CRITICAL FIX: Execute action and handle potential attack return value
+    console.log(`CPU ${this.playerName} executing action for ${playedCardType} card`);
     
     const deckType = playedCardType === 'personaggi_speciali' ? 'personaggi' : playedCardType;
     
     // Execute based on card type
     switch (playedCardType) {
       case 'mosse':
-        this.executeMovesCardAndDrawReplacement(playedCardId, gameState, deckType);
+        // CRITICAL FIX: Handle attack action return value
+        const attackAction = this.executeMovesCardAndDrawReplacement(playedCardId, gameState, deckType);
+        if (attackAction) {
+          console.log(`CPU ${this.playerName} executing MOSSE attack action`);
+          return attackAction; // Return the attack action to be processed immediately
+        }
         break;
         
       case 'bonus':
@@ -1371,7 +1376,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         this.drawReplacementAndEndTurn(deckType);
     }
     
-    // After handling all cases, ensure we end the turn
+    // After handling all cases, ensure we end the turn (for non-attacking cards)
     this.markActionExecuted('execute');
     this.turnState.phase = 'turn_end';
     
@@ -1392,19 +1397,23 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
   }
 
   // CRITICAL FIX: Execute MOSSE card action and draw replacement
-  executeMovesCardAndDrawReplacement(cardId: string, gameState: any, deckType: string): void {
-    const enemies = gameState.field.filter((card: any) => 
-      card.owner !== this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali')
-    );
+  executeMovesCardAndDrawReplacement(cardId: string, gameState: any, deckType: string): any {
+    // First execute the attack using the existing logic
+    const attackAction = this.executeMovesCard(cardId, gameState);
     
-    if (enemies.length > 0) {
-      this.sendChatMessage(`Uso la carta MOSSE per attaccare!`);
+    if (attackAction) {
+      // Attack was performed, now schedule replacement draw after attack
+      setTimeout(() => {
+        this.drawReplacementAndEndTurn(deckType);
+      }, 2000); // Wait for attack to complete
+      
+      return attackAction; // Return the attack action to be executed
     } else {
+      // No attack possible, just draw replacement and end turn
       this.sendChatMessage(`Nessun nemico da attaccare, carta MOSSE attivata comunque.`);
+      this.drawReplacementAndEndTurn(deckType);
+      return null;
     }
-    
-    // Draw replacement card
-    this.drawReplacementAndEndTurn(deckType);
   }
 
   // CRITICAL FIX: Execute BONUS card action and draw replacement  
