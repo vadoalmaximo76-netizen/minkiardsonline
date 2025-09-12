@@ -2400,6 +2400,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If not confirmed, player continues playing and will get asked again next time
     });
 
+    // Allow any player to force end the current turn
+    socket.on('force-end-turn', ({ gameId }) => {
+      try {
+        const game = gameManager.getGameState(gameId);
+        if (!game) {
+          socket.emit('force-end-turn-error', { message: 'Game not found' });
+          return;
+        }
+
+        // Check if there's a valid turn order and current player
+        if (!game.turnOrder || game.turnOrder.length === 0) {
+          socket.emit('force-end-turn-error', { message: 'No turn order established' });
+          return;
+        }
+
+        const currentPlayerName = game.turnOrder[game.currentTurnIndex];
+        if (!currentPlayerName) {
+          socket.emit('force-end-turn-error', { message: 'No current player found' });
+          return;
+        }
+
+        console.log(`Force ending turn for ${currentPlayerName} (requested by player)`);
+
+        // End the current player's turn
+        const nextPlayer = gameManager.endTurn(gameId, currentPlayerName);
+        
+        if (nextPlayer) {
+          // Broadcast turn change to all players
+          io.to(gameId).emit('next-turn', { nextPlayer });
+          
+          // Update game state
+          const gameState = gameManager.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', gameState);
+
+          console.log(`Turn forcibly ended for ${currentPlayerName}, next player: ${nextPlayer}`);
+          
+          // Send success response
+          socket.emit('force-end-turn-success', { 
+            message: `Turn ended for ${currentPlayerName}`, 
+            nextPlayer 
+          });
+        } else {
+          socket.emit('force-end-turn-error', { message: 'Failed to end turn' });
+        }
+        
+      } catch (error) {
+        console.error('Error in force-end-turn:', error);
+        socket.emit('force-end-turn-error', { 
+          message: `Error ending turn: ${error instanceof Error ? error.message : 'Unknown error'}` 
+        });
+      }
+    });
+
     socket.on('disconnect', () => {
       console.log('Player disconnected:', socket.id);
       gameManager.removePlayer(socket.id);
