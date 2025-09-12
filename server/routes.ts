@@ -890,7 +890,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           // SECURITY: Verify that the socket belongs to the intended recipient
-          const recipientPlayer = game.players[request.toPlayer];
+          const recipientPlayer = game?.players[request.toPlayer];
           if (!recipientPlayer || recipientPlayer.socketId !== socket.id) {
             socket.emit('transfer-error', { message: 'Non autorizzato ad accettare questa richiesta' });
             return;
@@ -910,7 +910,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             io.to(gameId).emit('game-state-update', gameState);
             
             // Notify sender that transfer was accepted
-            const fromPlayerData = game.players[request.fromPlayer];
+            const fromPlayerData = game?.players[request.fromPlayer];
             if (fromPlayerData?.socketId) {
               io.to(fromPlayerData.socketId).emit('transfer-accepted', {
                 message: `${request.toPlayer} ha accettato il trasferimento`
@@ -940,7 +940,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           // SECURITY: Verify that the socket belongs to the intended recipient
-          const recipientPlayer = game.players[request.toPlayer];
+          const recipientPlayer = game?.players[request.toPlayer];
           if (!recipientPlayer || recipientPlayer.socketId !== socket.id) {
             socket.emit('transfer-error', { message: 'Non autorizzato a rifiutare questa richiesta' });
             return;
@@ -949,7 +949,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           gameManager.declineTransferRequest(gameId, requestId);
             
             // Notify sender that transfer was declined
-            const fromPlayerData = game.players[request.fromPlayer];
+            const fromPlayerData = game?.players[request.fromPlayer];
             if (fromPlayerData?.socketId) {
               io.to(fromPlayerData.socketId).emit('transfer-declined', {
                 message: `${request.toPlayer} ha rifiutato il trasferimento`
