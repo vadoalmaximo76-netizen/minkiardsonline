@@ -1888,7 +1888,21 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
 
   // Phase 3: Pick replacement PERSONAGGI card
   executePickReplacement(gameState: any): any {
-    // Check if PERSONAGGI deck has cards
+    // Check if CPU already has a PERSONAGGI card in hand
+    const cpuPlayer = gameState.players[this.playerName];
+    const hasPersonaggioInHand = cpuPlayer.hand?.some((card: any) => 
+      card.type === 'personaggi' || card.type === 'personaggi_speciali'
+    );
+
+    // If CPU already has a personaggio in hand, don't draw another one
+    if (hasPersonaggioInHand) {
+      console.log(`CPU ${this.playerName} already has personaggio in hand, completing sequence`);
+      this.sendChatMessage("Ho già un personaggio in mano, sequenza completata!");
+      this.openingSequenceState.phase = 'completed';
+      return null;
+    }
+
+    // Check if PERSONAGGI deck has cards and CPU can draw
     if (gameState.decks.personaggi && gameState.decks.personaggi.length > 0) {
       console.log(`CPU ${this.playerName} picking replacement character`);
       this.sendChatMessage("Pesco un nuovo personaggio e finisco il turno!");
@@ -2131,6 +2145,22 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     // Order: Attack with MOSSE
     if (lowerMessage.includes('attacca') || lowerMessage.includes('usa') && (lowerMessage.includes('mosse') || lowerMessage.includes('mossa'))) {
       this.executeAttack(senderName);
+      return true;
+    }
+    
+    // Order: End turn
+    if (lowerMessage.includes('fine turno') || lowerMessage.includes('finisci il turno') || lowerMessage.includes('passa il turno')) {
+      console.log(`CPU ${this.playerName} received end turn command from ${senderName}`);
+      this.sendChatMessage(`D'accordo ${senderName}, finisco il mio turno!`);
+      
+      // Reset turn state and force turn end
+      this.resetTurnState();
+      this.pendingOrder = {
+        type: 'end-turn',
+        senderName: senderName,
+        message: `${this.playerName} termina il turno su richiesta di ${senderName}`
+      };
+      
       return true;
     }
     
