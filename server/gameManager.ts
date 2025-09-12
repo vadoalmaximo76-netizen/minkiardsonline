@@ -1737,6 +1737,15 @@ Rispondi SOLO in JSON:`;
       }
       
       const action = await cpuPlayer.cpuInstance.takeTurn(game);
+      
+      // CRITICAL FIX: If CPU is in execute_action phase and returns an action,
+      // mark the execution as completed after returning the action
+      if (action && cpuPlayer.cpuInstance.turnState?.phase === 'execute_action') {
+        console.log(`CPU ${cpuPlayerName} returning ${action.type} action and marking execution complete`);
+        cpuPlayer.cpuInstance.markActionExecuted('execute');
+        cpuPlayer.cpuInstance.turnState.phase = 'turn_end';
+      }
+      
       return action;
     } catch (error) {
       console.error(`Error processing CPU turn for ${cpuPlayerName}:`, error);

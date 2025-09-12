@@ -60,13 +60,15 @@ export class CPUPlayer {
   } = { phase: 'pick-initial', pickedCards: [] };
   
   // NEW: Turn state machine for new CPU behavior
-  private turnState: {
+  public turnState: {
     phase: 'draw_needed' | 'play_card' | 'execute_action' | 'turn_end';
     drawnThisTurn: boolean;
     playedThisTurn: boolean;
     executedThisTurn: boolean;
     playedCardId?: string;
     playedCardType?: string;
+    needsReplacementDraw?: boolean;
+    replacementDeckType?: string;
   } = { 
     phase: 'draw_needed', 
     drawnThisTurn: false, 
@@ -1402,14 +1404,16 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     const attackAction = this.executeMovesCard(cardId, gameState);
     
     if (attackAction) {
-      // Attack was performed, now schedule replacement draw after attack
-      setTimeout(() => {
-        this.drawReplacementAndEndTurn(deckType);
-      }, 2000); // Wait for attack to complete
+      // Attack will be performed, signal that replacement draw is needed
+      this.sendChatMessage(`Uso la carta MOSSE per attaccare! Poi pescherò una carta di ricambio.`);
+      
+      // Mark that we need to draw replacement after attack
+      this.turnState.needsReplacementDraw = true;
+      this.turnState.replacementDeckType = deckType;
       
       return attackAction; // Return the attack action to be executed
     } else {
-      // No attack possible, just draw replacement and end turn
+      // No attack possible, just draw replacement and end turn immediately
       this.sendChatMessage(`Nessun nemico da attaccare, carta MOSSE attivata comunque.`);
       this.drawReplacementAndEndTurn(deckType);
       return null;
