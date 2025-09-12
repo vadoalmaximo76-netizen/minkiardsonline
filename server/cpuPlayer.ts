@@ -1558,63 +1558,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     this.turnState.phase = 'turn_end';
   }
 
-  // Execute MOSSE card automatically
-  executeMovesCard(cardId: string, gameState: any): any {
-    const enemies = gameState.field.filter((card: any) => 
-      card.owner !== this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali')
-    );
-    
-    if (enemies.length > 0) {
-      const target = enemies[0];
-      
-      // Extract character name from image URL or notes
-      let targetName = 'il personaggio nemico';
-      if (target.notes) {
-        targetName = target.notes;
-      } else if (target.frontImage) {
-        // Extract name from URL like "https://i.postimg.cc/xyz/chuck-norris.png"
-        const imageUrl = target.frontImage;
-        const matches = imageUrl.match(/([^\/]+)\.(png|jpg|jpeg)$/i);
-        if (matches) {
-          const fileName = matches[1];
-          // Convert "chuck-norris" to "Chuck Norris"  
-          targetName = fileName.split('-').map((word: string) => 
-            word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-          ).join(' ');
-        }
-      }
-      
-      this.sendChatMessage(`Uso la carta MOSSE per attaccare ${targetName}!`);
-      this.markActionExecuted('execute');
-      this.turnState.phase = 'turn_end';
-      
-      console.log(`CPU ${this.playerName} executing MOSSE attack: targeting ${target.id} (${targetName}) owned by ${target.owner}`);
-      
-      return {
-        type: 'mosse-attack',
-        data: {
-          mosseCardId: cardId,
-          targetCardId: target.id,
-          playerName: this.playerName,
-          attackerName: this.playerName,
-          targetOwner: target.owner
-        }
-      };
-    } else {
-      this.sendChatMessage(`Nessun nemico da attaccare, carta MOSSE attivata comunque.`);
-      this.markActionExecuted('execute');
-      this.turnState.phase = 'turn_end';
-      return this.handleTurnEnd();
-    }
-  }
 
-  // Execute BONUS card (usually healing or effects)
-  executeBonusCard(cardId: string, gameState: any): any {
-    this.sendChatMessage(`Carta BONUS attivata!`);
-    this.markActionExecuted('execute');
-    this.turnState.phase = 'turn_end';
-    return this.handleTurnEnd();
-  }
   
   // Select which card to play based on strategic priorities
   selectCardToPlay(cpuPlayer: any, gameState: any): any {
