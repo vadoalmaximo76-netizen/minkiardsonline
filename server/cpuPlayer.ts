@@ -1263,7 +1263,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           return this.handlePlayPhase(cpuPlayer, gameState);
           
         case 'execute_action':
-          return this.handleExecutePhase(cpuPlayer, gameState);
+          return await this.handleExecutePhase(cpuPlayer, gameState);
           
         case 'turn_end':
           if (this.canEndTurn()) {
@@ -1335,7 +1335,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
   }
 
   // Handle the execute phase: execute the action of the played card
-  handleExecutePhase(cpuPlayer: any, gameState: any): any {
+  async handleExecutePhase(cpuPlayer: any, gameState: any): Promise<any> {
     const playedCardType = this.turnState.playedCardType;
     const playedCardId = this.turnState.playedCardId;
     
@@ -1355,7 +1355,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     switch (playedCardType) {
       case 'mosse':
         // CRITICAL FIX: Handle attack action return value
-        const attackAction = this.executeMovesCardAndDrawReplacement(playedCardId, gameState, deckType);
+        const attackAction = await this.executeMovesCardAndDrawReplacement(playedCardId, gameState, deckType);
         if (attackAction) {
           console.log(`CPU ${this.playerName} executing MOSSE attack action`);
           return attackAction; // Return the attack action to be processed immediately
@@ -1363,19 +1363,19 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         break;
         
       case 'bonus':
-        this.executeBonusCardAndDrawReplacement(playedCardId, gameState, deckType);
+        await this.executeBonusCardAndDrawReplacement(playedCardId, gameState, deckType);
         break;
         
       case 'personaggi':
       case 'personaggi_speciali':
         // Character cards are automatically analyzed when played
         this.sendChatMessage(`Personaggio attivato e analizzato!`);
-        this.drawReplacementAndEndTurn(deckType);
+        await this.drawReplacementAndEndTurn(deckType);
         break;
         
       default:
         this.sendChatMessage(`Carta ${playedCardType} attivata!`);
-        this.drawReplacementAndEndTurn(deckType);
+        await this.drawReplacementAndEndTurn(deckType);
     }
     
     // After handling all cases, ensure we end the turn (for non-attacking cards)
@@ -1399,7 +1399,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
   }
 
   // CRITICAL FIX: Execute MOSSE card action and draw replacement
-  executeMovesCardAndDrawReplacement(cardId: string, gameState: any, deckType: string): any {
+  async executeMovesCardAndDrawReplacement(cardId: string, gameState: any, deckType: string): Promise<any> {
     // First execute the attack using the existing logic
     const attackAction = this.executeMovesCard(cardId, gameState);
     
@@ -1415,32 +1415,49 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     } else {
       // No attack possible, just draw replacement and end turn immediately
       this.sendChatMessage(`Nessun nemico da attaccare, carta MOSSE attivata comunque.`);
-      this.drawReplacementAndEndTurn(deckType);
+      await this.drawReplacementAndEndTurn(deckType);
       return null;
     }
   }
 
   // CRITICAL FIX: Execute BONUS card action and draw replacement  
-  executeBonusCardAndDrawReplacement(cardId: string, gameState: any, deckType: string): void {
+  async executeBonusCardAndDrawReplacement(cardId: string, gameState: any, deckType: string): Promise<void> {
     this.sendChatMessage(`Carta BONUS attivata!`);
     
     // Draw replacement card
-    this.drawReplacementAndEndTurn(deckType);
+    await this.drawReplacementAndEndTurn(deckType);
   }
 
-  // CRITICAL FIX: Draw replacement card and signal game manager
-  drawReplacementAndEndTurn(deckType: string): void {
+  // CRITICAL FIX: Draw replacement card via gameManager
+  async drawReplacementAndEndTurn(deckType: string): Promise<void> {
     console.log(`CPU ${this.playerName} drawing replacement ${deckType} card to maintain hand composition`);
     
-    // Signal to game manager to draw replacement card for CPU
-    if (this.socketEmitter) {
-      this.socketEmitter('cpu-draw-replacement', {
-        playerName: this.playerName,
-        deckType: deckType
-      });
+    this.sendChatMessage(`Pesco una carta di ricambio e termino il turno!`);
+    
+    // Import GameManager to pick card directly
+    const { GameManager } = await import('./gameManager');
+    const gameManager = GameManager.getInstance();
+    
+    // Pick replacement card directly through gameManager
+    try {
+      const pickResult = await gameManager.pickCard(this.gameId, deckType, this.playerName);
+      if (pickResult) {
+        console.log(`CPU ${this.playerName} successfully drew replacement ${deckType} card`);
+        
+        // Notify all players about the updated game state
+        if (this.socketEmitter) {
+          const gameState = gameManager.getSanitizedGameState(this.gameId);
+          this.socketEmitter.to(this.gameId).emit('game-state-update', gameState);
+        }
+      } else {
+        console.log(`CPU ${this.playerName} failed to draw replacement ${deckType} card`);
+      }
+    } catch (error) {
+      console.error(`Error drawing replacement card for CPU ${this.playerName}:`, error);
     }
     
-    this.sendChatMessage(`Pesco una carta di ricambio e termino il turno!`);
+    // Mark turn as ready to end
+    this.turnState.phase = 'turn_end';
   }
 
   // Execute MOSSE card automatically
