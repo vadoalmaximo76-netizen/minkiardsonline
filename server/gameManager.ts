@@ -39,6 +39,17 @@ interface TransferRequest {
   message: string;
 }
 
+interface PendingDefense {
+  attackId: string;
+  attacker: string;
+  defender: string;
+  damage: number;
+  cardId: string;
+  deckType: string;
+  createdAt: Date;
+  timeoutId?: NodeJS.Timeout;
+}
+
 interface GameState {
   decks: {
     personaggi: Card[];
@@ -60,6 +71,7 @@ interface GameState {
   eliminatedPlayers: Set<string>; // Players eliminated from the game
   gameEnded: boolean; // Prevent multiple victory notifications
   pendingTransferRequests: TransferRequest[]; // Pending card transfer requests between human players
+  pendingDefense?: PendingDefense; // Current pending defense request (only one at a time)
 }
 
 export class GameManager {
@@ -3106,6 +3118,46 @@ Rispondi SOLO in JSON:`;
     game.eliminatedPlayers.add(playerName);
     console.log(`Player ${playerName} marked as eliminated`);
     return true;
+  }
+
+  // DEFENSE SYSTEM: Helper methods for managing pending defense requests
+  getPlayerSocketId(gameId: string, playerName: string): string | null {
+    const game = this.games.get(gameId);
+    if (!game || !game.players[playerName]) return null;
+    return game.players[playerName].socketId;
+  }
+
+  setPendingDefense(gameId: string, defense: Omit<PendingDefense, 'createdAt'>): boolean {
+    const game = this.games.get(gameId);
+    if (!game) return false;
+
+    // Clear any existing pending defense first (only one at a time)
+    this.clearPendingDefense(gameId);
+
+    game.pendingDefense = {
+      ...defense,
+      createdAt: new Date()
+    };
+    
+    console.log(`Defense request created: ${defense.attacker} → ${defense.defender} (${defense.damage} damage)`);
+    return true;
+  }
+
+  clearPendingDefense(gameId: string): void {
+    const game = this.games.get(gameId);
+    if (!game) return;
+
+    if (game.pendingDefense?.timeoutId) {
+      clearTimeout(game.pendingDefense.timeoutId);
+    }
+    
+    game.pendingDefense = undefined;
+    console.log(`Defense request cleared for game ${gameId}`);
+  }
+
+  getPendingDefense(gameId: string): PendingDefense | undefined {
+    const game = this.games.get(gameId);
+    return game?.pendingDefense;
   }
 
   checkForGameVictory(gameId: string): string | null {

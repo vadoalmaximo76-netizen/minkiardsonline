@@ -22,6 +22,16 @@ interface Player {
   hand: Card[];
 }
 
+interface PendingDefense {
+  attackId: string;
+  attacker: string;
+  defender: string;
+  damage: number;
+  cardId: string;
+  deckType: string;
+  createdAt: string; // Date as string for JSON serialization
+}
+
 interface GameState {
   decks: {
     personaggi: Card[];
@@ -35,6 +45,7 @@ interface GameState {
   scenarioCardsActive: boolean;
   turnOrder: string[];
   currentTurnIndex: number;
+  pendingDefense?: PendingDefense; // Current pending defense request
 }
 
 interface GameStateStore {
