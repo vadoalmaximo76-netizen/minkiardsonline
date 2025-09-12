@@ -127,13 +127,18 @@ export class CPUPlayer {
   }
 
   // NEW: Deterministic target selection for MOSSE attacks
-  pickEnemyTarget(gameId: string): { cardId: string; owner: string; name: string } | null {
-    const gameState = GameManager.getInstance().getGameState(gameId);
+  pickEnemyTarget(): { cardId: string; owner: string; name: string } | null {
+    // Use existing gameManager property and this.gameId
+    if (!this.gameManager) {
+      console.error(`CPU ${this.playerName}: No gameManager instance available for target selection`);
+      return null;
+    }
+    const gameState = this.gameManager.getGameState(this.gameId);
     if (!gameState) return null;
 
     // Find all enemy characters on field
     const enemies = gameState.field.filter((card: any) => 
-      card.type === 'personaggi' && 
+      (card.type === 'personaggi' || card.type === 'personaggi_speciali') && 
       card.owner !== this.playerName && 
       !card.eliminatedBy && 
       !card.faceDown
@@ -652,7 +657,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
   }
 
   // Reference to game manager for checking used cards
-  private gameManager: any = null;
+  private gameManager?: any;
   
   setGameManager(gameManager: any) {
     this.gameManager = gameManager;
@@ -1461,26 +1466,54 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     }
   }
 
-  // CRITICAL FIX: Execute MOSSE card action and draw replacement
+  // NEW: Execute MOSSE card with authoritative server-side attack
   async executeMovesCardAndDrawReplacement(cardId: string, gameState: any, deckType: string): Promise<any> {
-    // First execute the attack using the existing logic
-    const attackAction = this.executeMovesCard(cardId, gameState);
-    
-    if (attackAction) {
-      // Attack will be performed, signal that replacement draw is needed
-      this.sendChatMessage(`Uso la carta MOSSE per attaccare! Poi pescherò una carta di ricambio.`);
-      
-      // Mark that we need to draw replacement after attack
-      this.turnState.needsReplacementDraw = true;
-      this.turnState.replacementDeckType = deckType;
-      
-      return attackAction; // Return the attack action to be executed
-    } else {
-      // No attack possible, just draw replacement and end turn immediately
+    // Validate gameManager availability
+    if (!this.gameManager) {
+      console.error(`CPU ${this.playerName}: No gameManager for MOSSE attack execution`);
+      this.sendChatMessage(`Errore interno: impossibile eseguire attacco.`);
+      this.markActionExecuted('execute');
+      return null;
+    }
+
+    // Set replacement draw flags
+    this.turnState.needsReplacementDraw = true;
+    this.turnState.replacementDeckType = deckType === 'personaggi_speciali' ? 'personaggi' : deckType;
+
+    // Use deterministic target selection
+    const target = this.pickEnemyTarget();
+    if (!target) {
+      console.log(`CPU ${this.playerName}: No valid targets for MOSSE attack`);
       this.sendChatMessage(`Nessun nemico da attaccare, carta MOSSE attivata comunque.`);
+      this.markActionExecuted('execute');
       await this.drawReplacementAndEndTurn(deckType);
       return null;
     }
+
+    // Execute authoritative server-side attack
+    console.log(`CPU ${this.playerName}: Executing MOSSE attack against ${target.name} (${target.cardId})`);
+    this.sendChatMessage(`Uso la carta MOSSE per attaccare ${target.name}!`);
+    
+    const attackResult = await this.gameManager.executeMossaAttack(
+      this.gameId,
+      this.playerName,
+      cardId,
+      target.cardId
+    );
+
+    if (attackResult.success) {
+      console.log(`CPU ${this.playerName}: MOSSE attack successful - ${target.name} eliminated`);
+      this.sendChatMessage(`Attacco riuscito! ${target.name} è stato eliminato!`);
+    } else {
+      console.error(`CPU ${this.playerName}: MOSSE attack failed - ${attackResult.error}`);
+      this.sendChatMessage(`Attacco fallito: ${attackResult.error}`);
+    }
+
+    // Mark action executed and handle replacement draw
+    this.markActionExecuted('execute');
+    await this.drawReplacementAndEndTurn(deckType);
+    
+    return null; // Let existing end-turn flow handle the rest
   }
 
   // CRITICAL FIX: Execute BONUS card action and draw replacement  
@@ -1491,24 +1524,27 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     await this.drawReplacementAndEndTurn(deckType);
   }
 
-  // CRITICAL FIX: Draw replacement card via gameManager
+  // CRITICAL FIX: Draw replacement card via existing gameManager
   async drawReplacementAndEndTurn(deckType: string): Promise<void> {
     console.log(`CPU ${this.playerName} drawing replacement ${deckType} card to maintain hand composition`);
     
     this.sendChatMessage(`Pesco una carta di ricambio e termino il turno!`);
     
-    // Create gameManager instance to pick card directly
-    const gameManager = new GameManager();
+    // Use existing gameManager instance (not new one)
+    if (!this.gameManager) {
+      console.error(`CPU ${this.playerName}: No gameManager for replacement draw`);
+      return;
+    }
     
-    // Pick replacement card directly through gameManager
+    // Pick replacement card directly through existing gameManager
     try {
-      const pickResult = await gameManager.pickCard(this.gameId, deckType, this.playerName);
+      const pickResult = await this.gameManager.pickCard(this.gameId, deckType as 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali', this.playerName);
       if (pickResult) {
         console.log(`CPU ${this.playerName} successfully drew replacement ${deckType} card`);
         
         // Notify all players about the updated game state
         if (this.socketEmitter) {
-          const gameState = gameManager.getSanitizedGameState(this.gameId);
+          const gameState = this.gameManager.getSanitizedGameState(this.gameId);
           this.socketEmitter.to(this.gameId).emit('game-state-update', gameState);
         }
       } else {

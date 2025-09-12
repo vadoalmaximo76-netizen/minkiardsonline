@@ -1036,6 +1036,81 @@ Rispondi SOLO in JSON:`;
     return {};
   }
 
+  // NEW: Authoritative MOSSE attack execution
+  async executeMossaAttack(gameId: string, attackerName: string, mosseCardId: string, targetCardId: string): Promise<{ success: boolean; result?: any; error?: string }> {
+    const game = this.games.get(gameId);
+    if (!game) {
+      return { success: false, error: 'Game not found' };
+    }
+
+    // Validate it's attacker's turn
+    const currentPlayer = this.getCurrentPlayer(gameId);
+    if (currentPlayer !== attackerName) {
+      return { success: false, error: `Not ${attackerName}'s turn (current: ${currentPlayer})` };
+    }
+
+    // Validate attacker exists
+    const attacker = game.players[attackerName];
+    if (!attacker) {
+      return { success: false, error: 'Attacker not found' };
+    }
+
+    // Find MOSSE card on field (should be played first)
+    const mosseCard = game.field.find(c => c.id === mosseCardId && c.owner === attackerName && c.type === 'mosse');
+    if (!mosseCard) {
+      return { success: false, error: 'MOSSE card not found on field or not owned by attacker' };
+    }
+
+    // Find target card
+    const targetCard = game.field.find(c => c.id === targetCardId);
+    if (!targetCard || (targetCard.type !== 'personaggi' && targetCard.type !== 'personaggi_speciali') || targetCard.owner === attackerName) {
+      return { success: false, error: 'Invalid target: must be enemy character on field' };
+    }
+
+    console.log(`Executing MOSSE attack: ${attackerName} uses ${mosseCardId} to attack ${targetCard.owner}'s ${targetCardId}`);
+    
+    // Execute attack: MOSSE eliminates target
+    const fieldIndex = game.field.findIndex(c => c.id === targetCardId);
+    if (fieldIndex !== -1) {
+      const eliminatedCard = game.field.splice(fieldIndex, 1)[0];
+      eliminatedCard.eliminatedBy = mosseCardId;
+      game.graveyard.push(eliminatedCard);
+    }
+
+    // Move MOSSE card to graveyard (consumed by attack)
+    const mosseFieldIndex = game.field.findIndex(c => c.id === mosseCardId);
+    if (mosseFieldIndex !== -1) {
+      const usedMosse = game.field.splice(mosseFieldIndex, 1)[0];
+      game.graveyard.push(usedMosse);
+    }
+
+    // Track card usage to prevent reuse
+    if (!attacker.usedCardsThisTurn) {
+      attacker.usedCardsThisTurn = [];
+    }
+    attacker.usedCardsThisTurn.push(mosseCard.frontImage);
+
+    // Record attack event
+    await this.recordEvent(gameId, 'mosse-attack', {
+      attackerName,
+      mosseCardId,
+      targetCardId,
+      targetOwner: targetCard.owner,
+      outcome: 'eliminated'
+    }, attackerName);
+
+    console.log(`MOSSE attack completed: ${targetCard.owner}'s ${targetCardId} eliminated by ${attackerName}`);
+
+    return { 
+      success: true, 
+      result: {
+        targetEliminated: targetCardId,
+        targetOwner: targetCard.owner,
+        mosseCardUsed: mosseCardId
+      }
+    };
+  }
+
   async playCardFaceDown(gameId: string, cardId: string, playerName: string): Promise<{ card?: any }> {
     const game = this.games.get(gameId);
     if (!game || !game.players[playerName]) return {};
