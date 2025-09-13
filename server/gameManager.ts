@@ -151,6 +151,12 @@ export class GameManager {
 
     game.players[playerName] = player;
 
+    // Add player to turn order if not already present
+    if (!game.turnOrder.includes(playerName)) {
+      game.turnOrder.push(playerName);
+      console.log(`Player ${playerName} added to turn order. Current turn order:`, game.turnOrder);
+    }
+
     this.playerToGame.set(socketId, gameId);
     
     // Record player join event
