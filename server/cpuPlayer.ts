@@ -55,6 +55,7 @@ export class CPUPlayer {
   private conversationHistory: Array<{type: 'question' | 'answer', content: string, timestamp: number}> = [];
   private socketEmitter: any;
   private lastAdvice: any = null;
+  public lastAttackRequiresDefense: boolean = false; // Flag for defense:request emission
   private openingSequenceState: {
     phase: 'pick-initial' | 'play-character' | 'pick-replacement' | 'completed';
     pickedCards: string[];
@@ -1597,11 +1598,11 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     if (attackResult.success) {
       console.log(`CPU ${this.playerName}: MOSSE attack initiated successfully - awaiting manual damage input`);
       
-      // CRITICAL: Store attack result for potential defense:request emission by routes.ts
+      // CRITICAL: Flag that defense:request needs to be emitted
       if (attackResult.result && attackResult.result.requiresDefenseResponse) {
-        console.log(`🛡️ CPU ${this.playerName}: Attack requires defense response - will be handled by routes.ts`);
-        // The defense:request emission will be handled by the calling code in routes.ts
-        // which has access to Socket.IO instance
+        console.log(`🛡️ CPU ${this.playerName}: Attack requires defense response - will be emitted by routes.ts`);
+        // Store the flag for routes.ts to pick up
+        this.lastAttackRequiresDefense = true;
       }
     } else {
       console.error(`CPU ${this.playerName}: MOSSE attack failed - ${attackResult.error}`);

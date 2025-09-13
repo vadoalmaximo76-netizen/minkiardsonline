@@ -2543,33 +2543,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       break;
                       
                     case 'mosse-attack':
-                      // Handle MOSSE attack for CPU - Execute the actual attack
-                      console.log(`CPU ${nextPlayer} performing MOSSE attack`);
+                      // Handle MOSSE attack for CPU - Execute using new defense system
+                      console.log(`CPU ${nextPlayer} performing MOSSE attack with defense system`);
                       
-                      // Get target card to extract name
-                      const gameState = gameManager.getSanitizedGameState(gameId);
-                      const targetCard = gameState.field.find((card: any) => card.id === cpuAction.data.targetCardId);
+                      // Use the new executeMossaAttack method that supports defense system
+                      const attackResult = await gameManager.executeMossaAttack(
+                        gameId,
+                        cpuAction.data.playerName,
+                        cpuAction.data.mosseCardId,
+                        cpuAction.data.targetCardId
+                      );
                       
-                      // Extract target card name from image URL (like client getCardName function)
-                      let targetCardName = 'CARD';
-                      if (targetCard && targetCard.frontImage) {
-                        try {
-                          const url = new URL(targetCard.frontImage);
-                          const pathname = url.pathname;
-                          const filename = pathname.split('/').pop() || '';
-                          // Remove file extension, replace hyphens with spaces, and convert to uppercase
-                          targetCardName = filename.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase();
-                        } catch {
-                          targetCardName = 'CARD';
+                      if (attackResult.success) {
+                        // CRITICAL: Emit defense:request if required
+                        if (attackResult.result && attackResult.result.requiresDefenseResponse) {
+                          console.log(`🛡️ Emitting defense:request for CPU attack`);
+                          gameManager.emitDefenseRequest(gameId, io);
                         }
+                        
+                        // Legacy card-attacked event for UI compatibility
+                        const gameState = gameManager.getSanitizedGameState(gameId);
+                        const targetCard = gameState.field.find((card: any) => card.id === cpuAction.data.targetCardId);
+                        
+                        let targetCardName = 'CARD';
+                        if (targetCard && targetCard.frontImage) {
+                          try {
+                            const url = new URL(targetCard.frontImage);
+                            const pathname = url.pathname;
+                            const filename = pathname.split('/').pop() || '';
+                            targetCardName = filename.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase();
+                          } catch {
+                            targetCardName = 'CARD';
+                          }
+                        }
+                        
+                        io.to(gameId).emit('card-attacked', {
+                          targetCardName: targetCardName,
+                          fromPlayer: cpuAction.data.playerName,
+                          toPlayer: cpuAction.data.targetOwner
+                        });
+                      } else {
+                        console.error(`CPU ${nextPlayer} MOSSE attack failed: ${attackResult.error}`);
                       }
-                      
-                      // Execute the attack using the card - send data in format client expects
-                      io.to(gameId).emit('card-attacked', {
-                        targetCardName: targetCardName,
-                        fromPlayer: cpuAction.data.playerName,
-                        toPlayer: cpuAction.data.targetOwner
-                      });
                       
                       // MANUAL RETURN: CPU must manually return MOSSE cards like humans
                       setTimeout(async () => {
