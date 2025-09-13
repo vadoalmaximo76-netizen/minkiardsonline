@@ -12,6 +12,7 @@ interface DefenseRequest {
   defenderName: string;
   mosseCardId: string;
   targetCardId: string;
+  damageValue: number;
   message: string;
 }
 
@@ -24,12 +25,17 @@ export const DefenseDialog: React.FC = () => {
   // Listen for defense requests
   useEffect(() => {
     const handleDefenseRequest = (request: DefenseRequest) => {
-      console.log('🛡️ Defense request received:', request);
+      console.log('🛡️ DEFENSE REQUEST RECEIVED:', request);
+      console.log('🛡️ Current playerName:', playerName);
+      console.log('🛡️ Request defenderName:', request.defenderName);
       // Only show dialog if this player is the defender
       if (request.defenderName === playerName) {
+        console.log('🛡️ SHOWING DEFENSE DIALOG!');
         setDefenseRequest(request);
         setTimeLeft(30); // Reset timer
         setIsProcessing(false);
+      } else {
+        console.log('🛡️ Defense request not for this player, ignoring');
       }
     };
 

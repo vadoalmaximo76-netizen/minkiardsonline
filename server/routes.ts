@@ -1491,10 +1491,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('mosse-attack', ({ mosseCardId, targetCardId, attackerName, targetOwner, damageValue }) => {
+    socket.on('mosse-attack', async ({ mosseCardId, targetCardId, attackerName, targetOwner, damageValue }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
-        // Get the card to check its frontImage
+        console.log(`🗡️  DEFENSE-ENABLED MOSSE ATTACK: ${attackerName} → ${targetOwner} (damage: ${damageValue})`);
+        
+        // Get the card to check its frontImage for CPU restrictions
         const gameState = gameManager.getSanitizedGameState(gameId);
         const mosseCard = gameState?.field?.find((c: any) => c.id === mosseCardId);
         
@@ -1503,7 +1505,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return;
         }
 
-        // USE MANUAL DAMAGE INPUT FROM USER
+        // Validate damage input (preserve legacy validation)
         if (!damageValue || damageValue <= 0) {
           console.log(`Invalid damage value: ${damageValue}. Attack cancelled.`);
           socket.emit('attack-error', { 
@@ -1512,14 +1514,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return;
         }
         
-        console.log(`Manual damage input: ${attackerName} attacks with ${damageValue} damage`);
-        
-        // Check if player is CPU - only CPU players have reuse restrictions
-        const gameStateForCPUCheck = gameManager.getSanitizedGameState(gameId);
-        const playerData = gameStateForCPUCheck?.players?.[attackerName];
+        // PRESERVE: CPU reuse restrictions (exactly as before)
+        const playerData = gameState?.players?.[attackerName];
         const isCPUPlayer = playerData?.isCPU || attackerName.startsWith('CPU-');
         
-        // Only block reuse for CPU players
         if (isCPUPlayer && gameManager.hasCardTypeBeenUsed(gameId, mosseCard.frontImage, attackerName)) {
           console.log(`${attackerName} attempted to reuse MOSSE card type ${mosseCard.frontImage} - attack blocked (CPU restriction)`);
           socket.emit('attack-blocked', { 
@@ -1529,12 +1527,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return;
         }
         
-        // Mark this type of MOSSE card as used this turn (only for CPU players)
+        // PRESERVE: Mark card type as used for CPU players
         if (isCPUPlayer) {
           gameManager.markCardTypeAsUsed(gameId, mosseCard.frontImage, attackerName);
         }
         
-        // Broadcast the attack to all players so they can see the shaking animation
+        // NEW: Execute defense-enabled MOSSE attack (unified emission)
+        const attackResult = await gameManager.executeMossaAttack(
+          gameId, 
+          attackerName, 
+          mosseCardId, 
+          targetCardId,
+          damageValue
+        );
+
+        if (!attackResult.success) {
+          console.log(`Attack failed: ${attackResult.error}`);
+          socket.emit('attack-error', { message: attackResult.error });
+          return;
+        }
+
+        // PRESERVE: Broadcast attack animation to all players
         io.to(gameId).emit('card-attacked', {
           mosseCardId,
           targetCardId,
@@ -1544,186 +1557,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
           timestamp: Date.now()
         });
 
-        // Manual damage input with automatic PTI subtraction and elimination
-        if (damageValue && targetCardId) {
-          const targetCard = gameState?.field?.find((c: any) => c.id === targetCardId);
-          if (targetCard && targetCard.type === 'personaggi') {
-            // Extract current PTI from card notes
-            const currentNotes = targetCard.text || '';
-            const ptiMatch = currentNotes.match(/PTI:\s*(\d+)/i);
-            let currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 0;
-
-            // Calculate new PTI after damage (damage is manually input)
-            const newPTI = Math.max(0, currentPTI - damageValue);
-
-            // Update card notes with new PTI
-            let updatedNotes = currentNotes;
-            if (ptiMatch) {
-              // Replace existing PTI value
-              updatedNotes = currentNotes.replace(/PTI:\s*\d+/i, `PTI: ${newPTI}`);
-            } else {
-              // Add PTI if not present
-              updatedNotes = currentNotes ? `${currentNotes}\nPTI: ${newPTI}` : `PTI: ${newPTI}`;
-            }
-
-            // Update the card in the game state
-            gameManager.updateCardText(gameId, targetCardId, updatedNotes);
-            
-            console.log(`${targetCard.owner}'s ${targetCard.frontImage} took ${damageValue} damage: ${currentPTI} → ${newPTI} PTI`);
-            
-            // CRITICAL: Mark action as completed for CPU turn flow
-            if (attackerName.startsWith('CPU-')) {
-              console.log(`MOSSE action completed for CPU ${attackerName}`);
-              // Note: Turn state management handled by CPU internally
-            }
-            
-            // Broadcast the damage result
-            io.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-damage`,
-              playerName: 'Sistema',
-              message: `⚔️ ${attackerName} attacca ${targetCard.owner}! Danno: ${damageValue} | PTI: ${currentPTI} → ${newPTI}`,
-              timestamp: Date.now()
-            });
-
-            // Check if character dies (PTI <= 0)
-            if (newPTI <= 0) {
-              setTimeout(() => {
-                // NUOVO: ASSORBIMENTO PTI - Il personaggio attaccante assorbe i PTI del personaggio eliminato
-                // Trova il personaggio del giocatore attaccante che ha più PTI (probabilmente quello che ha attaccato)
-                const attackerCharacters = gameState?.field?.filter((c: any) => 
-                  c.owner === attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
-                ) || [];
-                
-                // Seleziona il personaggio con più PTI come ricevente dell'assorbimento
-                let attackerCharacter = null;
-                if (attackerCharacters.length > 0) {
-                  attackerCharacter = attackerCharacters.reduce((best: any, current: any) => {
-                    const bestPti = (best.text || '').match(/PTI:\s*(\d+)/i)?.[1] || 0;
-                    const currentPti = (current.text || '').match(/PTI:\s*(\d+)/i)?.[1] || 0;
-                    return parseInt(currentPti) > parseInt(bestPti) ? current : best;
-                  });
-                }
-                
-                // HARDENED PTI ABSORPTION: Solo se il personaggio è effettivamente eliminato (PTI ≤ 0)
-                if (attackerCharacter && currentPTI > 0 && newPTI <= 0) {
-                  // Estrai PTI corrente dell'attaccante
-                  const attackerNotes = attackerCharacter.text || '';
-                  const attackerPtiMatch = attackerNotes.match(/PTI:\s*(\d+)/i);
-                  let attackerCurrentPTI = attackerPtiMatch ? parseInt(attackerPtiMatch[1]) : 100;
-                  
-                  // NUOVO: Aggiungi sempre +100 PTI fissi per ogni eliminazione MOSSE (non più i PTI della vittima)
-                  const absorbedPTI = 100;
-                  const newAttackerPTI = Math.min(9999, attackerCurrentPTI + absorbedPTI); // Cap massimo per evitare overflow
-                  
-                  // Validazione: evita assorbimento se dati non validi
-                  if (absorbedPTI > 0 && newAttackerPTI > attackerCurrentPTI) {
-                    // Aggiorna le note dell'attaccante
-                    let updatedAttackerNotes = attackerNotes;
-                    if (attackerPtiMatch) {
-                      updatedAttackerNotes = attackerNotes.replace(/PTI:\s*\d+/i, `PTI: ${newAttackerPTI}`);
-                    } else {
-                      updatedAttackerNotes = attackerNotes + `\nPTI: ${newAttackerPTI}`;
-                    }
-                    
-                    gameManager.updateCardText(gameId, attackerCharacter.id, updatedAttackerNotes);
-                    
-                    // AUDIT LOG: Record PTI absorption event (fixed +100 PTI system)
-                    console.log(`PTI ABSORPTION AUDIT: ${attackerName} [${attackerCharacter.id}] gains +100 PTI for eliminating ${targetCard.owner} [${targetCardId}] (${attackerCurrentPTI} → ${newAttackerPTI})`);
-                    
-                    // Notifica l'assorbimento PTI (sistema fisso +100 PTI)
-                    io.to(gameId).emit('chat-message', {
-                      id: `${Date.now()}-absorption`,
-                      playerName: 'Sistema',
-                      message: `🔥 ${attackerName} guadagna +100 PTI per aver eliminato il personaggio! (${attackerCurrentPTI} → ${newAttackerPTI} PTI)`,
-                      timestamp: Date.now()
-                    });
-                    
-                    // Record absorption event for replay/audit (fixed +100 PTI system)
-                    console.log(`PTI_ABSORPTION_EVENT: ${attackerName} gained +100 PTI for eliminating ${targetCard.owner}`);
-                  } else {
-                    console.log(`PTI ABSORPTION SKIPPED: Invalid data (absorbedPTI=${absorbedPTI}, newPTI=${newAttackerPTI})`);
-                  }
-                } else if (!attackerCharacter) {
-                  console.log(`PTI ABSORPTION SKIPPED: No attacker character found for ${attackerName}`);
-                }
-                
-                // Auto-eliminate dead character - CHECK FOR PLAYER ELIMINATION
-                const result = gameManager.moveToGraveyard(gameId, targetCardId, targetCard.owner);
-                if (result.success) {
-                  console.log(`${targetCard.owner}'s character automatically eliminated (PTI: ${newPTI})`);
-                  
-                  io.to(gameId).emit('chat-message', {
-                    id: `${Date.now()}-death`,
-                    playerName: 'Sistema', 
-                    message: `💀 Il personaggio di ${targetCard.owner} è morto! (PTI: ${newPTI})`,
-                    timestamp: Date.now()
-                  });
-
-                  // Check if player should be eliminated due to character limit
-                  if (result.eliminationCheck) {
-                    console.log(`Player ${targetCard.owner} has reached character limit - automatically eliminating`);
-                    
-                    const eliminationSuccess = gameManager.markPlayerEliminated(gameId, targetCard.owner);
-                    if (eliminationSuccess) {
-                      console.log(`Player ${targetCard.owner} automatically eliminated due to character limit`);
-                      io.to(gameId).emit('player-eliminated', { playerName: targetCard.owner });
-                      
-                      // Check for game victory
-                      const winner = gameManager.checkForGameVictory(gameId);
-                      if (winner) {
-                        console.log(`Game won by: ${winner}`);
-                        io.to(gameId).emit('game-victory', { winner });
-                      }
-                    }
-                  }
-
-                  // Send updated game state
-                  const updatedGameState = gameManager.getSanitizedGameState(gameId);
-                  io.to(gameId).emit('game-state-update', updatedGameState);
-                }
-              }, 1000);
-            } else {
-              // Send updated game state for PTI change
-              const updatedGameState = gameManager.getSanitizedGameState(gameId);
-              io.to(gameId).emit('game-state-update', updatedGameState);
-            }
-          }
-        }
-        
-        // MANUAL RETURN SYSTEM: Players must manually return MOSSE cards to deck
-        console.log(`MOSSE card ${mosseCardId} used by ${attackerName} - awaiting manual return to deck bottom`);
-        
-        // Notify all players that the card needs to be manually returned
-        setTimeout(() => {
-          io.to(gameId).emit('mosse-return-required', {
-            cardId: mosseCardId,
-            playerName: attackerName,
-            cardType: 'mosse',
-            message: `${attackerName} deve rimettere manualmente la carta MOSSE nel mazzo (in fondo)`
-          });
+        if (attackResult.result?.requiresDefenseResponse) {
+          console.log(`🛡️ Defense system activated - waiting for ${targetOwner}'s response to attack ${attackResult.result.attackId}`);
           
-          // For CPU players, automatically trigger manual return after a delay
-          if (attackerName.startsWith('CPU-')) {
-            setTimeout(() => {
-              console.log(`CPU ${attackerName} manually returning MOSSE card to deck bottom`);
-              gameManager.returnToDeck(gameId, mosseCardId, attackerName);
-              
-              // Send updated game state
-              const updatedGameState = gameManager.getSanitizedGameState(gameId);
-              io.to(gameId).emit('game-state-update', updatedGameState);
-              
-              // CPU says they returned the card
-              io.to(gameId).emit('chat-message', {
-                id: `${Date.now()}-cpu-return`,
-                playerName: attackerName,
-                message: 'Ho rimesso la carta MOSSE in fondo al mazzo.',
-                timestamp: Date.now()
-              });
-            }, 3000); // CPU returns card 3 seconds after attack
+          // Store damage value and attack details for later processing
+          const pendingDefense = gameManager.getPendingDefense(gameId);
+          if (pendingDefense) {
+            pendingDefense.damage = damageValue; // Store the manually input damage
+            pendingDefense.mosseCardId = mosseCardId; // Store MOSSE card for return
+            console.log(`📝 Stored damage value ${damageValue} for pending defense ${pendingDefense.attackId}`);
           }
-        }, 2000); // 2 second delay for attack animation
+          
+          // UNIFIED DEFENSE EMISSION: Use GameManager.emitDefenseRequest instead of direct emission
+          const emissionSuccess = gameManager.emitDefenseRequest(gameId, io);
+          if (!emissionSuccess) {
+            console.log(`⚠️ Failed to emit defense request - proceeding with damage`);
+            await gameManager.processMosseDamage(gameId, attackerName, targetCardId, damageValue, mosseCardId, io);
+          }
+          
+          // Attack is pending defense response - processing will continue in defense:response handler
+          return;
+        }
+
+        // If no defense required, process damage immediately
+        await gameManager.processMosseDamage(gameId, attackerName, targetCardId, damageValue, mosseCardId, io);
       }
     });
+
+    // PRODUCTION-READY DEFENSE RESPONSE: Enhanced security and validation
+    socket.on('defense:response', ({ attackId, defends, gameId: clientGameId }) => {
+      const startTime = Date.now();
+      const gameId = gameManager.getPlayerGameId(socket.id) || clientGameId;
+      
+      // SECURITY: Basic game validation
+      if (!gameId) {
+        console.warn(`[DEFENSE-RESPONSE] No game found for defense response`, {
+          socketId: socket.id, attackId, defends, timestamp: new Date().toISOString()
+        });
+        socket.emit('defense:error', { 
+          message: 'Game not found or you are not in a game', 
+          code: 'NO_GAME_FOUND' 
+        });
+        return;
+      }
+
+      // SECURITY: Validate pending defense exists and matches attackId
+      const pendingDefense = gameManager.getPendingDefense(gameId);
+      if (!pendingDefense || pendingDefense.attackId !== attackId) {
+        console.warn(`[DEFENSE-RESPONSE] Invalid or expired defense request`, {
+          gameId, socketId: socket.id, attackId, defends, 
+          hasPending: !!pendingDefense, 
+          expectedAttackId: pendingDefense?.attackId,
+          timestamp: new Date().toISOString()
+        });
+        socket.emit('defense:error', { 
+          message: 'Invalid or expired defense request', 
+          code: 'INVALID_ATTACK_ID' 
+        });
+        return;
+      }
+
+      // SECURITY: Authorization - verify socket belongs to the defender
+      const defenderSocketId = gameManager.getPlayerSocketId(gameId, pendingDefense.defender);
+      if (socket.id !== defenderSocketId) {
+        console.error(`[DEFENSE-RESPONSE] SECURITY VIOLATION: Unauthorized defense response`, {
+          gameId, attackId, defends, socketId: socket.id, 
+          expectedSocketId: defenderSocketId, defender: pendingDefense.defender,
+          timestamp: new Date().toISOString()
+        });
+        socket.emit('defense:error', { 
+          message: 'You are not authorized to respond to this defense request', 
+          code: 'UNAUTHORIZED_DEFENDER' 
+        });
+        return;
+      }
+
+      // STRUCTURED LOGGING: Log successful validation
+      console.log(`[DEFENSE-RESPONSE] Processing authorized defense response`, {
+        gameId, attackId, defends, defender: pendingDefense.defender, 
+        attacker: pendingDefense.attacker, socketId: socket.id,
+        processingTime: Date.now() - startTime, timestamp: new Date().toISOString()
+      });
+
+      // Process using enhanced GameManager method with 'client' resolve source
+      const success = gameManager.processDefenseResponse(gameId, attackId, defends, io, 'client');
+      
+      if (!success) {
+        console.warn(`[DEFENSE-RESPONSE] Failed to process defense response`, {
+          gameId, attackId, defends, defender: pendingDefense.defender,
+          timestamp: new Date().toISOString()
+        });
+        socket.emit('defense:error', { 
+          message: 'Failed to process defense response', 
+          code: 'PROCESSING_FAILED' 
+        });
+      } else {
+        console.log(`[DEFENSE-RESPONSE] Defense response processed successfully`, {
+          gameId, attackId, defends, defender: pendingDefense.defender,
+          totalTime: Date.now() - startTime, timestamp: new Date().toISOString()
+        });
+      }
+    });
+
 
     socket.on('remove-card-to-graveyard', ({ deckType, cardId, playerName, section }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
@@ -2547,11 +2482,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       console.log(`CPU ${nextPlayer} performing MOSSE attack with defense system`);
                       
                       // Use the new executeMossaAttack method that supports defense system
+                      const defaultCPUDamage = cpuAction.data.damageValue || 150; // Default CPU damage value
                       const attackResult = await gameManager.executeMossaAttack(
                         gameId,
                         cpuAction.data.playerName,
                         cpuAction.data.mosseCardId,
-                        cpuAction.data.targetCardId
+                        cpuAction.data.targetCardId,
+                        defaultCPUDamage
                       );
                       
                       if (attackResult.success) {
@@ -2667,71 +2604,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    // DEFENSE SYSTEM: Handle defense response from player
-    socket.on('defense:response', ({ gameId, defends, attackId }) => {
-      console.log(`Defense response received: ${defends ? 'DEFEND' : 'ACCEPT'} for attack ${attackId}`);
-      
-      const pendingDefense = gameManager.getPendingDefense(gameId);
-      if (!pendingDefense || pendingDefense.attackId !== attackId) {
-        console.log(`Invalid defense response: no matching pending defense for attack ${attackId}`);
-        return;
-      }
-
-      // CRITICAL SECURITY CHECK: Verify the socket belongs to the defender
-      const defenderSocketId = gameManager.getPlayerSocketId(gameId, pendingDefense.defender);
-      if (socket.id !== defenderSocketId) {
-        console.log(`SECURITY: Unauthorized defense response from socket ${socket.id}, expected ${defenderSocketId} for defender ${pendingDefense.defender}`);
-        return;
-      }
-      
-      // Clear the pending defense
-      gameManager.clearPendingDefense(gameId);
-      
-      if (defends) {
-        // Player chooses to DEFEND - block the attack
-        console.log(`${pendingDefense.defender} successfully defended against ${pendingDefense.attacker}'s attack (${pendingDefense.damage} damage blocked)`);
-        
-        io.to(gameId).emit('chat-message', {
-          id: `${Date.now()}-defense-success`,
-          playerName: 'Sistema',
-          message: `🛡️ ${pendingDefense.defender} ha respinto l'attacco di ${pendingDefense.attacker}! (${pendingDefense.damage} danni bloccati)`,
-          timestamp: Date.now()
-        });
-        
-        // Return MOSSE card to bottom of deck using exact mosseCardId from pendingDefense
-        gameManager.returnToDeck(gameId, pendingDefense.mosseCardId, pendingDefense.attacker);
-        
-        // End attacker's turn since attack was blocked
-        const nextPlayer = gameManager.endTurn(gameId, pendingDefense.attacker);
-        if (nextPlayer) {
-          io.to(gameId).emit('next-turn', { nextPlayer });
-        }
-        
-        // Update game state
-        const updatedGameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', updatedGameState);
-        
-      } else {
-        // Player chooses NOT to defend - apply damage normally
-        console.log(`${pendingDefense.defender} chose not to defend - applying damage normally`);
-        
-        io.to(gameId).emit('chat-message', {
-          id: `${Date.now()}-defense-declined`,
-          playerName: 'Sistema',
-          message: `⚔️ ${pendingDefense.defender} ha accettato l'attacco di ${pendingDefense.attacker}. Inserisci il valore del danno.`,
-          timestamp: Date.now()
-        });
-        
-        // Continue with normal damage input flow - emit damage input request with correct IDs
-        io.to(gameId).emit('damage-input-required', {
-          attackerName: pendingDefense.attacker,
-          targetCardId: pendingDefense.targetCardId, // Character being attacked
-          targetOwner: pendingDefense.defender,
-          mosseCardId: pendingDefense.mosseCardId, // MOSSE card used for attack
-          message: `${pendingDefense.attacker} attacca ${pendingDefense.defender}! Inserisci il valore del danno.`
-        });
-      }
-    });
 
     socket.on('disconnect', () => {
       console.log('Player disconnected:', socket.id);
