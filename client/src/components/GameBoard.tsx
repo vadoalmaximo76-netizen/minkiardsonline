@@ -19,12 +19,13 @@ import { LeaveGameNotification } from "./LeaveGameNotification";
 import { SuperDice } from "./SuperDice";
 import { TransferRequestDialog } from "./TransferRequestDialog";
 import { DefenseDialog } from "./DefenseDialog";
+import { HandModal } from "./HandModal";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
-import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star } from "lucide-react";
+import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star, Hand } from "lucide-react";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 
@@ -83,6 +84,7 @@ export const GameBoard: React.FC = () => {
     visible: boolean;
     player: string;
   }>({ visible: false, player: '' });
+  const [handModalOpen, setHandModalOpen] = useState(false);
   const { selectedCard, gameId, playerName, gameState, setGameId } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, initAudioContext, toggleMute, isMuted } = useAudio();
 
@@ -746,6 +748,14 @@ export const GameBoard: React.FC = () => {
         {/* Game controls */}
         <div className="fixed bottom-2 landscape:bottom-4 md:bottom-4 right-2 landscape:right-4 md:right-4 flex flex-col gap-1 landscape:gap-2 md:gap-2 z-50">
           <Button
+            onClick={() => setHandModalOpen(true)}
+            className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
+            title="Carte in Mano"
+          >
+            <Hand size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
+          </Button>
+          
+          <Button
             onClick={() => {
               if (chatOpen) {
                 handleCloseChat();
@@ -819,6 +829,11 @@ export const GameBoard: React.FC = () => {
 
         {/* Card Modal */}
         {selectedCard && <CardModal />}
+
+        {/* Hand Modal */}
+        {handModalOpen && (
+          <HandModal onClose={() => setHandModalOpen(false)} />
+        )}
 
         {/* Ciao Ciao Notification */}
         {ciaoNotificationVisible && (
