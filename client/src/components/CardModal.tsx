@@ -148,6 +148,13 @@ export const CardModal: React.FC = () => {
     setSelectedCard(null);
   };
 
+  const handleDuplicate = () => {
+    socket.emit('duplicate-card', {
+      cardId: selectedCard.id
+    });
+    setSelectedCard(null);
+  };
+
   // Get PERSONAGGI cards from other players in the field
   const getOtherPlayersPersonaggiCards = () => {
     if (!gameState?.field) return [];
@@ -313,6 +320,14 @@ export const CardModal: React.FC = () => {
                         SEPARA
                       </Button>
                     )}
+
+                    {/* DUPLICA button - always available for PERSONAGGI cards */}
+                    <Button
+                      onClick={handleDuplicate}
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3"
+                    >
+                      DUPLICA
+                    </Button>
                   </>
                 )}
               </div>
@@ -360,6 +375,16 @@ export const CardModal: React.FC = () => {
                   disabled={getOtherPlayersCardsOfSameType().length === 0}
                 >
                   SCAMBIA
+                </Button>
+              )}
+
+              {/* DUPLICA button for PERSONAGGI cards in hand */}
+              {selectedCard.type === 'personaggi' && (
+                <Button
+                  onClick={handleDuplicate}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3"
+                >
+                  DUPLICA
                 </Button>
               )}
             </>

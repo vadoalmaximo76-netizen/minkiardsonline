@@ -1339,6 +1339,77 @@ Rispondi SOLO in JSON:`;
     }
   }
 
+  async duplicateCard(gameId: string, cardId: string, playerName: string): Promise<{ success: boolean, message?: string, duplicatedCardId?: string }> {
+    try {
+      const game = this.games.get(gameId);
+      if (!game) return { success: false, message: 'Game not found' };
+
+      // Find the card to duplicate (can be in field or hand)
+      let originalCard = game.field.find(card => card.id === cardId);
+      let isInField = true;
+      
+      if (!originalCard) {
+        // Check in player's hand
+        const player = game.players[playerName];
+        if (player && player.hand) {
+          originalCard = player.hand.find(card => card.id === cardId);
+          isInField = false;
+        }
+      }
+
+      if (!originalCard) {
+        return { success: false, message: 'Card not found' };
+      }
+
+      // Only PERSONAGGI cards can be duplicated
+      if (originalCard.type !== 'personaggi') {
+        return { success: false, message: 'Only PERSONAGGI cards can be duplicated' };
+      }
+
+      // Only card owner can duplicate
+      if (originalCard.owner !== playerName) {
+        return { success: false, message: 'You can only duplicate your own cards' };
+      }
+
+      // Create the duplicate card with same properties
+      const duplicatedCard = {
+        id: `personaggi-duplicate-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        type: 'personaggi' as const,
+        frontImage: originalCard.frontImage,
+        backImage: originalCard.backImage,
+        owner: playerName,
+        text: originalCard.text || '', // Copy the notes with PTI and stars
+        faceDown: originalCard.faceDown || false
+      };
+
+      // Add duplicate to the same location as original (field or hand)
+      if (isInField) {
+        game.field.push(duplicatedCard);
+      } else {
+        const player = game.players[playerName];
+        if (player && player.hand) {
+          player.hand.push(duplicatedCard);
+        }
+      }
+
+      // Record duplication event
+      await this.recordEvent(gameId, 'duplicate-card', {
+        originalCardId: cardId,
+        duplicatedCardId: duplicatedCard.id,
+        cardType: originalCard.type,
+        frontImage: originalCard.frontImage,
+        location: isInField ? 'field' : 'hand'
+      }, playerName);
+
+      console.log(`Card duplicated: ${cardId} -> ${duplicatedCard.id} by ${playerName} (location: ${isInField ? 'field' : 'hand'})`);
+      return { success: true, duplicatedCardId: duplicatedCard.id };
+
+    } catch (error) {
+      console.error('Error duplicating card:', error);
+      return { success: false, message: 'Error during duplication' };
+    }
+  }
+
   // Helper method to merge card notes (sum PTI and stars)
   private mergeCardNotes(note1: string, note2: string): string {
     const pti1 = this.extractPTIFromNote(note1);
@@ -3164,6 +3235,18 @@ Rispondi SOLO in JSON:`;
     const game = this.games.get(gameId);
     if (!game || !game.players[playerName]) return null;
     return game.players[playerName].socketId;
+  }
+
+  getPlayerNameFromSocket(socketId: string): string | null {
+    // Find player across all games by socketId
+    for (const [gameId, game] of Array.from(this.games.entries())) {
+      for (const [playerName, player] of Object.entries(game.players)) {
+        if ((player as any).socketId === socketId) {
+          return playerName;
+        }
+      }
+    }
+    return null;
   }
 
   setPendingDefense(gameId: string, defense: Omit<PendingDefense, 'createdAt'>): boolean {

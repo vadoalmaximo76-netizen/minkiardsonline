@@ -1119,6 +1119,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on('duplicate-card', async ({ cardId }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        // SECURITY: Derive player name from socket ID to prevent spoofing
+        const playerName = gameManager.getPlayerNameFromSocket(socket.id);
+        if (!playerName) {
+          socket.emit('duplication-error', {
+            message: 'Player not found or not authenticated',
+            timestamp: Date.now()
+          });
+          return;
+        }
+        
+        console.log(`Duplicate request: ${playerName} wants to duplicate card ${cardId}`);
+        
+        const result = await gameManager.duplicateCard(gameId, cardId, playerName);
+        
+        if (result.success) {
+          // Update game state for all players
+          const gameState = gameManager.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', gameState);
+          
+          // Notify all players about the duplication
+          io.to(gameId).emit('card-duplicated', {
+            playerName,
+            originalCardId: cardId,
+            duplicatedCardId: result.duplicatedCardId,
+            message: `${playerName} ha duplicato una carta PERSONAGGI!`,
+            timestamp: Date.now()
+          });
+          
+          console.log(`Card successfully duplicated by ${playerName}: ${cardId} -> ${result.duplicatedCardId}`);
+        } else {
+          // Send error back to the requesting player
+          socket.emit('duplication-error', {
+            message: result.message || 'Errore durante la duplicazione',
+            timestamp: Date.now()
+          });
+          
+          console.log(`Duplication failed: ${result.message}`);
+        }
+      }
+    });
+
     socket.on('send-chat-message', ({ message, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
