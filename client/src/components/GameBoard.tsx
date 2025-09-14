@@ -20,6 +20,7 @@ import { SuperDice } from "./SuperDice";
 import { TransferRequestDialog } from "./TransferRequestDialog";
 import { DefenseDialog } from "./DefenseDialog";
 import { HandModal } from "./HandModal";
+import { DeckModal } from "./DeckModal";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
@@ -85,6 +86,7 @@ export const GameBoard: React.FC = () => {
     player: string;
   }>({ visible: false, player: '' });
   const [handModalOpen, setHandModalOpen] = useState(false);
+  const [deckModalOpen, setDeckModalOpen] = useState(false);
   const { selectedCard, gameId, playerName, gameState, setGameId } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, initAudioContext, toggleMute, isMuted } = useAudio();
 
@@ -748,6 +750,18 @@ export const GameBoard: React.FC = () => {
         {/* Game controls */}
         <div className="fixed bottom-2 landscape:bottom-4 md:bottom-4 right-2 landscape:right-4 md:right-4 flex flex-col gap-1 landscape:gap-2 md:gap-2 z-50">
           <Button
+            onClick={() => setDeckModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
+            title="Pesca Carte"
+          >
+            <div className="flex space-x-0.5 items-center justify-center">
+              <div className="w-1 h-3 bg-white rounded-sm transform -rotate-12"></div>
+              <div className="w-1 h-3 bg-white rounded-sm"></div>
+              <div className="w-1 h-3 bg-white rounded-sm transform rotate-12"></div>
+            </div>
+          </Button>
+          
+          <Button
             onClick={() => setHandModalOpen(true)}
             className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
             title="Carte in Mano"
@@ -833,6 +847,11 @@ export const GameBoard: React.FC = () => {
         {/* Hand Modal */}
         {handModalOpen && (
           <HandModal onClose={() => setHandModalOpen(false)} />
+        )}
+
+        {/* Deck Modal */}
+        {deckModalOpen && (
+          <DeckModal onClose={() => setDeckModalOpen(false)} />
         )}
 
         {/* Ciao Ciao Notification */}
