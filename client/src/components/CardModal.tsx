@@ -240,14 +240,14 @@ export const CardModal: React.FC = () => {
 
         {/* Action buttons - hidden for enemy face-down cards */}
         {!isEnemyFaceDownCard && (
-          <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-3">
             {/* MOSSE card ATTACCA button - show for MOSSE cards in hand or field */}
             {selectedCard.type === 'mosse' && isOwner && (
             <Button
               onClick={handleAttacca}
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 flex items-center justify-center gap-2"
+              className="aspect-square bg-red-600 hover:bg-red-700 text-white font-bold p-2 flex flex-col items-center justify-center gap-1 text-xs"
             >
-              <Sword size={20} />
+              <Sword size={16} />
               ATTACCA
             </Button>
           )}
@@ -257,66 +257,72 @@ export const CardModal: React.FC = () => {
             <>
               <Button
                 onClick={handleReturnToHand}
-                className="w-full bg-sky-blue hover:bg-sky-blue/80 text-white font-bold py-3"
+                className="aspect-square bg-sky-blue hover:bg-sky-blue/80 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
               >
-                RIMETTI IN MANO
+                📤
+                MANO
               </Button>
               
               <Button
                 onClick={handleReturnToDeck}
-                className="w-full bg-sky-blue hover:bg-sky-blue/80 text-white font-bold py-3"
+                className="aspect-square bg-sky-blue hover:bg-sky-blue/80 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
               >
-                RIMETTI NEL MAZZO
+                🗂️
+                MAZZO
               </Button>
               
               <Button
                 onClick={handleMoveToGraveyard}
-                className="w-full bg-sky-blue hover:bg-sky-blue/80 text-white font-bold py-3"
+                className="aspect-square bg-sky-blue hover:bg-sky-blue/80 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
               >
-                METTI NEL CIMITERO
+                ⚰️
+                CIMITERO
               </Button>
 
-              {/* CEDI and SCAMBIA buttons for field cards */}
-              <div className="space-y-2">
-                <Button
-                  onClick={() => setShowTransferSelect(true)}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3"
-                  disabled={players.length === 0}
-                >
-                  CEDI
-                </Button>
+              {/* CEDI button for field cards */}
+              <Button
+                onClick={() => setShowTransferSelect(true)}
+                className="aspect-square bg-green-600 hover:bg-green-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
+                disabled={players.length === 0}
+              >
+                🎁
+                CEDI
+              </Button>
                 
-                {/* SCAMBIA button for all card types */}
-                {(selectedCard.type === 'personaggi' || selectedCard.type === 'bonus' || selectedCard.type === 'mosse' || selectedCard.type === 'personaggi_speciali') && (
-                  <Button
-                    onClick={() => setShowSwapSelect(true)}
-                    className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3"
-                    disabled={getOtherPlayersCardsOfSameType().length === 0}
-                  >
-                    SCAMBIA
-                  </Button>
-                )}
+              {/* SCAMBIA button for all card types */}
+              {(selectedCard.type === 'personaggi' || selectedCard.type === 'bonus' || selectedCard.type === 'mosse' || selectedCard.type === 'personaggi_speciali') && (
+                <Button
+                  onClick={() => setShowSwapSelect(true)}
+                  className="aspect-square bg-yellow-600 hover:bg-yellow-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
+                  disabled={getOtherPlayersCardsOfSameType().length === 0}
+                >
+                  🔄
+                  SCAMBIA
+                </Button>
+              )}
 
-                {/* FUSION SYSTEM buttons only for PERSONAGGI cards */}
-                {selectedCard.type === 'personaggi' && (
-                  <>
-                    {/* FONDI button - show only if card is NOT fused */}
-                    {!selectedCard.isFused && (
-                      <Button
-                        onClick={handleFusion}
-                        className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3"
-                        disabled={getAllPersonaggiCards().length === 0}
-                      >
-                        FONDI
-                      </Button>
-                    )}
+              {/* FUSION SYSTEM buttons only for PERSONAGGI cards */}
+              {selectedCard.type === 'personaggi' && (
+                <>
+                  {/* FONDI button - show only if card is NOT fused */}
+                  {!selectedCard.isFused && (
+                    <Button
+                      onClick={handleFusion}
+                      className="aspect-square bg-purple-600 hover:bg-purple-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
+                      disabled={getAllPersonaggiCards().length === 0}
+                    >
+                      🔗
+                      FONDI
+                    </Button>
+                  )}
 
                     {/* SEPARA button - show only if card IS fused */}
                     {selectedCard.isFused && (
                       <Button
                         onClick={handleSeparate}
-                        className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3"
+                        className="aspect-square bg-orange-600 hover:bg-orange-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
                       >
+                        ✂️
                         SEPARA
                       </Button>
                     )}
@@ -324,13 +330,13 @@ export const CardModal: React.FC = () => {
                     {/* DUPLICA button - always available for PERSONAGGI cards */}
                     <Button
                       onClick={handleDuplicate}
-                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3"
+                      className="aspect-square bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
                     >
+                      📋
                       DUPLICA
                     </Button>
                   </>
                 )}
-              </div>
             </>
           )}
 
@@ -339,31 +345,35 @@ export const CardModal: React.FC = () => {
             <>
               <Button
                 onClick={handlePlay}
-                className="w-full bg-sky-blue hover:bg-sky-blue/80 text-white font-bold py-3"
+                className="aspect-square bg-sky-blue hover:bg-sky-blue/80 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
               >
+                🎮
                 GIOCA
               </Button>
               
               <Button
                 onClick={handlePlayFaceDown}
-                className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3"
+                className="aspect-square bg-orange-600 hover:bg-orange-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
               >
-                GIOCA CARTA COPERTA
+                🎭
+                COPERTA
               </Button>
               
               <Button
                 onClick={handleShowCardToPlayers}
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3"
+                className="aspect-square bg-purple-600 hover:bg-purple-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
               >
+                👁️
                 MOSTRA
               </Button>
 
               {/* CEDI button for hand cards */}
               <Button
                 onClick={() => setShowTransferSelect(true)}
-                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3"
+                className="aspect-square bg-green-600 hover:bg-green-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
                 disabled={players.length === 0}
               >
+                🎁
                 CEDI
               </Button>
               
@@ -371,9 +381,10 @@ export const CardModal: React.FC = () => {
               {(selectedCard.type === 'personaggi' || selectedCard.type === 'bonus' || selectedCard.type === 'mosse' || selectedCard.type === 'personaggi_speciali') && (
                 <Button
                   onClick={() => setShowSwapSelect(true)}
-                  className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3"
+                  className="aspect-square bg-yellow-600 hover:bg-yellow-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
                   disabled={getOtherPlayersCardsOfSameType().length === 0}
                 >
+                  🔄
                   SCAMBIA
                 </Button>
               )}
@@ -382,8 +393,9 @@ export const CardModal: React.FC = () => {
               {selectedCard.type === 'personaggi' && (
                 <Button
                   onClick={handleDuplicate}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3"
+                  className="aspect-square bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
                 >
+                  📋
                   DUPLICA
                 </Button>
               )}
