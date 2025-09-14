@@ -191,12 +191,12 @@ export const CardModal: React.FC = () => {
     return cards;
   };
 
-  // Get ALL PERSONAGGI cards in the field for fusion (any player)
-  const getAllPersonaggiCards = () => {
+  // Get ALL FUSABLE cards (PERSONAGGI and PERSONAGGI_SPECIALI) in the field for fusion (any player)
+  const getAllFusableCards = () => {
     if (!gameState?.field) return [];
     
     return gameState.field.filter(card => 
-      card.type === 'personaggi' && 
+      (card.type === 'personaggi' || card.type === 'personaggi_speciali') && 
       card.id !== selectedCard.id && // Exclude the current card
       !card.isFused // Exclude already fused cards
     );
@@ -301,15 +301,15 @@ export const CardModal: React.FC = () => {
                 </Button>
               )}
 
-              {/* FUSION SYSTEM buttons only for PERSONAGGI cards */}
-              {selectedCard.type === 'personaggi' && (
+              {/* FUSION SYSTEM buttons only for PERSONAGGI and PERSONAGGI_SPECIALI cards */}
+              {(selectedCard.type === 'personaggi' || selectedCard.type === 'personaggi_speciali') && (
                 <>
                   {/* FONDI button - show only if card is NOT fused */}
                   {!selectedCard.isFused && (
                     <Button
                       onClick={handleFusion}
                       className="aspect-square bg-purple-600 hover:bg-purple-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
-                      disabled={getAllPersonaggiCards().length === 0}
+                      disabled={getAllFusableCards().length === 0}
                     >
                       🔗
                       FONDI
@@ -389,8 +389,8 @@ export const CardModal: React.FC = () => {
                 </Button>
               )}
 
-              {/* DUPLICA button for PERSONAGGI cards in hand */}
-              {selectedCard.type === 'personaggi' && (
+              {/* DUPLICA button for PERSONAGGI and PERSONAGGI_SPECIALI cards in hand */}
+              {(selectedCard.type === 'personaggi' || selectedCard.type === 'personaggi_speciali') && (
                 <Button
                   onClick={handleDuplicate}
                   className="aspect-square bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
@@ -547,9 +547,9 @@ export const CardModal: React.FC = () => {
               </Button>
             </div>
             
-            {getAllPersonaggiCards().length > 0 ? (
+            {getAllFusableCards().length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {getAllPersonaggiCards().map((card) => {
+                {getAllFusableCards().map((card) => {
                   const cardName = card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase() || 'CARTA';
                   
                   return (

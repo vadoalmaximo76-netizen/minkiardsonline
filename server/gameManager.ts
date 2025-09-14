@@ -1245,9 +1245,10 @@ Rispondi SOLO in JSON:`;
         return { success: false, message: 'One or both cards not found on field' };
       }
 
-      // Only PERSONAGGI cards can be fused
-      if (leaderCard.type !== 'personaggi' || targetCard.type !== 'personaggi') {
-        return { success: false, message: 'Only PERSONAGGI cards can be fused' };
+      // Only PERSONAGGI and PERSONAGGI_SPECIALI cards can be fused
+      if ((leaderCard.type !== 'personaggi' && leaderCard.type !== 'personaggi_speciali') || 
+          (targetCard.type !== 'personaggi' && targetCard.type !== 'personaggi_speciali')) {
+        return { success: false, message: 'Only PERSONAGGI and PERSONAGGI_SPECIALI cards can be fused' };
       }
 
       // Check if cards are already fused
@@ -1361,9 +1362,9 @@ Rispondi SOLO in JSON:`;
         return { success: false, message: 'Card not found' };
       }
 
-      // Only PERSONAGGI cards can be duplicated
-      if (originalCard.type !== 'personaggi') {
-        return { success: false, message: 'Only PERSONAGGI cards can be duplicated' };
+      // Only PERSONAGGI and PERSONAGGI_SPECIALI cards can be duplicated
+      if (originalCard.type !== 'personaggi' && originalCard.type !== 'personaggi_speciali') {
+        return { success: false, message: 'Only PERSONAGGI and PERSONAGGI_SPECIALI cards can be duplicated' };
       }
 
       // Only card owner can duplicate
@@ -1373,8 +1374,8 @@ Rispondi SOLO in JSON:`;
 
       // Create the duplicate card with same properties
       const duplicatedCard = {
-        id: `personaggi-duplicate-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        type: 'personaggi' as const,
+        id: `${originalCard.type}-duplicate-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        type: originalCard.type as 'personaggi' | 'personaggi_speciali',
         frontImage: originalCard.frontImage,
         backImage: originalCard.backImage,
         owner: playerName,
