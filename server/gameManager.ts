@@ -1062,11 +1062,7 @@ Rispondi SOLO in JSON:`;
       return { success: false, error: 'Game not found' };
     }
 
-    // Validate it's attacker's turn
-    const currentPlayer = game.turnOrder[game.currentTurnIndex];
-    if (currentPlayer !== attackerName) {
-      return { success: false, error: `Not ${attackerName}'s turn (current: ${currentPlayer})` };
-    }
+    // REMOVED: Turn validation - MOSSE attacks now work outside of turn order per user request
 
     // Validate attacker exists
     const attacker = game.players[attackerName];
