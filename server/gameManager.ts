@@ -104,8 +104,7 @@ export class GameManager {
         personaggi: this.createInitialDeck('personaggi'),
         mosse: this.createInitialDeck('mosse'),
         bonus: this.createInitialDeck('bonus'),
-        personaggi_speciali: this.createInitialDeck('personaggi_speciali'),
-        test: this.createInitialDeck('test')
+        personaggi_speciali: this.createInitialDeck('personaggi_speciali')
       },
       players: {},
       field: [],
@@ -2137,8 +2136,7 @@ Rispondi SOLO in JSON:`;
       personaggi: this.createInitialDeck('personaggi'),
       mosse: this.createInitialDeck('mosse'),
       bonus: this.createInitialDeck('bonus'),
-      personaggi_speciali: this.createInitialDeck('personaggi_speciali'),
-      test: this.createInitialDeck('test')
+      personaggi_speciali: this.createInitialDeck('personaggi_speciali')
     };
 
     // Reset scenario cards to inactive

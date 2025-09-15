@@ -38,7 +38,6 @@ interface GameState {
     mosse: Card[];
     bonus: Card[];
     personaggi_speciali: Card[];
-    test: Card[];
   };
   players: Record<string, Player>;
   field: Card[];

@@ -260,13 +260,6 @@ export const RoundTable: React.FC = () => {
                 type="personaggi_speciali"
               />
             </div>
-            <div className={`flex flex-col items-center ${deckScale}`}>
-              <Deck
-                name="TEST"
-                backImage="https://i.imgur.com/r1rfUAB.png"
-                type="test"
-              />
-            </div>
           </div>
         </div>
 

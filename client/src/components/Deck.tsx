@@ -6,7 +6,7 @@ import { socket } from "../lib/socket";
 interface DeckProps {
   name: string;
   backImage: string;
-  type: 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali' | 'test';
+  type: 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali';
 }
 
 export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
