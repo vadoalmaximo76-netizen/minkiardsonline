@@ -9,7 +9,7 @@ interface AddCardsModalProps {
   onClose: () => void;
 }
 
-type DeckType = 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali';
+type DeckType = 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali' | 'test';
 
 export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose }) => {
   const [selectedDeck, setSelectedDeck] = useState<DeckType>('personaggi');
@@ -35,7 +35,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     { value: 'personaggi', label: 'PERSONAGGI', color: 'bg-blue-600' },
     { value: 'mosse', label: 'MOSSE', color: 'bg-red-600' },
     { value: 'bonus', label: 'BONUS', color: 'bg-black' },
-    { value: 'personaggi_speciali', label: 'PERSONAGGI SPECIALI', color: 'bg-yellow-500' }
+    { value: 'personaggi_speciali', label: 'PERSONAGGI SPECIALI', color: 'bg-yellow-500' },
+    { value: 'test', label: 'TEST', color: 'bg-purple-600' }
   ];
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
