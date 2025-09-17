@@ -1992,6 +1992,22 @@ Rispondi SOLO in JSON:`;
       const card = cards.find(c => c.id === cardId);
       if (card) {
         card.text = text;
+        
+        // If this card is part of a fusion, update all fused cards
+        if (card.isFused && card.fusionLeader) {
+          // Find all cards in the fusion group
+          const fusedCards = cards.filter(c => 
+            c.isFused && c.fusionLeader === card.fusionLeader
+          );
+          
+          // Update text for all fused cards
+          fusedCards.forEach(fusedCard => {
+            if (fusedCard.id !== cardId) {
+              fusedCard.text = text;
+            }
+          });
+        }
+        
         return true;
       }
       return false;

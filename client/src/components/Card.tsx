@@ -15,6 +15,9 @@ interface CardProps {
     owner: string;
     text?: string;
     faceDown?: boolean;
+    isFused?: boolean;
+    fusionLeader?: string;
+    fusedWith?: string[];
   };
   location: 'hand' | 'field' | 'graveyard';
   showBack?: boolean;
@@ -261,14 +264,16 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         )}
       </div>
 
-      {/* Card Text */}
-      <textarea
-        value={cardText}
-        onChange={handleTextChange}
-        placeholder="Add note..."
-        className="w-20 h-10 text-xs p-1 rounded resize-none"
-        disabled={!isOwner && location === 'hand'}
-      />
+      {/* Card Text - Only show for non-fused cards or fusion leaders */}
+      {(!card.isFused || card.fusionLeader === card.id) && (
+        <textarea
+          value={cardText}
+          onChange={handleTextChange}
+          placeholder="Add note..."
+          className="w-20 h-10 text-xs p-1 rounded resize-none"
+          disabled={!isOwner && location === 'hand'}
+        />
+      )}
 
       {/* Reveal button for face-down cards in field */}
       {location === 'field' && isOwner && card.faceDown && (
