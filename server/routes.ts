@@ -2221,16 +2221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         cardImage: result.card.frontImage
                       });
                     }
-                    
-                    // NEW RULE: Turn ends automatically after playing a card
-                    setTimeout(() => {
-                      const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
-                      if (nextAfterCPU) {
-                        io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
-                        console.log(`Turn ended for ${nextPlayer} after playing card, next: ${nextAfterCPU}`);
-                      }
-                    }, 1500);
-                    return; // Return early to prevent generic end-turn
+                    break;
                     
                   case 'mosse-attack':
                     io.to(gameId).emit('card-attacked', {
@@ -2256,17 +2247,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         message: 'Ho rimesso la mia carta MOSSE in fondo al mazzo.',
                         timestamp: Date.now()
                       });
-                      
-                      // NEW RULE: Turn ends after MOSSE attack
-                      setTimeout(() => {
-                        const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
-                        if (nextAfterCPU) {
-                          io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
-                          console.log(`Turn ended for ${nextPlayer} after MOSSE attack, next: ${nextAfterCPU}`);
-                        }
-                      }, 1000);
                     }, 3000); // 3 seconds for manual return
-                    return; // Return early to prevent generic end-turn
+                    break;
                     
                   case 'eliminate-dead-character':
                     // NEW: CPU eliminates character with PTI: 0
@@ -2305,21 +2287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       
                       console.log(`CPU ${nextPlayer} successfully eliminated dead character`);
                     }
-                    
-                    // Turn continues after elimination (can still act)
-                    setTimeout(async () => {
-                      // Process another CPU action if available
-                      const followUpAction = await gameManager.processCPUTurn(gameId, nextPlayer, io);
-                      if (!followUpAction) {
-                        // No more actions, end turn
-                        const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
-                        if (nextAfterCPU) {
-                          io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
-                          console.log(`Turn ended for ${nextPlayer} after elimination, next: ${nextAfterCPU}`);
-                        }
-                      }
-                    }, 1500);
-                    return; // Return early to prevent generic end-turn
+                    break;
                     
                   case 'show-card-to-player':
                     // NEW: CPU shows card to specific player
@@ -2366,32 +2334,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           
                           const playGameState = gameManager.getSanitizedGameState(gameId);
                           io.to(gameId).emit('game-state-update', playGameState);
-                          
-                          // Turn ends after using the card
-                          setTimeout(() => {
-                            const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
-                            if (nextAfterCPU) {
-                              io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
-                              console.log(`Turn ended for ${nextPlayer} after draw-and-play, next: ${nextAfterCPU}`);
-                            }
-                          }, 1000);
                         }
                       }, 1000); // Brief delay to show the draw then play
                     }
-                    return; // Return early to prevent generic end-turn
+                    break;
                 }
                 
-                // NOTE: Turn ending is now handled individually by each action type
-                // Only end turn generically for actions that don't handle it themselves
-                if (!['play-card', 'mosse-attack', 'draw-and-play', 'eliminate-dead-character', 'show-card-to-player'].includes(cpuAction.type)) {
-                  setTimeout(() => {
+                // NEW: Continue processing CPU actions until turn is complete  
+                let continuousActions = 0;
+                const maxActions = 10; // Prevent infinite loops
+                
+                const processContinuous = async () => {
+                  if (continuousActions >= maxActions) {
+                    console.log(`CPU ${nextPlayer} reached max actions limit, ending turn`);
                     const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
                     if (nextAfterCPU) {
                       io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
-                      console.log(`Turn ended generically for ${nextPlayer}, next: ${nextAfterCPU}`);
                     }
-                  }, 1500);
-                }
+                    return;
+                  }
+                  
+                  setTimeout(async () => {
+                    const followUpAction = await gameManager.processCPUTurn(gameId, nextPlayer, io);
+                    if (followUpAction && followUpAction.type !== 'end-turn') {
+                      console.log(`CPU ${nextPlayer} continuing with action: ${followUpAction.type}`);
+                      continuousActions++;
+                      await processContinuous(); // Continue processing
+                    } else {
+                      // CPU is done or wants to end turn
+                      console.log(`CPU ${nextPlayer} finished all actions, ending turn`);
+                      const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
+                      if (nextAfterCPU) {
+                        io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                      }
+                    }
+                  }, 1000);
+                };
+                
+                await processContinuous();
                 
               } else {
                 // CPU had no valid actions, just end turn
