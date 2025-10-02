@@ -462,6 +462,10 @@ export const GameBoard: React.FC = () => {
       setVictoryDialogOpen(true);
     };
 
+    const handleFusionError = ({ message }: { message: string }) => {
+      alert(`❌ ${message}`);
+    };
+
     socket.on('instruction-executed', handleInstructionExecuted);
     socket.on('instruction-success', handleInstructionSuccess);
     socket.on('instruction-error', handleInstructionError);
@@ -470,6 +474,7 @@ export const GameBoard: React.FC = () => {
     socket.on('elimination-check', handleEliminationCheck);
     socket.on('player-eliminated', handlePlayerEliminated);
     socket.on('game-victory', handleGameVictory);
+    socket.on('fusion-error', handleFusionError);
 
     return () => {
       socket.off('game-reset', handleGameReset);
@@ -502,6 +507,7 @@ export const GameBoard: React.FC = () => {
       socket.off('elimination-check', handleEliminationCheck);
       socket.off('player-eliminated', handlePlayerEliminated);
       socket.off('game-victory', handleGameVictory);
+      socket.off('fusion-error', handleFusionError);
     };
   }, []);
 

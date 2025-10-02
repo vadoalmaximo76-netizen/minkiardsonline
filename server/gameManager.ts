@@ -1257,6 +1257,15 @@ Rispondi SOLO in JSON:`;
         return { success: false, message: 'Only PERSONAGGI and PERSONAGGI_SPECIALI cards can be fused' };
       }
 
+      // VALIDATION: Prevent fusing cards that are already in the same fusion group
+      const leaderFusionId = leaderCard.fusionLeader || leaderCardId;
+      const targetFusionId = targetCard.fusionLeader || targetCardId;
+      
+      if (leaderCard.isFused && targetCard.isFused && leaderFusionId === targetFusionId) {
+        console.log(`❌ Fusion rejected: Cards ${leaderCardId} and ${targetCardId} are already fused together`);
+        return { success: false, message: 'Queste carte sono già fuse insieme!' };
+      }
+
       // Transfer target card ownership to the player initiating fusion
       targetCard.owner = playerName;
 
