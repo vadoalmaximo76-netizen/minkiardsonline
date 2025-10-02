@@ -192,13 +192,14 @@ export const CardModal: React.FC = () => {
   };
 
   // Get ALL FUSABLE cards (PERSONAGGI and PERSONAGGI_SPECIALI) in the field for fusion (any player)
+  // UNLIMITED FUSION: Cards can be fused even if already part of another fusion
   const getAllFusableCards = () => {
     if (!gameState?.field) return [];
     
     return gameState.field.filter(card => 
       (card.type === 'personaggi' || card.type === 'personaggi_speciali') && 
-      card.id !== selectedCard.id && // Exclude the current card
-      !card.isFused // Exclude already fused cards
+      card.id !== selectedCard.id // Exclude only the current card itself
+      // No longer excluding already fused cards - unlimited fusion!
     );
   };
 
@@ -304,17 +305,15 @@ export const CardModal: React.FC = () => {
               {/* FUSION SYSTEM buttons only for PERSONAGGI and PERSONAGGI_SPECIALI cards */}
               {(selectedCard.type === 'personaggi' || selectedCard.type === 'personaggi_speciali') && (
                 <>
-                  {/* FONDI button - show only if card is NOT fused */}
-                  {!selectedCard.isFused && (
-                    <Button
-                      onClick={handleFusion}
-                      className="aspect-square bg-purple-600 hover:bg-purple-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
-                      disabled={getAllFusableCards().length === 0}
-                    >
-                      🔗
-                      FONDI
-                    </Button>
-                  )}
+                  {/* FONDI button - always available for UNLIMITED FUSION */}
+                  <Button
+                    onClick={handleFusion}
+                    className="aspect-square bg-purple-600 hover:bg-purple-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
+                    disabled={getAllFusableCards().length === 0}
+                  >
+                    🔗
+                    FONDI
+                  </Button>
 
                     {/* SEPARA button - show only if card IS fused */}
                     {selectedCard.isFused && (

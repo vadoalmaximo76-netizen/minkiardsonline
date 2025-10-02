@@ -1227,7 +1227,7 @@ Rispondi SOLO in JSON:`;
     }
   }
 
-  // FUSION SYSTEM FOR PERSONAGGI CARDS
+  // FUSION SYSTEM FOR PERSONAGGI CARDS - UNLIMITED FUSION
   async fuseCards(gameId: string, leaderCardId: string, targetCardId: string, playerName: string): Promise<{ success: boolean, message?: string }> {
     try {
       const game = this.games.get(gameId);
@@ -1247,27 +1247,35 @@ Rispondi SOLO in JSON:`;
         return { success: false, message: 'Only PERSONAGGI and PERSONAGGI_SPECIALI cards can be fused' };
       }
 
-      // Check if cards are already fused
-      if (leaderCard.isFused || targetCard.isFused) {
-        return { success: false, message: 'One or both cards are already fused' };
-      }
-
       // Transfer target card ownership to the player initiating fusion
       targetCard.owner = playerName;
 
-      // Set up fusion relationship
-      leaderCard.isFused = true;
-      leaderCard.fusedWith = [targetCardId];
-      leaderCard.fusionLeader = leaderCardId;
+      // Determine which cards are already in fusion groups
+      const leaderGroup = leaderCard.isFused ? this.getFusionGroup(game, leaderCardId) : [leaderCard];
+      const targetGroup = targetCard.isFused ? this.getFusionGroup(game, targetCardId) : [targetCard];
+      
+      // Merge both groups into one
+      const allCardsInFusion = [...leaderGroup, ...targetGroup];
+      const allCardIds = allCardsInFusion.map(c => c.id);
+      
+      // Determine the fusion leader (use the leaderCard as the leader)
+      const fusionLeaderId = leaderCard.fusionLeader || leaderCardId;
+      
+      // Update all cards in the merged fusion group
+      for (const card of allCardsInFusion) {
+        card.isFused = true;
+        card.fusionLeader = fusionLeaderId;
+        card.fusedWith = allCardIds.filter(id => id !== card.id);
+      }
 
-      targetCard.isFused = true;
-      targetCard.fusedWith = [leaderCardId];
-      targetCard.fusionLeader = leaderCardId;
-
-      // Merge text notes (PTI and stars)
-      const mergedText = this.mergeCardNotes(leaderCard.text || '', targetCard.text || '');
-      leaderCard.text = mergedText;
-      targetCard.text = mergedText;
+      // Merge text notes (PTI and stars) - sum all cards in the fusion
+      const allTexts = allCardsInFusion.map(c => c.text || '');
+      const mergedText = this.mergeMultipleCardNotes(allTexts);
+      
+      // Apply merged text to all cards in the fusion
+      for (const card of allCardsInFusion) {
+        card.text = mergedText;
+      }
 
       // Record fusion event
       await this.recordEvent(gameId, 'fuse-cards', {
@@ -1275,16 +1283,43 @@ Rispondi SOLO in JSON:`;
         targetCardId,
         leaderImage: leaderCard.frontImage,
         targetImage: targetCard.frontImage,
-        newOwner: playerName
+        newOwner: playerName,
+        totalCardsInFusion: allCardsInFusion.length
       }, playerName);
 
-      console.log(`Cards fused: ${leaderCardId} + ${targetCardId} by ${playerName}`);
+      console.log(`Cards fused: ${leaderCardId} + ${targetCardId} by ${playerName} (total ${allCardsInFusion.length} cards in fusion)`);
       return { success: true };
 
     } catch (error) {
       console.error('Error fusing cards:', error);
       return { success: false, message: 'Error during fusion' };
     }
+  }
+
+  // Helper to get all cards in a fusion group
+  private getFusionGroup(game: any, cardId: string): any[] {
+    const card = game.field.find((c: any) => c.id === cardId);
+    if (!card || !card.isFused) return [card];
+    
+    const fusionLeaderId = card.fusionLeader || cardId;
+    const fusedCards = game.field.filter((c: any) => 
+      c.id === fusionLeaderId || c.fusionLeader === fusionLeaderId
+    );
+    
+    return fusedCards;
+  }
+
+  // Helper to merge multiple card notes (sum PTI and stars from all cards)
+  private mergeMultipleCardNotes(notes: string[]): string {
+    let totalPTI = 0;
+    let totalStars = 0;
+    
+    for (const note of notes) {
+      totalPTI += this.extractPTIFromNote(note);
+      totalStars += this.extractStarsFromNote(note);
+    }
+    
+    return `PTI: ${totalPTI} | Stelle: ${totalStars}`;
   }
 
   async separateCards(gameId: string, cardId: string, playerName: string): Promise<{ success: boolean, message?: string }> {
