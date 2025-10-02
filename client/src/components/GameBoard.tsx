@@ -466,6 +466,10 @@ export const GameBoard: React.FC = () => {
       alert(`❌ ${message}`);
     };
 
+    const handleVoodooError = ({ message }: { message: string }) => {
+      alert(`❌ ${message}`);
+    };
+
     socket.on('instruction-executed', handleInstructionExecuted);
     socket.on('instruction-success', handleInstructionSuccess);
     socket.on('instruction-error', handleInstructionError);
@@ -475,6 +479,7 @@ export const GameBoard: React.FC = () => {
     socket.on('player-eliminated', handlePlayerEliminated);
     socket.on('game-victory', handleGameVictory);
     socket.on('fusion-error', handleFusionError);
+    socket.on('voodoo:error', handleVoodooError);
 
     return () => {
       socket.off('game-reset', handleGameReset);
@@ -508,6 +513,7 @@ export const GameBoard: React.FC = () => {
       socket.off('player-eliminated', handlePlayerEliminated);
       socket.off('game-victory', handleGameVictory);
       socket.off('fusion-error', handleFusionError);
+      socket.off('voodoo:error', handleVoodooError);
     };
   }, []);
 

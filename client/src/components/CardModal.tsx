@@ -9,6 +9,9 @@ export const CardModal: React.FC = () => {
   const [showTransferSelect, setShowTransferSelect] = useState(false);
   const [showSwapSelect, setShowSwapSelect] = useState(false);
   const [showFusionSelect, setShowFusionSelect] = useState(false);
+  const [showVoodooSelect, setShowVoodooSelect] = useState(false);
+  const [voodooCard1, setVoodooCard1] = useState<string | null>(null);
+  const [voodooCard2, setVoodooCard2] = useState<string | null>(null);
   const { selectedCard, setSelectedCard, playerName, gameState, setSelectedMosseCard } = useGameState();
 
   if (!selectedCard) return null;
@@ -155,6 +158,42 @@ export const CardModal: React.FC = () => {
     setSelectedCard(null);
   };
 
+  // BAMBOLA VOODOO handlers
+  const handleActivateVoodoo = () => {
+    setShowVoodooSelect(true);
+  };
+
+  const handleVoodooCardSelect = (cardId: string) => {
+    if (!voodooCard1) {
+      setVoodooCard1(cardId);
+    } else if (!voodooCard2 && cardId !== voodooCard1) {
+      setVoodooCard2(cardId);
+    }
+  };
+
+  const handleConfirmVoodoo = () => {
+    if (voodooCard1 && voodooCard2 && selectedCard) {
+      socket.emit('voodoo:activate', {
+        bonusCardId: selectedCard.id,
+        card1Id: voodooCard1,
+        card2Id: voodooCard2,
+        activatedBy: playerName
+      });
+      setShowVoodooSelect(false);
+      setVoodooCard1(null);
+      setVoodooCard2(null);
+      setSelectedCard(null);
+    }
+  };
+
+  const handleCancelVoodoo = () => {
+    setShowVoodooSelect(false);
+    setVoodooCard1(null);
+    setVoodooCard2(null);
+  };
+
+  const isBambolaVoodoo = selectedCard?.frontImage?.includes('BAMBOLA-VOODOO') || selectedCard?.frontImage?.includes('BAMBOLA_VOODOO');
+
   // Get PERSONAGGI cards from other players in the field
   const getOtherPlayersPersonaggiCards = () => {
     if (!gameState?.field) return [];
@@ -299,6 +338,17 @@ export const CardModal: React.FC = () => {
                 >
                   🔄
                   SCAMBIA
+                </Button>
+              )}
+
+              {/* BAMBOLA VOODOO ATTIVA button - show only for BAMBOLA VOODOO bonus cards */}
+              {isBambolaVoodoo && selectedCard.type === 'bonus' && (
+                <Button
+                  onClick={handleActivateVoodoo}
+                  className="aspect-square bg-pink-600 hover:bg-pink-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
+                >
+                  🔮
+                  ATTIVA
                 </Button>
               )}
 
@@ -577,6 +627,83 @@ export const CardModal: React.FC = () => {
               </div>
             ) : (
               <p className="text-white text-center">Nessun PERSONAGGIO disponibile per la fusione</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* BAMBOLA VOODOO Selection Modal */}
+      {showVoodooSelect && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-white font-bold text-lg">🔮 BAMBOLA VOODOO - Seleziona 2 PERSONAGGI da collegare:</h3>
+              <Button
+                onClick={handleCancelVoodoo}
+                className="bg-red-600 hover:bg-red-700 text-white px-2 py-1"
+                size="sm"
+              >
+                Chiudi
+              </Button>
+            </div>
+
+            <div className="mb-4 text-center">
+              <p className="text-white text-sm mb-2">
+                Selezionati: {voodooCard1 ? '1' : '0'}/2
+              </p>
+              {voodooCard1 && voodooCard2 && (
+                <Button
+                  onClick={handleConfirmVoodoo}
+                  className="bg-pink-600 hover:bg-pink-700 text-white font-bold px-6 py-2"
+                >
+                  🔮 ATTIVA VOODOO
+                </Button>
+              )}
+            </div>
+            
+            {gameState?.field && gameState.field.filter(card => 
+              card.type === 'personaggi' || card.type === 'personaggi_speciali'
+            ).length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {gameState.field
+                  .filter(card => card.type === 'personaggi' || card.type === 'personaggi_speciali')
+                  .map((card) => {
+                    const cardName = card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase() || 'PERSONAGGIO';
+                    const isSelected = card.id === voodooCard1 || card.id === voodooCard2;
+                    
+                    return (
+                      <div 
+                        key={card.id} 
+                        className={`bg-gray-700 rounded-lg p-3 hover:bg-gray-600 cursor-pointer transition-colors ${
+                          isSelected ? 'ring-4 ring-pink-500 ring-opacity-70' : ''
+                        }`}
+                        onClick={() => handleVoodooCardSelect(card.id)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={card.frontImage}
+                            alt={cardName}
+                            className="w-16 h-20 rounded object-cover"
+                          />
+                          <div className="flex-1">
+                            <h4 className="text-white font-bold text-sm mb-1">{cardName}</h4>
+                            <p className="text-gray-300 text-xs">Proprietario: {card.owner}</p>
+                            {card.text && (
+                              <p className="text-gray-400 text-xs mt-1 line-clamp-2">{card.text}</p>
+                            )}
+                            {isSelected && (
+                              <p className="text-pink-400 font-bold text-xs mt-1">
+                                ✓ Selezionato ({card.id === voodooCard1 ? '1' : '2'})
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            ) : (
+              <p className="text-white text-center">Nessun PERSONAGGIO disponibile sul campo</p>
             )}
           </div>
         </div>
