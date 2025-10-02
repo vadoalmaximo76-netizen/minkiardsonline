@@ -161,7 +161,18 @@ export const CARD_DATA = {
     "https://i.postimg.cc/DwTfkxhY/VITELLO-D-ORA.png",
     "https://i.postimg.cc/7ZnHxSYP/Vous-tra-vous.png",
     "https://i.postimg.cc/jjqsCCLH/Z-AMMONTA.png",
-    "https://i.postimg.cc/9fxc9V7v/ZZERUO.png"
+    "https://i.postimg.cc/9fxc9V7v/ZZERUO.png",
+    "https://i.ibb.co/b557sg0Y/BAMBOLA-VOODOO.png",
+    "https://i.ibb.co/4ZjKmzFJ/UNA-TEMPESTA-BABY.png",
+    "https://i.ibb.co/206yKHFQ/MODALIT-FRANKENSTEIN.png",
+    "https://i.ibb.co/sv5vTcsZ/MORS-TUA-VITA-MEA.png",
+    "https://i.ibb.co/QFJ8sFg5/NOTTE-DELLO-SPIRITO.png",
+    "https://i.ibb.co/svvY1DXz/RUOSS-E-FESSA.png",
+    "https://i.ibb.co/1tw2bjmP/TARGET-ACQUIRED.png",
+    "https://i.ibb.co/KcQZQCbJ/TRINIT.png",
+    "https://i.ibb.co/n8QPRKZp/UN-POSTO-GALATTICO.png",
+    "https://i.ibb.co/RGFpNC64/VINCERE-E-VINCE-REMO.png",
+    "https://i.ibb.co/kszGSR22/WD-40.png"
   ],
   mosse: [
     "https://i.ibb.co/35jjYwTX/sempafaagara.png",
@@ -433,7 +444,32 @@ export const CARD_DATA = {
     "https://i.postimg.cc/3JM9hvcc/zeus.png",
     "https://i.postimg.cc/15pB3zx5/z-vcienz.png",
     "https://i.postimg.cc/3x1Z2bJs/zio-gregorio.png",
-    "https://i.postimg.cc/rwMJ0LcG/zio-michele.png"
+    "https://i.postimg.cc/rwMJ0LcG/zio-michele.png",
+    "https://i.ibb.co/sv0vSYjq/camillo.png",
+    "https://i.ibb.co/mrDk3f3m/carmine.png",
+    "https://i.ibb.co/JwvDTmsb/christian-de-sica.png",
+    "https://i.ibb.co/DPwS3vSj/don-domenico-cerrone.png",
+    "https://i.ibb.co/q3wN3pqx/enzo-salvi.png",
+    "https://i.ibb.co/VY8fjzXm/ernesto.png",
+    "https://i.ibb.co/Z67LD5qP/fabrizio.png",
+    "https://i.ibb.co/Kx3dWZ1R/felice-podda.png",
+    "https://i.ibb.co/whcw2nSG/fibra.png",
+    "https://i.ibb.co/spctXVPS/leo.png",
+    "https://i.ibb.co/WvZmxy07/manghik.png",
+    "https://i.ibb.co/mrFGLmZy/marciano-ricci.png",
+    "https://i.ibb.co/1NgqRBk/mimmetto.png",
+    "https://i.ibb.co/q6TNM0S/ndonj-manz.png",
+    "https://i.ibb.co/hRj6wfF7/nicodemo-lo-stregone-del-covid.png",
+    "https://i.ibb.co/6fYR3Jf/pasqualino-paonazzo.png",
+    "https://i.ibb.co/S4xYVF5y/pasquy-jr.png",
+    "https://i.ibb.co/VYXtgVB4/peppe-zona.png",
+    "https://i.ibb.co/wZgnj7Bj/pql.png",
+    "https://i.ibb.co/HfjCZWMj/renato-castaldi.png",
+    "https://i.ibb.co/Xrp613M2/sandro.png",
+    "https://i.ibb.co/xtNGQRs8/scurzone.png",
+    "https://i.ibb.co/FQ431Zk/spadino.png",
+    "https://i.ibb.co/HfMsKm5w/tamburello.png",
+    "https://i.ibb.co/g07rGVW/z-a.png"
   ],
   personaggi_speciali: [
     "https://i.postimg.cc/ZnZkDKX7/albabidi.png",
@@ -515,7 +551,8 @@ export const CARD_DATA = {
     "https://i.postimg.cc/FKB3ZYkv/vegetale.png",
     "https://i.postimg.cc/76J7QqS2/walker-texas-ranger.png",
     "https://i.postimg.cc/C5y83946/yogurt.png",
-    "https://i.postimg.cc/nrvmpTRV/zody.png"
+    "https://i.postimg.cc/nrvmpTRV/zody.png",
+    "https://i.ibb.co/ZRpvrjX1/VOMITO.png"
   ]
 };
 
@@ -551,8 +588,8 @@ export const SCENARIO_CARDS = [
 ];
 
 export const DECK_CARD_COUNTS = {
-  personaggi: 177,
+  personaggi: 202,
   mosse: 91,
-  bonus: 161,
-  personaggi_speciali: 80
+  bonus: 172,
+  personaggi_speciali: 81
 };
