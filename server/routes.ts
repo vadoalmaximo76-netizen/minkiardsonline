@@ -1163,6 +1163,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // BAMBOLA VOODOO: Activate voodoo link between two characters
+    socket.on('voodoo:activate', ({ bonusCardId, card1Id, card2Id, activatedBy, gameId: clientGameId }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id) || clientGameId;
+      if (!gameId) {
+        socket.emit('voodoo:error', { message: 'Game not found' });
+        return;
+      }
+      
+      console.log(`🔮 BAMBOLA VOODOO activation request: ${card1Id} <-> ${card2Id} by ${activatedBy}`);
+      
+      const result = gameManager.activateVoodooLink(gameId, bonusCardId, card1Id, card2Id, activatedBy);
+      
+      if (result.success) {
+        // Broadcast to all players
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-voodoo-activate`,
+          playerName: 'Sistema',
+          message: result.message,
+          timestamp: Date.now()
+        });
+        
+        // Send updated game state with voodoo links
+        const gameState = gameManager.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', gameState);
+        
+        console.log(`🔮 BAMBOLA VOODOO activated successfully`);
+      } else {
+        socket.emit('voodoo:error', { message: result.message });
+        console.log(`🔮 BAMBOLA VOODOO activation failed: ${result.message}`);
+      }
+    });
+    
+    // BAMBOLA VOODOO: Remove voodoo link
+    socket.on('voodoo:remove', ({ cardId, gameId: clientGameId }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id) || clientGameId;
+      if (!gameId) {
+        socket.emit('voodoo:error', { message: 'Game not found' });
+        return;
+      }
+      
+      console.log(`🔮 BAMBOLA VOODOO removal request for card: ${cardId}`);
+      
+      const success = gameManager.removeVoodooLink(gameId, cardId);
+      
+      if (success) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-voodoo-remove`,
+          playerName: 'Sistema',
+          message: '🔮 Collegamento BAMBOLA VOODOO rimosso!',
+          timestamp: Date.now()
+        });
+        
+        // Send updated game state
+        const gameState = gameManager.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', gameState);
+        
+        console.log(`🔮 BAMBOLA VOODOO link removed successfully`);
+      } else {
+        socket.emit('voodoo:error', { message: 'No voodoo link found for this card' });
+      }
+    });
+
     socket.on('send-chat-message', ({ message, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {

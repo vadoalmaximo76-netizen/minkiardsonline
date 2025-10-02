@@ -51,6 +51,13 @@ interface PendingDefense {
   timeoutId?: NodeJS.Timeout;
 }
 
+interface VoodooLink {
+  card1Id: string;
+  card2Id: string;
+  activatedBy: string;
+  bonusCardId: string; // The BAMBOLA VOODOO card that created this link
+}
+
 interface GameState {
   decks: {
     personaggi: Card[];
@@ -73,6 +80,7 @@ interface GameState {
   gameEnded: boolean; // Prevent multiple victory notifications
   pendingTransferRequests: TransferRequest[]; // Pending card transfer requests between human players
   pendingDefense?: PendingDefense; // Current pending defense request (only one at a time)
+  voodooLinks: VoodooLink[]; // BAMBOLA VOODOO: Track linked characters
 }
 
 export class GameManager {
@@ -118,7 +126,8 @@ export class GameManager {
       characterLimit: 'unlimited',
       eliminatedPlayers: new Set<string>(),
       gameEnded: false,
-      pendingTransferRequests: []
+      pendingTransferRequests: [],
+      voodooLinks: []
     };
 
     // Auto-shuffle all decks when starting a new game
@@ -837,7 +846,8 @@ Rispondi SOLO in JSON:`;
       currentTurnIndex: gameState.currentTurnIndex,
       spectators: gameState.spectators,
       characterLimit: gameState.characterLimit,
-      eliminatedPlayers: Array.from(gameState.eliminatedPlayers) // Convert Set to Array for JSON serialization
+      eliminatedPlayers: Array.from(gameState.eliminatedPlayers), // Convert Set to Array for JSON serialization
+      voodooLinks: gameState.voodooLinks || [] // BAMBOLA VOODOO: Include active voodoo links
     };
 
     // Sanitize players by removing cpuInstance references
@@ -1714,6 +1724,11 @@ Rispondi SOLO in JSON:`;
     if (cardIndex !== -1) {
       const card = game.field.splice(cardIndex, 1)[0];
       if (card.owner === playerName) {
+        // BAMBOLA VOODOO: Remove any voodoo links when character dies
+        if (card.type === 'personaggi' || card.type === 'personaggi_speciali') {
+          this.removeVoodooLink(gameId, cardId);
+        }
+        
         card.eliminatedBy = playerName;
         game.graveyard.push(card);
 
@@ -3541,8 +3556,9 @@ Rispondi SOLO in JSON:`;
     return true;
   }
 
-  // EXTRACTED AND HARDENED: Damage processing method (preserves ALL legacy logic)
+  // EXTRACTED AND HARDENED: Damage processing method (preserves ALL legacy logic + BAMBOLA VOODOO)
   async processMosseDamage(gameId: string, attackerName: string, targetCardId: string, damageValue: number, mosseCardId: string, io: any): Promise<void> {
+    const game = this.games.get(gameId);
     const gameState = this.getSanitizedGameState(gameId);
     const targetCard = gameState?.field?.find((c: any) => c.id === targetCardId);
     
@@ -3584,6 +3600,58 @@ Rispondi SOLO in JSON:`;
       message: `⚔️ ${attackerName} attacca ${targetCard.owner}! Danno: ${damageValue} | PTI: ${currentPTI} → ${newPTI}`,
       timestamp: Date.now()
     });
+
+    // BAMBOLA VOODOO: Check if this card is linked and apply damage to linked card too
+    const voodooLink = game?.voodooLinks?.find(link => 
+      link.card1Id === targetCardId || link.card2Id === targetCardId
+    );
+    
+    if (voodooLink) {
+      const linkedCardId = voodooLink.card1Id === targetCardId ? voodooLink.card2Id : voodooLink.card1Id;
+      const linkedCard = gameState?.field?.find((c: any) => c.id === linkedCardId);
+      
+      if (linkedCard && (linkedCard.type === 'personaggi' || linkedCard.type === 'personaggi_speciali')) {
+        console.log(`🔮 BAMBOLA VOODOO: Applying ${damageValue} damage to linked card ${linkedCardId}`);
+        
+        // Extract linked card's PTI
+        const linkedNotes = linkedCard.text || '';
+        const linkedPtiMatch = linkedNotes.match(/PTI:\s*(\d+)/i);
+        let linkedCurrentPTI = linkedPtiMatch ? parseInt(linkedPtiMatch[1]) : 0;
+        const linkedNewPTI = Math.max(0, linkedCurrentPTI - damageValue);
+        
+        // Update linked card notes
+        let linkedUpdatedNotes = linkedNotes;
+        if (linkedPtiMatch) {
+          linkedUpdatedNotes = linkedNotes.replace(/PTI:\s*\d+/i, `PTI: ${linkedNewPTI}`);
+        } else {
+          linkedUpdatedNotes = linkedNotes ? `${linkedNotes}\nPTI: ${linkedNewPTI}` : `PTI: ${linkedNewPTI}`;
+        }
+        
+        this.updateCardText(gameId, linkedCardId, linkedUpdatedNotes);
+        
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-voodoo`,
+          playerName: 'Sistema',
+          message: `🔮 BAMBOLA VOODOO! Il danno si riflette su ${linkedCard.owner}! PTI: ${linkedCurrentPTI} → ${linkedNewPTI}`,
+          timestamp: Date.now()
+        });
+        
+        // If linked card dies, it should also be eliminated
+        if (linkedNewPTI <= 0) {
+          setTimeout(() => {
+            this.moveToGraveyard(gameId, linkedCardId, linkedCard.owner);
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-voodoo-death`,
+              playerName: 'Sistema',
+              message: `🔮💀 BAMBOLA VOODOO! Il personaggio di ${linkedCard.owner} muore insieme a quello di ${targetCard.owner}!`,
+              timestamp: Date.now()
+            });
+            const updatedGameState = this.getSanitizedGameState(gameId);
+            io.to(gameId).emit('game-state-update', updatedGameState);
+          }, 1500);
+        }
+      }
+    }
 
     // PRESERVE: Check if character dies (PTI <= 0) - exact legacy logic
     if (newPTI <= 0) {
@@ -3737,5 +3805,83 @@ Rispondi SOLO in JSON:`;
     }
 
     return null;
+  }
+
+  // BAMBOLA VOODOO: Activate voodoo link between two characters
+  activateVoodooLink(gameId: string, bonusCardId: string, card1Id: string, card2Id: string, activatedBy: string): { success: boolean; message: string } {
+    const game = this.games.get(gameId);
+    if (!game) {
+      return { success: false, message: 'Game not found' };
+    }
+
+    const gameState = this.getSanitizedGameState(gameId);
+    
+    // Verify both cards exist on field and are PERSONAGGI/PERSONAGGI_SPECIALI
+    const card1 = gameState?.field?.find((c: any) => c.id === card1Id);
+    const card2 = gameState?.field?.find((c: any) => c.id === card2Id);
+    
+    if (!card1 || !card2) {
+      return { success: false, message: 'One or both cards not found on field' };
+    }
+    
+    if ((card1.type !== 'personaggi' && card1.type !== 'personaggi_speciali') ||
+        (card2.type !== 'personaggi' && card2.type !== 'personaggi_speciali')) {
+      return { success: false, message: 'Both cards must be PERSONAGGI or PERSONAGGI_SPECIALI' };
+    }
+
+    // Check if either card is already linked
+    const existingLink = game.voodooLinks?.find(link => 
+      link.card1Id === card1Id || link.card2Id === card1Id ||
+      link.card1Id === card2Id || link.card2Id === card2Id
+    );
+    
+    if (existingLink) {
+      return { success: false, message: 'One or both characters are already linked' };
+    }
+
+    // Create the voodoo link
+    if (!game.voodooLinks) {
+      game.voodooLinks = [];
+    }
+    
+    game.voodooLinks.push({
+      card1Id,
+      card2Id,
+      activatedBy,
+      bonusCardId
+    });
+
+    console.log(`🔮 BAMBOLA VOODOO activated: ${card1Id} <-> ${card2Id} by ${activatedBy}`);
+    
+    return { 
+      success: true, 
+      message: `🔮 BAMBOLA VOODOO attivata! ${card1.owner} e ${card2.owner} sono ora collegati!` 
+    };
+  }
+
+  // BAMBOLA VOODOO: Remove voodoo link (when one character dies or link is broken)
+  removeVoodooLink(gameId: string, cardId: string): boolean {
+    const game = this.games.get(gameId);
+    if (!game || !game.voodooLinks) {
+      return false;
+    }
+
+    const linkIndex = game.voodooLinks.findIndex(link => 
+      link.card1Id === cardId || link.card2Id === cardId
+    );
+    
+    if (linkIndex !== -1) {
+      const removedLink = game.voodooLinks.splice(linkIndex, 1)[0];
+      console.log(`🔮 BAMBOLA VOODOO link removed: ${removedLink.card1Id} <-> ${removedLink.card2Id}`);
+      return true;
+    }
+    
+    return false;
+  }
+
+  // BAMBOLA VOODOO: Get all active voodoo links for a game
+  getVoodooLinks(gameId: string): VoodooLink[] {
+    const game = this.games.get(gameId);
+    return game?.voodooLinks || [];
   }
 }
