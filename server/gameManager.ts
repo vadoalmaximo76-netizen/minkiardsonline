@@ -3557,7 +3557,7 @@ Rispondi SOLO in JSON:`;
   }
 
   // EXTRACTED AND HARDENED: Damage processing method (preserves ALL legacy logic + BAMBOLA VOODOO)
-  async processMosseDamage(gameId: string, attackerName: string, targetCardId: string, damageValue: number, mosseCardId: string, io: any): Promise<void> {
+  async processMosseDamage(gameId: string, attackerName: string, targetCardId: string, damageValue: number, mosseCardId: string, io: any, isVoodooReflection: boolean = false): Promise<void> {
     const game = this.games.get(gameId);
     const gameState = this.getSanitizedGameState(gameId);
     const targetCard = gameState?.field?.find((c: any) => c.id === targetCardId);
@@ -3602,55 +3602,63 @@ Rispondi SOLO in JSON:`;
     });
 
     // BAMBOLA VOODOO: Check if this card is linked and apply damage to linked card too
-    const voodooLink = game?.voodooLinks?.find(link => 
-      link.card1Id === targetCardId || link.card2Id === targetCardId
-    );
-    
-    if (voodooLink) {
-      const linkedCardId = voodooLink.card1Id === targetCardId ? voodooLink.card2Id : voodooLink.card1Id;
-      const linkedCard = gameState?.field?.find((c: any) => c.id === linkedCardId);
+    // GUARD: Only process voodoo reflection if this is NOT already a reflection (prevent infinite loop)
+    if (!isVoodooReflection) {
+      const voodooLink = game?.voodooLinks?.find(link => 
+        link.card1Id === targetCardId || link.card2Id === targetCardId
+      );
       
-      if (linkedCard && (linkedCard.type === 'personaggi' || linkedCard.type === 'personaggi_speciali')) {
-        console.log(`🔮 BAMBOLA VOODOO: Applying ${damageValue} damage to linked card ${linkedCardId}`);
+      if (voodooLink) {
+        const linkedCardId = voodooLink.card1Id === targetCardId ? voodooLink.card2Id : voodooLink.card1Id;
+        const linkedCard = gameState?.field?.find((c: any) => c.id === linkedCardId);
         
-        // Extract linked card's PTI
-        const linkedNotes = linkedCard.text || '';
-        const linkedPtiMatch = linkedNotes.match(/PTI:\s*(\d+)/i);
-        let linkedCurrentPTI = linkedPtiMatch ? parseInt(linkedPtiMatch[1]) : 0;
-        const linkedNewPTI = Math.max(0, linkedCurrentPTI - damageValue);
-        
-        // Update linked card notes
-        let linkedUpdatedNotes = linkedNotes;
-        if (linkedPtiMatch) {
-          linkedUpdatedNotes = linkedNotes.replace(/PTI:\s*\d+/i, `PTI: ${linkedNewPTI}`);
+        if (linkedCard && (linkedCard.type === 'personaggi' || linkedCard.type === 'personaggi_speciali')) {
+          console.log(`🔮 BAMBOLA VOODOO: Reflecting ${damageValue} damage to linked card ${linkedCardId} (one-time reflection)`);
+          
+          // Extract linked card's PTI
+          const linkedNotes = linkedCard.text || '';
+          const linkedPtiMatch = linkedNotes.match(/PTI:\s*(\d+)/i);
+          let linkedCurrentPTI = linkedPtiMatch ? parseInt(linkedPtiMatch[1]) : 0;
+          const linkedNewPTI = Math.max(0, linkedCurrentPTI - damageValue);
+          
+          // Update linked card notes
+          let linkedUpdatedNotes = linkedNotes;
+          if (linkedPtiMatch) {
+            linkedUpdatedNotes = linkedNotes.replace(/PTI:\s*\d+/i, `PTI: ${linkedNewPTI}`);
+          } else {
+            linkedUpdatedNotes = linkedNotes ? `${linkedNotes}\nPTI: ${linkedNewPTI}` : `PTI: ${linkedNewPTI}`;
+          }
+          
+          this.updateCardText(gameId, linkedCardId, linkedUpdatedNotes);
+          
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-voodoo`,
+            playerName: 'Sistema',
+            message: `🔮 BAMBOLA VOODOO! Il danno si riflette su ${linkedCard.owner}! PTI: ${linkedCurrentPTI} → ${linkedNewPTI}`,
+            timestamp: Date.now()
+          });
+          
+          // If linked card dies, it should also be eliminated
+          if (linkedNewPTI <= 0) {
+            setTimeout(() => {
+              this.moveToGraveyard(gameId, linkedCardId, linkedCard.owner);
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-voodoo-death`,
+                playerName: 'Sistema',
+                message: `🔮💀 BAMBOLA VOODOO! Il personaggio di ${linkedCard.owner} muore insieme a quello di ${targetCard.owner}!`,
+                timestamp: Date.now()
+              });
+              const updatedGameState = this.getSanitizedGameState(gameId);
+              io.to(gameId).emit('game-state-update', updatedGameState);
+            }, 1500);
+          }
         } else {
-          linkedUpdatedNotes = linkedNotes ? `${linkedNotes}\nPTI: ${linkedNewPTI}` : `PTI: ${linkedNewPTI}`;
-        }
-        
-        this.updateCardText(gameId, linkedCardId, linkedUpdatedNotes);
-        
-        io.to(gameId).emit('chat-message', {
-          id: `${Date.now()}-voodoo`,
-          playerName: 'Sistema',
-          message: `🔮 BAMBOLA VOODOO! Il danno si riflette su ${linkedCard.owner}! PTI: ${linkedCurrentPTI} → ${linkedNewPTI}`,
-          timestamp: Date.now()
-        });
-        
-        // If linked card dies, it should also be eliminated
-        if (linkedNewPTI <= 0) {
-          setTimeout(() => {
-            this.moveToGraveyard(gameId, linkedCardId, linkedCard.owner);
-            io.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-voodoo-death`,
-              playerName: 'Sistema',
-              message: `🔮💀 BAMBOLA VOODOO! Il personaggio di ${linkedCard.owner} muore insieme a quello di ${targetCard.owner}!`,
-              timestamp: Date.now()
-            });
-            const updatedGameState = this.getSanitizedGameState(gameId);
-            io.to(gameId).emit('game-state-update', updatedGameState);
-          }, 1500);
+          console.log(`🔮 BAMBOLA VOODOO: Linked card ${linkedCardId} not found or not a character - removing stale link`);
+          this.removeVoodooLink(gameId, linkedCardId);
         }
       }
+    } else {
+      console.log(`🔮 BAMBOLA VOODOO: Skipping reflection (this is already a reflected attack)`);
     }
 
     // PRESERVE: Check if character dies (PTI <= 0) - exact legacy logic
@@ -3816,17 +3824,33 @@ Rispondi SOLO in JSON:`;
 
     const gameState = this.getSanitizedGameState(gameId);
     
-    // Verify both cards exist on field and are PERSONAGGI/PERSONAGGI_SPECIALI
+    // SECURITY: Verify bonus card exists and is owned by activator
+    const bonusCard = gameState?.field?.find((c: any) => c.id === bonusCardId);
+    if (!bonusCard || bonusCard.type !== 'bonus' || bonusCard.owner !== activatedBy) {
+      console.warn(`🔮 VOODOO SECURITY: Invalid bonus card ${bonusCardId} for ${activatedBy}`);
+      return { success: false, message: 'Bonus card not found or not owned by you' };
+    }
+    
+    // SECURITY: Verify both cards exist ON FIELD (not in hand or graveyard)
     const card1 = gameState?.field?.find((c: any) => c.id === card1Id);
     const card2 = gameState?.field?.find((c: any) => c.id === card2Id);
     
     if (!card1 || !card2) {
+      console.warn(`🔮 VOODOO SECURITY: Cards not on field - card1: ${!!card1}, card2: ${!!card2}`);
       return { success: false, message: 'One or both cards not found on field' };
     }
     
+    // SECURITY: Verify both cards are PERSONAGGI/PERSONAGGI_SPECIALI types only
     if ((card1.type !== 'personaggi' && card1.type !== 'personaggi_speciali') ||
         (card2.type !== 'personaggi' && card2.type !== 'personaggi_speciali')) {
+      console.warn(`🔮 VOODOO SECURITY: Invalid card types - card1: ${card1.type}, card2: ${card2.type}`);
       return { success: false, message: 'Both cards must be PERSONAGGI or PERSONAGGI_SPECIALI' };
+    }
+    
+    // SECURITY: Verify cards are different
+    if (card1Id === card2Id) {
+      console.warn(`🔮 VOODOO SECURITY: Attempting to link card to itself: ${card1Id}`);
+      return { success: false, message: 'Cannot link a card to itself' };
     }
 
     // Check if either card is already linked
@@ -3836,6 +3860,7 @@ Rispondi SOLO in JSON:`;
     );
     
     if (existingLink) {
+      console.warn(`🔮 VOODOO SECURITY: Card already linked - card1: ${card1Id}, card2: ${card2Id}`);
       return { success: false, message: 'One or both characters are already linked' };
     }
 
@@ -3851,7 +3876,7 @@ Rispondi SOLO in JSON:`;
       bonusCardId
     });
 
-    console.log(`🔮 BAMBOLA VOODOO activated: ${card1Id} <-> ${card2Id} by ${activatedBy}`);
+    console.log(`🔮 BAMBOLA VOODOO activated: ${card1.owner} (${card1Id}) <-> ${card2.owner} (${card2Id}) by ${activatedBy} using ${bonusCardId}`);
     
     return { 
       success: true, 

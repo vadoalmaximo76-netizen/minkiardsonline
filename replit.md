@@ -53,6 +53,28 @@ Cards are defined with front/back images, ownership tracking, and custom text an
 - **Card Return System**: Used cards automatically return to their respective decks
 - **Field Management**: Cards must be placed on field before use, maintaining proper game flow
 
+### Interactive Defense System
+The game features a real-time defense mechanism for MOSSE attacks:
+- **Defense Dialog**: When a player is attacked with a MOSSE card, they receive a targeted notification asking if they want to defend
+- **Targeted Notifications**: Only the attacked player sees the defense prompt (via socket ID targeting)
+- **30-Second Timeout**: Players have 30 seconds to respond; failure to respond auto-accepts the attack
+- **CPU Auto-Response**: CPU players automatically accept attacks after a 1-second delay
+- **Offline Handling**: Disconnected players automatically accept attacks
+- **Atomic Guards**: Prevents race conditions and duplicate defense requests
+
+### BAMBOLA VOODOO System
+Special BONUS card that links two characters to share damage and death:
+- **Damage Reflection**: When a linked character takes damage, the same damage is reflected to the other linked character
+- **Shared Death**: When one linked character dies (PTI reaches 0), both characters die simultaneously
+- **Auto-Removal**: Links are automatically removed when either character dies or leaves the field
+- **Security Validation**: 
+  - Requires bonus card on field and owned by activator
+  - Both characters must be PERSONAGGI or PERSONAGGI_SPECIALI types
+  - Both characters must be actively on the field (not in hand or graveyard)
+  - Each character can only have one voodoo link at a time
+- **Loop Prevention**: Damage reflection happens only once per attack (no infinite loops)
+- **Stale Link Cleanup**: Automatically removes invalid links when linked cards are not found
+
 ## Audio System
 The game features a comprehensive sound effect system using Web Audio API to enhance gameplay experience:
 - **Sound Effects**: Game start chimes, player notifications, dice rolls, damage sounds, character-specific audio
