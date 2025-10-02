@@ -32,6 +32,13 @@ interface PendingDefense {
   createdAt: string; // Date as string for JSON serialization
 }
 
+interface VoodooLink {
+  card1Id: string;
+  card2Id: string;
+  activatedBy: string;
+  bonusCardId: string;
+}
+
 interface GameState {
   decks: {
     personaggi: Card[];
@@ -46,6 +53,7 @@ interface GameState {
   turnOrder: string[];
   currentTurnIndex: number;
   pendingDefense?: PendingDefense; // Current pending defense request
+  voodooLinks?: VoodooLink[]; // BAMBOLA VOODOO active links
 }
 
 interface GameStateStore {

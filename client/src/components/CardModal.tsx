@@ -194,6 +194,20 @@ export const CardModal: React.FC = () => {
 
   const isBambolaVoodoo = selectedCard?.frontImage?.includes('BAMBOLA-VOODOO') || selectedCard?.frontImage?.includes('BAMBOLA_VOODOO');
 
+  // Check if this card has an active voodoo link
+  const hasVoodooLink = gameState?.voodooLinks?.some((link: any) => 
+    link.card1Id === selectedCard?.id || link.card2Id === selectedCard?.id
+  );
+
+  const handleRemoveVoodoo = () => {
+    if (selectedCard) {
+      socket.emit('voodoo:remove', {
+        cardId: selectedCard.id
+      });
+      setSelectedCard(null);
+    }
+  };
+
   // Get PERSONAGGI cards from other players in the field
   const getOtherPlayersPersonaggiCards = () => {
     if (!gameState?.field) return [];
@@ -349,6 +363,17 @@ export const CardModal: React.FC = () => {
                 >
                   🔮
                   ATTIVA
+                </Button>
+              )}
+
+              {/* ANNULLA VOODOO button - show for PERSONAGGI with active voodoo link */}
+              {(selectedCard.type === 'personaggi' || selectedCard.type === 'personaggi_speciali') && hasVoodooLink && (
+                <Button
+                  onClick={handleRemoveVoodoo}
+                  className="aspect-square bg-red-600 hover:bg-red-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
+                >
+                  🔮❌
+                  ANNULLA VOODOO
                 </Button>
               )}
 
