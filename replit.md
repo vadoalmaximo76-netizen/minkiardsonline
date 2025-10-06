@@ -79,8 +79,19 @@ Special BONUS card that links two characters to share damage and death:
 The game features a comprehensive sound effect system using Web Audio API to enhance gameplay experience:
 - **Sound Effects**: Game start chimes, player notifications, dice rolls, damage sounds, character-specific audio
 - **Character Sounds**: Different audio for animals (bee, dog, cat, bird), robots, magic spells, explosions, and human voices
+- **Card Animation Sounds**: Themed audio effects for 28 special cards including explosions, gunshots, mystical sounds, musical melodies, and impact effects
 - **Interactive Audio**: Players can mute/unmute all sound effects with a dedicated control button
 - **Synthesized Audio**: Uses Web Audio API to generate various sound effects with precise frequency and timing control
+
+## Card Animation System
+The game features immersive full-screen animations triggered by specific cards:
+- **28 Unique Animations**: Each special card triggers a 3-second centered screen animation with themed visual effects
+- **Automatic Triggering**: Animations activate when cards are played on the field (detected by server)
+- **Synchronized Audio**: Each animation plays a themed sound effect using Web Audio API oscillators
+- **Visual Effects**: Includes explosions, lightning, storms, flames, impacts, mystical circles, and character-specific animations
+- **Cards with Animations**: BAMBOLA VOODOO, UNA TEMPESTA BABY, ACCETTATA, ACCHIAPPT CHESSA, AGO DI PINO, ATTACCO KAMIKAZE, BOMBA SENZA DETONATORE, BOMBA, CANZONE NEOMELODICA, CIAVATTA, DUELLO, ESPLOSIONE ATOMICA, FUCILE A POMPA, FURTO, INFLUENZA, LU TRATTORE, MAZZA DA BASEBALL, MINA VAGANTE, MOTOSEGA, OMBELICO LANCIAFIAMME, ONDA ENERGETICA, PADELLATA IN FACCIA, PARTITA DI TENNIS, PIOGGIA DI METEORITI, PRETA, PUGNO, ROULETTE RUSSA, SAETTA
+- **Animation Components**: CardAnimation.tsx handles visual rendering, useAudio.tsx manages sound effects, server/gameManager.ts detects trigger cards
+- **CSS Animations**: Custom keyframe animations for special effects like axe swings, explosions, meteor falls, and energy beams
 
 ## Development Tools
 Vite is used for the build system with React plugin and GLSL shader support. ESBuild handles server-side bundling for production. The development setup includes hot module replacement and runtime error overlays.
