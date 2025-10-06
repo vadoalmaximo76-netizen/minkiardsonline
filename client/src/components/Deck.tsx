@@ -251,9 +251,9 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
                 height: 'calc(100% - 140px)'
               }}
             >
-              <div className="grid grid-cols-6 gap-3">
+              <div className="inline-grid grid-cols-6 gap-3 min-w-full">
                 {getSortedCards().map((card, index) => (
-                  <div key={card.id} className="flex flex-col items-center bg-gray-700 rounded p-1 hover:bg-gray-600 cursor-pointer">
+                  <div key={card.id} className="flex flex-col items-center bg-gray-700 rounded p-1 hover:bg-gray-600 cursor-pointer w-28">
                     <img
                       src={card.frontImage}
                       alt="Card"
