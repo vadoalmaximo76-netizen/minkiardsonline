@@ -95,28 +95,32 @@ export const VoiceChat: React.FC = () => {
     const handleUserJoin = async (data: { playerId: string }) => {
       if (data.playerId === playerName) return;
       
-      console.log(`🎤 User ${data.playerId} joined voice chat, creating offer...`);
+      if (playerName < data.playerId) {
+        console.log(`🎤 User ${data.playerId} joined voice chat, creating offer...`);
 
-      const peerConnection = createPeerConnection(data.playerId);
+        const peerConnection = createPeerConnection(data.playerId);
 
-      try {
-        const offer = await peerConnection.createOffer({
-          offerToReceiveAudio: true,
-          offerToReceiveVideo: false
-        });
-        
-        await peerConnection.setLocalDescription(offer);
-        
-        socket.emit('webrtc-offer', {
-          gameId,
-          targetPlayerId: data.playerId,
-          offer: offer,
-          fromPlayer: playerName
-        });
-        
-        console.log(`🎤 Sent offer to ${data.playerId}`);
-      } catch (error) {
-        console.error('🎤 Error creating offer:', error);
+        try {
+          const offer = await peerConnection.createOffer({
+            offerToReceiveAudio: true,
+            offerToReceiveVideo: false
+          });
+          
+          await peerConnection.setLocalDescription(offer);
+          
+          socket.emit('webrtc-offer', {
+            gameId,
+            targetPlayerId: data.playerId,
+            offer: offer,
+            fromPlayer: playerName
+          });
+          
+          console.log(`🎤 Sent offer to ${data.playerId}`);
+        } catch (error) {
+          console.error('🎤 Error creating offer:', error);
+        }
+      } else {
+        console.log(`🎤 User ${data.playerId} joined voice chat, waiting for offer...`);
       }
     };
 
