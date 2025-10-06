@@ -17,7 +17,7 @@ declare global {
   }
 }
 
-const YOUTUBE_PLAYLIST_ID = "PL7127269AE81ABA2A";
+const YOUTUBE_PLAYLIST_ID = "PLFC7776F0C2183335";
 
 export const MusicPlayer: React.FC<MusicPlayerProps> = ({ isOpen, onClose }) => {
   const playerRef = useRef<any>(null);
