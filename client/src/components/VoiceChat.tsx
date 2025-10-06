@@ -29,7 +29,7 @@ export const VoiceChat: React.FC = () => {
     if (!gameId || !playerName) return;
 
     const handleOffer = async (data: { fromPlayer: string; offer: RTCSessionDescriptionInit }) => {
-      if (data.fromPlayer === playerName || !isActive) return;
+      if (data.fromPlayer === playerName) return;
       
       console.log(`🎤 Received offer from ${data.fromPlayer}`);
 
@@ -93,7 +93,7 @@ export const VoiceChat: React.FC = () => {
     };
 
     const handleUserJoin = async (data: { playerId: string }) => {
-      if (data.playerId === playerName || !isActive) return;
+      if (data.playerId === playerName) return;
       
       console.log(`🎤 User ${data.playerId} joined voice chat, creating offer...`);
 
