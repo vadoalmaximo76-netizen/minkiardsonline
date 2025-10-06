@@ -28,23 +28,142 @@ export const VoiceChat: React.FC = () => {
   useEffect(() => {
     if (!gameId || !playerName) return;
 
+    const handleOffer = async (data: { fromPlayer: string; offer: RTCSessionDescriptionInit }) => {
+      if (data.fromPlayer === playerName || !isActive) return;
+      
+      console.log(`🎤 Received offer from ${data.fromPlayer}`);
+
+      let peerConnection = peerConnectionsRef.current.get(data.fromPlayer)?.connection;
+      
+      if (!peerConnection) {
+        peerConnection = createPeerConnection(data.fromPlayer);
+      }
+
+      try {
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+        
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+        
+        socket.emit('webrtc-answer', {
+          gameId,
+          targetPlayerId: data.fromPlayer,
+          answer: answer,
+          fromPlayer: playerName
+        });
+        
+        console.log(`🎤 Sent answer to ${data.fromPlayer}`);
+      } catch (error) {
+        console.error('🎤 Error handling offer:', error);
+      }
+    };
+
+    const handleAnswer = async (data: { fromPlayer: string; answer: RTCSessionDescriptionInit }) => {
+      console.log(`🎤 Received answer from ${data.fromPlayer}`);
+
+      const peerConnection = peerConnectionsRef.current.get(data.fromPlayer)?.connection;
+      if (!peerConnection) {
+        console.error(`🎤 No peer connection found for ${data.fromPlayer}`);
+        return;
+      }
+
+      try {
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+        console.log(`🎤 Set remote description for ${data.fromPlayer}`);
+      } catch (error) {
+        console.error('🎤 Error handling answer:', error);
+      }
+    };
+
+    const handleIceCandidate = async (data: { fromPlayer: string; candidate: RTCIceCandidateInit }) => {
+      console.log(`🎤 Received ICE candidate from ${data.fromPlayer}`);
+
+      const peerConnection = peerConnectionsRef.current.get(data.fromPlayer)?.connection;
+      if (!peerConnection) {
+        console.error(`🎤 No peer connection found for ${data.fromPlayer}`);
+        return;
+      }
+
+      try {
+        await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+        console.log(`🎤 Added ICE candidate from ${data.fromPlayer}`);
+      } catch (error) {
+        console.error('🎤 Error adding ICE candidate:', error);
+      }
+    };
+
+    const handleUserJoin = async (data: { playerId: string }) => {
+      if (data.playerId === playerName || !isActive) return;
+      
+      console.log(`🎤 User ${data.playerId} joined voice chat, creating offer...`);
+
+      const peerConnection = createPeerConnection(data.playerId);
+
+      try {
+        const offer = await peerConnection.createOffer({
+          offerToReceiveAudio: true,
+          offerToReceiveVideo: false
+        });
+        
+        await peerConnection.setLocalDescription(offer);
+        
+        socket.emit('webrtc-offer', {
+          gameId,
+          targetPlayerId: data.playerId,
+          offer: offer,
+          fromPlayer: playerName
+        });
+        
+        console.log(`🎤 Sent offer to ${data.playerId}`);
+      } catch (error) {
+        console.error('🎤 Error creating offer:', error);
+      }
+    };
+
+    const handleUserLeave = (data: { playerId: string }) => {
+      console.log(`🎤 User ${data.playerId} left voice chat`);
+
+      const peer = peerConnectionsRef.current.get(data.playerId);
+      if (peer) {
+        peer.connection.close();
+        peerConnectionsRef.current.delete(data.playerId);
+      }
+
+      const audioElement = audioElementsRef.current.get(data.playerId);
+      if (audioElement) {
+        audioElement.srcObject = null;
+        audioElement.remove();
+        audioElementsRef.current.delete(data.playerId);
+      }
+    };
+
+    const handleExisting = async (data: { participants: string[] }) => {
+      console.log(`🎤 Received existing users:`, data.participants);
+      
+      for (const participantId of data.participants) {
+        if (participantId !== playerName) {
+          await handleUserJoin({ playerId: participantId });
+        }
+      }
+    };
+
     // Handle incoming WebRTC signaling events
-    socket.on('webrtc-offer', handleIncomingOffer);
-    socket.on('webrtc-answer', handleIncomingAnswer);
-    socket.on('webrtc-ice-candidate', handleIncomingIceCandidate);
-    socket.on('voice-chat-user-joined', handleUserJoined);
-    socket.on('voice-chat-user-left', handleUserLeft);
-    socket.on('voice-chat-existing-users', handleExistingUsers);
+    socket.on('webrtc-offer', handleOffer);
+    socket.on('webrtc-answer', handleAnswer);
+    socket.on('webrtc-ice-candidate', handleIceCandidate);
+    socket.on('voice-chat-user-joined', handleUserJoin);
+    socket.on('voice-chat-user-left', handleUserLeave);
+    socket.on('voice-chat-existing-users', handleExisting);
 
     return () => {
-      socket.off('webrtc-offer', handleIncomingOffer);
-      socket.off('webrtc-answer', handleIncomingAnswer);
-      socket.off('webrtc-ice-candidate', handleIncomingIceCandidate);
-      socket.off('voice-chat-user-joined', handleUserJoined);
-      socket.off('voice-chat-user-left', handleUserLeft);
-      socket.off('voice-chat-existing-users', handleExistingUsers);
+      socket.off('webrtc-offer', handleOffer);
+      socket.off('webrtc-answer', handleAnswer);
+      socket.off('webrtc-ice-candidate', handleIceCandidate);
+      socket.off('voice-chat-user-joined', handleUserJoin);
+      socket.off('voice-chat-user-left', handleUserLeave);
+      socket.off('voice-chat-existing-users', handleExisting);
     };
-  }, [gameId, playerName]);
+  }, [gameId, playerName, isActive]);
 
   const startVoiceChat = async () => {
     try {
@@ -158,126 +277,6 @@ export const VoiceChat: React.FC = () => {
     return peerConnection;
   };
 
-  const handleUserJoined = async ({ playerId }: { playerId: string }) => {
-    if (playerId === playerName || !isActive) return;
-    
-    console.log(`🎤 User ${playerId} joined voice chat, creating offer...`);
-
-    const peerConnection = createPeerConnection(playerId);
-
-    // Create and send offer
-    try {
-      const offer = await peerConnection.createOffer({
-        offerToReceiveAudio: true,
-        offerToReceiveVideo: false
-      });
-      
-      await peerConnection.setLocalDescription(offer);
-      
-      socket.emit('webrtc-offer', {
-        gameId,
-        targetPlayerId: playerId,
-        offer: offer,
-        fromPlayer: playerName
-      });
-      
-      console.log(`🎤 Sent offer to ${playerId}`);
-    } catch (error) {
-      console.error('🎤 Error creating offer:', error);
-    }
-  };
-
-  const handleIncomingOffer = async ({ fromPlayer, offer }: { fromPlayer: string; offer: RTCSessionDescriptionInit }) => {
-    if (fromPlayer === playerName || !isActive) return;
-    
-    console.log(`🎤 Received offer from ${fromPlayer}`);
-
-    let peerConnection = peerConnectionsRef.current.get(fromPlayer)?.connection;
-    
-    if (!peerConnection) {
-      peerConnection = createPeerConnection(fromPlayer);
-    }
-
-    try {
-      await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-      
-      const answer = await peerConnection.createAnswer();
-      await peerConnection.setLocalDescription(answer);
-      
-      socket.emit('webrtc-answer', {
-        gameId,
-        targetPlayerId: fromPlayer,
-        answer: answer,
-        fromPlayer: playerName
-      });
-      
-      console.log(`🎤 Sent answer to ${fromPlayer}`);
-    } catch (error) {
-      console.error('🎤 Error handling offer:', error);
-    }
-  };
-
-  const handleIncomingAnswer = async ({ fromPlayer, answer }: { fromPlayer: string; answer: RTCSessionDescriptionInit }) => {
-    console.log(`🎤 Received answer from ${fromPlayer}`);
-
-    const peerConnection = peerConnectionsRef.current.get(fromPlayer)?.connection;
-    if (!peerConnection) {
-      console.error(`🎤 No peer connection found for ${fromPlayer}`);
-      return;
-    }
-
-    try {
-      await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-      console.log(`🎤 Set remote description for ${fromPlayer}`);
-    } catch (error) {
-      console.error('🎤 Error handling answer:', error);
-    }
-  };
-
-  const handleIncomingIceCandidate = async ({ fromPlayer, candidate }: { fromPlayer: string; candidate: RTCIceCandidateInit }) => {
-    console.log(`🎤 Received ICE candidate from ${fromPlayer}`);
-
-    const peerConnection = peerConnectionsRef.current.get(fromPlayer)?.connection;
-    if (!peerConnection) {
-      console.error(`🎤 No peer connection found for ${fromPlayer}`);
-      return;
-    }
-
-    try {
-      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-      console.log(`🎤 Added ICE candidate from ${fromPlayer}`);
-    } catch (error) {
-      console.error('🎤 Error adding ICE candidate:', error);
-    }
-  };
-
-  const handleExistingUsers = async ({ participants }: { participants: string[] }) => {
-    console.log(`🎤 Received existing users:`, participants);
-    
-    // Create peer connections with all existing users
-    for (const participantId of participants) {
-      if (participantId !== playerName) {
-        await handleUserJoined({ playerId: participantId });
-      }
-    }
-  };
-
-  const handleUserLeft = ({ playerId }: { playerId: string }) => {
-    console.log(`🎤 User ${playerId} left voice chat`);
-
-    const peer = peerConnectionsRef.current.get(playerId);
-    if (peer) {
-      peer.connection.close();
-      peerConnectionsRef.current.delete(playerId);
-    }
-
-    const audioElement = audioElementsRef.current.get(playerId);
-    if (audioElement) {
-      audioElement.srcObject = null;
-      audioElement.remove();
-      audioElementsRef.current.delete(playerId);
-    }
-  };
 
   return (
     <div className="flex gap-2">
