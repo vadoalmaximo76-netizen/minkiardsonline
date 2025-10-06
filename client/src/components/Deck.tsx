@@ -166,7 +166,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
         <div 
           className="fixed inset-0 bg-black bg-opacity-95 flex items-center justify-center p-4"
           style={{ 
-            zIndex: 50
+            zIndex: 9999
           }}
           data-backdrop="true"
           role="presentation"
@@ -178,14 +178,15 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
           }}
         >
           <div 
-            className="bg-gray-900 rounded-lg shadow-2xl border-2 border-gray-600 mx-auto"
+            className="bg-gray-900 rounded-lg shadow-2xl border-2 border-gray-600"
             style={{ 
-              width: '60vw',
-              height: '50vh',
+              width: '80vw',
+              height: '80vh',
               minWidth: '800px',
-              minHeight: '450px',
-              maxWidth: '90vw',
-              maxHeight: '90vh'
+              minHeight: '600px',
+              maxWidth: '95vw',
+              maxHeight: '95vh',
+              position: 'relative'
             }}
             onClick={(e) => {
               // Prevent backdrop click when clicking inside modal
