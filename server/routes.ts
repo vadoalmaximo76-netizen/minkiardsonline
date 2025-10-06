@@ -2830,7 +2830,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Remove from voice chat rooms
       voiceChatRooms.forEach((room, gameId) => {
-        for (const [playerName, socketId] of room.entries()) {
+        const entries = Array.from(room.entries());
+        for (const [playerName, socketId] of entries) {
           if (socketId === socket.id) {
             room.delete(playerName);
             console.log(`🎤 Removed ${playerName} from voice chat room ${gameId} (disconnected)`);
