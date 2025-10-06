@@ -10,10 +10,10 @@ interface MusicPlayerProps {
   onClose: () => void;
 }
 
-// Convert Google Drive IDs to direct download links
+// Convert Google Drive IDs to direct streaming links
 const MUSIC_TRACKS = [
-  "https://drive.google.com/uc?export=download&id=1ORhLi4SO2gf9T1tNyzPYPQp8eP34e8Lh",
-  "https://drive.google.com/uc?export=download&id=1LfcchGPwXyjaBIxNWn8EkDQx9mcLermo"
+  "https://docs.google.com/uc?export=open&id=1ORhLi4SO2gf9T1tNyzPYPQp8eP34e8Lh",
+  "https://docs.google.com/uc?export=open&id=1LfcchGPwXyjaBIxNWn8EkDQx9mcLermo"
 ];
 
 export const MusicPlayer: React.FC<MusicPlayerProps> = ({ isOpen, onClose }) => {
@@ -69,16 +69,48 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({ isOpen, onClose }) => 
     if (!audio) return;
 
     const updateTime = () => setCurrentTime(audio.currentTime);
-    const updateDuration = () => setDuration(audio.duration);
+    const updateDuration = () => {
+      console.log('🎵 Audio duration loaded:', audio.duration);
+      setDuration(audio.duration);
+    };
+    const handleEnded = () => {
+      console.log('🎵 Audio ended');
+      setIsPlaying(false);
+    };
+    const handleError = (e: Event) => {
+      console.error('🎵 Audio error:', e);
+      const audioElement = e.target as HTMLAudioElement;
+      if (audioElement.error) {
+        console.error('🎵 Audio error code:', audioElement.error.code);
+        console.error('🎵 Audio error message:', audioElement.error.message);
+      }
+    };
+    const handleCanPlay = () => {
+      console.log('🎵 Audio can play');
+    };
+    const handleLoadStart = () => {
+      console.log('🎵 Audio load started');
+    };
+    const handleLoadedData = () => {
+      console.log('🎵 Audio data loaded');
+    };
     
     audio.addEventListener('timeupdate', updateTime);
     audio.addEventListener('loadedmetadata', updateDuration);
-    audio.addEventListener('ended', () => setIsPlaying(false));
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('error', handleError);
+    audio.addEventListener('canplay', handleCanPlay);
+    audio.addEventListener('loadstart', handleLoadStart);
+    audio.addEventListener('loadeddata', handleLoadedData);
 
     return () => {
       audio.removeEventListener('timeupdate', updateTime);
       audio.removeEventListener('loadedmetadata', updateDuration);
-      audio.removeEventListener('ended', () => setIsPlaying(false));
+      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('error', handleError);
+      audio.removeEventListener('canplay', handleCanPlay);
+      audio.removeEventListener('loadstart', handleLoadStart);
+      audio.removeEventListener('loadeddata', handleLoadedData);
     };
   }, []);
 
@@ -171,7 +203,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({ isOpen, onClose }) => 
         className="fixed bottom-16 landscape:bottom-20 md:bottom-20 left-2 landscape:left-4 md:left-4 bg-gray-900 rounded-lg shadow-2xl border-2 border-purple-600 p-4 z-[101] w-80"
         onClick={(e) => e.stopPropagation()}
       >
-        <audio ref={audioRef} />
+        <audio ref={audioRef} crossOrigin="anonymous" />
         
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
