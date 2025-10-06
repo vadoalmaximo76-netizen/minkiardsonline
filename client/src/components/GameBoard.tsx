@@ -12,6 +12,7 @@ import { CardModal } from "./CardModal";
 import { DiceModal } from "./DiceModal";
 import { FullScreenNotification } from "./FullScreenNotification";
 import { PersonaggioNotification } from "./PersonaggioNotification";
+import { CardAnimation } from "./CardAnimation";
 import { AddCardsModal } from "./AddCardsModal";
 import { PlayerOrderNotification } from "./PlayerOrderNotification";
 import { NextTurnNotification } from "./NextTurnNotification";
@@ -85,8 +86,10 @@ export const GameBoard: React.FC = () => {
     player: string;
   }>({ visible: false, player: '' });
   const [handModalOpen, setHandModalOpen] = useState(false);
+  const [cardAnimationVisible, setCardAnimationVisible] = useState(false);
+  const [cardAnimationName, setCardAnimationName] = useState<string>("");
   const { selectedCard, gameId, playerName, gameState, setGameId } = useGameState();
-  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, initAudioContext, toggleMute, isMuted } = useAudio();
+  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted } = useAudio();
 
 
   const shareInviteLink = () => {
@@ -320,6 +323,13 @@ export const GameBoard: React.FC = () => {
       playCharacterSound(soundType);
     };
 
+    const handleCardAnimationTrigger = ({ cardName, playerName, cardId }: { cardName: string, playerName: string, cardId: string }) => {
+      console.log(`🎬 Card animation triggered for ${cardName} played by ${playerName}`);
+      setCardAnimationName(cardName);
+      setCardAnimationVisible(true);
+      playCardAnimationSound(cardName);
+    };
+
     const handleCardPlayedFaceDown = ({ cardId, playerName, message }: { cardId: string, playerName: string, message: string }) => {
       console.log(`Card played face down: ${message}`);
       // Optional: Show a notification that a card was played face down
@@ -370,6 +380,7 @@ export const GameBoard: React.FC = () => {
     socket.on('cards-added', handleCardsAdded);
     socket.on('bee-sound', handleBeeSound);
     socket.on('character-sound', handleCharacterSound);
+    socket.on('card-animation-trigger', handleCardAnimationTrigger);
     socket.on('card-played-face-down', handleCardPlayedFaceDown);
     socket.on('card-revealed', handleCardRevealed);
     socket.on('game-started', handleGameStarted);
@@ -864,6 +875,13 @@ export const GameBoard: React.FC = () => {
           cardName={personaggioCardName}
           message={personaggioMessage}
           cardImage={personaggioCardImage || ""}
+        />
+
+        {/* Card Animation */}
+        <CardAnimation
+          isVisible={cardAnimationVisible}
+          cardName={cardAnimationName}
+          onComplete={() => setCardAnimationVisible(false)}
         />
 
         {/* Player Order Notification */}

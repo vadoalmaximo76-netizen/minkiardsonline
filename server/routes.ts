@@ -689,6 +689,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
             message: `Per favore inserisci manualmente PTI e stelle nelle note della carta ${cardName}`
           });
         }
+        
+        // Check if card has special animation
+        if (result.card && result.card.triggerAnimation) {
+          const getCardNameFromUrl = (url: string) => {
+            const parts = url.split('/');
+            const filename = parts[parts.length - 1];
+            return filename
+              .toLowerCase()
+              .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+              .replace(/[-_]/g, ' ')
+              .split(' ')
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(' ');
+          };
+          
+          const cardName = getCardNameFromUrl(result.card.frontImage);
+          console.log(`🎬 Emitting card-animation-trigger for: ${cardName}`);
+          
+          io.to(gameId).emit('card-animation-trigger', {
+            cardName,
+            playerName,
+            cardId: result.card.id
+          });
+        }
       }
     });
 

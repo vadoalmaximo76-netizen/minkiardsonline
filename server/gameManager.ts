@@ -18,6 +18,8 @@ interface Card {
   fusedWith?: string[]; // Array of card IDs that are fused with this card
   isFused?: boolean; // True if this card is part of a fusion
   fusionLeader?: string; // ID of the card that leads the fusion group
+  // Animation trigger
+  triggerAnimation?: boolean; // True if this card should trigger a special animation
 }
 
 interface Player {
@@ -1051,12 +1053,32 @@ Rispondi SOLO in JSON:`;
         await this.autoAnalyzePersonaggioCard(gameId, card, playerName);
       }
       
+      // Check if card has special animation
+      const cardName = this.getCardNameFromUrl(card.frontImage);
+      const cardsWithAnimations = [
+        'BAMBOLA VOODOO', 'BAMBOLA-VOODOO', 'UNA TEMPESTA BABY', 'ACCETTATA',
+        'ACCHIAPPT CHESSA', 'AGO DI PINO', 'ATTACCO KAMIKAZE', 'BOMBA SENZA DETONATORE',
+        'BOMBA', 'CANZONE NEOMELODICA', 'CIAVATTA', 'DUELLO', 'ESPLOSIONE ATOMICA',
+        'FUCILE A POMPA', 'FURTO', 'INFLUENZA', 'LU TRATTORE', 'MAZZA DA BASEBALL',
+        'MINA VAGANTE', 'MOTOSEGA', 'OMBELICO LANCIAFIAMME', 'ONDA ENERGETICA',
+        'PADELLATA IN FACCIA', 'PARTITA DI TENNIS', 'PIOGGIA DI METEORITI', 'PRETA',
+        'PUGNO', 'ROULETTE RUSSA', 'SAETTA'
+      ];
+      
+      if (cardsWithAnimations.some(animCard => cardName.toUpperCase().includes(animCard))) {
+        console.log(`🎬 Card animation triggered for: ${cardName}`);
+        // This will be emitted via broadcast in routes.ts
+        card.triggerAnimation = true;
+      }
+      
       // Record play card event
       await this.recordEvent(gameId, 'play-card', {
         cardId: card.id,
         cardType: card.type,
         frontImage: card.frontImage,
-        isPersonaggio
+        isPersonaggio,
+        triggerAnimation: card.triggerAnimation || false,
+        cardName: cardName
       }, playerName);
       
       return { card, isPersonaggio };
