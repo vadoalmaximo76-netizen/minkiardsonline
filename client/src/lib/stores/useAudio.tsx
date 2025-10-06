@@ -24,6 +24,7 @@ interface AudioState {
   playDamageSound: () => void;
   playBeeSound: () => void;
   playCharacterSound: (soundType: string) => void;
+  playCardAnimationSound: (cardName: string) => void;
   initAudioContext: () => void;
 }
 
@@ -487,6 +488,332 @@ export const useAudio = create<AudioState>((set, get) => ({
         
         defaultOsc.start(audioContext.currentTime);
         defaultOsc.stop(audioContext.currentTime + 0.5);
+        break;
+    }
+  },
+
+  playCardAnimationSound: (cardName: string) => {
+    const { audioContext, isMuted } = get();
+    
+    if (!audioContext || isMuted) {
+      console.log(`Card animation sound skipped for ${cardName} (${!audioContext ? 'no context' : 'muted'})`);
+      return;
+    }
+
+    const normalizedName = cardName.toUpperCase().trim();
+    console.log(`Playing card animation sound for: ${normalizedName}`);
+
+    switch (normalizedName) {
+      case 'BOMBA':
+      case 'ATTACCO KAMIKAZE':
+      case 'ESPLOSIONE ATOMICA':
+        // Explosion sound
+        const explosion = audioContext.createOscillator();
+        const explosionGain = audioContext.createGain();
+        const explosionNoise = audioContext.createBufferSource();
+        const noiseBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.5, audioContext.sampleRate);
+        const noiseData = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < noiseData.length; i++) {
+          noiseData[i] = Math.random() * 2 - 1;
+        }
+        explosionNoise.buffer = noiseBuffer;
+        
+        explosion.connect(explosionGain);
+        explosionNoise.connect(explosionGain);
+        explosionGain.connect(audioContext.destination);
+        
+        explosion.frequency.setValueAtTime(200, audioContext.currentTime);
+        explosion.frequency.exponentialRampToValueAtTime(20, audioContext.currentTime + 0.5);
+        explosion.type = 'sawtooth';
+        
+        explosionGain.gain.setValueAtTime(0.3, audioContext.currentTime);
+        explosionGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
+        
+        explosion.start(audioContext.currentTime);
+        explosionNoise.start(audioContext.currentTime);
+        explosion.stop(audioContext.currentTime + 0.8);
+        explosionNoise.stop(audioContext.currentTime + 0.8);
+        break;
+
+      case 'DUELLO':
+      case 'FUCILE A POMPA':
+        // Gunshot sound
+        const gunshot = audioContext.createOscillator();
+        const gunshotGain = audioContext.createGain();
+        const gunshotNoise = audioContext.createBufferSource();
+        const gunNoiseBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.1, audioContext.sampleRate);
+        const gunNoiseData = gunNoiseBuffer.getChannelData(0);
+        for (let i = 0; i < gunNoiseData.length; i++) {
+          gunNoiseData[i] = Math.random() * 2 - 1;
+        }
+        gunshotNoise.buffer = gunNoiseBuffer;
+        
+        gunshot.connect(gunshotGain);
+        gunshotNoise.connect(gunshotGain);
+        gunshotGain.connect(audioContext.destination);
+        
+        gunshot.frequency.setValueAtTime(150, audioContext.currentTime);
+        gunshot.type = 'square';
+        
+        gunshotGain.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gunshotGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+        
+        gunshot.start(audioContext.currentTime);
+        gunshotNoise.start(audioContext.currentTime);
+        gunshot.stop(audioContext.currentTime + 0.1);
+        gunshotNoise.stop(audioContext.currentTime + 0.1);
+        break;
+
+      case 'INFLUENZA':
+        // Sneeze sound
+        const sneeze = audioContext.createOscillator();
+        const sneezeGain = audioContext.createGain();
+        const sneezeNoise = audioContext.createBufferSource();
+        const sneezeBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.3, audioContext.sampleRate);
+        const sneezeData = sneezeBuffer.getChannelData(0);
+        for (let i = 0; i < sneezeData.length; i++) {
+          sneezeData[i] = Math.random() * 2 - 1;
+        }
+        sneezeNoise.buffer = sneezeBuffer;
+        
+        sneeze.connect(sneezeGain);
+        sneezeNoise.connect(sneezeGain);
+        sneezeGain.connect(audioContext.destination);
+        
+        sneeze.frequency.setValueAtTime(800, audioContext.currentTime);
+        sneeze.frequency.linearRampToValueAtTime(200, audioContext.currentTime + 0.3);
+        sneeze.type = 'sawtooth';
+        
+        sneezeGain.gain.setValueAtTime(0, audioContext.currentTime);
+        sneezeGain.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.05);
+        sneezeGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+        
+        sneeze.start(audioContext.currentTime);
+        sneezeNoise.start(audioContext.currentTime);
+        sneeze.stop(audioContext.currentTime + 0.3);
+        sneezeNoise.stop(audioContext.currentTime + 0.3);
+        break;
+
+      case 'CANZONE NEOMELODICA':
+        // Musical melody
+        const melody = [440, 494, 523, 587, 659];
+        melody.forEach((freq, i) => {
+          const note = audioContext.createOscillator();
+          const noteGain = audioContext.createGain();
+          
+          note.connect(noteGain);
+          noteGain.connect(audioContext.destination);
+          
+          note.frequency.setValueAtTime(freq, audioContext.currentTime + i * 0.2);
+          note.type = 'sine';
+          
+          noteGain.gain.setValueAtTime(0, audioContext.currentTime + i * 0.2);
+          noteGain.gain.linearRampToValueAtTime(0.15, audioContext.currentTime + i * 0.2 + 0.05);
+          noteGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + i * 0.2 + 0.3);
+          
+          note.start(audioContext.currentTime + i * 0.2);
+          note.stop(audioContext.currentTime + i * 0.2 + 0.3);
+        });
+        break;
+
+      case 'MOTOSEGA':
+        // Chainsaw sound
+        const chainsaw = audioContext.createOscillator();
+        const chainsawGain = audioContext.createGain();
+        const chainsawNoise = audioContext.createBufferSource();
+        const chainsawBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 2, audioContext.sampleRate);
+        const chainsawData = chainsawBuffer.getChannelData(0);
+        for (let i = 0; i < chainsawData.length; i++) {
+          chainsawData[i] = Math.random() * 2 - 1;
+        }
+        chainsawNoise.buffer = chainsawBuffer;
+        
+        chainsaw.connect(chainsawGain);
+        chainsawNoise.connect(chainsawGain);
+        chainsawGain.connect(audioContext.destination);
+        
+        chainsaw.frequency.setValueAtTime(80, audioContext.currentTime);
+        chainsaw.type = 'sawtooth';
+        
+        chainsawGain.gain.setValueAtTime(0.15, audioContext.currentTime);
+        chainsawGain.gain.linearRampToValueAtTime(0.01, audioContext.currentTime + 2);
+        
+        chainsaw.start(audioContext.currentTime);
+        chainsawNoise.start(audioContext.currentTime);
+        chainsaw.stop(audioContext.currentTime + 2);
+        chainsawNoise.stop(audioContext.currentTime + 2);
+        break;
+
+      case 'SAETTA':
+        // Thunder/lightning sound
+        const thunder = audioContext.createOscillator();
+        const thunderGain = audioContext.createGain();
+        const thunderNoise = audioContext.createBufferSource();
+        const thunderBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 1, audioContext.sampleRate);
+        const thunderData = thunderBuffer.getChannelData(0);
+        for (let i = 0; i < thunderData.length; i++) {
+          thunderData[i] = Math.random() * 2 - 1;
+        }
+        thunderNoise.buffer = thunderBuffer;
+        
+        thunder.connect(thunderGain);
+        thunderNoise.connect(thunderGain);
+        thunderGain.connect(audioContext.destination);
+        
+        thunder.frequency.setValueAtTime(100, audioContext.currentTime);
+        thunder.frequency.exponentialRampToValueAtTime(30, audioContext.currentTime + 1);
+        thunder.type = 'sawtooth';
+        
+        thunderGain.gain.setValueAtTime(0.2, audioContext.currentTime);
+        thunderGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1);
+        
+        thunder.start(audioContext.currentTime);
+        thunderNoise.start(audioContext.currentTime);
+        thunder.stop(audioContext.currentTime + 1);
+        thunderNoise.stop(audioContext.currentTime + 1);
+        break;
+
+      case 'UNA TEMPESTA BABY':
+        // Storm sound (wind + rain)
+        const storm = audioContext.createOscillator();
+        const stormGain = audioContext.createGain();
+        const stormNoise = audioContext.createBufferSource();
+        const stormBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 2, audioContext.sampleRate);
+        const stormData = stormBuffer.getChannelData(0);
+        for (let i = 0; i < stormData.length; i++) {
+          stormData[i] = Math.random() * 2 - 1;
+        }
+        stormNoise.buffer = stormBuffer;
+        
+        storm.connect(stormGain);
+        stormNoise.connect(stormGain);
+        stormGain.connect(audioContext.destination);
+        
+        storm.frequency.setValueAtTime(60, audioContext.currentTime);
+        storm.type = 'sawtooth';
+        
+        stormGain.gain.setValueAtTime(0.1, audioContext.currentTime);
+        stormGain.gain.linearRampToValueAtTime(0.01, audioContext.currentTime + 2);
+        
+        storm.start(audioContext.currentTime);
+        stormNoise.start(audioContext.currentTime);
+        storm.stop(audioContext.currentTime + 2);
+        stormNoise.stop(audioContext.currentTime + 2);
+        break;
+
+      case 'ACCETTATA':
+      case 'MAZZA DA BASEBALL':
+      case 'PADELLATA IN FACCIA':
+      case 'PUGNO':
+        // Impact/hit sound
+        const impact = audioContext.createOscillator();
+        const impactGain = audioContext.createGain();
+        
+        impact.connect(impactGain);
+        impactGain.connect(audioContext.destination);
+        
+        impact.frequency.setValueAtTime(150, audioContext.currentTime);
+        impact.frequency.exponentialRampToValueAtTime(30, audioContext.currentTime + 0.2);
+        impact.type = 'square';
+        
+        impactGain.gain.setValueAtTime(0.3, audioContext.currentTime);
+        impactGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+        
+        impact.start(audioContext.currentTime);
+        impact.stop(audioContext.currentTime + 0.2);
+        break;
+
+      case 'ACCHIAPPT CHESSA':
+      case 'OMBELICO LANCIAFIAMME':
+        // Flame sound
+        const flame = audioContext.createOscillator();
+        const flameGain = audioContext.createGain();
+        const flameNoise = audioContext.createBufferSource();
+        const flameBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 1.5, audioContext.sampleRate);
+        const flameData = flameBuffer.getChannelData(0);
+        for (let i = 0; i < flameData.length; i++) {
+          flameData[i] = Math.random() * 2 - 1;
+        }
+        flameNoise.buffer = flameBuffer;
+        
+        flame.connect(flameGain);
+        flameNoise.connect(flameGain);
+        flameGain.connect(audioContext.destination);
+        
+        flame.frequency.setValueAtTime(200, audioContext.currentTime);
+        flame.type = 'sawtooth';
+        
+        flameGain.gain.setValueAtTime(0.2, audioContext.currentTime);
+        flameGain.gain.linearRampToValueAtTime(0.01, audioContext.currentTime + 1.5);
+        
+        flame.start(audioContext.currentTime);
+        flameNoise.start(audioContext.currentTime);
+        flame.stop(audioContext.currentTime + 1.5);
+        flameNoise.stop(audioContext.currentTime + 1.5);
+        break;
+
+      case 'BAMBOLA VOODOO':
+      case 'BAMBOLA-VOODOO':
+        // Mystical/magical sound
+        const mystical = audioContext.createOscillator();
+        const mysticalGain = audioContext.createGain();
+        
+        mystical.connect(mysticalGain);
+        mysticalGain.connect(audioContext.destination);
+        
+        mystical.frequency.setValueAtTime(440, audioContext.currentTime);
+        mystical.frequency.linearRampToValueAtTime(880, audioContext.currentTime + 0.5);
+        mystical.frequency.linearRampToValueAtTime(440, audioContext.currentTime + 1);
+        mystical.frequency.linearRampToValueAtTime(660, audioContext.currentTime + 1.5);
+        mystical.type = 'sine';
+        
+        mysticalGain.gain.setValueAtTime(0, audioContext.currentTime);
+        mysticalGain.gain.linearRampToValueAtTime(0.15, audioContext.currentTime + 0.1);
+        mysticalGain.gain.linearRampToValueAtTime(0.01, audioContext.currentTime + 1.5);
+        
+        mystical.start(audioContext.currentTime);
+        mystical.stop(audioContext.currentTime + 1.5);
+        break;
+
+      case 'ONDA ENERGETICA':
+        // Energy beam sound (like Kamehameha)
+        const energy = audioContext.createOscillator();
+        const energyGain = audioContext.createGain();
+        
+        energy.connect(energyGain);
+        energyGain.connect(audioContext.destination);
+        
+        energy.frequency.setValueAtTime(200, audioContext.currentTime);
+        energy.frequency.linearRampToValueAtTime(400, audioContext.currentTime + 1);
+        energy.frequency.linearRampToValueAtTime(600, audioContext.currentTime + 2);
+        energy.type = 'sine';
+        
+        energyGain.gain.setValueAtTime(0, audioContext.currentTime);
+        energyGain.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.2);
+        energyGain.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 1.5);
+        energyGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 2);
+        
+        energy.start(audioContext.currentTime);
+        energy.stop(audioContext.currentTime + 2);
+        break;
+
+      default:
+        // Generic card sound
+        const generic = audioContext.createOscillator();
+        const genericGain = audioContext.createGain();
+        
+        generic.connect(genericGain);
+        genericGain.connect(audioContext.destination);
+        
+        generic.frequency.setValueAtTime(523, audioContext.currentTime);
+        generic.type = 'sine';
+        
+        genericGain.gain.setValueAtTime(0, audioContext.currentTime);
+        genericGain.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.1);
+        genericGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        
+        generic.start(audioContext.currentTime);
+        generic.stop(audioContext.currentTime + 0.5);
         break;
     }
   }
