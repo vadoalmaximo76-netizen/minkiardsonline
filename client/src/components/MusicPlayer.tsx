@@ -12,8 +12,8 @@ interface MusicPlayerProps {
 
 // Local audio files
 const MUSIC_TRACKS = [
-  "/audio/Dragon Ball Z - Best Music Part 1 HD _ Epic Fight.mp3",
-  "/audio/Dragon Ball Z - Best Music Part 2 HD.mp3"
+  "/audio/dbz-music-part1.mp3",
+  "/audio/dbz-music-part2.mp3"
 ];
 
 export const MusicPlayer: React.FC<MusicPlayerProps> = ({ isOpen, onClose }) => {
