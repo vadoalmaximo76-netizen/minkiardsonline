@@ -163,7 +163,7 @@ export const VoiceChat: React.FC = () => {
       socket.off('voice-chat-user-left', handleUserLeave);
       socket.off('voice-chat-existing-users', handleExisting);
     };
-  }, [gameId, playerName, isActive]);
+  }, [gameId, playerName]);
 
   useEffect(() => {
     if (isActive && gameId && playerName) {
