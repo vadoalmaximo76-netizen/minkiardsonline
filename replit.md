@@ -93,6 +93,26 @@ The game features immersive full-screen animations triggered by specific cards:
 - **Animation Components**: CardAnimation.tsx handles visual rendering, useAudio.tsx manages sound effects, server/gameManager.ts detects trigger cards
 - **CSS Animations**: Custom keyframe animations for special effects like axe swings, explosions, meteor falls, and energy beams
 
+## Music Synchronization System
+The game features a synchronized music player for all players in the game room:
+- **Local Audio Playback**: Music files hosted in client/public/audio/ directory (Dragon Ball Z soundtracks)
+- **Real-time Sync**: All players hear the same music at the same time via WebSocket
+- **Persistent Player**: Music continues playing when UI panel is closed
+- **Remote Control**: Any player can control playback (play, pause, volume, track selection)
+- **Socket Events**: Uses music-action and music-control events for synchronization
+- **UI Component**: MusicPlayer.tsx with controls positioned bottom-left
+
+## Voice Chat System
+Real-time WebRTC voice communication between players:
+- **Native WebRTC Implementation**: Uses browser's RTCPeerConnection API for peer-to-peer audio
+- **Audio Quality**: Echo cancellation, noise suppression, and auto gain control enabled
+- **Microphone Control**: Toggle button in game controls to enable/disable voice chat
+- **Multi-Peer Support**: Handles multiple simultaneous peer connections (one per player)
+- **STUN Servers**: Uses Google STUN servers (stun.l.google.com:19302) for NAT traversal
+- **WebSocket Signaling**: Socket.IO handles WebRTC offer/answer/ICE candidate exchange
+- **Component**: VoiceChat.tsx manages getUserMedia and peer connections
+- **Server Events**: voice-chat-join, voice-chat-leave, webrtc-offer, webrtc-answer, webrtc-ice-candidate
+
 ## Development Tools
 Vite is used for the build system with React plugin and GLSL shader support. ESBuild handles server-side bundling for production. The development setup includes hot module replacement and runtime error overlays.
 
