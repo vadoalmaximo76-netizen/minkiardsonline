@@ -252,3 +252,83 @@ textarea.card-text:focus {
   letter-spacing: 0.025em;
   text-transform: uppercase;
 }
+
+/* Card Animation Effects */
+@keyframes rain-fall {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(400px); }
+}
+
+@keyframes axe-swing {
+  0% { transform: translateY(-200px) rotate(-45deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+
+@keyframes slipper-throw {
+  0% { transform: translateX(-300px) rotate(-720deg); }
+  100% { transform: translateX(0) rotate(0deg); }
+}
+
+@keyframes tractor-drive {
+  0% { transform: translateX(-400px); }
+  100% { transform: translateX(400px); }
+}
+
+@keyframes bat-swing {
+  0% { transform: rotate(-90deg) translateX(-100px); }
+  100% { transform: rotate(0deg) translateX(0); }
+}
+
+@keyframes mine-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+
+@keyframes chainsaw-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px) rotate(-1deg); }
+  75% { transform: translateX(2px) rotate(1deg); }
+}
+
+@keyframes pan-hit {
+  0% { transform: rotate(-90deg) translateX(-100px); }
+  80% { transform: rotate(0deg) translateX(0); }
+  90% { transform: rotate(-10deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes tennis-bounce {
+  0%, 100% { transform: translateX(-50px); }
+  50% { transform: translateX(50px); }
+}
+
+@keyframes meteor-fall {
+  0% { transform: translateY(0) rotate(0deg); }
+  100% { transform: translateY(500px) rotate(360deg); }
+}
+
+@keyframes rock-throw {
+  0% { transform: translateY(-200px) rotate(-180deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+
+@keyframes punch {
+  0% { transform: translateX(-100px) scale(0.5); }
+  50% { transform: translateX(0) scale(1.2); }
+  100% { transform: translateX(0) scale(1); }
+}
+
+@keyframes revolver-spin {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(360deg); }
+}
+
+@keyframes float-up {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-100px); opacity: 0; }
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
