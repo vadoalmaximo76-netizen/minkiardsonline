@@ -2727,6 +2727,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     });
 
+    // WebRTC Voice Chat events
+    socket.on('voice-chat-join', ({ gameId, playerName }) => {
+      console.log(`🎤 ${playerName} joined voice chat in ${gameId}`);
+      
+      // Notify all other players in the room that this player joined voice chat
+      socket.to(gameId).emit('voice-chat-user-joined', { playerId: playerName });
+    });
+
+    socket.on('voice-chat-leave', ({ gameId, playerName }) => {
+      console.log(`🎤 ${playerName} left voice chat in ${gameId}`);
+      
+      // Notify all other players in the room that this player left voice chat
+      socket.to(gameId).emit('voice-chat-user-left', { playerId: playerName });
+    });
+
+    socket.on('webrtc-offer', ({ gameId, targetPlayerId, offer, fromPlayer }) => {
+      console.log(`🎤 WebRTC offer from ${fromPlayer} to ${targetPlayerId}`);
+      
+      // Forward offer to target player
+      io.to(gameId).emit('webrtc-offer', { fromPlayer, offer });
+    });
+
+    socket.on('webrtc-answer', ({ gameId, targetPlayerId, answer, fromPlayer }) => {
+      console.log(`🎤 WebRTC answer from ${fromPlayer} to ${targetPlayerId}`);
+      
+      // Forward answer to target player
+      io.to(gameId).emit('webrtc-answer', { fromPlayer, answer });
+    });
+
+    socket.on('webrtc-ice-candidate', ({ gameId, targetPlayerId, candidate, fromPlayer }) => {
+      console.log(`🎤 ICE candidate from ${fromPlayer} to ${targetPlayerId}`);
+      
+      // Forward ICE candidate to target player
+      io.to(gameId).emit('webrtc-ice-candidate', { fromPlayer, candidate });
+    });
+
     socket.on('disconnect', () => {
       console.log('Player disconnected:', socket.id);
       gameManager.removePlayer(socket.id);
