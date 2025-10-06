@@ -34,6 +34,7 @@ export const VoiceChat: React.FC = () => {
     socket.on('webrtc-ice-candidate', handleIncomingIceCandidate);
     socket.on('voice-chat-user-joined', handleUserJoined);
     socket.on('voice-chat-user-left', handleUserLeft);
+    socket.on('voice-chat-existing-users', handleExistingUsers);
 
     return () => {
       socket.off('webrtc-offer', handleIncomingOffer);
@@ -41,6 +42,7 @@ export const VoiceChat: React.FC = () => {
       socket.off('webrtc-ice-candidate', handleIncomingIceCandidate);
       socket.off('voice-chat-user-joined', handleUserJoined);
       socket.off('voice-chat-user-left', handleUserLeft);
+      socket.off('voice-chat-existing-users', handleExistingUsers);
     };
   }, [gameId, playerName]);
 
@@ -246,6 +248,17 @@ export const VoiceChat: React.FC = () => {
       console.log(`🎤 Added ICE candidate from ${fromPlayer}`);
     } catch (error) {
       console.error('🎤 Error adding ICE candidate:', error);
+    }
+  };
+
+  const handleExistingUsers = async ({ participants }: { participants: string[] }) => {
+    console.log(`🎤 Received existing users:`, participants);
+    
+    // Create peer connections with all existing users
+    for (const participantId of participants) {
+      if (participantId !== playerName) {
+        await handleUserJoined({ playerId: participantId });
+      }
     }
   };
 

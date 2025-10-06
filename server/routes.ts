@@ -2827,6 +2827,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     socket.on('disconnect', () => {
       console.log('Player disconnected:', socket.id);
+      
+      // Remove from voice chat rooms
+      voiceChatRooms.forEach((room, gameId) => {
+        for (const [playerName, socketId] of room.entries()) {
+          if (socketId === socket.id) {
+            room.delete(playerName);
+            console.log(`🎤 Removed ${playerName} from voice chat room ${gameId} (disconnected)`);
+            // Notify others that player left
+            socket.to(gameId).emit('voice-chat-user-left', { playerId: playerName });
+            break;
+          }
+        }
+        if (room.size === 0) {
+          voiceChatRooms.delete(gameId);
+        }
+      });
+      
       gameManager.removePlayer(socket.id);
     });
   });
