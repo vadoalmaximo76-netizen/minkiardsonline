@@ -2714,6 +2714,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // Music synchronization events
+    socket.on('music-action', ({ gameId, playerName, action, trackUrl, time, volume }) => {
+      console.log(`🎵 Music action from ${playerName}:`, action, { trackUrl, time, volume });
+      
+      // Broadcast music control to all players in the game room
+      io.to(gameId).emit('music-control', {
+        action,
+        trackUrl,
+        time,
+        volume
+      });
+    });
 
     socket.on('disconnect', () => {
       console.log('Player disconnected:', socket.id);

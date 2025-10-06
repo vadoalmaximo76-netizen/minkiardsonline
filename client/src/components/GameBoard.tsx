@@ -21,18 +21,20 @@ import { SuperDice } from "./SuperDice";
 import { TransferRequestDialog } from "./TransferRequestDialog";
 import { DefenseDialog } from "./DefenseDialog";
 import { HandModal } from "./HandModal";
+import { MusicPlayer } from "./MusicPlayer";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
-import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star, Hand } from "lucide-react";
+import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star, Hand, Music } from "lucide-react";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 
 export const GameBoard: React.FC = () => {
   const [chatOpen, setChatOpen] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
+  const [musicPlayerOpen, setMusicPlayerOpen] = useState(false);
   const [graveyardOpen, setGraveyardOpen] = useState(false);
   const [diceOpen, setDiceOpen] = useState(false);
   const [diceResult, setDiceResult] = useState<number | undefined>();
@@ -755,6 +757,16 @@ export const GameBoard: React.FC = () => {
           <Graveyard onClose={() => setGraveyardOpen(false)} />
         )}
 
+        {/* Music Player Button */}
+        <Button
+          onClick={() => setMusicPlayerOpen(!musicPlayerOpen)}
+          className="fixed bottom-14 landscape:bottom-20 md:bottom-20 left-2 landscape:left-4 md:left-4 bg-pink-600 hover:bg-pink-700 text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
+          style={{ position: 'fixed' }}
+          title="Music Player"
+        >
+          <Music size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
+        </Button>
+
         {/* Sound Toggle Button */}
         <Button
           onClick={() => {
@@ -767,6 +779,12 @@ export const GameBoard: React.FC = () => {
         >
           {isMuted ? <VolumeX size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" /> : <Volume2 size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />}
         </Button>
+        
+        {/* Music Player Component */}
+        <MusicPlayer 
+          isOpen={musicPlayerOpen}
+          onClose={() => setMusicPlayerOpen(false)}
+        />
 
         {/* Game controls */}
         <div className="fixed bottom-2 landscape:bottom-4 md:bottom-4 right-2 landscape:right-4 md:right-4 flex flex-col gap-1 landscape:gap-2 md:gap-2 z-50">
