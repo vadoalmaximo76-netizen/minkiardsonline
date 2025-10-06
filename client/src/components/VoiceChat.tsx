@@ -95,6 +95,11 @@ export const VoiceChat: React.FC = () => {
     const handleUserJoin = async (data: { playerId: string }) => {
       if (data.playerId === playerName) return;
       
+      if (peerConnectionsRef.current.has(data.playerId)) {
+        console.log(`🎤 Peer connection already exists for ${data.playerId}, skipping`);
+        return;
+      }
+      
       if (playerName < data.playerId) {
         console.log(`🎤 User ${data.playerId} joined voice chat, creating offer...`);
 
