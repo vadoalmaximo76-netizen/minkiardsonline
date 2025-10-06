@@ -22,6 +22,7 @@ import { TransferRequestDialog } from "./TransferRequestDialog";
 import { DefenseDialog } from "./DefenseDialog";
 import { HandModal } from "./HandModal";
 import { MusicPlayer } from "./MusicPlayer";
+import { VoiceChat } from "./VoiceChat";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
@@ -838,6 +839,9 @@ export const GameBoard: React.FC = () => {
           >
             <Skull size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
           </Button>
+          
+          {/* Voice Chat Controls */}
+          <VoiceChat />
           
           <Button
             onClick={() => setInstructionsOpen(!instructionsOpen)}
