@@ -466,7 +466,7 @@ export const CARD_DATA = {
     "https://i.ibb.co/wZgnj7Bj/pql.png",
     "https://i.ibb.co/HfjCZWMj/renato-castaldi.png",
     "https://i.ibb.co/Xrp613M2/sandro.png",
-    "https://i.ibb.co/xtNGQRs8/scurzone.png",
+    "https://i.ibb.co/0VFHth9L/SCURZONE.png",
     "https://i.ibb.co/FQ431Zk/spadino.png",
     "https://i.ibb.co/HfMsKm5w/tamburello.png",
     "https://i.ibb.co/g07rGVW/z-a.png",
