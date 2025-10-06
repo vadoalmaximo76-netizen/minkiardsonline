@@ -469,7 +469,12 @@ export const CARD_DATA = {
     "https://i.ibb.co/xtNGQRs8/scurzone.png",
     "https://i.ibb.co/FQ431Zk/spadino.png",
     "https://i.ibb.co/HfMsKm5w/tamburello.png",
-    "https://i.ibb.co/g07rGVW/z-a.png"
+    "https://i.ibb.co/g07rGVW/z-a.png",
+    "https://i.ibb.co/cSm3ymbt/DON-EMILIO.png",
+    "https://i.ibb.co/j9m1sJjR/LELO-JR.png",
+    "https://i.ibb.co/Td0bKMF/LELO.png",
+    "https://i.ibb.co/hJkB8mp2/MMT-J.png",
+    "https://i.ibb.co/wZjh9BTV/SABATINO.png"
   ],
   personaggi_speciali: [
     "https://i.postimg.cc/ZnZkDKX7/albabidi.png",
