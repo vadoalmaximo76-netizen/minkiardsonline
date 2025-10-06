@@ -9,6 +9,9 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY 
 });
 
+// Track voice chat participants: gameId -> Set of playerNames
+const voiceChatRooms = new Map<string, Map<string, string>>(); // gameId -> Map(playerName -> socketId)
+
 // Local database of MINKIARDS card values (DISABLED - values were incorrect)
 // TODO: Get real values from user and populate this database accurately
 const MINKIARDS_CARD_DATA: Record<string, { pti: number, stars: number, powers?: string }> = {
@@ -2731,12 +2734,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('voice-chat-join', ({ gameId, playerName }) => {
       console.log(`🎤 ${playerName} joined voice chat in ${gameId}`);
       
+      // Create room if it doesn't exist
+      if (!voiceChatRooms.has(gameId)) {
+        voiceChatRooms.set(gameId, new Map());
+      }
+      
+      const room = voiceChatRooms.get(gameId)!;
+      
+      // Get existing participants before adding new one
+      const existingParticipants = Array.from(room.keys());
+      
+      // Add new participant
+      room.set(playerName, socket.id);
+      
+      console.log(`🎤 Voice chat room ${gameId} participants:`, Array.from(room.keys()));
+      
+      // Send list of existing participants to the new joiner
+      if (existingParticipants.length > 0) {
+        socket.emit('voice-chat-existing-users', { participants: existingParticipants });
+        console.log(`🎤 Sent existing participants to ${playerName}:`, existingParticipants);
+      }
+      
       // Notify all other players in the room that this player joined voice chat
       socket.to(gameId).emit('voice-chat-user-joined', { playerId: playerName });
     });
 
     socket.on('voice-chat-leave', ({ gameId, playerName }) => {
       console.log(`🎤 ${playerName} left voice chat in ${gameId}`);
+      
+      const room = voiceChatRooms.get(gameId);
+      if (room) {
+        room.delete(playerName);
+        if (room.size === 0) {
+          voiceChatRooms.delete(gameId);
+        }
+      }
       
       // Notify all other players in the room that this player left voice chat
       socket.to(gameId).emit('voice-chat-user-left', { playerId: playerName });
@@ -2745,22 +2777,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('webrtc-offer', ({ gameId, targetPlayerId, offer, fromPlayer }) => {
       console.log(`🎤 WebRTC offer from ${fromPlayer} to ${targetPlayerId}`);
       
-      // Forward offer to target player
-      io.to(gameId).emit('webrtc-offer', { fromPlayer, offer });
+      // Get target player's socket ID
+      const room = voiceChatRooms.get(gameId);
+      if (room) {
+        const targetSocketId = room.get(targetPlayerId);
+        if (targetSocketId) {
+          // Send offer only to target player
+          io.to(targetSocketId).emit('webrtc-offer', { fromPlayer, offer });
+          console.log(`🎤 Sent offer to ${targetPlayerId} (socket: ${targetSocketId})`);
+        } else {
+          console.log(`🎤 Target player ${targetPlayerId} not found in voice chat`);
+        }
+      }
     });
 
     socket.on('webrtc-answer', ({ gameId, targetPlayerId, answer, fromPlayer }) => {
       console.log(`🎤 WebRTC answer from ${fromPlayer} to ${targetPlayerId}`);
       
-      // Forward answer to target player
-      io.to(gameId).emit('webrtc-answer', { fromPlayer, answer });
+      // Get target player's socket ID
+      const room = voiceChatRooms.get(gameId);
+      if (room) {
+        const targetSocketId = room.get(targetPlayerId);
+        if (targetSocketId) {
+          // Send answer only to target player
+          io.to(targetSocketId).emit('webrtc-answer', { fromPlayer, answer });
+          console.log(`🎤 Sent answer to ${targetPlayerId} (socket: ${targetSocketId})`);
+        } else {
+          console.log(`🎤 Target player ${targetPlayerId} not found in voice chat`);
+        }
+      }
     });
 
     socket.on('webrtc-ice-candidate', ({ gameId, targetPlayerId, candidate, fromPlayer }) => {
       console.log(`🎤 ICE candidate from ${fromPlayer} to ${targetPlayerId}`);
       
-      // Forward ICE candidate to target player
-      io.to(gameId).emit('webrtc-ice-candidate', { fromPlayer, candidate });
+      // Get target player's socket ID
+      const room = voiceChatRooms.get(gameId);
+      if (room) {
+        const targetSocketId = room.get(targetPlayerId);
+        if (targetSocketId) {
+          // Send ICE candidate only to target player
+          io.to(targetSocketId).emit('webrtc-ice-candidate', { fromPlayer, candidate });
+          console.log(`🎤 Sent ICE candidate to ${targetPlayerId} (socket: ${targetSocketId})`);
+        } else {
+          console.log(`🎤 Target player ${targetPlayerId} not found in voice chat`);
+        }
+      }
     });
 
     socket.on('disconnect', () => {
