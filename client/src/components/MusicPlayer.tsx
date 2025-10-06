@@ -10,10 +10,10 @@ interface MusicPlayerProps {
   onClose: () => void;
 }
 
-// Convert Google Drive IDs to direct streaming links
+// Local audio files
 const MUSIC_TRACKS = [
-  "https://docs.google.com/uc?export=open&id=1ORhLi4SO2gf9T1tNyzPYPQp8eP34e8Lh",
-  "https://docs.google.com/uc?export=open&id=1LfcchGPwXyjaBIxNWn8EkDQx9mcLermo"
+  "/audio/Dragon Ball Z - Best Music Part 1 HD _ Epic Fight.mp3",
+  "/audio/Dragon Ball Z - Best Music Part 2 HD.mp3"
 ];
 
 export const MusicPlayer: React.FC<MusicPlayerProps> = ({ isOpen, onClose }) => {
@@ -203,7 +203,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({ isOpen, onClose }) => 
         className="fixed bottom-16 landscape:bottom-20 md:bottom-20 left-2 landscape:left-4 md:left-4 bg-gray-900 rounded-lg shadow-2xl border-2 border-purple-600 p-4 z-[101] w-80"
         onClick={(e) => e.stopPropagation()}
       >
-        <audio ref={audioRef} crossOrigin="anonymous" />
+        <audio ref={audioRef} />
         
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
