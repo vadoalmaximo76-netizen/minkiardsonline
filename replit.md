@@ -62,6 +62,15 @@ The game features a real-time defense mechanism for MOSSE attacks:
 - **Offline Handling**: Disconnected players automatically accept attacks
 - **Atomic Guards**: Prevents race conditions and duplicate defense requests
 
+### CPU Attack System
+CPU players now integrate fully with the defense system:
+- **Damage Request Dialog**: When CPU attacks, game creator sees CPUDamageDialog showing MOSSE card image and attack details
+- **Manual Damage Input**: Game creator inputs damage value for CPU's MOSSE attack
+- **Defense Integration**: After damage input, defender receives standard defense:request (can accept/reject like any attack)
+- **Auto-Management**: CPU MOSSE cards are automatically returned to deck bottom and replacement drawn synchronously after attack resolution
+- **Race-Free Design**: Synchronous card return/draw eliminates timing conflicts between defense resolution and card management
+- **Unified Flow**: CPU attacks follow same defense pipeline as human attacks (requiresDefenseResponse check, defense:request emission, processDefenseResponse)
+
 ### BAMBOLA VOODOO System
 Special BONUS card that links two characters to share damage and death:
 - **Damage Reflection**: When a linked character takes damage, the same damage is reflected to the other linked character

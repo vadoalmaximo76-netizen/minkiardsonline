@@ -1339,7 +1339,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
 
-      // Broadcast attack animation
+      // Broadcast attack animation to all players
       io.to(gameId).emit('card-attacked', {
         mosseCardId,
         targetCardId,
@@ -1349,7 +1349,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timestamp: Date.now()
       });
 
-      // Process damage immediately (CPU attacks don't use defense system)
+      // NEW: Use defense system like all other attacks
+      if (attackResult.result?.requiresDefenseResponse) {
+        console.log(`🛡️ CPU attack requires defense - emitting defense:request to ${targetOwner}`);
+        
+        // Store damage value and attack details for later processing
+        const pendingDefense = gameManager.getPendingDefense(gameId);
+        if (pendingDefense) {
+          pendingDefense.damage = damageValue;
+          pendingDefense.mosseCardId = mosseCardId;
+          console.log(`📝 Stored damage value ${damageValue} for pending defense ${pendingDefense.attackId}`);
+        }
+        
+        // Emit defense request to the defender
+        const emissionSuccess = await gameManager.emitDefenseRequest(gameId, io);
+        if (!emissionSuccess) {
+          console.log(`⚠️ Failed to emit defense request - proceeding with damage`);
+          await gameManager.processMosseDamage(gameId, cpuName, targetCardId, damageValue, mosseCardId, io);
+        }
+        
+        // Attack is pending defense response - processing will continue in defense:response handler
+        return;
+      }
+
+      // If no defense required, process damage immediately
       await gameManager.processMosseDamage(gameId, cpuName, targetCardId, damageValue, mosseCardId, io);
       
       console.log(`🎯 CPU ${cpuName} attack completed successfully`);

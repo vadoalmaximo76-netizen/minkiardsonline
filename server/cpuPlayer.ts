@@ -1611,6 +1611,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           cpuCharacterName: this.playerName,
           mosseCardId: cardId,
           mosseCardName: mosseCardName,
+          mosseCardImage: mosseCard?.frontImage || '',
           targetCardId: target.cardId,
           targetCardName: target.name,
           targetOwner: target.owner,
@@ -1622,23 +1623,21 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       }
     }
 
-    // STEP 5: Preme su "FINE TURNO" - Completa la sequenza nello stesso turno come richiesto
+    // STEP 5: Wait for game creator to input damage and defense system to resolve
+    // The MOSSE card will be automatically returned to deck after the attack resolves
     this.markActionExecuted('execute');
     
-    // CRITICAL FIX: Return used MOSSE card to BOTTOM of deck and draw replacement
-    console.log(`🎯 CPU ${this.playerName}: Returning MOSSE card ${cardId} to bottom of deck and drawing replacement`);
+    // NOTE: MOSSE card return is now handled by the defense system after attack resolution
+    // The cpu-damage-submit handler will trigger executeMossaAttack which manages:
+    // 1. Defense request emission
+    // 2. Defense response handling
+    // 3. Automatic MOSSE card return to deck bottom
+    // 4. Auto-draw replacement for CPU players
     
-    // Return the used MOSSE card to the bottom of the deck
-    if (this.gameManager) {
-      this.gameManager.returnToDeck(this.gameId, cardId, this.playerName);
-      console.log(`🎯 CPU ${this.playerName}: MOSSE card ${cardId} returned to bottom of deck`);
-    }
-    
-    // Draw replacement MOSSE card
-    await this.drawReplacementAndEndTurn('mosse');
+    console.log(`🎯 CPU ${this.playerName}: MOSSE attack initiated - waiting for damage input and defense resolution`);
     
     // Return end-turn action to complete the sequence
-    console.log(`🎯 CPU ${this.playerName}: MOSSE SEQUENCE COMPLETED - preparing to end turn`);
+    console.log(`🎯 CPU ${this.playerName}: MOSSE SEQUENCE COMPLETED - attack pending resolution`);
     this.turnState.phase = 'turn_end';
     
     return {

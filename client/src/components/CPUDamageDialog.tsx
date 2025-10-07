@@ -10,6 +10,7 @@ interface CPUDamageRequest {
   cpuCharacterName: string;
   mosseCardId: string;
   mosseCardName: string;
+  mosseCardImage: string;
   targetCardId: string;
   targetCardName: string;
   targetOwner: string;
@@ -97,6 +98,18 @@ export const CPUDamageDialog: React.FC = () => {
             <p className="text-lg font-bold text-purple-700 mb-2">
               {damageRequest.mosseCardName}
             </p>
+            
+            {/* Show MOSSE card image */}
+            {damageRequest.mosseCardImage && (
+              <div className="flex justify-center my-3">
+                <img 
+                  src={damageRequest.mosseCardImage} 
+                  alt={damageRequest.mosseCardName}
+                  className="w-32 h-48 object-cover rounded-lg shadow-lg border-2 border-purple-400"
+                />
+              </div>
+            )}
+            
             <p className="text-gray-700 font-medium">
               contro il personaggio avversario <strong className="text-red-600">{damageRequest.targetCardName}</strong> di <strong>{damageRequest.targetOwner}</strong>
             </p>

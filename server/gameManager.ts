@@ -3889,35 +3889,48 @@ Rispondi SOLO in JSON:`;
       io.to(gameId).emit('game-state-update', updatedGameState);
     }
     
-    // PRESERVE: Manual MOSSE return system (exact legacy behavior)
-    console.log(`MOSSE card ${mosseCardId} used by ${attackerName} - awaiting manual return to deck bottom`);
+    // MOSSE return system: CPU auto-return with replacement, humans manual
+    console.log(`MOSSE card ${mosseCardId} used by ${attackerName}`);
     
-    setTimeout(() => {
-      io.to(gameId).emit('mosse-return-required', {
-        cardId: mosseCardId,
-        playerName: attackerName,
-        cardType: 'mosse',
-        message: `${attackerName} deve rimettere manualmente la carta MOSSE nel mazzo (in fondo)`
-      });
+    if (attackerName.startsWith('CPU-')) {
+      // CPU AUTO-MANAGEMENT: Synchronous return and draw to avoid race conditions
+      console.log(`🤖 CPU ${attackerName}: Auto-returning MOSSE card ${mosseCardId} to deck bottom`);
+      this.returnToDeck(gameId, mosseCardId, attackerName);
       
-      // PRESERVE: CPU auto-return timing
-      if (attackerName.startsWith('CPU-')) {
-        setTimeout(() => {
-          console.log(`CPU ${attackerName} manually returning MOSSE card to deck bottom`);
-          this.returnToDeck(gameId, mosseCardId, attackerName);
-          
-          const updatedGameState = this.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', updatedGameState);
-          
-          io.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-cpu-return`,
-            playerName: attackerName,
-            message: 'Ho rimesso la carta MOSSE in fondo al mazzo.',
-            timestamp: Date.now()
-          });
-        }, 3000);
+      // Draw replacement MOSSE card synchronously
+      const replacementCard = await this.pickCard(gameId, 'mosse', attackerName);
+      if (replacementCard) {
+        console.log(`🤖 CPU ${attackerName}: Auto-drew replacement MOSSE card`);
+      } else {
+        console.log(`⚠️ CPU ${attackerName}: Failed to draw replacement MOSSE card`);
       }
-    }, 2000);
+      
+      // Delayed notification for UI feedback (doesn't affect game state)
+      setTimeout(() => {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-cpu-mosse-management`,
+          playerName: 'Sistema',
+          message: `🤖 ${attackerName} ha rimesso la carta MOSSE nel mazzo e pescato una nuova carta.`,
+          timestamp: Date.now()
+        });
+        
+        // Broadcast updated game state
+        const updatedGameState = this.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', updatedGameState);
+      }, 1000);
+    } else {
+      // HUMAN MANUAL RETURN: Emit reminder after delay
+      setTimeout(() => {
+        io.to(gameId).emit('mosse-return-required', {
+          cardId: mosseCardId,
+          playerName: attackerName,
+          cardType: 'mosse',
+          message: `${attackerName} deve rimettere manualmente la carta MOSSE nel mazzo (in fondo)`
+        });
+      }, 2000);
+      
+      console.log(`MOSSE card ${mosseCardId} used by ${attackerName} - awaiting manual return to deck bottom`);
+    }
   }
 
   checkForGameVictory(gameId: string): string | null {
