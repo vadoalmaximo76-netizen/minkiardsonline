@@ -716,6 +716,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
             cardId: result.card.id
           });
         }
+        
+        // DUELLO: Auto-activate MOSSE attack during duel
+        if (result.duelAutoAttack && result.card) {
+          const duelState = gameManager.getDuelState(gameId);
+          if (duelState && duelState.active) {
+            console.log(`⚔️ DUELLO: Auto-activating MOSSE attack for ${playerName}`);
+            
+            // Determine opponent's character
+            const opponentCharacterId = playerName === duelState.player1 ? duelState.character2Id : duelState.character1Id;
+            
+            // Emit auto-attack notification to client
+            io.to(gameId).emit('duel-auto-attack', {
+              attackerName: playerName,
+              mosseCardId: result.card.id,
+              targetCardId: opponentCharacterId,
+              message: `⚔️ DUELLO: ${playerName} attacca automaticamente!`
+            });
+            
+            console.log(`⚔️ DUELLO: Auto-attack will target ${opponentCharacterId}`);
+          }
+        }
       }
     });
 
@@ -1784,7 +1805,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           // UNIFIED DEFENSE EMISSION: Use GameManager.emitDefenseRequest instead of direct emission
-          const emissionSuccess = gameManager.emitDefenseRequest(gameId, io);
+          const emissionSuccess = await gameManager.emitDefenseRequest(gameId, io);
           if (!emissionSuccess) {
             console.log(`⚠️ Failed to emit defense request - proceeding with damage`);
             await gameManager.processMosseDamage(gameId, attackerName, targetCardId, damageValue, mosseCardId, io);
@@ -1800,7 +1821,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // PRODUCTION-READY DEFENSE RESPONSE: Enhanced security and validation
-    socket.on('defense:response', ({ attackId, defends, gameId: clientGameId }) => {
+    socket.on('defense:response', async ({ attackId, defends, gameId: clientGameId }) => {
       const startTime = Date.now();
       const gameId = gameManager.getPlayerGameId(socket.id) || clientGameId;
       
@@ -1855,7 +1876,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Process using enhanced GameManager method with 'client' resolve source
-      const success = gameManager.processDefenseResponse(gameId, attackId, defends, io, 'client');
+      const success = await gameManager.processDefenseResponse(gameId, attackId, defends, io, 'client');
       
       if (!success) {
         console.warn(`[DEFENSE-RESPONSE] Failed to process defense response`, {
@@ -2690,7 +2711,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         // CRITICAL: Emit defense:request if required
                         if (attackResult.result && attackResult.result.requiresDefenseResponse) {
                           console.log(`🛡️ Emitting defense:request for CPU attack`);
-                          gameManager.emitDefenseRequest(gameId, io);
+                          await gameManager.emitDefenseRequest(gameId, io);
                         }
                         
                         // Legacy card-attacked event for UI compatibility

@@ -1044,9 +1044,26 @@ Rispondi SOLO in JSON:`;
     return true;
   }
 
-  async playCard(gameId: string, cardId: string, playerName: string): Promise<{ card?: any, isPersonaggio?: boolean }> {
+  async playCard(gameId: string, cardId: string, playerName: string): Promise<{ card?: any, isPersonaggio?: boolean, duelAutoAttack?: boolean }> {
     const game = this.games.get(gameId);
     if (!game || !game.players[playerName]) return {};
+
+    // DUELLO: Check if there's an active duel
+    if (game.activeDuel && game.activeDuel.active) {
+      const duel = game.activeDuel;
+      
+      // Only duelists can play cards during a duel
+      if (playerName !== duel.player1 && playerName !== duel.player2) {
+        console.log(`⚔️ DUELLO: ${playerName} cannot play - only duelists (${duel.player1} and ${duel.player2}) can act`);
+        return {};
+      }
+      
+      // Check if it's this player's turn in the duel
+      if (playerName !== duel.currentTurn) {
+        console.log(`⚔️ DUELLO: It's not ${playerName}'s turn (current turn: ${duel.currentTurn})`);
+        return {};
+      }
+    }
 
     const player = game.players[playerName];
     const cardIndex = player.hand.findIndex(card => card.id === cardId);
@@ -1093,7 +1110,22 @@ Rispondi SOLO in JSON:`;
         cardName: cardName
       }, playerName);
       
-      return { card, isPersonaggio };
+      // DUELLO: Auto-activate MOSSE cards during duel
+      let duelAutoAttack = false;
+      if (game.activeDuel && game.activeDuel.active && card.type === 'mosse') {
+        const duel = game.activeDuel;
+        console.log(`⚔️ DUELLO: ${playerName} played MOSSE card during duel - auto-activating attack`);
+        
+        // Determine opponent's character in the duel
+        const opponentCharacterId = playerName === duel.player1 ? duel.character2Id : duel.character1Id;
+        
+        // NOTE: We mark this as a duel auto-attack but don't execute here
+        // The attack will be triggered via socket event after card is played
+        duelAutoAttack = true;
+        console.log(`⚔️ DUELLO: Will auto-target character ${opponentCharacterId}`);
+      }
+      
+      return { card, isPersonaggio, duelAutoAttack };
     }
     
     return {};
@@ -3384,7 +3416,7 @@ Rispondi SOLO in JSON:`;
   }
 
   // Helper method to emit defense:request when Socket.IO is available
-  emitDefenseRequest(gameId: string, io: any): boolean {
+  async emitDefenseRequest(gameId: string, io: any): Promise<boolean> {
     const pendingDefense = this.getPendingDefense(gameId);
     if (!pendingDefense) {
       console.log(`No pending defense found for game ${gameId}`);
@@ -3411,8 +3443,8 @@ Rispondi SOLO in JSON:`;
       });
 
       // Auto-resolve after 1 second delay for realism
-      setTimeout(() => {
-        this.processDefenseResponse(gameId, pendingDefense.attackId, false, io, 'cpu');
+      setTimeout(async () => {
+        await this.processDefenseResponse(gameId, pendingDefense.attackId, false, io, 'cpu');
       }, 1000);
 
       return true;
@@ -3430,7 +3462,7 @@ Rispondi SOLO in JSON:`;
       });
 
       // Auto-resolve immediately for offline players
-      this.processDefenseResponse(gameId, pendingDefense.attackId, false, io, 'offline');
+      await this.processDefenseResponse(gameId, pendingDefense.attackId, false, io, 'offline');
       return true;
     }
 
@@ -3460,7 +3492,7 @@ Rispondi SOLO in JSON:`;
     });
 
     // SERVER-SIDE TIMEOUT: Auto-resolve after 30 seconds if no response
-    const timeoutId = setTimeout(() => {
+    const timeoutId = setTimeout(async () => {
       console.log(`⏰ Defense timeout for ${pendingDefense.defender} - auto-resolving with defends=false`);
       
       // Send system message about timeout
@@ -3470,7 +3502,7 @@ Rispondi SOLO in JSON:`;
         timestamp: Date.now()
       });
 
-      this.processDefenseResponse(gameId, pendingDefense.attackId, false, io, 'timeout');
+      await this.processDefenseResponse(gameId, pendingDefense.attackId, false, io, 'timeout');
     }, 30000); // 30 seconds
 
     // Store timeout ID for cleanup
@@ -3488,7 +3520,7 @@ Rispondi SOLO in JSON:`;
   }
 
   // UNIFIED DEFENSE RESPONSE HANDLER: Processes defense responses and continues attack flow
-  processDefenseResponse(gameId: string, attackId: string, defends: boolean, io: any, resolveSource: 'client' | 'cpu' | 'offline' | 'timeout' = 'client'): boolean {
+  async processDefenseResponse(gameId: string, attackId: string, defends: boolean, io: any, resolveSource: 'client' | 'cpu' | 'offline' | 'timeout' = 'client'): Promise<boolean> {
     // PRODUCTION-READY: Enhanced validation and atomic guards
     const game = this.games.get(gameId);
     if (!game) {
@@ -3549,10 +3581,26 @@ Rispondi SOLO in JSON:`;
       });
       this.returnToDeck(gameId, mosseCardId, attacker);
 
-      // End attacker's turn since attack was blocked
-      const nextPlayer = this.endTurn(gameId, attacker);
-      if (nextPlayer) {
-        io.to(gameId).emit('next-turn', { nextPlayer });
+      // DUELLO: Special turn handling during duel
+      if (game.activeDuel && game.activeDuel.active) {
+        console.log(`⚔️ DUELLO: Defender ${defender} blocked attack - granting 2 consecutive turns`);
+        game.activeDuel.currentTurn = defender; // Switch turn to defender
+        game.activeDuel.consecutiveTurns = 2; // Grant 2 bonus turns
+        
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-duel-bonus-turns`,
+          playerName: 'Sistema',
+          message: `⚔️ DUELLO: ${defender} ottiene 2 turni consecutivi per aver respinto l'attacco!`,
+          timestamp: Date.now()
+        });
+        
+        io.to(gameId).emit('next-turn', { nextPlayer: defender });
+      } else {
+        // Normal turn ending (no duel)
+        const nextPlayer = this.endTurn(gameId, attacker);
+        if (nextPlayer) {
+          io.to(gameId).emit('next-turn', { nextPlayer });
+        }
       }
 
       // Send updated game state
@@ -3582,7 +3630,23 @@ Rispondi SOLO in JSON:`;
       });
 
       // Apply damage using existing processMosseDamage to targetCardId owned by defender
-      this.processMosseDamage(gameId, attacker, targetCardId, damage, mosseCardId, io);
+      await this.processMosseDamage(gameId, attacker, targetCardId, damage, mosseCardId, io);
+      
+      // DUELLO: Switch turn to opponent after attack is accepted
+      if (game.activeDuel && game.activeDuel.active) {
+        console.log(`⚔️ DUELLO: Switching turn after attack accepted`);
+        this.switchDuelTurn(gameId);
+        const nextPlayer = game.activeDuel.currentTurn;
+        
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-duel-turn-switch`,
+          playerName: 'Sistema',
+          message: `⚔️ DUELLO: Turno di ${nextPlayer}`,
+          timestamp: Date.now()
+        });
+        
+        io.to(gameId).emit('next-turn', { nextPlayer });
+      }
     }
 
     // Always broadcast attack:resolved event
@@ -3771,6 +3835,31 @@ Rispondi SOLO in JSON:`;
             timestamp: Date.now()
           });
 
+          // DUELLO: End duel if the dead character was involved in an active duel
+          if (game?.activeDuel && game.activeDuel.active) {
+            if (this.isInDuel(gameId, targetCardId)) {
+              const duel = game.activeDuel;
+              const winnerPlayer = targetCard.id === duel.character1Id ? duel.player2 : duel.player1;
+              
+              console.log(`⚔️ DUELLO: Character ${targetCardId} died - ending duel. Winner: ${winnerPlayer}`);
+              
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-duel-end`,
+                playerName: 'Sistema',
+                message: `⚔️ DUELLO TERMINATO! ${winnerPlayer} vince per eliminazione dell'avversario!`,
+                timestamp: Date.now()
+              });
+              
+              this.endDuel(gameId, `Character death (${targetCardId})`);
+              
+              // Broadcast duel ended event
+              io.to(gameId).emit('duel-ended', {
+                winner: winnerPlayer,
+                reason: 'character_death'
+              });
+            }
+          }
+
           // PRESERVE: Player elimination checks
           if (result.eliminationCheck) {
             console.log(`Player ${targetCard.owner} has reached character limit - automatically eliminating`);
@@ -3786,26 +3875,6 @@ Rispondi SOLO in JSON:`;
                 console.log(`Game won by: ${winner}`);
                 io.to(gameId).emit('game-victory', { winner });
               }
-            }
-          }
-
-          // DUELLO: Check if the dead character was in an active duel
-          const duel = this.getDuelState(gameId);
-          if (duel && duel.active) {
-            if (duel.character1Id === targetCardId || duel.character2Id === targetCardId) {
-              const winner = duel.character1Id === targetCardId ? duel.player2 : duel.player1;
-              const loser = duel.character1Id === targetCardId ? duel.player1 : duel.player2;
-              
-              this.endDuel(gameId, `${targetCard.owner}'s character died`);
-              
-              io.to(gameId).emit('chat-message', {
-                id: `${Date.now()}-duel-end`,
-                playerName: 'Sistema',
-                message: `⚔️ DUELLO terminato! ${winner} vince contro ${loser}!`,
-                timestamp: Date.now()
-              });
-              
-              console.log(`⚔️ DUELLO ended: ${winner} wins (opponent character died)`);
             }
           }
 
@@ -4070,14 +4139,16 @@ Rispondi SOLO in JSON:`;
 
     const duel = game.activeDuel;
     
+    // Decrement consecutive turns if any remain
     if (duel.consecutiveTurns > 0) {
-      // Still has consecutive turns remaining
       duel.consecutiveTurns--;
-    } else {
-      // Switch to other player
-      duel.currentTurn = duel.currentTurn === duel.player1 ? duel.player2 : duel.player1;
+      console.log(`⚔️ DUELLO: Consecutive turn used, ${duel.consecutiveTurns} remaining for ${duel.currentTurn}`);
     }
-
-    console.log(`⚔️ DUELLO turn switched to: ${duel.currentTurn} (consecutive turns remaining: ${duel.consecutiveTurns})`);
+    
+    // Switch turn when no consecutive turns remain
+    if (duel.consecutiveTurns === 0) {
+      duel.currentTurn = duel.currentTurn === duel.player1 ? duel.player2 : duel.player1;
+      console.log(`⚔️ DUELLO: Turn switches to ${duel.currentTurn}`);
+    }
   }
 }

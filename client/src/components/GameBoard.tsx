@@ -21,6 +21,7 @@ import { SuperDice } from "./SuperDice";
 import { TransferRequestDialog } from "./TransferRequestDialog";
 import { DefenseDialog } from "./DefenseDialog";
 import { CPUDamageDialog } from "./CPUDamageDialog";
+import { DuelDamageDialog } from "./DuelDamageDialog";
 import { HandModal } from "./HandModal";
 import { MusicPlayer } from "./MusicPlayer";
 import { VoiceChat } from "./VoiceChat";
@@ -1166,6 +1167,9 @@ export const GameBoard: React.FC = () => {
         
         {/* CPU Damage Request Dialog */}
         <CPUDamageDialog />
+        
+        {/* Duel Auto-Attack Damage Dialog */}
+        <DuelDamageDialog />
         
         {/* Transfer Request Dialog */}
         <TransferRequestDialog />
