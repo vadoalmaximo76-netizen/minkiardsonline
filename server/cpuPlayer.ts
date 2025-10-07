@@ -1259,7 +1259,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         return null;
       }
       
-      const cpuPlayer = gameState.players[this.playerName];
+      let cpuPlayer = gameState.players[this.playerName];
       if (!cpuPlayer) {
         console.log(`CPU ${this.playerName} not found in game state`);
         return null;
@@ -1323,33 +1323,43 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         };
       }
 
-      // NEW STATE MACHINE LOGIC
-      switch (this.turnState.phase) {
-        case 'draw_needed':
-          return this.handleDrawPhase(cpuPlayer, gameState);
-          
-        case 'play_card':
-          return this.handlePlayPhase(cpuPlayer, gameState);
-          
-        case 'execute_action':
-          return await this.handleExecutePhase(cpuPlayer, gameState);
-          
-        case 'turn_end':
-          if (this.canEndTurn()) {
-            this.sendChatMessage(`Finisco il turno!`);
-            this.resetTurnState(); // Reset for next turn
-            return { type: 'end-turn', data: { playerName: this.playerName } };
-          } else {
-            console.log(`CPU ${this.playerName} cannot end turn - missing execution`);
-            this.turnState.phase = 'draw_needed'; // Reset to beginning
-            return this.handleDrawPhase(cpuPlayer, gameState);
-          }
-          
-        default:
-          console.log(`CPU ${this.playerName} unknown phase: ${this.turnState.phase}`);
-          this.resetTurnState();
-          return this.handleDrawPhase(cpuPlayer, gameState);
+      // NEW OPTIMIZED TURN LOGIC: Execute ALL phases in one turn
+      console.log(`CPU ${this.playerName} executing complete turn in one go`);
+      
+      // Phase 1: Draw if needed
+      const drawAction = this.handleDrawPhase(cpuPlayer, gameState);
+      if (drawAction && drawAction.type === 'pick-card') {
+        // Execute the draw immediately
+        if (this.gameManager) {
+          await this.gameManager.pickCard(this.gameId, drawAction.data.deckType, this.playerName);
+          // Refresh game state after draw
+          const updatedState = this.gameManager.getSanitizedGameState(this.gameId);
+          cpuPlayer = updatedState.players[this.playerName];
+        }
       }
+      
+      // Phase 2: Play a card
+      const playAction = this.handlePlayPhase(cpuPlayer, gameState);
+      if (playAction && playAction.type === 'play-card') {
+        // The card will be played, but we continue to execute its action
+        console.log(`CPU ${this.playerName} will play card ${playAction.data.cardId}`);
+      } else {
+        // No card to play, end turn
+        this.sendChatMessage(`Non ho carte da giocare, finisco il turno.`);
+        this.resetTurnState();
+        return { type: 'end-turn', data: { playerName: this.playerName } };
+      }
+      
+      // Phase 3: Execute the action (this handles MOSSE attacks, BONUS effects, etc.)
+      const executeAction = await this.handleExecutePhase(cpuPlayer, gameState);
+      
+      // Phase 4: End turn
+      this.sendChatMessage(`Ho completato le mie azioni, finisco il turno!`);
+      this.resetTurnState();
+      
+      // Return the play action so the card gets placed on field
+      // The execution and end-turn will happen automatically
+      return playAction;
       
     } catch (error) {
       console.error(`Error in CPU ${this.playerName} turn:`, error);
@@ -1585,28 +1595,31 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     
     this.sendChatMessage(`Uso la carta ${mosseCardName} su ${target.name} di ${target.owner}`);
     
-    // Execute server-side attack (attendendo input utente come da nuova implementazione)
-    const attackResult = await this.gameManager.executeMossaAttack(
-      this.gameId,
-      this.playerName,
-      cardId,
-      target.cardId,
-      undefined // TODO: Need to implement callback bridge for Socket.IO emission
-    );
-
-    // Non dichiariamo più risultato automatico - il sistema ora richiede input utente
-    if (attackResult.success) {
-      console.log(`CPU ${this.playerName}: MOSSE attack initiated successfully - awaiting manual damage input`);
+    // NEW: Instead of executing attack, emit a damage request to the game creator
+    // The attack will be completed when they provide the damage value
+    console.log(`🎯 CPU ${this.playerName}: Requesting damage input from game creator for MOSSE attack`);
+    
+    if (this.socketEmitter) {
+      // Get the first player (game creator) to request damage from
+      const gameState = this.gameManager?.getSanitizedGameState(this.gameId);
+      const gameCreator = gameState?.turnOrder?.[0];
       
-      // CRITICAL: Flag that defense:request needs to be emitted
-      if (attackResult.result && attackResult.result.requiresDefenseResponse) {
-        console.log(`🛡️ CPU ${this.playerName}: Attack requires defense response - will be emitted by routes.ts`);
-        // Store the flag for routes.ts to pick up
-        this.lastAttackRequiresDefense = true;
+      if (gameCreator) {
+        // Emit damage request event to the game creator
+        this.socketEmitter.to(this.gameId).emit('cpu-damage-request', {
+          cpuName: this.playerName,
+          cpuCharacterName: this.playerName,
+          mosseCardId: cardId,
+          mosseCardName: mosseCardName,
+          targetCardId: target.cardId,
+          targetCardName: target.name,
+          targetOwner: target.owner,
+          gameCreator: gameCreator,
+          timestamp: Date.now()
+        });
+        
+        console.log(`🎯 CPU ${this.playerName}: Damage request emitted to game creator ${gameCreator}`);
       }
-    } else {
-      console.error(`CPU ${this.playerName}: MOSSE attack failed - ${attackResult.error}`);
-      this.sendChatMessage(`Attacco fallito: ${attackResult.error}`);
     }
 
     // STEP 5: Preme su "FINE TURNO" - Completa la sequenza nello stesso turno come richiesto

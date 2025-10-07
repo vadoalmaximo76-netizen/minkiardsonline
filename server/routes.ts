@@ -1293,6 +1293,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // CPU DAMAGE REQUEST: Handle damage submission from game creator for CPU attacks
+    socket.on('cpu-damage-submit', async ({ cpuName, mosseCardId, targetCardId, targetOwner, damageValue }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) {
+        console.log(`cpu-damage-submit: gameId not found for socket ${socket.id}`);
+        return;
+      }
+      
+      console.log(`🎯 Received damage ${damageValue} from game creator for CPU ${cpuName} attacking ${targetCardId}`);
+      
+      // Execute the attack with the provided damage
+      const attackResult = await gameManager.executeMossaAttack(
+        gameId,
+        cpuName,
+        mosseCardId,
+        targetCardId,
+        damageValue
+      );
+
+      if (!attackResult.success) {
+        console.log(`CPU attack failed: ${attackResult.error}`);
+        socket.emit('attack-error', { message: attackResult.error });
+        return;
+      }
+
+      // Broadcast attack animation
+      io.to(gameId).emit('card-attacked', {
+        mosseCardId,
+        targetCardId,
+        attackerName: cpuName,
+        targetOwner,
+        damageValue,
+        timestamp: Date.now()
+      });
+
+      // Process damage immediately (CPU attacks don't use defense system)
+      await gameManager.processMosseDamage(gameId, cpuName, targetCardId, damageValue, mosseCardId, io);
+      
+      console.log(`🎯 CPU ${cpuName} attack completed successfully`);
+    });
+
     socket.on('send-chat-message', ({ message, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {

@@ -20,6 +20,7 @@ import { LeaveGameNotification } from "./LeaveGameNotification";
 import { SuperDice } from "./SuperDice";
 import { TransferRequestDialog } from "./TransferRequestDialog";
 import { DefenseDialog } from "./DefenseDialog";
+import { CPUDamageDialog } from "./CPUDamageDialog";
 import { HandModal } from "./HandModal";
 import { MusicPlayer } from "./MusicPlayer";
 import { VoiceChat } from "./VoiceChat";
@@ -1162,6 +1163,9 @@ export const GameBoard: React.FC = () => {
 
         {/* Defense System Dialog */}
         <DefenseDialog />
+        
+        {/* CPU Damage Request Dialog */}
+        <CPUDamageDialog />
         
         {/* Transfer Request Dialog */}
         <TransferRequestDialog />
