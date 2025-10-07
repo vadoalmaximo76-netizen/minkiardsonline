@@ -381,8 +381,8 @@ export const CardModal: React.FC = () => {
                 </Button>
               )}
 
-              {/* DUELLO INIZIA button - show only for DUELLO bonus cards */}
-              {isDuello && selectedCard.type === 'bonus' && (
+              {/* DUELLO INIZIA button - show for DUELLO cards (mosse or bonus) */}
+              {isDuello && (selectedCard.type === 'bonus' || selectedCard.type === 'mosse') && (
                 <Button
                   onClick={() => setShowDuelSelect(true)}
                   className="aspect-square bg-red-700 hover:bg-red-800 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
