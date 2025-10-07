@@ -3789,6 +3789,26 @@ Rispondi SOLO in JSON:`;
             }
           }
 
+          // DUELLO: Check if the dead character was in an active duel
+          const duel = this.getDuelState(gameId);
+          if (duel && duel.active) {
+            if (duel.character1Id === targetCardId || duel.character2Id === targetCardId) {
+              const winner = duel.character1Id === targetCardId ? duel.player2 : duel.player1;
+              const loser = duel.character1Id === targetCardId ? duel.player1 : duel.player2;
+              
+              this.endDuel(gameId, `${targetCard.owner}'s character died`);
+              
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-duel-end`,
+                playerName: 'Sistema',
+                message: `⚔️ DUELLO terminato! ${winner} vince contro ${loser}!`,
+                timestamp: Date.now()
+              });
+              
+              console.log(`⚔️ DUELLO ended: ${winner} wins (opponent character died)`);
+            }
+          }
+
           // Send updated game state
           const updatedGameState = this.getSanitizedGameState(gameId);
           io.to(gameId).emit('game-state-update', updatedGameState);
