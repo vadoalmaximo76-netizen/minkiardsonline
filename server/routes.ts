@@ -1252,6 +1252,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // DUELLO: Start a duel between two characters
+    socket.on('duel:start', async ({ duelCardId, initiatorPlayer, opponentCharacterId }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) {
+        socket.emit('duel:error', { message: 'Game not found' });
+        return;
+      }
+      
+      console.log(`⚔️ DUELLO start request: ${initiatorPlayer} vs opponent character ${opponentCharacterId}`);
+      
+      const result = await gameManager.startDuel(gameId, duelCardId, initiatorPlayer, opponentCharacterId);
+      
+      if (result.success) {
+        // Get the duel state to send details to players
+        const duelState = gameManager.getDuelState(gameId);
+        
+        // Broadcast to all players
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-duel-start`,
+          playerName: 'Sistema',
+          message: result.message,
+          timestamp: Date.now()
+        });
+        
+        // Send duel started event with duel details
+        io.to(gameId).emit('duel:started', {
+          duelState,
+          message: result.message
+        });
+        
+        // Send updated game state
+        const gameState = gameManager.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', gameState);
+        
+        console.log(`⚔️ DUELLO started successfully`);
+      } else {
+        socket.emit('duel:error', { message: result.message });
+        console.log(`⚔️ DUELLO start failed: ${result.message}`);
+      }
+    });
+
     socket.on('send-chat-message', ({ message, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {

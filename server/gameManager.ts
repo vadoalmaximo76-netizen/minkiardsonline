@@ -60,6 +60,17 @@ interface VoodooLink {
   bonusCardId: string; // The BAMBOLA VOODOO card that created this link
 }
 
+interface DuelState {
+  duelCardId: string; // The DUELLO bonus card that initiated this duel
+  character1Id: string; // First character in the duel
+  character2Id: string; // Second character in the duel
+  player1: string; // Owner of character1
+  player2: string; // Owner of character2
+  currentTurn: string; // Whose turn it is to play a MOSSE card
+  consecutiveTurns: number; // If player defended, they get 2 turns
+  active: boolean; // Whether the duel is currently active
+}
+
 interface GameState {
   decks: {
     personaggi: Card[];
@@ -83,6 +94,7 @@ interface GameState {
   pendingTransferRequests: TransferRequest[]; // Pending card transfer requests between human players
   pendingDefense?: PendingDefense; // Current pending defense request (only one at a time)
   voodooLinks: VoodooLink[]; // BAMBOLA VOODOO: Track linked characters
+  activeDuel?: DuelState; // Current active duel state
 }
 
 export class GameManager {
@@ -3939,5 +3951,113 @@ Rispondi SOLO in JSON:`;
   getVoodooLinks(gameId: string): VoodooLink[] {
     const game = this.games.get(gameId);
     return game?.voodooLinks || [];
+  }
+
+  // DUELLO: Start a duel between two characters
+  async startDuel(gameId: string, duelCardId: string, initiatorPlayer: string, opponentCharacterId: string): Promise<{ success: boolean; message: string }> {
+    const game = this.games.get(gameId);
+    if (!game) {
+      return { success: false, message: 'Game not found' };
+    }
+
+    // Find the opponent character
+    const opponentChar = game.field.find(card => card.id === opponentCharacterId);
+    if (!opponentChar) {
+      return { success: false, message: 'Opponent character not found on field' };
+    }
+
+    if (opponentChar.type !== 'personaggi' && opponentChar.type !== 'personaggi_speciali') {
+      return { success: false, message: 'Opponent must be a PERSONAGGI card' };
+    }
+
+    // Find initiator's character in the field
+    const initiatorChars = game.field.filter(card => 
+      (card.type === 'personaggi' || card.type === 'personaggi_speciali') && 
+      card.owner === initiatorPlayer
+    );
+
+    if (initiatorChars.length === 0) {
+      return { success: false, message: 'Initiator must have a character on the field' };
+    }
+
+    // For now, use the first character of the initiator (could be enhanced to let player choose)
+    const initiatorChar = initiatorChars[0];
+
+    // Check if duel card exists and is owned by initiator
+    const duelCard = game.field.find(card => card.id === duelCardId);
+    if (!duelCard || duelCard.owner !== initiatorPlayer) {
+      return { success: false, message: 'DUELLO card not found or not owned by initiator' };
+    }
+
+    // Create the duel state
+    game.activeDuel = {
+      duelCardId,
+      character1Id: initiatorChar.id,
+      character2Id: opponentChar.id,
+      player1: initiatorPlayer,
+      player2: opponentChar.owner,
+      currentTurn: initiatorPlayer, // Initiator goes first
+      consecutiveTurns: 0,
+      active: true
+    };
+
+    // Auto-draw MOSSE cards for both players
+    const player1DrewCard = await this.pickCard(gameId, 'mosse', initiatorPlayer);
+    const player2DrewCard = await this.pickCard(gameId, 'mosse', opponentChar.owner);
+
+    if (!player1DrewCard || !player2DrewCard) {
+      console.warn(`⚔️ DUELLO: One or both players couldn't draw MOSSE card`);
+    }
+
+    console.log(`⚔️ DUELLO started: ${initiatorPlayer} (${initiatorChar.id}) vs ${opponentChar.owner} (${opponentChar.id})`);
+    console.log(`⚔️ DUELLO: Both players drew a MOSSE card`);
+    
+    return { 
+      success: true, 
+      message: `⚔️ DUELLO iniziato! ${initiatorPlayer} vs ${opponentChar.owner}! Entrambi i giocatori hanno pescato una carta MOSSE.`
+    };
+  }
+
+  // DUELLO: End the duel
+  endDuel(gameId: string, reason: string): void {
+    const game = this.games.get(gameId);
+    if (!game || !game.activeDuel) {
+      return;
+    }
+
+    console.log(`⚔️ DUELLO ended: ${reason}`);
+    game.activeDuel = undefined;
+  }
+
+  // DUELLO: Get current duel state
+  getDuelState(gameId: string): DuelState | undefined {
+    const game = this.games.get(gameId);
+    return game?.activeDuel;
+  }
+
+  // DUELLO: Check if a character is in an active duel
+  isInDuel(gameId: string, characterId: string): boolean {
+    const duel = this.getDuelState(gameId);
+    if (!duel || !duel.active) return false;
+    
+    return duel.character1Id === characterId || duel.character2Id === characterId;
+  }
+
+  // DUELLO: Switch turn in duel
+  switchDuelTurn(gameId: string): void {
+    const game = this.games.get(gameId);
+    if (!game || !game.activeDuel) return;
+
+    const duel = game.activeDuel;
+    
+    if (duel.consecutiveTurns > 0) {
+      // Still has consecutive turns remaining
+      duel.consecutiveTurns--;
+    } else {
+      // Switch to other player
+      duel.currentTurn = duel.currentTurn === duel.player1 ? duel.player2 : duel.player1;
+    }
+
+    console.log(`⚔️ DUELLO turn switched to: ${duel.currentTurn} (consecutive turns remaining: ${duel.consecutiveTurns})`);
   }
 }

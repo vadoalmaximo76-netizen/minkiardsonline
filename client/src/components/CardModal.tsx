@@ -12,6 +12,7 @@ export const CardModal: React.FC = () => {
   const [showVoodooSelect, setShowVoodooSelect] = useState(false);
   const [voodooCard1, setVoodooCard1] = useState<string | null>(null);
   const [voodooCard2, setVoodooCard2] = useState<string | null>(null);
+  const [showDuelSelect, setShowDuelSelect] = useState(false);
   const { selectedCard, setSelectedCard, playerName, gameState, setSelectedMosseCard } = useGameState();
 
   if (!selectedCard) return null;
@@ -192,7 +193,21 @@ export const CardModal: React.FC = () => {
     setVoodooCard2(null);
   };
 
+  // DUELLO handlers
+  const handleDuelStart = (opponentCharacterId: string) => {
+    if (selectedCard) {
+      socket.emit('duel:start', {
+        duelCardId: selectedCard.id,
+        initiatorPlayer: playerName,
+        opponentCharacterId: opponentCharacterId
+      });
+      setShowDuelSelect(false);
+      setSelectedCard(null);
+    }
+  };
+
   const isBambolaVoodoo = selectedCard?.frontImage?.includes('BAMBOLA-VOODOO') || selectedCard?.frontImage?.includes('BAMBOLA_VOODOO');
+  const isDuello = selectedCard?.frontImage?.includes('DUELLO') || selectedCard?.frontImage?.includes('duello');
 
   // Check if this card has an active voodoo link
   const hasVoodooLink = gameState?.voodooLinks?.some((link: any) => 
@@ -363,6 +378,17 @@ export const CardModal: React.FC = () => {
                 >
                   🔮
                   ATTIVA
+                </Button>
+              )}
+
+              {/* DUELLO INIZIA button - show only for DUELLO bonus cards */}
+              {isDuello && selectedCard.type === 'bonus' && (
+                <Button
+                  onClick={() => setShowDuelSelect(true)}
+                  className="aspect-square bg-red-700 hover:bg-red-800 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
+                >
+                  ⚔️
+                  INIZIA DUELLO
                 </Button>
               )}
 
@@ -652,6 +678,57 @@ export const CardModal: React.FC = () => {
               </div>
             ) : (
               <p className="text-white text-center">Nessun PERSONAGGIO disponibile per la fusione</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* DUELLO Selection Modal */}
+      {showDuelSelect && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-white font-bold text-lg">⚔️ DUELLO - Seleziona il personaggio avversario:</h3>
+              <Button
+                onClick={() => setShowDuelSelect(false)}
+                className="bg-red-600 hover:bg-red-700 text-white px-2 py-1"
+                size="sm"
+              >
+                Chiudi
+              </Button>
+            </div>
+            
+            {getOtherPlayersPersonaggiCards().length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {getOtherPlayersPersonaggiCards().map((card) => {
+                  const cardName = card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase() || 'PERSONAGGIO';
+                  
+                  return (
+                    <div 
+                      key={card.id} 
+                      className="bg-gray-700 rounded-lg p-3 hover:bg-gray-600 cursor-pointer transition-colors border-2 border-red-500"
+                      onClick={() => handleDuelStart(card.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={card.frontImage}
+                          alt={cardName}
+                          className="w-16 h-20 rounded object-cover"
+                        />
+                        <div className="flex-1">
+                          <h4 className="text-white font-bold text-sm mb-1">{cardName}</h4>
+                          <p className="text-red-300 text-xs">Avversario: {card.owner}</p>
+                          {card.text && (
+                            <p className="text-gray-400 text-xs mt-1 line-clamp-2">{card.text}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-white text-center">Nessun personaggio avversario disponibile sul campo</p>
             )}
           </div>
         </div>
