@@ -1265,6 +1265,59 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         return null;
       }
       
+      // DUELLO: Check if CPU is in an active duel and handle automatically
+      if (gameState.activeDuel && gameState.activeDuel.active) {
+        const duel = gameState.activeDuel;
+        const isInDuel = (duel.player1 && duel.player1 === this.playerName) || 
+                          (duel.player2 && duel.player2 === this.playerName);
+        
+        // If CPU is in duel but it's not their turn, wait (no-op)
+        if (isInDuel && duel.currentTurn !== this.playerName) {
+          console.log(`⚔️ DUELLO: CPU ${this.playerName} waiting for opponent's turn`);
+          return null;
+        }
+        
+        if (isInDuel && duel.currentTurn === this.playerName) {
+          console.log(`⚔️ DUELLO: CPU ${this.playerName} is in active duel - auto-executing MOSSE attack`);
+          
+          // Get opponent's character in the duel (simple and correct)
+          const opponentCharacterId = duel.player1 === this.playerName ? duel.character2Id : duel.character1Id;
+          
+          // Check if CPU has MOSSE card
+          const mosseInHand = cpuPlayer.hand.find((c: any) => c.type === 'mosse');
+          const mosseOnField = gameState.field.find((c: any) => 
+            c.owner === this.playerName && c.type === 'mosse'
+          );
+          
+          if (!mosseInHand && !mosseOnField) {
+            // Need to draw MOSSE card first
+            this.sendChatMessage(`⚔️ DUELLO: Pesco una carta MOSSE per attaccare!`);
+            return {
+              type: 'pick-card',
+              data: {
+                deckType: 'mosse',
+                playerName: this.playerName
+              }
+            };
+          } else if (mosseInHand && !mosseOnField) {
+            // Need to play MOSSE card on field
+            this.sendChatMessage(`⚔️ DUELLO: Gioco la mia carta MOSSE!`);
+            this.markActionExecuted('play', mosseInHand.id, 'mosse');
+            return {
+              type: 'play-card',
+              data: {
+                cardId: mosseInHand.id,
+                playerName: this.playerName
+              }
+            };
+          } else if (mosseOnField) {
+            // MOSSE card is on field - execute attack with forced duel target
+            console.log(`⚔️ DUELLO: CPU ${this.playerName} executing MOSSE attack on ${opponentCharacterId}`);
+            return await this.executeMovesCardAndDrawReplacement(mosseOnField.id, gameState, 'mosse', opponentCharacterId);
+          }
+        }
+      }
+      
       // NEW: Process pending orders from human players first
       if (this.pendingOrder) {
         console.log(`CPU ${this.playerName} processing pending order:`, this.pendingOrder);
@@ -1418,6 +1471,22 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     const playedCardType = this.turnState.playedCardType;
     const playedCardId = this.turnState.playedCardId;
     
+    // DUELLO: If MOSSE card was played during duel, execute attack immediately
+    if (gameState.activeDuel && gameState.activeDuel.active && playedCardType === 'mosse') {
+      const duel = gameState.activeDuel;
+      const isInDuel = (duel.player1 && duel.player1 === this.playerName) || 
+                        (duel.player2 && duel.player2 === this.playerName);
+      
+      if (isInDuel) {
+        console.log(`⚔️ DUELLO: CPU ${this.playerName} executing MOSSE attack immediately after playing card`);
+        
+        // Get opponent's character in the duel (simple and correct)
+        const opponentCharacterId = duel.player1 === this.playerName ? duel.character2Id : duel.character1Id;
+        
+        return await this.executeMovesCardAndDrawReplacement(playedCardId, gameState, 'mosse', opponentCharacterId);
+      }
+    }
+    
     if (!playedCardType || !playedCardId) {
       console.log(`CPU ${this.playerName} no played card to execute`);
       this.markActionExecuted('execute');
@@ -1480,8 +1549,8 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
   }
 
   // NEW: Execute MOSSE card with authoritative server-side attack
-  async executeMovesCardAndDrawReplacement(cardId: string, gameState: any, deckType: string): Promise<any> {
-    console.log(`🎯 CPU ${this.playerName}: STARTING 5-STEP MOSSE SEQUENCE for card ${cardId}`);
+  async executeMovesCardAndDrawReplacement(cardId: string, gameState: any, deckType: string, forcedTargetId?: string): Promise<any> {
+    console.log(`🎯 CPU ${this.playerName}: STARTING 5-STEP MOSSE SEQUENCE for card ${cardId}${forcedTargetId ? ` with forced target ${forcedTargetId}` : ''}`);
     
     // Validate gameManager availability
     if (!this.gameManager) {
@@ -1495,8 +1564,28 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     this.turnState.needsReplacementDraw = true;
     this.turnState.replacementDeckType = deckType === 'personaggi_speciali' ? 'personaggi' : deckType;
 
-    // Use deterministic target selection  
-    const target = this.pickEnemyTarget();
+    // Use forced target if provided (for duels), otherwise pick automatically
+    let target;
+    if (forcedTargetId) {
+      console.log(`⚔️ DUELLO: Using forced target ${forcedTargetId}`);
+      const targetCard = gameState.field.find((c: any) => c.id === forcedTargetId);
+      if (targetCard) {
+        target = {
+          cardId: targetCard.id,
+          owner: targetCard.owner,
+          name: this.getCardNameFromUrl(targetCard.frontImage)
+        };
+      } else {
+        console.error(`⚔️ DUELLO: Forced target ${forcedTargetId} not found on field`);
+        this.sendChatMessage(`Errore: target del duello non trovato.`);
+        this.markActionExecuted('execute');
+        await this.drawReplacementAndEndTurn('mosse');
+        return null;
+      }
+    } else {
+      target = this.pickEnemyTarget();
+    }
+    
     if (!target) {
       console.log(`CPU ${this.playerName}: No valid targets for MOSSE attack`);
       this.sendChatMessage(`Nessun nemico da attaccare, carta MOSSE attivata comunque.`);
