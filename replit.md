@@ -84,6 +84,23 @@ Special BONUS card that links two characters to share damage and death:
 - **Loop Prevention**: Damage reflection happens only once per attack (no infinite loops)
 - **Stale Link Cleanup**: Automatically removes invalid links when linked cards are not found
 
+### DUELLO (Duel) System
+Complete turn-based duel system activated by the DUELLO MOSSE card:
+- **Duel Initiation**: Player plays DUELLO card, selects opponent's character, both players forced to draw MOSSE card
+- **Turn Management**: Strict alternating turns between two duelists only (other players cannot act during duel)
+- **Auto-Activation**: MOSSE cards automatically trigger attacks on opponent's duel character when played
+- **Turn Alternation**: Turn switches to opponent after each attack is accepted
+- **Defense Integration**: Uses existing defense system where defender can accept or reject incoming MOSSE damage
+- **Consecutive Turns**: If defender rejects attack, they gain 2 consecutive bonus turns
+- **Auto-End Conditions**: Duel ends automatically when either character dies (PTI reaches 0)
+- **Event Tracking**: All duel events logged with complete game state synchronization
+- **CPU Duel Participation**: CPU players fully participate in duels with intelligent behavior:
+  - **Turn Restriction**: CPU waits (no-op) when in duel but not their turn, preventing out-of-turn actions
+  - **Auto-MOSSE Management**: CPU automatically draws and plays MOSSE cards during their duel turn
+  - **Forced Targeting**: CPU attacks are forced on the duel opponent's character only (no target selection errors)
+  - **Defense Integration**: CPU attacks trigger standard defense:request flow for human defenders
+  - **Consistent Logic**: Same duel behavior whether MOSSE played from takeTurn or handleExecutePhase branches
+
 ## Audio System
 The game features a comprehensive sound effect system using Web Audio API to enhance gameplay experience:
 - **Sound Effects**: Game start chimes, player notifications, dice rolls, damage sounds, character-specific audio
