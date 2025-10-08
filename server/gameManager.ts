@@ -2632,16 +2632,29 @@ Rispondi SOLO in JSON:`;
       gameState.players[playerName].usedCardsThisTurn = [];
     }
 
-    // Move to next player
-    gameState.currentTurnIndex = (gameState.currentTurnIndex + 1) % gameState.turnOrder.length;
-    const nextPlayer = gameState.turnOrder[gameState.currentTurnIndex];
+    // Move to next non-eliminated player
+    const startIndex = gameState.currentTurnIndex;
+    let attempts = 0;
+    do {
+      gameState.currentTurnIndex = (gameState.currentTurnIndex + 1) % gameState.turnOrder.length;
+      const nextPlayer = gameState.turnOrder[gameState.currentTurnIndex];
+      
+      // Check if player is eliminated
+      if (!gameState.eliminatedPlayers.has(nextPlayer)) {
+        // Found a non-eliminated player
+        // Initialize usedCardsThisTurn for the next player if not exists
+        if (gameState.players[nextPlayer] && !gameState.players[nextPlayer].usedCardsThisTurn) {
+          gameState.players[nextPlayer].usedCardsThisTurn = [];
+        }
+        return nextPlayer;
+      }
+      
+      attempts++;
+    } while (gameState.currentTurnIndex !== startIndex && attempts < gameState.turnOrder.length);
 
-    // Initialize usedCardsThisTurn for the next player if not exists
-    if (gameState.players[nextPlayer] && !gameState.players[nextPlayer].usedCardsThisTurn) {
-      gameState.players[nextPlayer].usedCardsThisTurn = [];
-    }
-
-    return nextPlayer;
+    // All players eliminated or no valid next player
+    console.log(`⚠️ No non-eliminated players found in turn order`);
+    return null;
   }
 
   // Force end turn - bypasses all turn validation checks (for admin/universal turn control)
@@ -2659,16 +2672,29 @@ Rispondi SOLO in JSON:`;
       gameState.players[currentPlayerName].usedCardsThisTurn = [];
     }
 
-    // Move to next player
-    gameState.currentTurnIndex = (gameState.currentTurnIndex + 1) % gameState.turnOrder.length;
-    const nextPlayer = gameState.turnOrder[gameState.currentTurnIndex];
+    // Move to next non-eliminated player
+    const startIndex = gameState.currentTurnIndex;
+    let attempts = 0;
+    do {
+      gameState.currentTurnIndex = (gameState.currentTurnIndex + 1) % gameState.turnOrder.length;
+      const nextPlayer = gameState.turnOrder[gameState.currentTurnIndex];
+      
+      // Check if player is eliminated
+      if (!gameState.eliminatedPlayers.has(nextPlayer)) {
+        // Found a non-eliminated player
+        // Initialize usedCardsThisTurn for the next player if not exists
+        if (gameState.players[nextPlayer] && !gameState.players[nextPlayer].usedCardsThisTurn) {
+          gameState.players[nextPlayer].usedCardsThisTurn = [];
+        }
+        return nextPlayer;
+      }
+      
+      attempts++;
+    } while (gameState.currentTurnIndex !== startIndex && attempts < gameState.turnOrder.length);
 
-    // Initialize usedCardsThisTurn for the next player if not exists
-    if (gameState.players[nextPlayer] && !gameState.players[nextPlayer].usedCardsThisTurn) {
-      gameState.players[nextPlayer].usedCardsThisTurn = [];
-    }
-
-    return nextPlayer;
+    // All players eliminated or no valid next player
+    console.log(`⚠️ No non-eliminated players found in turn order (forceEndTurn)`);
+    return null;
   }
 
   leaveGame(gameId: string, playerName: string): boolean {
