@@ -271,7 +271,7 @@ export class GameManager {
 
     // NEW: Pattern for showing cards to specific players (L'utente X mostra la carta Y a utente Z)
     if ((lowercaseInstruction.includes('mostra la carta') || lowercaseInstruction.includes('mostra carta')) && 
-        lowercaseInstruction.includes(' a ')) {
+        (lowercaseInstruction.includes(' a ') || lowercaseInstruction.includes("all'utente"))) {
       
       const gameState = this.getGameState(gameId);
       const players = gameState ? Object.keys(gameState.players) : [];
@@ -284,7 +284,13 @@ export class GameManager {
       });
       
       // Extract target player (after "a " or "all'utente")
-      const afterA = lowercaseInstruction.split(' a ')[1];
+      let afterA = '';
+      if (lowercaseInstruction.includes(' a ')) {
+        afterA = lowercaseInstruction.split(' a ')[1];
+      } else if (lowercaseInstruction.includes("all'utente")) {
+        afterA = lowercaseInstruction.split("all'utente")[1];
+      }
+      
       const targetPlayer = afterA ? players.find(p => {
         const lowerName = p.toLowerCase();
         const words = lowerName.split(/[-_\s]/);
