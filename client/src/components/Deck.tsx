@@ -170,9 +170,9 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
           }}
         >
             {/* Header */}
-            <div className="p-2 sm:p-4 bg-gray-800 border-b-2 border-gray-600 rounded-t-lg flex-shrink-0">
-              <div className="flex justify-between items-center mb-2 sm:mb-3">
-                <h3 className="text-white font-bold text-sm sm:text-xl md:text-2xl">
+            <div className="p-3 sm:p-4 bg-gray-800 border-b-2 border-gray-600 flex-shrink-0">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-white font-bold text-base sm:text-xl md:text-2xl">
                   Scegli una carta da {name}
                 </h3>
                 <Button
@@ -183,7 +183,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
                     setShowBrowser(false);
                     setSearchTerm(''); // Reset search when closing
                   }}
-                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 sm:px-6 sm:py-3 text-sm sm:text-lg font-bold rounded relative z-50"
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 sm:px-6 sm:py-3 text-base sm:text-lg font-bold rounded relative z-50"
                   style={{ pointerEvents: 'auto' }}
                 >
                   CHIUDI
@@ -191,19 +191,19 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
               </div>
               
               {/* Search input */}
-              <div className="flex items-center gap-1 sm:gap-2">
-                <span className="text-white font-semibold text-xs sm:text-sm whitespace-nowrap">Cerca:</span>
+              <div className="flex items-center gap-2">
+                <span className="text-white font-semibold text-sm sm:text-base whitespace-nowrap">Cerca:</span>
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Nome carta..."
-                  className="flex-1 px-2 py-1 sm:px-3 sm:py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none text-xs sm:text-sm"
+                  className="flex-1 px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none text-sm sm:text-base"
                 />
                 {searchTerm && (
                   <Button
                     onClick={() => setSearchTerm('')}
-                    className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 sm:px-3 sm:py-2 text-xs sm:text-sm rounded whitespace-nowrap"
+                    className="bg-gray-600 hover:bg-gray-500 text-white px-3 py-2 text-sm sm:text-base rounded whitespace-nowrap"
                   >
                     X
                   </Button>
@@ -212,7 +212,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
               
               {/* Search results info */}
               {searchTerm && (
-                <div className="mt-1 sm:mt-2 text-white/70 text-xs">
+                <div className="mt-2 text-white/70 text-sm">
                   {getSortedCards().length === 0 ? 
                     'Nessuna carta trovata' : 
                     `${getSortedCards().length} carte trovate`
@@ -221,24 +221,20 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
               )}
             </div>
             
-            {/* Cards Grid - Full Screen with Horizontal and Vertical Scroll */}
+            {/* Cards Grid - Full Screen with Scroll */}
             <div 
-              className="flex-1 overflow-auto p-4"
-              style={{
-                overflowX: 'auto',
-                overflowY: 'auto'
-              }}
+              className="flex-1 overflow-auto p-3 sm:p-4"
             >
-              <div className="inline-grid grid-cols-8 sm:grid-cols-10 md:grid-cols-12 lg:grid-cols-15 xl:grid-cols-20 gap-3 min-w-full">
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3 sm:gap-4">
                 {getSortedCards().map((card, index) => (
-                  <div key={card.id} className="flex flex-col items-center cursor-pointer hover:opacity-80 transition-opacity" style={{ width: '100px' }}>
+                  <div key={card.id} className="flex flex-col items-center cursor-pointer hover:opacity-80 transition-opacity">
                     <img
                       src={card.frontImage}
                       alt="Card"
-                      className="w-full aspect-[3/4] object-cover rounded border-2 border-gray-500 hover:border-white transition-all shadow-lg"
+                      className="w-full aspect-[3/4] object-cover rounded-lg border-2 border-gray-500 hover:border-white transition-all shadow-xl"
                       onClick={() => handleCardClick(card)}
                     />
-                    <span className="text-white text-[9px] sm:text-[10px] mt-1 text-center w-full px-1 leading-tight break-words">
+                    <span className="text-white text-xs sm:text-sm mt-2 text-center w-full px-1 leading-tight font-medium">
                       {card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase()}
                     </span>
                   </div>
