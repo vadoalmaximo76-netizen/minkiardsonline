@@ -1694,6 +1694,10 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       const gameCreator = gameState?.turnOrder?.[0];
       
       if (gameCreator) {
+        // Get attacker and defender character cards from field
+        const attackerCard = gameState?.field.find((c: any) => c.owner === this.playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+        const defenderCard = gameState?.field.find((c: any) => c.id === target.cardId);
+        
         // Emit damage request event to the game creator
         this.socketEmitter.to(this.gameId).emit('cpu-damage-request', {
           cpuName: this.playerName,
@@ -1705,7 +1709,20 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           targetCardName: target.name,
           targetOwner: target.owner,
           gameCreator: gameCreator,
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          // Add complete character data
+          attackerCharacter: attackerCard ? {
+            id: attackerCard.id,
+            name: this.getCardNameFromUrl(attackerCard.frontImage),
+            image: attackerCard.frontImage,
+            notes: attackerCard.text || ''
+          } : null,
+          defenderCharacter: defenderCard ? {
+            id: defenderCard.id,
+            name: target.name,
+            image: defenderCard.frontImage,
+            notes: defenderCard.text || ''
+          } : null
         });
         
         console.log(`🎯 CPU ${this.playerName}: Damage request emitted to game creator ${gameCreator}`);
