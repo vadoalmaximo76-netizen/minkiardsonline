@@ -161,32 +161,14 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
         </Button>
       </div>
 
-      {/* Deck Browser Modal */}
+      {/* Deck Browser Modal - Full Screen */}
       {showBrowser && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-95 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-gray-900 flex flex-col"
           style={{ 
             zIndex: 9999
           }}
-          data-backdrop="true"
-          role="presentation"
-          onClick={(e) => {
-            // Always close modal when clicking on backdrop (outer div)
-            console.log('Backdrop clicked - closing deck browser for:', name, 'target:', e.target, 'current:', e.currentTarget);
-            setShowBrowser(false);
-            setSearchTerm('');
-          }}
         >
-          <div 
-            className="bg-gray-900 rounded-lg shadow-2xl border-2 border-gray-600 w-full h-full max-w-7xl max-h-[95vh] flex flex-col"
-            style={{ 
-              position: 'relative'
-            }}
-            onClick={(e) => {
-              // Prevent backdrop click when clicking inside modal
-              e.stopPropagation();
-            }}
-          >
             {/* Header */}
             <div className="p-2 sm:p-4 bg-gray-800 border-b-2 border-gray-600 rounded-t-lg flex-shrink-0">
               <div className="flex justify-between items-center mb-2 sm:mb-3">
@@ -239,44 +221,47 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
               )}
             </div>
             
-            {/* Cards Grid */}
+            {/* Cards Grid - Full Screen with Horizontal and Vertical Scroll */}
             <div 
-              className="bg-gray-800 p-2 sm:p-4 overflow-y-auto flex-1 rounded-b-lg"
+              className="flex-1 overflow-auto p-4"
+              style={{
+                overflowX: 'auto',
+                overflowY: 'auto'
+              }}
             >
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
+              <div className="inline-grid grid-cols-8 sm:grid-cols-10 md:grid-cols-12 lg:grid-cols-15 xl:grid-cols-20 gap-3 min-w-full">
                 {getSortedCards().map((card, index) => (
-                  <div key={card.id} className="flex flex-col items-center bg-gray-700 rounded p-1 hover:bg-gray-600 cursor-pointer">
+                  <div key={card.id} className="flex flex-col items-center cursor-pointer hover:opacity-80 transition-opacity" style={{ width: '100px' }}>
                     <img
                       src={card.frontImage}
                       alt="Card"
-                      className="w-full aspect-[3/4] object-cover rounded border border-gray-500 hover:border-white transition-all"
+                      className="w-full aspect-[3/4] object-cover rounded border-2 border-gray-500 hover:border-white transition-all shadow-lg"
                       onClick={() => handleCardClick(card)}
                     />
-                    <span className="text-white text-[10px] sm:text-xs mt-1 text-center truncate w-full px-1">
-                      {card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').substring(0, 12)}
+                    <span className="text-white text-[9px] sm:text-[10px] mt-1 text-center w-full px-1 leading-tight break-words">
+                      {card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase()}
                     </span>
                   </div>
                 ))}
               </div>
             </div>
-          </div>
         </div>
       )}
 
-      {/* Zoomed Card Modal */}
+      {/* Zoomed Card Modal - Full Size Display */}
       {selectedCardForZoom && (
         <div 
           className="fixed inset-0 bg-black/95 flex items-center justify-center p-4"
           style={{ zIndex: 999999999 }}
         >
-          <div className="bg-gray-800 rounded-xl p-4 sm:p-6 text-center border-2 border-white/20 w-full max-w-md">
+          <div className="bg-gray-800 rounded-xl p-4 sm:p-6 text-center border-2 border-white/20 w-full max-w-2xl">
             {/* Card Name */}
-            <h4 className="text-white font-bold text-sm sm:text-lg mb-2 sm:mb-3" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+            <h4 className="text-white font-bold text-base sm:text-xl mb-3 sm:mb-4" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
               {selectedCardForZoom.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase()}
             </h4>
             
-            {/* Large Card Image */}
-            <div className="mb-4 flex items-center justify-center h-64 sm:h-80">
+            {/* Full Size Card Image */}
+            <div className="mb-4 flex items-center justify-center" style={{ minHeight: '400px', maxHeight: '60vh' }}>
               <img
                 src={selectedCardForZoom.frontImage}
                 alt="Selected Card"
