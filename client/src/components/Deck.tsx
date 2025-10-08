@@ -178,14 +178,8 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
           }}
         >
           <div 
-            className="bg-gray-900 rounded-lg shadow-2xl border-2 border-gray-600"
+            className="bg-gray-900 rounded-lg shadow-2xl border-2 border-gray-600 w-full h-full max-w-7xl max-h-[95vh] flex flex-col"
             style={{ 
-              width: '80vw',
-              height: '80vh',
-              minWidth: '800px',
-              minHeight: '600px',
-              maxWidth: '95vw',
-              maxHeight: '95vh',
               position: 'relative'
             }}
             onClick={(e) => {
@@ -194,9 +188,9 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
             }}
           >
             {/* Header */}
-            <div className="p-4 bg-gray-800 border-b-2 border-gray-600 rounded-t-lg">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="text-white font-bold text-2xl">
+            <div className="p-2 sm:p-4 bg-gray-800 border-b-2 border-gray-600 rounded-t-lg flex-shrink-0">
+              <div className="flex justify-between items-center mb-2 sm:mb-3">
+                <h3 className="text-white font-bold text-sm sm:text-xl md:text-2xl">
                   Scegli una carta da {name}
                 </h3>
                 <Button
@@ -207,7 +201,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
                     setShowBrowser(false);
                     setSearchTerm(''); // Reset search when closing
                   }}
-                  className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 text-lg font-bold rounded relative z-50"
+                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 sm:px-6 sm:py-3 text-sm sm:text-lg font-bold rounded relative z-50"
                   style={{ pointerEvents: 'auto' }}
                 >
                   CHIUDI
@@ -215,28 +209,28 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
               </div>
               
               {/* Search input */}
-              <div className="flex items-center gap-2">
-                <span className="text-white font-semibold text-sm">Cerca:</span>
+              <div className="flex items-center gap-1 sm:gap-2">
+                <span className="text-white font-semibold text-xs sm:text-sm whitespace-nowrap">Cerca:</span>
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Scrivi il nome della carta..."
-                  className="flex-1 px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none text-sm"
+                  placeholder="Nome carta..."
+                  className="flex-1 px-2 py-1 sm:px-3 sm:py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none text-xs sm:text-sm"
                 />
                 {searchTerm && (
                   <Button
                     onClick={() => setSearchTerm('')}
-                    className="bg-gray-600 hover:bg-gray-500 text-white px-3 py-2 text-sm rounded"
+                    className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 sm:px-3 sm:py-2 text-xs sm:text-sm rounded whitespace-nowrap"
                   >
-                    Cancella
+                    X
                   </Button>
                 )}
               </div>
               
               {/* Search results info */}
               {searchTerm && (
-                <div className="mt-2 text-white/70 text-xs">
+                <div className="mt-1 sm:mt-2 text-white/70 text-xs">
                   {getSortedCards().length === 0 ? 
                     'Nessuna carta trovata' : 
                     `${getSortedCards().length} carte trovate`
@@ -247,22 +241,19 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
             
             {/* Cards Grid */}
             <div 
-              className="bg-gray-800 p-4 overflow-y-auto overflow-x-auto rounded-b-lg"
-              style={{ 
-                height: 'calc(100% - 140px)'
-              }}
+              className="bg-gray-800 p-2 sm:p-4 overflow-y-auto flex-1 rounded-b-lg"
             >
-              <div className="inline-grid grid-cols-6 gap-3 min-w-full">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
                 {getSortedCards().map((card, index) => (
-                  <div key={card.id} className="flex flex-col items-center bg-gray-700 rounded p-1 hover:bg-gray-600 cursor-pointer w-28">
+                  <div key={card.id} className="flex flex-col items-center bg-gray-700 rounded p-1 hover:bg-gray-600 cursor-pointer">
                     <img
                       src={card.frontImage}
                       alt="Card"
                       className="w-full aspect-[3/4] object-cover rounded border border-gray-500 hover:border-white transition-all"
                       onClick={() => handleCardClick(card)}
                     />
-                    <span className="text-white text-xs mt-1 text-center truncate w-full">
-                      {card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').substring(0, 8)}
+                    <span className="text-white text-[10px] sm:text-xs mt-1 text-center truncate w-full px-1">
+                      {card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').substring(0, 12)}
                     </span>
                   </div>
                 ))}
@@ -278,14 +269,14 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
           className="fixed inset-0 bg-black/95 flex items-center justify-center p-4"
           style={{ zIndex: 999999999 }}
         >
-          <div className="bg-gray-800 rounded-xl p-6 text-center border-2 border-white/20" style={{ width: '500px', height: '500px' }}>
+          <div className="bg-gray-800 rounded-xl p-4 sm:p-6 text-center border-2 border-white/20 w-full max-w-md">
             {/* Card Name */}
-            <h4 className="text-white font-bold text-lg mb-3" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+            <h4 className="text-white font-bold text-sm sm:text-lg mb-2 sm:mb-3" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
               {selectedCardForZoom.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase()}
             </h4>
             
             {/* Large Card Image */}
-            <div className="mb-4 flex items-center justify-center" style={{ height: '280px' }}>
+            <div className="mb-4 flex items-center justify-center h-64 sm:h-80">
               <img
                 src={selectedCardForZoom.frontImage}
                 alt="Selected Card"
@@ -298,21 +289,21 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
             <div className="flex flex-col gap-2">
               <Button
                 onClick={() => handleCardSelect(selectedCardForZoom.id)}
-                className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 text-sm rounded-lg w-full"
+                className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 sm:py-3 text-xs sm:text-sm rounded-lg w-full"
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 PESCA QUESTA CARTA
               </Button>
               <Button
                 onClick={() => handleRemoveCard(selectedCardForZoom.id)}
-                className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 text-sm rounded-lg w-full"
+                className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 sm:py-3 text-xs sm:text-sm rounded-lg w-full"
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 ELIMINA CARTA
               </Button>
               <Button
                 onClick={handleCloseZoom}
-                className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 text-sm rounded-lg w-full"
+                className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 sm:py-3 text-xs sm:text-sm rounded-lg w-full"
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 Chiudi
