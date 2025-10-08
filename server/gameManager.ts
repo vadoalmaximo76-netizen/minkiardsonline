@@ -2632,6 +2632,39 @@ Rispondi SOLO in JSON:`;
       gameState.players[playerName].usedCardsThisTurn = [];
     }
 
+    // Check if there's an active duel
+    if (gameState.activeDuel && gameState.activeDuel.active) {
+      const duel = gameState.activeDuel;
+      console.log(`⚔️ DUELLO: Ending turn during duel (current: ${playerName})`);
+      
+      // In duel, alternate between the two duelists only
+      if (duel.consecutiveTurns && duel.consecutiveTurns > 0) {
+        // Player has consecutive turns
+        duel.consecutiveTurns--;
+        console.log(`⚔️ DUELLO: ${playerName} has ${duel.consecutiveTurns} consecutive turns remaining`);
+        return playerName; // Same player's turn continues
+      }
+      
+      // Switch to the other duelist
+      const nextPlayer = playerName === duel.player1 ? duel.player2 : duel.player1;
+      duel.currentTurn = nextPlayer;
+      
+      // Update game turn order to match duel turn
+      const nextPlayerIndex = gameState.turnOrder.indexOf(nextPlayer);
+      if (nextPlayerIndex !== -1) {
+        gameState.currentTurnIndex = nextPlayerIndex;
+      }
+      
+      // Initialize usedCardsThisTurn for the next player if not exists
+      if (gameState.players[nextPlayer] && !gameState.players[nextPlayer].usedCardsThisTurn) {
+        gameState.players[nextPlayer].usedCardsThisTurn = [];
+      }
+      
+      console.log(`⚔️ DUELLO: Turn switched to ${nextPlayer}`);
+      return nextPlayer;
+    }
+
+    // No active duel - use normal turn order logic
     // Move to next non-eliminated player
     const startIndex = gameState.currentTurnIndex;
     let attempts = 0;
@@ -2672,6 +2705,39 @@ Rispondi SOLO in JSON:`;
       gameState.players[currentPlayerName].usedCardsThisTurn = [];
     }
 
+    // Check if there's an active duel
+    if (gameState.activeDuel && gameState.activeDuel.active) {
+      const duel = gameState.activeDuel;
+      console.log(`⚔️ DUELLO: Force ending turn during duel (current: ${currentPlayerName})`);
+      
+      // In duel, alternate between the two duelists only
+      if (duel.consecutiveTurns && duel.consecutiveTurns > 0) {
+        // Player has consecutive turns
+        duel.consecutiveTurns--;
+        console.log(`⚔️ DUELLO: ${currentPlayerName} has ${duel.consecutiveTurns} consecutive turns remaining`);
+        return currentPlayerName; // Same player's turn continues
+      }
+      
+      // Switch to the other duelist
+      const nextPlayer = currentPlayerName === duel.player1 ? duel.player2 : duel.player1;
+      duel.currentTurn = nextPlayer;
+      
+      // Update game turn order to match duel turn
+      const nextPlayerIndex = gameState.turnOrder.indexOf(nextPlayer);
+      if (nextPlayerIndex !== -1) {
+        gameState.currentTurnIndex = nextPlayerIndex;
+      }
+      
+      // Initialize usedCardsThisTurn for the next player if not exists
+      if (gameState.players[nextPlayer] && !gameState.players[nextPlayer].usedCardsThisTurn) {
+        gameState.players[nextPlayer].usedCardsThisTurn = [];
+      }
+      
+      console.log(`⚔️ DUELLO: Turn switched to ${nextPlayer}`);
+      return nextPlayer;
+    }
+
+    // No active duel - use normal turn order logic
     // Move to next non-eliminated player
     const startIndex = gameState.currentTurnIndex;
     let attempts = 0;
