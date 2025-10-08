@@ -4234,21 +4234,10 @@ Rispondi SOLO in JSON:`;
       const cardInHand = player.hand.find(c => c.type === cardType);
       
       if (cardInHand) {
-        // For CPU players, set pending order
-        if (playerName.startsWith('CPU-') && player.cpuInstance) {
-          player.cpuInstance.setPendingOrder({
-            type: 'play-card',
-            cardType,
-            senderName: 'Sistema',
-            cardId: cardInHand.id
-          });
-          playedCount++;
-          console.log(`Set pending order for ${playerName} to play ${cardType} card`);
-        } else {
-          // For human players, directly play the card
-          await this.playCard(gameId, cardInHand.id, playerName);
-          playedCount++;
-        }
+        // Play card immediately for all players (human and CPU)
+        await this.playCard(gameId, cardInHand.id, playerName);
+        playedCount++;
+        console.log(`${playerName} played ${cardType} card as instructed`);
       }
     }
 
@@ -4277,19 +4266,9 @@ Rispondi SOLO in JSON:`;
       return { message: `❌ ${playerName} non ha una carta ${cardType.toUpperCase()} in mano!` };
     }
 
-    // For CPU players, set pending order
-    if (playerName.startsWith('CPU-') && player.cpuInstance) {
-      player.cpuInstance.setPendingOrder({
-        type: 'play-card',
-        cardType,
-        senderName: 'Sistema',
-        cardId: cardInHand.id
-      });
-      console.log(`Set pending order for ${playerName} to play ${cardType} card`);
-    } else {
-      // For human players, directly play the card
-      await this.playCard(gameId, cardInHand.id, playerName);
-    }
+    // Play card immediately for all players (human and CPU)
+    await this.playCard(gameId, cardInHand.id, playerName);
+    console.log(`${playerName} played ${cardType} card as instructed`);
 
     await this.recordEvent(gameId, 'instruction-executed', {
       instruction,

@@ -1483,7 +1483,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         // Get opponent's character in the duel (simple and correct)
         const opponentCharacterId: string = (duel.player1 && duel.player1 === this.playerName) ? duel.character2Id! : duel.character1Id!;
         
-        return await this.executeMovesCardAndDrawReplacement(playedCardId, gameState, 'mosse', opponentCharacterId);
+        return await this.executeMovesCardAndDrawReplacement(playedCardId!, gameState, 'mosse', opponentCharacterId);
       }
     }
     
