@@ -3430,6 +3430,79 @@ Rispondi SOLO in JSON:`;
     return true;
   }
 
+  // Remove player from game and return their cards to decks
+  removePlayerFromGame(gameId: string, playerName: string): boolean {
+    const game = this.games.get(gameId);
+    if (!game) {
+      console.error(`[removePlayerFromGame] Game ${gameId} not found`);
+      return false;
+    }
+
+    if (!game.players[playerName]) {
+      console.error(`[removePlayerFromGame] Player ${playerName} not found in game`);
+      return false;
+    }
+
+    console.log(`[removePlayerFromGame] Removing ${playerName} from game ${gameId}`);
+
+    // 1. Return all cards from player's hand to their respective decks
+    const playerHand = game.players[playerName].hand || [];
+    playerHand.forEach(card => {
+      const deckType = card.type as keyof typeof game.decks;
+      if (game.decks[deckType]) {
+        // Reset card ownership and add back to deck
+        card.owner = '';
+        card.text = '';
+        game.decks[deckType].push(card);
+        console.log(`[removePlayerFromGame] Returned ${card.id} to ${deckType} deck`);
+      }
+    });
+
+    // 2. Return all cards from field that belong to this player
+    const playerFieldCards = game.field.filter(card => card.owner === playerName);
+    playerFieldCards.forEach(card => {
+      const deckType = card.type as keyof typeof game.decks;
+      if (game.decks[deckType]) {
+        // Reset card ownership and add back to deck
+        card.owner = '';
+        card.text = '';
+        game.decks[deckType].push(card);
+        console.log(`[removePlayerFromGame] Returned field card ${card.id} to ${deckType} deck`);
+      }
+    });
+
+    // Remove the cards from the field
+    game.field = game.field.filter(card => card.owner !== playerName);
+
+    // 3. Remove player from turn order
+    const turnIndex = game.turnOrder.indexOf(playerName);
+    if (turnIndex !== -1) {
+      game.turnOrder.splice(turnIndex, 1);
+      console.log(`[removePlayerFromGame] Removed ${playerName} from turn order`);
+      
+      // Adjust current turn index if needed
+      if (game.currentTurnIndex >= game.turnOrder.length && game.turnOrder.length > 0) {
+        game.currentTurnIndex = 0;
+      }
+    }
+
+    // 4. Add to spectators list
+    if (!game.spectators.includes(playerName)) {
+      game.spectators.push(playerName);
+      console.log(`[removePlayerFromGame] Added ${playerName} to spectators`);
+    }
+
+    // 5. Mark as eliminated
+    game.eliminatedPlayers.add(playerName);
+
+    // 6. Remove from active players (but keep player object for reconnection as spectator)
+    // Instead of deleting, mark them as spectator by clearing their data
+    game.players[playerName].hand = [];
+    
+    console.log(`[removePlayerFromGame] Successfully removed ${playerName} from game. They can remain as spectator.`);
+    return true;
+  }
+
   // DEFENSE SYSTEM: Helper methods for managing pending defense requests
   getPlayerSocketId(gameId: string, playerName: string): string | null {
     const game = this.games.get(gameId);

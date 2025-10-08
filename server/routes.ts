@@ -2292,6 +2292,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on('remove-player', ({ gameId, playerToRemove, removedBy }) => {
+      console.log(`[remove-player] ${removedBy} is removing ${playerToRemove} from game ${gameId}`);
+      
+      const success = gameManager.removePlayerFromGame(gameId, playerToRemove);
+      
+      if (success) {
+        console.log(`[remove-player] Successfully removed ${playerToRemove} from game`);
+        
+        // Notify all players
+        io.to(gameId).emit('player-removed', { 
+          playerName: playerToRemove,
+          removedBy 
+        });
+        
+        // Send updated game state
+        const gameState = gameManager.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', gameState);
+      } else {
+        console.error(`[remove-player] Failed to remove ${playerToRemove} from game`);
+      }
+    });
+
     socket.on('start-game', ({ gameId, playerName, characterLimit }) => {
       const gameState = gameManager.getSanitizedGameState(gameId);
       if (gameState) {

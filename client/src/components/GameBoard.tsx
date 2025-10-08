@@ -691,9 +691,9 @@ export const GameBoard: React.FC = () => {
               Seleziona il giocatore da eliminare dal tavolo. Diventerà spettatore e le sue carte torneranno nei mazzi.
             </p>
             <div className="space-y-2 max-h-80 overflow-y-auto">
-              {gameState?.players
-                ?.filter(p => p.name !== playerName && !p.name.startsWith('CPU-'))
-                .map(player => (
+              {gameState?.players && Object.values(gameState.players)
+                .filter((p: any) => p.name !== playerName && !p.name.startsWith('CPU-'))
+                .map((player: any) => (
                   <Button
                     key={player.name}
                     onClick={() => {
@@ -712,7 +712,7 @@ export const GameBoard: React.FC = () => {
                     {player.name}
                   </Button>
                 ))}
-              {gameState?.players?.filter(p => p.name !== playerName && !p.name.startsWith('CPU-')).length === 0 && (
+              {gameState?.players && Object.values(gameState.players).filter((p: any) => p.name !== playerName && !p.name.startsWith('CPU-')).length === 0 && (
                 <p className="text-white/60 text-center py-4">
                   Nessun giocatore disponibile per l'eliminazione
                 </p>
