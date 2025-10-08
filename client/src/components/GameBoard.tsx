@@ -86,6 +86,7 @@ export const GameBoard: React.FC = () => {
   const [eliminationDialogOpen, setEliminationDialogOpen] = useState(false);
   const [victoryDialogOpen, setVictoryDialogOpen] = useState(false);
   const [victoryPlayer, setVictoryPlayer] = useState<string>('');
+  const [removePlayerDialogOpen, setRemovePlayerDialogOpen] = useState(false);
   const [playerEliminationNotification, setPlayerEliminationNotification] = useState<{
     visible: boolean;
     player: string;
@@ -671,6 +672,56 @@ export const GameBoard: React.FC = () => {
         </div>
       )}
 
+      {/* Remove Player Dialog */}
+      {removePlayerDialogOpen && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4 border-2 border-orange-500">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-white">
+                Elimina concorrente
+              </h2>
+              <Button
+                onClick={() => setRemovePlayerDialogOpen(false)}
+                className="bg-red-600 hover:bg-red-700 text-white rounded-full p-1"
+              >
+                <X size={16} />
+              </Button>
+            </div>
+            <p className="text-white/80 mb-4 text-sm">
+              Seleziona il giocatore da eliminare dal tavolo. Diventerà spettatore e le sue carte torneranno nei mazzi.
+            </p>
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {gameState?.players
+                ?.filter(p => p.name !== playerName && !p.name.startsWith('CPU-'))
+                .map(player => (
+                  <Button
+                    key={player.name}
+                    onClick={() => {
+                      if (confirm(`Sei sicuro di voler eliminare ${player.name} dalla partita?`)) {
+                        socket.emit('remove-player', { 
+                          gameId, 
+                          playerToRemove: player.name,
+                          removedBy: playerName 
+                        });
+                        setRemovePlayerDialogOpen(false);
+                      }
+                    }}
+                    className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 text-left px-4 flex items-center gap-2"
+                  >
+                    <Skull size={16} />
+                    {player.name}
+                  </Button>
+                ))}
+              {gameState?.players?.filter(p => p.name !== playerName && !p.name.startsWith('CPU-')).length === 0 && (
+                <p className="text-white/60 text-center py-4">
+                  Nessun giocatore disponibile per l'eliminazione
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Game content */}
       <div className="relative z-10">
         {/* Header */}
@@ -972,6 +1023,13 @@ export const GameBoard: React.FC = () => {
           >
             <X size={16} className="md:w-6 md:h-6" />
             <span className="text-sm md:text-base">LASCIA LA PARTITA</span>
+          </Button>
+          <Button
+            onClick={() => setRemovePlayerDialogOpen(true)}
+            className="bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-lg px-4 md:px-6 py-2 md:py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 md:gap-3"
+          >
+            <Skull size={16} className="md:w-6 md:h-6" />
+            <span className="text-sm md:text-base">ELIMINA CONCORRENTE</span>
           </Button>
         </div>
 
