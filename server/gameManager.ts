@@ -4238,6 +4238,36 @@ Rispondi SOLO in JSON:`;
         await this.playCard(gameId, cardInHand.id, playerName);
         playedCount++;
         console.log(`${playerName} played ${cardType} card as instructed`);
+        
+        // SPECIAL: If CPU played MOSSE card, execute attack immediately
+        if (cardType === 'mosse' && playerName.startsWith('CPU-') && player.cpuInstance) {
+          console.log(`${playerName} executing MOSSE attack immediately after instruction`);
+          const gameState = this.getGameState(gameId);
+          if (gameState) {
+            // Call CPU method to execute MOSSE attack
+            const attackAction = await player.cpuInstance.executeMovesCardAndDrawReplacement(
+              cardInHand.id,
+              gameState,
+              'mosse'
+            );
+            
+            if (attackAction && attackAction.type === 'mosse-attack') {
+              console.log(`${playerName} MOSSE attack executed:`, attackAction.data);
+              
+              // Execute the attack using the gameManager method
+              const attackResult = await this.executeMossaAttack(
+                gameId,
+                attackAction.data.mosseCardId,
+                attackAction.data.targetCardId,
+                attackAction.data.attackerName,
+                attackAction.data.targetOwner,
+                attackAction.data.damage
+              );
+              
+              console.log(`${playerName} attack result:`, attackResult);
+            }
+          }
+        }
       }
     }
 
@@ -4269,6 +4299,36 @@ Rispondi SOLO in JSON:`;
     // Play card immediately for all players (human and CPU)
     await this.playCard(gameId, cardInHand.id, playerName);
     console.log(`${playerName} played ${cardType} card as instructed`);
+    
+    // SPECIAL: If CPU played MOSSE card, execute attack immediately
+    if (cardType === 'mosse' && playerName.startsWith('CPU-') && player.cpuInstance) {
+      console.log(`${playerName} executing MOSSE attack immediately after instruction`);
+      const gameState = this.getGameState(gameId);
+      if (gameState) {
+        // Call CPU method to execute MOSSE attack
+        const attackAction = await player.cpuInstance.executeMovesCardAndDrawReplacement(
+          cardInHand.id,
+          gameState,
+          'mosse'
+        );
+        
+        if (attackAction && attackAction.type === 'mosse-attack') {
+          console.log(`${playerName} MOSSE attack executed:`, attackAction.data);
+          
+          // Execute the attack using the gameManager method
+          const attackResult = await this.executeMossaAttack(
+            gameId,
+            attackAction.data.mosseCardId,
+            attackAction.data.targetCardId,
+            attackAction.data.attackerName,
+            attackAction.data.targetOwner,
+            attackAction.data.damage
+          );
+          
+          console.log(`${playerName} attack result:`, attackResult);
+        }
+      }
+    }
 
     await this.recordEvent(gameId, 'instruction-executed', {
       instruction,
