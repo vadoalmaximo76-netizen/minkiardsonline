@@ -1723,6 +1723,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return;
           }
           
+          // NEW: Handle show card instruction
+          if (result && typeof result === 'object' && 'showCard' in result && result.showCard) {
+            const showData: any = result.showCard;
+            
+            // Emit card-shown event to target player
+            if (showData.targetSocketId) {
+              io.to(showData.targetSocketId).emit('card-shown', {
+                cardId: showData.cardId,
+                fromPlayer: showData.showingPlayer,
+                cardImage: showData.cardImage,
+                message: `${showData.showingPlayer} ti ha mostrato la sua carta su richiesta`
+              });
+              
+              console.log(`${showData.showingPlayer} showed card to ${showData.targetPlayer} via instruction`);
+            }
+          }
+          
           // Get updated game state after instruction
           const updatedGameState = gameManager.getSanitizedGameState(gameId);
           

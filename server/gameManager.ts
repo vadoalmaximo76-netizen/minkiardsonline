@@ -4300,16 +4300,8 @@ Rispondi SOLO in JSON:`;
       return { message: `❌ ${showingPlayer} non ha una carta ${cardType.toUpperCase()} in mano!` };
     }
 
-    // For CPU players, set pending order to show card
-    if (showingPlayer.startsWith('CPU-') && player.cpuInstance) {
-      player.cpuInstance.setPendingOrder({
-        type: 'show-card',
-        cardType,
-        senderName: targetPlayer,
-        targetPlayer: targetPlayer
-      });
-      console.log(`Set pending order for ${showingPlayer} to show ${cardType} card to ${targetPlayer}`);
-    }
+    // Execute show card immediately for all players (human and CPU)
+    console.log(`${showingPlayer} showing ${cardType} card to ${targetPlayer} as instructed`);
 
     await this.recordEvent(gameId, 'instruction-executed', {
       instruction,
@@ -4320,11 +4312,14 @@ Rispondi SOLO in JSON:`;
     }, 'Sistema');
 
     return { 
-      message: `👁️ ${showingPlayer} mostrerà la sua carta ${cardType.toUpperCase()} a ${targetPlayer}!`,
+      success: true,
+      message: `👁️ ${showingPlayer} mostra la sua carta ${cardType.toUpperCase()} a ${targetPlayer}!`,
       showCard: {
-        card: cardInHand,
+        cardId: cardInHand.id,
+        cardImage: cardInHand.frontImage,
         showingPlayer,
-        targetPlayer
+        targetPlayer,
+        targetSocketId: target.socketId
       }
     };
   }
