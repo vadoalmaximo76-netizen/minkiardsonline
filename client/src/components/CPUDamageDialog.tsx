@@ -73,8 +73,8 @@ export const CPUDamageDialog: React.FC = () => {
     if (!damageRequest || isProcessing) return;
     
     const damage = parseInt(damageValue);
-    if (isNaN(damage) || damage <= 0) {
-      alert('Inserisci un valore di danno valido!');
+    if (isNaN(damage) || damage < 0) {
+      alert('Inserisci un valore di danno valido (minimo 0)!');
       return;
     }
     
@@ -183,15 +183,15 @@ export const CPUDamageDialog: React.FC = () => {
               </label>
               <input
                 type="number"
-                min="1"
+                min="0"
                 value={damageValue}
                 onChange={(e) => setDamageValue(e.target.value)}
                 onKeyPress={(e) => {
-                  if (e.key === 'Enter' && damageValue) {
+                  if (e.key === 'Enter' && damageValue !== '') {
                     handleDamageSubmit();
                   }
                 }}
-                placeholder="Danno (es. 50)"
+                placeholder="Danno (es. 50 o 0)"
                 className="w-full px-4 py-3 text-center text-2xl font-bold border-2 border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                 autoFocus
                 disabled={isProcessing}
