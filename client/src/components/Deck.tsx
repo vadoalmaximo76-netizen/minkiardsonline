@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
@@ -161,12 +162,12 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
         </Button>
       </div>
 
-      {/* Deck Browser Modal - Centered Over Game Table */}
-      {showBrowser && (
+      {/* Deck Browser Modal - Portal to Body for Top Z-Index */}
+      {showBrowser && createPortal(
         <div 
-          className="fixed inset-0 bg-black/90 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/90 flex items-center justify-center p-2 sm:p-4"
           style={{ 
-            zIndex: 99999
+            zIndex: 999999
           }}
           onClick={() => {
             setShowBrowser(false);
@@ -174,18 +175,13 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
           }}
         >
           <div 
-            className="bg-gray-900 rounded-lg shadow-2xl border-4 border-purple-600 flex flex-col"
-            style={{ 
-              width: '95vw',
-              height: '90vh',
-              maxWidth: '1800px'
-            }}
+            className="bg-gray-900 rounded-lg shadow-2xl border-4 border-purple-600 flex flex-col w-[98vw] h-[95vh] sm:w-[95vw] sm:h-[92vh] lg:w-[92vw] lg:h-[85vh] max-w-[2000px]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="p-3 sm:p-4 bg-gray-800 border-b-2 border-gray-600 flex-shrink-0">
+            <div className="p-3 sm:p-4 lg:p-6 bg-gray-800 border-b-2 border-gray-600 flex-shrink-0">
               <div className="flex justify-between items-center mb-3">
-                <h3 className="text-white font-bold text-base sm:text-xl md:text-2xl">
+                <h3 className="text-white font-bold text-lg sm:text-xl lg:text-3xl">
                   Scegli una carta da {name}
                 </h3>
                 <Button
@@ -194,9 +190,9 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
                     e.stopPropagation();
                     console.log('CHIUDI clicked for deck:', name);
                     setShowBrowser(false);
-                    setSearchTerm(''); // Reset search when closing
+                    setSearchTerm('');
                   }}
-                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 sm:px-6 sm:py-3 text-base sm:text-lg font-bold rounded relative z-50"
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 sm:px-6 sm:py-3 lg:px-8 lg:py-4 text-base sm:text-lg lg:text-xl font-bold rounded relative z-50"
                   style={{ pointerEvents: 'auto' }}
                 >
                   CHIUDI
@@ -205,18 +201,18 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
               
               {/* Search input */}
               <div className="flex items-center gap-2">
-                <span className="text-white font-semibold text-sm sm:text-base whitespace-nowrap">Cerca:</span>
+                <span className="text-white font-semibold text-sm sm:text-base lg:text-lg whitespace-nowrap">Cerca:</span>
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Nome carta..."
-                  className="flex-1 px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none text-sm sm:text-base"
+                  className="flex-1 px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none text-sm sm:text-base lg:text-lg"
                 />
                 {searchTerm && (
                   <Button
                     onClick={() => setSearchTerm('')}
-                    className="bg-gray-600 hover:bg-gray-500 text-white px-3 py-2 text-sm sm:text-base rounded whitespace-nowrap"
+                    className="bg-gray-600 hover:bg-gray-500 text-white px-3 py-2 text-sm sm:text-base lg:text-lg rounded whitespace-nowrap"
                   >
                     X
                   </Button>
@@ -225,7 +221,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
               
               {/* Search results info */}
               {searchTerm && (
-                <div className="mt-2 text-white/70 text-sm">
+                <div className="mt-2 text-white/70 text-sm lg:text-base">
                   {getSortedCards().length === 0 ? 
                     'Nessuna carta trovata' : 
                     `${getSortedCards().length} carte trovate`
@@ -234,11 +230,16 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
               )}
             </div>
             
-            {/* Cards Grid - Full Screen with Scroll */}
+            {/* Cards Grid - Responsive with Larger Cards */}
             <div 
-              className="flex-1 overflow-auto p-3 sm:p-4"
+              className="flex-1 overflow-auto p-3 sm:p-4 lg:p-6"
             >
-              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3 sm:gap-4">
+              <div 
+                className="grid gap-4 sm:gap-5 lg:gap-6"
+                style={{
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                }}
+              >
                 {getSortedCards().map((card, index) => (
                   <div key={card.id} className="flex flex-col items-center cursor-pointer hover:opacity-80 transition-opacity">
                     <img
@@ -247,7 +248,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
                       className="w-full aspect-[3/4] object-cover rounded-lg border-2 border-gray-500 hover:border-white transition-all shadow-xl"
                       onClick={() => handleCardClick(card)}
                     />
-                    <span className="text-white text-xs sm:text-sm mt-2 text-center w-full px-1 leading-tight font-medium">
+                    <span className="text-white text-xs sm:text-sm lg:text-base mt-2 text-center w-full px-1 leading-tight font-medium">
                       {card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase()}
                     </span>
                   </div>
@@ -255,18 +256,19 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* Zoomed Card Modal - Full Size Display */}
-      {selectedCardForZoom && (
+      {/* Zoomed Card Modal - Portal to Body */}
+      {selectedCardForZoom && createPortal(
         <div 
           className="fixed inset-0 bg-black/95 flex items-center justify-center p-4"
-          style={{ zIndex: 999999999 }}
+          style={{ zIndex: 9999999 }}
         >
           <div className="bg-gray-800 rounded-xl p-4 sm:p-6 text-center border-2 border-white/20 w-full max-w-2xl">
             {/* Card Name */}
-            <h4 className="text-white font-bold text-base sm:text-xl mb-3 sm:mb-4" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+            <h4 className="text-white font-bold text-base sm:text-xl lg:text-2xl mb-3 sm:mb-4" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
               {selectedCardForZoom.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase()}
             </h4>
             
@@ -284,28 +286,29 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
             <div className="flex flex-col gap-2">
               <Button
                 onClick={() => handleCardSelect(selectedCardForZoom.id)}
-                className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 sm:py-3 text-xs sm:text-sm rounded-lg w-full"
+                className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 sm:py-3 lg:py-4 text-xs sm:text-sm lg:text-base rounded-lg w-full"
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 PESCA QUESTA CARTA
               </Button>
               <Button
                 onClick={() => handleRemoveCard(selectedCardForZoom.id)}
-                className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 sm:py-3 text-xs sm:text-sm rounded-lg w-full"
+                className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 sm:py-3 lg:py-4 text-xs sm:text-sm lg:text-base rounded-lg w-full"
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 ELIMINA CARTA
               </Button>
               <Button
                 onClick={handleCloseZoom}
-                className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 sm:py-3 text-xs sm:text-sm rounded-lg w-full"
+                className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 sm:py-3 lg:py-4 text-xs sm:text-sm lg:text-base rounded-lg w-full"
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 Chiudi
               </Button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
