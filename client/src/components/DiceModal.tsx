@@ -74,7 +74,7 @@ export const DiceModal: React.FC<DiceModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[110] p-4">
       <div className="bg-gray-800 rounded-lg p-8 max-w-md w-full text-center">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-white font-bold text-xl">DADO</h3>
