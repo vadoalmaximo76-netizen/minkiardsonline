@@ -692,7 +692,7 @@ export const GameBoard: React.FC = () => {
             </p>
             <div className="space-y-2 max-h-80 overflow-y-auto">
               {gameState?.players && Object.values(gameState.players)
-                .filter((p: any) => p.name !== playerName && !p.name.startsWith('CPU-'))
+                .filter((p: any) => p.name !== playerName)
                 .map((player: any) => (
                   <Button
                     key={player.name}
@@ -712,7 +712,7 @@ export const GameBoard: React.FC = () => {
                     {player.name}
                   </Button>
                 ))}
-              {gameState?.players && Object.values(gameState.players).filter((p: any) => p.name !== playerName && !p.name.startsWith('CPU-')).length === 0 && (
+              {gameState?.players && Object.values(gameState.players).filter((p: any) => p.name !== playerName).length === 0 && (
                 <p className="text-white/60 text-center py-4">
                   Nessun giocatore disponibile per l'eliminazione
                 </p>
