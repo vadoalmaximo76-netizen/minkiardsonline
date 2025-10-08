@@ -17,8 +17,15 @@ export const CardModal: React.FC = () => {
 
   if (!selectedCard) return null;
 
-  const isOwner = selectedCard.owner === playerName;
+  // Check if current player is the game master (first in turn order)
+  const isMaster = gameState?.turnOrder?.[0] === playerName;
+  
+  // Check if player owns the card OR is master and card belongs to CPU
+  const isOwner = selectedCard.owner === playerName || (isMaster && selectedCard.owner?.startsWith('CPU-'));
   const players = Object.keys(gameState?.players || {}).filter(p => p !== playerName);
+  
+  // Use card owner if master is controlling CPU card, otherwise use current player name
+  const effectivePlayerName = (isMaster && selectedCard.owner?.startsWith('CPU-')) ? selectedCard.owner : playerName;
   
   // Check if this is a face-down card belonging to another player
   const isEnemyFaceDownCard = selectedCard.faceDown && !isOwner;
@@ -50,24 +57,24 @@ export const CardModal: React.FC = () => {
   const handleCedi = (targetPlayer: string) => {
     socket.emit('transfer-card', {
       cardId: selectedCard.id,
-      fromPlayer: playerName,
+      fromPlayer: effectivePlayerName,
       toPlayer: targetPlayer
     });
     setSelectedCard(null);
   };
 
   const handleReturnToHand = () => {
-    socket.emit('return-to-hand', { cardId: selectedCard.id, playerName });
+    socket.emit('return-to-hand', { cardId: selectedCard.id, playerName: effectivePlayerName });
     setSelectedCard(null);
   };
 
   const handleReturnToDeck = () => {
-    socket.emit('return-to-deck', { cardId: selectedCard.id, playerName });
+    socket.emit('return-to-deck', { cardId: selectedCard.id, playerName: effectivePlayerName });
     setSelectedCard(null);
   };
 
   const handleMoveToGraveyard = () => {
-    socket.emit('move-to-graveyard', { cardId: selectedCard.id, playerName });
+    socket.emit('move-to-graveyard', { cardId: selectedCard.id, playerName: effectivePlayerName });
     setSelectedCard(null);
   };
 
@@ -84,12 +91,12 @@ export const CardModal: React.FC = () => {
   };
 
   const handlePlay = () => {
-    socket.emit('play-card', { cardId: selectedCard.id, playerName });
+    socket.emit('play-card', { cardId: selectedCard.id, playerName: effectivePlayerName });
     setSelectedCard(null);
   };
 
   const handlePlayFaceDown = () => {
-    socket.emit('play-card-face-down', { cardId: selectedCard.id, playerName });
+    socket.emit('play-card-face-down', { cardId: selectedCard.id, playerName: effectivePlayerName });
     setSelectedCard(null);
   };
 
@@ -100,7 +107,7 @@ export const CardModal: React.FC = () => {
   const handleShowToPlayer = (targetPlayer: string) => {
     socket.emit('show-card-to-player', { 
       cardId: selectedCard.id, 
-      fromPlayer: playerName, 
+      fromPlayer: effectivePlayerName, 
       toPlayer: targetPlayer,
       cardImage: selectedCard.frontImage
     });
@@ -111,7 +118,7 @@ export const CardModal: React.FC = () => {
   const handleTransferToPlayer = (targetPlayer: string) => {
     socket.emit('transfer-card', {
       cardId: selectedCard.id,
-      fromPlayer: playerName,
+      fromPlayer: effectivePlayerName,
       toPlayer: targetPlayer
     });
     setShowTransferSelect(false);
@@ -120,7 +127,7 @@ export const CardModal: React.FC = () => {
 
   const handleSwapCards = (targetPlayer: string, targetCardId: string) => {
     socket.emit('swap-cards', {
-      player1: playerName,
+      player1: effectivePlayerName,
       card1Id: selectedCard.id,
       player2: targetPlayer,
       card2Id: targetCardId

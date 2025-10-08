@@ -77,27 +77,27 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   };
 
   const handlePlay = () => {
-    socket.emit('play-card', { cardId: card.id, playerName });
+    socket.emit('play-card', { cardId: card.id, playerName: effectivePlayerName });
   };
 
   const handlePlayFaceDown = () => {
-    socket.emit('play-card-face-down', { cardId: card.id, playerName });
+    socket.emit('play-card-face-down', { cardId: card.id, playerName: effectivePlayerName });
   };
 
   const handleReveal = () => {
-    socket.emit('reveal-card', { cardId: card.id, playerName });
+    socket.emit('reveal-card', { cardId: card.id, playerName: effectivePlayerName });
   };
 
   const handleReturnToHand = () => {
-    socket.emit('return-to-hand', { cardId: card.id, playerName });
+    socket.emit('return-to-hand', { cardId: card.id, playerName: effectivePlayerName });
   };
 
   const handleReturnToDeck = () => {
-    socket.emit('return-to-deck', { cardId: card.id, playerName });
+    socket.emit('return-to-deck', { cardId: card.id, playerName: effectivePlayerName });
   };
 
   const handleMoveToGraveyard = () => {
-    socket.emit('move-to-graveyard', { cardId: card.id, playerName });
+    socket.emit('move-to-graveyard', { cardId: card.id, playerName: effectivePlayerName });
   };
 
   const handleShowCard = () => {
@@ -170,7 +170,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const handleTransferToPlayer = (targetPlayer: string) => {
     socket.emit('transfer-card', { 
       cardId: card.id, 
-      fromPlayer: playerName, 
+      fromPlayer: effectivePlayerName, 
       toPlayer: targetPlayer
     });
     setShowTransferSelect(false);
@@ -179,7 +179,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const handleShowToPlayer = (targetPlayer: string) => {
     socket.emit('show-card-to-player', { 
       cardId: card.id, 
-      fromPlayer: playerName, 
+      fromPlayer: effectivePlayerName, 
       toPlayer: targetPlayer,
       cardImage: card.frontImage
     });
@@ -201,7 +201,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         // Trigger elimination animation
         setIsEliminated(true);
         
-        // Send elimination event to server after animation delay
+        // Send elimination event to server after animation delay - use card.owner for CPU cards
         setTimeout(() => {
           socket.emit('eliminate-personaggi', { cardId: card.id, playerName: card.owner });
           setIsEliminated(false);
@@ -210,7 +210,14 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     }
   };
 
-  const isOwner = card.owner === playerName;
+  // Check if current player is the game master (first in turn order)
+  const isMaster = gameState?.turnOrder?.[0] === playerName;
+  
+  // Use card owner if master is controlling CPU card, otherwise use current player name
+  const effectivePlayerName = (isMaster && card.owner?.startsWith('CPU-')) ? card.owner : playerName;
+  
+  // Check if player owns the card OR is master and card belongs to CPU
+  const isOwner = card.owner === playerName || (isMaster && card.owner?.startsWith('CPU-'));
   
   // Helper function to get card name from image URL
   const getCardName = (imageUrl: string) => {

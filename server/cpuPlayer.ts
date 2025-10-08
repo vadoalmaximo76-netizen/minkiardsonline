@@ -1481,7 +1481,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         console.log(`⚔️ DUELLO: CPU ${this.playerName} executing MOSSE attack immediately after playing card`);
         
         // Get opponent's character in the duel (simple and correct)
-        const opponentCharacterId = duel.player1 === this.playerName ? duel.character2Id : duel.character1Id;
+        const opponentCharacterId: string = (duel.player1 && duel.player1 === this.playerName) ? duel.character2Id! : duel.character1Id!;
         
         return await this.executeMovesCardAndDrawReplacement(playedCardId, gameState, 'mosse', opponentCharacterId);
       }
@@ -2656,5 +2656,11 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       
       console.log(`CPU ${this.playerName} stored pending attack order:`, this.pendingOrder);
     }, 1000);
+  }
+  
+  // NEW: Set pending order directly (for system commands)
+  setPendingOrder(order: any): void {
+    this.pendingOrder = order;
+    console.log(`CPU ${this.playerName} received pending order from system:`, order);
   }
 }

@@ -246,6 +246,62 @@ export class GameManager {
       return await this.uncoverAllCards(gameId, playerName, instruction);
     }
 
+    // NEW: Pattern for playing cards on field (tutti mettono in campo i BONUS/MOSSE/PERSONAGGI)
+    if ((lowercaseInstruction.includes('mettono in campo') || lowercaseInstruction.includes('giocano') || 
+         lowercaseInstruction.includes('mette in campo') || lowercaseInstruction.includes('gioca')) && 
+        (lowercaseInstruction.includes('bonus') || lowercaseInstruction.includes('mosse') || 
+         lowercaseInstruction.includes('personaggi'))) {
+      
+      let cardType: 'personaggi' | 'mosse' | 'bonus' = 'personaggi';
+      if (lowercaseInstruction.includes('bonus')) cardType = 'bonus';
+      else if (lowercaseInstruction.includes('mosse')) cardType = 'mosse';
+      else if (lowercaseInstruction.includes('personaggi')) cardType = 'personaggi';
+      
+      // Check if it's for all players or specific player
+      const gameState = this.getGameState(gameId);
+      const players = gameState ? Object.keys(gameState.players) : [];
+      const specificPlayer = players.find(p => lowercaseInstruction.includes(p.toLowerCase()));
+      
+      if (lowercaseInstruction.includes('tutti')) {
+        return await this.playAllCardsOnField(gameId, cardType, instruction);
+      } else if (specificPlayer) {
+        return await this.playPlayerCardOnField(gameId, specificPlayer, cardType, instruction);
+      }
+    }
+
+    // NEW: Pattern for showing cards to specific players (L'utente X mostra la carta Y a utente Z)
+    if ((lowercaseInstruction.includes('mostra la carta') || lowercaseInstruction.includes('mostra carta')) && 
+        lowercaseInstruction.includes(' a ')) {
+      
+      const gameState = this.getGameState(gameId);
+      const players = gameState ? Object.keys(gameState.players) : [];
+      
+      // Extract player names and card type
+      const showingPlayer = players.find(p => {
+        const lowerName = p.toLowerCase();
+        const words = lowerName.split(/[-_\s]/);
+        return words.some(word => lowercaseInstruction.includes(word));
+      });
+      
+      // Extract target player (after "a " or "all'utente")
+      const afterA = lowercaseInstruction.split(' a ')[1];
+      const targetPlayer = afterA ? players.find(p => {
+        const lowerName = p.toLowerCase();
+        const words = lowerName.split(/[-_\s]/);
+        return words.some(word => afterA.includes(word));
+      }) : null;
+      
+      // Extract card type
+      let cardType: 'personaggi' | 'mosse' | 'bonus' | null = null;
+      if (lowercaseInstruction.includes('bonus')) cardType = 'bonus';
+      else if (lowercaseInstruction.includes('mosse')) cardType = 'mosse';
+      else if (lowercaseInstruction.includes('personaggi')) cardType = 'personaggi';
+      
+      if (showingPlayer && targetPlayer && cardType) {
+        return await this.showCardToPlayer(gameId, showingPlayer, targetPlayer, cardType, instruction);
+      }
+    }
+
     // More flexible card distribution patterns
     const distributionPatterns = [
       /(\d+)\s*carte?\s*(personaggi|mosse|bonus|personaggi_speciali)/i,
@@ -4163,5 +4219,134 @@ Rispondi SOLO in JSON:`;
       duel.currentTurn = duel.currentTurn === duel.player1 ? duel.player2 : duel.player1;
       console.log(`⚔️ DUELLO: Turn switches to ${duel.currentTurn}`);
     }
+  }
+
+  // NEW: Play all players' cards of specific type on field
+  private async playAllCardsOnField(gameId: string, cardType: 'personaggi' | 'mosse' | 'bonus', instruction: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    let playedCount = 0;
+    const players = Object.keys(game.players);
+
+    for (const playerName of players) {
+      const player = game.players[playerName];
+      const cardInHand = player.hand.find(c => c.type === cardType);
+      
+      if (cardInHand) {
+        // For CPU players, set pending order
+        if (playerName.startsWith('CPU-') && player.cpuInstance) {
+          player.cpuInstance.setPendingOrder({
+            type: 'play-card',
+            cardType,
+            senderName: 'Sistema',
+            cardId: cardInHand.id
+          });
+          playedCount++;
+          console.log(`Set pending order for ${playerName} to play ${cardType} card`);
+        } else {
+          // For human players, directly play the card
+          await this.playCard(gameId, cardInHand.id, playerName);
+          playedCount++;
+        }
+      }
+    }
+
+    await this.recordEvent(gameId, 'instruction-executed', {
+      instruction,
+      action: 'play-all-cards',
+      cardType,
+      playedCount
+    }, 'Sistema');
+
+    return { message: `🎴 ${playedCount} giocatori hanno messo in campo la loro carta ${cardType.toUpperCase()}!` };
+  }
+
+  // NEW: Play specific player's card on field
+  private async playPlayerCardOnField(gameId: string, playerName: string, cardType: 'personaggi' | 'mosse' | 'bonus', instruction: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    const player = game.players[playerName];
+    if (!player) {
+      return { message: `❌ Giocatore ${playerName} non trovato!` };
+    }
+
+    const cardInHand = player.hand.find(c => c.type === cardType);
+    if (!cardInHand) {
+      return { message: `❌ ${playerName} non ha una carta ${cardType.toUpperCase()} in mano!` };
+    }
+
+    // For CPU players, set pending order
+    if (playerName.startsWith('CPU-') && player.cpuInstance) {
+      player.cpuInstance.setPendingOrder({
+        type: 'play-card',
+        cardType,
+        senderName: 'Sistema',
+        cardId: cardInHand.id
+      });
+      console.log(`Set pending order for ${playerName} to play ${cardType} card`);
+    } else {
+      // For human players, directly play the card
+      await this.playCard(gameId, cardInHand.id, playerName);
+    }
+
+    await this.recordEvent(gameId, 'instruction-executed', {
+      instruction,
+      action: 'play-player-card',
+      playerName,
+      cardType
+    }, 'Sistema');
+
+    return { message: `🎴 ${playerName} ha messo in campo la sua carta ${cardType.toUpperCase()}!` };
+  }
+
+  // NEW: Show card from one player to another
+  private async showCardToPlayer(gameId: string, showingPlayer: string, targetPlayer: string, cardType: 'personaggi' | 'mosse' | 'bonus', instruction: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+
+    const player = game.players[showingPlayer];
+    if (!player) {
+      return { message: `❌ Giocatore ${showingPlayer} non trovato!` };
+    }
+
+    const target = game.players[targetPlayer];
+    if (!target) {
+      return { message: `❌ Giocatore destinatario ${targetPlayer} non trovato!` };
+    }
+
+    const cardInHand = player.hand.find(c => c.type === cardType);
+    if (!cardInHand) {
+      return { message: `❌ ${showingPlayer} non ha una carta ${cardType.toUpperCase()} in mano!` };
+    }
+
+    // For CPU players, set pending order to show card
+    if (showingPlayer.startsWith('CPU-') && player.cpuInstance) {
+      player.cpuInstance.setPendingOrder({
+        type: 'show-card',
+        cardType,
+        senderName: targetPlayer,
+        targetPlayer: targetPlayer
+      });
+      console.log(`Set pending order for ${showingPlayer} to show ${cardType} card to ${targetPlayer}`);
+    }
+
+    await this.recordEvent(gameId, 'instruction-executed', {
+      instruction,
+      action: 'show-card',
+      showingPlayer,
+      targetPlayer,
+      cardType
+    }, 'Sistema');
+
+    return { 
+      message: `👁️ ${showingPlayer} mostrerà la sua carta ${cardType.toUpperCase()} a ${targetPlayer}!`,
+      showCard: {
+        card: cardInHand,
+        showingPlayer,
+        targetPlayer
+      }
+    };
   }
 }
