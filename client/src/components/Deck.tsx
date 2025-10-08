@@ -164,9 +164,9 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
       {/* Deck Browser Modal - Centered Over Game Table */}
       {showBrowser && (
         <div 
-          className="fixed inset-0 bg-black/80 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/90 flex items-center justify-center p-4"
           style={{ 
-            zIndex: 9999
+            zIndex: 99999
           }}
           onClick={() => {
             setShowBrowser(false);
@@ -174,11 +174,11 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
           }}
         >
           <div 
-            className="bg-gray-900 rounded-lg shadow-2xl border-2 border-gray-600 flex flex-col"
+            className="bg-gray-900 rounded-lg shadow-2xl border-4 border-purple-600 flex flex-col"
             style={{ 
-              width: '90vw',
-              height: '75vh',
-              maxWidth: '1400px'
+              width: '95vw',
+              height: '90vh',
+              maxWidth: '1800px'
             }}
             onClick={(e) => e.stopPropagation()}
           >
