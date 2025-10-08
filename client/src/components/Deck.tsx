@@ -161,14 +161,27 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
         </Button>
       </div>
 
-      {/* Deck Browser Modal - Full Screen */}
+      {/* Deck Browser Modal - Centered Over Game Table */}
       {showBrowser && (
         <div 
-          className="fixed inset-0 bg-gray-900 flex flex-col"
+          className="fixed inset-0 bg-black/80 flex items-center justify-center p-4"
           style={{ 
             zIndex: 9999
           }}
+          onClick={() => {
+            setShowBrowser(false);
+            setSearchTerm('');
+          }}
         >
+          <div 
+            className="bg-gray-900 rounded-lg shadow-2xl border-2 border-gray-600 flex flex-col"
+            style={{ 
+              width: '90vw',
+              height: '75vh',
+              maxWidth: '1400px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Header */}
             <div className="p-3 sm:p-4 bg-gray-800 border-b-2 border-gray-600 flex-shrink-0">
               <div className="flex justify-between items-center mb-3">
@@ -241,6 +254,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
                 ))}
               </div>
             </div>
+          </div>
         </div>
       )}
 
