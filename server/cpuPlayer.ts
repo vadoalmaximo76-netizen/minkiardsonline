@@ -1858,11 +1858,20 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       }
     }
     
-    if (!hasMosseOnField) {
-      const mosse = hand.find((c: any) => c.type === 'mosse');
-      if (mosse) {
-        console.log(`CPU ${this.playerName} playing MOSSE (no MOSSE on field)`);
-        return mosse;
+    if (!hasMosseOnField && myCharacter) {
+      // Check if character has stars before playing MOSSE
+      const characterText = myCharacter.notes || myCharacter.text || '';
+      const starsMatch = characterText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
+      const currentStars = starsMatch ? parseInt(starsMatch[1]) : 0;
+      
+      if (currentStars > 0) {
+        const mosse = hand.find((c: any) => c.type === 'mosse');
+        if (mosse) {
+          console.log(`CPU ${this.playerName} playing MOSSE (no MOSSE on field, ${currentStars} stars available)`);
+          return mosse;
+        }
+      } else {
+        console.log(`CPU ${this.playerName} skipping MOSSE play (character has 0 stars)`);
       }
     }
     
