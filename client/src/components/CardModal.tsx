@@ -85,6 +85,21 @@ export const CardModal: React.FC = () => {
   };
 
   const handleAttacca = () => {
+    // Check if player's character has 0 stars
+    const playerCharacter = gameState?.field?.find(
+      card => card.owner === effectivePlayerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali')
+    );
+    
+    if (playerCharacter && playerCharacter.text) {
+      // Check for "Stelle: 0" or "stelle: 0" in the notes
+      const starsMatch = playerCharacter.text.match(/stelle:\s*0/i);
+      if (starsMatch) {
+        alert('❌ Il tuo personaggio ha 0 stelle e non può usare carte MOSSE!');
+        setSelectedCard(null);
+        return;
+      }
+    }
+    
     // Set this MOSSE card as selected for attacking
     setSelectedMosseCard(selectedCard);
     setSelectedCard(null);
