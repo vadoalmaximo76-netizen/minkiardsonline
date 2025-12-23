@@ -1135,8 +1135,8 @@ Rispondi SOLO in JSON:`;
       card.faceDown = false; // Ensure face up when played normally
       game.field.push(card);
       
-      // Check if it's a PERSONAGGI card
-      const isPersonaggio = card.type === 'personaggi';
+      // Check if it's a PERSONAGGI or PERSONAGGI_SPECIALI card
+      const isPersonaggio = card.type === 'personaggi' || card.type === 'personaggi_speciali';
       
       // Auto-analyze cards for ALL players (PERSONAGGI only)
       if (isPersonaggio && (!card.text || card.text.trim() === '')) {
@@ -2848,8 +2848,8 @@ Rispondi SOLO in JSON:`;
     
     for (const playerName of players) {
       const player = game.players[playerName];
-      // Get player's cards from game field
-      const playerCardsOnField = game.field.filter(card => card.owner === playerName && card.type === 'personaggi');
+      // Get player's cards from game field (both PERSONAGGI and PERSONAGGI_SPECIALI)
+      const playerCardsOnField = game.field.filter(card => card.owner === playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali'));
       playerCardsOnField.forEach(card => {
         fieldPersonaggi.push({ player: playerName, card });
       });
@@ -2888,8 +2888,8 @@ Rispondi SOLO in JSON:`;
       return { message: `❌ Giocatori non trovati: ${fromPlayer}, ${toPlayer}` };
     }
 
-    // Find PERSONAGGIO card on field
-    const personaggioCard = game.field.find(card => card.owner === fromPlayer && card.type === 'personaggi');
+    // Find PERSONAGGIO or PERSONAGGI_SPECIALI card on field
+    const personaggioCard = game.field.find(card => card.owner === fromPlayer && (card.type === 'personaggi' || card.type === 'personaggi_speciali'));
     if (!personaggioCard) {
       return { message: `❌ ${fromPlayer} non ha PERSONAGGI in campo!` };
     }
@@ -2986,8 +2986,8 @@ Rispondi SOLO in JSON:`;
 
     for (const playerName of players) {
       const player = game.players[playerName];
-      // Get player's field cards from game.field
-      const playerFieldCards = game.field.filter(card => card.owner === playerName && card.type === 'personaggi');
+      // Get player's field cards from game.field (both PERSONAGGI and PERSONAGGI_SPECIALI)
+      const playerFieldCards = game.field.filter(card => card.owner === playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali'));
       playerFieldCards.forEach((card: Card) => {
         if (!card.text) card.text = '';
         card.text = card.text.replace(/PTI:\s*\d+/g, '').trim();
@@ -3140,7 +3140,7 @@ Rispondi SOLO in JSON:`;
 
     // Auto-eliminate if PTI reaches 0 - USE PROPER ELIMINATION CHECK
     let eliminationCheck = false;
-    if (finalPTI === 0 && card.type === 'personaggi') {
+    if (finalPTI === 0 && (card.type === 'personaggi' || card.type === 'personaggi_speciali')) {
       // Use moveToGraveyard which properly checks character limit for player elimination
       const result = this.moveToGraveyard(gameId, card.id, playerName);
       if (result.success && result.eliminationCheck) {
