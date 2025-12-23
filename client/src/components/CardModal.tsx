@@ -281,6 +281,29 @@ export const CardModal: React.FC = () => {
     return cards;
   };
 
+  // Get ALL cards from other players (any type) for swapping
+  const getOtherPlayersCardsOfAnyType = () => {
+    const cards = [];
+    
+    // Add cards from field
+    if (gameState?.field) {
+      cards.push(...gameState.field.filter(card => 
+        card.owner !== playerName && card.id !== selectedCard.id
+      ));
+    }
+    
+    // Add cards from other players' hands
+    if (gameState?.players) {
+      Object.entries(gameState.players).forEach(([otherPlayerName, player]) => {
+        if (otherPlayerName !== playerName) { // Not current player
+          cards.push(...player.hand);
+        }
+      });
+    }
+    
+    return cards;
+  };
+
   // Get ALL FUSABLE cards (PERSONAGGI and PERSONAGGI_SPECIALI) in the field for fusion (any player)
   // UNLIMITED FUSION: Cards can be fused even if already part of another fusion
   const getAllFusableCards = () => {
@@ -385,7 +408,7 @@ export const CardModal: React.FC = () => {
                 <Button
                   onClick={() => setShowSwapSelect(true)}
                   className="aspect-square bg-yellow-600 hover:bg-yellow-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
-                  disabled={getOtherPlayersCardsOfSameType().length === 0}
+                  disabled={getOtherPlayersCardsOfAnyType().length === 0}
                 >
                   🔄
                   SCAMBIA
@@ -504,7 +527,7 @@ export const CardModal: React.FC = () => {
                 <Button
                   onClick={() => setShowSwapSelect(true)}
                   className="aspect-square bg-yellow-600 hover:bg-yellow-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
-                  disabled={getOtherPlayersCardsOfSameType().length === 0}
+                  disabled={getOtherPlayersCardsOfAnyType().length === 0}
                 >
                   🔄
                   SCAMBIA
@@ -596,7 +619,7 @@ export const CardModal: React.FC = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-60 p-4">
           <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-white font-bold text-lg">Scambia con carta {selectedCard.type.toUpperCase()}:</h3>
+              <h3 className="text-white font-bold text-lg">Scambia con qualsiasi carta:</h3>
               <Button
                 onClick={() => setShowSwapSelect(false)}
                 className="bg-red-600 hover:bg-red-700 text-white px-2 py-1"
@@ -606,9 +629,9 @@ export const CardModal: React.FC = () => {
               </Button>
             </div>
             
-            {getOtherPlayersCardsOfSameType().length > 0 ? (
+            {getOtherPlayersCardsOfAnyType().length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {getOtherPlayersCardsOfSameType().map((card) => {
+                {getOtherPlayersCardsOfAnyType().map((card) => {
                   // Check if card is in field (visible) or in hand (private) or face-down (private)
                   const isInField = gameState?.field?.some(fieldCard => fieldCard.id === card.id);
                   const isCardPrivate = !isInField || card.faceDown;
@@ -648,7 +671,7 @@ export const CardModal: React.FC = () => {
                 })}
               </div>
             ) : (
-              <p className="text-white text-center">Nessuna carta {selectedCard.type.toUpperCase()} disponibile per lo scambio</p>
+              <p className="text-white text-center">Nessuna carta disponibile per lo scambio</p>
             )}
           </div>
         </div>
