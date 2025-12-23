@@ -564,10 +564,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('pick-card', async ({ deckType, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
-        const success = await gameManager.pickCard(gameId, deckType, playerName);
-        if (success) {
+        const card = await gameManager.pickCardAndReturn(gameId, deckType, playerName);
+        if (card) {
+          // Emit to all players to update game state
           const gameState = gameManager.getSanitizedGameState(gameId);
           io.to(gameId).emit('game-state-update', gameState);
+          
+          // Emit the picked card ONLY to the player who picked it
+          const playerSocketId = gameManager.getPlayerSocketId(gameId, playerName);
+          if (playerSocketId) {
+            io.to(playerSocketId).emit('card-picked-private', {
+              card,
+              message: `Hai pescato: ${gameManager.getCardNameFromUrl ? gameManager.getCardNameFromUrl(card.frontImage) : 'Carta'}`
+            });
+          }
         }
       }
     });

@@ -66,6 +66,7 @@ interface GameStateStore {
   showBrowser: boolean;
   isReconnecting: boolean;
   sessionId: string;
+  pickedCard: Card | null;
   
   setGameState: (state: GameState) => void;
   setPlayerName: (name: string) => void;
@@ -80,6 +81,7 @@ interface GameStateStore {
   hasActiveSession: () => boolean;
   clearSession: () => void;
   restoreSession: () => Promise<boolean>;
+  setPickedCard: (card: Card | null) => void;
 }
 
 export const useGameState = create<GameStateStore>()(
@@ -92,6 +94,11 @@ export const useGameState = create<GameStateStore>()(
         console.log('CLIENT: Game state updated in store');
       });
 
+      // Listen for picked cards (private to player)
+      socket.on('card-picked-private', (data: { card: Card; message: string }) => {
+        set({ pickedCard: data.card });
+      });
+
       return {
         gameState: null,
         playerName: "",
@@ -102,6 +109,7 @@ export const useGameState = create<GameStateStore>()(
         showBrowser: false,
         isReconnecting: false,
         sessionId: "",
+        pickedCard: null,
         
         setGameState: (gameState) => set({ gameState }),
         setPlayerName: (playerName) => set({ playerName }),
@@ -120,6 +128,7 @@ export const useGameState = create<GameStateStore>()(
         }),
         setShowBrowser: (showBrowser) => set({ showBrowser }),
         setIsReconnecting: (isReconnecting) => set({ isReconnecting }),
+        setPickedCard: (pickedCard) => set({ pickedCard }),
         
         generateSessionId: () => {
           const sessionId = 'session-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now();

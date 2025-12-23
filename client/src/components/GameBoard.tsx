@@ -25,6 +25,7 @@ import { DuelDamageDialog } from "./DuelDamageDialog";
 import { HandModal } from "./HandModal";
 import { MusicPlayer } from "./MusicPlayer";
 import { VoiceChat } from "./VoiceChat";
+import { PickedCardModal } from "./PickedCardModal";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
