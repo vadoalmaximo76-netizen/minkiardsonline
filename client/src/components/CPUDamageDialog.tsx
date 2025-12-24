@@ -118,15 +118,19 @@ export const CPUDamageDialog: React.FC = () => {
               {/* Attacker Character */}
               <div className="text-center">
                 <p className="text-sm font-bold text-purple-600 mb-2">ATTACCANTE</p>
-                {damageRequest.attackerCharacter ? (
+                {damageRequest.attackerCharacter && damageRequest.attackerCharacter.image ? (
                   <>
                     <img 
                       src={damageRequest.attackerCharacter.image} 
                       alt={damageRequest.attackerCharacter.name}
                       className="w-full h-48 object-cover rounded-lg shadow-lg border-2 border-purple-400 mb-2 cursor-pointer hover:border-purple-600 transition-all"
                       onClick={() => setZoomedImage(damageRequest.attackerCharacter!.image)}
+                      onError={(e) => {
+                        console.log('❌ Failed to load attacker image:', damageRequest.attackerCharacter?.image);
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
                     />
-                    <p className="font-bold text-purple-700">{damageRequest.attackerCharacter.name}</p>
+                    <p className="font-bold text-purple-700">{damageRequest.attackerCharacter.name || 'Attaccante'}</p>
                     <p className="text-xs text-gray-600 mt-1">({damageRequest.cpuName})</p>
                     {damageRequest.attackerCharacter.notes && (
                       <div className="mt-2 p-2 bg-purple-50 rounded text-xs text-left">
@@ -136,7 +140,9 @@ export const CPUDamageDialog: React.FC = () => {
                     )}
                   </>
                 ) : (
-                  <p className="text-gray-400 italic">Nessun personaggio</p>
+                  <div className="w-full h-48 rounded-lg shadow-lg border-2 border-purple-400 mb-2 bg-purple-100 flex items-center justify-center">
+                    <p className="text-purple-600 font-bold">{damageRequest.cpuName}</p>
+                  </div>
                 )}
               </div>
 
@@ -157,15 +163,19 @@ export const CPUDamageDialog: React.FC = () => {
               {/* Defender Character */}
               <div className="text-center">
                 <p className="text-sm font-bold text-red-600 mb-2">DIFENSORE</p>
-                {damageRequest.defenderCharacter ? (
+                {damageRequest.defenderCharacter && damageRequest.defenderCharacter.image ? (
                   <>
                     <img 
                       src={damageRequest.defenderCharacter.image} 
                       alt={damageRequest.defenderCharacter.name}
                       className="w-full h-48 object-cover rounded-lg shadow-lg border-2 border-red-400 mb-2 cursor-pointer hover:border-red-600 transition-all"
                       onClick={() => setZoomedImage(damageRequest.defenderCharacter!.image)}
+                      onError={(e) => {
+                        console.log('❌ Failed to load defender image:', damageRequest.defenderCharacter?.image);
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
                     />
-                    <p className="font-bold text-red-700">{damageRequest.defenderCharacter.name}</p>
+                    <p className="font-bold text-red-700">{damageRequest.defenderCharacter.name || 'Difensore'}</p>
                     <p className="text-xs text-gray-600 mt-1">({damageRequest.targetOwner})</p>
                     {damageRequest.defenderCharacter.notes && (
                       <div className="mt-2 p-2 bg-red-50 rounded text-xs text-left">
@@ -175,7 +185,9 @@ export const CPUDamageDialog: React.FC = () => {
                     )}
                   </>
                 ) : (
-                  <p className="text-gray-400 italic">Nessun personaggio</p>
+                  <div className="w-full h-48 rounded-lg shadow-lg border-2 border-red-400 mb-2 bg-red-100 flex items-center justify-center">
+                    <p className="text-red-600 font-bold">{damageRequest.targetOwner}</p>
+                  </div>
                 )}
               </div>
             </div>

@@ -1698,6 +1698,10 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         const attackerCard = gameState?.field.find((c: any) => c.owner === this.playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
         const defenderCard = gameState?.field.find((c: any) => c.id === target.cardId);
         
+        console.log(`🎯 CPU ${this.playerName}: DEBUG - Attacker card:`, attackerCard ? { id: attackerCard.id, image: !!attackerCard.frontImage } : 'NOT FOUND');
+        console.log(`🎯 CPU ${this.playerName}: DEBUG - Defender card:`, defenderCard ? { id: defenderCard.id, image: !!defenderCard.frontImage } : 'NOT FOUND');
+        console.log(`🎯 CPU ${this.playerName}: DEBUG - MOSSE card:`, mosseCard ? { id: mosseCard.id, image: !!mosseCard.frontImage } : 'NOT FOUND');
+        
         // Emit damage request event to the game creator
         this.socketEmitter.to(this.gameId).emit('cpu-damage-request', {
           cpuName: this.playerName,
