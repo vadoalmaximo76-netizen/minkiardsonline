@@ -3696,8 +3696,13 @@ Rispondi SOLO in JSON:`;
     
     // Find cards for displaying in the dialog
     const mosseCard = game.field.find(c => c.id === pendingDefense.mosseCardId);
+    console.log(`🛡️ MOSSE Card found:`, mosseCard ? { id: mosseCard.id, image: mosseCard.frontImage ? '✓' : '✗' } : '✗ NOT FOUND');
+    
     const attackerCard = game.field.find(c => c.owner === pendingDefense.attacker && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+    console.log(`🛡️ Attacker Card found:`, attackerCard ? { id: attackerCard.id, image: attackerCard.frontImage ? '✓' : '✗' } : '✗ NOT FOUND');
+    
     const defenderCard = game.field.find(c => c.id === pendingDefense.targetCardId);
+    console.log(`🛡️ Defender Card found:`, defenderCard ? { id: defenderCard.id, image: defenderCard.frontImage ? '✓' : '✗' } : '✗ NOT FOUND');
     
     const defenseRequestData = {
       gameId,

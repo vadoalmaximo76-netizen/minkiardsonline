@@ -31,6 +31,9 @@ export const DefenseDialog: React.FC = () => {
   useEffect(() => {
     const handleDefenseRequest = (request: DefenseRequest) => {
       console.log('🛡️ DEFENSE REQUEST RECEIVED:', request);
+      console.log('🛡️ Images received - Attacker:', request.attackerCardImage ? '✓' : '✗');
+      console.log('🛡️ Images received - MOSSE:', request.mosseCardImage ? '✓' : '✗');
+      console.log('🛡️ Images received - Defender:', request.defenderCardImage ? '✓' : '✗');
       console.log('🛡️ Current playerName:', playerName);
       console.log('🛡️ Request defenderName:', request.defenderName);
       // Only show dialog if this player is the defender
