@@ -1232,6 +1232,9 @@ export const GameBoard: React.FC = () => {
         
         {/* Transfer Request Dialog */}
         <TransferRequestDialog />
+        
+        {/* Picked Card Modal - shown when player picks a card */}
+        <PickedCardModal />
       </div>
     </div>
   );

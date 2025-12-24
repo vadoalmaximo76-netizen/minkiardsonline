@@ -2005,9 +2005,8 @@ Rispondi SOLO in JSON:`;
     const card1Result = findAndRemoveCard(card1Id, player1);
     const card2Result = findAndRemoveCard(card2Id, player2);
 
-    // Check that both cards exist and are of the same type
-    if (card1Result && card2Result && 
-        card1Result.card.type === card2Result.card.type) {
+    // Check that both cards exist (can be any type - universal swap)
+    if (card1Result && card2Result) {
       
       const card1 = card1Result.card;
       const card2 = card2Result.card;
