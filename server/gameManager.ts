@@ -3694,6 +3694,11 @@ Rispondi SOLO in JSON:`;
 
     console.log(`🛡️ EMITTING defense:request to ${pendingDefense.defender} (socket: ${defenderSocketId})`);
     
+    // Find cards for displaying in the dialog
+    const mosseCard = game.field.find(c => c.id === pendingDefense.mosseCardId);
+    const attackerCard = game.field.find(c => c.owner === pendingDefense.attacker && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+    const defenderCard = game.field.find(c => c.id === pendingDefense.targetCardId);
+    
     const defenseRequestData = {
       gameId,
       attackId: pendingDefense.attackId,
@@ -3702,7 +3707,12 @@ Rispondi SOLO in JSON:`;
       mosseCardId: pendingDefense.mosseCardId,
       targetCardId: pendingDefense.targetCardId,
       damageValue: pendingDefense.damage,
-      message: `${pendingDefense.attacker} ti sta attaccando! Vuoi respingere l'attacco?`
+      message: `${pendingDefense.attacker} ti sta attaccando! Vuoi respingere l'attacco?`,
+      mosseCardImage: mosseCard?.frontImage,
+      attackerCardImage: attackerCard?.frontImage,
+      defenderCardImage: defenderCard?.frontImage,
+      attackerCardText: attackerCard?.text,
+      defenderCardText: defenderCard?.text
     };
     
     console.log(`🛡️ DEFENSE REQUEST DATA:`, defenseRequestData);
