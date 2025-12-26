@@ -117,9 +117,9 @@ export const RoundTable: React.FC = () => {
     // Reduce spacing on mobile to prevent deck overlap
     const isMobile = window.innerWidth < 768;
     const isPortrait = window.innerHeight > window.innerWidth;
-    const maxSpacing = isMobile && isPortrait ? 30 : 40;
-    const minSpacing = isMobile && isPortrait ? 3 : 4;
-    const spacing = Math.max(minSpacing, Math.min(6, maxSpacing / cardCount)); // Tighter spacing on mobile
+    const maxSpacing = isMobile && isPortrait ? 50 : 70;
+    const minSpacing = isMobile && isPortrait ? 5 : 7;
+    const spacing = Math.max(minSpacing, Math.min(10, maxSpacing / cardCount)); // Better spacing to prevent overlap
     
     return playerCards.map((_, cardIndex) => {
       const offset = (cardIndex - (cardCount - 1) / 2) * spacing;
@@ -170,12 +170,12 @@ export const RoundTable: React.FC = () => {
     }
     
     // Spread cards horizontally at bottom
-    // Tighter spacing on mobile to prevent overflow
+    // Better spacing on mobile to prevent overflow and overlap
     const isMobile = window.innerWidth < 768;
     const isPortrait = window.innerHeight > window.innerWidth;
-    const maxSpacing = isMobile && isPortrait ? 40 : 50;
-    const minSpacing = isMobile && isPortrait ? 4 : 6;
-    const cardSpacing = Math.max(minSpacing, Math.min(10, maxSpacing / cardCount)); // Tighter spacing on mobile
+    const maxSpacing = isMobile && isPortrait ? 60 : 90;
+    const minSpacing = isMobile && isPortrait ? 6 : 8;
+    const cardSpacing = Math.max(minSpacing, Math.min(12, maxSpacing / cardCount)); // Better spacing to avoid overlap
     const totalWidth = (cardCount - 1) * cardSpacing;
     const startX = centerX - totalWidth / 2;
     
