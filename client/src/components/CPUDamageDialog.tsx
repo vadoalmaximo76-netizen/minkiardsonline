@@ -42,6 +42,9 @@ export const CPUDamageDialog: React.FC = () => {
   useEffect(() => {
     const handleCPUDamageRequest = (request: CPUDamageRequest) => {
       console.log('🤖 CPU DAMAGE REQUEST RECEIVED:', request);
+      console.log('🤖 Attacker Image:', request.attackerCharacter?.image ? '✓ YES' : '✗ NO');
+      console.log('🤖 MOSSE Image:', request.mosseCardImage ? '✓ YES' : '✗ NO');
+      console.log('🤖 Defender Image:', request.defenderCharacter?.image ? '✓ YES' : '✗ NO');
       console.log('🤖 Current playerName:', playerName);
       console.log('🤖 Request gameCreator:', request.gameCreator);
       
