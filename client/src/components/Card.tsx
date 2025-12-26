@@ -394,37 +394,113 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
 
       {/* Damage Input Dialog */}
       <Dialog open={showDamageInput} onOpenChange={setShowDamageInput}>
-        <DialogContent className="bg-gray-800 border-gray-600 max-w-sm">
+        <DialogContent className="bg-gray-900 border-gray-600 max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-white">Inserisci Danno</DialogTitle>
+            <DialogTitle className="text-white text-2xl font-bold">Inserisci Danno dell'Attacco</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-gray-300 text-sm">
-              Quanto danno fa la tua carta MOSSE a {targetCard?.owner}?
-            </p>
-            <p className="text-gray-400 text-xs">
-              Puoi inserire operazioni: 50x3, 100+20, 200-50, ecc.
-            </p>
-            <Input
-              type="text"
-              value={damageValue}
-              onChange={(e) => setDamageValue(e.target.value)}
-              placeholder="es: 50x3, 100+50, 150..."
-              className="bg-gray-700 border-gray-600 text-white"
-              autoFocus
-            />
-            <div className="flex gap-2">
+          
+          {/* Three Cards Display */}
+          <div className="grid grid-cols-3 gap-4 items-start my-4">
+            {/* LEFT: Attacker Character */}
+            <div className="flex flex-col items-center">
+              <p className="text-white font-bold mb-2 text-sm">ATTACCANTE</p>
+              {gameState?.field && (
+                <>
+                  {gameState.field.find((c: any) => c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')) ? (
+                    <>
+                      <img 
+                        src={gameState.field.find((c: any) => c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'))?.frontImage}
+                        alt="Attaccante"
+                        className="w-24 h-32 rounded-lg border-2 border-green-500 object-cover shadow-lg"
+                        onError={(e) => (e.currentTarget.style.display = 'none')}
+                      />
+                      <p className="text-gray-300 text-xs text-center mt-2 max-w-24">
+                        {gameState.field.find((c: any) => c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'))?.text || 'Nessun testo'}
+                      </p>
+                    </>
+                  ) : (
+                    <div className="w-24 h-32 rounded-lg border-2 border-green-500 bg-gray-700 flex items-center justify-center">
+                      <p className="text-gray-400 text-xs">{playerName}</p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* CENTER: MOSSE Card */}
+            <div className="flex flex-col items-center">
+              <p className="text-white font-bold mb-2 text-sm">MOSSE USATA</p>
+              {selectedMosseCard ? (
+                <>
+                  <img 
+                    src={selectedMosseCard.frontImage}
+                    alt="MOSSE"
+                    className="w-28 h-36 rounded-lg border-4 border-yellow-500 object-cover shadow-lg"
+                    onError={(e) => (e.currentTarget.style.display = 'none')}
+                  />
+                  <p className="text-yellow-400 font-bold text-xs text-center mt-2">MOSSA</p>
+                </>
+              ) : (
+                <div className="w-28 h-36 rounded-lg border-4 border-yellow-500 bg-gray-700 flex items-center justify-center">
+                  <p className="text-gray-400 text-xs">MOSSE</p>
+                </div>
+              )}
+            </div>
+
+            {/* RIGHT: Defender Character */}
+            <div className="flex flex-col items-center">
+              <p className="text-white font-bold mb-2 text-sm">DIFENSORE</p>
+              {targetCard ? (
+                <>
+                  <img 
+                    src={targetCard.frontImage}
+                    alt="Difensore"
+                    className="w-24 h-32 rounded-lg border-2 border-red-500 object-cover shadow-lg"
+                    onError={(e) => (e.currentTarget.style.display = 'none')}
+                  />
+                  <p className="text-gray-300 text-xs text-center mt-2 max-w-24">
+                    {targetCard.text || 'Nessun testo'}
+                  </p>
+                </>
+              ) : (
+                <div className="w-24 h-32 rounded-lg border-2 border-red-500 bg-gray-700 flex items-center justify-center">
+                  <p className="text-gray-400 text-xs">?</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Damage Input Section */}
+          <div className="space-y-4 mt-6">
+            <div className="bg-gray-800 p-4 rounded-lg border border-gray-600">
+              <p className="text-gray-300 text-sm mb-2">
+                Quanto danno fa la tua carta MOSSE a <span className="text-red-400 font-bold">{targetCard?.owner}</span>?
+              </p>
+              <p className="text-gray-400 text-xs mb-3">
+                Puoi inserire operazioni: 50x3, 100+20, 200-50, ecc.
+              </p>
+              <Input
+                type="text"
+                value={damageValue}
+                onChange={(e) => setDamageValue(e.target.value)}
+                placeholder="es: 50x3, 100+50, 150..."
+                className="bg-gray-700 border-gray-600 text-white text-lg font-bold"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-3">
               <Button
                 onClick={handleDamageConfirm}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 text-lg"
               >
-                ATTACCA
+                ⚔️ ATTACCA
               </Button>
               <Button
                 onClick={handleDamageCancel}
-                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white"
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3"
               >
-                ANNULLA
+                ✕ ANNULLA
               </Button>
             </div>
           </div>
