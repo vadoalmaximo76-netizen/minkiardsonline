@@ -920,6 +920,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // Remove card from deck (when using "ELIMINA CARTA" button)
+    socket.on('remove-card-to-graveyard', ({ deckType, cardId, playerName, section }: any) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        const game = gameManager.getGameState(gameId);
+        const normalizedDeckType = deckType as keyof typeof game.decks;
+        if (game && game.decks[normalizedDeckType]) {
+          // Find and remove card from deck
+          const cardIndex = game.decks[normalizedDeckType].findIndex((card: any) => card.id === cardId);
+          if (cardIndex !== -1) {
+            const removedCard = game.decks[normalizedDeckType].splice(cardIndex, 1)[0];
+            
+            // Add to graveyard with special section
+            removedCard.section = section || 'CARTE CANCELLATE';
+            removedCard.owner = playerName;
+            game.graveyard.push(removedCard);
+            
+            console.log(`Card ${cardId} removed from ${deckType} deck and added to graveyard with section: ${section}`);
+            
+            // Emit game state update
+            const gameState = gameManager.getSanitizedGameState(gameId);
+            io.to(gameId).emit('game-state-update', gameState);
+          }
+        }
+      }
+    });
+
     socket.on('transfer-card', ({ cardId, fromPlayer, toPlayer }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
