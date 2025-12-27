@@ -51,6 +51,7 @@ export class CPUPlayer {
   private playerName: string;
   private gameId: string;
   private waitingForResponse: boolean = false;
+  private waitingForAttackResolution: boolean = false; // NEW: Wait for MOSSE attack to complete before ending turn
   private currentQuestion: string = '';
   private conversationHistory: Array<{type: 'question' | 'answer', content: string, timestamp: number}> = [];
   private socketEmitter: any;
@@ -94,6 +95,12 @@ export class CPUPlayer {
       pickedCards: [] 
     };
     console.log(`CPU ${this.playerName} opening sequence reset for new game`);
+  }
+
+  // NEW: Mark that attack has been resolved and CPU can continue
+  resolveAttack() {
+    this.waitingForAttackResolution = false;
+    console.log(`🎯 CPU ${this.playerName}: Attack resolved - can now end turn`);
   }
 
   // NEW: Turn state management methods
@@ -1259,6 +1266,12 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         return null;
       }
       
+      // NEW: If waiting for attack resolution, don't take action
+      if (this.waitingForAttackResolution) {
+        console.log(`CPU ${this.playerName} is waiting for MOSSE attack resolution`);
+        return null;
+      }
+      
       let cpuPlayer = gameState.players[this.playerName];
       if (!cpuPlayer) {
         console.log(`CPU ${this.playerName} not found in game state`);
@@ -1737,6 +1750,10 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     // The MOSSE card will be automatically returned to deck after the attack resolves
     this.markActionExecuted('execute');
     
+    // NEW: Set flag to wait for attack resolution before ending turn
+    this.waitingForAttackResolution = true;
+    console.log(`🎯 CPU ${this.playerName}: MOSSE attack initiated - WAITING for damage input and defense resolution`);
+    
     // NOTE: MOSSE card return is now handled by the defense system after attack resolution
     // The cpu-damage-submit handler will trigger executeMossaAttack which manages:
     // 1. Defense request emission
@@ -1744,16 +1761,9 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     // 3. Automatic MOSSE card return to deck bottom
     // 4. Auto-draw replacement for CPU players
     
-    console.log(`🎯 CPU ${this.playerName}: MOSSE attack initiated - waiting for damage input and defense resolution`);
-    
-    // Return end-turn action to complete the sequence
-    console.log(`🎯 CPU ${this.playerName}: MOSSE SEQUENCE COMPLETED - attack pending resolution`);
-    this.turnState.phase = 'turn_end';
-    
-    return {
-      type: 'end-turn',
-      data: { playerName: this.playerName }
-    };
+    // Return null - CPU will wait for attack resolution
+    // When attack is resolved, resetAttackWait() will be called and CPU can end turn
+    return null;
   }
 
   // CRITICAL FIX: Execute BONUS card action and draw replacement  
