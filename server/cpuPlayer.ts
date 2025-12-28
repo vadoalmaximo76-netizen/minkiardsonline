@@ -1415,32 +1415,46 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       }
       
       // Phase 2: Play a card
-      const playAction = this.handlePlayPhase(cpuPlayer, gameState);
+      const playAction = await this.handlePlayPhase(cpuPlayer, gameState);
+      if (!playAction) {
+        // MOSSE attack was handled atomically, CPU is waiting for resolution
+        if (this.waitingForAttackResolution) {
+          console.log(`🎯 CPU ${this.playerName}: MOSSE attack emitted atomically - returning to wait for resolution`);
+          return null; // Trigger next takeTurn check for waitingForAttackResolution
+        }
+        // If not a MOSSE, must have played card via routes path
+      }
+      
       if (playAction && playAction.type === 'play-card') {
-        // The card will be played, but we continue to execute its action
+        // The card will be played by routes.ts, but we continue to execute its action
         console.log(`CPU ${this.playerName} will play card ${playAction.data.cardId}`);
-      } else {
+      } else if (playAction && playAction.type === 'end-turn') {
         // No card to play, end turn
+        this.sendChatMessage(`Non ho carte da giocare, finisco il turno.`);
+        this.resetTurnState();
+        return { type: 'end-turn', data: { playerName: this.playerName } };
+      } else {
+        // playAction is null - already handled (MOSSE) or no action
+        if (this.waitingForAttackResolution) {
+          return null; // Will be called again when attack is resolved
+        }
         this.sendChatMessage(`Non ho carte da giocare, finisco il turno.`);
         this.resetTurnState();
         return { type: 'end-turn', data: { playerName: this.playerName } };
       }
       
       // Phase 3: Execute the action (this handles MOSSE attacks, BONUS effects, etc.)
-      const executeAction = await this.handleExecutePhase(cpuPlayer, gameState);
-      
-      // For MOSSE attacks, return play action and wait - don't end turn yet
-      if (this.waitingForAttackResolution) {
-        console.log(`🎯 CPU ${this.playerName}: Waiting for MOSSE attack resolution - will end turn after attack is resolved`);
-        return playAction; // Return play action so card gets on field, CPU will wait
+      // SKIP if we're waiting for MOSSE attack resolution
+      if (!this.waitingForAttackResolution && playAction) {
+        const executeAction = await this.handleExecutePhase(cpuPlayer, gameState);
       }
       
       // Phase 4: End turn  
       this.sendChatMessage(`Ho completato le mie azioni, finisco il turno!`);
       this.resetTurnState();
       
-      // Return the play action so the card gets placed on field
-      return playAction;
+      // Return the play action (will be null for MOSSE, action for others, or end-turn if no play)
+      return playAction || { type: 'end-turn', data: { playerName: this.playerName } };
       
     } catch (error) {
       console.error(`Error in CPU ${this.playerName} turn:`, error);
@@ -1471,13 +1485,38 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
   }
 
   // Handle the play phase: select and play a card
-  handlePlayPhase(cpuPlayer: any, gameState: any): any {
+  async handlePlayPhase(cpuPlayer: any, gameState: any): Promise<any> {
     const cardToPlay = this.selectCardToPlay(cpuPlayer, gameState);
     if (cardToPlay) {
       const cardName = this.getCardNameFromUrl(cardToPlay.frontImage);
       this.sendChatMessage(`Gioco "${cardName}" in campo!`);
       this.markActionExecuted('play', cardToPlay.id, cardToPlay.type);
       
+      // CRITICAL: For MOSSE cards, handle attack atomically
+      if (cardToPlay.type === 'mosse') {
+        console.log(`🎯 CPU ${this.playerName}: Playing MOSSE card ${cardToPlay.id} - executing attack ATOMICALLY`);
+        
+        // Play the card DIRECTLY via gameManager (atomic)
+        await this.gameManager?.playCard(this.gameId, cardToPlay.id, this.playerName);
+        
+        // NOW emit the attack immediately after card is on field
+        const target = this.pickEnemyTarget(gameState);
+        if (target) {
+          console.log(`🎯 CPU ${this.playerName}: Card played - emitting attack NOW (atomic with play)`);
+          await this.emitMossaAttackRequest(cardToPlay, target, gameState);
+          // Attack emission sets waitingForAttackResolution = true
+        }
+        
+        // Notify clients of updated game state
+        if (this.socketEmitter && this.gameManager) {
+          const updatedState = this.gameManager.getSanitizedGameState(this.gameId);
+          this.socketEmitter.to(this.gameId).emit('game-state-update', updatedState);
+        }
+        
+        return null; // CPU has already handled the card play - routes.ts doesn't need to do anything
+      }
+      
+      // Non-MOSSE cards: return play action for routes.ts to handle
       return {
         type: 'play-card',
         data: {
@@ -1761,24 +1800,53 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       }
     }
 
-    // STEP 5: Wait for game creator to input damage and defense system to resolve
-    // The MOSSE card will be automatically returned to deck after the attack resolves
-    this.markActionExecuted('execute');
+    return null; // Attack has been emitted
+  }
+
+  // NEW: Emit MOSSE attack request ATOMICALLY (called from play phase)
+  async emitMossaAttackRequest(mosseCard: any, target: any, gameState: any): Promise<void> {
+    if (!this.socketEmitter || !this.gameManager) {
+      console.error(`CPU ${this.playerName}: No socketEmitter or gameManager for attack emission`);
+      return;
+    }
+
+    const gameCreator = gameState?.turnOrder?.[0];
+    const attackerCard = gameState?.field.find((c: any) => c.owner === this.playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+    const defenderCard = gameState?.field.find((c: any) => c.id === target.cardId);
     
-    // NEW: Set flag to wait for attack resolution before ending turn
+    let mosseCardName = this.getCardNameFromUrl(mosseCard.frontImage);
+    
+    console.log(`🎯 CPU ${this.playerName}: ATOMIC ATTACK EMISSION - card ${mosseCard.id} to ${target.name}`);
+    
+    // Emit damage request event ATOMICALLY with card play
+    this.socketEmitter.to(this.gameId).emit('cpu-damage-request', {
+      cpuName: this.playerName,
+      cpuCharacterName: this.playerName,
+      mosseCardId: mosseCard.id,
+      mosseCardName: mosseCardName,
+      mosseCardImage: mosseCard?.frontImage || '',
+      targetCardId: target.cardId,
+      targetCardName: target.name,
+      targetOwner: target.owner,
+      gameCreator: gameCreator,
+      timestamp: Date.now(),
+      attackerCharacter: attackerCard ? {
+        id: attackerCard.id,
+        name: this.getCardNameFromUrl(attackerCard.frontImage),
+        image: attackerCard.frontImage,
+        notes: attackerCard.text || ''
+      } : null,
+      defenderCharacter: defenderCard ? {
+        id: defenderCard.id,
+        name: target.name,
+        image: defenderCard.frontImage,
+        notes: defenderCard.text || ''
+      } : null
+    });
+    
+    // Set flag to wait for attack resolution
     this.waitingForAttackResolution = true;
-    console.log(`🎯 CPU ${this.playerName}: MOSSE attack initiated - WAITING for damage input and defense resolution`);
-    
-    // NOTE: MOSSE card return is now handled by the defense system after attack resolution
-    // The cpu-damage-submit handler will trigger executeMossaAttack which manages:
-    // 1. Defense request emission
-    // 2. Defense response handling
-    // 3. Automatic MOSSE card return to deck bottom
-    // 4. Auto-draw replacement for CPU players
-    
-    // Return null - CPU will wait for attack resolution
-    // When attack is resolved, resolveAttack() will be called and CPU can continue
-    return null;
+    console.log(`🎯 CPU ${this.playerName}: ATOMIC EMISSION COMPLETE - waiting for damage input and defense`);
   }
 
   // CRITICAL FIX: Execute BONUS card action and draw replacement  
