@@ -1417,14 +1417,23 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       }
       
       // Phase 3: Execute the action (this handles MOSSE attacks, BONUS effects, etc.)
-      const executeAction = await this.handleExecutePhase(cpuPlayer, gameState);
+      // CRITICAL: Get fresh game state after playCard is executed
+      const updatedGameState = this.gameManager?.getSanitizedGameState(this.gameId) || gameState;
+      const updatedCpuPlayer = updatedGameState.players[this.playerName];
+      
+      const executeAction = await this.handleExecutePhase(updatedCpuPlayer, updatedGameState);
+      
+      // If execution returned null and we're waiting for attack, DON'T end turn
+      if (executeAction === null && this.waitingForAttackResolution) {
+        console.log(`🎯 CPU ${this.playerName}: Returned null from execute phase - waiting for attack resolution`);
+        return playAction; // Return play action so card gets on field, then wait
+      }
       
       // Phase 4: End turn
       this.sendChatMessage(`Ho completato le mie azioni, finisco il turno!`);
       this.resetTurnState();
       
       // Return the play action so the card gets placed on field
-      // The execution and end-turn will happen automatically
       return playAction;
       
     } catch (error) {
@@ -1762,7 +1771,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     // 4. Auto-draw replacement for CPU players
     
     // Return null - CPU will wait for attack resolution
-    // When attack is resolved, resetAttackWait() will be called and CPU can end turn
+    // When attack is resolved, resolveAttack() will be called and CPU can continue
     return null;
   }
 
