@@ -100,7 +100,10 @@ export class CPUPlayer {
   // NEW: Mark that attack has been resolved and CPU can continue
   resolveAttack() {
     this.waitingForAttackResolution = false;
-    console.log(`🎯 CPU ${this.playerName}: Attack resolved - can now end turn`);
+    // CRITICAL: Mark turn as ready to end
+    this.turnState.executedThisTurn = true;
+    this.turnState.phase = 'turn_end';
+    console.log(`🎯 CPU ${this.playerName}: Attack resolved - ready to end turn on next takeTurn call`);
   }
 
   // NEW: Turn state management methods
@@ -1272,6 +1275,13 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         return null;
       }
       
+      // CRITICAL: If attack was resolved and we're in turn_end phase, end turn immediately
+      if (this.turnState.phase === 'turn_end' && this.turnState.executedThisTurn) {
+        console.log(`🎯 CPU ${this.playerName}: Attack was resolved - ending turn now`);
+        this.resetTurnState();
+        return { type: 'end-turn', data: { playerName: this.playerName } };
+      }
+      
       let cpuPlayer = gameState.players[this.playerName];
       if (!cpuPlayer) {
         console.log(`CPU ${this.playerName} not found in game state`);
@@ -1417,19 +1427,15 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       }
       
       // Phase 3: Execute the action (this handles MOSSE attacks, BONUS effects, etc.)
-      // CRITICAL: Get fresh game state after playCard is executed
-      const updatedGameState = this.gameManager?.getSanitizedGameState(this.gameId) || gameState;
-      const updatedCpuPlayer = updatedGameState.players[this.playerName];
+      const executeAction = await this.handleExecutePhase(cpuPlayer, gameState);
       
-      const executeAction = await this.handleExecutePhase(updatedCpuPlayer, updatedGameState);
-      
-      // If execution returned null and we're waiting for attack, DON'T end turn
-      if (executeAction === null && this.waitingForAttackResolution) {
-        console.log(`🎯 CPU ${this.playerName}: Returned null from execute phase - waiting for attack resolution`);
-        return playAction; // Return play action so card gets on field, then wait
+      // For MOSSE attacks, return play action and wait - don't end turn yet
+      if (this.waitingForAttackResolution) {
+        console.log(`🎯 CPU ${this.playerName}: Waiting for MOSSE attack resolution - will end turn after attack is resolved`);
+        return playAction; // Return play action so card gets on field, CPU will wait
       }
       
-      // Phase 4: End turn
+      // Phase 4: End turn  
       this.sendChatMessage(`Ho completato le mie azioni, finisco il turno!`);
       this.resetTurnState();
       
