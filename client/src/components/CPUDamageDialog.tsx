@@ -26,6 +26,7 @@ interface CPUDamageRequest {
   timestamp: number;
   attackerCharacter: CharacterData | null;
   defenderCharacter: CharacterData | null;
+  isHandTarget?: boolean;  // NEW: True if attacking character in hand (ATTACCO DISONESTO)
 }
 
 export const CPUDamageDialog: React.FC = () => {
@@ -163,34 +164,47 @@ export const CPUDamageDialog: React.FC = () => {
                 <p className="font-bold text-orange-700">{damageRequest.mosseCardName}</p>
               </div>
 
-              {/* Defender Character */}
+              {/* Defender Character or Hand Card */}
               <div className="text-center">
-                <p className="text-sm font-bold text-red-600 mb-2">DIFENSORE</p>
-                {damageRequest.defenderCharacter && damageRequest.defenderCharacter.image ? (
-                  <>
-                    <img 
-                      src={damageRequest.defenderCharacter.image} 
-                      alt={damageRequest.defenderCharacter.name}
-                      className="w-full h-48 object-cover rounded-lg shadow-lg border-2 border-red-400 mb-2 cursor-pointer hover:border-red-600 transition-all"
-                      onClick={() => setZoomedImage(damageRequest.defenderCharacter!.image)}
-                      onError={(e) => {
-                        console.log('❌ Failed to load defender image:', damageRequest.defenderCharacter?.image);
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
-                    />
-                    <p className="font-bold text-red-700">{damageRequest.defenderCharacter.name || 'Difensore'}</p>
-                    <p className="text-xs text-gray-600 mt-1">({damageRequest.targetOwner})</p>
-                    {damageRequest.defenderCharacter.notes && (
-                      <div className="mt-2 p-2 bg-red-50 rounded text-xs text-left">
-                        <p className="font-semibold text-red-700">Note:</p>
-                        <p className="text-gray-700 whitespace-pre-wrap">{damageRequest.defenderCharacter.notes}</p>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="w-full h-48 rounded-lg shadow-lg border-2 border-red-400 mb-2 bg-red-100 flex items-center justify-center">
-                    <p className="text-red-600 font-bold">{damageRequest.targetOwner}</p>
+                <p className="text-sm font-bold text-red-600 mb-2">
+                  {damageRequest.isHandTarget ? 'BERSAGLIO (MANO)' : 'DIFENSORE'}
+                </p>
+                {damageRequest.isHandTarget ? (
+                  // Show hand card (face-down) for ATTACCO DISONESTO
+                  <div className="w-full h-48 rounded-lg shadow-lg border-2 border-red-400 mb-2 bg-gradient-to-br from-red-900 to-red-700 flex items-center justify-center relative">
+                    <div className="absolute text-center">
+                      <p className="text-white font-bold text-xl mb-2">🎴</p>
+                      <p className="text-white text-xs font-semibold">CARTA COPERTA</p>
+                      <p className="text-red-200 text-xs mt-1">{damageRequest.targetCardName}</p>
+                    </div>
                   </div>
+                ) : (
+                  damageRequest.defenderCharacter && damageRequest.defenderCharacter.image ? (
+                    <>
+                      <img 
+                        src={damageRequest.defenderCharacter.image} 
+                        alt={damageRequest.defenderCharacter.name}
+                        className="w-full h-48 object-cover rounded-lg shadow-lg border-2 border-red-400 mb-2 cursor-pointer hover:border-red-600 transition-all"
+                        onClick={() => setZoomedImage(damageRequest.defenderCharacter!.image)}
+                        onError={(e) => {
+                          console.log('❌ Failed to load defender image:', damageRequest.defenderCharacter?.image);
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                      <p className="font-bold text-red-700">{damageRequest.defenderCharacter.name || 'Difensore'}</p>
+                      <p className="text-xs text-gray-600 mt-1">({damageRequest.targetOwner})</p>
+                      {damageRequest.defenderCharacter.notes && (
+                        <div className="mt-2 p-2 bg-red-50 rounded text-xs text-left">
+                          <p className="font-semibold text-red-700">Note:</p>
+                          <p className="text-gray-700 whitespace-pre-wrap">{damageRequest.defenderCharacter.notes}</p>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="w-full h-48 rounded-lg shadow-lg border-2 border-red-400 mb-2 bg-red-100 flex items-center justify-center">
+                      <p className="text-red-600 font-bold">{damageRequest.targetOwner}</p>
+                    </div>
+                  )
                 )}
               </div>
             </div>

@@ -204,6 +204,51 @@ export class CPUPlayer {
     };
   }
 
+  // NEW: Pick enemy character from HAND (for ATTACCO DISONESTO)
+  pickEnemyHandTarget(): { cardId: string; owner: string; name: string; isHandCard: true } | null {
+    if (!this.gameManager) {
+      console.error(`CPU ${this.playerName}: No gameManager for hand target selection`);
+      return null;
+    }
+    const gameState = this.gameManager.getGameState(this.gameId);
+    if (!gameState) return null;
+
+    // Find all enemy players
+    const enemyPlayers = Object.values(gameState.players).filter((p: any) => p.name !== this.playerName);
+    if (enemyPlayers.length === 0) return null;
+
+    // Collect all personaggi/personaggi_speciali from enemy hands
+    let handTargets: any[] = [];
+    for (const enemy of enemyPlayers) {
+      const enemyHand = (enemy as any).hand || [];
+      const characterCards = enemyHand.filter((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+      for (const card of characterCards) {
+        handTargets.push({
+          card,
+          owner: (enemy as any).name
+        });
+      }
+    }
+
+    if (handTargets.length === 0) {
+      console.log(`CPU ${this.playerName}: No hand targets found for ATTACCO DISONESTO`);
+      return null;
+    }
+
+    // Pick random hand target (could be optimized)
+    const selectedTarget = handTargets[Math.floor(Math.random() * handTargets.length)];
+    const targetName = this.getCardNameFromUrl(selectedTarget.card.frontImage);
+
+    console.log(`🎯 CPU ${this.playerName}: ATTACCO DISONESTO selected hand target: ${selectedTarget.card.id} (${targetName}) from ${selectedTarget.owner}'s hand`);
+    
+    return {
+      cardId: selectedTarget.card.id,
+      owner: selectedTarget.owner,
+      name: targetName,
+      isHandCard: true
+    };
+  }
+
   canEndTurn(): boolean {
     return this.turnState.executedThisTurn && this.turnState.phase === 'turn_end';
   }
@@ -1499,8 +1544,18 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         // Play the card DIRECTLY via gameManager (atomic)
         await this.gameManager?.playCard(this.gameId, cardToPlay.id, this.playerName);
         
+        // Check if this is ATTACCO DISONESTO (index 6 in mosse array)
+        const isAtcaccoDisonesto = cardToPlay.frontImage === 'https://i.ibb.co/PZR61NhJ/attacco-disonesto.png';
+        
         // NOW emit the attack immediately after card is on field
-        const target = this.pickEnemyTarget(gameState);
+        let target;
+        if (isAtcaccoDisonesto) {
+          console.log(`🎯 CPU ${this.playerName}: ATTACCO DISONESTO detected - using hand target`);
+          target = this.pickEnemyHandTarget();
+        } else {
+          target = this.pickEnemyTarget(gameState);
+        }
+        
         if (target) {
           console.log(`🎯 CPU ${this.playerName}: Card played - emitting attack NOW (atomic with play)`);
           await this.emitMossaAttackRequest(cardToPlay, target, gameState);
@@ -1815,8 +1870,9 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     const defenderCard = gameState?.field.find((c: any) => c.id === target.cardId);
     
     let mosseCardName = this.getCardNameFromUrl(mosseCard.frontImage);
+    const isHandTarget = (target as any).isHandCard === true;
     
-    console.log(`🎯 CPU ${this.playerName}: ATOMIC ATTACK EMISSION - card ${mosseCard.id} to ${target.name}`);
+    console.log(`🎯 CPU ${this.playerName}: ATOMIC ATTACK EMISSION - card ${mosseCard.id} to ${target.name}${isHandTarget ? ' (HAND TARGET)' : ''}`);
     
     // Emit damage request event ATOMICALLY with card play
     this.socketEmitter.to(this.gameId).emit('cpu-damage-request', {
@@ -1830,6 +1886,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       targetOwner: target.owner,
       gameCreator: gameCreator,
       timestamp: Date.now(),
+      isHandTarget: isHandTarget,  // NEW: Flag for ATTACCO DISONESTO
       attackerCharacter: attackerCard ? {
         id: attackerCard.id,
         name: this.getCardNameFromUrl(attackerCard.frontImage),
