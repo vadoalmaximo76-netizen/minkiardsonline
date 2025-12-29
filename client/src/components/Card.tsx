@@ -32,6 +32,8 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const [showDamageInput, setShowDamageInput] = useState(false);
   const [damageValue, setDamageValue] = useState("");
   const [targetCard, setTargetCard] = useState<any>(null);
+  const [showHandTargetSelect, setShowHandTargetSelect] = useState(false);
+  const [isHandTarget, setIsHandTarget] = useState(false);
 
   // Sync local cardText state with incoming card.text prop (for real-time updates)
   useEffect(() => {
@@ -49,17 +51,39 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     removeShakingCard 
   } = useGameState();
 
+  const getCardName = (imageUrl: string) => {
+    try {
+      const url = new URL(imageUrl);
+      const pathname = url.pathname;
+      const filename = pathname.split('/').pop() || '';
+      return filename.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase();
+    } catch {
+      return '';
+    }
+  };
+
+  const isAtaccoDisonesto = selectedMosseCard && getCardName(selectedMosseCard.frontImage) === 'ATTACCO DISONESTO';
+
   const handleCardClick = () => {
-    // If a MOSSE card is selected and this is an opponent's PERSONAGGI card on the field
-    if (selectedMosseCard && 
-        location === 'field' && 
-        card.type === 'personaggi' && 
-        card.owner !== playerName) {
-      
-      // Open damage input dialog instead of attacking immediately
-      setTargetCard(card);
-      setShowDamageInput(true);
-      return;
+    // If a MOSSE card is selected
+    if (selectedMosseCard) {
+      // Check if it's ATTACCO DISONESTO - must attack hand cards instead of field
+      if (isAtaccoDisonesto) {
+        setShowHandTargetSelect(true);
+        return;
+      }
+
+      // Regular MOSSE attack on field
+      if (location === 'field' && 
+          card.type === 'personaggi' && 
+          card.owner !== playerName) {
+        
+        // Open damage input dialog instead of attacking immediately
+        setTargetCard(card);
+        setIsHandTarget(false);
+        setShowDamageInput(true);
+        return;
+      }
     }
 
     // Regular card click behavior
@@ -144,7 +168,8 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         targetCardId: targetCard?.id,
         attackerName: playerName,
         targetOwner: targetCard?.owner,
-        damageValue: damage
+        damageValue: damage,
+        isHandTarget: isHandTarget  // NEW: Pass isHandTarget flag
       });
 
       // Clear states
@@ -152,6 +177,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
       setShowDamageInput(false);
       setDamageValue("");
       setTargetCard(null);
+      setIsHandTarget(false);
     } catch (error: any) {
       alert(error.message || "Errore nel calcolo del danno");
     }
@@ -161,6 +187,14 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     setShowDamageInput(false);
     setDamageValue("");
     setTargetCard(null);
+    setIsHandTarget(false);
+  };
+
+  const handleHandTargetSelect = (targetCard: any) => {
+    setTargetCard(targetCard);
+    setIsHandTarget(true);
+    setShowHandTargetSelect(false);
+    setShowDamageInput(true);
   };
 
   const handleTransferCard = () => {
@@ -218,18 +252,6 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   
   // Check if player owns the card OR is master and card belongs to CPU
   const isOwner = card.owner === playerName || (isMaster && card.owner?.startsWith('CPU-'));
-  
-  // Helper function to get card name from image URL
-  const getCardName = (imageUrl: string) => {
-    try {
-      const url = new URL(imageUrl);
-      const pathname = url.pathname;
-      const filename = pathname.split('/').pop() || '';
-      return filename.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase();
-    } catch {
-      return '';
-    }
-  };
   
   // Check if this is the MINKIARD N 300 card
   const isMinkiard300 = getCardName(card.frontImage) === 'MINKIARD N 300';
@@ -392,11 +414,58 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         </div>
       )}
 
+      {/* Hand Target Selection Modal (for ATTACCO DISONESTO) */}
+      {showHandTargetSelect && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 rounded-lg p-6 max-w-2xl w-full border-2 border-red-500">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-white font-bold text-lg">🎯 Scegli un personaggio in mano:</h3>
+              <Button
+                onClick={() => setShowHandTargetSelect(false)}
+                className="bg-red-600 hover:bg-red-700 text-white px-3 py-1"
+                size="sm"
+              >
+                ✕
+              </Button>
+            </div>
+            
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {Object.entries(gameState?.players || {}).map(([pName, pData]: [string, any]) => {
+                if (pName === playerName) return null;
+                const handCards = pData.hand?.filter((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali') || [];
+                
+                if (handCards.length === 0) return null;
+                
+                return (
+                  <div key={pName}>
+                    <p className="text-orange-400 font-bold text-sm mb-2">{pName}:</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {handCards.map((hCard: any) => (
+                        <Button
+                          key={hCard.id}
+                          onClick={() => handleHandTargetSelect(hCard)}
+                          className="bg-red-600 hover:bg-red-700 text-white text-xs p-2 h-auto flex flex-col"
+                        >
+                          <p>🎴 COPERTA</p>
+                          <p className="text-xs">{getCardName(hCard.frontImage).substring(0, 15)}</p>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Damage Input Dialog */}
       <Dialog open={showDamageInput} onOpenChange={setShowDamageInput}>
         <DialogContent className="bg-gray-900 border-gray-600 max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-white text-2xl font-bold">Inserisci Danno dell'Attacco</DialogTitle>
+            <DialogTitle className="text-white text-2xl font-bold">
+              {isHandTarget ? '🎯 ATTACCO DISONESTO - Inserisci Danno' : 'Inserisci Danno dell\'Attacco'}
+            </DialogTitle>
           </DialogHeader>
           
           {/* Three Cards Display */}
@@ -447,20 +516,34 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
               )}
             </div>
 
-            {/* RIGHT: Defender Character */}
+            {/* RIGHT: Defender Character or Hand Card */}
             <div className="flex flex-col items-center">
-              <p className="text-white font-bold mb-2 text-sm">DIFENSORE</p>
+              <p className="text-white font-bold mb-2 text-sm">
+                {isHandTarget ? 'BERSAGLIO (MANO)' : 'DIFENSORE'}
+              </p>
               {targetCard ? (
                 <>
-                  <img 
-                    src={targetCard.frontImage}
-                    alt="Difensore"
-                    className="w-24 h-32 rounded-lg border-2 border-red-500 object-cover shadow-lg"
-                    onError={(e) => (e.currentTarget.style.display = 'none')}
-                  />
-                  <p className="text-gray-300 text-xs text-center mt-2 max-w-24">
-                    {targetCard.text || 'Nessun testo'}
-                  </p>
+                  {isHandTarget ? (
+                    // Show hand card as face-down for ATTACCO DISONESTO
+                    <div className="w-24 h-32 rounded-lg border-2 border-red-500 bg-gradient-to-br from-red-900 to-red-700 flex items-center justify-center">
+                      <div className="text-center">
+                        <p className="text-white font-bold text-2xl">🎴</p>
+                        <p className="text-red-200 text-xs mt-1">{getCardName(targetCard.frontImage)}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <img 
+                        src={targetCard.frontImage}
+                        alt="Difensore"
+                        className="w-24 h-32 rounded-lg border-2 border-red-500 object-cover shadow-lg"
+                        onError={(e) => (e.currentTarget.style.display = 'none')}
+                      />
+                      <p className="text-gray-300 text-xs text-center mt-2 max-w-24">
+                        {targetCard.text || 'Nessun testo'}
+                      </p>
+                    </>
+                  )}
                 </>
               ) : (
                 <div className="w-24 h-32 rounded-lg border-2 border-red-500 bg-gray-700 flex items-center justify-center">
