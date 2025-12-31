@@ -73,9 +73,9 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     // If a MOSSE card is selected (for regular attacks on field)
     if (selectedMosseCard) {
       // Regular MOSSE attack on field (NOT for ATTACCO DISONESTO - that has its own button)
+      // Can attack ANY personaggio on field (allies or opponents)
       if (location === 'field' && 
-          card.type === 'personaggi' && 
-          card.owner !== playerName) {
+          card.type === 'personaggi') {
         
         // Open damage input dialog instead of attacking immediately
         setTargetCard(card);
