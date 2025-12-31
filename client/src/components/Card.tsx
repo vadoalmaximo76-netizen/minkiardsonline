@@ -265,6 +265,9 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const otherPlayers = Object.keys(gameState?.players || {}).filter(p => p !== playerName);
   const isShaking = shakingCards.has(card.id);
   const isMosseSelected = selectedMosseCard?.id === card.id;
+  
+  // Add animation class for newly played cards (when they appear on field)
+  const shouldAnimate = location === 'field';
 
   return (
     <div className="flex flex-col gap-2">
@@ -274,6 +277,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
           src={showBack || card.faceDown ? card.backImage : card.frontImage}
           alt="Card"
           className={`w-20 h-28 rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg object-contain
+            ${shouldAnimate ? 'card-appear' : ''} 
             ${isShaking ? 'animate-shake' : ''} 
             ${isMosseSelected ? 'ring-4 ring-red-500 ring-opacity-70' : ''}
             ${card.faceDown ? 'ring-2 ring-orange-400 ring-opacity-50' : ''}`}

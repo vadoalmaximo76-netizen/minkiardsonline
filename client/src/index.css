@@ -54,8 +54,42 @@
   100% { opacity: 1; }
 }
 
+@keyframes card-appear {
+  0% { 
+    opacity: 0; 
+    filter: blur(10px);
+    transform: scale(0.8);
+  }
+  100% { 
+    opacity: 1; 
+    filter: blur(0px);
+    transform: scale(1);
+  }
+}
+
+@keyframes card-drawn {
+  0% { 
+    opacity: 0; 
+    filter: blur(8px);
+    transform: translateY(20px) scale(0.9);
+  }
+  100% { 
+    opacity: 1; 
+    filter: blur(0px);
+    transform: translateY(0) scale(1);
+  }
+}
+
 .animate-in {
   animation-fill-mode: both;
+}
+
+.card-appear {
+  animation: card-appear 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.card-drawn {
+  animation: card-drawn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .zoom-in-50 {
