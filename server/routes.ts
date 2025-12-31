@@ -1858,7 +1858,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           attackerName, 
           mosseCardId, 
           targetCardId,
-          damageValue
+          damageValue,
+          isHandTarget || false  // NEW: Pass isHandTarget flag
         );
 
         if (!attackResult.success) {

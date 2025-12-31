@@ -1194,7 +1194,7 @@ Rispondi SOLO in JSON:`;
   }
 
   // NEW: Authoritative MOSSE attack execution
-  async executeMossaAttack(gameId: string, attackerName: string, mosseCardId: string, targetCardId: string, damageValue: number, defenseRequestEmitter?: (data: any) => void): Promise<{ success: boolean; result?: any; error?: string }> {
+  async executeMossaAttack(gameId: string, attackerName: string, mosseCardId: string, targetCardId: string, damageValue: number, isHandTarget: boolean = false, defenseRequestEmitter?: (data: any) => void): Promise<{ success: boolean; result?: any; error?: string }> {
     const game = this.games.get(gameId);
     if (!game) {
       return { success: false, error: 'Game not found' };
@@ -1214,13 +1214,35 @@ Rispondi SOLO in JSON:`;
       return { success: false, error: 'MOSSE card not found on field or not owned by attacker' };
     }
 
-    // Find target card
-    const targetCard = game.field.find(c => c.id === targetCardId);
-    if (!targetCard || (targetCard.type !== 'personaggi' && targetCard.type !== 'personaggi_speciali') || targetCard.owner === attackerName) {
-      return { success: false, error: 'Invalid target: must be enemy character on field' };
+    // Find target card - either on field OR in hand (for ATTACCO DISONESTO)
+    let targetCard: any;
+    let targetOwnerName: string = '';
+    
+    if (isHandTarget) {
+      // For ATTACCO DISONESTO: target must be in opponent's hand
+      for (const [playerName, player] of Object.entries(game.players)) {
+        if (playerName === attackerName) continue; // Can't attack own hand
+        const handCard = player.hand.find((c: Card) => c.id === targetCardId);
+        if (handCard && (handCard.type === 'personaggi' || handCard.type === 'personaggi_speciali')) {
+          targetCard = handCard;
+          targetOwnerName = playerName;
+          break;
+        }
+      }
+      if (!targetCard) {
+        return { success: false, error: 'Invalid target: character not found in any opponent\'s hand' };
+      }
+    } else {
+      // Regular attack: target must be on field
+      targetCard = game.field.find(c => c.id === targetCardId);
+      if (!targetCard || (targetCard.type !== 'personaggi' && targetCard.type !== 'personaggi_speciali') || targetCard.owner === attackerName) {
+        return { success: false, error: 'Invalid target: must be enemy character on field' };
+      }
+      targetOwnerName = targetCard.owner;
     }
 
-    console.log(`Executing MOSSE attack: ${attackerName} uses ${mosseCardId} to attack ${targetCard.owner}'s ${targetCardId}`);
+    const attackTypeLabel = isHandTarget ? '🎯 ATTACCO DISONESTO' : '⚔️ MOSSE';
+    console.log(`${attackTypeLabel}: ${attackerName} uses ${mosseCardId} to attack ${targetOwnerName}'s ${targetCardId}`);
     
     // NUOVO SISTEMA: Non eliminare automaticamente, richiedere input umano per il danno
     // Track card usage to prevent reuse
@@ -1234,18 +1256,19 @@ Rispondi SOLO in JSON:`;
       attackerName,
       mosseCardId,
       targetCardId,
-      targetOwner: targetCard.owner,
+      targetOwner: targetOwnerName,
+      isHandTarget: isHandTarget,
       outcome: 'awaiting_damage_input'
     }, attackerName);
 
-    console.log(`MOSSE attack initiated: ${attackerName} targeting ${targetCard.owner}'s ${targetCardId} - awaiting defense response`);
+    console.log(`${attackTypeLabel} attack initiated: ${attackerName} targeting ${targetOwnerName}'s ${targetCardId}${isHandTarget ? ' (in hand)' : ''} - awaiting defense response`);
 
     // NEW: Interactive defense system - create pending defense request
     const attackId = `attack-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const defenseCreated = this.setPendingDefense(gameId, {
       attackId,
       attacker: attackerName,
-      defender: targetCard.owner,
+      defender: targetOwnerName,
       damage: damageValue, // Proper damage value from attacker input
       targetCardId: targetCardId, // Character being attacked
       mosseCardId: mosseCardId, // MOSSE card used for attack
@@ -1259,15 +1282,16 @@ Rispondi SOLO in JSON:`;
 
     // CRITICAL: Emit defense:request if callback is provided
     if (defenseRequestEmitter) {
-      console.log(`🛡️ ${attackerName}: Emitting defense:request to ${targetCard.owner} via callback`);
+      console.log(`🛡️ ${attackerName}: Emitting defense:request to ${targetOwnerName} via callback`);
       defenseRequestEmitter({
         gameId,
         attackId,
         attackerName,
-        defenderName: targetCard.owner,
+        defenderName: targetOwnerName,
         mosseCardId,
         targetCardId,
-        message: `${attackerName} ti sta attaccando! Vuoi respingere l'attacco?`
+        isHandTarget: isHandTarget,
+        message: isHandTarget ? `${attackerName} sta usando ATTACCO DISONESTO! Un tuo personaggio in mano è sotto attacco!` : `${attackerName} ti sta attaccando! Vuoi respingere l'attacco?`
       });
     }
 
@@ -1275,12 +1299,13 @@ Rispondi SOLO in JSON:`;
       success: true, 
       result: {
         targetCardId: targetCardId,
-        targetOwner: targetCard.owner,
+        targetOwner: targetOwnerName,
         mosseCardId: mosseCardId,
         attackerName: attackerName,
+        isHandTarget: isHandTarget,
         requiresDefenseResponse: true,
         attackId: attackId,
-        message: `${attackerName} attacca ${targetCard.owner}! In attesa della risposta di difesa...`
+        message: isHandTarget ? `${attackerName} usa ATTACCO DISONESTO contro ${targetOwnerName}! In attesa della risposta di difesa...` : `${attackerName} attacca ${targetOwnerName}! In attesa della risposta di difesa...`
       }
     };
   }
