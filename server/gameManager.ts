@@ -2637,6 +2637,12 @@ Rispondi SOLO in JSON:`;
   }
 
   endTurn(gameId: string, playerName: string): string | null {
+    // CRITICAL FIX: Reset CPU turn state when turn ends
+    const game = this.getGameState(gameId);
+    if (game && game.players[playerName]?.cpuInstance) {
+      game.players[playerName].cpuInstance.resetTurnState();
+      console.log(`🔧 CPU ${playerName}: Turn state reset on endTurn()`);
+    }
     const gameState = this.games.get(gameId);
     if (!gameState || gameState.turnOrder.length === 0) return null;
 
