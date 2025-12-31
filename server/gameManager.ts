@@ -1880,7 +1880,7 @@ Rispondi SOLO in JSON:`;
     }
   }
 
-  moveToGraveyard(gameId: string, cardId: string, playerName: string): { success: boolean, graveyardCount?: number, cardImage?: string, eliminationCheck?: boolean, sorosActivated?: boolean, sorosImage?: string, sorosActivator?: string } {
+  moveToGraveyard(gameId: string, cardId: string, playerName: string, attacker?: string): { success: boolean, graveyardCount?: number, cardImage?: string, eliminationCheck?: boolean, sorosActivated?: boolean, sorosImage?: string, sorosActivator?: string } {
     const game = this.games.get(gameId);
     if (!game) return { success: false };
 
@@ -1904,44 +1904,35 @@ Rispondi SOLO in JSON:`;
 
         // NEW: Track elimination count for SOROS activation
         let sorosActivated = false;
-        if (card.type === 'personaggi' || card.type === 'personaggi_speciali') {
-          // Find the attacker in game.field to know who killed this card
-          // The attacker is the one who moved the card to graveyard
-          // We need to track who is responsible (this is the player parameter's opponent)
-          
-          // First, find who damaged this card from game state
-          for (const [killer, player] of Object.entries(game.players)) {
-            if (killer !== playerName) {
-              if (!player.eliminationCount) {
-                player.eliminationCount = 0;
-              }
+        if (card.type === 'personaggi' && attacker) {
+          // Increment elimination count for the attacker
+          const attackerPlayer = game.players[attacker];
+          if (attackerPlayer) {
+            if (!attackerPlayer.eliminationCount) {
+              attackerPlayer.eliminationCount = 0;
+            }
+            
+            attackerPlayer.eliminationCount++;
+            console.log(`🗡️ ${attacker} has eliminated ${attackerPlayer.eliminationCount} personaggi`);
+            
+            // SOROS activation at 6 eliminations
+            if (attackerPlayer.eliminationCount === 6 && !sorosActivated) {
+              sorosActivated = true;
+              console.log(`🎭 SOROS ACTIVATED! ${attacker} has eliminated 6 personaggi!`);
               
-              // Check if this killer's most recent attack killed this personaggio
-              // We'll increment their count and check if they reached 6
-              if (card.type === 'personaggi' && card.eliminatedBy === killer) {
-                player.eliminationCount++;
-                console.log(`🗡️ ${killer} has eliminated ${player.eliminationCount} personaggi`);
+              // Find SOROS in personaggi_speciali deck
+              const sorosIndex = game.decks.personaggi_speciali.findIndex((c: Card) => 
+                c.frontImage && c.frontImage.includes('soros')
+              );
+              
+              if (sorosIndex !== -1) {
+                const soros = game.decks.personaggi_speciali.splice(sorosIndex, 1)[0];
+                soros.owner = attacker;
+                game.field.push(soros);
+                console.log(`🎭 SOROS automatically played on field for ${attacker}!`);
                 
-                // SOROS activation at 6 eliminations
-                if (player.eliminationCount === 6 && !sorosActivated) {
-                  sorosActivated = true;
-                  console.log(`🎭 SOROS ACTIVATED! ${killer} has eliminated 6 personaggi!`);
-                  
-                  // Find SOROS in personaggi_speciali deck
-                  const sorosIndex = game.decks.personaggi_speciali.findIndex((c: Card) => 
-                    c.frontImage && c.frontImage.includes('soros')
-                  );
-                  
-                  if (sorosIndex !== -1) {
-                    const soros = game.decks.personaggi_speciali.splice(sorosIndex, 1)[0];
-                    soros.owner = killer;
-                    game.field.push(soros);
-                    console.log(`🎭 SOROS automatically played on field for ${killer}!`);
-                    
-                    // Return flag indicating SOROS was activated (routes.ts will emit to all players)
-                    return { success: true, graveyardCount, cardImage: card.frontImage, eliminationCheck: false, sorosActivated: true, sorosImage: soros.frontImage, sorosActivator: killer };
-                  }
-                }
+                // Return flag indicating SOROS was activated (routes.ts will emit to all players)
+                return { success: true, graveyardCount, cardImage: card.frontImage, eliminationCheck: false, sorosActivated: true, sorosImage: soros.frontImage, sorosActivator: attacker };
               }
             }
           }
@@ -4194,7 +4185,7 @@ Rispondi SOLO in JSON:`;
         }
         
         // PRESERVE: Auto-eliminate dead character with player elimination checks
-        const result = this.moveToGraveyard(gameId, targetCardId, targetCard.owner);
+        const result = this.moveToGraveyard(gameId, targetCardId, targetCard.owner, attackerName);
         if (result.success) {
           console.log(`${targetCard.owner}'s character automatically eliminated (PTI: ${newPTI})`);
           
