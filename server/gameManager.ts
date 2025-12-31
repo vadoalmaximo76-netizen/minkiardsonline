@@ -4113,137 +4113,120 @@ Rispondi SOLO in JSON:`;
 
     // PRESERVE: Check if character dies (PTI <= 0) - exact legacy logic
     if (newPTI <= 0) {
-      setTimeout(() => {
-        // For ATTACCO DISONESTO: move card from hand to graveyard
-        if (isHandTarget) {
-          const player = game?.players?.[targetOwner];
-          if (player) {
-            const handCardIndex = player.hand.findIndex((c: Card) => c.id === targetCardId);
-            if (handCardIndex !== -1) {
-              const deadCard = player.hand.splice(handCardIndex, 1)[0];
-              deadCard.eliminatedBy = attackerName;
-              game?.graveyard?.push(deadCard);
-              console.log(`🎯 ATTACCO DISONESTO: ${targetCard.frontImage} di ${targetOwner} è morto e va nel cimitero`);
-            }
+      // For ATTACCO DISONESTO: move card from hand to graveyard immediately
+      if (isHandTarget) {
+        const player = game?.players?.[targetOwner];
+        if (player) {
+          const handCardIndex = player.hand.findIndex((c: Card) => c.id === targetCardId);
+          if (handCardIndex !== -1) {
+            const deadCard = player.hand.splice(handCardIndex, 1)[0];
+            deadCard.eliminatedBy = attackerName;
+            game?.graveyard?.push(deadCard);
+            console.log(`🎯 ATTACCO DISONESTO: ${targetCard.frontImage} di ${targetOwner} è morto e va nel cimitero`);
           }
-        } else {
-          // Regular field death: move to graveyard with attacker info for SOROS activation
-          this.moveToGraveyard(gameId, targetCardId, targetOwner, attackerName);
         }
+      } else {
+        // Regular field death: move to graveyard with attacker info for SOROS activation
+        const result = this.moveToGraveyard(gameId, targetCardId, targetOwner, attackerName);
         
-        // PRESERVE: PTI ABSORPTION SYSTEM (exact legacy implementation)
-        const updatedGameState = this.getSanitizedGameState(gameId);
-        const attackerCharacters = updatedGameState?.field?.filter((c: any) => 
-          c.owner === attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
-        ) || [];
-        
-        let attackerCharacter = null;
-        if (attackerCharacters.length > 0) {
-          attackerCharacter = attackerCharacters.reduce((best: any, current: any) => {
-            const bestPti = (best.text || '').match(/PTI:\s*(\d+)/i)?.[1] || 0;
-            const currentPti = (current.text || '').match(/PTI:\s*(\d+)/i)?.[1] || 0;
-            return parseInt(currentPti) > parseInt(bestPti) ? current : best;
+        // HANDLE SOROS ACTIVATION
+        if (result.sorosActivated && result.sorosImage && result.sorosActivator) {
+          console.log(`🎭 SOROS ACTIVATED! Broadcasting to all players in room ${gameId}`);
+          io.to(gameId).emit('soros-activated', {
+            activator: result.sorosActivator,
+            cardImage: result.sorosImage
           });
         }
+      }
+      
+      // PRESERVE: PTI ABSORPTION SYSTEM (exact legacy implementation)
+      const updatedGameState = this.getSanitizedGameState(gameId);
+      const attackerCharacters = updatedGameState?.field?.filter((c: any) => 
+        c.owner === attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      ) || [];
+      
+      let attackerCharacter = null;
+      if (attackerCharacters.length > 0) {
+        attackerCharacter = attackerCharacters.reduce((best: any, current: any) => {
+          const bestPti = (best.text || '').match(/PTI:\s*(\d+)/i)?.[1] || 0;
+          const currentPti = (current.text || '').match(/PTI:\s*(\d+)/i)?.[1] || 0;
+          return parseInt(currentPti) > parseInt(bestPti) ? current : best;
+        });
+      }
+      
+      // PRESERVE: HARDENED PTI ABSORPTION (fixed: absorb when character dies regardless of previous PTI)
+      if (attackerCharacter && newPTI <= 0) {
+        const attackerNotes = attackerCharacter.text || '';
+        const attackerPtiMatch = attackerNotes.match(/PTI:\s*(\d+)/i);
+        let attackerCurrentPTI = attackerPtiMatch ? parseInt(attackerPtiMatch[1]) : 100;
         
-        // PRESERVE: HARDENED PTI ABSORPTION (fixed: absorb when character dies regardless of previous PTI)
-        if (attackerCharacter && newPTI <= 0) {
-          const attackerNotes = attackerCharacter.text || '';
-          const attackerPtiMatch = attackerNotes.match(/PTI:\s*(\d+)/i);
-          let attackerCurrentPTI = attackerPtiMatch ? parseInt(attackerPtiMatch[1]) : 100;
-          
-          // PRESERVE: Fixed +100 PTI per elimination
-          const absorbedPTI = 100;
-          const newAttackerPTI = Math.min(9999, attackerCurrentPTI + absorbedPTI);
-          
-          if (absorbedPTI > 0 && newAttackerPTI > attackerCurrentPTI) {
-            let updatedAttackerNotes = attackerNotes;
-            if (attackerPtiMatch) {
-              updatedAttackerNotes = attackerNotes.replace(/PTI:\s*\d+/i, `PTI: ${newAttackerPTI}`);
-            } else {
-              updatedAttackerNotes = attackerNotes + `\nPTI: ${newAttackerPTI}`;
-            }
-            
-            this.updateCardText(gameId, attackerCharacter.id, updatedAttackerNotes);
-            
-            console.log(`PTI ABSORPTION AUDIT: ${attackerName} [${attackerCharacter.id}] gains +100 PTI for eliminating ${targetCard.owner} [${targetCardId}] (${attackerCurrentPTI} → ${newAttackerPTI})`);
-            
-            // PRESERVE: PTI absorption notification
-            io.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-absorption`,
-              playerName: 'Sistema',
-              message: `🔥 ${attackerName} guadagna +100 PTI per aver eliminato il personaggio! (${attackerCurrentPTI} → ${newAttackerPTI} PTI)`,
-              timestamp: Date.now()
-            });
-            
-            console.log(`PTI_ABSORPTION_EVENT: ${attackerName} gained +100 PTI for eliminating ${targetCard.owner}`);
+        // PRESERVE: Fixed +100 PTI per elimination
+        const absorbedPTI = 100;
+        const newAttackerPTI = Math.min(9999, attackerCurrentPTI + absorbedPTI);
+        
+        if (absorbedPTI > 0 && newAttackerPTI > attackerCurrentPTI) {
+          let updatedAttackerNotes = attackerNotes;
+          if (attackerPtiMatch) {
+            updatedAttackerNotes = attackerNotes.replace(/PTI:\s*\d+/i, `PTI: ${newAttackerPTI}`);
           } else {
-            console.log(`PTI ABSORPTION SKIPPED: Invalid data (absorbedPTI=${absorbedPTI}, newPTI=${newAttackerPTI})`);
+            updatedAttackerNotes = attackerNotes + `\nPTI: ${newAttackerPTI}`;
           }
-        } else if (!attackerCharacter) {
-          console.log(`PTI ABSORPTION SKIPPED: No attacker character found for ${attackerName}`);
-        }
-        
-        // PRESERVE: Auto-eliminate dead character with player elimination checks
-        const result = this.moveToGraveyard(gameId, targetCardId, targetCard.owner, attackerName);
-        if (result.success) {
-          console.log(`${targetCard.owner}'s character automatically eliminated (PTI: ${newPTI})`);
           
+          this.updateCardText(gameId, attackerCharacter.id, updatedAttackerNotes);
+          
+          console.log(`PTI ABSORPTION AUDIT: ${attackerName} [${attackerCharacter.id}] gains +100 PTI for eliminating ${targetCard.owner} [${targetCardId}] (${attackerCurrentPTI} → ${newAttackerPTI})`);
+          
+          // PRESERVE: PTI absorption notification
           io.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-death`,
-            playerName: 'Sistema', 
-            message: `💀 Il personaggio di ${targetCard.owner} è morto! (PTI: ${newPTI})`,
+            id: `${Date.now()}-absorption`,
+            playerName: 'Sistema',
+            message: `🔥 ${attackerName} guadagna +100 PTI per aver eliminato il personaggio! (${attackerCurrentPTI} → ${newAttackerPTI} PTI)`,
             timestamp: Date.now()
           });
-
-          // DUELLO: End duel if the dead character was involved in an active duel
-          if (game?.activeDuel && game.activeDuel.active) {
-            if (this.isInDuel(gameId, targetCardId)) {
-              const duel = game.activeDuel;
-              const winnerPlayer = targetCard.id === duel.character1Id ? duel.player2 : duel.player1;
-              
-              console.log(`⚔️ DUELLO: Character ${targetCardId} died - ending duel. Winner: ${winnerPlayer}`);
-              
-              io.to(gameId).emit('chat-message', {
-                id: `${Date.now()}-duel-end`,
-                playerName: 'Sistema',
-                message: `⚔️ DUELLO TERMINATO! ${winnerPlayer} vince per eliminazione dell'avversario!`,
-                timestamp: Date.now()
-              });
-              
-              this.endDuel(gameId, `Character death (${targetCardId})`);
-              
-              // Broadcast duel ended event
-              io.to(gameId).emit('duel-ended', {
-                winner: winnerPlayer,
-                reason: 'character_death'
-              });
-            }
-          }
-
-          // PRESERVE: Player elimination checks
-          if (result.eliminationCheck) {
-            console.log(`Player ${targetCard.owner} has reached character limit - automatically eliminating`);
-            
-            const eliminationSuccess = this.markPlayerEliminated(gameId, targetCard.owner);
-            if (eliminationSuccess) {
-              console.log(`Player ${targetCard.owner} automatically eliminated due to character limit`);
-              io.to(gameId).emit('player-eliminated', { playerName: targetCard.owner });
-              
-              // PRESERVE: Game victory checks
-              const winner = this.checkForGameVictory(gameId);
-              if (winner) {
-                console.log(`Game won by: ${winner}`);
-                io.to(gameId).emit('game-victory', { winner });
-              }
-            }
-          }
-
-          // Send updated game state
-          const updatedGameState = this.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', updatedGameState);
+          
+          console.log(`PTI_ABSORPTION_EVENT: ${attackerName} gained +100 PTI for eliminating ${targetCard.owner}`);
+        } else {
+          console.log(`PTI ABSORPTION SKIPPED: Invalid data (absorbedPTI=${absorbedPTI}, newPTI=${newAttackerPTI})`);
         }
-      }, 1000);
+      } else if (!attackerCharacter) {
+        console.log(`PTI ABSORPTION SKIPPED: No attacker character found for ${attackerName}`);
+      }
+
+      // DUELLO: End duel if the dead character was involved in an active duel
+      if (game?.activeDuel && game.activeDuel.active) {
+        if (this.isInDuel(gameId, targetCardId)) {
+          const duel = game.activeDuel;
+          const winnerPlayer = targetCard.id === duel.character1Id ? duel.player2 : duel.player1;
+          
+          console.log(`⚔️ DUELLO: Character ${targetCardId} died - ending duel. Winner: ${winnerPlayer}`);
+          
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-duel-end`,
+            playerName: 'Sistema',
+            message: `⚔️ DUELLO TERMINATO! ${winnerPlayer} vince per eliminazione dell'avversario!`,
+            timestamp: Date.now()
+          });
+          
+          this.endDuel(gameId, `Character death (${targetCardId})`);
+          
+          // Broadcast duel ended event
+          io.to(gameId).emit('duel-ended', {
+            winner: winnerPlayer,
+            reason: 'character_death'
+          });
+        }
+      }
+
+      // Send updated game state IMMEDIATELY
+      const finalGameState = this.getSanitizedGameState(gameId);
+      io.to(gameId).emit('game-state-update', finalGameState);
+      
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-death`,
+        playerName: 'Sistema', 
+        message: `💀 Il personaggio di ${targetCard.owner} è morto! (PTI: ${newPTI})`,
+        timestamp: Date.now()
+      });
     } else {
       // Send updated game state for PTI change
       const updatedGameState = this.getSanitizedGameState(gameId);
