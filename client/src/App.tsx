@@ -71,8 +71,11 @@ function App() {
     };
   }, [setGameId, hasActiveSession, restoreSession]);
 
-  const handleNameSubmit = (name: string) => {
+  const [pendingAvatar, setPendingAvatar] = useState<string | null>(null);
+
+  const handleNameSubmit = (name: string, avatarId: string) => {
     setPlayerName(name);
+    setPendingAvatar(avatarId);
     generateSessionId(); // Create a new session ID for this player
     setShowNameDialog(false);
     
@@ -81,8 +84,8 @@ function App() {
     const gameIdFromUrl = urlParams.get('game');
     
     if (gameIdFromUrl) {
-      // Join the game room directly
-      socket.emit('join-game', { gameId: gameIdFromUrl, playerName: name });
+      // Join the game room directly with avatar
+      socket.emit('join-game', { gameId: gameIdFromUrl, playerName: name, avatarId });
     } else {
       // Show room selection dialog
       setShowRoomDialog(true);
@@ -100,9 +103,9 @@ function App() {
     const newUrl = `${window.location.origin}?game=${newGameId}`;
     window.history.pushState(null, '', newUrl);
     
-    // Join the game room
+    // Join the game room with avatar
     console.log(`Emitting join-game event for ${playerName} to ${newGameId}`);
-    socket.emit('join-game', { gameId: newGameId, playerName });
+    socket.emit('join-game', { gameId: newGameId, playerName, avatarId: pendingAvatar });
   };
 
   // Show loading screen during initialization or reconnection

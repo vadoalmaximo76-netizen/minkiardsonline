@@ -285,9 +285,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   io.on('connection', (socket) => {
     console.log('Player connected:', socket.id);
 
-    socket.on('join-game', ({ gameId, playerName }) => {
+    socket.on('join-game', ({ gameId, playerName, avatarId }) => {
       socket.join(gameId);
       gameManager.addPlayer(gameId, playerName, socket.id);
+      
+      // Set avatar if provided
+      if (avatarId) {
+        gameManager.setPlayerAvatar(gameId, playerName, avatarId);
+      }
       
       // Send current game state to the player
       const gameState = gameManager.getSanitizedGameState(gameId);
