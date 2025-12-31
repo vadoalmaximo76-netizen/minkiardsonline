@@ -49,6 +49,7 @@ interface PendingDefense {
   targetCardId: string;   // the character being attacked
   mosseCardId: string;    // the attack (MOSSE) card used
   deckType: string;
+  isHandTarget?: boolean; // NEW: Whether this is ATTACCO DISONESTO (target in hand)
   createdAt: Date;
   timeoutId?: NodeJS.Timeout;
 }
@@ -1272,6 +1273,7 @@ Rispondi SOLO in JSON:`;
       damage: damageValue, // Proper damage value from attacker input
       targetCardId: targetCardId, // Character being attacked
       mosseCardId: mosseCardId, // MOSSE card used for attack
+      isHandTarget: isHandTarget, // NEW: Pass isHandTarget flag
       deckType: 'mosse'
     });
 
@@ -3824,7 +3826,7 @@ Rispondi SOLO in JSON:`;
     game.pendingDefense = undefined;
 
     // Retain local copy for processing
-    const { attacker, defender, targetCardId, mosseCardId, damage } = pendingDefense;
+    const { attacker, defender, targetCardId, mosseCardId, damage, isHandTarget } = pendingDefense;
 
     // STRUCTURED LOGGING: Log resolution details
     console.log(`[DEFENSE-RESOLVE] Processing defense resolution`, {
@@ -3902,7 +3904,7 @@ Rispondi SOLO in JSON:`;
       });
 
       // Apply damage using existing processMosseDamage to targetCardId owned by defender
-      await this.processMosseDamage(gameId, attacker, targetCardId, damage, mosseCardId, io);
+      await this.processMosseDamage(gameId, attacker, targetCardId, damage, mosseCardId, io, false, isHandTarget || false);
       
       // DUELLO: Switch turn to opponent after attack is accepted
       if (game.activeDuel && game.activeDuel.active) {
