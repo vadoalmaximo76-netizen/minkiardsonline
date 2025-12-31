@@ -566,6 +566,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gameId) {
         const card = await gameManager.pickCardAndReturn(gameId, deckType, playerName);
         if (card) {
+          // Auto-analyze PERSONAGGI cards when picked (to get PTI and stars in hand)
+          if (card.type === 'personaggi' || card.type === 'personaggi_speciali') {
+            try {
+              console.log(`Auto-analyzing PERSONAGGI card when picked: ${card.frontImage}`);
+              const analysis = await analyzePersonaggioCard(card.frontImage);
+              if (analysis) {
+                card.text = `PTI: ${analysis.pti} | Stelle: ${analysis.stars}`;
+                console.log(`✅ Auto-analyzed from pick: PTI: ${analysis.pti} | Stelle: ${analysis.stars}`);
+              }
+            } catch (error) {
+              console.error('Error auto-analyzing card on pick:', error);
+            }
+          }
+          
           // Emit to all players to update game state
           const gameState = gameManager.getSanitizedGameState(gameId);
           io.to(gameId).emit('game-state-update', gameState);
@@ -616,6 +630,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`ChooseSpecificCard result for ${playerName}:`, success);
         
         if (success) {
+          // Auto-analyze PERSONAGGI cards when picked (to get PTI and stars in hand)
+          if (deckType === 'personaggi' || deckType === 'personaggi_speciali') {
+            const game = gameManager.getGameState(gameId);
+            const pickedCard = game?.players[playerName]?.hand.find((c: any) => c.id === cardId);
+            if (pickedCard) {
+              try {
+                console.log(`Auto-analyzing PERSONAGGI card when chosen: ${pickedCard.frontImage}`);
+                const analysis = await analyzePersonaggioCard(pickedCard.frontImage);
+                if (analysis) {
+                  pickedCard.text = `PTI: ${analysis.pti} | Stelle: ${analysis.stars}`;
+                  console.log(`✅ Auto-analyzed from choose: PTI: ${analysis.pti} | Stelle: ${analysis.stars}`);
+                }
+              } catch (error) {
+                console.error('Error auto-analyzing card on choose:', error);
+              }
+            }
+          }
+          
           const gameState = gameManager.getSanitizedGameState(gameId);
           console.log(`Emitting game-state-update to room ${gameId}`);
           io.to(gameId).emit('game-state-update', gameState);
