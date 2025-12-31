@@ -3,6 +3,9 @@ import { createServer, type Server } from "http";
 import { Server as SocketServer } from "socket.io";
 import { GameManager } from "./gameManager";
 import OpenAI from "openai";
+import { db } from "./db";
+import { personaggi } from "../shared/schema";
+import { eq, ilike } from "drizzle-orm";
 
 // Initialize OpenAI
 const openai = new OpenAI({ 
@@ -29,6 +32,46 @@ function getCardNameFromImageUrl(imageUrl: string): string {
       .replace(/[-_]/g, '-');
   } catch {
     return '';
+  }
+}
+
+// Look up PERSONAGGI data from database
+async function getPersonaggioFromDatabase(cardName: string): Promise<{ pti: number | null, stars: number | null } | null> {
+  try {
+    console.log(`🔍 Looking up ${cardName} in PERSONAGGI database...`);
+    
+    // First try exact match
+    let result = await db.select().from(personaggi).where(eq(personaggi.name, cardName.toUpperCase())).limit(1);
+    
+    // If no exact match, try fuzzy search
+    if (result.length === 0) {
+      result = await db.select().from(personaggi).where(ilike(personaggi.name, `%${cardName.toUpperCase()}%`)).limit(1);
+    }
+    
+    // If still no match, try parts of the name
+    if (result.length === 0) {
+      const nameParts = cardName.toUpperCase().split(' ');
+      for (const part of nameParts) {
+        if (part.length > 3) { // Only search meaningful parts
+          result = await db.select().from(personaggi).where(ilike(personaggi.name, `%${part}%`)).limit(1);
+          if (result.length > 0) break;
+        }
+      }
+    }
+    
+    if (result.length > 0) {
+      console.log(`✅ Found in database: ${result[0].name} - PTI: ${result[0].pti}, Stelle: ${result[0].stars}`);
+      return {
+        pti: result[0].pti,
+        stars: result[0].stars
+      };
+    }
+    
+    console.log(`❌ Not found in database: ${cardName}`);
+    return null;
+  } catch (error) {
+    console.error('Error querying PERSONAGGI database:', error);
+    return null;
   }
 }
 
@@ -566,17 +609,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gameId) {
         const card = await gameManager.pickCardAndReturn(gameId, deckType, playerName);
         if (card) {
-          // Auto-analyze PERSONAGGI cards when picked (to get PTI and stars in hand)
+          // Look up PERSONAGGI data from database when picked (to get PTI and stars in hand)
           if (card.type === 'personaggi' || card.type === 'personaggi_speciali') {
             try {
-              console.log(`Auto-analyzing PERSONAGGI card when picked: ${card.frontImage}`);
-              const analysis = await analyzePersonaggioCard(card.frontImage);
-              if (analysis) {
-                card.text = `PTI: ${analysis.pti} | Stelle: ${analysis.stars}`;
-                console.log(`✅ Auto-analyzed from pick: PTI: ${analysis.pti} | Stelle: ${analysis.stars}`);
+              const cardName = getCardNameFromImageUrl(card.frontImage).replace(/-/g, ' ');
+              console.log(`Querying database for PERSONAGGI card when picked: ${cardName}`);
+              const dbData = await getPersonaggioFromDatabase(cardName);
+              if (dbData && dbData.pti !== null && dbData.stars !== null) {
+                card.text = `PTI: ${dbData.pti} | Stelle: ${dbData.stars}`;
+                console.log(`✅ Database lookup successful: PTI: ${dbData.pti} | Stelle: ${dbData.stars}`);
               }
             } catch (error) {
-              console.error('Error auto-analyzing card on pick:', error);
+              console.error('Error querying database for card on pick:', error);
             }
           }
           
@@ -630,20 +674,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`ChooseSpecificCard result for ${playerName}:`, success);
         
         if (success) {
-          // Auto-analyze PERSONAGGI cards when picked (to get PTI and stars in hand)
+          // Look up PERSONAGGI data from database when picked (to get PTI and stars in hand)
           if (deckType === 'personaggi' || deckType === 'personaggi_speciali') {
             const game = gameManager.getGameState(gameId);
             const pickedCard = game?.players[playerName]?.hand.find((c: any) => c.id === cardId);
             if (pickedCard) {
               try {
-                console.log(`Auto-analyzing PERSONAGGI card when chosen: ${pickedCard.frontImage}`);
-                const analysis = await analyzePersonaggioCard(pickedCard.frontImage);
-                if (analysis) {
-                  pickedCard.text = `PTI: ${analysis.pti} | Stelle: ${analysis.stars}`;
-                  console.log(`✅ Auto-analyzed from choose: PTI: ${analysis.pti} | Stelle: ${analysis.stars}`);
+                const cardName = getCardNameFromImageUrl(pickedCard.frontImage).replace(/-/g, ' ');
+                console.log(`Querying database for PERSONAGGI card when chosen: ${cardName}`);
+                const dbData = await getPersonaggioFromDatabase(cardName);
+                if (dbData && dbData.pti !== null && dbData.stars !== null) {
+                  pickedCard.text = `PTI: ${dbData.pti} | Stelle: ${dbData.stars}`;
+                  console.log(`✅ Database lookup successful: PTI: ${dbData.pti} | Stelle: ${dbData.stars}`);
                 }
               } catch (error) {
-                console.error('Error auto-analyzing card on choose:', error);
+                console.error('Error querying database for card on choose:', error);
               }
             }
           }
