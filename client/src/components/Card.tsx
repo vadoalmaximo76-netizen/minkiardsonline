@@ -549,7 +549,8 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
                     <div className="w-24 h-32 rounded-lg border-2 border-red-500 bg-gradient-to-br from-red-900 to-red-700 flex items-center justify-center">
                       <div className="text-center">
                         <p className="text-white font-bold text-2xl">🎴</p>
-                        <p className="text-red-200 text-xs mt-1">{getCardName(targetCard.frontImage)}</p>
+                        <p className="text-yellow-400 text-xs mt-1 font-bold">COPERTA</p>
+                        <p className="text-red-200 text-xs mt-1">{targetCard.owner}</p>
                       </div>
                     </div>
                   ) : (
