@@ -3935,14 +3935,34 @@ Rispondi SOLO in JSON:`;
     return true;
   }
 
-  // EXTRACTED AND HARDENED: Damage processing method (preserves ALL legacy logic + BAMBOLA VOODOO)
-  async processMosseDamage(gameId: string, attackerName: string, targetCardId: string, damageValue: number, mosseCardId: string, io: any, isVoodooReflection: boolean = false): Promise<void> {
+  // EXTRACTED AND HARDENED: Damage processing method (preserves ALL legacy logic + BAMBOLA VOODOO + ATTACCO DISONESTO)
+  async processMosseDamage(gameId: string, attackerName: string, targetCardId: string, damageValue: number, mosseCardId: string, io: any, isVoodooReflection: boolean = false, isHandTarget: boolean = false): Promise<void> {
     const game = this.games.get(gameId);
     const gameState = this.getSanitizedGameState(gameId);
-    const targetCard = gameState?.field?.find((c: any) => c.id === targetCardId);
     
-    if (!targetCard || targetCard.type !== 'personaggi') {
-      console.log(`Target card ${targetCardId} not found or not a character`);
+    // Find target card - either on field or in hand (for ATTACCO DISONESTO)
+    let targetCard: any;
+    let targetOwner: string = '';
+    
+    if (isHandTarget) {
+      // ATTACCO DISONESTO: target is in opponent's hand
+      for (const [playerName, player] of Object.entries(game?.players || {})) {
+        if (playerName === attackerName) continue;
+        const handCard = player.hand.find((c: Card) => c.id === targetCardId);
+        if (handCard && (handCard.type === 'personaggi' || handCard.type === 'personaggi_speciali')) {
+          targetCard = handCard;
+          targetOwner = playerName;
+          break;
+        }
+      }
+    } else {
+      // Regular attack: target is on field
+      targetCard = gameState?.field?.find((c: any) => c.id === targetCardId);
+      targetOwner = targetCard?.owner || '';
+    }
+    
+    if (!targetCard || !targetOwner || (targetCard.type !== 'personaggi' && targetCard.type !== 'personaggi_speciali')) {
+      console.log(`Target card ${targetCardId} not found${isHandTarget ? ' in hand' : ' on field'} or not a character`);
       return;
     }
 
@@ -3962,10 +3982,22 @@ Rispondi SOLO in JSON:`;
       updatedNotes = currentNotes ? `${currentNotes}\nPTI: ${newPTI}` : `PTI: ${newPTI}`;
     }
 
-    // PRESERVE: Update the card in the game state
-    this.updateCardText(gameId, targetCardId, updatedNotes);
+    // PRESERVE: Update the card in the game state (works for both hand and field)
+    if (isHandTarget) {
+      // For hand targets, update directly in player's hand
+      const player = game?.players?.[targetOwner];
+      if (player) {
+        const handCardIndex = player.hand.findIndex((c: Card) => c.id === targetCardId);
+        if (handCardIndex !== -1) {
+          player.hand[handCardIndex].text = updatedNotes;
+        }
+      }
+    } else {
+      // For field targets, use existing method
+      this.updateCardText(gameId, targetCardId, updatedNotes);
+    }
     
-    console.log(`${targetCard.owner}'s ${targetCard.frontImage} took ${damageValue} damage: ${currentPTI} → ${newPTI} PTI`);
+    console.log(`${isHandTarget ? '🎯 ATTACCO DISONESTO: ' : ''}${targetOwner}'s ${targetCard.frontImage} took ${damageValue} damage: ${currentPTI} → ${newPTI} PTI`);
     
     // PRESERVE: Mark action as completed for CPU turn flow
     if (attackerName.startsWith('CPU-')) {
@@ -4043,8 +4075,26 @@ Rispondi SOLO in JSON:`;
     // PRESERVE: Check if character dies (PTI <= 0) - exact legacy logic
     if (newPTI <= 0) {
       setTimeout(() => {
+        // For ATTACCO DISONESTO: move card from hand to graveyard
+        if (isHandTarget) {
+          const player = game?.players?.[targetOwner];
+          if (player) {
+            const handCardIndex = player.hand.findIndex((c: Card) => c.id === targetCardId);
+            if (handCardIndex !== -1) {
+              const deadCard = player.hand.splice(handCardIndex, 1)[0];
+              deadCard.eliminatedBy = attackerName;
+              game?.graveyard?.push(deadCard);
+              console.log(`🎯 ATTACCO DISONESTO: ${targetCard.frontImage} di ${targetOwner} è morto e va nel cimitero`);
+            }
+          }
+        } else {
+          // Regular field death: move to graveyard with attacker info
+          this.moveToGraveyard(gameId, targetCardId, targetOwner, attackerName);
+        }
+        
         // PRESERVE: PTI ABSORPTION SYSTEM (exact legacy implementation)
-        const attackerCharacters = gameState?.field?.filter((c: any) => 
+        const updatedGameState = this.getSanitizedGameState(gameId);
+        const attackerCharacters = updatedGameState?.field?.filter((c: any) => 
           c.owner === attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
         ) || [];
         

@@ -2044,7 +2044,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // If no defense required, process damage immediately
-        await gameManager.processMosseDamage(gameId, attackerName, targetCardId, damageValue, mosseCardId, io);
+        await gameManager.processMosseDamage(gameId, attackerName, targetCardId, damageValue, mosseCardId, io, false, isHandTarget || false);
         
         // NEW: If CPU attacked without defense, continue their turn
         const gameStateAfterAttack = gameManager.getGameState(gameId);
