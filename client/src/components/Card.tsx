@@ -453,23 +453,23 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         </div>
       )}
 
-      {/* Hand Target Selection Modal (for ATTACCO DISONESTO) - LARGE CENTERED */}
+      {/* Hand Target Selection Modal (for ATTACCO DISONESTO) - FULL SCREEN RESPONSIVE */}
       {showHandTargetSelect && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-          <div style={{ width: '900px', height: '600px', backgroundColor: '#111827', borderRadius: '12px', border: '4px solid #dc2626', padding: '24px', overflowY: 'auto', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ color: 'white', fontWeight: 'bold', fontSize: '36px', margin: 0 }}>🎯 ATTACCO DISONESTO</h2>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.95)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
+          <div style={{ width: '95vw', maxWidth: '1400px', height: '90vh', maxHeight: '800px', backgroundColor: '#111827', borderRadius: '16px', border: '4px solid #dc2626', padding: '32px', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px rgba(220, 38, 38, 0.4)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexShrink: 0 }}>
+              <h2 style={{ color: 'white', fontWeight: 'bold', fontSize: '42px', margin: 0, textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>🎯 ATTACCO DISONESTO</h2>
               <Button
                 onClick={() => setShowHandTargetSelect(false)}
-                style={{ backgroundColor: '#dc2626', color: 'white', padding: '8px 16px', fontWeight: 'bold', fontSize: '18px', cursor: 'pointer' }}
+                style={{ backgroundColor: '#dc2626', color: 'white', padding: '16px 32px', fontWeight: 'bold', fontSize: '20px', cursor: 'pointer', borderRadius: '8px' }}
               >
                 ✕ CHIUDI
               </Button>
             </div>
             
-            <p style={{ color: '#e5e7eb', textAlign: 'center', marginBottom: '20px', fontSize: '18px', fontWeight: 'bold', margin: '0 0 20px 0' }}>Scegli un personaggio in mano da attaccare:</p>
+            <p style={{ color: '#fbbf24', textAlign: 'center', fontSize: '24px', fontWeight: 'bold', margin: '0 0 24px 0', flexShrink: 0 }}>Scegli un personaggio in mano da attaccare:</p>
             
-            <div style={{ overflowY: 'auto', height: '450px' }}>
+            <div style={{ overflowY: 'auto', flex: 1, paddingRight: '8px' }}>
               {Object.entries(gameState?.players || {}).map(([pName, pData]: [string, any]) => {
                 if (pName === playerName) return null;
                 const handCards = pData.hand?.filter((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali') || [];
@@ -477,23 +477,39 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
                 if (handCards.length === 0) return null;
                 
                 return (
-                  <div key={pName} style={{ backgroundColor: '#1f2937', borderRadius: '8px', padding: '16px', border: '2px solid #f97316', marginBottom: '16px' }}>
-                    <h3 style={{ color: '#fed7aa', fontWeight: 'bold', fontSize: '24px', textAlign: 'center', margin: '0 0 16px 0' }}>{pName}</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', justifyItems: 'center' }}>
-                      {handCards.map((hCard: any) => (
+                  <div key={pName} style={{ backgroundColor: '#1f2937', borderRadius: '12px', padding: '24px', border: '3px solid #f97316', marginBottom: '20px' }}>
+                    <h3 style={{ color: '#fed7aa', fontWeight: 'bold', fontSize: '32px', textAlign: 'center', margin: '0 0 20px 0' }}>🎮 {pName}</h3>
+                    <p style={{ color: '#9ca3af', textAlign: 'center', marginBottom: '16px', fontSize: '16px' }}>Ha {handCards.length} personaggio/i in mano</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'center' }}>
+                      {handCards.map((hCard: any, idx: number) => (
                         <Button
                           key={hCard.id}
                           onClick={() => handleHandTargetSelect(hCard)}
-                          style={{ backgroundColor: '#dc2626', color: 'white', padding: '12px', height: '128px', width: '96px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', border: '2px solid #f87171', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}
+                          style={{ backgroundColor: '#dc2626', color: 'white', padding: '20px', height: '180px', width: '140px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: '12px', border: '3px solid #f87171', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', transition: 'transform 0.2s, box-shadow 0.2s' }}
+                          onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.boxShadow = '0 10px 25px rgba(220, 38, 38, 0.6)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = 'none'; }}
                         >
-                          <p style={{ fontSize: '48px', margin: '0 0 4px 0' }}>🎴</p>
-                          <p style={{ fontSize: '12px', fontWeight: 'bold', margin: 0 }}>COPERTA</p>
+                          <p style={{ fontSize: '64px', margin: '0 0 8px 0' }}>🎴</p>
+                          <p style={{ fontSize: '16px', fontWeight: 'bold', margin: '0 0 4px 0' }}>CARTA #{idx + 1}</p>
+                          <p style={{ fontSize: '14px', margin: 0, color: '#fecaca' }}>CLICCA PER ATTACCARE</p>
                         </Button>
                       ))}
                     </div>
                   </div>
                 );
               })}
+              
+              {/* Show message if no valid targets */}
+              {Object.entries(gameState?.players || {}).every(([pName, pData]: [string, any]) => {
+                if (pName === playerName) return true;
+                const handCards = (pData as any).hand?.filter((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali') || [];
+                return handCards.length === 0;
+              }) && (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>
+                  <p style={{ fontSize: '24px', marginBottom: '16px' }}>⚠️ Nessun bersaglio disponibile</p>
+                  <p style={{ fontSize: '18px' }}>Gli avversari non hanno personaggi in mano da attaccare.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
