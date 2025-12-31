@@ -100,10 +100,10 @@ export class CPUPlayer {
   // NEW: Mark that attack has been resolved and CPU can continue
   resolveAttack() {
     this.waitingForAttackResolution = false;
-    // CRITICAL: Mark turn as ready to end
+    // CRITICAL: Continue turn instead of ending it - CPU should keep playing
     this.turnState.executedThisTurn = true;
-    this.turnState.phase = 'turn_end';
-    console.log(`🎯 CPU ${this.playerName}: Attack resolved - ready to end turn on next takeTurn call`);
+    // DO NOT set phase to 'turn_end' - let takeTurn() decide what to do next
+    console.log(`🎯 CPU ${this.playerName}: Attack resolved - continuing turn to play more cards`);
   }
 
   // NEW: Turn state management methods
@@ -1320,12 +1320,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         return null;
       }
       
-      // CRITICAL: If attack was resolved and we're in turn_end phase, end turn immediately
-      if (this.turnState.phase === 'turn_end' && this.turnState.executedThisTurn) {
-        console.log(`🎯 CPU ${this.playerName}: Attack was resolved - ending turn now`);
-        this.resetTurnState();
-        return { type: 'end-turn', data: { playerName: this.playerName } };
-      }
+      // REMOVED: Attack resolution no longer forces turn end - CPU continues playing
       
       let cpuPlayer = gameState.players[this.playerName];
       if (!cpuPlayer) {
@@ -1444,6 +1439,26 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         };
       }
 
+      // CRITICAL FIX: After MOSSE attack is resolved, continue playing more cards
+      // ONLY return null if waiting for attack, then loop again
+      if (this.turnState.executedThisTurn && this.waitingForAttackResolution) {
+        console.log(`🎯 CPU ${this.playerName}: MOSSE attack emitted - waiting for resolution before continuing`);
+        return null;
+      }
+      
+      // If attack was resolved, continue turn by refreshing game state and playing next card
+      if (this.turnState.executedThisTurn && !this.waitingForAttackResolution) {
+        console.log(`🎯 CPU ${this.playerName}: Attack resolved - continuing turn to play more cards`);
+        // Refresh game state
+        if (this.gameManager) {
+          const updatedState = this.gameManager.getSanitizedGameState(this.gameId);
+          cpuPlayer = updatedState.players[this.playerName];
+          gameState = updatedState;
+        }
+        // Reset executed flag so we can try to play another card
+        this.turnState.executedThisTurn = false;
+      }
+      
       // NEW OPTIMIZED TURN LOGIC: Execute ALL phases in one turn
       console.log(`CPU ${this.playerName} executing complete turn in one go`);
       
