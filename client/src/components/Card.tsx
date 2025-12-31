@@ -62,25 +62,17 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     }
   };
 
-  const isAtaccoDisonesto = selectedMosseCard && getCardName(selectedMosseCard.frontImage) === 'ATTACCO DISONESTO';
-  
-  // Auto-open hand target selection when ATTACCO DISONESTO is selected
-  useEffect(() => {
-    if (isAtaccoDisonesto && location === 'hand') {
-      setShowHandTargetSelect(true);
-    }
-  }, [selectedMosseCard, isAtaccoDisonesto, location]);
+  const isAtaccoDisonesto = card.type === 'mosse' && location === 'field' && getCardName(card.frontImage) === 'ATTACCO DISONESTO';
+
+  const handleAttaccoDisonesto = () => {
+    // Open hand target selection for ATTACCO DISONESTO
+    setShowHandTargetSelect(true);
+  };
 
   const handleCardClick = () => {
-    // If a MOSSE card is selected
+    // If a MOSSE card is selected (for regular attacks on field)
     if (selectedMosseCard) {
-      // Check if it's ATTACCO DISONESTO - must attack hand cards instead of field
-      if (isAtaccoDisonesto) {
-        // Modal should already be open via useEffect, don't need to do anything here
-        return;
-      }
-
-      // Regular MOSSE attack on field
+      // Regular MOSSE attack on field (NOT for ATTACCO DISONESTO - that has its own button)
       if (location === 'field' && 
           card.type === 'personaggi' && 
           card.owner !== playerName) {
@@ -101,12 +93,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
       setShowActions(!showActions);
       setSelectedMosseCard(null);
     } else if (location === 'hand') {
-      // For MOSSE cards, select them as the attack card instead of opening modal
-      if (card.type === 'mosse') {
-        setSelectedMosseCard(card);
-        return;
-      }
-      // For other cards in hand, open the modal window
+      // For cards in hand, open the modal window
       setSelectedCard(card);
       setSelectedMosseCard(null);
     }
@@ -329,6 +316,26 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         </div>
       )}
 
+      {/* ATTACCA button for MOSSE cards on field (owned by player) */}
+      {location === 'field' && card.type === 'mosse' && isOwner && !card.faceDown && (
+        <div className="flex flex-col gap-1">
+          <Button
+            onClick={() => {
+              if (isAtaccoDisonesto) {
+                handleAttaccoDisonesto();
+              } else {
+                // For regular MOSSE, select it as attack card
+                setSelectedMosseCard(card);
+              }
+            }}
+            className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-2 py-1"
+            size="sm"
+          >
+            ⚔️ ATTACCA
+          </Button>
+        </div>
+      )}
+
       {/* Super Dice button for MINKIARD N 300 card on field */}
       {location === 'field' && isMinkiard300 && !card.faceDown && (
         <div className="flex flex-col gap-1">
@@ -459,7 +466,6 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
                           className="bg-red-600 hover:bg-red-700 text-white text-xs p-2 h-auto flex flex-col"
                         >
                           <p>🎴 COPERTA</p>
-                          <p className="text-xs">{getCardName(hCard.frontImage).substring(0, 15)}</p>
                         </Button>
                       ))}
                     </div>
