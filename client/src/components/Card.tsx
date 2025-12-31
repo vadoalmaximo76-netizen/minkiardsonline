@@ -436,7 +436,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
       {/* Hand Target Selection Modal (for ATTACCO DISONESTO) - LARGE CENTERED */}
       {showHandTargetSelect && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-950 rounded-xl p-8 max-w-5xl w-full border-4 border-red-600 shadow-2xl max-h-[85vh] overflow-y-auto">
+          <div className="bg-gray-900 rounded-xl p-8 max-w-6xl w-full border-4 border-red-600 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-8">
               <h2 className="text-white font-bold text-3xl">🎯 ATTACCO DISONESTO</h2>
               <Button
