@@ -5,7 +5,11 @@ import { z } from "zod";
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  email: text("email").unique(),
+  password: text("password"), // Can be null for Google OAuth users
+  googleId: text("google_id").unique(), // Google OAuth ID
+  avatar: text("avatar"), // Avatar ID from predefined list
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const matches = pgTable("matches", {
@@ -40,7 +44,22 @@ export const personaggi = pgTable("personaggi", {
 
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
+  email: true,
   password: true,
+  googleId: true,
+  avatar: true,
+});
+
+export const registerUserSchema = z.object({
+  username: z.string().min(2).max(20),
+  email: z.string().email(),
+  password: z.string().min(6),
+  avatar: z.string().optional(),
+});
+
+export const loginUserSchema = z.object({
+  email: z.string().email(),
+  password: z.string(),
 });
 
 export const insertMatchSchema = createInsertSchema(matches);

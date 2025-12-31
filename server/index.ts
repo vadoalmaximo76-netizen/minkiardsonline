@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
+import { registerAuthRoutes } from "./auth";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
@@ -43,6 +44,7 @@ app.use((req, res, next) => {
       console.warn('WARNING: OPENAI_API_KEY is not set. Card analysis and CPU functionality will not work.');
     }
 
+    registerAuthRoutes(app);
     const server = await registerRoutes(app);
 
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
