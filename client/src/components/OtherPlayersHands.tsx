@@ -1,5 +1,6 @@
 import React from "react";
 import { useGameState } from "../lib/stores/useGameState";
+import { getAvatarEmoji } from "../lib/avatars";
 
 export const OtherPlayersHands: React.FC = () => {
   const { gameState, playerName } = useGameState();
@@ -19,11 +20,15 @@ export const OtherPlayersHands: React.FC = () => {
       <div className="flex gap-6 overflow-x-auto pb-4">
         {otherPlayers.map(([name, player]) => {
           const handCount = player.hand.length;
+          const avatarEmoji = player.avatar ? getAvatarEmoji(player.avatar) : '👤';
           
           return (
             <div key={name} className="bg-gray-800/80 rounded-lg p-4 flex-shrink-0 min-w-[200px]">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-white font-bold text-lg">{name}</h3>
+                <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                  <span className="text-2xl">{avatarEmoji}</span>
+                  {name}
+                </h3>
                 <span className="text-yellow-400 font-semibold">
                   {handCount} {handCount === 1 ? 'carta' : 'carte'}
                 </span>

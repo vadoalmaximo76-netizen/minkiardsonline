@@ -32,7 +32,9 @@ import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
-import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star, Hand, Music, Shuffle } from "lucide-react";
+import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star, Hand, Music, Shuffle, User } from "lucide-react";
+import { AvatarSelector } from "./AvatarSelector";
+import { getAvatarEmoji } from "../lib/avatars";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 
@@ -98,6 +100,7 @@ export const GameBoard: React.FC = () => {
   const [cardAnimationName, setCardAnimationName] = useState<string>("");
   const [sorosActivationVisible, setSorosActivationVisible] = useState(false);
   const [sorosData, setSorosData] = useState<{ activator: string; cardImage: string } | null>(null);
+  const [avatarSelectorOpen, setAvatarSelectorOpen] = useState(false);
   const { selectedCard, gameId, playerName, gameState, setGameId } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted } = useAudio();
 
@@ -926,6 +929,18 @@ export const GameBoard: React.FC = () => {
           >
             <Shuffle size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
           </Button>
+          
+          <Button
+            onClick={() => setAvatarSelectorOpen(true)}
+            className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
+            title="Cambia Avatar"
+          >
+            <span className="text-base landscape:text-xl md:text-xl">
+              {gameState?.players?.[playerName]?.avatar 
+                ? getAvatarEmoji(gameState.players[playerName].avatar!) 
+                : '👤'}
+            </span>
+          </Button>
         </div>
 
         {/* Calculator */}
@@ -1278,6 +1293,12 @@ export const GameBoard: React.FC = () => {
             }}
           />
         )}
+        
+        {/* Avatar Selector Modal */}
+        <AvatarSelector
+          isOpen={avatarSelectorOpen}
+          onClose={() => setAvatarSelectorOpen(false)}
+        />
       </div>
     </div>
   );

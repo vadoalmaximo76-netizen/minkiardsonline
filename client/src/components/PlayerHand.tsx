@@ -3,12 +3,14 @@ import { Card } from "./Card";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
+import { getAvatarEmoji } from "../lib/avatars";
 
 export const PlayerHand: React.FC = () => {
   const { gameState, playerName, gameId } = useGameState();
   const [endTurnMessage, setEndTurnMessage] = useState<string>("");
   
   const playerCards = gameState?.players?.[playerName]?.hand || [];
+  const playerAvatar = gameState?.players?.[playerName]?.avatar;
 
   useEffect(() => {
     const handleEndTurnSuccess = (data: { message: string; nextPlayer: string }) => {
@@ -37,7 +39,10 @@ export const PlayerHand: React.FC = () => {
   return (
     <div className="mb-8">
       <div className="flex items-center gap-4 mb-4">
-        <h2 className="text-white font-bold text-2xl">CARTE IN MANO</h2>
+        <h2 className="text-white font-bold text-2xl flex items-center gap-2">
+          <span className="text-3xl">{playerAvatar ? getAvatarEmoji(playerAvatar) : '👤'}</span>
+          CARTE IN MANO
+        </h2>
         <Button
           onClick={handleEndTurn}
           className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold"
