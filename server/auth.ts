@@ -3,9 +3,46 @@ import { db } from "./db";
 import { users, registerUserSchema, loginUserSchema } from "../shared/schema";
 import { eq, or } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const JWT_SECRET = process.env.JWT_SECRET || "minkiards-secret-key-change-in-production";
+
+interface JWTPayload {
+  userId: number;
+  email: string | null;
+}
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: JWTPayload;
+    }
+  }
+}
+
+function generateToken(userId: number, email: string | null): string {
+  return jwt.sign({ userId, email }, JWT_SECRET, { expiresIn: "7d" });
+}
+
+export function authMiddleware(req: Request, res: Response, next: NextFunction) {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Token mancante" });
+  }
+  
+  const token = authHeader.split(" ")[1];
+  
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ error: "Token non valido o scaduto" });
+  }
+}
 
 const VALID_AVATAR_IDS = [
   'dragon', 'lion', 'wolf', 'eagle', 'shark', 'tiger', 'bear', 'fox',
@@ -15,6 +52,12 @@ const VALID_AVATAR_IDS = [
 ];
 
 export function registerAuthRoutes(app: Express) {
+  app.get("/api/auth/config", (_req: Request, res: Response) => {
+    res.json({
+      googleClientId: process.env.GOOGLE_CLIENT_ID || null,
+    });
+  });
+
   app.post("/api/auth/register", async (req: Request, res: Response) => {
     try {
       const validation = registerUserSchema.safeParse(req.body);
@@ -51,8 +94,11 @@ export function registerAuthRoutes(app: Express) {
         avatar: validAvatar,
       }).returning();
 
+      const token = generateToken(newUser.id, newUser.email);
+
       res.json({
         success: true,
+        token,
         user: {
           id: newUser.id,
           username: newUser.username,
@@ -93,8 +139,11 @@ export function registerAuthRoutes(app: Express) {
         return res.status(401).json({ error: "Email o password non corretti" });
       }
 
+      const token = generateToken(user.id, user.email);
+
       res.json({
         success: true,
+        token,
         user: {
           id: user.id,
           username: user.username,
@@ -160,8 +209,11 @@ export function registerAuthRoutes(app: Express) {
         }).returning();
       }
 
+      const token = generateToken(user.id, user.email);
+
       res.json({
         success: true,
+        token,
         user: {
           id: user.id,
           username: user.username,
@@ -175,11 +227,15 @@ export function registerAuthRoutes(app: Express) {
     }
   });
 
-  app.get("/api/auth/user/:userId", async (req: Request, res: Response) => {
+  app.get("/api/auth/user/:userId", authMiddleware, async (req: Request, res: Response) => {
     try {
       const userId = parseInt(req.params.userId);
       if (isNaN(userId)) {
         return res.status(400).json({ error: "ID utente non valido" });
+      }
+
+      if (req.user?.userId !== userId) {
+        return res.status(403).json({ error: "Accesso non autorizzato" });
       }
 
       const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
@@ -202,13 +258,43 @@ export function registerAuthRoutes(app: Express) {
     }
   });
 
-  app.put("/api/auth/user/:userId/avatar", async (req: Request, res: Response) => {
+  app.get("/api/auth/me", authMiddleware, async (req: Request, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: "Non autenticato" });
+      }
+
+      const [user] = await db.select().from(users).where(eq(users.id, req.user.userId)).limit(1);
+
+      if (!user) {
+        return res.status(404).json({ error: "Utente non trovato" });
+      }
+
+      res.json({
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          avatar: user.avatar,
+        }
+      });
+    } catch (error) {
+      console.error("Get current user error:", error);
+      res.status(500).json({ error: "Errore nel recupero utente" });
+    }
+  });
+
+  app.put("/api/auth/user/:userId/avatar", authMiddleware, async (req: Request, res: Response) => {
     try {
       const userId = parseInt(req.params.userId);
       const { avatar } = req.body;
 
       if (isNaN(userId)) {
         return res.status(400).json({ error: "ID utente non valido" });
+      }
+
+      if (req.user?.userId !== userId) {
+        return res.status(403).json({ error: "Accesso non autorizzato" });
       }
 
       if (!avatar || !VALID_AVATAR_IDS.includes(avatar)) {
@@ -236,5 +322,9 @@ export function registerAuthRoutes(app: Express) {
       console.error("Update avatar error:", error);
       res.status(500).json({ error: "Errore nell'aggiornamento avatar" });
     }
+  });
+
+  app.post("/api/auth/logout", (_req: Request, res: Response) => {
+    res.json({ success: true, message: "Logout effettuato" });
   });
 }

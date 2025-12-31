@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GameBoard } from "./components/GameBoard";
 import { PlayerNameDialog } from "./components/PlayerNameDialog";
 import { RoomCodeDialog } from "./components/RoomCodeDialog";
+import { AuthDialog } from "./components/AuthDialog";
 import { useGameState } from "./lib/stores/useGameState";
 import { socket } from "./lib/socket";
 import "@fontsource/inter";
@@ -10,8 +11,17 @@ import "./index.css";
 
 const queryClient = new QueryClient();
 
+interface AuthUser {
+  id: number;
+  username: string;
+  email: string | null;
+  avatar: string | null;
+}
+
 function App() {
-  const [showNameDialog, setShowNameDialog] = useState(true);
+  const [showAuthDialog, setShowAuthDialog] = useState(true);
+  const [authenticatedUser, setAuthenticatedUser] = useState<AuthUser | null>(null);
+  const [showNameDialog, setShowNameDialog] = useState(false);
   const [showRoomDialog, setShowRoomDialog] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const { 
@@ -28,33 +38,64 @@ function App() {
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        // Connect to socket first
         socket.connect();
         
-        // Check if we have an active session
-        if (hasActiveSession()) {
-          console.log('Found active session, attempting to restore...');
-          const restored = await restoreSession();
-          
-          if (restored) {
-            console.log('Session restored successfully');
-            setShowNameDialog(false);
-            setShowRoomDialog(false);
-            setIsInitializing(false);
-            return;
-          } else {
-            console.log('Session restoration failed, showing login');
+        const authToken = localStorage.getItem('authToken');
+        
+        if (authToken) {
+          try {
+            const res = await fetch('/api/auth/me', {
+              headers: {
+                'Authorization': `Bearer ${authToken}`
+              }
+            });
+            if (res.ok) {
+              const data = await res.json();
+              setAuthenticatedUser(data.user);
+              setShowAuthDialog(false);
+              
+              if (hasActiveSession()) {
+                console.log('Found active session, attempting to restore...');
+                const restored = await restoreSession();
+                
+                if (restored) {
+                  console.log('Session restored successfully');
+                  setShowNameDialog(false);
+                  setShowRoomDialog(false);
+                  setIsInitializing(false);
+                  return;
+                }
+              }
+              
+              setPlayerName(data.user.username);
+              setPendingAvatar(data.user.avatar);
+              
+              const urlParams = new URLSearchParams(window.location.search);
+              const gameIdFromUrl = urlParams.get('game');
+              
+              if (gameIdFromUrl) {
+                setGameId(gameIdFromUrl);
+                generateSessionId();
+                socket.emit('join-game', { 
+                  gameId: gameIdFromUrl, 
+                  playerName: data.user.username, 
+                  avatarId: data.user.avatar 
+                });
+              } else {
+                setShowRoomDialog(true);
+              }
+              
+              setIsInitializing(false);
+              return;
+            } else {
+              localStorage.removeItem('authToken');
+              localStorage.removeItem('userId');
+            }
+          } catch (error) {
+            console.error('Error restoring user:', error);
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userId');
           }
-        }
-        
-        // Get game ID from URL if present
-        const urlParams = new URLSearchParams(window.location.search);
-        const gameIdFromUrl = urlParams.get('game');
-        
-        if (gameIdFromUrl) {
-          setGameId(gameIdFromUrl);
-          // If there's a game ID in URL, skip room selection
-          setShowRoomDialog(false);
         }
         
         setIsInitializing(false);
@@ -69,7 +110,7 @@ function App() {
     return () => {
       socket.disconnect();
     };
-  }, [setGameId, hasActiveSession, restoreSession]);
+  }, [setGameId, hasActiveSession, restoreSession, setPlayerName, generateSessionId]);
 
   const [pendingAvatar, setPendingAvatar] = useState<string | null>(null);
 
@@ -119,6 +160,38 @@ function App() {
               {isInitializing ? 'Inizializzazione...' : 'Ripristino sessione...'}
             </p>
           </div>
+        </div>
+      </QueryClientProvider>
+    );
+  }
+
+  const handleAuthSuccess = (user: AuthUser) => {
+    setAuthenticatedUser(user);
+    setShowAuthDialog(false);
+    setPlayerName(user.username);
+    setPendingAvatar(user.avatar);
+    generateSessionId();
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const gameIdFromUrl = urlParams.get('game');
+    
+    if (gameIdFromUrl) {
+      setGameId(gameIdFromUrl);
+      socket.emit('join-game', { 
+        gameId: gameIdFromUrl, 
+        playerName: user.username, 
+        avatarId: user.avatar 
+      });
+    } else {
+      setShowRoomDialog(true);
+    }
+  };
+
+  if (showAuthDialog && !authenticatedUser) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <div className="min-h-screen bg-royal-blue flex items-center justify-center">
+          <AuthDialog open={showAuthDialog} onSuccess={handleAuthSuccess} />
         </div>
       </QueryClientProvider>
     );

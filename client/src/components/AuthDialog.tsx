@@ -30,8 +30,22 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onSuccess }) => {
   const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0].id);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleClientId, setGoogleClientId] = useState<string | null>(null);
 
   useEffect(() => {
+    fetch("/api/auth/config")
+      .then(res => res.json())
+      .then(data => {
+        if (data.googleClientId) {
+          setGoogleClientId(data.googleClientId);
+        }
+      })
+      .catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    if (!googleClientId || !open) return;
+
     const script = document.createElement("script");
     script.src = "https://accounts.google.com/gsi/client";
     script.async = true;
@@ -39,9 +53,9 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onSuccess }) => {
     document.body.appendChild(script);
 
     script.onload = () => {
-      if (window.google && process.env.GOOGLE_CLIENT_ID) {
+      if (window.google && googleClientId) {
         window.google.accounts.id.initialize({
-          client_id: process.env.GOOGLE_CLIENT_ID,
+          client_id: googleClientId,
           callback: handleGoogleResponse,
         });
         
@@ -58,9 +72,11 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onSuccess }) => {
     };
 
     return () => {
-      document.body.removeChild(script);
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
     };
-  }, [open]);
+  }, [googleClientId, open]);
 
   const handleGoogleResponse = async (response: { credential: string }) => {
     setLoading(true);
@@ -82,6 +98,7 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onSuccess }) => {
         throw new Error(data.error || "Errore durante l'autenticazione");
       }
 
+      localStorage.setItem("authToken", data.token);
       localStorage.setItem("userId", data.user.id.toString());
       localStorage.setItem("userEmail", data.user.email || "");
       localStorage.setItem("userAvatar", data.user.avatar || "dragon");
@@ -117,6 +134,7 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onSuccess }) => {
         throw new Error(data.error || "Errore durante l'autenticazione");
       }
 
+      localStorage.setItem("authToken", data.token);
       localStorage.setItem("userId", data.user.id.toString());
       localStorage.setItem("userEmail", data.user.email || "");
       localStorage.setItem("userAvatar", data.user.avatar || "dragon");
@@ -231,7 +249,7 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onSuccess }) => {
 
         <div id="google-btn" className="flex justify-center"></div>
         
-        {!process.env.GOOGLE_CLIENT_ID && (
+        {!googleClientId && (
           <p className="text-gray-500 text-xs text-center">
             Accesso Google non configurato
           </p>
