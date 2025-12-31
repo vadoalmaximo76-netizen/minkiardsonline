@@ -63,13 +63,20 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   };
 
   const isAtaccoDisonesto = selectedMosseCard && getCardName(selectedMosseCard.frontImage) === 'ATTACCO DISONESTO';
+  
+  // Auto-open hand target selection when ATTACCO DISONESTO is selected
+  useEffect(() => {
+    if (isAtaccoDisonesto && location === 'hand') {
+      setShowHandTargetSelect(true);
+    }
+  }, [selectedMosseCard, isAtaccoDisonesto, location]);
 
   const handleCardClick = () => {
     // If a MOSSE card is selected
     if (selectedMosseCard) {
       // Check if it's ATTACCO DISONESTO - must attack hand cards instead of field
       if (isAtaccoDisonesto) {
-        setShowHandTargetSelect(true);
+        // Modal should already be open via useEffect, don't need to do anything here
         return;
       }
 
@@ -94,7 +101,12 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
       setShowActions(!showActions);
       setSelectedMosseCard(null);
     } else if (location === 'hand') {
-      // For cards in hand, open the modal window
+      // For MOSSE cards, select them as the attack card instead of opening modal
+      if (card.type === 'mosse') {
+        setSelectedMosseCard(card);
+        return;
+      }
+      // For other cards in hand, open the modal window
       setSelectedCard(card);
       setSelectedMosseCard(null);
     }
