@@ -101,6 +101,7 @@ interface GameState {
   pendingDefense?: PendingDefense; // Current pending defense request (only one at a time)
   voodooLinks: VoodooLink[]; // BAMBOLA VOODOO: Track linked characters
   activeDuel?: DuelState; // Current active duel state
+  prSpentThisGame: Map<string, number>; // Track Rankiard points spent by each player during this game (resets each game)
 }
 
 export class GameManager {
@@ -150,7 +151,8 @@ export class GameManager {
       gameEnded: false,
       pointsAwarded: false,
       pendingTransferRequests: [],
-      voodooLinks: []
+      voodooLinks: [],
+      prSpentThisGame: new Map<string, number>()
     };
 
     // Auto-shuffle all decks when starting a new game
@@ -1730,6 +1732,76 @@ Rispondi SOLO in JSON:`;
     } catch (error) {
       console.error('Error duplicating card:', error);
       return { success: false, message: 'Error during duplication' };
+    }
+  }
+
+  // Get player's available Rankiard points for this game (total - spent)
+  getAvailableRankiardPoints(gameId: string, playerName: string): number {
+    const game = this.games.get(gameId);
+    if (!game) return 0;
+    
+    const userId = game.playerUserIds.get(playerName);
+    if (!userId) return 0;
+    
+    // Get total points from database (we'll need to query this)
+    // For now, return 0 - the actual value will be passed from client
+    const spent = game.prSpentThisGame.get(playerName) || 0;
+    return -spent; // Return negative of spent, actual total comes from client
+  }
+
+  // Get how many PR points a player has spent this game
+  getPRSpentThisGame(gameId: string, playerName: string): number {
+    const game = this.games.get(gameId);
+    if (!game) return 0;
+    return game.prSpentThisGame.get(playerName) || 0;
+  }
+
+  // Add PR (Rankiard Points) to a character - subtracts from player's available points for this game
+  addPRToCard(gameId: string, cardId: string, prAmount: number, playerName: string, userTotalPoints: number): { success: boolean, message?: string, newPTI?: number, prSpent?: number } {
+    try {
+      const game = this.games.get(gameId);
+      if (!game) return { success: false, message: 'Game not found' };
+
+      // Calculate available points (total - already spent this game)
+      const alreadySpent = game.prSpentThisGame.get(playerName) || 0;
+      const availablePoints = userTotalPoints - alreadySpent;
+
+      // Check if player has enough points
+      if (prAmount > availablePoints) {
+        return { success: false, message: `Non hai abbastanza punti Rankiard! Disponibili: ${availablePoints}` };
+      }
+
+      // Find the card in the field
+      const card = game.field.find(c => c.id === cardId);
+      if (!card) {
+        return { success: false, message: 'Card not found in field' };
+      }
+
+      // Only PERSONAGGI and PERSONAGGI_SPECIALI cards can have PTI added
+      if (card.type !== 'personaggi' && card.type !== 'personaggi_speciali') {
+        return { success: false, message: 'Solo i PERSONAGGI possono ricevere PTI' };
+      }
+
+      // Extract current PTI from card notes
+      const currentPTI = this.extractPTIFromNote(card.text || '');
+      const currentStars = this.extractStarsFromNote(card.text || '');
+      
+      // Calculate new PTI (PR points become PTI)
+      const newPTI = currentPTI + prAmount;
+      
+      // Update card notes with new PTI value
+      card.text = `PTI: ${newPTI} | Stelle: ${currentStars}`;
+      
+      // Track the PR spent for this game
+      game.prSpentThisGame.set(playerName, alreadySpent + prAmount);
+      
+      console.log(`PR converted to PTI for card ${cardId}: ${prAmount} PR -> +${prAmount} PTI (total: ${newPTI}). Player ${playerName} spent: ${alreadySpent + prAmount}`);
+      
+      return { success: true, newPTI, prSpent: alreadySpent + prAmount };
+
+    } catch (error) {
+      console.error('Error adding PR to card:', error);
+      return { success: false, message: 'Error adding PR' };
     }
   }
 

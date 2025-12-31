@@ -17,7 +17,12 @@ export const CardModal: React.FC = () => {
   const [ptiToAdd, setPtiToAdd] = useState('');
   const [showAddPRPanel, setShowAddPRPanel] = useState(false);
   const [prToAdd, setPrToAdd] = useState('');
+  const [prSpentThisGame, setPrSpentThisGame] = useState(0);
   const { selectedCard, setSelectedCard, playerName, gameState, setSelectedMosseCard } = useGameState();
+  
+  // Get total Rankiard points from localStorage
+  const totalRankiardPoints = parseInt(localStorage.getItem('rankiard-points') || '0') || 0;
+  const availableRankiardPoints = totalRankiardPoints - prSpentThisGame;
 
   if (!selectedCard) return null;
 
@@ -273,9 +278,28 @@ export const CardModal: React.FC = () => {
     setPtiToAdd('');
   };
 
-  // Handler for adding PR (Rankiard Points) - placeholder for now
+  // Handler for adding PR (Rankiard Points) to convert to PTI
   const handleAddPR = () => {
     setShowAddPRPanel(true);
+  };
+
+  const handleConfirmAddPR = () => {
+    const prValue = parseInt(prToAdd);
+    if (!isNaN(prValue) && prValue > 0 && selectedCard && prValue <= availableRankiardPoints) {
+      socket.emit('add-pr', {
+        cardId: selectedCard.id,
+        prAmount: prValue,
+        playerName: effectivePlayerName,
+        userTotalPoints: totalRankiardPoints
+      });
+      
+      // Update local state for PR spent
+      setPrSpentThisGame(prev => prev + prValue);
+      
+      setShowAddPRPanel(false);
+      setPrToAdd('');
+      setSelectedCard(null);
+    }
   };
 
   const handleCancelAddPR = () => {
@@ -966,7 +990,7 @@ export const CardModal: React.FC = () => {
         </div>
       )}
 
-      {/* Add PR Panel - Placeholder for now */}
+      {/* Add PR Panel - Orange Panel for Rankiard Points */}
       {showAddPRPanel && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[80] p-4">
           <div className="bg-amber-600 rounded-lg p-6 max-w-md w-full shadow-xl border-4 border-amber-400">
@@ -981,21 +1005,57 @@ export const CardModal: React.FC = () => {
               </Button>
             </div>
 
-            <div className="text-center mb-6">
+            <div className="text-center mb-4">
+              <div className="bg-amber-700 rounded-lg p-3 mb-4">
+                <p className="text-amber-200 text-sm">I tuoi Punti Rankiard:</p>
+                <p className="text-white text-2xl font-bold">{totalRankiardPoints}</p>
+                <p className="text-amber-200 text-sm mt-1">
+                  Disponibili questa partita: <span className="text-white font-bold">{availableRankiardPoints}</span>
+                </p>
+                {prSpentThisGame > 0 && (
+                  <p className="text-amber-300 text-xs mt-1">
+                    (Già spesi: {prSpentThisGame})
+                  </p>
+                )}
+              </div>
               <p className="text-white text-lg mb-2">
-                Funzione PR in arrivo...
+                Quanti Punti Rankiard vuoi convertire in PTI?
               </p>
               <p className="text-amber-200 text-sm">
-                Attendi istruzioni per questa funzione.
+                I punti si sottraggono solo per questa partita.
               </p>
             </div>
 
-            <div className="flex justify-center">
+            <div className="mb-6">
+              <input
+                type="number"
+                value={prToAdd}
+                onChange={(e) => setPrToAdd(e.target.value)}
+                placeholder="Inserisci PR..."
+                min="1"
+                max={availableRankiardPoints}
+                className="w-full px-4 py-3 text-2xl text-center font-bold rounded-lg bg-white text-amber-800 border-4 border-amber-300 focus:outline-none focus:border-amber-100"
+              />
+              {parseInt(prToAdd) > availableRankiardPoints && (
+                <p className="text-red-300 text-sm mt-2 text-center">
+                  Non hai abbastanza punti disponibili!
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-4">
               <Button
                 onClick={handleCancelAddPR}
-                className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-8"
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3"
               >
-                CHIUDI
+                ANNULLA
+              </Button>
+              <Button
+                onClick={handleConfirmAddPR}
+                disabled={!prToAdd || parseInt(prToAdd) <= 0 || parseInt(prToAdd) > availableRankiardPoints}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 disabled:opacity-50"
+              >
+                ✓ CONFERMA
               </Button>
             </div>
           </div>

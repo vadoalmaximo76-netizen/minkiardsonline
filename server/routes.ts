@@ -1487,6 +1487,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // Add PR (Rankiard Points) to a character - subtracts from player's points for this game only
+    socket.on('add-pr', ({ cardId, prAmount, playerName, userTotalPoints }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        console.log(`Add PR request: ${playerName} wants to convert ${prAmount} PR to PTI for card ${cardId}`);
+        
+        const result = gameManager.addPRToCard(gameId, cardId, prAmount, playerName, userTotalPoints);
+        
+        if (result.success) {
+          // Update game state for all players
+          const gameState = gameManager.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', gameState);
+          
+          // Notify all players about the PR conversion
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-pr-add`,
+            playerName: 'Sistema',
+            message: `${playerName} ha convertito ${prAmount} Punti Rankiard in PTI! (Totale PTI: ${result.newPTI})`,
+            timestamp: Date.now()
+          });
+          
+          // Send PR spent update to the player
+          socket.emit('pr-spent-update', {
+            prSpent: result.prSpent,
+            timestamp: Date.now()
+          });
+          
+          console.log(`PR successfully converted by ${playerName}: ${prAmount} PR -> PTI (total spent: ${result.prSpent})`);
+        } else {
+          socket.emit('pr-error', {
+            message: result.message || 'Errore durante la conversione dei PR',
+            timestamp: Date.now()
+          });
+          
+          console.log(`Add PR failed: ${result.message}`);
+        }
+      }
+    });
+
     // BAMBOLA VOODOO: Activate voodoo link between two characters
     socket.on('voodoo:activate', ({ bonusCardId, card1Id, card2Id, activatedBy, gameId: clientGameId }) => {
       const gameId = gameManager.getPlayerGameId(socket.id) || clientGameId;
