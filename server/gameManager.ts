@@ -844,7 +844,7 @@ Rispondi SOLO in JSON:`;
     }
   }
 
-  private async completeMatch(gameId: string, winnerPlayer?: string): Promise<void> {
+  async completeMatch(gameId: string, winnerPlayer?: string): Promise<void> {
     try {
       const game = this.games.get(gameId);
       if (!game || !game.matchId) return;

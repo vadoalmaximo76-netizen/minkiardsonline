@@ -1011,6 +1011,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (winner) {
                 console.log(`Game won by: ${winner}`);
                 io.to(gameId).emit('game-victory', { winner });
+                // Award Rankiard points
+                gameManager.completeMatch(gameId, winner);
               }
             }
           }
@@ -1963,6 +1965,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (winner) {
                 console.log(`Game won by: ${winner}`);
                 io.to(gameId).emit('game-victory', { winner });
+                // Award Rankiard points
+                gameManager.completeMatch(gameId, winner);
               }
             }
           }
@@ -2257,6 +2261,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (winner) {
             console.log(`Game victory detected! Winner: ${winner}`);
             io.to(gameId).emit('game-victory', { winner });
+            // Award Rankiard points
+            gameManager.completeMatch(gameId, winner);
           }
         }
       }
@@ -2562,6 +2568,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (winner) {
                 console.log(`Game won by: ${winner}`);
                 io.to(gameId).emit('game-victory', { winner });
+                // Award Rankiard points
+                gameManager.completeMatch(gameId, winner);
               }
             }
           }
@@ -2812,6 +2820,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           if (winner) {
                             console.log(`Game won by: ${winner}`);
                             io.to(gameId).emit('game-victory', { winner });
+                            // Award Rankiard points
+                            gameManager.completeMatch(gameId, winner);
                           }
                         }
                       }
@@ -2956,6 +2966,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const winner = gameManager.checkForGameVictory(gameId);
           if (winner) {
             io.to(gameId).emit('game-victory', { winner });
+            // Award Rankiard points
+            gameManager.completeMatch(gameId, winner);
           }
           
           // Update game state
