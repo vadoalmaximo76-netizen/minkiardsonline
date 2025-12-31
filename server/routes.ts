@@ -625,6 +625,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on('set-avatar', ({ playerName, avatarId }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        const success = gameManager.setPlayerAvatar(gameId, playerName, avatarId);
+        if (success) {
+          const gameState = gameManager.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', gameState);
+          io.to(gameId).emit('avatar-changed', { playerName, avatarId });
+        }
+      }
+    });
+
     socket.on('pick-card', async ({ deckType, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {

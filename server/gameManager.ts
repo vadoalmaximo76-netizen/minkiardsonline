@@ -31,6 +31,7 @@ interface Player {
   usedCardsThisTurn?: string[]; // Track card images used this turn to prevent reuse
   disconnectedAt?: Date; // When player disconnected (null if connected)
   eliminationCount?: number; // Track how many opponent personaggi cards this player has eliminated (for SOROS activation)
+  avatar?: string; // Player's chosen avatar ID
 }
 
 interface TransferRequest {
@@ -905,6 +906,15 @@ Rispondi SOLO in JSON:`;
     return this.games.get(gameId) || null;
   }
 
+  setPlayerAvatar(gameId: string, playerName: string, avatarId: string): boolean {
+    const game = this.games.get(gameId);
+    if (!game || !game.players[playerName]) return false;
+    
+    game.players[playerName].avatar = avatarId;
+    console.log(`Player ${playerName} set avatar to ${avatarId}`);
+    return true;
+  }
+
   // Get sanitized game state for Socket.IO transmission (removes circular references)
   getSanitizedGameState(gameId: string): any {
     const gameState = this.games.get(gameId);
@@ -934,7 +944,8 @@ Rispondi SOLO in JSON:`;
         name: player.name,
         hand: player.hand,
         socketId: player.socketId,
-        isCPU: player.isCPU
+        isCPU: player.isCPU,
+        avatar: player.avatar
         // Note: cpuInstance is intentionally omitted to prevent circular references
       };
     }

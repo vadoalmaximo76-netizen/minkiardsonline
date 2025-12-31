@@ -20,6 +20,7 @@ interface Card {
 interface Player {
   name: string;
   hand: Card[];
+  avatar?: string; // Player's chosen avatar ID
 }
 
 interface PendingDefense {
