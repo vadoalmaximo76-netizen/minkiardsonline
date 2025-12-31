@@ -1880,7 +1880,7 @@ Rispondi SOLO in JSON:`;
     }
   }
 
-  moveToGraveyard(gameId: string, cardId: string, playerName: string): { success: boolean, graveyardCount?: number, cardImage?: string, eliminationCheck?: boolean } {
+  moveToGraveyard(gameId: string, cardId: string, playerName: string): { success: boolean, graveyardCount?: number, cardImage?: string, eliminationCheck?: boolean, sorosActivated?: boolean, sorosImage?: string, sorosActivator?: string } {
     const game = this.games.get(gameId);
     if (!game) return { success: false };
 
@@ -1937,6 +1937,9 @@ Rispondi SOLO in JSON:`;
                     soros.owner = killer;
                     game.field.push(soros);
                     console.log(`🎭 SOROS automatically played on field for ${killer}!`);
+                    
+                    // Return flag indicating SOROS was activated (routes.ts will emit to all players)
+                    return { success: true, graveyardCount, cardImage: card.frontImage, eliminationCheck: false, sorosActivated: true, sorosImage: soros.frontImage, sorosActivator: killer };
                   }
                 }
               }
@@ -1953,7 +1956,7 @@ Rispondi SOLO in JSON:`;
           }
         }
 
-        return { success: true, graveyardCount, cardImage: card.frontImage, eliminationCheck };
+        return { success: true, graveyardCount, cardImage: card.frontImage, eliminationCheck, sorosActivated: false };
       }
     }
     

@@ -974,6 +974,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
 
+          // Check for SOROS activation
+          if (result.sorosActivated) {
+            io.to(gameId).emit('soros-activated', {
+              activator: result.sorosActivator,
+              cardImage: result.sorosImage,
+              timestamp: Date.now()
+            });
+          }
+
           // Check for milestone achievements
           if (result.graveyardCount === 3 || result.graveyardCount === 5) {
             const titles = [

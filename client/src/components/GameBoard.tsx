@@ -26,6 +26,7 @@ import { HandModal } from "./HandModal";
 import { MusicPlayer } from "./MusicPlayer";
 import { VoiceChat } from "./VoiceChat";
 import { PickedCardModal } from "./PickedCardModal";
+import { SorosActivation } from "./SorosActivation";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
@@ -95,6 +96,8 @@ export const GameBoard: React.FC = () => {
   const [handModalOpen, setHandModalOpen] = useState(false);
   const [cardAnimationVisible, setCardAnimationVisible] = useState(false);
   const [cardAnimationName, setCardAnimationName] = useState<string>("");
+  const [sorosActivationVisible, setSorosActivationVisible] = useState(false);
+  const [sorosData, setSorosData] = useState<{ activator: string; cardImage: string } | null>(null);
   const { selectedCard, gameId, playerName, gameState, setGameId } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted } = useAudio();
 
@@ -372,6 +375,19 @@ export const GameBoard: React.FC = () => {
       // The dice will remain visible until closed
     };
 
+    const handleSorosActivation = ({ activator, cardImage }: { activator: string; cardImage: string }) => {
+      setSorosData({ activator, cardImage });
+      setSorosActivationVisible(true);
+      
+      // Pause music during SOROS cinematic
+      if (musicPlayerOpen) {
+        const musicToggleBtn = document.querySelector('[data-music-control="play"]');
+        if (musicToggleBtn) {
+          (musicToggleBtn as HTMLButtonElement).click();
+        }
+      }
+    };
+
     socket.on('game-reset', handleGameReset);
     socket.on('card-shown', handleCardShown);
     socket.on('card-show-confirmed', handleCardShowConfirmed);
@@ -395,6 +411,7 @@ export const GameBoard: React.FC = () => {
     socket.on('player-left', handlePlayerLeft);
     socket.on('super-dice-opened', handleOpenSuperDice);
     socket.on('super-dice-rolled', handleSuperDiceRolled);
+    socket.on('soros-activated', handleSorosActivation);
 
     const handleInstructionExecuted = ({ playerName: instructorName, instruction, result, timestamp }: { 
       playerName: string, instruction: string, result: string, timestamp: number 
@@ -1235,6 +1252,27 @@ export const GameBoard: React.FC = () => {
         
         {/* Picked Card Modal - shown when player picks a card */}
         <PickedCardModal />
+        
+        {/* SOROS Activation Cinematic Effect */}
+        {sorosActivationVisible && sorosData && (
+          <SorosActivation
+            activator={sorosData.activator}
+            cardImage={sorosData.cardImage}
+            onComplete={() => {
+              setSorosActivationVisible(false);
+              setSorosData(null);
+              // Restart music after cinematic
+              if (musicPlayerOpen) {
+                setTimeout(() => {
+                  const musicToggleBtn = document.querySelector('[data-music-control="play"]');
+                  if (musicToggleBtn) {
+                    (musicToggleBtn as HTMLButtonElement).click();
+                  }
+                }, 500);
+              }
+            }}
+          />
+        )}
       </div>
     </div>
   );
