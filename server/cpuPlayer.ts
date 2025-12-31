@@ -1308,9 +1308,13 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
   // NEW CPU TURN LOGIC: State machine for pesca → gioca → esegui azione → fine turno
   async takeTurn(gameState: any) {
     try {
-      // CRITICAL: Ensure turn state is fresh if phase is corrupted
+      // CRITICAL FIX: Check if we're stuck in waiting state from previous turn
+      // If phase is NOT draw_needed AND nothing happened this turn, force reset
       if (this.turnState.phase !== 'draw_needed' && !this.turnState.drawnThisTurn && !this.turnState.playedThisTurn) {
-        console.log(`🔧 CPU ${this.playerName}: Corrupted turn state detected (phase=${this.turnState.phase}) - RESETTING`);
+        console.log(`🔧 CPU ${this.playerName}: Turn state corrupted (phase=${this.turnState.phase}) - HARD RESET`);
+        // HARD RESET - clear everything including attack flag
+        this.waitingForAttackResolution = false;
+        this.waitingForResponse = false;
         this.resetTurnState();
       }
       
