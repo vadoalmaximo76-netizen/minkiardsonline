@@ -1412,11 +1412,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If no defense required, process damage immediately
       await gameManager.processMosseDamage(gameId, cpuName, targetCardId, damageValue, mosseCardId, io);
       
-      // NEW: Notify CPU that attack is resolved - CPU can now end turn
+      // NEW: Notify CPU that attack is resolved and immediately continue their turn
       const game = gameManager.getGameState(gameId);
       if (game && game.players[cpuName]?.cpuInstance) {
-        game.players[cpuName].cpuInstance.resolveAttack();
-        console.log(`🎯 CPU ${cpuName}: Notified that attack is resolved - can continue turn`);
+        const cpuInstance = game.players[cpuName].cpuInstance;
+        cpuInstance.resolveAttack();
+        console.log(`🎯 CPU ${cpuName}: Notified that attack is resolved - continuing turn...`);
+        
+        // CRITICAL: Immediately continue CPU turn after attack resolution
+        setTimeout(async () => {
+          try {
+            const updatedState = gameManager.getSanitizedGameState(gameId);
+            const nextAction = await cpuInstance.takeTurn(updatedState);
+            
+            if (nextAction) {
+              console.log(`🎯 CPU ${cpuName}: Continuing turn with action:`, nextAction.type);
+              await gameManager.processCPUTurn(gameId, cpuName, io);
+            }
+          } catch (error) {
+            console.error(`Error continuing CPU ${cpuName} turn:`, error);
+          }
+        }, 100); // Small delay to ensure state is updated
       }
       
       console.log(`🎯 CPU ${cpuName} attack completed successfully`);
@@ -1902,6 +1918,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // If no defense required, process damage immediately
         await gameManager.processMosseDamage(gameId, attackerName, targetCardId, damageValue, mosseCardId, io);
+        
+        // NEW: If CPU attacked without defense, continue their turn
+        const gameStateAfterAttack = gameManager.getGameState(gameId);
+        if (gameStateAfterAttack && gameStateAfterAttack.players[attackerName]?.cpuInstance) {
+          const cpuInstance = gameStateAfterAttack.players[attackerName].cpuInstance;
+          cpuInstance.resolveAttack();
+          console.log(`🎯 CPU ${attackerName}: Attack resolved - continuing turn...`);
+          
+          // CRITICAL: Immediately continue CPU turn after attack resolution
+          setTimeout(async () => {
+            try {
+              const updatedState = gameManager.getSanitizedGameState(gameId);
+              const nextAction = await cpuInstance.takeTurn(updatedState);
+              
+              if (nextAction) {
+                console.log(`🎯 CPU ${attackerName}: Continuing turn with action:`, nextAction.type);
+                await gameManager.processCPUTurn(gameId, attackerName, io);
+              }
+            } catch (error) {
+              console.error(`Error continuing CPU ${attackerName} turn:`, error);
+            }
+          }, 100);
+        }
       }
     });
 
