@@ -5,7 +5,7 @@ import { AVATARS } from "../lib/avatars";
 
 interface AuthDialogProps {
   open: boolean;
-  onSuccess: (user: { id: number; username: string; email: string | null; avatar: string | null }) => void;
+  onSuccess: (user: { id: number; username: string; email: string | null; avatar: string | null; isGuest?: boolean }) => void;
 }
 
 declare global {
@@ -23,10 +23,11 @@ declare global {
 }
 
 export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onSuccess }) => {
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register" | "guest">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
+  const [guestName, setGuestName] = useState("");
   const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0].id);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -147,15 +148,100 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onSuccess }) => {
     }
   };
 
+  const handleGuestEntry = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    
+    if (!guestName.trim()) {
+      setError("Inserisci un nome per continuare");
+      return;
+    }
+    
+    if (guestName.trim().length < 2) {
+      setError("Il nome deve avere almeno 2 caratteri");
+      return;
+    }
+
+    // Create guest user (no auth token, no real ID)
+    const guestUser = {
+      id: -1, // Negative ID indicates guest
+      username: guestName.trim(),
+      email: null,
+      avatar: null,
+      isGuest: true,
+      puntiRankiard: 0
+    };
+
+    // Don't save auth token for guests
+    localStorage.removeItem("authToken");
+    localStorage.setItem("isGuest", "true");
+    localStorage.setItem("guestName", guestName.trim());
+    
+    onSuccess(guestUser);
+  };
+
   return (
     <Dialog open={open}>
       <DialogContent className="sm:max-w-md bg-gray-800 border-gray-600 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-white text-center text-2xl">
-            {mode === "login" ? "Accedi a MINKIARDS" : "Registrati a MINKIARDS"}
+            {mode === "login" ? "Accedi a MINKIARDS" : mode === "register" ? "Registrati a MINKIARDS" : "Entra come Ospite"}
           </DialogTitle>
         </DialogHeader>
 
+        {/* Guest mode form */}
+        {mode === "guest" ? (
+          <form onSubmit={handleGuestEntry} className="space-y-4">
+            <div>
+              <label className="text-white block mb-2">Il tuo nome:</label>
+              <input
+                type="text"
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-700 text-white rounded border-0 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                placeholder="Inserisci il tuo nome"
+                maxLength={20}
+                autoFocus
+              />
+            </div>
+
+            <div className="bg-orange-900/30 p-3 rounded text-orange-300 text-sm">
+              <p className="font-bold mb-1">Nota:</p>
+              <p>Entrando senza registrazione non avrai accesso a:</p>
+              <ul className="list-disc list-inside mt-1">
+                <li>Avatar personalizzato</li>
+                <li>Punti Rankiard</li>
+              </ul>
+            </div>
+
+            {error && (
+              <div className="text-red-400 text-sm text-center bg-red-900/30 p-2 rounded">
+                {error}
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3"
+            >
+              ENTRA COME OSPITE
+            </Button>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("login");
+                  setError("");
+                }}
+                className="text-purple-400 hover:text-purple-300 text-sm underline"
+              >
+                Torna al login
+              </button>
+            </div>
+          </form>
+        ) : (
+        <>
         <form onSubmit={handleEmailAuth} className="space-y-4">
           {mode === "register" && (
             <div>
@@ -247,13 +333,16 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onSuccess }) => {
           </div>
         </div>
 
-        <div id="google-btn" className="flex justify-center"></div>
-        
-        {!googleClientId && (
-          <p className="text-gray-500 text-xs text-center">
-            Accesso Google non configurato
-          </p>
-        )}
+        <Button
+          type="button"
+          onClick={() => {
+            setMode("guest");
+            setError("");
+          }}
+          className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3"
+        >
+          ENTRA SENZA REGISTRAZIONE
+        </Button>
 
         <div className="text-center mt-4">
           <button
@@ -269,6 +358,8 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onSuccess }) => {
               : "Hai già un account? Accedi"}
           </button>
         </div>
+        </>
+        )}
       </DialogContent>
     </Dialog>
   );
