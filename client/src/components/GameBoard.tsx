@@ -1017,7 +1017,7 @@ export const GameBoard: React.FC = () => {
         <div className="mt-8 md:mt-16 mb-4 md:mb-8 flex flex-col sm:flex-row justify-center gap-2 md:gap-4 px-4">
           <Button
             onClick={() => setAddCardsModalOpen(true)}
-            className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold rounded-lg px-4 md:px-6 py-2 md:py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 md:gap-3"
+            className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold rounded-xl px-4 md:px-6 py-2 md:py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 md:gap-3"
           >
             <Plus size={16} className="md:w-6 md:h-6" />
             <span className="text-sm md:text-base">AGGIUNGI CARTE</span>
@@ -1029,7 +1029,7 @@ export const GameBoard: React.FC = () => {
                 active: !scenarioCardsActive 
               });
             }}
-            className={`${scenarioCardsActive ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-600 hover:bg-gray-700'} text-white font-bold rounded-lg px-4 md:px-6 py-2 md:py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 md:gap-3`}
+            className={`${scenarioCardsActive ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-600 hover:bg-gray-700'} text-white font-bold rounded-xl px-4 md:px-6 py-2 md:py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 md:gap-3`}
           >
             <span className="text-sm md:text-base text-black bg-white px-2 py-1 rounded">
               SCENARI {scenarioCardsActive ? 'ON' : 'OFF'}
@@ -1037,14 +1037,14 @@ export const GameBoard: React.FC = () => {
           </Button>
           <Button
             onClick={handleLeaveGame}
-            className="bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg px-4 md:px-6 py-2 md:py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 md:gap-3"
+            className="bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl px-4 md:px-6 py-2 md:py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 md:gap-3"
           >
             <X size={16} className="md:w-6 md:h-6" />
             <span className="text-sm md:text-base">LASCIA LA PARTITA</span>
           </Button>
           <Button
             onClick={() => setRemovePlayerDialogOpen(true)}
-            className="bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-lg px-4 md:px-6 py-2 md:py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 md:gap-3"
+            className="bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl px-4 md:px-6 py-2 md:py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 md:gap-3"
           >
             <Skull size={16} className="md:w-6 md:h-6" />
             <span className="text-sm md:text-base">ELIMINA CONCORRENTE</span>

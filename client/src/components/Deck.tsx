@@ -135,7 +135,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
         <img
           src={backImage}
           alt={`${name} back`}
-          className={`w-24 h-32 rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg ${isShuffling ? 'animate-shuffle' : ''}`}
+          className={`w-24 h-32 rounded-xl cursor-pointer hover:scale-105 transition-transform shadow-lg ${isShuffling ? 'animate-shuffle' : ''}`}
           onClick={handlePickCard}
         />
         
@@ -245,7 +245,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
                     <img
                       src={card.frontImage}
                       alt="Card"
-                      className="w-full aspect-[3/4] object-cover rounded-lg border-2 border-gray-500 hover:border-white transition-all shadow-xl"
+                      className="w-full aspect-[3/4] object-cover rounded-xl border-2 border-gray-500 hover:border-white transition-all shadow-xl"
                       onClick={() => handleCardClick(card)}
                     />
                     <span className="text-white text-xs sm:text-sm lg:text-base mt-2 text-center w-full px-1 leading-tight font-medium">
@@ -286,21 +286,21 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
             <div className="flex flex-col gap-2">
               <Button
                 onClick={() => handleCardSelect(selectedCardForZoom.id)}
-                className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 sm:py-3 lg:py-4 text-xs sm:text-sm lg:text-base rounded-lg w-full"
+                className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 sm:py-3 lg:py-4 text-xs sm:text-sm lg:text-base rounded-xl w-full"
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 PESCA QUESTA CARTA
               </Button>
               <Button
                 onClick={() => handleRemoveCard(selectedCardForZoom.id)}
-                className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 sm:py-3 lg:py-4 text-xs sm:text-sm lg:text-base rounded-lg w-full"
+                className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 sm:py-3 lg:py-4 text-xs sm:text-sm lg:text-base rounded-xl w-full"
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 ELIMINA CARTA
               </Button>
               <Button
                 onClick={handleCloseZoom}
-                className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 sm:py-3 lg:py-4 text-xs sm:text-sm lg:text-base rounded-lg w-full"
+                className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 sm:py-3 lg:py-4 text-xs sm:text-sm lg:text-base rounded-xl w-full"
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 Chiudi

@@ -290,7 +290,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         <img
           src={showBack || card.faceDown ? card.backImage : card.frontImage}
           alt="Card"
-          className={`w-20 h-28 rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg object-contain
+          className={`w-20 h-28 rounded-xl cursor-pointer hover:scale-105 transition-transform shadow-lg object-contain
             ${shouldAnimateScaleDissolvenza ? 'card-scale-dissolve' : shouldAnimate ? 'card-appear' : ''} 
             ${isEliminated && isPersonaggio ? 'card-disperse' : ''} 
             ${isShaking && !isEliminated ? 'animate-shake' : ''} 
@@ -307,7 +307,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         
         {/* Red X elimination animation */}
         {isEliminated && !isPersonaggio && (
-          <div className="absolute inset-0 flex items-center justify-center bg-red-600/50 rounded-lg animate-pulse">
+          <div className="absolute inset-0 flex items-center justify-center bg-red-600/50 rounded-xl animate-pulse">
             <X size={32} className="text-white animate-ping" />
           </div>
         )}
@@ -574,7 +574,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
                       <img 
                         src={gameState.field.find((c: any) => c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'))?.frontImage}
                         alt="Attaccante"
-                        className="w-24 h-32 rounded-lg border-2 border-green-500 object-cover shadow-lg"
+                        className="w-24 h-32 rounded-xl border-2 border-green-500 object-cover shadow-lg"
                         onError={(e) => (e.currentTarget.style.display = 'none')}
                       />
                       <p className="text-gray-300 text-xs text-center mt-2 max-w-24">
@@ -582,7 +582,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
                       </p>
                     </>
                   ) : (
-                    <div className="w-24 h-32 rounded-lg border-2 border-green-500 bg-gray-700 flex items-center justify-center">
+                    <div className="w-24 h-32 rounded-xl border-2 border-green-500 bg-gray-700 flex items-center justify-center">
                       <p className="text-gray-400 text-xs">{playerName}</p>
                     </div>
                   )}
@@ -598,13 +598,13 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
                   <img 
                     src={selectedMosseCard.frontImage}
                     alt="MOSSE"
-                    className="w-28 h-36 rounded-lg border-4 border-yellow-500 object-cover shadow-lg"
+                    className="w-28 h-36 rounded-xl border-4 border-yellow-500 object-cover shadow-lg"
                     onError={(e) => (e.currentTarget.style.display = 'none')}
                   />
                   <p className="text-yellow-400 font-bold text-xs text-center mt-2">MOSSA</p>
                 </>
               ) : (
-                <div className="w-28 h-36 rounded-lg border-4 border-yellow-500 bg-gray-700 flex items-center justify-center">
+                <div className="w-28 h-36 rounded-xl border-4 border-yellow-500 bg-gray-700 flex items-center justify-center">
                   <p className="text-gray-400 text-xs">MOSSE</p>
                 </div>
               )}
@@ -619,7 +619,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
                 <>
                   {isHandTarget ? (
                     // Show hand card as face-down for ATTACCO DISONESTO
-                    <div className="w-24 h-32 rounded-lg border-2 border-red-500 bg-gradient-to-br from-red-900 to-red-700 flex items-center justify-center">
+                    <div className="w-24 h-32 rounded-xl border-2 border-red-500 bg-gradient-to-br from-red-900 to-red-700 flex items-center justify-center">
                       <div className="text-center">
                         <p className="text-white font-bold text-2xl">🎴</p>
                         <p className="text-yellow-400 text-xs mt-1 font-bold">COPERTA</p>
@@ -631,7 +631,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
                       <img 
                         src={targetCard.frontImage}
                         alt="Difensore"
-                        className="w-24 h-32 rounded-lg border-2 border-red-500 object-cover shadow-lg"
+                        className="w-24 h-32 rounded-xl border-2 border-red-500 object-cover shadow-lg"
                         onError={(e) => (e.currentTarget.style.display = 'none')}
                       />
                       <p className="text-gray-300 text-xs text-center mt-2 max-w-24">
@@ -641,7 +641,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
                   )}
                 </>
               ) : (
-                <div className="w-24 h-32 rounded-lg border-2 border-red-500 bg-gray-700 flex items-center justify-center">
+                <div className="w-24 h-32 rounded-xl border-2 border-red-500 bg-gray-700 flex items-center justify-center">
                   <p className="text-gray-400 text-xs">?</p>
                 </div>
               )}
