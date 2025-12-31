@@ -1733,6 +1733,43 @@ Rispondi SOLO in JSON:`;
     }
   }
 
+  // Add PTI to a character card
+  addPTIToCard(gameId: string, cardId: string, ptiAmount: number, playerName: string): { success: boolean, message?: string, newPTI?: number } {
+    try {
+      const game = this.games.get(gameId);
+      if (!game) return { success: false, message: 'Game not found' };
+
+      // Find the card in the field
+      const card = game.field.find(c => c.id === cardId);
+      if (!card) {
+        return { success: false, message: 'Card not found in field' };
+      }
+
+      // Only PERSONAGGI and PERSONAGGI_SPECIALI cards can have PTI added
+      if (card.type !== 'personaggi' && card.type !== 'personaggi_speciali') {
+        return { success: false, message: 'Solo i PERSONAGGI possono ricevere PTI' };
+      }
+
+      // Extract current PTI from card notes
+      const currentPTI = this.extractPTIFromNote(card.text || '');
+      const currentStars = this.extractStarsFromNote(card.text || '');
+      
+      // Calculate new PTI
+      const newPTI = currentPTI + ptiAmount;
+      
+      // Update card notes with new PTI value
+      card.text = `PTI: ${newPTI} | Stelle: ${currentStars}`;
+      
+      console.log(`PTI added to card ${cardId}: ${currentPTI} + ${ptiAmount} = ${newPTI}`);
+      
+      return { success: true, newPTI };
+
+    } catch (error) {
+      console.error('Error adding PTI to card:', error);
+      return { success: false, message: 'Error adding PTI' };
+    }
+  }
+
   // Helper method to merge card notes (sum PTI and stars)
   private mergeCardNotes(note1: string, note2: string): string {
     const pti1 = this.extractPTIFromNote(note1);

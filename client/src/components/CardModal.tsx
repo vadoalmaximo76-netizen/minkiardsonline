@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
-import { X, Sword } from "lucide-react";
+import { X, Sword, Plus } from "lucide-react";
 
 export const CardModal: React.FC = () => {
   const [showPlayerSelect, setShowPlayerSelect] = useState(false);
@@ -13,6 +13,10 @@ export const CardModal: React.FC = () => {
   const [voodooCard1, setVoodooCard1] = useState<string | null>(null);
   const [voodooCard2, setVoodooCard2] = useState<string | null>(null);
   const [showDuelSelect, setShowDuelSelect] = useState(false);
+  const [showAddPTIPanel, setShowAddPTIPanel] = useState(false);
+  const [ptiToAdd, setPtiToAdd] = useState('');
+  const [showAddPRPanel, setShowAddPRPanel] = useState(false);
+  const [prToAdd, setPrToAdd] = useState('');
   const { selectedCard, setSelectedCard, playerName, gameState, setSelectedMosseCard } = useGameState();
 
   if (!selectedCard) return null;
@@ -243,6 +247,40 @@ export const CardModal: React.FC = () => {
       });
       setSelectedCard(null);
     }
+  };
+
+  // Handler for adding PTI to a character
+  const handleAddPTI = () => {
+    setShowAddPTIPanel(true);
+  };
+
+  const handleConfirmAddPTI = () => {
+    const ptiValue = parseInt(ptiToAdd);
+    if (!isNaN(ptiValue) && ptiValue > 0 && selectedCard) {
+      socket.emit('add-pti', {
+        cardId: selectedCard.id,
+        ptiAmount: ptiValue,
+        playerName: effectivePlayerName
+      });
+      setShowAddPTIPanel(false);
+      setPtiToAdd('');
+      setSelectedCard(null);
+    }
+  };
+
+  const handleCancelAddPTI = () => {
+    setShowAddPTIPanel(false);
+    setPtiToAdd('');
+  };
+
+  // Handler for adding PR (Rankiard Points) - placeholder for now
+  const handleAddPR = () => {
+    setShowAddPRPanel(true);
+  };
+
+  const handleCancelAddPR = () => {
+    setShowAddPRPanel(false);
+    setPrToAdd('');
   };
 
   // Get PERSONAGGI cards from other players in the field
@@ -479,6 +517,24 @@ export const CardModal: React.FC = () => {
                     >
                       📋
                       DUPLICA
+                    </Button>
+
+                    {/* AGGIUNGI PTI button */}
+                    <Button
+                      onClick={handleAddPTI}
+                      className="aspect-square bg-cyan-600 hover:bg-cyan-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
+                    >
+                      <Plus size={14} />
+                      PTI
+                    </Button>
+
+                    {/* AGGIUNGI PR button */}
+                    <Button
+                      onClick={handleAddPR}
+                      className="aspect-square bg-amber-600 hover:bg-amber-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
+                    >
+                      <Plus size={14} />
+                      PR
                     </Button>
                   </>
                 )}
@@ -852,6 +908,96 @@ export const CardModal: React.FC = () => {
             ) : (
               <p className="text-white text-center">Nessun PERSONAGGIO disponibile sul campo</p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Add PTI Panel - Sky Blue Panel */}
+      {showAddPTIPanel && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[80] p-4">
+          <div className="bg-cyan-600 rounded-lg p-6 max-w-md w-full shadow-xl border-4 border-cyan-400">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-white font-bold text-xl">➕ AGGIUNGI PTI</h3>
+              <Button
+                onClick={handleCancelAddPTI}
+                className="bg-red-600 hover:bg-red-700 text-white px-2 py-1"
+                size="sm"
+              >
+                <X size={16} />
+              </Button>
+            </div>
+
+            <div className="text-center mb-6">
+              <p className="text-white text-lg mb-2">
+                Quanti PTI vuoi aggiungere a questo personaggio?
+              </p>
+              <p className="text-cyan-200 text-sm">
+                I PTI inseriti si sommeranno a quelli già posseduti.
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <input
+                type="number"
+                value={ptiToAdd}
+                onChange={(e) => setPtiToAdd(e.target.value)}
+                placeholder="Inserisci PTI..."
+                min="1"
+                className="w-full px-4 py-3 text-2xl text-center font-bold rounded-lg bg-white text-cyan-800 border-4 border-cyan-300 focus:outline-none focus:border-cyan-100"
+              />
+            </div>
+
+            <div className="flex gap-4">
+              <Button
+                onClick={handleCancelAddPTI}
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3"
+              >
+                ANNULLA
+              </Button>
+              <Button
+                onClick={handleConfirmAddPTI}
+                disabled={!ptiToAdd || parseInt(ptiToAdd) <= 0}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 disabled:opacity-50"
+              >
+                ✓ CONFERMA
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add PR Panel - Placeholder for now */}
+      {showAddPRPanel && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[80] p-4">
+          <div className="bg-amber-600 rounded-lg p-6 max-w-md w-full shadow-xl border-4 border-amber-400">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-white font-bold text-xl">➕ AGGIUNGI PR</h3>
+              <Button
+                onClick={handleCancelAddPR}
+                className="bg-red-600 hover:bg-red-700 text-white px-2 py-1"
+                size="sm"
+              >
+                <X size={16} />
+              </Button>
+            </div>
+
+            <div className="text-center mb-6">
+              <p className="text-white text-lg mb-2">
+                Funzione PR in arrivo...
+              </p>
+              <p className="text-amber-200 text-sm">
+                Attendi istruzioni per questa funzione.
+              </p>
+            </div>
+
+            <div className="flex justify-center">
+              <Button
+                onClick={handleCancelAddPR}
+                className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-8"
+              >
+                CHIUDI
+              </Button>
+            </div>
           </div>
         </div>
       )}

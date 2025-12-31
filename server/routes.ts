@@ -1454,6 +1454,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // Add PTI to a character
+    socket.on('add-pti', ({ cardId, ptiAmount, playerName }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        console.log(`Add PTI request: ${playerName} wants to add ${ptiAmount} PTI to card ${cardId}`);
+        
+        const result = gameManager.addPTIToCard(gameId, cardId, ptiAmount, playerName);
+        
+        if (result.success) {
+          // Update game state for all players
+          const gameState = gameManager.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', gameState);
+          
+          // Notify all players about the PTI addition
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-pti-add`,
+            playerName: 'Sistema',
+            message: `${playerName} ha aggiunto ${ptiAmount} PTI al personaggio! (Totale: ${result.newPTI} PTI)`,
+            timestamp: Date.now()
+          });
+          
+          console.log(`PTI successfully added by ${playerName}: +${ptiAmount} = ${result.newPTI}`);
+        } else {
+          socket.emit('pti-error', {
+            message: result.message || 'Errore durante l\'aggiunta dei PTI',
+            timestamp: Date.now()
+          });
+          
+          console.log(`Add PTI failed: ${result.message}`);
+        }
+      }
+    });
+
     // BAMBOLA VOODOO: Activate voodoo link between two characters
     socket.on('voodoo:activate', ({ bonusCardId, card1Id, card2Id, activatedBy, gameId: clientGameId }) => {
       const gameId = gameManager.getPlayerGameId(socket.id) || clientGameId;
