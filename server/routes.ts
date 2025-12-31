@@ -621,6 +621,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         gameManager.shuffleDeck(gameId, deckType);
         const gameState = gameManager.getSanitizedGameState(gameId);
         io.to(gameId).emit('game-state-update', gameState);
+        io.to(gameId).emit('deck-shuffled', { deckType });
       }
     });
 

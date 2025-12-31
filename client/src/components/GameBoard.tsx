@@ -32,7 +32,7 @@ import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
-import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star, Hand, Music } from "lucide-react";
+import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star, Hand, Music, Shuffle } from "lucide-react";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 
@@ -915,11 +915,16 @@ export const GameBoard: React.FC = () => {
           <VoiceChat />
           
           <Button
-            onClick={() => setInstructionsOpen(!instructionsOpen)}
-            className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
-            title="Istruzioni"
+            onClick={() => {
+              const deckTypes = ['personaggi', 'mosse', 'bonus', 'personaggi_speciali'];
+              deckTypes.forEach(deckType => {
+                socket.emit('shuffle-deck', { deckType });
+              });
+            }}
+            className="bg-sky-600 hover:bg-sky-700 text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
+            title="Mischia tutti i mazzi"
           >
-            <span className="text-xs landscape:text-sm md:text-sm font-bold">!</span>
+            <Shuffle size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
           </Button>
         </div>
 

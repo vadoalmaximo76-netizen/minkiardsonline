@@ -35,6 +35,23 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
     }
   }, [showBrowser, name]);
 
+  // Listen for deck shuffle events from server to trigger animation
+  useEffect(() => {
+    const handleDeckShuffled = (data: { deckType: string }) => {
+      if (data.deckType === type) {
+        setIsShuffling(true);
+        setTimeout(() => {
+          setIsShuffling(false);
+        }, 1000);
+      }
+    };
+
+    socket.on('deck-shuffled', handleDeckShuffled);
+    return () => {
+      socket.off('deck-shuffled', handleDeckShuffled);
+    };
+  }, [type]);
+
   const handleShuffle = () => {
     // Start shuffle animation
     setIsShuffling(true);
@@ -146,13 +163,6 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
       </div>
 
       <div className="flex flex-col gap-1">
-        <Button
-          onClick={handleShuffle}
-          className="bg-sky-blue hover:bg-sky-blue/80 text-white font-bold px-2 py-1 text-xs"
-          style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
-        >
-          MISCHIA
-        </Button>
         <Button
           onClick={handleChooseCard}
           className="bg-green-600 hover:bg-green-700 text-white font-bold px-2 py-1 text-xs"
