@@ -435,22 +435,21 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
 
       {/* Hand Target Selection Modal (for ATTACCO DISONESTO) - LARGE CENTERED */}
       {showHandTargetSelect && (
-        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50">
-          <div className="bg-gray-900 rounded-2xl p-6 border-4 border-red-600 shadow-2xl overflow-y-auto" style={{ width: '900px', height: '600px' }}>
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-white font-bold text-3xl">🎯 ATTACCO DISONESTO</h2>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+          <div style={{ width: '900px', height: '600px', backgroundColor: '#111827', borderRadius: '12px', border: '4px solid #dc2626', padding: '24px', overflowY: 'auto', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ color: 'white', fontWeight: 'bold', fontSize: '36px', margin: 0 }}>🎯 ATTACCO DISONESTO</h2>
               <Button
                 onClick={() => setShowHandTargetSelect(false)}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 font-bold text-lg"
-                size="sm"
+                style={{ backgroundColor: '#dc2626', color: 'white', padding: '8px 16px', fontWeight: 'bold', fontSize: '18px', cursor: 'pointer' }}
               >
                 ✕ CHIUDI
               </Button>
             </div>
             
-            <p className="text-gray-200 text-center mb-6 text-lg font-bold">Scegli un personaggio in mano da attaccare:</p>
+            <p style={{ color: '#e5e7eb', textAlign: 'center', marginBottom: '20px', fontSize: '18px', fontWeight: 'bold', margin: '0 0 20px 0' }}>Scegli un personaggio in mano da attaccare:</p>
             
-            <div className="space-y-4 h-[500px] overflow-y-auto">
+            <div style={{ overflowY: 'auto', height: '450px' }}>
               {Object.entries(gameState?.players || {}).map(([pName, pData]: [string, any]) => {
                 if (pName === playerName) return null;
                 const handCards = pData.hand?.filter((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali') || [];
@@ -458,17 +457,17 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
                 if (handCards.length === 0) return null;
                 
                 return (
-                  <div key={pName} className="bg-gray-800 rounded-lg p-4 border-2 border-orange-500">
-                    <h3 className="text-orange-400 font-bold text-2xl mb-4 text-center">{pName}</h3>
-                    <div className="grid grid-cols-4 gap-3 justify-items-center">
+                  <div key={pName} style={{ backgroundColor: '#1f2937', borderRadius: '8px', padding: '16px', border: '2px solid #f97316', marginBottom: '16px' }}>
+                    <h3 style={{ color: '#fed7aa', fontWeight: 'bold', fontSize: '24px', textAlign: 'center', margin: '0 0 16px 0' }}>{pName}</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', justifyItems: 'center' }}>
                       {handCards.map((hCard: any) => (
                         <Button
                           key={hCard.id}
                           onClick={() => handleHandTargetSelect(hCard)}
-                          className="bg-red-600 hover:bg-red-700 text-white p-3 h-32 w-24 flex flex-col items-center justify-center rounded-lg border-2 border-red-400 shadow-lg transition-all hover:scale-110"
+                          style={{ backgroundColor: '#dc2626', color: 'white', padding: '12px', height: '128px', width: '96px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', border: '2px solid #f87171', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}
                         >
-                          <p className="text-5xl mb-1">🎴</p>
-                          <p className="text-xs font-bold text-center">COPERTA</p>
+                          <p style={{ fontSize: '48px', margin: '0 0 4px 0' }}>🎴</p>
+                          <p style={{ fontSize: '12px', fontWeight: 'bold', margin: 0 }}>COPERTA</p>
                         </Button>
                       ))}
                     </div>
