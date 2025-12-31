@@ -373,6 +373,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   console.log(`CPU ${cpuName} picking opening cards:`, currentAction.data.types);
                   const openingSuccess = await gameManager.pickOpeningCards(gameId, currentAction.data.types, currentAction.data.playerName);
                   if (openingSuccess) {
+                    // Look up PTI/stars from database for newly picked PERSONAGGI cards
+                    const game = gameManager.getGameState(gameId);
+                    const cpuHand = game?.players[currentAction.data.playerName]?.hand || [];
+                    for (const card of cpuHand) {
+                      if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && !card.text) {
+                        try {
+                          const cardName = getCardNameFromImageUrl(card.frontImage).replace(/-/g, ' ');
+                          const dbData = await getPersonaggioFromDatabase(cardName);
+                          if (dbData && dbData.pti !== null && dbData.stars !== null) {
+                            card.text = `PTI: ${dbData.pti} | Stelle: ${dbData.stars}`;
+                            console.log(`✅ CPU ${cpuName} opening card: ${cardName} - PTI: ${dbData.pti} | Stelle: ${dbData.stars}`);
+                          } else {
+                            card.text = 'PTI: 1000 | Stelle: 1';
+                          }
+                        } catch (error) {
+                          card.text = 'PTI: 1000 | Stelle: 1';
+                        }
+                      }
+                    }
+                    
                     const openingGameState = gameManager.getSanitizedGameState(gameId);
                     io.to(gameId).emit('game-state-update', openingGameState);
                     
@@ -645,8 +665,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`CPU ${playerName} requesting replacement ${deckType} card`);
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
-        const success = await gameManager.pickCard(gameId, deckType, playerName);
-        if (success) {
+        // Use pickCardAndReturn to get the card reference for PTI/stars assignment
+        const card = await gameManager.pickCardAndReturn(gameId, deckType, playerName);
+        if (card) {
+          // Look up PERSONAGGI data from database when picked (to get PTI and stars in hand)
+          if (card.type === 'personaggi' || card.type === 'personaggi_speciali') {
+            try {
+              const cardName = getCardNameFromImageUrl(card.frontImage).replace(/-/g, ' ');
+              console.log(`CPU ${playerName}: Querying database for PERSONAGGI card: ${cardName}`);
+              const dbData = await getPersonaggioFromDatabase(cardName);
+              if (dbData && dbData.pti !== null && dbData.stars !== null) {
+                card.text = `PTI: ${dbData.pti} | Stelle: ${dbData.stars}`;
+                console.log(`✅ CPU ${playerName} card database lookup successful: PTI: ${dbData.pti} | Stelle: ${dbData.stars}`);
+              } else {
+                card.text = 'PTI: 1000 | Stelle: 1';
+                console.log(`CPU ${playerName}: Card not in database, using defaults`);
+              }
+            } catch (error) {
+              console.error('Error querying database for CPU card on pick:', error);
+              card.text = 'PTI: 1000 | Stelle: 1';
+            }
+          }
+          
           console.log(`CPU ${playerName} drew replacement ${deckType} card successfully`);
           const gameState = gameManager.getSanitizedGameState(gameId);
           io.to(gameId).emit('game-state-update', gameState);
