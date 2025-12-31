@@ -17,12 +17,10 @@ export const CardModal: React.FC = () => {
   const [ptiToAdd, setPtiToAdd] = useState('');
   const [showAddPRPanel, setShowAddPRPanel] = useState(false);
   const [prToAdd, setPrToAdd] = useState('');
-  const [prSpentThisGame, setPrSpentThisGame] = useState(0);
-  const { selectedCard, setSelectedCard, playerName, gameState, setSelectedMosseCard } = useGameState();
+  const { selectedCard, setSelectedCard, playerName, gameState, setSelectedMosseCard, userRankiardPoints, prSpentThisGame, addPRSpent } = useGameState();
   
-  // Get total Rankiard points from localStorage
-  const totalRankiardPoints = parseInt(localStorage.getItem('rankiard-points') || '0') || 0;
-  const availableRankiardPoints = totalRankiardPoints - prSpentThisGame;
+  // Calculate available Rankiard points (total from authenticated user minus spent this game)
+  const availableRankiardPoints = userRankiardPoints - prSpentThisGame;
 
   if (!selectedCard) return null;
 
@@ -290,11 +288,11 @@ export const CardModal: React.FC = () => {
         cardId: selectedCard.id,
         prAmount: prValue,
         playerName: effectivePlayerName,
-        userTotalPoints: totalRankiardPoints
+        userTotalPoints: userRankiardPoints
       });
       
-      // Update local state for PR spent
-      setPrSpentThisGame(prev => prev + prValue);
+      // Update store state for PR spent
+      addPRSpent(prValue);
       
       setShowAddPRPanel(false);
       setPrToAdd('');
@@ -1008,7 +1006,7 @@ export const CardModal: React.FC = () => {
             <div className="text-center mb-4">
               <div className="bg-amber-700 rounded-lg p-3 mb-4">
                 <p className="text-amber-200 text-sm">I tuoi Punti Rankiard:</p>
-                <p className="text-white text-2xl font-bold">{totalRankiardPoints}</p>
+                <p className="text-white text-2xl font-bold">{userRankiardPoints}</p>
                 <p className="text-amber-200 text-sm mt-1">
                   Disponibili questa partita: <span className="text-white font-bold">{availableRankiardPoints}</span>
                 </p>

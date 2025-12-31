@@ -68,6 +68,8 @@ interface GameStateStore {
   isReconnecting: boolean;
   sessionId: string;
   pickedCard: Card | null;
+  userRankiardPoints: number;
+  prSpentThisGame: number;
   
   setGameState: (state: GameState) => void;
   setPlayerName: (name: string) => void;
@@ -83,6 +85,9 @@ interface GameStateStore {
   clearSession: () => void;
   restoreSession: () => Promise<boolean>;
   setPickedCard: (card: Card | null) => void;
+  setUserRankiardPoints: (points: number) => void;
+  addPRSpent: (amount: number) => void;
+  resetPRSpent: () => void;
 }
 
 export const useGameState = create<GameStateStore>()(
@@ -111,12 +116,17 @@ export const useGameState = create<GameStateStore>()(
         isReconnecting: false,
         sessionId: "",
         pickedCard: null,
+        userRankiardPoints: 0,
+        prSpentThisGame: 0,
         
         setGameState: (gameState) => set({ gameState }),
         setPlayerName: (playerName) => set({ playerName }),
         setGameId: (gameId) => set({ gameId }),
         setSelectedCard: (selectedCard) => set({ selectedCard }),
         setSelectedMosseCard: (selectedMosseCard) => set({ selectedMosseCard }),
+        setUserRankiardPoints: (userRankiardPoints) => set({ userRankiardPoints }),
+        addPRSpent: (amount) => set((state) => ({ prSpentThisGame: state.prSpentThisGame + amount })),
+        resetPRSpent: () => set({ prSpentThisGame: 0 }),
         addShakingCard: (cardId) => set((state) => {
           const newSet = new Set(state.shakingCards);
           newSet.add(cardId);

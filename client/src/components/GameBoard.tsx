@@ -110,7 +110,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser }) => {
   const [cardAnimationName, setCardAnimationName] = useState<string>("");
   const [sorosActivationVisible, setSorosActivationVisible] = useState(false);
   const [sorosData, setSorosData] = useState<{ activator: string; cardImage: string } | null>(null);
-    const { selectedCard, gameId, playerName, gameState, setGameId } = useGameState();
+    const { selectedCard, gameId, playerName, gameState, setGameId, setUserRankiardPoints, resetPRSpent } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted } = useAudio();
 
 
@@ -210,6 +210,20 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser }) => {
       setScenarioCardsActive(gameState.scenarioCardsActive);
     }
   }, [gameState?.scenarioCardsActive]);
+
+  // Sync user's Rankiard points to the store when authenticated user changes
+  useEffect(() => {
+    if (authenticatedUser?.puntiRankiard !== undefined) {
+      setUserRankiardPoints(authenticatedUser.puntiRankiard);
+    }
+  }, [authenticatedUser?.puntiRankiard, setUserRankiardPoints]);
+
+  // Reset PR spent when starting a new game
+  useEffect(() => {
+    if (gameId) {
+      resetPRSpent();
+    }
+  }, [gameId, resetPRSpent]);
 
   // Initialize audio context and play game start sound on mount
   useEffect(() => {
