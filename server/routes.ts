@@ -950,13 +950,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('transfer-card', ({ cardId, fromPlayer, toPlayer }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
-        // Use the instruction system to transfer the card
-        gameManager.processGameInstruction(gameId, fromPlayer, `Trasferisci la carta ${cardId} a ${toPlayer}`).then(() => {
+        const game = gameManager.getGameState(gameId);
+        if (!game) return;
+
+        // Find card in all possible locations (hand, field, graveyard)
+        let cardToTransfer: any = null;
+        let sourceLocation: 'hand' | 'field' | 'graveyard' | null = null;
+
+        // Check player's hand
+        if (game.players[fromPlayer]) {
+          const handIndex = game.players[fromPlayer].hand.findIndex((c: any) => c.id === cardId);
+          if (handIndex !== -1) {
+            cardToTransfer = game.players[fromPlayer].hand.splice(handIndex, 1)[0];
+            sourceLocation = 'hand';
+          }
+        }
+
+        // Check field
+        if (!cardToTransfer) {
+          const fieldIndex = game.field.findIndex((c: any) => c.id === cardId && c.owner === fromPlayer);
+          if (fieldIndex !== -1) {
+            cardToTransfer = game.field.splice(fieldIndex, 1)[0];
+            sourceLocation = 'field';
+          }
+        }
+
+        // Check graveyard
+        if (!cardToTransfer) {
+          const graveyardIndex = game.graveyard.findIndex((c: any) => c.id === cardId && c.owner === fromPlayer);
+          if (graveyardIndex !== -1) {
+            cardToTransfer = game.graveyard.splice(graveyardIndex, 1)[0];
+            sourceLocation = 'graveyard';
+          }
+        }
+
+        if (!cardToTransfer) {
+          console.error(`Card ${cardId} not found for player ${fromPlayer}`);
+          return;
+        }
+
+        // Transfer card to recipient's hand
+        if (game.players[toPlayer]) {
+          cardToTransfer.owner = toPlayer; // Update owner
+          game.players[toPlayer].hand.push(cardToTransfer);
+          
+          console.log(`✅ Card ${cardId} transferred from ${fromPlayer} to ${toPlayer}`);
+          
+          // Notify all players
+          io.to(gameId).emit('chat-message', {
+            playerName: 'Sistema',
+            message: `✅ ${fromPlayer} ha ceduto una carta a ${toPlayer}`,
+            timestamp: Date.now()
+          });
+          
+          // Update game state
           const gameState = gameManager.getSanitizedGameState(gameId);
           io.to(gameId).emit('game-state-update', gameState);
-        }).catch(error => {
-          console.error('Error transferring card:', error);
-        });
+        }
       }
     });
 
