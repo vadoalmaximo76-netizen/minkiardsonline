@@ -30,6 +30,7 @@ interface Player {
   cpuInstance?: CPUPlayer;
   usedCardsThisTurn?: string[]; // Track card images used this turn to prevent reuse
   disconnectedAt?: Date; // When player disconnected (null if connected)
+  eliminationCount?: number; // Track how many opponent personaggi cards this player has eliminated (for SOROS activation)
 }
 
 interface TransferRequest {
@@ -1900,6 +1901,48 @@ Rispondi SOLO in JSON:`;
         const graveyardCount = game.graveyard.filter(
           graveyardCard => graveyardCard.eliminatedBy === playerName && graveyardCard.type === 'personaggi'
         ).length;
+
+        // NEW: Track elimination count for SOROS activation
+        let sorosActivated = false;
+        if (card.type === 'personaggi' || card.type === 'personaggi_speciali') {
+          // Find the attacker in game.field to know who killed this card
+          // The attacker is the one who moved the card to graveyard
+          // We need to track who is responsible (this is the player parameter's opponent)
+          
+          // First, find who damaged this card from game state
+          for (const [killer, player] of Object.entries(game.players)) {
+            if (killer !== playerName) {
+              if (!player.eliminationCount) {
+                player.eliminationCount = 0;
+              }
+              
+              // Check if this killer's most recent attack killed this personaggio
+              // We'll increment their count and check if they reached 6
+              if (card.type === 'personaggi' && card.eliminatedBy === killer) {
+                player.eliminationCount++;
+                console.log(`🗡️ ${killer} has eliminated ${player.eliminationCount} personaggi`);
+                
+                // SOROS activation at 6 eliminations
+                if (player.eliminationCount === 6 && !sorosActivated) {
+                  sorosActivated = true;
+                  console.log(`🎭 SOROS ACTIVATED! ${killer} has eliminated 6 personaggi!`);
+                  
+                  // Find SOROS in personaggi_speciali deck
+                  const sorosIndex = game.decks.personaggi_speciali.findIndex((c: Card) => 
+                    c.frontImage && c.frontImage.includes('soros')
+                  );
+                  
+                  if (sorosIndex !== -1) {
+                    const soros = game.decks.personaggi_speciali.splice(sorosIndex, 1)[0];
+                    soros.owner = killer;
+                    game.field.push(soros);
+                    console.log(`🎭 SOROS automatically played on field for ${killer}!`);
+                  }
+                }
+              }
+            }
+          }
+        }
 
         // Check if player should be eliminated (only if it's a personaggi card)
         let eliminationCheck = false;
