@@ -436,21 +436,21 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
       {/* Hand Target Selection Modal (for ATTACCO DISONESTO) - LARGE CENTERED */}
       {showHandTargetSelect && (
         <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50">
-          <div className="bg-gray-900 rounded-2xl p-12 border-4 border-red-600 shadow-2xl overflow-y-auto" style={{ width: '900px', height: '600px' }}>
-            <div className="flex justify-between items-center mb-12">
-              <h2 className="text-white font-bold text-5xl">🎯 ATTACCO DISONESTO</h2>
+          <div className="bg-gray-900 rounded-2xl p-6 border-4 border-red-600 shadow-2xl overflow-y-auto" style={{ width: '900px', height: '600px' }}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-white font-bold text-3xl">🎯 ATTACCO DISONESTO</h2>
               <Button
                 onClick={() => setShowHandTargetSelect(false)}
-                className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 font-bold text-2xl"
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 font-bold text-lg"
                 size="sm"
               >
                 ✕ CHIUDI
               </Button>
             </div>
             
-            <p className="text-gray-200 text-center mb-12 text-3xl font-bold">Scegli un personaggio in mano di un avversario da attaccare:</p>
+            <p className="text-gray-200 text-center mb-6 text-lg font-bold">Scegli un personaggio in mano da attaccare:</p>
             
-            <div className="space-y-12">
+            <div className="space-y-4 h-[500px] overflow-y-auto">
               {Object.entries(gameState?.players || {}).map(([pName, pData]: [string, any]) => {
                 if (pName === playerName) return null;
                 const handCards = pData.hand?.filter((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali') || [];
@@ -458,17 +458,17 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
                 if (handCards.length === 0) return null;
                 
                 return (
-                  <div key={pName} className="bg-gray-800 rounded-lg p-8 border-4 border-orange-500">
-                    <h3 className="text-orange-400 font-bold text-4xl mb-8 text-center">{pName}</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 justify-items-center">
+                  <div key={pName} className="bg-gray-800 rounded-lg p-4 border-2 border-orange-500">
+                    <h3 className="text-orange-400 font-bold text-2xl mb-4 text-center">{pName}</h3>
+                    <div className="grid grid-cols-4 gap-3 justify-items-center">
                       {handCards.map((hCard: any) => (
                         <Button
                           key={hCard.id}
                           onClick={() => handleHandTargetSelect(hCard)}
-                          className="bg-red-600 hover:bg-red-700 text-white p-6 h-56 w-40 flex flex-col items-center justify-center rounded-lg border-4 border-red-400 shadow-lg transition-all hover:scale-110"
+                          className="bg-red-600 hover:bg-red-700 text-white p-3 h-32 w-24 flex flex-col items-center justify-center rounded-lg border-2 border-red-400 shadow-lg transition-all hover:scale-110"
                         >
-                          <p className="text-7xl mb-4">🎴</p>
-                          <p className="text-xl font-bold text-center">COPERTA</p>
+                          <p className="text-5xl mb-1">🎴</p>
+                          <p className="text-xs font-bold text-center">COPERTA</p>
                         </Button>
                       ))}
                     </div>
