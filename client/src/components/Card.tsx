@@ -266,19 +266,33 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const isShaking = shakingCards.has(card.id);
   const isMosseSelected = selectedMosseCard?.id === card.id;
   
+  // Check if this is a PERSONAGGI card
+  const isPersonaggio = card.type === 'personaggi' || card.type === 'personaggi_speciali';
+  
   // Add animation class for newly played cards (when they appear on field)
   const shouldAnimate = location === 'field';
+  const shouldAnimateScaleDissolvenza = location === 'field' && isPersonaggio;
+  
+  // Random scatter direction for elimination (pre-calculated)
+  const [scatterX] = useState(() => (Math.random() - 0.5) * 80 - (Math.random() > 0.5 ? 40 : -40));
+  const [scatterY] = useState(() => (Math.random() - 0.5) * 80 - 60);
 
   return (
     <div className="flex flex-col gap-2">
       {/* Card Image */}
-      <div className="relative">
+      <div 
+        className="relative"
+        style={isEliminated && isPersonaggio ? {
+          '--tx': `translate(${scatterX}px, ${scatterY}px)`
+        } as React.CSSProperties : undefined}
+      >
         <img
           src={showBack || card.faceDown ? card.backImage : card.frontImage}
           alt="Card"
           className={`w-20 h-28 rounded-lg cursor-pointer hover:scale-105 transition-transform shadow-lg object-contain
-            ${shouldAnimate ? 'card-appear' : ''} 
-            ${isShaking ? 'animate-shake' : ''} 
+            ${shouldAnimateScaleDissolvenza ? 'card-scale-dissolve' : shouldAnimate ? 'card-appear' : ''} 
+            ${isEliminated && isPersonaggio ? 'card-disperse' : ''} 
+            ${isShaking && !isEliminated ? 'animate-shake' : ''} 
             ${isMosseSelected ? 'ring-4 ring-red-500 ring-opacity-70' : ''}
             ${card.faceDown ? 'ring-2 ring-orange-400 ring-opacity-50' : ''}`}
           onClick={handleCardClick}
@@ -291,7 +305,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         )}
         
         {/* Red X elimination animation */}
-        {isEliminated && (
+        {isEliminated && !isPersonaggio && (
           <div className="absolute inset-0 flex items-center justify-center bg-red-600/50 rounded-lg animate-pulse">
             <X size={32} className="text-white animate-ping" />
           </div>
