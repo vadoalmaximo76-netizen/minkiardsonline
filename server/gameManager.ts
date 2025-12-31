@@ -847,21 +847,34 @@ Rispondi SOLO in JSON:`;
   async completeMatch(gameId: string, winnerPlayer?: string): Promise<void> {
     try {
       const game = this.games.get(gameId);
-      if (!game || !game.matchId) return;
+      if (!game) return;
+      
+      // Prevent duplicate point awards - check if match already completed
+      if (game.gameEnded) {
+        console.log(`Match ${gameId} already completed, skipping duplicate completeMatch call`);
+        return;
+      }
+      
+      // Mark match as completed to prevent duplicate calls
+      game.gameEnded = true;
 
       const duration = Math.floor((Date.now() - game.startTime.getTime()) / 1000);
       const playerList = Object.keys(game.players);
 
-      await db.update(matches)
-        .set({
-          endedAt: new Date(),
-          winnerPlayer,
-          duration,
-          players: playerList
-        })
-        .where(eq(matches.id, game.matchId));
+      // Only update database if matchId exists
+      if (game.matchId) {
+        await db.update(matches)
+          .set({
+            endedAt: new Date(),
+            winnerPlayer,
+            duration,
+            players: playerList
+          })
+          .where(eq(matches.id, game.matchId));
+      }
 
       await this.awardRankiardPoints(game, winnerPlayer);
+      console.log(`Rankiard points awarded for match ${gameId}, winner: ${winnerPlayer}`);
 
     } catch (error) {
       console.error('Failed to complete match:', error);
