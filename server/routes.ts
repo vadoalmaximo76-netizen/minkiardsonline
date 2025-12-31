@@ -625,15 +625,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('set-avatar', ({ playerName, avatarId }) => {
+    socket.on('set-avatar', ({ avatarId }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
-      if (gameId) {
-        const success = gameManager.setPlayerAvatar(gameId, playerName, avatarId);
-        if (success) {
-          const gameState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', gameState);
-          io.to(gameId).emit('avatar-changed', { playerName, avatarId });
-        }
+      if (!gameId) return;
+      
+      // Get player name from socket ID (don't trust client-supplied playerName)
+      const playerName = gameManager.getPlayerNameFromSocket(socket.id);
+      if (!playerName) return;
+      
+      // setPlayerAvatar validates avatarId against whitelist internally
+      const success = gameManager.setPlayerAvatar(gameId, playerName, avatarId);
+      if (success) {
+        const gameState = gameManager.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', gameState);
+        io.to(gameId).emit('avatar-changed', { playerName, avatarId });
       }
     });
 

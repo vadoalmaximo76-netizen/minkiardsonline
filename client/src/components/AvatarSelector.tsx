@@ -16,7 +16,7 @@ export const AvatarSelector: React.FC<AvatarSelectorProps> = ({ isOpen, onClose 
   const currentAvatar = gameState?.players?.[playerName]?.avatar;
 
   const handleSelectAvatar = (avatarId: string) => {
-    socket.emit('set-avatar', { playerName, avatarId });
+    socket.emit('set-avatar', { avatarId });
     onClose();
   };
 

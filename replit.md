@@ -128,6 +128,15 @@ The game features a synchronized music player for all players in the game room:
 - **Socket Events**: Uses music-action and music-control events for synchronization
 - **UI Component**: MusicPlayer.tsx with controls positioned bottom-left
 
+## Player Avatar System
+Customizable player avatars for personalization:
+- **24 Avatar Options**: Emoji-based avatars including dragons, animals, mythical creatures, and symbols
+- **Secure Selection**: Server validates avatar IDs against whitelist; player identity derived from socket ID
+- **Real-time Updates**: Avatar changes broadcast to all players via game-state-update event
+- **UI Integration**: Avatars displayed in PlayerHand, OtherPlayersHands, and game controls toolbar
+- **Selection Modal**: AvatarSelector component with grid layout for choosing avatars
+- **Files**: client/src/lib/avatars.ts (constants), client/src/components/AvatarSelector.tsx (UI), server/gameManager.ts (setPlayerAvatar)
+
 ## Voice Chat System
 Real-time WebRTC voice communication between players:
 - **Native WebRTC Implementation**: Uses browser's RTCPeerConnection API for peer-to-peer audio

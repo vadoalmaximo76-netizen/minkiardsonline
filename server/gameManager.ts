@@ -910,6 +910,18 @@ Rispondi SOLO in JSON:`;
     const game = this.games.get(gameId);
     if (!game || !game.players[playerName]) return false;
     
+    // Validate avatar ID against whitelist
+    const validAvatarIds = [
+      'dragon', 'lion', 'wolf', 'eagle', 'shark', 'tiger', 'bear', 'fox',
+      'owl', 'snake', 'unicorn', 'phoenix', 'wizard', 'knight', 'ninja',
+      'robot', 'alien', 'skull', 'crown', 'star', 'fire', 'lightning',
+      'diamond', 'heart'
+    ];
+    if (!validAvatarIds.includes(avatarId)) {
+      console.log(`Invalid avatar ID rejected: ${avatarId}`);
+      return false;
+    }
+    
     game.players[playerName].avatar = avatarId;
     console.log(`Player ${playerName} set avatar to ${avatarId}`);
     return true;
