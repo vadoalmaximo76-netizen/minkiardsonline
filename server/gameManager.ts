@@ -4090,8 +4090,8 @@ Rispondi SOLO in JSON:`;
             }
           }
         } else {
-          // Regular field death: move to graveyard with attacker info
-          this.moveToGraveyard(gameId, targetCardId, targetOwner, attackerName);
+          // Regular field death: move to graveyard
+          this.moveToGraveyard(gameId, targetCardId, targetOwner);
         }
         
         // PRESERVE: PTI ABSORPTION SYSTEM (exact legacy implementation)
@@ -4109,8 +4109,8 @@ Rispondi SOLO in JSON:`;
           });
         }
         
-        // PRESERVE: HARDENED PTI ABSORPTION (exact legacy logic)
-        if (attackerCharacter && currentPTI > 0 && newPTI <= 0) {
+        // PRESERVE: HARDENED PTI ABSORPTION (fixed: absorb when character dies regardless of previous PTI)
+        if (attackerCharacter && newPTI <= 0) {
           const attackerNotes = attackerCharacter.text || '';
           const attackerPtiMatch = attackerNotes.match(/PTI:\s*(\d+)/i);
           let attackerCurrentPTI = attackerPtiMatch ? parseInt(attackerPtiMatch[1]) : 100;
