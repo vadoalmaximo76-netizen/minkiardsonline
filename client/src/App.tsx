@@ -16,6 +16,7 @@ interface AuthUser {
   username: string;
   email: string | null;
   avatar: string | null;
+  puntiRankiard?: number;
 }
 
 function App() {
@@ -79,7 +80,8 @@ function App() {
                 socket.emit('join-game', { 
                   gameId: gameIdFromUrl, 
                   playerName: data.user.username, 
-                  avatarId: data.user.avatar 
+                  avatarId: data.user.avatar,
+                  userId: data.user.id
                 });
               } else {
                 setShowRoomDialog(true);
@@ -144,9 +146,14 @@ function App() {
     const newUrl = `${window.location.origin}?game=${newGameId}`;
     window.history.pushState(null, '', newUrl);
     
-    // Join the game room with avatar
+    // Join the game room with avatar and userId
     console.log(`Emitting join-game event for ${playerName} to ${newGameId}`);
-    socket.emit('join-game', { gameId: newGameId, playerName, avatarId: pendingAvatar });
+    socket.emit('join-game', { 
+      gameId: newGameId, 
+      playerName, 
+      avatarId: pendingAvatar,
+      userId: authenticatedUser?.id 
+    });
   };
 
   // Show loading screen during initialization or reconnection
@@ -180,7 +187,8 @@ function App() {
       socket.emit('join-game', { 
         gameId: gameIdFromUrl, 
         playerName: user.username, 
-        avatarId: user.avatar 
+        avatarId: user.avatar,
+        userId: user.id
       });
     } else {
       setShowRoomDialog(true);
@@ -222,7 +230,9 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <div className="min-h-screen bg-royal-blue overflow-auto">
-        <GameBoard />
+        <GameBoard 
+          authenticatedUser={authenticatedUser} 
+        />
       </div>
     </QueryClientProvider>
   );

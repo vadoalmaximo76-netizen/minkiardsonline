@@ -9,6 +9,7 @@ export const users = pgTable("users", {
   password: text("password"), // Can be null for Google OAuth users
   googleId: text("google_id").unique(), // Google OAuth ID
   avatar: text("avatar"), // Avatar ID from predefined list
+  puntiRankiard: integer("punti_rankiard").notNull().default(0), // Accumulated Rankiard points
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

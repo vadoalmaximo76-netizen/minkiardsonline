@@ -1,7 +1,7 @@
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from '../client/src/lib/cardData';
 import { db } from './db';
 import { matches, gameEvents, personaggi, type InsertMatch, type InsertGameEvent } from '../shared/schema';
-import { eq, ilike } from 'drizzle-orm';
+import { eq, ilike, sql } from 'drizzle-orm';
 import { CPUPlayer } from './cpuPlayer';
 
 interface Card {
@@ -93,6 +93,8 @@ interface GameState {
   spectators: string[]; // Players who left the game but are still spectating
   characterLimit: string; // '1', '2', '3', '5', 'unlimited'
   eliminatedPlayers: Set<string>; // Players eliminated from the game
+  eliminationOrder: string[]; // Order in which players were eliminated (first eliminated = last place)
+  playerUserIds: Map<string, number>; // Map player names to user IDs for points assignment
   gameEnded: boolean; // Prevent multiple victory notifications
   pendingTransferRequests: TransferRequest[]; // Pending card transfer requests between human players
   pendingDefense?: PendingDefense; // Current pending defense request (only one at a time)
@@ -142,6 +144,8 @@ export class GameManager {
       spectators: [],
       characterLimit: 'unlimited',
       eliminatedPlayers: new Set<string>(),
+      eliminationOrder: [],
+      playerUserIds: new Map<string, number>(),
       gameEnded: false,
       pendingTransferRequests: [],
       voodooLinks: []
@@ -857,8 +861,82 @@ Rispondi SOLO in JSON:`;
         })
         .where(eq(matches.id, game.matchId));
 
+      await this.awardRankiardPoints(game, winnerPlayer);
+
     } catch (error) {
       console.error('Failed to complete match:', error);
+    }
+  }
+
+  private calculateRankiardPoints(characterLimit: string, placement: number): number {
+    const pointsTable: Record<string, number[]> = {
+      '5': [20, 12, 8, 4, 2, 0],
+      '3': [12, 8, 6, 3, 1, 0],
+      '2': [8, 5, 3, 2, 1, 0],
+      '1': [5, 3, 2, 1, 0],
+      'unlimited': [5, 3, 2, 1, 0]
+    };
+
+    const table = pointsTable[characterLimit] || pointsTable['unlimited'];
+    if (placement < 1) return 0;
+    if (placement > table.length) return 0;
+    return table[placement - 1];
+  }
+
+  private async awardRankiardPoints(game: GameState, winnerPlayer?: string): Promise<void> {
+    try {
+      const allPlayers = Object.keys(game.players).filter(p => !game.players[p].isCPU);
+      const characterLimit = game.characterLimit;
+
+      const finalRanking: string[] = [];
+      if (winnerPlayer) {
+        finalRanking.push(winnerPlayer);
+      }
+
+      const eliminatedReversed = [...game.eliminationOrder].reverse();
+      for (const player of eliminatedReversed) {
+        if (!finalRanking.includes(player) && !game.players[player]?.isCPU) {
+          finalRanking.push(player);
+        }
+      }
+
+      for (const player of allPlayers) {
+        if (!finalRanking.includes(player)) {
+          finalRanking.push(player);
+        }
+      }
+
+      console.log(`Rankiard Points - Game Type: ${characterLimit} personaggi, Final Ranking:`, finalRanking);
+
+      for (let i = 0; i < finalRanking.length; i++) {
+        const playerName = finalRanking[i];
+        const placement = i + 1;
+        const points = this.calculateRankiardPoints(characterLimit, placement);
+        const userId = game.playerUserIds.get(playerName);
+
+        if (userId && points > 0) {
+          try {
+            await db.execute(
+              sql`UPDATE users SET punti_rankiard = punti_rankiard + ${points} WHERE id = ${userId}`
+            );
+            console.log(`Awarded ${points} Rankiard points to ${playerName} (userId: ${userId}) for ${placement}° place`);
+          } catch (err) {
+            console.error(`Failed to award points to ${playerName}:`, err);
+          }
+        } else if (points > 0) {
+          console.log(`No userId found for ${playerName}, skipping points award`);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to award Rankiard points:', error);
+    }
+  }
+
+  setPlayerUserId(gameId: string, playerName: string, userId: number): void {
+    const game = this.games.get(gameId);
+    if (game) {
+      game.playerUserIds.set(playerName, userId);
+      console.log(`Set userId ${userId} for player ${playerName} in game ${gameId}`);
     }
   }
 
@@ -3610,7 +3688,8 @@ Rispondi SOLO in JSON:`;
     }
 
     game.eliminatedPlayers.add(playerName);
-    console.log(`Player ${playerName} marked as eliminated`);
+    game.eliminationOrder.push(playerName);
+    console.log(`Player ${playerName} marked as eliminated (position ${game.eliminationOrder.length})`);
     return true;
   }
 

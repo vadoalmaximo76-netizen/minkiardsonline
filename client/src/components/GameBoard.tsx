@@ -36,7 +36,19 @@ import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, S
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 
-export const GameBoard: React.FC = () => {
+interface AuthUser {
+  id: number;
+  username: string;
+  email: string | null;
+  avatar: string | null;
+  puntiRankiard?: number;
+}
+
+interface GameBoardProps {
+  authenticatedUser?: AuthUser | null;
+}
+
+export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser }) => {
   const [chatOpen, setChatOpen] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [musicPlayerOpen, setMusicPlayerOpen] = useState(false);
@@ -745,7 +757,19 @@ export const GameBoard: React.FC = () => {
         {/* Header */}
         <div className="flex flex-col landscape:flex-row md:flex-row justify-between items-center mb-4 md:mb-6 gap-4">
           <div className="text-center landscape:text-left md:text-left">
-            <h1 className="text-2xl landscape:text-4xl md:text-4xl font-bold text-white" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>MINKIARDS</h1>
+            <div className="flex items-center gap-2 landscape:gap-4 md:gap-4">
+              <h1 className="text-2xl landscape:text-4xl md:text-4xl font-bold text-white" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>MINKIARDS</h1>
+              {authenticatedUser && (
+                <div className="flex items-center gap-1 bg-purple-900/70 px-2 py-1 rounded-lg">
+                  <span className="text-white/80 text-xs" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                    {authenticatedUser.username}
+                  </span>
+                  <span className="text-yellow-400 text-xs font-bold" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                    {authenticatedUser.puntiRankiard || 0} PR
+                  </span>
+                </div>
+              )}
+            </div>
             {gameId && gameId.startsWith('room-') && (
               <p className="text-white/80 text-xs landscape:text-sm md:text-sm mt-1" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
                 Stanza: {gameId.replace('room-', '')}

@@ -250,6 +250,7 @@ export function registerAuthRoutes(app: Express) {
           username: user.username,
           email: user.email,
           avatar: user.avatar,
+          puntiRankiard: user.puntiRankiard,
         }
       });
     } catch (error) {
@@ -276,6 +277,7 @@ export function registerAuthRoutes(app: Express) {
           username: user.username,
           email: user.email,
           avatar: user.avatar,
+          puntiRankiard: user.puntiRankiard,
         }
       });
     } catch (error) {

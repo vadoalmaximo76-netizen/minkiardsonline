@@ -285,13 +285,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   io.on('connection', (socket) => {
     console.log('Player connected:', socket.id);
 
-    socket.on('join-game', ({ gameId, playerName, avatarId }) => {
+    socket.on('join-game', ({ gameId, playerName, avatarId, userId }) => {
       socket.join(gameId);
       gameManager.addPlayer(gameId, playerName, socket.id);
       
       // Set avatar if provided
       if (avatarId) {
         gameManager.setPlayerAvatar(gameId, playerName, avatarId);
+      }
+      
+      // Set user ID for Rankiard points tracking
+      if (userId) {
+        gameManager.setPlayerUserId(gameId, playerName, userId);
       }
       
       // Send current game state to the player
