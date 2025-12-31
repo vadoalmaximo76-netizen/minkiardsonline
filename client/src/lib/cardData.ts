@@ -162,7 +162,7 @@ export const CARD_DATA = {
     "https://i.postimg.cc/7ZnHxSYP/Vous-tra-vous.png",
     "https://i.postimg.cc/jjqsCCLH/Z-AMMONTA.png",
     "https://i.postimg.cc/9fxc9V7v/ZZERUO.png",
-    "https://i.ibb.co/b557sg0Y/BAMBOLA-VOODOO.png",
+    "https://i.ibb.co/TCqY21v/BAMBOLA-VOODOO.png",
     "https://i.ibb.co/4ZjKmzFJ/UNA-TEMPESTA-BABY.png",
     "https://i.ibb.co/206yKHFQ/MODALIT-FRANKENSTEIN.png",
     "https://i.ibb.co/sv5vTcsZ/MORS-TUA-VITA-MEA.png",
