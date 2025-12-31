@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import ReactDOM from "react-dom";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
@@ -453,68 +454,103 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         </div>
       )}
 
-      {/* Hand Target Selection Modal (for ATTACCO DISONESTO) - HORIZONTAL LAYOUT */}
-      {showHandTargetSelect && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.98)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999 }}>
-          <div style={{ width: '98vw', height: '500px', backgroundColor: '#111827', borderRadius: '16px', border: '4px solid #dc2626', padding: '24px', display: 'flex', flexDirection: 'column', boxShadow: '0 0 60px rgba(220, 38, 38, 0.6)' }}>
-            {/* Header Row */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexShrink: 0 }}>
-              <h2 style={{ color: 'white', fontWeight: 'bold', fontSize: '36px', margin: 0, textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>🎯 ATTACCO DISONESTO - Scegli un personaggio in mano da attaccare</h2>
-              <Button
+      {/* Hand Target Selection Modal (for ATTACCO DISONESTO) - HORIZONTAL CENTERED */}
+      {showHandTargetSelect && ReactDOM.createPortal(
+        <div 
+          onClick={() => setShowHandTargetSelect(false)}
+          style={{ 
+            position: 'fixed', 
+            inset: 0, 
+            backgroundColor: 'rgba(0, 0, 0, 0.95)', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            zIndex: 2147483647 
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{ 
+              width: '1800px',
+              maxWidth: '95vw',
+              height: '500px', 
+              backgroundColor: '#0f172a', 
+              borderRadius: '20px', 
+              border: '6px solid #ef4444', 
+              padding: '30px',
+              boxShadow: '0 0 100px rgba(239, 68, 68, 0.8)',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            {/* Title and Close */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ color: '#fbbf24', fontWeight: 'bold', fontSize: '40px', margin: 0 }}>🎯 ATTACCO DISONESTO</h2>
+              <button
                 onClick={() => setShowHandTargetSelect(false)}
-                style={{ backgroundColor: '#dc2626', color: 'white', padding: '12px 24px', fontWeight: 'bold', fontSize: '18px', cursor: 'pointer', borderRadius: '8px' }}
+                style={{ backgroundColor: '#ef4444', color: 'white', padding: '15px 30px', fontWeight: 'bold', fontSize: '20px', cursor: 'pointer', borderRadius: '10px', border: 'none' }}
               >
                 ✕ CHIUDI
-              </Button>
+              </button>
             </div>
             
-            {/* Horizontal scrollable content */}
-            <div style={{ display: 'flex', flexDirection: 'row', gap: '24px', overflowX: 'auto', flex: 1, alignItems: 'stretch', paddingBottom: '8px' }}>
+            <p style={{ color: 'white', textAlign: 'center', fontSize: '22px', margin: '0 0 20px 0' }}>Scegli un personaggio in mano da attaccare:</p>
+            
+            {/* HORIZONTAL ROW of opponents */}
+            <div style={{ display: 'flex', flexDirection: 'row', gap: '30px', overflowX: 'auto', flex: 1, padding: '10px 0' }}>
               {Object.entries(gameState?.players || {}).map(([pName, pData]: [string, any]) => {
                 if (pName === playerName) return null;
                 const handCards = pData.hand?.filter((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali') || [];
-                
                 if (handCards.length === 0) return null;
                 
                 return (
-                  <div key={pName} style={{ backgroundColor: '#1f2937', borderRadius: '12px', padding: '20px', border: '3px solid #f97316', minWidth: '300px', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-                    <h3 style={{ color: '#fed7aa', fontWeight: 'bold', fontSize: '28px', textAlign: 'center', margin: '0 0 8px 0' }}>🎮 {pName}</h3>
-                    <p style={{ color: '#9ca3af', textAlign: 'center', marginBottom: '12px', fontSize: '14px' }}>{handCards.length} personaggio/i</p>
-                    <div style={{ display: 'flex', flexDirection: 'row', gap: '12px', justifyContent: 'center', flexWrap: 'wrap', flex: 1, alignItems: 'center' }}>
+                  <div key={pName} style={{ backgroundColor: '#1e293b', borderRadius: '15px', padding: '25px', border: '4px solid #f97316', minWidth: '350px', flexShrink: 0 }}>
+                    <h3 style={{ color: '#fb923c', fontWeight: 'bold', fontSize: '30px', textAlign: 'center', margin: '0 0 15px 0' }}>🎮 {pName}</h3>
+                    <p style={{ color: '#94a3b8', textAlign: 'center', marginBottom: '15px' }}>{handCards.length} personaggio/i in mano</p>
+                    <div style={{ display: 'flex', flexDirection: 'row', gap: '15px', justifyContent: 'center' }}>
                       {handCards.map((hCard: any, idx: number) => (
-                        <Button
+                        <button
                           key={hCard.id}
                           onClick={() => handleHandTargetSelect(hCard)}
-                          style={{ backgroundColor: '#dc2626', color: 'white', padding: '16px', height: '200px', width: '120px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: '12px', border: '3px solid #f87171', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold', transition: 'transform 0.2s, box-shadow 0.2s' }}
-                          onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.08)'; e.currentTarget.style.boxShadow = '0 10px 30px rgba(220, 38, 38, 0.8)'; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = 'none'; }}
+                          style={{ 
+                            backgroundColor: '#dc2626', 
+                            color: 'white', 
+                            padding: '20px', 
+                            height: '220px', 
+                            width: '150px', 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            alignItems: 'center', 
+                            justifyContent: 'center', 
+                            borderRadius: '15px', 
+                            border: '4px solid #fca5a5', 
+                            cursor: 'pointer', 
+                            fontSize: '16px', 
+                            fontWeight: 'bold'
+                          }}
                         >
-                          <p style={{ fontSize: '56px', margin: '0 0 8px 0' }}>🎴</p>
-                          <p style={{ fontSize: '14px', fontWeight: 'bold', margin: '0 0 4px 0' }}>CARTA #{idx + 1}</p>
-                          <p style={{ fontSize: '12px', margin: 0, color: '#fecaca', textAlign: 'center' }}>CLICCA</p>
-                        </Button>
+                          <span style={{ fontSize: '70px', marginBottom: '10px' }}>🎴</span>
+                          <span style={{ fontSize: '18px', fontWeight: 'bold' }}>CARTA #{idx + 1}</span>
+                          <span style={{ fontSize: '14px', color: '#fecaca', marginTop: '5px' }}>ATTACCA</span>
+                        </button>
                       ))}
                     </div>
                   </div>
                 );
               })}
               
-              {/* Show message if no valid targets */}
               {Object.entries(gameState?.players || {}).every(([pName, pData]: [string, any]) => {
                 if (pName === playerName) return true;
-                const handCards = (pData as any).hand?.filter((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali') || [];
-                return handCards.length === 0;
+                return ((pData as any).hand?.filter((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali') || []).length === 0;
               }) && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', color: '#9ca3af' }}>
-                  <div style={{ textAlign: 'center' }}>
-                    <p style={{ fontSize: '28px', marginBottom: '12px' }}>⚠️ Nessun bersaglio disponibile</p>
-                    <p style={{ fontSize: '18px' }}>Gli avversari non hanno personaggi in mano.</p>
-                  </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                  <p style={{ color: '#94a3b8', fontSize: '24px' }}>⚠️ Nessun bersaglio disponibile</p>
                 </div>
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Damage Input Dialog */}
