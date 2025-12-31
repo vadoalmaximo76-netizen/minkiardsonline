@@ -96,6 +96,7 @@ interface GameState {
   eliminationOrder: string[]; // Order in which players were eliminated (first eliminated = last place)
   playerUserIds: Map<string, number>; // Map player names to user IDs for points assignment
   gameEnded: boolean; // Prevent multiple victory notifications
+  pointsAwarded: boolean; // Prevent duplicate Rankiard points awards
   pendingTransferRequests: TransferRequest[]; // Pending card transfer requests between human players
   pendingDefense?: PendingDefense; // Current pending defense request (only one at a time)
   voodooLinks: VoodooLink[]; // BAMBOLA VOODOO: Track linked characters
@@ -147,6 +148,7 @@ export class GameManager {
       eliminationOrder: [],
       playerUserIds: new Map<string, number>(),
       gameEnded: false,
+      pointsAwarded: false,
       pendingTransferRequests: [],
       voodooLinks: []
     };
@@ -849,14 +851,14 @@ Rispondi SOLO in JSON:`;
       const game = this.games.get(gameId);
       if (!game) return;
       
-      // Prevent duplicate point awards - check if match already completed
-      if (game.gameEnded) {
-        console.log(`Match ${gameId} already completed, skipping duplicate completeMatch call`);
+      // Prevent duplicate point awards - check if points already awarded
+      if (game.pointsAwarded) {
+        console.log(`Match ${gameId} points already awarded, skipping duplicate completeMatch call`);
         return;
       }
       
-      // Mark match as completed to prevent duplicate calls
-      game.gameEnded = true;
+      // Mark points as awarded to prevent duplicate calls
+      game.pointsAwarded = true;
 
       const duration = Math.floor((Date.now() - game.startTime.getTime()) / 1000);
       const playerList = Object.keys(game.players);
