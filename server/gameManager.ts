@@ -4252,6 +4252,34 @@ Rispondi SOLO in JSON:`;
             cardImage: result.sorosImage
           });
         }
+        
+        // CHECK FOR PLAYER ELIMINATION after character death
+        if (result.eliminationCheck) {
+          console.log(`Player ${targetOwner} has reached character limit via MOSSE damage - automatically eliminating`);
+          
+          const eliminationSuccess = this.markPlayerEliminated(gameId, targetOwner);
+          if (eliminationSuccess) {
+            console.log(`Player ${targetOwner} automatically eliminated due to character limit`);
+            io.to(gameId).emit('player-eliminated', { playerName: targetOwner });
+            
+            // Send elimination message
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-auto-elimination`,
+              playerName: 'Sistema',
+              message: `${targetOwner} è stato eliminato! Ha perso tutti i suoi personaggi.`,
+              timestamp: Date.now()
+            });
+            
+            // Check for game victory
+            const winner = this.checkForGameVictory(gameId);
+            if (winner) {
+              console.log(`Game won by: ${winner}`);
+              io.to(gameId).emit('game-victory', { winner });
+              // Award Rankiard points
+              this.completeMatch(gameId, winner);
+            }
+          }
+        }
       }
       
       // PRESERVE: PTI ABSORPTION SYSTEM (exact legacy implementation)
@@ -4401,19 +4429,30 @@ Rispondi SOLO in JSON:`;
       return null;
     }
 
-    // Get all non-CPU players who are not eliminated
-    const activePlayers = Object.keys(game.players)
-      .filter(playerName => 
-        !game.players[playerName].isCPU && 
-        !game.eliminatedPlayers.has(playerName)
-      );
+    // Get ALL active players (including CPU) who are not eliminated
+    const allActivePlayers = Object.keys(game.players)
+      .filter(playerName => !game.eliminatedPlayers.has(playerName));
 
-    // If only one active player remains, they win
-    if (activePlayers.length === 1) {
+    console.log(`Victory check: ${allActivePlayers.length} active players remaining:`, allActivePlayers);
+
+    // If only one active player remains (human or CPU), they win
+    if (allActivePlayers.length === 1) {
+      const winner = allActivePlayers[0];
       // Mark game as ended to prevent multiple victory notifications
       game.gameEnded = true;
-      console.log(`Game victory declared for ${activePlayers[0]} - game marked as ended`);
-      return activePlayers[0];
+      console.log(`Game victory declared for ${winner} - game marked as ended`);
+      return winner;
+    }
+
+    // Also check: if only one HUMAN player remains and all CPUs are eliminated, human wins
+    const activeHumans = allActivePlayers.filter(p => !game.players[p].isCPU);
+    const activeCPUs = allActivePlayers.filter(p => game.players[p].isCPU);
+    
+    if (activeHumans.length === 1 && activeCPUs.length === 0) {
+      const winner = activeHumans[0];
+      game.gameEnded = true;
+      console.log(`Game victory declared for human ${winner} (all CPUs eliminated) - game marked as ended`);
+      return winner;
     }
 
     return null;
