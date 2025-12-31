@@ -65,6 +65,8 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const isAtaccoDisonesto = card.type === 'mosse' && location === 'field' && getCardName(card.frontImage) === 'ATTACCO DISONESTO';
 
   const handleAttaccoDisonesto = () => {
+    // Set this MOSSE card as the selected card for attack
+    setSelectedMosseCard(card);
     // Open hand target selection for ATTACCO DISONESTO
     setShowHandTargetSelect(true);
   };
