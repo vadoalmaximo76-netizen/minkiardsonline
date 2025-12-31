@@ -114,7 +114,9 @@ export class CPUPlayer {
       playedThisTurn: false,
       executedThisTurn: false
     };
-    console.log(`CPU ${this.playerName} turn state reset`);
+    // CRITICAL: Reset attack flag so CPU can play in next turn
+    this.waitingForAttackResolution = false;
+    console.log(`CPU ${this.playerName} turn state reset (attack flag cleared)`);
   }
 
   markActionExecuted(actionType: 'draw' | 'play' | 'execute', cardId?: string, cardType?: string) {
