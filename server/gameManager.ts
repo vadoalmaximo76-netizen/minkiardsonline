@@ -4127,8 +4127,8 @@ Rispondi SOLO in JSON:`;
             }
           }
         } else {
-          // Regular field death: move to graveyard
-          this.moveToGraveyard(gameId, targetCardId, targetOwner);
+          // Regular field death: move to graveyard with attacker info for SOROS activation
+          this.moveToGraveyard(gameId, targetCardId, targetOwner, attackerName);
         }
         
         // PRESERVE: PTI ABSORPTION SYSTEM (exact legacy implementation)
