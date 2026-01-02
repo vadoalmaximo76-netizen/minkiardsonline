@@ -2652,41 +2652,81 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       return true;
     }
     
-    // Respond to direct questions to the CPU
-    if (lowerMessage.includes(this.playerName.toLowerCase()) || lowerMessage.includes('cpu')) {
-      console.log(`CPU ${this.playerName} responding to direct question`);
-      setTimeout(() => {
-        const responses = [
-          "Sì? Hai un consiglio per me?",
-          "Ti ascolto! Cosa devo fare?",
-          "Dimmi, cosa mi consigli?",
-          "Sono qui, aiutami a migliorare!"
-        ];
-        this.sendChatMessage(responses[Math.floor(Math.random() * responses.length)]);
-      }, 500 + Math.random() * 1500);
-      return true;
-    }
-    
-    // Always respond to any human message with a simple response (fallback)
-    if (Math.random() < 0.4) { // 40% chance to respond to any message
-      console.log(`CPU ${this.playerName} giving random response to message`);
-      setTimeout(() => {
-        const responses = [
-          "Interessante!",
-          "Capisco...",
-          "Grazie per il suggerimento!",
-          "Sto imparando molto da voi!",
-          "Buona strategia!",
-          "Dici davvero?",
-          "Hmm, ci penserò!"
-        ];
-        this.sendChatMessage(responses[Math.floor(Math.random() * responses.length)]);
-      }, 2000 + Math.random() * 3000);
+    // Respond to direct questions to the CPU or any other message - use AI for intelligent responses
+    if (lowerMessage.includes(this.playerName.toLowerCase()) || lowerMessage.includes('cpu') || Math.random() < 0.7) {
+      console.log(`CPU ${this.playerName} generating AI response to: "${message}"`);
+      this.generateAIResponse(message, senderName);
       return true;
     }
     
     console.log(`CPU ${this.playerName} finished processing chat message, no specific response triggered`);
     return false;
+  }
+  
+  // Generate intelligent AI response using OpenAI
+  private async generateAIResponse(message: string, senderName: string): Promise<void> {
+    try {
+      // Get game context for more relevant responses
+      const gameState = this.gameManager?.getGameState(this.gameId);
+      let gameContext = '';
+      
+      if (gameState) {
+        const myHand = gameState.players[this.playerName]?.hand || [];
+        const myField = gameState.players[this.playerName]?.field || [];
+        const myCharactersInHand = myHand.filter((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali').length;
+        const myMosseInHand = myHand.filter((c: any) => c.type === 'mosse').length;
+        const myBonusInHand = myHand.filter((c: any) => c.type === 'bonus').length;
+        
+        gameContext = `Stato attuale: Ho ${myHand.length} carte in mano (${myCharactersInHand} personaggi, ${myMosseInHand} mosse, ${myBonusInHand} bonus). Ho ${myField.length} carte sul campo.`;
+      }
+      
+      // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+      const response = await openai.chat.completions.create({
+        model: "gpt-5",
+        messages: [
+          {
+            role: "system",
+            content: `Sei ${this.playerName}, un giocatore CPU nel gioco di carte MINKIARDS. Rispondi sempre in italiano in modo naturale, amichevole e conciso (massimo 2 frasi). 
+            
+Regole di MINKIARDS:
+- Ci sono 4 tipi di carte: PERSONAGGI (personaggi base), MOSSE (attacchi), BONUS (potenziamenti), PERSONAGGI SPECIALI
+- I personaggi hanno PTI (punti) e Stelle (1-5)
+- Le MOSSE si usano per attaccare i personaggi nemici
+- I BONUS potenziano i propri personaggi
+- Vince chi elimina tutti i personaggi nemici
+
+${gameContext}
+
+Rispondi in modo appropriato al messaggio del giocatore. Puoi fare battute, dare consigli, commentare il gioco, o semplicemente conversare.`
+          },
+          {
+            role: "user",
+            content: `${senderName} dice: "${message}"`
+          }
+        ],
+        max_completion_tokens: 150
+      });
+      
+      const aiResponse = response.choices[0]?.message?.content;
+      if (aiResponse) {
+        console.log(`CPU ${this.playerName} AI response: "${aiResponse}"`);
+        setTimeout(() => {
+          this.sendChatMessage(aiResponse);
+        }, 1000 + Math.random() * 2000);
+      }
+    } catch (error) {
+      console.error(`CPU ${this.playerName} AI response error:`, error);
+      // Fallback to simple responses if AI fails
+      setTimeout(() => {
+        const fallbackResponses = [
+          "Interessante!",
+          "Capisco...",
+          "Grazie per il messaggio!",
+          "Hmm, ci penserò!"
+        ];
+        this.sendChatMessage(fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)]);
+      }, 1000 + Math.random() * 1500);
+    }
   }
     
   // Process advice from human players
