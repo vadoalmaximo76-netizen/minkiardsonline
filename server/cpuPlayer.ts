@@ -2087,7 +2087,8 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     }
 
     // New Priority 4.5: If character has 0 stars/PTI and no replacement personaggio in hand, play BONUS
-    if (myCharacter && !hasBonusOnField) {
+    // A character with 0 stars CAN still use BONUS cards.
+    if (myCharacter) {
       const characterText = myCharacter.notes || myCharacter.text || '';
       const starsMatch = characterText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
       const currentStars = starsMatch ? parseInt(starsMatch[1]) : 0;
@@ -2097,7 +2098,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       if (currentStars <= 0 || currentPTI <= 0 || characterText === "0") {
         const bonus = hand.find((c: any) => c.type === 'bonus');
         if (bonus) {
-          console.log(`CPU ${this.playerName} character has 0 stars/PTI, playing BONUS instead`);
+          console.log(`CPU ${this.playerName} character has 0 stars/PTI, playing BONUS (allowed)`);
           return bonus;
         }
       }
