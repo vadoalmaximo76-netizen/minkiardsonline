@@ -4447,6 +4447,65 @@ Rispondi SOLO in JSON:`;
       return;
     }
 
+    // PARTITA DI TENNIS logic: special escalating damage loop (+50 each hit)
+    if (mosseName.includes('PARTITA') && mosseName.includes('TENNIS') && !isVoodooReflection) {
+      console.log(`🎾 PARTITA DI TENNIS: Starting escalating damage loop between ${attackerName} and ${targetOwner}`);
+      
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-tennis-start`,
+        playerName: 'Sistema',
+        message: `🎾 PARTITA DI TENNIS: Inizia lo scambio di colpi tra ${attackerName} e ${targetOwner}!`,
+        timestamp: Date.now()
+      });
+
+      let currentDamage = damageValue;
+      let attackerChar = game?.field.find(c => c.owner === attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+      let defenderChar = targetCard;
+      let turn = 'defender'; // First damage is to defender
+
+      while (true) {
+        const victim = turn === 'defender' ? targetOwner : attackerName;
+        const victimChar = turn === 'defender' ? defenderChar : attackerChar;
+        const victimName = turn === 'defender' ? 'Difensore' : 'Attaccante';
+        
+        if (!victimChar) break;
+
+        // Apply damage to current victim
+        const victimPTI = this.extractPTIFromNote(victimChar.text || '');
+        const newPTI = Math.max(0, victimPTI - currentDamage);
+        victimChar.text = (victimChar.text || '').replace(/PTI:\s*\d+/i, `PTI: ${newPTI}`);
+        
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-tennis-loop-${Math.random()}`,
+          playerName: 'Sistema',
+          message: `🎾 ${victimName} (${victim}) subisce ${currentDamage} danni! PTI restanti: ${newPTI}`,
+          timestamp: Date.now()
+        });
+
+        if (newPTI <= 0) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-tennis-end`,
+            playerName: 'Sistema',
+            message: `🎾💀 ${victimName} (${victim}) è stato eliminato! La PARTITA DI TENNIS termina.`,
+            timestamp: Date.now()
+          });
+          
+          // Move victim to graveyard
+          this.moveToGraveyard(gameId, victimChar.id, victim, turn === 'defender' ? attackerName : targetOwner);
+          break;
+        }
+
+        // Prepare for next hit: add 50 to damage
+        currentDamage += 50;
+        turn = turn === 'defender' ? 'attacker' : 'defender';
+      }
+
+      // Sync state and return
+      const updatedGameStateTennis = this.getSanitizedGameState(gameId);
+      io.to(gameId).emit('game-state-update', updatedGameStateTennis);
+      return;
+    }
+
     // REGULAR DAMAGE LOGIC (original code starts here)
     const currentNotes = targetCard.text || '';
     let updatedNotes = currentNotes;
