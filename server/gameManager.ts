@@ -4384,10 +4384,12 @@ Rispondi SOLO in JSON:`;
     }
 
     // SEMPAFAAGARA logic: special recursive damage loop
-    const mosseName = this.getCardNameFromUrl(mosseCardId).toUpperCase();
-    const mosseUrl = mosseCardId.toUpperCase();
-    console.log(`[PROCESS-DAMAGE] Checking SEMPAFAAGARA: "${mosseName}" (URL: ${mosseCardId})`);
-    if ((mosseName.includes('SEMPAFAAGARA') || mosseUrl.includes('SEMPAFAAGARA') || mosseCardId.includes('35jjYwTX')) && !isVoodooReflection) {
+    // Find the MOSSE card on field to get its actual frontImage URL
+    const mosseCard = game?.field?.find(c => c.id === mosseCardId);
+    const mosseFrontImage = mosseCard?.frontImage || mosseCardId;
+    const mosseName = this.getCardNameFromUrl(mosseFrontImage).toUpperCase();
+    console.log(`[PROCESS-DAMAGE] Checking SEMPAFAAGARA: "${mosseName}" (frontImage: ${mosseFrontImage})`);
+    if (mosseName.includes('SEMPAFAAGARA') && !isVoodooReflection) {
       console.log(`🌀 SEMPAFAAGARA: Starting recursive damage loop between ${attackerName} and ${targetOwner}`);
       
       io.to(gameId).emit('chat-message', {
