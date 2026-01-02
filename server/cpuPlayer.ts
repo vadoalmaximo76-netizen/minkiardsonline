@@ -2045,14 +2045,17 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       const starsMatch = characterText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
       const currentStars = starsMatch ? parseInt(starsMatch[1]) : 0;
       
-      if (currentStars > 0) {
+      const ptiMatch = characterText.match(/PTI[:\s]*(\d+)/i);
+      const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100;
+      
+      if (currentStars > 0 && currentPTI > 0 && characterText !== "0") {
         const mosse = hand.find((c: any) => c.type === 'mosse');
         if (mosse) {
-          console.log(`CPU ${this.playerName} playing MOSSE (no MOSSE on field, ${currentStars} stars available)`);
+          console.log(`CPU ${this.playerName} playing MOSSE (no MOSSE on field, ${currentStars} stars, ${currentPTI} PTI available)`);
           return mosse;
         }
       } else {
-        console.log(`CPU ${this.playerName} skipping MOSSE play (character has 0 stars)`);
+        console.log(`CPU ${this.playerName} skipping MOSSE play (character has 0 stars or 0 PTI)`);
       }
     }
     
@@ -2065,11 +2068,14 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       const starsMatch = characterText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
       const currentStars = starsMatch ? parseInt(starsMatch[1]) : 0;
       
-      if (currentStars > 0) {
+      const ptiMatch = characterText.match(/PTI[:\s]*(\d+)/i);
+      const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100;
+      
+      if (currentStars > 0 && currentPTI > 0 && characterText !== "0") {
         // Find existing MOSSE card on field to use
         const existingMosse = myFieldCards.find((c: any) => c.type === 'mosse');
         if (existingMosse) {
-          console.log(`CPU ${this.playerName} using existing MOSSE on field to attack (${currentStars} stars)`);
+          console.log(`CPU ${this.playerName} using existing MOSSE on field to attack (${currentStars} stars, ${currentPTI} PTI)`);
           return existingMosse; // Return existing card to use it
         }
       }
