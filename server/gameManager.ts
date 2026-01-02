@@ -3961,12 +3961,15 @@ Rispondi SOLO in JSON:`;
         "FOLATA DI VENTO", "RESPINTA"
       ];
 
+      // Debug: Log CPU hand to check card names
+      console.log(`🤖 CPU ${pendingDefense.defender} hand:`, defender.hand.map((c: any) => c.name));
+
       const bonusInHand = defender.hand.find((c: any) => 
-        c.type === 'bonus' && c.name && defenseBonusCards.includes(c.name.toUpperCase())
+        c.type === 'bonus' && c.name && defenseBonusCards.some(name => c.name.toUpperCase().includes(name))
       );
 
       if (bonusInHand) {
-        console.log(`🤖 CPU defender ${pendingDefense.defender} has defense BONUS: ${bonusInHand.name} - auto-defending`);
+        console.log(`🤖 CPU defender ${pendingDefense.defender} HAS defense BONUS: ${bonusInHand.name} - auto-defending!`);
         
         io.to(gameId).emit('chat-message', {
           playerName: 'Sistema',
@@ -3979,14 +3982,18 @@ Rispondi SOLO in JSON:`;
         game.field.push(cardToField);
         defender.hand = defender.hand.filter((c: any) => c.id !== bonusInHand.id);
 
+        // ATOMIC RESOLUTION: Set defends=true before calling processDefenseResponse
+        // But processDefenseResponse clears the pendingDefense, so we need to be careful
+        
         setTimeout(async () => {
+          console.log(`🤖 CPU ${pendingDefense.defender}: Resolving defense TRUE`);
           await this.processDefenseResponse(gameId, pendingDefense.attackId, true, io, 'cpu');
-        }, 1500);
+        }, 1000);
 
         return true;
       }
 
-      console.log(`🤖 CPU defender detected: ${pendingDefense.defender} - no defense cards, auto-resolving with defends=false`);
+      console.log(`🤖 CPU defender ${pendingDefense.defender} DOES NOT HAVE defense cards, auto-resolving with defends=false`);
       
       // Send system message about CPU decision
       io.to(gameId).emit('chat-message', {
