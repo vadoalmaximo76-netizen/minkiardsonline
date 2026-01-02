@@ -2017,6 +2017,30 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         return personaggio;
       }
     }
+
+    // Priority 1.5: If character has 0 stars/PTI, play a new PERSONAGGI to replace it
+    if (myCharacter) {
+      const characterText = myCharacter.notes || myCharacter.text || '';
+      const starsMatch = characterText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
+      const currentStars = starsMatch ? parseInt(starsMatch[1]) : 0;
+      const ptiMatch = characterText.match(/PTI[:\s]*(\d+)/i);
+      const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100;
+
+      if (currentStars <= 0 || currentPTI <= 0 || characterText === "0") {
+        const replacement = hand.find((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+        if (replacement) {
+          console.log(`CPU ${this.playerName} replacing character with 0 stars/PTI`);
+          this.sendChatMessage(`Il mio personaggio non ha più stelle o PTI! Lo sostituisco con ${this.getCardNameFromUrl(replacement.frontImage)}.`);
+          
+          // Return the old character to hand via gameManager
+          if (this.gameManager) {
+            this.gameManager.returnToHand(this.gameId, myCharacter.id, this.playerName);
+          }
+          
+          return replacement;
+        }
+      }
+    }
     
     // Priority 2: If character is low on PTI and no BONUS on field, play BONUS to heal
     if (myCharacter && !hasBonusOnField) {
@@ -2059,6 +2083,23 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       if (bonus) {
         console.log(`CPU ${this.playerName} playing BONUS (no BONUS on field)`);
         return bonus;
+      }
+    }
+
+    // New Priority 4.5: If character has 0 stars/PTI and no replacement personaggio in hand, play BONUS
+    if (myCharacter && !hasBonusOnField) {
+      const characterText = myCharacter.notes || myCharacter.text || '';
+      const starsMatch = characterText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
+      const currentStars = starsMatch ? parseInt(starsMatch[1]) : 0;
+      const ptiMatch = characterText.match(/PTI[:\s]*(\d+)/i);
+      const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100;
+
+      if (currentStars <= 0 || currentPTI <= 0 || characterText === "0") {
+        const bonus = hand.find((c: any) => c.type === 'bonus');
+        if (bonus) {
+          console.log(`CPU ${this.playerName} character has 0 stars/PTI, playing BONUS instead`);
+          return bonus;
+        }
       }
     }
     
