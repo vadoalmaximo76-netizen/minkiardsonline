@@ -14,6 +14,8 @@ interface Card {
   eliminatedBy?: string;
   faceDown?: boolean;
   section?: string;
+  turnCounter?: number;
+  placedBy?: string;
   // Fusion system
   fusedWith?: string[]; // Array of card IDs that are fused with this card
   isFused?: boolean; // True if this card is part of a fusion
@@ -1253,6 +1255,13 @@ Rispondi SOLO in JSON:`;
     if (cardIndex !== -1) {
       const card = player.hand.splice(cardIndex, 1)[0];
       card.faceDown = false; // Ensure face up when played normally
+      
+      // If it's a BONUS or MOSSE being placed on the field, initialize turn counter
+      if ((card.type === 'bonus' || card.type === 'mosse')) {
+        card.turnCounter = 0;
+        card.placedBy = playerName;
+      }
+
       game.field.push(card);
       
       // Check if it's a PERSONAGGI or PERSONAGGI_SPECIALI card
@@ -3020,6 +3029,19 @@ Rispondi SOLO in JSON:`;
       
       // Check if player is eliminated
       if (!gameState.eliminatedPlayers.has(nextPlayer)) {
+        // Increment turn counters for cards on field owned by the NEXT player
+        gameState.field.forEach(card => {
+          if ((card.type === 'bonus' || card.type === 'mosse') && card.placedBy === nextPlayer) {
+            card.turnCounter = (card.turnCounter || 0) + 1;
+            
+            // Update the card text to include turn count
+            // Remove previous turn count if it exists (e.g., " | 1 TURNO" or " | 2 TURNI")
+            let cleanText = (card.text || '').replace(/\s\|\s\d+\sTURN[I]?/g, '').trim();
+            const suffix = card.turnCounter === 1 ? '1 TURNO' : `${card.turnCounter} TURNI`;
+            card.text = cleanText ? `${cleanText} | ${suffix}` : suffix;
+          }
+        });
+
         // Found a non-eliminated player
         // Initialize usedCardsThisTurn for the next player if not exists
         if (gameState.players[nextPlayer] && !gameState.players[nextPlayer].usedCardsThisTurn) {
@@ -3093,6 +3115,19 @@ Rispondi SOLO in JSON:`;
       
       // Check if player is eliminated
       if (!gameState.eliminatedPlayers.has(nextPlayer)) {
+        // Increment turn counters for cards on field owned by the NEXT player
+        gameState.field.forEach(card => {
+          if ((card.type === 'bonus' || card.type === 'mosse') && card.placedBy === nextPlayer) {
+            card.turnCounter = (card.turnCounter || 0) + 1;
+            
+            // Update the card text to include turn count
+            // Remove previous turn count if it exists (e.g., " | 1 TURNO" or " | 2 TURNI")
+            let cleanText = (card.text || '').replace(/\s\|\s\d+\sTURN[I]?/g, '').trim();
+            const suffix = card.turnCounter === 1 ? '1 TURNO' : `${card.turnCounter} TURNI`;
+            card.text = cleanText ? `${cleanText} | ${suffix}` : suffix;
+          }
+        });
+
         // Found a non-eliminated player
         // Initialize usedCardsThisTurn for the next player if not exists
         if (gameState.players[nextPlayer] && !gameState.players[nextPlayer].usedCardsThisTurn) {
