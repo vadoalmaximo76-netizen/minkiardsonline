@@ -1298,7 +1298,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const gameState = gameManager.getSanitizedGameState(gameId);
         const card = gameState?.field?.find((c: any) => c.id === cardId);
         
-        if (card && card.type === 'personaggi') {
+        if (card && (card.type === 'personaggi' || card.type === 'personaggi_speciali')) {
           // Check if PTI is 0
           const ptiZeroMatch = text.match(/PTI:\s*0(?:\s|$|\/)/);
           if (ptiZeroMatch || text === "0") {
@@ -2540,7 +2540,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (cpuPlayer && cpuPlayer.hand) {
           const mosseCard = cpuPlayer.hand.find((card: any) => card.type === 'mosse');
-          const enemies = gameState.field.filter((card: any) => card.owner !== playerName && card.type === 'personaggi');
+          const enemies = gameState.field.filter((card: any) => card.owner !== playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali'));
           
           if (mosseCard && enemies.length > 0) {
             const target = enemies[0]; // Attack first enemy

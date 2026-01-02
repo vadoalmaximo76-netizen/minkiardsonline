@@ -310,7 +310,7 @@ export const CardModal: React.FC = () => {
     if (!gameState?.field) return [];
     
     return gameState.field.filter(card => 
-      card.type === 'personaggi' && 
+      (card.type === 'personaggi' || card.type === 'personaggi_speciali') && 
       card.owner !== playerName
     );
   };
@@ -532,7 +532,7 @@ export const CardModal: React.FC = () => {
                       </Button>
                     )}
 
-                    {/* DUPLICA button - always available for PERSONAGGI cards */}
+                    {/* DUPLICA button - always available for PERSONAGGI and PERSONAGGI_SPECIALI cards */}
                     <Button
                       onClick={handleDuplicate}
                       className="aspect-square bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"

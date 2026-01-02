@@ -79,7 +79,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
       // Regular MOSSE attack on field (NOT for ATTACCO DISONESTO - that has its own button)
       // Can attack ANY personaggio on field (allies or opponents)
       if (location === 'field' && 
-          card.type === 'personaggi') {
+          (card.type === 'personaggi' || card.type === 'personaggi_speciali')) {
         
         // Check if the MOSSE card is FURTO
         const mosseCardName = getCardName(selectedMosseCard.frontImage);
@@ -237,7 +237,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     socket.emit('update-card-text', { cardId: card.id, text: newText });
     
     // Check if PTI has reached 0 for a PERSONAGGI card on field
-    if (card.type === 'personaggi' && location === 'field') {
+    if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && location === 'field') {
       // Check for explicit "0" or PTI: 0 pattern
       const isZero = newText === "0";
       const ptiZeroMatch = newText.match(/PTI:\s*0(?:\s|$)/);

@@ -1953,7 +1953,7 @@ Rispondi SOLO in JSON:`;
         card.faceDown = false; // Reveal the card
         
         // Check if it's a PERSONAGGI card
-        const isPersonaggio = card.type === 'personaggi';
+        const isPersonaggio = card.type === 'personaggi' || card.type === 'personaggi_speciali';
         
         // Record reveal card event
         await this.recordEvent(gameId, 'reveal-card', {
@@ -2124,12 +2124,12 @@ Rispondi SOLO in JSON:`;
 
         // Count PERSONAGGI cards in graveyard for this player (only personaggi count for elimination)
         const graveyardCount = game.graveyard.filter(
-          graveyardCard => graveyardCard.eliminatedBy === playerName && graveyardCard.type === 'personaggi'
+          graveyardCard => graveyardCard.eliminatedBy === playerName && (graveyardCard.type === 'personaggi' || graveyardCard.type === 'personaggi_speciali')
         ).length;
 
         // NEW: Track elimination count for SOROS activation
         let sorosActivated = false;
-        if (card.type === 'personaggi' && attacker) {
+        if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && attacker) {
           // Increment elimination count for the attacker
           const attackerPlayer = game.players[attacker];
           if (attackerPlayer) {
@@ -2165,7 +2165,7 @@ Rispondi SOLO in JSON:`;
 
         // Check if player should be eliminated (only if it's a personaggi card)
         let eliminationCheck = false;
-        if (card.type === 'personaggi' && game.characterLimit !== 'unlimited') {
+        if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && game.characterLimit !== 'unlimited') {
           const limit = parseInt(game.characterLimit);
           if (graveyardCount >= limit && !game.eliminatedPlayers.has(playerName)) {
             eliminationCheck = true;
@@ -2208,7 +2208,8 @@ Rispondi SOLO in JSON:`;
     const card2Result = findAndRemoveCard(card2Id, player2);
 
     if (card1Result && card2Result && 
-        card1Result.card.type === 'personaggi' && card2Result.card.type === 'personaggi') {
+        (card1Result.card.type === 'personaggi' || card1Result.card.type === 'personaggi_speciali') && 
+        (card2Result.card.type === 'personaggi' || card2Result.card.type === 'personaggi_speciali')) {
       
       const card1 = card1Result.card;
       const card2 = card2Result.card;
@@ -2760,7 +2761,7 @@ Rispondi SOLO in JSON:`;
 
     try {
       // Find the card in the field
-      const cardIndex = game.field.findIndex(card => card.id === cardId && card.type === 'personaggi');
+      const cardIndex = game.field.findIndex(card => card.id === cardId && (card.type === 'personaggi' || card.type === 'personaggi_speciali'));
       if (cardIndex === -1) return { success: false };
 
       const card = game.field.splice(cardIndex, 1)[0];
@@ -2776,7 +2777,7 @@ Rispondi SOLO in JSON:`;
 
       // Check if player should be eliminated (only if it's a personaggi card)
       let eliminationCheck = false;
-      if (card.type === 'personaggi' && game.characterLimit !== 'unlimited') {
+      if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && game.characterLimit !== 'unlimited') {
         const limit = parseInt(game.characterLimit);
         if (graveyardCount >= limit && !game.eliminatedPlayers.has(playerName)) {
           eliminationCheck = true;

@@ -731,11 +731,11 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       }
 
       // Find CPU's character on the field
-      const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName);
+      const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali'));
       
       // Find enemy characters on the field
       const enemyCharacters = gameState.field.filter((card: any) => 
-        card.owner !== this.playerName && card.type === 'personaggi'
+        card.owner !== this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali')
       );
 
       // Analyze hand cards with detailed MINKIARDS rules
@@ -1151,8 +1151,8 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       return this.getDefaultAnalysis();
     }
 
-    const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName && card.type === 'personaggi');
-    const enemyCharacters = gameState.field.filter((card: any) => card.owner !== this.playerName && card.type === 'personaggi');
+    const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali'));
+    const enemyCharacters = gameState.field.filter((card: any) => card.owner !== this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali'));
 
     // MINKIARDS RULES IMPLEMENTATION:
     // RULE 1: WITHOUT a character on field, you CANNOT perform any actions except playing a character
@@ -1980,8 +1980,8 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
   // Select which card to play based on strategic priorities
   selectCardToPlay(cpuPlayer: any, gameState: any): any {
     const hand = cpuPlayer.hand || [];
-    const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName && card.type === 'personaggi');
-    const enemies = gameState.field.filter((card: any) => card.owner !== this.playerName && card.type === 'personaggi');
+    const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali'));
+    const enemies = gameState.field.filter((card: any) => card.owner !== this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali'));
     
     // Check what cards I already have on field to avoid duplicates
     const myFieldCards = gameState.field.filter((card: any) => card.owner === this.playerName);
@@ -2106,7 +2106,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
   // MINKIARDS RULES: Always maintain exactly 1 card of each type (PERSONAGGI, MOSSE, BONUS) in hand
   shouldDrawCards(cpuPlayer: any, gameState: any): { shouldDraw: boolean, deckType?: string } {
     const hand = cpuPlayer.hand || [];
-    const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName && card.type === 'personaggi');
+    const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali'));
     
     // Count cards of each type in hand to avoid duplicates
     const personaggiInHand = hand.filter((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali').length;
@@ -2257,7 +2257,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
   // Execute attack action
   executeAttackAction(order: any, gameState: any): any {
     const cpuPlayer = gameState.players[this.playerName];
-    const enemies = gameState.field.filter((card: any) => card.owner !== this.playerName && card.type === 'personaggi');
+    const enemies = gameState.field.filter((card: any) => card.owner !== this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali'));
     
     if (!cpuPlayer || !cpuPlayer.hand) return null;
     
@@ -2377,6 +2377,11 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     if (!cpuPlayer) return null;
     
     const handAnalysis = this.analyzeHandForGameRules(cpuPlayer.hand || []);
+    
+    // Check if characterLimit allows drawing characters
+    const personagensCount = (cpuPlayer.hand || []).filter((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali').length;
+    const hasCharacterOnField = gameState.field.some((c: any) => c.owner === this.playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+    
     return this.decideCardToPickBasedOnRules(gameState, handAnalysis);
   }
 
