@@ -100,8 +100,16 @@ export const CardModal: React.FC = () => {
     if (playerCharacter && playerCharacter.text) {
       // Check for "Stelle: 0" or "stelle: 0" in the notes
       const starsMatch = playerCharacter.text.match(/stelle:\s*0/i);
+      const ptiZeroMatch = playerCharacter.text.match(/PTI:\s*0(?:\s|$)/);
+      
       if (starsMatch) {
         alert('❌ Il tuo personaggio ha 0 stelle e non può usare carte MOSSE!');
+        setSelectedCard(null);
+        return;
+      }
+      
+      if (ptiZeroMatch || playerCharacter.text === "0") {
+        alert('❌ Il tuo personaggio ha 0 PTI e non può usare carte MOSSE!');
         setSelectedCard(null);
         return;
       }

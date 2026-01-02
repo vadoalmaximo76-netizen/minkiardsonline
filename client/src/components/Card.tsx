@@ -67,6 +67,26 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const isAtaccoDisonesto = card.type === 'mosse' && location === 'field' && getCardName(card.frontImage) === 'ATTACCO DISONESTO';
 
   const handleAttaccoDisonesto = () => {
+    // Check if player's character has 0 stars or 0 PTI
+    const playerCharacter = gameState?.field?.find(
+      c => c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+    );
+    
+    if (playerCharacter && playerCharacter.text) {
+      const starsMatch = playerCharacter.text.match(/stelle:\s*0/i);
+      const ptiZeroMatch = playerCharacter.text.match(/PTI:\s*0(?:\s|$)/);
+      
+      if (starsMatch) {
+        alert('❌ Il tuo personaggio ha 0 stelle e non può usare carte MOSSE!');
+        return;
+      }
+      
+      if (ptiZeroMatch || playerCharacter.text === "0") {
+        alert('❌ Il tuo personaggio ha 0 PTI e non può usare carte MOSSE!');
+        return;
+      }
+    }
+
     // Set this MOSSE card as the selected card for attack
     setSelectedMosseCard(card);
     // Open hand target selection for ATTACCO DISONESTO
@@ -76,6 +96,28 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const handleCardClick = () => {
     // If a MOSSE card is selected (for regular attacks on field)
     if (selectedMosseCard) {
+      // Check if player's character has 0 stars or 0 PTI
+      const playerCharacter = gameState?.field?.find(
+        c => c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      );
+      
+      if (playerCharacter && playerCharacter.text) {
+        const starsMatch = playerCharacter.text.match(/stelle:\s*0/i);
+        const ptiZeroMatch = playerCharacter.text.match(/PTI:\s*0(?:\s|$)/);
+        
+        if (starsMatch) {
+          alert('❌ Il tuo personaggio ha 0 stelle e non può usare carte MOSSE!');
+          setSelectedMosseCard(null);
+          return;
+        }
+        
+        if (ptiZeroMatch || playerCharacter.text === "0") {
+          alert('❌ Il tuo personaggio ha 0 PTI e non può usare carte MOSSE!');
+          setSelectedMosseCard(null);
+          return;
+        }
+      }
+
       // Regular MOSSE attack on field (NOT for ATTACCO DISONESTO - that has its own button)
       // Can attack ANY personaggio on field (allies or opponents)
       if (location === 'field' && 
