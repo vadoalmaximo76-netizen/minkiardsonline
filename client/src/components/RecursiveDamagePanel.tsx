@@ -59,48 +59,63 @@ export const RecursiveDamagePanel: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!event || currentStep >= event.steps.length) return;
-
-    const runNextStep = () => {
-      const nextStep = currentStep + 1;
-      if (nextStep >= event.steps.length) {
-        animationRef.current = setTimeout(() => {
-          setEvent(null);
-          setCurrentStep(-1);
-        }, 2000);
+    if (!event) return;
+    
+    let stepIndex = 0;
+    let cancelled = false;
+    
+    const runStep = () => {
+      if (cancelled || stepIndex >= event.steps.length) {
+        if (!cancelled) {
+          setTimeout(() => {
+            setEvent(null);
+            setCurrentStep(-1);
+          }, 2000);
+        }
         return;
       }
-
-      const step = event.steps[nextStep];
+      
+      const step = event.steps[stepIndex];
       
       setShowDamage({ target: step.target, value: step.damage });
       
-      animationRef.current = setTimeout(() => {
+      setTimeout(() => {
+        if (cancelled) return;
+        
         if (step.target === 'attacker') {
           setAttackerPTI(step.newPTI);
         } else {
           setDefenderPTI(step.newPTI);
         }
-        setCurrentStep(nextStep);
+        setCurrentStep(stepIndex);
         
-        animationRef.current = setTimeout(() => {
+        setTimeout(() => {
+          if (cancelled) return;
+          
           setShowDamage(null);
-          if (!step.eliminated) {
-            animationRef.current = setTimeout(runNextStep, 500);
-          } else {
-            animationRef.current = setTimeout(() => {
-              setEvent(null);
-              setCurrentStep(-1);
+          
+          if (step.eliminated) {
+            setTimeout(() => {
+              if (!cancelled) {
+                setEvent(null);
+                setCurrentStep(-1);
+              }
             }, 2000);
+          } else {
+            stepIndex++;
+            setTimeout(runStep, 500);
           }
         }, 800);
       }, 600);
     };
-
-    if (currentStep === -1) {
-      animationRef.current = setTimeout(runNextStep, 1000);
-    }
-  }, [event, currentStep]);
+    
+    const startTimer = setTimeout(runStep, 1000);
+    
+    return () => {
+      cancelled = true;
+      clearTimeout(startTimer);
+    };
+  }, [event]);
 
   if (!event) return null;
 
