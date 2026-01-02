@@ -144,33 +144,44 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
     });
   };
 
+  const getShortName = (fullName: string) => {
+    const shortNames: Record<string, string> = {
+      'PERSONAGGI': 'PERS',
+      'MOSSE': 'MOSSE',
+      'BONUS': 'BONUS',
+      'SPECIALI': 'SPEC'
+    };
+    return shortNames[fullName] || fullName;
+  };
+
   return (
-    <div className="flex flex-col items-center gap-0.5 sm:gap-2 md:gap-3">
-      <h3 className="text-white font-bold text-[10px] sm:text-sm md:text-base lg:text-lg leading-tight" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>{name}</h3>
+    <div className="flex flex-col items-center gap-0.5 sm:gap-1 md:gap-2 w-[72px] sm:w-auto">
+      <h3 className="text-white font-bold text-[8px] sm:text-xs md:text-sm lg:text-base leading-tight text-center truncate w-full" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+        <span className="sm:hidden">{getShortName(name)}</span>
+        <span className="hidden sm:inline">{name}</span>
+      </h3>
       
       <div className="relative">
         <img
           src={backImage}
           alt={`${name} back`}
-          className={`w-14 sm:w-20 md:w-24 h-auto aspect-[2/3] object-cover rounded-lg sm:rounded-xl cursor-pointer hover:scale-105 transition-transform shadow-lg ${isShuffling ? 'animate-shuffle' : ''}`}
+          className={`w-12 sm:w-16 md:w-20 lg:w-24 aspect-[2/3] object-cover rounded-md sm:rounded-lg md:rounded-xl cursor-pointer hover:scale-105 transition-transform shadow-lg ${isShuffling ? 'animate-shuffle' : ''}`}
           onClick={handlePickCard}
         />
         
         {/* Card count */}
-        <div className="absolute -bottom-1 -right-1 bg-white text-black rounded-full w-4 h-4 sm:w-6 sm:h-6 flex items-center justify-center font-bold text-[9px] sm:text-xs">
+        <div className="absolute -bottom-0.5 -right-0.5 sm:-bottom-1 sm:-right-1 bg-white text-black rounded-full w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 flex items-center justify-center font-bold text-[8px] sm:text-[10px] md:text-xs">
           {remainingCards}
         </div>
       </div>
 
-      <div className="flex flex-col gap-0.5 sm:gap-1">
-        <Button
-          onClick={handleChooseCard}
-          className="bg-green-600 hover:bg-green-700 text-white font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 text-[9px] sm:text-xs rounded"
-          style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
-        >
-          SCEGLI
-        </Button>
-      </div>
+      <Button
+        onClick={handleChooseCard}
+        className="bg-green-600 hover:bg-green-700 text-white font-bold px-1 sm:px-1.5 md:px-2 py-0.5 text-[8px] sm:text-[10px] md:text-xs rounded w-full"
+        style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
+      >
+        SCEGLI
+      </Button>
 
       {/* Deck Browser Modal - Portal to Body for Top Z-Index */}
       {showBrowser && createPortal(
