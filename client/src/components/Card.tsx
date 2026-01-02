@@ -341,7 +341,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         <img
           src={showBack || card.faceDown ? card.backImage : card.frontImage}
           alt="Card"
-          className={`w-20 h-28 rounded-xl cursor-pointer hover:scale-105 transition-transform shadow-lg object-contain
+          className={`w-16 h-auto aspect-[2/3] sm:w-20 sm:h-28 rounded-lg sm:rounded-xl cursor-pointer hover:scale-105 transition-transform shadow-lg object-cover
             ${shouldAnimateScaleDissolvenza ? 'card-scale-dissolve' : shouldAnimate ? 'card-appear' : ''} 
             ${isEliminated && isPersonaggio ? 'card-disperse' : ''} 
             ${isShaking && !isEliminated ? 'animate-shake' : ''} 

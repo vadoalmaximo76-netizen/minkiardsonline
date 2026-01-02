@@ -145,27 +145,27 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
   };
 
   return (
-    <div className="flex flex-col items-center gap-1 sm:gap-2 md:gap-3">
-      <h3 className="text-white font-bold text-xs sm:text-sm md:text-base lg:text-lg" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>{name}</h3>
+    <div className="flex flex-col items-center gap-0.5 sm:gap-2 md:gap-3">
+      <h3 className="text-white font-bold text-[10px] sm:text-sm md:text-base lg:text-lg leading-tight" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>{name}</h3>
       
       <div className="relative">
         <img
           src={backImage}
           alt={`${name} back`}
-          className={`w-24 h-32 rounded-xl cursor-pointer hover:scale-105 transition-transform shadow-lg ${isShuffling ? 'animate-shuffle' : ''}`}
+          className={`w-14 sm:w-20 md:w-24 h-auto aspect-[2/3] object-cover rounded-lg sm:rounded-xl cursor-pointer hover:scale-105 transition-transform shadow-lg ${isShuffling ? 'animate-shuffle' : ''}`}
           onClick={handlePickCard}
         />
         
         {/* Card count */}
-        <div className="absolute -bottom-1 -right-1 bg-white text-black rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs">
+        <div className="absolute -bottom-1 -right-1 bg-white text-black rounded-full w-4 h-4 sm:w-6 sm:h-6 flex items-center justify-center font-bold text-[9px] sm:text-xs">
           {remainingCards}
         </div>
       </div>
 
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-0.5 sm:gap-1">
         <Button
           onClick={handleChooseCard}
-          className="bg-green-600 hover:bg-green-700 text-white font-bold px-2 py-1 text-xs"
+          className="bg-green-600 hover:bg-green-700 text-white font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 text-[9px] sm:text-xs rounded"
           style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
         >
           SCEGLI
