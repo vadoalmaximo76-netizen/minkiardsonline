@@ -2419,29 +2419,44 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     };
   }
   
+  // Get card name from URL
+  private getCardNameFromUrl(imageUrl: string): string {
+    try {
+      if (!imageUrl) return 'Carta';
+      const url = new URL(imageUrl);
+      const pathname = url.pathname;
+      const filename = pathname.split('/').pop() || '';
+      return filename.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase();
+    } catch {
+      // Fallback for non-URL strings or failed URL parsing
+      return imageUrl?.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase() || 'Carta';
+    }
+  }
+
   // Handle player chat messages for specific CPU functions
-  async handlePlayerMessage(message: string, senderName: string, gameState: any) {
+  async handlePlayerMessage(message: string, senderName: string, gameState: any): Promise<boolean> {
     const text = message.toLowerCase();
+    console.log(`CPU ${this.playerName} processing potential command: "${text}"`);
     
     // Function 1: Random number generator
-    const numberRequestMatch = text.match(/(?:dimmi|spara|scegli|genera|dammi)\s+(?:un\s+)?numero\s+(?:da|tra)\s+(\d+)\s+(?:a|e)\s+(\d+)/i);
+    const numberRequestMatch = text.match(/(?:dimmi|spara|scegli|genera|dammi|scrivi)\s+(?:un\s+)?numero\s+(?:da|tra|compreso\s+tra)\s+(\d+)\s+(?:a|e)\s+(\d+)/i);
     if (numberRequestMatch) {
       const minValue = parseInt(numberRequestMatch[1]);
       const maxValue = parseInt(numberRequestMatch[2]);
       const resultValue = Math.floor(Math.random() * (Math.abs(maxValue - minValue) + 1)) + Math.min(minValue, maxValue);
       
       this.sendChatMessage(`Certo ${senderName}! Il numero che ho scelto tra ${minValue} e ${maxValue} è: ${resultValue}.`);
-      return;
+      return true;
     }
 
     // Function 2: Hand character stars inquiry
-    if (text.includes('stelle') && text.includes('mano') && (text.includes('personaggio') || text.includes('carta'))) {
+    if (text.includes('stelle') && (text.includes('mano') || text.includes('possiedi')) && (text.includes('personaggio') || text.includes('carta'))) {
       const cpuPlayer = gameState.players[this.playerName];
       const characterInHand = cpuPlayer?.hand?.find((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
       
       if (characterInHand) {
         const characterName = this.getCardNameFromUrl(characterInHand.frontImage);
-        const cardText = characterInHand.text || '';
+        const cardText = characterInHand.text || characterInHand.notes || '';
         const starsMatch = cardText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
         const stars = starsMatch ? starsMatch[1] : "non specificate";
         
@@ -2449,17 +2464,10 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       } else {
         this.sendChatMessage(`${senderName}, al momento non ho personaggi in mano.`);
       }
-      return;
+      return true;
     }
 
-    // Original AI response logic (if any exists or as fallback)
-    if (!this.openaiApiKey) {
-      // Simple fallback if no OpenAI
-      if (text.includes('ciao') || text.includes('ehi')) {
-        this.sendChatMessage(`Ciao ${senderName}! Sono pronto a giocare.`);
-      }
-      return;
-    }
+    return false;
   }
 
   // MINKIARDS RULES: Always maintain exactly 1 card of each type (PERSONAGGI, MOSSE, BONUS) in hand

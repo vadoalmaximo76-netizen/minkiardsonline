@@ -1885,13 +1885,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
         // Check if any CPU players should respond to this message
-        const gameState = gameManager.getGameState(gameId);
-        if (gameState) {
-          for (const pName in gameState.players) {
-            const player = gameState.players[pName];
-            if (player.isCPU && player.cpuInstance) {
-              // Let the CPU handle the message (async)
-              player.cpuInstance.handlePlayerMessage(message, playerName, gameManager.getSanitizedGameState(gameId));
+        const game = gameManager.getGameState(gameId);
+        if (game) {
+          for (const pName in game.players) {
+            const player = game.players[pName];
+            if (player.isCPU && player.cpuInstance && pName !== playerName) {
+              // Check if message is directed to this CPU or is a general command
+              const isDirectedToCPU = message.toLowerCase().includes(pName.toLowerCase()) || 
+                                     message.toLowerCase().includes('cpu');
+              
+              if (isDirectedToCPU) {
+                console.log(`Processing CPU chat responses for: ${message}`);
+                // First, check for special command functions (number generator, stars inquiry)
+                const handled = await player.cpuInstance.handlePlayerMessage(message, playerName, game);
+                
+                if (handled) {
+                  console.log(`CPU ${pName} handled command successfully via handlePlayerMessage`);
+                  continue; // Skip AI processing if handled by special function
+                }
+                
+                // If not handled by special function, fall back to AI/instruction processing
+                console.log(`CPU ${pName} processing human chat: "${message}" from ${playerName}`);
+                const response = await player.cpuInstance.processHumanChat(message, playerName);
+                if (response) {
+                  console.log(`CPU ${pName} responded via AI/Instruction`);
+                }
+              }
             }
           }
         }
