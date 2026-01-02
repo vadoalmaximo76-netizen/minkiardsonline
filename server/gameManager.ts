@@ -3961,19 +3961,35 @@ Rispondi SOLO in JSON:`;
         "FOLATA DI VENTO", "RESPINTA"
       ];
 
-      // Debug: Log CPU hand to check card names
-      console.log(`🤖 CPU ${pendingDefense.defender} hand:`, defender.hand.map((c: any) => c.name));
+      // Extract card name from frontImage URL if name is undefined
+      const getCardName = (card: any): string => {
+        if (card.name) return card.name;
+        if (card.frontImage) {
+          // Extract name from URL like https://i.postimg.cc/xxx/alta-salva.png -> alta salva
+          const match = card.frontImage.match(/\/([^\/]+)\.(png|jpg|jpeg|gif)$/i);
+          if (match) {
+            return match[1].replace(/-/g, ' ').toUpperCase();
+          }
+        }
+        return '';
+      };
 
-      const bonusInHand = defender.hand.find((c: any) => 
-        c.type === 'bonus' && c.name && defenseBonusCards.some(name => c.name.toUpperCase().includes(name))
-      );
+      // Debug: Log CPU hand to check card names
+      console.log(`🤖 CPU ${pendingDefense.defender} hand:`, defender.hand.map((c: any) => ({ type: c.type, name: getCardName(c) })));
+
+      const bonusInHand = defender.hand.find((c: any) => {
+        if (c.type !== 'bonus') return false;
+        const cardName = getCardName(c);
+        return cardName && defenseBonusCards.some(defCard => cardName.includes(defCard));
+      });
 
       if (bonusInHand) {
-        console.log(`🤖 CPU defender ${pendingDefense.defender} HAS defense BONUS: ${bonusInHand.name} - auto-defending!`);
+        const bonusCardName = getCardName(bonusInHand);
+        console.log(`🤖 CPU defender ${pendingDefense.defender} HAS defense BONUS: ${bonusCardName} - auto-defending!`);
         
         io.to(gameId).emit('chat-message', {
           playerName: 'Sistema',
-          message: `🤖 ${pendingDefense.defender} (CPU) usa ${bonusInHand.name} per respingere l'attacco!`,
+          message: `🤖 ${pendingDefense.defender} (CPU) usa ${bonusCardName} per respingere l'attacco!`,
           timestamp: Date.now()
         });
 
@@ -3982,9 +3998,11 @@ Rispondi SOLO in JSON:`;
         game.field.push(cardToField);
         defender.hand = defender.hand.filter((c: any) => c.id !== bonusInHand.id);
 
+        // Emit game state update to show card on field
+        const updatedGameState = this.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', updatedGameState);
+
         // ATOMIC RESOLUTION: Set defends=true before calling processDefenseResponse
-        // But processDefenseResponse clears the pendingDefense, so we need to be careful
-        
         setTimeout(async () => {
           console.log(`🤖 CPU ${pendingDefense.defender}: Resolving defense TRUE`);
           await this.processDefenseResponse(gameId, pendingDefense.attackId, true, io, 'cpu');
