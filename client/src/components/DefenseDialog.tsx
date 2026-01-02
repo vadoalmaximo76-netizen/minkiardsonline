@@ -3,7 +3,8 @@ import { useGameState } from '../lib/stores/useGameState';
 import { socket } from '../lib/socket';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Shield, Swords, Clock } from 'lucide-react';
+import { Shield, Swords, Clock, Eye } from 'lucide-react';
+import { HandModal } from './HandModal';
 
 interface DefenseRequest {
   gameId: string;
@@ -25,6 +26,7 @@ export const DefenseDialog: React.FC = () => {
   const [defenseRequest, setDefenseRequest] = useState<DefenseRequest | null>(null);
   const [timeLeft, setTimeLeft] = useState<number>(30); // 30 second timer
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [showHand, setShowHand] = useState<boolean>(false);
   const { playerName, gameId } = useGameState();
 
   // Listen for defense requests
@@ -193,6 +195,14 @@ export const DefenseDialog: React.FC = () => {
         {/* Buttons */}
         <div className="flex gap-2 justify-center mb-2">
           <Button
+            onClick={() => setShowHand(true)}
+            className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 text-sm transition-all duration-200"
+          >
+            <Eye className="w-4 h-4 mr-1" />
+            VEDI MANO
+          </Button>
+
+          <Button
             onClick={() => handleDefenseResponse(true)}
             disabled={isProcessing}
             className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 text-sm transition-all duration-200"
@@ -210,6 +220,8 @@ export const DefenseDialog: React.FC = () => {
             {isProcessing ? 'Aspetta...' : 'ACCETTA'}
           </Button>
         </div>
+
+        {showHand && <HandModal onClose={() => setShowHand(false)} />}
 
         {/* Timer Warning */}
         {timeLeft <= 10 && (
