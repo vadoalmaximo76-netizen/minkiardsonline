@@ -2027,7 +2027,20 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100;
 
       if (currentStars <= 0 || currentPTI <= 0 || characterText === "0") {
-        const replacement = hand.find((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+        // Find a replacement that actually HAS stars/PTI
+        const replacement = hand.find((c: any) => {
+          if (c.type !== 'personaggi' && c.type !== 'personaggi_speciali') return false;
+          
+          // Check if hand card has notes/text indicating it's also 0
+          const replacementText = c.text || '';
+          const rStarsMatch = replacementText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
+          const rStars = rStarsMatch ? parseInt(rStarsMatch[1]) : 1; // Default to 1 if not specified
+          const rPtiMatch = replacementText.match(/PTI[:\s]*(\d+)/i);
+          const rPti = rPtiMatch ? parseInt(rPtiMatch[1]) : 100; // Default to 100
+          
+          return rStars > 0 && rPti > 0 && replacementText !== "0";
+        });
+
         if (replacement) {
           console.log(`CPU ${this.playerName} replacing character with 0 stars/PTI`);
           this.sendChatMessage(`Il mio personaggio non ha più stelle o PTI! Lo sostituisco con ${this.getCardNameFromUrl(replacement.frontImage)}.`);
@@ -2038,6 +2051,8 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           }
           
           return replacement;
+        } else {
+          console.log(`CPU ${this.playerName} character has 0 stars/PTI, but NO valid replacement in hand`);
         }
       }
     }
