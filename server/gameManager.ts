@@ -4325,14 +4325,38 @@ Rispondi SOLO in JSON:`;
       
       console.log(`⭐ FURTO: ${targetOwner}'s ${targetCard.frontImage} lost ${damageValue} stars: ${currentStars} → ${newStars} Stelle`);
       
+      // ADD STOLEN STARS TO ATTACKER'S CHARACTER
+      const attackerCharacter = gameState?.field?.find((c: any) => 
+        c.owner === attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      );
+      
+      let attackerNewStars = 0;
+      if (attackerCharacter) {
+        const attackerNotes = attackerCharacter.text || '';
+        const attackerStarsMatch = attackerNotes.match(/[Ss]telle:\s*(-?\d+)/i);
+        const attackerCurrentStars = attackerStarsMatch ? parseInt(attackerStarsMatch[1]) : 0;
+        attackerNewStars = attackerCurrentStars + damageValue;
+        
+        let attackerUpdatedNotes = attackerNotes;
+        if (attackerStarsMatch) {
+          attackerUpdatedNotes = attackerNotes.replace(/[Ss]telle:\s*-?\d+/i, `Stelle: ${attackerNewStars}`);
+        } else {
+          attackerUpdatedNotes = attackerNotes ? `${attackerNotes}\nStelle: ${attackerNewStars}` : `Stelle: ${attackerNewStars}`;
+        }
+        
+        this.updateCardText(gameId, attackerCharacter.id, attackerUpdatedNotes);
+        console.log(`⭐ FURTO: ${attackerName}'s ${attackerCharacter.frontImage} gained ${damageValue} stars: ${attackerCurrentStars} → ${attackerNewStars} Stelle`);
+      }
+      
       // Broadcast the FURTO result
+      const gainedMsg = attackerCharacter ? ` | ${attackerName} ora ha ${attackerNewStars} stelle!` : '';
       if (newStars < 0) {
         // Character dies if stars go below 0
         shouldDie = true;
         io.to(gameId).emit('chat-message', {
           id: `${Date.now()}-furto-death`,
           playerName: 'Sistema',
-          message: `⭐💀 FURTO LETALE! ${attackerName} ruba ${damageValue} stelle a ${targetCard.owner}! Stelle: ${currentStars} → ${newStars} - IL PERSONAGGIO MUORE!`,
+          message: `⭐💀 FURTO LETALE! ${attackerName} ruba ${damageValue} stelle a ${targetCard.owner}! Stelle: ${currentStars} → ${newStars} - IL PERSONAGGIO MUORE!${gainedMsg}`,
           timestamp: Date.now()
         });
       } else if (newStars === 0) {
@@ -4340,14 +4364,14 @@ Rispondi SOLO in JSON:`;
         io.to(gameId).emit('chat-message', {
           id: `${Date.now()}-furto-blocked`,
           playerName: 'Sistema',
-          message: `⭐🚫 FURTO! ${attackerName} ruba ${damageValue} stelle a ${targetCard.owner}! Stelle: ${currentStars} → ${newStars} - NON PUÒ PIÙ USARE MOSSE!`,
+          message: `⭐🚫 FURTO! ${attackerName} ruba ${damageValue} stelle a ${targetCard.owner}! Stelle: ${currentStars} → ${newStars} - NON PUÒ PIÙ USARE MOSSE!${gainedMsg}`,
           timestamp: Date.now()
         });
       } else {
         io.to(gameId).emit('chat-message', {
           id: `${Date.now()}-furto`,
           playerName: 'Sistema',
-          message: `⭐ FURTO! ${attackerName} ruba ${damageValue} stelle a ${targetCard.owner}! Stelle: ${currentStars} → ${newStars}`,
+          message: `⭐ FURTO! ${attackerName} ruba ${damageValue} stelle a ${targetCard.owner}! Stelle: ${currentStars} → ${newStars}${gainedMsg}`,
           timestamp: Date.now()
         });
       }
