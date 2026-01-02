@@ -3953,9 +3953,40 @@ Rispondi SOLO in JSON:`;
 
     const defender = game.players[pendingDefense.defender];
     
-    // CPU AUTO-DEFENSE: Immediately resolve for CPU players (they can't show DefenseDialog)
+    // CPU AUTO-DEFENSE: Check for specific BONUS cards to auto-block
     if (defender?.isCPU || pendingDefense.defender.startsWith('CPU-')) {
-      console.log(`🤖 CPU defender detected: ${pendingDefense.defender} - auto-resolving defense with defends=false`);
+      const defenseBonusCards = [
+        "ALTA SALVA", "BOOMERANG", "CONTRO SKRAZZKOOM", "CONVERSIONE", 
+        "DIFESA VIGLIACCA", "E NN T MITT SCUORN", "E TAGG TRATTAT", 
+        "FOLATA DI VENTO", "RESPINTA"
+      ];
+
+      const bonusInHand = defender.hand.find((c: any) => 
+        c.type === 'bonus' && defenseBonusCards.includes(c.name.toUpperCase())
+      );
+
+      if (bonusInHand) {
+        console.log(`🤖 CPU defender ${pendingDefense.defender} has defense BONUS: ${bonusInHand.name} - auto-defending`);
+        
+        io.to(gameId).emit('chat-message', {
+          playerName: 'Sistema',
+          message: `🤖 ${pendingDefense.defender} (CPU) usa ${bonusInHand.name} per respingere l'attacco!`,
+          timestamp: Date.now()
+        });
+
+        // Put the card on the field immediately
+        const cardToField = { ...bonusInHand, owner: pendingDefense.defender, isFaceUp: true };
+        game.field.push(cardToField);
+        defender.hand = defender.hand.filter((c: any) => c.id !== bonusInHand.id);
+
+        setTimeout(async () => {
+          await this.processDefenseResponse(gameId, pendingDefense.attackId, true, io, 'cpu');
+        }, 1500);
+
+        return true;
+      }
+
+      console.log(`🤖 CPU defender detected: ${pendingDefense.defender} - no defense cards, auto-resolving with defends=false`);
       
       // Send system message about CPU decision
       io.to(gameId).emit('chat-message', {
