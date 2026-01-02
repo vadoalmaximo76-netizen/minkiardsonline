@@ -1355,8 +1355,8 @@ Rispondi SOLO in JSON:`;
     } else {
       // Regular attack: target must be on field
       targetCard = game.field.find(c => c.id === targetCardId);
-      if (!targetCard || (targetCard.type !== 'personaggi' && targetCard.type !== 'personaggi_speciali') || targetCard.owner === attackerName) {
-        return { success: false, error: 'Invalid target: must be enemy character on field' };
+      if (!targetCard || (targetCard.type !== 'personaggi' && targetCard.type !== 'personaggi_speciali')) {
+        return { success: false, error: 'Invalid target: must be a character on field' };
       }
       targetOwnerName = targetCard.owner;
     }
