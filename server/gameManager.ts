@@ -4392,58 +4392,85 @@ Rispondi SOLO in JSON:`;
     if (mosseName.includes('SEMPAFAAGARA') && !isVoodooReflection) {
       console.log(`🌀 SEMPAFAAGARA: Starting recursive damage loop between ${attackerName} and ${targetOwner}`);
       
-      io.to(gameId).emit('chat-message', {
-        id: `${Date.now()}-sempafaagara-start`,
-        playerName: 'Sistema',
-        message: `🌀 SEMPAFAAGARA: Inizia il ciclo infinito di danni tra ${attackerName} e ${targetOwner}!`,
-        timestamp: Date.now()
-      });
-
-      let currentDamage = damageValue;
       let attackerChar = game?.field.find(c => c.owner === attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
       let defenderChar = targetCard;
-      let turn = 'defender'; // First damage is to defender
+      
+      if (!attackerChar) {
+        console.log('SEMPAFAAGARA: Attacker character not found');
+        return;
+      }
+
+      // Pre-calculate all damage steps for animation
+      const steps: Array<{ target: 'attacker' | 'defender'; damage: number; newPTI: number; eliminated: boolean }> = [];
+      let simAttackerPTI = this.extractPTIFromNote(attackerChar.text || '');
+      let simDefenderPTI = this.extractPTIFromNote(defenderChar.text || '');
+      let currentDamage = damageValue;
+      let turn: 'attacker' | 'defender' = 'defender';
+      let eliminatedCharId: string | null = null;
+      let eliminatedOwner: string | null = null;
+      let eliminatedBy: string | null = null;
 
       while (true) {
-        const victim = turn === 'defender' ? targetOwner : attackerName;
-        const victimChar = turn === 'defender' ? defenderChar : attackerChar;
-        const victimName = turn === 'defender' ? 'Difensore' : 'Attaccante';
-        
-        if (!victimChar) break;
-
-        // Apply damage to current victim
-        const victimPTI = this.extractPTIFromNote(victimChar.text || '');
-        const newPTI = Math.max(0, victimPTI - currentDamage);
-        victimChar.text = (victimChar.text || '').replace(/PTI:\s*\d+/i, `PTI: ${newPTI}`);
-        
-        io.to(gameId).emit('chat-message', {
-          id: `${Date.now()}-sempafaagara-loop-${Math.random()}`,
-          playerName: 'Sistema',
-          message: `💥 ${victimName} (${victim}) subisce ${currentDamage} danni! PTI restanti: ${newPTI}`,
-          timestamp: Date.now()
-        });
-
-        if (newPTI <= 0) {
-          io.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-sempafaagara-end`,
-            playerName: 'Sistema',
-            message: `💀 ${victimName} (${victim}) è stato eliminato! Il ciclo SEMPAFAAGARA termina.`,
-            timestamp: Date.now()
-          });
-          
-          // Move victim to graveyard
-          this.moveToGraveyard(gameId, victimChar.id, victim, turn === 'defender' ? attackerName : targetOwner);
-          break;
+        if (turn === 'defender') {
+          simDefenderPTI = Math.max(0, simDefenderPTI - currentDamage);
+          steps.push({ target: 'defender', damage: currentDamage, newPTI: simDefenderPTI, eliminated: simDefenderPTI <= 0 });
+          if (simDefenderPTI <= 0) {
+            eliminatedCharId = defenderChar.id;
+            eliminatedOwner = targetOwner;
+            eliminatedBy = attackerName;
+            break;
+          }
+        } else {
+          simAttackerPTI = Math.max(0, simAttackerPTI - currentDamage);
+          steps.push({ target: 'attacker', damage: currentDamage, newPTI: simAttackerPTI, eliminated: simAttackerPTI <= 0 });
+          if (simAttackerPTI <= 0) {
+            eliminatedCharId = attackerChar.id;
+            eliminatedOwner = attackerName;
+            eliminatedBy = targetOwner;
+            break;
+          }
         }
-
-        // Prepare for next hit
         currentDamage *= 2;
         turn = turn === 'defender' ? 'attacker' : 'defender';
       }
 
-      // Sync state and return
-      const updatedGameState = this.getSanitizedGameState(gameId);
-      io.to(gameId).emit('game-state-update', updatedGameState);
+      // Emit animation event with all steps
+      io.to(gameId).emit('recursive-damage-animation', {
+        type: 'SEMPAFAAGARA',
+        attackerName,
+        defenderName: targetOwner,
+        attackerCard: {
+          id: attackerChar.id,
+          frontImage: attackerChar.frontImage,
+          name: this.getCardNameFromUrl(attackerChar.frontImage),
+          initialPTI: this.extractPTIFromNote(attackerChar.text || '')
+        },
+        defenderCard: {
+          id: defenderChar.id,
+          frontImage: defenderChar.frontImage,
+          name: this.getCardNameFromUrl(defenderChar.frontImage),
+          initialPTI: this.extractPTIFromNote(defenderChar.text || '')
+        },
+        steps
+      });
+
+      // Apply final damage after animation delay
+      const animationDuration = steps.length * 2000 + 2000;
+      setTimeout(() => {
+        // Apply final PTI values
+        attackerChar!.text = (attackerChar!.text || '').replace(/PTI:\s*\d+/i, `PTI: ${simAttackerPTI}`);
+        defenderChar.text = (defenderChar.text || '').replace(/PTI:\s*\d+/i, `PTI: ${simDefenderPTI}`);
+        
+        // Move eliminated character to graveyard
+        if (eliminatedCharId && eliminatedOwner && eliminatedBy) {
+          this.moveToGraveyard(gameId, eliminatedCharId, eliminatedOwner, eliminatedBy);
+        }
+        
+        // Sync state
+        const updatedGameState = this.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', updatedGameState);
+      }, animationDuration);
+      
       return;
     }
 
@@ -4451,58 +4478,85 @@ Rispondi SOLO in JSON:`;
     if (mosseName.includes('PARTITA') && mosseName.includes('TENNIS') && !isVoodooReflection) {
       console.log(`🎾 PARTITA DI TENNIS: Starting escalating damage loop between ${attackerName} and ${targetOwner}`);
       
-      io.to(gameId).emit('chat-message', {
-        id: `${Date.now()}-tennis-start`,
-        playerName: 'Sistema',
-        message: `🎾 PARTITA DI TENNIS: Inizia lo scambio di colpi tra ${attackerName} e ${targetOwner}!`,
-        timestamp: Date.now()
-      });
-
-      let currentDamage = damageValue;
       let attackerChar = game?.field.find(c => c.owner === attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
       let defenderChar = targetCard;
-      let turn = 'defender'; // First damage is to defender
+      
+      if (!attackerChar) {
+        console.log('PARTITA DI TENNIS: Attacker character not found');
+        return;
+      }
+
+      // Pre-calculate all damage steps for animation
+      const steps: Array<{ target: 'attacker' | 'defender'; damage: number; newPTI: number; eliminated: boolean }> = [];
+      let simAttackerPTI = this.extractPTIFromNote(attackerChar.text || '');
+      let simDefenderPTI = this.extractPTIFromNote(defenderChar.text || '');
+      let currentDamage = damageValue;
+      let turn: 'attacker' | 'defender' = 'defender';
+      let eliminatedCharId: string | null = null;
+      let eliminatedOwner: string | null = null;
+      let eliminatedBy: string | null = null;
 
       while (true) {
-        const victim = turn === 'defender' ? targetOwner : attackerName;
-        const victimChar = turn === 'defender' ? defenderChar : attackerChar;
-        const victimName = turn === 'defender' ? 'Difensore' : 'Attaccante';
-        
-        if (!victimChar) break;
-
-        // Apply damage to current victim
-        const victimPTI = this.extractPTIFromNote(victimChar.text || '');
-        const newPTI = Math.max(0, victimPTI - currentDamage);
-        victimChar.text = (victimChar.text || '').replace(/PTI:\s*\d+/i, `PTI: ${newPTI}`);
-        
-        io.to(gameId).emit('chat-message', {
-          id: `${Date.now()}-tennis-loop-${Math.random()}`,
-          playerName: 'Sistema',
-          message: `🎾 ${victimName} (${victim}) subisce ${currentDamage} danni! PTI restanti: ${newPTI}`,
-          timestamp: Date.now()
-        });
-
-        if (newPTI <= 0) {
-          io.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-tennis-end`,
-            playerName: 'Sistema',
-            message: `🎾💀 ${victimName} (${victim}) è stato eliminato! La PARTITA DI TENNIS termina.`,
-            timestamp: Date.now()
-          });
-          
-          // Move victim to graveyard
-          this.moveToGraveyard(gameId, victimChar.id, victim, turn === 'defender' ? attackerName : targetOwner);
-          break;
+        if (turn === 'defender') {
+          simDefenderPTI = Math.max(0, simDefenderPTI - currentDamage);
+          steps.push({ target: 'defender', damage: currentDamage, newPTI: simDefenderPTI, eliminated: simDefenderPTI <= 0 });
+          if (simDefenderPTI <= 0) {
+            eliminatedCharId = defenderChar.id;
+            eliminatedOwner = targetOwner;
+            eliminatedBy = attackerName;
+            break;
+          }
+        } else {
+          simAttackerPTI = Math.max(0, simAttackerPTI - currentDamage);
+          steps.push({ target: 'attacker', damage: currentDamage, newPTI: simAttackerPTI, eliminated: simAttackerPTI <= 0 });
+          if (simAttackerPTI <= 0) {
+            eliminatedCharId = attackerChar.id;
+            eliminatedOwner = attackerName;
+            eliminatedBy = targetOwner;
+            break;
+          }
         }
-
-        // Prepare for next hit: add 50 to damage
         currentDamage += 50;
         turn = turn === 'defender' ? 'attacker' : 'defender';
       }
 
-      // Sync state and return
-      const updatedGameStateTennis = this.getSanitizedGameState(gameId);
-      io.to(gameId).emit('game-state-update', updatedGameStateTennis);
+      // Emit animation event with all steps
+      io.to(gameId).emit('recursive-damage-animation', {
+        type: 'PARTITA_DI_TENNIS',
+        attackerName,
+        defenderName: targetOwner,
+        attackerCard: {
+          id: attackerChar.id,
+          frontImage: attackerChar.frontImage,
+          name: this.getCardNameFromUrl(attackerChar.frontImage),
+          initialPTI: this.extractPTIFromNote(attackerChar.text || '')
+        },
+        defenderCard: {
+          id: defenderChar.id,
+          frontImage: defenderChar.frontImage,
+          name: this.getCardNameFromUrl(defenderChar.frontImage),
+          initialPTI: this.extractPTIFromNote(defenderChar.text || '')
+        },
+        steps
+      });
+
+      // Apply final damage after animation delay
+      const animationDuration = steps.length * 2000 + 2000;
+      setTimeout(() => {
+        // Apply final PTI values
+        attackerChar!.text = (attackerChar!.text || '').replace(/PTI:\s*\d+/i, `PTI: ${simAttackerPTI}`);
+        defenderChar.text = (defenderChar.text || '').replace(/PTI:\s*\d+/i, `PTI: ${simDefenderPTI}`);
+        
+        // Move eliminated character to graveyard
+        if (eliminatedCharId && eliminatedOwner && eliminatedBy) {
+          this.moveToGraveyard(gameId, eliminatedCharId, eliminatedOwner, eliminatedBy);
+        }
+        
+        // Sync state
+        const updatedGameState = this.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', updatedGameState);
+      }, animationDuration);
+      
       return;
     }
 

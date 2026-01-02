@@ -22,6 +22,7 @@ import { TransferRequestDialog } from "./TransferRequestDialog";
 import { DefenseDialog } from "./DefenseDialog";
 import { CPUDamageDialog } from "./CPUDamageDialog";
 import { DuelDamageDialog } from "./DuelDamageDialog";
+import { RecursiveDamagePanel } from "./RecursiveDamagePanel";
 import { HandModal } from "./HandModal";
 import { MusicPlayer } from "./MusicPlayer";
 import { VoiceChat } from "./VoiceChat";
@@ -1300,6 +1301,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         
         {/* Duel Auto-Attack Damage Dialog */}
         <DuelDamageDialog />
+        
+        {/* Recursive Damage Panel for SEMPAFAAGARA and PARTITA DI TENNIS */}
+        <RecursiveDamagePanel />
         
         {/* Transfer Request Dialog */}
         <TransferRequestDialog />
