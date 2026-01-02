@@ -679,9 +679,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Emit the picked card ONLY to the player who picked it
           const playerSocketId = gameManager.getPlayerSocketId(gameId, playerName);
           if (playerSocketId) {
+            const cardDisplayName = getCardNameFromImageUrl(card.frontImage);
             io.to(playerSocketId).emit('card-picked-private', {
               card,
-              message: `Hai pescato: ${gameManager.getCardNameFromUrl ? gameManager.getCardNameFromUrl(card.frontImage) : 'Carta'}`
+              message: `Hai pescato: ${cardDisplayName || 'Carta'}`
             });
           }
         }
@@ -1081,8 +1082,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
         const game = gameManager.getGameState(gameId);
+        if (!game) return;
         const normalizedDeckType = deckType as keyof typeof game.decks;
-        if (game && game.decks[normalizedDeckType]) {
+        if (game.decks[normalizedDeckType]) {
           // Find and remove card from deck
           const cardIndex = game.decks[normalizedDeckType].findIndex((card: any) => card.id === cardId);
           if (cardIndex !== -1) {

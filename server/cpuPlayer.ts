@@ -1617,7 +1617,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           console.log(`🎯 CPU ${this.playerName}: ATTACCO DISONESTO detected - using hand target`);
           target = this.pickEnemyHandTarget();
         } else {
-          target = this.pickEnemyTarget(gameState);
+          target = this.pickEnemyTarget();
         }
         
         if (target) {
@@ -2468,41 +2468,6 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     }
 
     return false;
-  }
-
-  // MINKIARDS RULES: Always maintain exactly 1 card of each type (PERSONAGGI, MOSSE, BONUS) in hand
-  shouldDrawCards(cpuPlayer: any, gameState: any): { shouldDraw: boolean, deckType?: string } {
-    const hand = cpuPlayer.hand || [];
-    const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali'));
-    
-    // Count cards of each type in hand to avoid duplicates
-    const personaggiInHand = hand.filter((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali').length;
-    const mosseInHand = hand.filter((c: any) => c.type === 'mosse').length;
-    const bonusInHand = hand.filter((c: any) => c.type === 'bonus').length;
-    
-    console.log(`CPU ${this.playerName} hand count: PERSONAGGI=${personaggiInHand}, MOSSE=${mosseInHand}, BONUS=${bonusInHand}`);
-    
-    // MINKIARDS RULE 1: Must have 1 PERSONAGGI card in hand (if no character on field)
-    // Don't draw more than 1 PERSONAGGI
-    if (personaggiInHand === 0 && !myCharacter) {
-      return { shouldDraw: true, deckType: 'personaggi' };
-    }
-    
-    // MINKIARDS RULE 2: Always maintain exactly 1 MOSSE card in hand
-    // Don't draw more than 1 MOSSE  
-    if (mosseInHand === 0) {
-      return { shouldDraw: true, deckType: 'mosse' };
-    }
-    
-    // MINKIARDS RULE 3: Always maintain exactly 1 BONUS card in hand
-    // Don't draw more than 1 BONUS
-    if (bonusInHand === 0) {
-      return { shouldDraw: true, deckType: 'bonus' };
-    }
-    
-    // If we have exactly 1 of each required type, don't draw more
-    console.log(`CPU ${this.playerName} has optimal hand composition - no drawing needed`);
-    return { shouldDraw: false };
   }
 
   // Phase 1: Pick initial 3 cards (PERSONAGGI, MOSSE, BONUS) - all at once
