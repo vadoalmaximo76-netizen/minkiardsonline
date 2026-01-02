@@ -1411,10 +1411,29 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       }
       
       // Check if this is the opening sequence (no cards in hand, no character on field)
-      const isOpeningSequence = this.isOpeningSequence(cpuPlayer, gameState);
-      if (isOpeningSequence) {
-        console.log(`CPU ${this.playerName} executing opening sequence`);
-        return await this.executeOpeningSequence(gameState);
+      if (this.openingSequenceState.phase !== 'completed') {
+        // Reset opening sequence if CPU already has a character on field from previous games
+        const hasCharacterOnField = gameState.field.some((card: any) => 
+          card.owner === this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali')
+        );
+        
+        if (hasCharacterOnField && this.openingSequenceState.phase === 'pick-initial') {
+          console.log(`CPU ${this.playerName} already has character on field, skipping opening sequence`);
+          this.openingSequenceState.phase = 'completed';
+        } else {
+          console.log(`CPU ${this.playerName} executing opening sequence phase: ${this.openingSequenceState.phase}`);
+          
+          switch (this.openingSequenceState.phase) {
+            case 'pick-initial':
+              return this.executeInitialCardPicking(gameState);
+            case 'play-character':
+              return this.executePlayCharacter(gameState);
+            case 'pick-replacement':
+              return this.executePickReplacement(gameState);
+            default:
+              this.openingSequenceState.phase = 'completed';
+          }
+        }
       }
       
       // MINKIARDS FUNDAMENTAL RULE: Must have character on field to do ANY action except playing a character
