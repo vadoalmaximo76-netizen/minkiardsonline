@@ -2389,149 +2389,82 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     };
   }
   
-  // Ask human players for advice
-  askForAdvice(handAnalysis: any) {
-    const questions = [
-      `Ho solo ${handAnalysis.missingTypes.length > 0 ? 'alcune' : 'tutte le'} carte necessarie. Cosa mi consigli di fare?`,
-      `Mi mancano carte di tipo: ${handAnalysis.missingTypes.join(', ')}. Quale dovrei pescare prima?`,
-      `Non riesco a giocare perché mi servono 3 tipi di carte diverse. Aiutami con la strategia!`,
-      `So che per giocare servono PERSONAGGI, MOSSE e BONUS. Mi mancano: ${handAnalysis.missingTypes.join(', ')}. Che faccio?`
-    ];
+  // Handle player chat messages for specific CPU functions
+  async handlePlayerMessage(message: string, senderName: string, gameState: any) {
+    const text = message.toLowerCase();
     
-    const question = questions[Math.floor(Math.random() * questions.length)];
-    this.currentQuestion = question;
-    this.waitingForResponse = true;
-    
-    this.sendChatMessage(question);
-    
-    // Set timeout to stop waiting for response after 30 seconds
-    setTimeout(() => {
-      if (this.waitingForResponse) {
-        this.waitingForResponse = false;
-        this.sendChatMessage("Ok, proverò da solo allora!");
+    // Function 1: Random number generator
+    const numberRequestMatch = text.match(/(?:dimmi|spara|scegli|genera)\s+(?:un\s+)?numero\s+(?:da|tra)\s+(\d+)\s+(?:a|e)\s+(\d+)/i);
+    if (numberRequestMatch) {
+      const minValue = parseInt(numberRequestMatch[1]);
+      const maxValue = parseInt(numberRequestMatch[2]);
+      const resultValue = Math.floor(Math.random() * (Math.max(minValue, maxValue) - Math.min(minValue, maxValue) + 1)) + Math.min(minValue, maxValue);
+      
+      this.sendChatMessage(`Certo ${senderName}! Il numero che ho scelto tra ${minValue} e ${maxValue} è: ${resultValue}.`);
+      return;
+    }
+
+    // Function 2: Hand character stars inquiry
+    if (text.includes('stelle') && text.includes('mano') && (text.includes('personaggio') || text.includes('carta'))) {
+      const cpuPlayer = gameState.players[this.playerName];
+      const characterInHand = cpuPlayer?.hand?.find((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+      
+      if (characterInHand) {
+        const characterName = this.getCardNameFromUrl(characterInHand.frontImage);
+        const cardText = characterInHand.text || '';
+        const starsMatch = cardText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
+        const stars = starsMatch ? starsMatch[1] : "non specificate";
+        
+        this.sendChatMessage(`${senderName}, il personaggio che ho in mano è ${characterName} e ha ${stars} stelle.`);
+      } else {
+        this.sendChatMessage(`${senderName}, al momento non ho personaggi in mano.`);
       }
-    }, 30000);
-  }
-  
-  // Decide card to pick based on game rules
-  decideCardToPickBasedOnRules(gameState: any, handAnalysis: any): any {
-    const availableDecks = [];
-    
-    if (gameState.decks.personaggi && gameState.decks.personaggi.length > 0) {
-      availableDecks.push('personaggi');
+      return;
     }
-    if (gameState.decks.mosse && gameState.decks.mosse.length > 0) {
-      availableDecks.push('mosse');
-    }
-    if (gameState.decks.bonus && gameState.decks.bonus.length > 0) {
-      availableDecks.push('bonus');
-    }
-    if (gameState.decks.personaggi_speciali && gameState.decks.personaggi_speciali.length > 0) {
-      availableDecks.push('personaggi_speciali');
-    }
-    
-    if (availableDecks.length === 0) return null;
-    
-    // Priority based on missing types
-    let preferredDeck;
-    
-    if (!handAnalysis.hasPersonaggi && availableDecks.includes('personaggi')) {
-      preferredDeck = 'personaggi';
-    } else if (!handAnalysis.hasPersonaggi && availableDecks.includes('personaggi_speciali')) {
-      preferredDeck = 'personaggi_speciali';
-    } else if (!handAnalysis.hasMosse && availableDecks.includes('mosse')) {
-      preferredDeck = 'mosse';
-    } else if (!handAnalysis.hasBonus && availableDecks.includes('bonus')) {
-      preferredDeck = 'bonus';
-    } else {
-      // Pick any available deck
-      preferredDeck = availableDecks[0];
-    }
-    
-    return {
-      type: 'pick-card',
-      data: {
-        deckType: preferredDeck,
-        playerName: this.playerName
+
+    // Original AI response logic (if any exists or as fallback)
+    if (!this.openaiApiKey) {
+      // Simple fallback if no OpenAI
+      if (text.includes('ciao') || text.includes('ehi')) {
+        this.sendChatMessage(`Ciao ${senderName}! Sono pronto a giocare.`);
       }
-    };
-  }
-  
-  // Decide which type of card to pick (fallback method)
-  decideCardToPick(gameState: any): any {
-    const cpuPlayer = gameState.players[this.playerName];
-    if (!cpuPlayer) return null;
-    
-    const handAnalysis = this.analyzeHandForGameRules(cpuPlayer.hand || []);
-    
-    // Check if characterLimit allows drawing characters
-    const personagensCount = (cpuPlayer.hand || []).filter((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali').length;
-    const hasCharacterOnField = gameState.field.some((c: any) => c.owner === this.playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
-    
-    return this.decideCardToPickBasedOnRules(gameState, handAnalysis);
+      return;
+    }
   }
 
-  // Helper function to extract card name from URL
-  getCardNameFromUrl(url: string): string {
-    if (!url) return "Carta Sconosciuta";
+  // MINKIARDS RULES: Always maintain exactly 1 card of each type (PERSONAGGI, MOSSE, BONUS) in hand
+  shouldDrawCards(cpuPlayer: any, gameState: any): { shouldDraw: boolean, deckType?: string } {
+    const hand = cpuPlayer.hand || [];
+    const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali'));
     
-    const parts = url.split('/');
-    const filename = parts[parts.length - 1];
-    return filename
-      .toLowerCase()
-      .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
-      .replace(/[-_]/g, ' ')
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-  }
-
-  // Check if this is the opening sequence
-  isOpeningSequence(cpuPlayer: any, gameState: any): boolean {
-    // Opening sequence is active if phase is not completed
-    const isInOpeningSequence = this.openingSequenceState.phase !== 'completed';
+    // Count cards of each type in hand to avoid duplicates
+    const personaggiInHand = hand.filter((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali').length;
+    const mosseInHand = hand.filter((c: any) => c.type === 'mosse').length;
+    const bonusInHand = hand.filter((c: any) => c.type === 'bonus').length;
     
-    // Reset opening sequence if CPU already has a character on field from previous games
-    const hasCharacterOnField = gameState.field.some((card: any) => 
-      card.owner === this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali')
-    );
+    console.log(`CPU ${this.playerName} hand count: PERSONAGGI=${personaggiInHand}, MOSSE=${mosseInHand}, BONUS=${bonusInHand}`);
     
-    if (hasCharacterOnField && this.openingSequenceState.phase === 'pick-initial') {
-      console.log(`CPU ${this.playerName} already has character on field, skipping opening sequence`);
-      this.openingSequenceState.phase = 'completed';
-      return false;
+    // MINKIARDS RULE 1: Must have 1 PERSONAGGI card in hand (if no character on field)
+    // Don't draw more than 1 PERSONAGGI
+    if (personaggiInHand === 0 && !myCharacter) {
+      return { shouldDraw: true, deckType: 'personaggi' };
     }
     
-    console.log(`CPU ${this.playerName} opening check: phase=${this.openingSequenceState.phase}, isInSequence=${isInOpeningSequence}, hasCharacterOnField=${hasCharacterOnField}`);
-    
-    return isInOpeningSequence;
-  }
-
-  // Execute the opening sequence according to MINKIARDS rules
-  async executeOpeningSequence(gameState: any): Promise<any> {
-    const cpuPlayer = gameState.players[this.playerName];
-    
-    switch (this.openingSequenceState.phase) {
-      case 'pick-initial':
-        return this.executeInitialCardPicking(gameState);
-        
-      case 'play-character':
-        return this.executePlayCharacter(gameState);
-        
-      case 'pick-replacement':
-        return this.executePickReplacement(gameState);
-        
-      default:
-        console.log(`CPU ${this.playerName} opening sequence completed - starting regular turn logic`);
-        this.openingSequenceState.phase = 'completed';
-        
-        // CRITICAL FIX: Reset turn state and start normal turn logic
-        this.resetTurnState();
-        this.turnState.phase = 'draw_needed';
-        
-        // Start the normal turn logic immediately
-        return this.handleDrawPhase(gameState.players[this.playerName], gameState);
+    // MINKIARDS RULE 2: Always maintain exactly 1 MOSSE card in hand
+    // Don't draw more than 1 MOSSE  
+    if (mosseInHand === 0) {
+      return { shouldDraw: true, deckType: 'mosse' };
     }
+    
+    // MINKIARDS RULE 3: Always maintain exactly 1 BONUS card in hand
+    // Don't draw more than 1 BONUS
+    if (bonusInHand === 0) {
+      return { shouldDraw: true, deckType: 'bonus' };
+    }
+    
+    // If we have exactly 1 of each required type, don't draw more
+    console.log(`CPU ${this.playerName} has optimal hand composition - no drawing needed`);
+    return { shouldDraw: false };
   }
 
   // Phase 1: Pick initial 3 cards (PERSONAGGI, MOSSE, BONUS) - all at once

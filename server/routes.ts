@@ -1872,6 +1872,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on('chat-message', async (data) => {
+      const { playerName, message } = data;
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      
+      if (gameId) {
+        // Broadcast the message to all players in the game
+        io.to(gameId).emit('chat-message', {
+          playerName,
+          message,
+          timestamp: Date.now()
+        });
+
+        // Check if any CPU players should respond to this message
+        const gameState = gameManager.getGameState(gameId);
+        if (gameState) {
+          for (const pName in gameState.players) {
+            const player = gameState.players[pName];
+            if (player.isCPU && player.cpuInstance) {
+              // Let the CPU handle the message (async)
+              player.cpuInstance.handlePlayerMessage(message, playerName, gameManager.getSanitizedGameState(gameId));
+            }
+          }
+        }
+      }
+    });
+
     socket.on('show-card-to-player', ({ cardId, fromPlayer, toPlayer, cardImage }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
