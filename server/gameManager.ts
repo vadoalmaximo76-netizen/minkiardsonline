@@ -2434,15 +2434,66 @@ Rispondi SOLO in JSON:`;
   }
 
   // Handle human chat messages and let CPU players respond
-  processCPUChatResponses(gameId: string, humanMessage: string, humanPlayerName: string): void {
+  async processCPUChatResponses(gameId: string, humanMessage: string, humanPlayerName: string): Promise<void> {
     const game = this.games.get(gameId);
     if (!game) return;
 
+    const lowerMessage = humanMessage.toLowerCase();
+    let commandHandledByAnyCPU = false;
+    
+    // Find which CPU is explicitly mentioned (if any) and track default
+    let mentionedCPU: string | null = null;
+    let defaultCPU: string | null = null;
+    
+    for (const [cpuPlayerName, player] of Object.entries(game.players)) {
+      if (player.isCPU && player.cpuInstance && cpuPlayerName !== humanPlayerName) {
+        // Track first available CPU as default
+        if (!defaultCPU) {
+          defaultCPU = cpuPlayerName;
+        }
+        // Check if this specific CPU is mentioned by name
+        if (lowerMessage.includes(cpuPlayerName.toLowerCase())) {
+          mentionedCPU = cpuPlayerName;
+        }
+      }
+    }
+    
+    // Determine target CPU: specific mention > generic "cpu" mention > default (for all messages)
+    const hasGenericCPUMention = lowerMessage.includes('cpu') && !mentionedCPU;
+    // Always use defaultCPU for handlePlayerMessage to ensure special commands work without mentions
+    const targetCPU = mentionedCPU || defaultCPU;
+
+    let generalChatHandled = false;
+    
     // Let all CPU players in this game potentially respond to the human message
     for (const [cpuPlayerName, player] of Object.entries(game.players)) {
       if (player.isCPU && player.cpuInstance && cpuPlayerName !== humanPlayerName) {
         try {
-          player.cpuInstance.processHumanChat(humanMessage, humanPlayerName);
+          const isTargetCPU = cpuPlayerName === targetCPU;
+          // More precise mention detection: specific name OR generic "cpu" when this IS the target
+          const isSpecificallyMentioned = lowerMessage.includes(cpuPlayerName.toLowerCase());
+          const isGenericMention = hasGenericCPUMention && isTargetCPU;
+          const shouldRespond = isSpecificallyMentioned || isGenericMention;
+          
+          // The target CPU (mentioned or default) tries handlePlayerMessage for special commands
+          if (isTargetCPU && !commandHandledByAnyCPU) {
+            const gameState = this.getSanitizedGameState(gameId);
+            const handledCommand = await player.cpuInstance.handlePlayerMessage(humanMessage, humanPlayerName, gameState);
+            if (handledCommand) {
+              console.log(`CPU ${cpuPlayerName} handled special command from ${humanPlayerName}`);
+              commandHandledByAnyCPU = true;
+              continue; // This CPU handled it, skip general chat
+            }
+          }
+          
+          // Fall back to general chat responses only if:
+          // 1. No special command was handled
+          // 2. This CPU is specifically mentioned (by name or generic "cpu" for target)
+          // 3. No other CPU has already responded via general chat
+          if (!commandHandledByAnyCPU && shouldRespond && !generalChatHandled) {
+            player.cpuInstance.processHumanChat(humanMessage, humanPlayerName);
+            generalChatHandled = true; // Only one CPU responds via general chat
+          }
         } catch (error) {
           console.error(`Error in CPU ${cpuPlayerName} chat processing:`, error);
         }

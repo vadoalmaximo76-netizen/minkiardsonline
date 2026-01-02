@@ -2438,21 +2438,27 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     const text = message.toLowerCase();
     console.log(`CPU ${this.playerName} processing potential command: "${text}"`);
     
-    // Function 1: Random number generator
-    const numberRequestMatch = text.match(/(?:dimmi|spara|scegli|genera|dammi|scrivi)\s+(?:un\s+)?numero\s+(?:da|tra|compreso\s+tra)\s+(\d+)\s+(?:a|e)\s+(\d+)/i);
-    if (numberRequestMatch) {
-      const minValue = parseInt(numberRequestMatch[1]);
-      const maxValue = parseInt(numberRequestMatch[2]);
-      const resultValue = Math.floor(Math.random() * (Math.abs(maxValue - minValue) + 1)) + Math.min(minValue, maxValue);
-      
-      this.sendChatMessage(`Certo ${senderName}! Il numero che ho scelto tra ${minValue} e ${maxValue} è: ${resultValue}.`);
-      return true;
+    // Function 1: Random number generator - simplified regex for better matching
+    // Matches: "dimmi un numero da 1 a 10", "spara un numero tra 1 e 100", etc.
+    if (text.includes('numero') && (text.includes('da') || text.includes('tra'))) {
+      const numberMatch = text.match(/(\d+)\s*(?:a|e|al?)\s*(\d+)/);
+      if (numberMatch) {
+        const minValue = parseInt(numberMatch[1]);
+        const maxValue = parseInt(numberMatch[2]);
+        const resultValue = Math.floor(Math.random() * (Math.abs(maxValue - minValue) + 1)) + Math.min(minValue, maxValue);
+        
+        console.log(`CPU ${this.playerName} matched number request: ${minValue} to ${maxValue}, result: ${resultValue}`);
+        this.sendChatMessage(`Certo ${senderName}! Il numero che ho scelto tra ${minValue} e ${maxValue} è: ${resultValue}.`);
+        return true;
+      }
     }
 
-    // Function 2: Hand character stars inquiry
-    if (text.includes('stelle') && (text.includes('mano') || text.includes('possiedi')) && (text.includes('personaggio') || text.includes('carta'))) {
-      const cpuPlayer = gameState.players[this.playerName];
+    // Function 2: Hand character stars inquiry - simplified matching
+    if (text.includes('stelle') && (text.includes('mano') || text.includes('possiedi') || text.includes('hai'))) {
+      const cpuPlayer = gameState?.players?.[this.playerName];
       const characterInHand = cpuPlayer?.hand?.find((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+      
+      console.log(`CPU ${this.playerName} matched stars inquiry, character in hand:`, characterInHand ? 'found' : 'none');
       
       if (characterInHand) {
         const characterName = this.getCardNameFromUrl(characterInHand.frontImage);
@@ -2467,6 +2473,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       return true;
     }
 
+    console.log(`CPU ${this.playerName} no special command matched`);
     return false;
   }
 
@@ -2716,15 +2723,42 @@ Rispondi in modo appropriato al messaggio del giocatore. Puoi fare battute, dare
       }
     } catch (error) {
       console.error(`CPU ${this.playerName} AI response error:`, error);
-      // Fallback to simple responses if AI fails
+      // Intelligent fallback responses based on message content (special commands are handled by handlePlayerMessage)
       setTimeout(() => {
-        const fallbackResponses = [
-          "Interessante!",
-          "Capisco...",
-          "Grazie per il messaggio!",
-          "Hmm, ci penserò!"
-        ];
-        this.sendChatMessage(fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)]);
+        const lowerMessage = message.toLowerCase();
+        let fallbackResponse = "";
+        
+        // Contextual responses based on keywords
+        if (lowerMessage.includes('ciao') || lowerMessage.includes('salve')) {
+          fallbackResponse = `Ciao ${senderName}! Piacere di giocare con te!`;
+        } else if (lowerMessage.includes('come stai') || lowerMessage.includes('come va')) {
+          fallbackResponse = `Bene grazie! Sto giocando con grande concentrazione!`;
+        } else if (lowerMessage.includes('?')) {
+          // It's a question
+          const questionResponses = [
+            `Bella domanda ${senderName}! Dipende dalla situazione...`,
+            `Hmm, ci devo pensare un attimo!`,
+            `Non sono sicuro, ma ci proverò!`,
+            `Buona osservazione! Vediamo come va la partita.`
+          ];
+          fallbackResponse = questionResponses[Math.floor(Math.random() * questionResponses.length)];
+        } else if (lowerMessage.includes('attacca') || lowerMessage.includes('gioca')) {
+          fallbackResponse = `Hai ragione ${senderName}! Aspetto il momento giusto per colpire!`;
+        } else if (lowerMessage.includes('carta') || lowerMessage.includes('mano')) {
+          fallbackResponse = `Sto valutando le mie carte con attenzione!`;
+        } else {
+          // Generic responses
+          const genericResponses = [
+            `Interessante ${senderName}!`,
+            `Capisco il tuo punto di vista!`,
+            `Grazie per il messaggio!`,
+            `Hmm, ci penserò!`,
+            `Vediamo come va la partita!`
+          ];
+          fallbackResponse = genericResponses[Math.floor(Math.random() * genericResponses.length)];
+        }
+        
+        this.sendChatMessage(fallbackResponse);
       }, 1000 + Math.random() * 1500);
     }
   }
