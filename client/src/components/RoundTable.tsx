@@ -231,7 +231,7 @@ export const RoundTable: React.FC = () => {
         
         {/* Center Area - Decks with protection zone */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
-          <div className="flex flex-row gap-1 sm:gap-2 md:gap-4 items-start justify-center bg-black/40 rounded-lg sm:rounded-xl p-1.5 sm:p-2 md:p-4 backdrop-blur-sm">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-3 md:gap-4 items-start justify-center bg-black/40 rounded-lg sm:rounded-xl p-2 sm:p-3 md:p-4 backdrop-blur-sm">
             <Deck
               name="PERSONAGGI"
               backImage="https://i.imgur.com/r1rfUAB.png"

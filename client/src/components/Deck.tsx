@@ -155,8 +155,8 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
   };
 
   return (
-    <div className="flex flex-col items-center gap-0.5 sm:gap-1 md:gap-2 w-[72px] sm:w-auto">
-      <h3 className="text-white font-bold text-[8px] sm:text-xs md:text-sm lg:text-base leading-tight text-center truncate w-full" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+    <div className="flex flex-col items-center gap-1 sm:gap-1.5 md:gap-2 w-[70px] sm:w-[80px] md:w-auto">
+      <h3 className="text-white font-bold text-[9px] sm:text-xs md:text-sm lg:text-base leading-tight text-center truncate w-full" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
         <span className="sm:hidden">{getShortName(name)}</span>
         <span className="hidden sm:inline">{name}</span>
       </h3>
@@ -165,7 +165,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
         <img
           src={backImage}
           alt={`${name} back`}
-          className={`w-12 sm:w-16 md:w-20 lg:w-24 aspect-[2/3] object-cover rounded-md sm:rounded-lg md:rounded-xl cursor-pointer hover:scale-105 transition-transform shadow-lg ${isShuffling ? 'animate-shuffle' : ''}`}
+          className={`w-14 sm:w-16 md:w-20 lg:w-24 aspect-[2/3] object-cover rounded-md sm:rounded-lg md:rounded-xl cursor-pointer hover:scale-105 transition-transform shadow-lg ${isShuffling ? 'animate-shuffle' : ''}`}
           onClick={handlePickCard}
         />
         
@@ -177,7 +177,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
 
       <Button
         onClick={handleChooseCard}
-        className="bg-green-600 hover:bg-green-700 text-white font-bold px-1 sm:px-1.5 md:px-2 py-0.5 text-[8px] sm:text-[10px] md:text-xs rounded w-full"
+        className="bg-green-600 hover:bg-green-700 text-white font-bold px-1.5 sm:px-2 md:px-3 py-0.5 sm:py-1 text-[8px] sm:text-[10px] md:text-xs rounded w-full"
         style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
       >
         SCEGLI
