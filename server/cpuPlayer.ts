@@ -2081,6 +2081,10 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       const ptiMatch = characterText.match(/PTI[:\s]*(\d+)/i);
       const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100;
       
+      // Also check if it's a special character which might have different star rules
+      const isSpecial = myCharacter.type === 'personaggi_speciali';
+      const hasStars = currentStars > 0 || isSpecial; // Special characters might not follow standard star rules, but let's stick to the prompt's 0 star rule for now if they have stars specified
+      
       if (currentStars > 0 && currentPTI > 0 && characterText !== "0") {
         const mosse = hand.find((c: any) => c.type === 'mosse');
         if (mosse) {
@@ -2089,6 +2093,13 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         }
       } else {
         console.log(`CPU ${this.playerName} skipping MOSSE play priority (0 stars/PTI)`);
+        
+        // NEW: Play BONUS if unable to attack
+        const bonus = hand.find((c: any) => c.type === 'bonus');
+        if (bonus) {
+          console.log(`CPU ${this.playerName} unable to attack (0 stars/PTI), playing BONUS instead`);
+          return bonus;
+        }
       }
     }
     
