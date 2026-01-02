@@ -162,20 +162,31 @@ export const RoundTable: React.FC = () => {
     const cardCount = playerCards.length;
     if (cardCount === 0) return [];
     
-    const bottomY = 82; // Bottom position with even more space for mobile
+    const bottomY = 80;
     const centerX = 50;
     
     if (cardCount === 1) {
       return [{ x: centerX, y: bottomY, angle: 0 }];
     }
     
-    // Spread cards horizontally at bottom
-    // Better spacing on mobile to prevent overflow and overlap
-    const isMobile = window.innerWidth < 768;
-    const isPortrait = window.innerHeight > window.innerWidth;
-    const maxSpacing = isMobile && isPortrait ? 60 : 90;
-    const minSpacing = isMobile && isPortrait ? 6 : 8;
-    const cardSpacing = Math.max(minSpacing, Math.min(12, maxSpacing / cardCount)); // Better spacing to avoid overlap
+    // Dynamic spacing based on card count and screen size
+    const isMobile = window.innerWidth < 640;
+    const isTablet = window.innerWidth >= 640 && window.innerWidth < 1024;
+    
+    // Calculate available width (percentage of screen)
+    const availableWidth = isMobile ? 80 : isTablet ? 85 : 90;
+    
+    // Calculate spacing that prevents overlap
+    // Each card needs about 12-15% width on mobile, less on desktop
+    const cardWidth = isMobile ? 14 : isTablet ? 12 : 10;
+    const idealSpacing = cardWidth + 2; // Add small gap
+    
+    // If cards would overflow, reduce spacing proportionally
+    const totalNeededWidth = cardCount * idealSpacing;
+    const cardSpacing = totalNeededWidth > availableWidth 
+      ? availableWidth / cardCount 
+      : idealSpacing;
+    
     const totalWidth = (cardCount - 1) * cardSpacing;
     const startX = centerX - totalWidth / 2;
     
@@ -414,45 +425,49 @@ export const RoundTable: React.FC = () => {
                     </span>
                   </div>
                   
-                  <div className="flex gap-1 md:gap-2 flex-wrap">
+                  <div className="grid gap-2 sm:gap-3 md:gap-4" style={{
+                    gridTemplateColumns: `repeat(auto-fit, minmax(${playerCards.length <= 3 ? '80px' : playerCards.length <= 6 ? '70px' : '60px'}, 1fr))`,
+                    maxWidth: '100%'
+                  }}>
                     {playerCards.length > 0 ? (
                       playerCards.map((card, index) => (
-                        <div key={card.id} className="flex items-center gap-1">
-                          {/* Left Arrow for current player */}
-                          {isCurrentPlayer && (
-                            <Button
-                              onClick={() => handleMoveCard(card.id, 'left')}
-                              disabled={index === 0}
-                              className="p-1 h-4 w-4 md:h-6 md:w-6 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
-                              size="sm"
-                            >
-                              <ChevronLeft size={8} className="md:w-3 md:h-3" />
-                            </Button>
-                          )}
-                          
-                          {/* Card */}
-                          <div className="scale-90 sm:scale-100 md:scale-110 lg:scale-125">
+                        <div key={card.id} className="flex flex-col items-center gap-0.5">
+                          {/* Card with arrows */}
+                          <div className="flex items-center gap-0.5">
+                            {/* Left Arrow for current player */}
+                            {isCurrentPlayer && (
+                              <Button
+                                onClick={() => handleMoveCard(card.id, 'left')}
+                                disabled={index === 0}
+                                className="p-0.5 h-4 w-4 sm:h-5 sm:w-5 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
+                                size="sm"
+                              >
+                                <ChevronLeft size={8} />
+                              </Button>
+                            )}
+                            
+                            {/* Card */}
                             <Card
                               card={card}
                               location="field"
                             />
+                            
+                            {/* Right Arrow for current player */}
+                            {isCurrentPlayer && (
+                              <Button
+                                onClick={() => handleMoveCard(card.id, 'right')}
+                                disabled={index === playerCards.length - 1}
+                                className="p-0.5 h-4 w-4 sm:h-5 sm:w-5 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
+                                size="sm"
+                              >
+                                <ChevronRight size={8} />
+                              </Button>
+                            )}
                           </div>
-                          
-                          {/* Right Arrow for current player */}
-                          {isCurrentPlayer && (
-                            <Button
-                              onClick={() => handleMoveCard(card.id, 'right')}
-                              disabled={index === playerCards.length - 1}
-                              className="p-1 h-4 w-4 md:h-6 md:w-6 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
-                              size="sm"
-                            >
-                              <ChevronRight size={8} className="md:w-3 md:h-3" />
-                            </Button>
-                          )}
                         </div>
                       ))
                     ) : (
-                      <p className="text-white/60 italic">Nessuna carta in campo</p>
+                      <p className="text-white/60 italic col-span-full">Nessuna carta in campo</p>
                     )}
                   </div>
                 </div>
