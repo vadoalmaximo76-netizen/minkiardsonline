@@ -1561,11 +1561,29 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     const cardToPlay = this.selectCardToPlay(cpuPlayer, gameState);
     if (cardToPlay) {
       const cardName = this.getCardNameFromUrl(cardToPlay.frontImage);
-      this.sendChatMessage(`Gioco "${cardName}" in campo!`);
-      this.markActionExecuted('play', cardToPlay.id, cardToPlay.type);
       
-      // CRITICAL: For MOSSE cards, handle attack atomically
+      // CRITICAL: For MOSSE cards, handle attack requirements
       if (cardToPlay.type === 'mosse') {
+        const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali'));
+        if (myCharacter) {
+          const characterText = myCharacter.notes || myCharacter.text || '';
+          const starsMatch = characterText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
+          const currentStars = starsMatch ? parseInt(starsMatch[1]) : 0;
+          const ptiMatch = characterText.match(/PTI[:\s]*(\d+)/i);
+          const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100;
+          
+          if (currentStars <= 0 || currentPTI <= 0 || characterText === "0") {
+            console.log(`🎯 CPU ${this.playerName}: ABORTING MOSSE play - Character has 0 stars or PTI`);
+            this.sendChatMessage(`Non posso usare la mossa "${cardName}" perché il mio personaggio non ha stelle o PTI!`);
+            this.turnState.phase = 'turn_end';
+            return { type: 'end-turn', data: { playerName: this.playerName } };
+          }
+        } else {
+          console.log(`🎯 CPU ${this.playerName}: ABORTING MOSSE play - No character on field`);
+          this.turnState.phase = 'turn_end';
+          return { type: 'end-turn', data: { playerName: this.playerName } };
+        }
+
         console.log(`🎯 CPU ${this.playerName}: Playing MOSSE card ${cardToPlay.id} - executing attack ATOMICALLY`);
         
         // Play the card DIRECTLY via gameManager (atomic)
@@ -2021,12 +2039,17 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       const starsMatch = characterText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
       const currentStars = starsMatch ? parseInt(starsMatch[1]) : 0;
       
-      if (currentStars > 0) {
+      const ptiMatch = characterText.match(/PTI[:\s]*(\d+)/i);
+      const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100;
+      
+      if (currentStars > 0 && currentPTI > 0 && characterText !== "0") {
         const mosse = hand.find((c: any) => c.type === 'mosse');
         if (mosse) {
-          console.log(`CPU ${this.playerName} playing MOSSE (can attack with ${currentStars} stars)`);
+          console.log(`CPU ${this.playerName} playing MOSSE (can attack with ${currentStars} stars, ${currentPTI} PTI)`);
           return mosse;
         }
+      } else {
+        console.log(`CPU ${this.playerName} skipping MOSSE play priority (0 stars/PTI)`);
       }
     }
     
