@@ -162,26 +162,51 @@ export const RoundTable: React.FC = () => {
     const cardCount = playerCards.length;
     if (cardCount === 0) return [];
     
-    const bottomY = 80;
+    // Position cards lower on landscape to avoid deck overlap
+    const isLandscape = window.innerWidth > window.innerHeight;
+    const isMobile = window.innerWidth < 640;
+    const isTablet = window.innerWidth >= 640 && window.innerWidth < 1024;
+    
+    // Move cards to bottom, avoiding center decks area
+    const bottomY = isLandscape ? 88 : 82;
     const centerX = 50;
     
     if (cardCount === 1) {
       return [{ x: centerX, y: bottomY, angle: 0 }];
     }
     
-    // Dynamic spacing based on card count and screen size
-    const isMobile = window.innerWidth < 640;
-    const isTablet = window.innerWidth >= 640 && window.innerWidth < 1024;
+    // For landscape, split cards to left and right sides to avoid center decks
+    if (isLandscape && cardCount >= 2) {
+      const halfCount = Math.ceil(cardCount / 2);
+      const sideSpacing = 8; // Spacing between cards on each side
+      
+      return playerCards.map((_, cardIndex) => {
+        if (cardIndex < halfCount) {
+          // Left side cards
+          const leftStartX = 8;
+          return {
+            x: leftStartX + cardIndex * sideSpacing,
+            y: bottomY - 5,
+            angle: 0
+          };
+        } else {
+          // Right side cards
+          const rightStartX = 92;
+          const rightIndex = cardIndex - halfCount;
+          return {
+            x: rightStartX - (halfCount - 1 - rightIndex) * sideSpacing,
+            y: bottomY - 5,
+            angle: 0
+          };
+        }
+      });
+    }
     
-    // Calculate available width (percentage of screen)
+    // Portrait mode: spread horizontally at bottom
     const availableWidth = isMobile ? 80 : isTablet ? 85 : 90;
-    
-    // Calculate spacing that prevents overlap
-    // Each card needs about 12-15% width on mobile, less on desktop
     const cardWidth = isMobile ? 14 : isTablet ? 12 : 10;
-    const idealSpacing = cardWidth + 2; // Add small gap
+    const idealSpacing = cardWidth + 2;
     
-    // If cards would overflow, reduce spacing proportionally
     const totalNeededWidth = cardCount * idealSpacing;
     const cardSpacing = totalNeededWidth > availableWidth 
       ? availableWidth / cardCount 
