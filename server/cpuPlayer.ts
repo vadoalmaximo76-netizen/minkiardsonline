@@ -2424,11 +2424,11 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     const text = message.toLowerCase();
     
     // Function 1: Random number generator
-    const numberRequestMatch = text.match(/(?:dimmi|spara|scegli|genera)\s+(?:un\s+)?numero\s+(?:da|tra)\s+(\d+)\s+(?:a|e)\s+(\d+)/i);
+    const numberRequestMatch = text.match(/(?:dimmi|spara|scegli|genera|dammi)\s+(?:un\s+)?numero\s+(?:da|tra)\s+(\d+)\s+(?:a|e)\s+(\d+)/i);
     if (numberRequestMatch) {
       const minValue = parseInt(numberRequestMatch[1]);
       const maxValue = parseInt(numberRequestMatch[2]);
-      const resultValue = Math.floor(Math.random() * (Math.max(minValue, maxValue) - Math.min(minValue, maxValue) + 1)) + Math.min(minValue, maxValue);
+      const resultValue = Math.floor(Math.random() * (Math.abs(maxValue - minValue) + 1)) + Math.min(minValue, maxValue);
       
       this.sendChatMessage(`Certo ${senderName}! Il numero che ho scelto tra ${minValue} e ${maxValue} è: ${resultValue}.`);
       return;
