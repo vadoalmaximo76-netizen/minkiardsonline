@@ -4301,6 +4301,7 @@ Rispondi SOLO in JSON:`;
       let currentStars = starsMatch ? parseInt(starsMatch[1]) : 0;
       
       // Calculate new stars after theft
+      const starsToSteal = Math.min(damageValue, Math.max(0, currentStars));
       const newStars = currentStars - damageValue;
       
       // Update card notes with new stars
@@ -4323,33 +4324,57 @@ Rispondi SOLO in JSON:`;
         this.updateCardText(gameId, targetCardId, updatedNotes);
       }
       
-      console.log(`⭐ FURTO: ${targetOwner}'s ${targetCard.frontImage} lost ${damageValue} stars: ${currentStars} → ${newStars} Stelle`);
+      console.log(`⭐ FURTO: ${targetOwner}'s ${targetCard.frontImage} lost ${damageValue} stars (stole ${starsToSteal}): ${currentStars} → ${newStars} Stelle`);
       
-      // ADD STOLEN STARS TO ATTACKER'S CHARACTER
+      // ADD STOLEN STARS AND PTI TO ATTACKER'S CHARACTER
       const attackerCharacter = gameState?.field?.find((c: any) => 
         c.owner === attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
       );
       
       let attackerNewStars = 0;
+      let attackerNewPTI = 0;
+      let ptiGained = 0;
+
       if (attackerCharacter) {
         const attackerNotes = attackerCharacter.text || '';
+        
+        // Handle Stars
         const attackerStarsMatch = attackerNotes.match(/[Ss]telle:\s*(-?\d+)/i);
         const attackerCurrentStars = attackerStarsMatch ? parseInt(attackerStarsMatch[1]) : 0;
-        attackerNewStars = attackerCurrentStars + damageValue;
+        attackerNewStars = attackerCurrentStars + starsToSteal;
         
         let attackerUpdatedNotes = attackerNotes;
         if (attackerStarsMatch) {
-          attackerUpdatedNotes = attackerNotes.replace(/[Ss]telle:\s*-?\d+/i, `Stelle: ${attackerNewStars}`);
+          attackerUpdatedNotes = attackerUpdatedNotes.replace(/[Ss]telle:\s*-?\d+/i, `Stelle: ${attackerNewStars}`);
         } else {
-          attackerUpdatedNotes = attackerNotes ? `${attackerNotes}\nStelle: ${attackerNewStars}` : `Stelle: ${attackerNewStars}`;
+          attackerUpdatedNotes = attackerUpdatedNotes ? `${attackerUpdatedNotes}\nStelle: ${attackerNewStars}` : `Stelle: ${attackerNewStars}`;
+        }
+
+        // Handle PTI (if target dies)
+        if (newStars < 0) {
+          ptiGained = 100;
+          const ptiMatch = attackerUpdatedNotes.match(/PTI:\s*(\d+)/i);
+          const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 0;
+          attackerNewPTI = currentPTI + ptiGained;
+
+          if (ptiMatch) {
+            attackerUpdatedNotes = attackerUpdatedNotes.replace(/PTI:\s*\d+/i, `PTI: ${attackerNewPTI}`);
+          } else {
+            attackerUpdatedNotes = attackerUpdatedNotes ? `${attackerUpdatedNotes}\nPTI: ${attackerNewPTI}` : `PTI: ${attackerNewPTI}`;
+          }
         }
         
         this.updateCardText(gameId, attackerCharacter.id, attackerUpdatedNotes);
-        console.log(`⭐ FURTO: ${attackerName}'s ${attackerCharacter.frontImage} gained ${damageValue} stars: ${attackerCurrentStars} → ${attackerNewStars} Stelle`);
+        console.log(`⭐ FURTO: ${attackerName}'s ${attackerCharacter.frontImage} gained ${starsToSteal} stars and ${ptiGained} PTI`);
       }
       
       // Broadcast the FURTO result
-      const gainedMsg = attackerCharacter ? ` | ${attackerName} ora ha ${attackerNewStars} stelle!` : '';
+      let gainedMsg = '';
+      if (attackerCharacter) {
+        gainedMsg = ` | ${attackerName}: +${starsToSteal} ⭐`;
+        if (ptiGained > 0) gainedMsg += ` e +${ptiGained} PTI!`;
+      }
+
       if (newStars < 0) {
         // Character dies if stars go below 0
         shouldDie = true;
