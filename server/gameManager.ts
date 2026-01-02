@@ -4146,6 +4146,7 @@ Rispondi SOLO in JSON:`;
 
     // Retain local copy for processing
     const { attacker, defender, targetCardId, mosseCardId, damage, isHandTarget } = pendingDefense;
+    const isFurtoAttack = (pendingDefense as any).isFurtoAttack || false;
 
     // STRUCTURED LOGGING: Log resolution details
     console.log(`[DEFENSE-RESOLVE] Processing defense resolution`, {
@@ -4223,7 +4224,7 @@ Rispondi SOLO in JSON:`;
       });
 
       // Apply damage using existing processMosseDamage to targetCardId owned by defender
-      await this.processMosseDamage(gameId, attacker, targetCardId, damage, mosseCardId, io, false, isHandTarget || false);
+      await this.processMosseDamage(gameId, attacker, targetCardId, damage, mosseCardId, io, false, isHandTarget || false, isFurtoAttack);
       
       // DUELLO: Switch turn to opponent after attack is accepted
       if (game.activeDuel && game.activeDuel.active) {
@@ -4256,8 +4257,8 @@ Rispondi SOLO in JSON:`;
     return true;
   }
 
-  // EXTRACTED AND HARDENED: Damage processing method (preserves ALL legacy logic + BAMBOLA VOODOO + ATTACCO DISONESTO)
-  async processMosseDamage(gameId: string, attackerName: string, targetCardId: string, damageValue: number, mosseCardId: string, io: any, isVoodooReflection: boolean = false, isHandTarget: boolean = false): Promise<void> {
+  // EXTRACTED AND HARDENED: Damage processing method (preserves ALL legacy logic + BAMBOLA VOODOO + ATTACCO DISONESTO + FURTO)
+  async processMosseDamage(gameId: string, attackerName: string, targetCardId: string, damageValue: number, mosseCardId: string, io: any, isVoodooReflection: boolean = false, isHandTarget: boolean = false, isFurtoAttack: boolean = false): Promise<void> {
     const game = this.games.get(gameId);
     const gameState = this.getSanitizedGameState(gameId);
     
@@ -4287,8 +4288,130 @@ Rispondi SOLO in JSON:`;
       return;
     }
 
-    // PRESERVE: Extract current PTI from card notes (exact legacy logic)
     const currentNotes = targetCard.text || '';
+    let updatedNotes = currentNotes;
+    let shouldDie = false;
+
+    // FURTO ATTACK: Steal stars instead of dealing PTI damage
+    if (isFurtoAttack) {
+      console.log(`⭐ FURTO ATTACK: ${attackerName} is stealing ${damageValue} stars from ${targetOwner}'s character`);
+      
+      // Extract current stars from card notes
+      const starsMatch = currentNotes.match(/[Ss]telle:\s*(-?\d+)/i);
+      let currentStars = starsMatch ? parseInt(starsMatch[1]) : 0;
+      
+      // Calculate new stars after theft
+      const newStars = currentStars - damageValue;
+      
+      // Update card notes with new stars
+      if (starsMatch) {
+        updatedNotes = currentNotes.replace(/[Ss]telle:\s*-?\d+/i, `Stelle: ${newStars}`);
+      } else {
+        updatedNotes = currentNotes ? `${currentNotes}\nStelle: ${newStars}` : `Stelle: ${newStars}`;
+      }
+      
+      // Update the card in the game state
+      if (isHandTarget) {
+        const player = game?.players?.[targetOwner];
+        if (player) {
+          const handCardIndex = player.hand.findIndex((c: Card) => c.id === targetCardId);
+          if (handCardIndex !== -1) {
+            player.hand[handCardIndex].text = updatedNotes;
+          }
+        }
+      } else {
+        this.updateCardText(gameId, targetCardId, updatedNotes);
+      }
+      
+      console.log(`⭐ FURTO: ${targetOwner}'s ${targetCard.frontImage} lost ${damageValue} stars: ${currentStars} → ${newStars} Stelle`);
+      
+      // Broadcast the FURTO result
+      if (newStars < 0) {
+        // Character dies if stars go below 0
+        shouldDie = true;
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-furto-death`,
+          playerName: 'Sistema',
+          message: `⭐💀 FURTO LETALE! ${attackerName} ruba ${damageValue} stelle a ${targetCard.owner}! Stelle: ${currentStars} → ${newStars} - IL PERSONAGGIO MUORE!`,
+          timestamp: Date.now()
+        });
+      } else if (newStars === 0) {
+        // Character can't use MOSSE if stars = 0
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-furto-blocked`,
+          playerName: 'Sistema',
+          message: `⭐🚫 FURTO! ${attackerName} ruba ${damageValue} stelle a ${targetCard.owner}! Stelle: ${currentStars} → ${newStars} - NON PUÒ PIÙ USARE MOSSE!`,
+          timestamp: Date.now()
+        });
+      } else {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-furto`,
+          playerName: 'Sistema',
+          message: `⭐ FURTO! ${attackerName} ruba ${damageValue} stelle a ${targetCard.owner}! Stelle: ${currentStars} → ${newStars}`,
+          timestamp: Date.now()
+        });
+      }
+      
+      // If character should die from FURTO, handle death below
+      if (shouldDie) {
+        // For ATTACCO DISONESTO + FURTO: move card from hand to graveyard
+        if (isHandTarget) {
+          const player = game?.players?.[targetOwner];
+          if (player) {
+            const handCardIndex = player.hand.findIndex((c: Card) => c.id === targetCardId);
+            if (handCardIndex !== -1) {
+              const deadCard = player.hand.splice(handCardIndex, 1)[0];
+              deadCard.eliminatedBy = attackerName;
+              game?.graveyard?.push(deadCard);
+              console.log(`⭐ FURTO LETALE: ${targetCard.frontImage} di ${targetOwner} è morto (stelle < 0) e va nel cimitero`);
+            }
+          }
+        } else {
+          // Regular field death from FURTO
+          const result = this.moveToGraveyard(gameId, targetCardId, targetOwner, attackerName);
+          
+          if (result.sorosActivated && result.sorosImage && result.sorosActivator) {
+            console.log(`🎭 SOROS ACTIVATED! Broadcasting to all players in room ${gameId}`);
+            io.to(gameId).emit('soros-activated', {
+              activator: result.sorosActivator,
+              cardImage: result.sorosImage
+            });
+          }
+          
+          if (result.eliminationCheck) {
+            const eliminationSuccess = this.markPlayerEliminated(gameId, targetOwner);
+            if (eliminationSuccess) {
+              console.log(`Player ${targetOwner} automatically eliminated due to character limit (FURTO)`);
+            }
+          }
+        }
+        
+        // Broadcast updated game state and return early
+        const updatedGameState = this.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', updatedGameState);
+      }
+      
+      // Mark action as completed for CPU turn flow
+      if (attackerName.startsWith('CPU-')) {
+        console.log(`MOSSE FURTO action completed for CPU ${attackerName}`);
+      }
+      
+      // FURTO also needs to mark the MOSSE card as used
+      const mosseCard = game?.field?.find((c: any) => c.id === mosseCardId);
+      if (mosseCard) {
+        mosseCard.used = true;
+        mosseCard.usedBy = attackerName;
+        console.log(`MOSSE card ${mosseCardId} (FURTO) used by ${attackerName}`);
+      }
+      
+      // Broadcast updated game state
+      const updatedGameState = this.getSanitizedGameState(gameId);
+      io.to(gameId).emit('game-state-update', updatedGameState);
+      
+      return; // FURTO handling complete, skip normal PTI damage
+    }
+
+    // REGULAR ATTACK: Extract current PTI from card notes (exact legacy logic)
     const ptiMatch = currentNotes.match(/PTI:\s*(\d+)/i);
     let currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 0;
 
@@ -4296,7 +4419,6 @@ Rispondi SOLO in JSON:`;
     const newPTI = Math.max(0, currentPTI - damageValue);
 
     // PRESERVE: Update card notes with new PTI
-    let updatedNotes = currentNotes;
     if (ptiMatch) {
       updatedNotes = currentNotes.replace(/PTI:\s*\d+/i, `PTI: ${newPTI}`);
     } else {

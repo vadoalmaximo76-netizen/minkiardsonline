@@ -2107,7 +2107,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('mosse-attack', async ({ mosseCardId, targetCardId, attackerName, targetOwner, damageValue, isHandTarget }) => {
+    socket.on('mosse-attack', async ({ mosseCardId, targetCardId, attackerName, targetOwner, damageValue, isHandTarget, isFurtoAttack }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
         console.log(`🗡️  DEFENSE-ENABLED MOSSE ATTACK: ${attackerName} → ${targetOwner} (damage: ${damageValue})`);
@@ -2182,14 +2182,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (pendingDefense) {
             pendingDefense.damage = damageValue; // Store the manually input damage
             pendingDefense.mosseCardId = mosseCardId; // Store MOSSE card for return
-            console.log(`📝 Stored damage value ${damageValue} for pending defense ${pendingDefense.attackId}`);
+            (pendingDefense as any).isFurtoAttack = isFurtoAttack || false; // Store FURTO flag
+            console.log(`📝 Stored damage value ${damageValue} for pending defense ${pendingDefense.attackId}${isFurtoAttack ? ' (FURTO - star stealing)' : ''}`);
           }
           
           // UNIFIED DEFENSE EMISSION: Use GameManager.emitDefenseRequest instead of direct emission
           const emissionSuccess = await gameManager.emitDefenseRequest(gameId, io);
           if (!emissionSuccess) {
             console.log(`⚠️ Failed to emit defense request - proceeding with damage`);
-            await gameManager.processMosseDamage(gameId, attackerName, targetCardId, damageValue, mosseCardId, io);
+            await gameManager.processMosseDamage(gameId, attackerName, targetCardId, damageValue, mosseCardId, io, false, false, isFurtoAttack || false);
           }
           
           // Attack is pending defense response - processing will continue in defense:response handler
@@ -2197,7 +2198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // If no defense required, process damage immediately
-        await gameManager.processMosseDamage(gameId, attackerName, targetCardId, damageValue, mosseCardId, io, false, isHandTarget || false);
+        await gameManager.processMosseDamage(gameId, attackerName, targetCardId, damageValue, mosseCardId, io, false, isHandTarget || false, isFurtoAttack || false);
         
         // NEW: If CPU attacked without defense, continue their turn
         const gameStateAfterAttack = gameManager.getGameState(gameId);

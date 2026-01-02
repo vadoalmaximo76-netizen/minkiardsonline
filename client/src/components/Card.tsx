@@ -35,6 +35,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const [targetCard, setTargetCard] = useState<any>(null);
   const [showHandTargetSelect, setShowHandTargetSelect] = useState(false);
   const [isHandTarget, setIsHandTarget] = useState(false);
+  const [isFurtoAttack, setIsFurtoAttack] = useState(false);
 
   // Sync local cardText state with incoming card.text prop (for real-time updates)
   useEffect(() => {
@@ -79,6 +80,11 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
       // Can attack ANY personaggio on field (allies or opponents)
       if (location === 'field' && 
           card.type === 'personaggi') {
+        
+        // Check if the MOSSE card is FURTO
+        const mosseCardName = getCardName(selectedMosseCard.frontImage);
+        const isFurto = mosseCardName === 'FURTO' || mosseCardName.includes('FURTO');
+        setIsFurtoAttack(isFurto);
         
         // Open damage input dialog instead of attacking immediately
         setTargetCard(card);
@@ -171,7 +177,8 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         attackerName: playerName,
         targetOwner: targetCard?.owner,
         damageValue: damage,
-        isHandTarget: isHandTarget  // NEW: Pass isHandTarget flag
+        isHandTarget: isHandTarget,
+        isFurtoAttack: isFurtoAttack  // NEW: Pass FURTO flag for star stealing
       });
 
       // Clear states
@@ -180,6 +187,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
       setDamageValue("");
       setTargetCard(null);
       setIsHandTarget(false);
+      setIsFurtoAttack(false);
     } catch (error: any) {
       alert(error.message || "Errore nel calcolo del danno");
     }
@@ -190,6 +198,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     setDamageValue("");
     setTargetCard(null);
     setIsHandTarget(false);
+    setIsFurtoAttack(false);
   };
 
   const handleHandTargetSelect = (targetCard: any) => {
@@ -650,19 +659,32 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
 
           {/* Damage Input Section */}
           <div className="space-y-4 mt-6">
-            <div className="bg-gray-800 p-4 rounded-lg border border-gray-600">
-              <p className="text-gray-300 text-sm mb-2">
-                Quanto danno fa la tua carta MOSSE a <span className="text-red-400 font-bold">{targetCard?.owner}</span>?
-              </p>
-              <p className="text-gray-400 text-xs mb-3">
-                Puoi inserire operazioni: 50x3, 100+20, 200-50, ecc.
-              </p>
+            <div className={`p-4 rounded-lg border ${isFurtoAttack ? 'bg-yellow-900 border-yellow-600' : 'bg-gray-800 border-gray-600'}`}>
+              {isFurtoAttack ? (
+                <>
+                  <p className="text-yellow-300 text-lg font-bold mb-2">
+                    ⭐ FURTO - Quante STELLE rubi a <span className="text-red-400 font-bold">{targetCard?.owner}</span>?
+                  </p>
+                  <p className="text-yellow-200 text-xs mb-3">
+                    Le stelle rubate verranno sottratte dal personaggio avversario. Se le stelle scendono a 0, il personaggio non potrà più usare MOSSE. Se scendono sotto 0, il personaggio muore!
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-gray-300 text-sm mb-2">
+                    Quanto danno fa la tua carta MOSSE a <span className="text-red-400 font-bold">{targetCard?.owner}</span>?
+                  </p>
+                  <p className="text-gray-400 text-xs mb-3">
+                    Puoi inserire operazioni: 50x3, 100+20, 200-50, ecc.
+                  </p>
+                </>
+              )}
               <Input
                 type="text"
                 value={damageValue}
                 onChange={(e) => setDamageValue(e.target.value)}
-                placeholder="es: 50x3, 100+50, 150..."
-                className="bg-gray-700 border-gray-600 text-white text-lg font-bold"
+                placeholder={isFurtoAttack ? "es: 1, 2, 3..." : "es: 50x3, 100+50, 150..."}
+                className={`text-lg font-bold ${isFurtoAttack ? 'bg-yellow-800 border-yellow-500 text-white' : 'bg-gray-700 border-gray-600 text-white'}`}
                 autoFocus
               />
             </div>
@@ -670,9 +692,9 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
             <div className="flex gap-3">
               <Button
                 onClick={handleDamageConfirm}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 text-lg"
+                className={`flex-1 font-bold py-3 text-lg ${isFurtoAttack ? 'bg-yellow-600 hover:bg-yellow-700 text-black' : 'bg-red-600 hover:bg-red-700 text-white'}`}
               >
-                ⚔️ ATTACCA
+                {isFurtoAttack ? '⭐ RUBA STELLE' : '⚔️ ATTACCA'}
               </Button>
               <Button
                 onClick={handleDamageCancel}
