@@ -3035,8 +3035,12 @@ Rispondi SOLO in JSON:`;
             card.turnCounter = (card.turnCounter || 0) + 1;
             
             // Update the card text to include turn count
-            // Remove previous turn count if it exists (e.g., " | 1 TURNO" or " | 2 TURNI")
-            let cleanText = (card.text || '').replace(/\s\|\s\d+\sTURN[I]?/g, '').trim();
+            // Remove previous turn count if it exists (e.g., " | 1 TURNO", " | 2 TURNI", etc.)
+            let cleanText = (card.text || '').replace(/\s\|\s\d+\sTURN[IO]/gi, '').trim();
+            // Handle the case where the text IS just the turn count
+            if (/^\d+\sTURN[IO]$/i.test(cleanText)) {
+              cleanText = '';
+            }
             const suffix = card.turnCounter === 1 ? '1 TURNO' : `${card.turnCounter} TURNI`;
             card.text = cleanText ? `${cleanText} | ${suffix}` : suffix;
           }
@@ -3121,8 +3125,12 @@ Rispondi SOLO in JSON:`;
             card.turnCounter = (card.turnCounter || 0) + 1;
             
             // Update the card text to include turn count
-            // Remove previous turn count if it exists (e.g., " | 1 TURNO" or " | 2 TURNI")
-            let cleanText = (card.text || '').replace(/\s\|\s\d+\sTURN[I]?/g, '').trim();
+            // Remove previous turn count if it exists (e.g., " | 1 TURNO", " | 2 TURNI", etc.)
+            let cleanText = (card.text || '').replace(/\s\|\s\d+\sTURN[IO]/gi, '').trim();
+            // Handle the case where the text IS just the turn count
+            if (/^\d+\sTURN[IO]$/i.test(cleanText)) {
+              cleanText = '';
+            }
             const suffix = card.turnCounter === 1 ? '1 TURNO' : `${card.turnCounter} TURNI`;
             card.text = cleanText ? `${cleanText} | ${suffix}` : suffix;
           }
