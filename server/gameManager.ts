@@ -3962,7 +3962,7 @@ Rispondi SOLO in JSON:`;
       ];
 
       const bonusInHand = defender.hand.find((c: any) => 
-        c.type === 'bonus' && defenseBonusCards.includes(c.name.toUpperCase())
+        c.type === 'bonus' && c.name && defenseBonusCards.includes(c.name.toUpperCase())
       );
 
       if (bonusInHand) {
