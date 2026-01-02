@@ -227,11 +227,25 @@ function App() {
     );
   }
 
+  const handleLogout = () => {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('isGuest');
+    localStorage.removeItem('guestName');
+    setAuthenticatedUser(null);
+    setShowAuthDialog(true);
+    setShowNameDialog(false);
+    setShowRoomDialog(false);
+    setPlayerName('');
+    setGameId('');
+  };
+
   return (
     <QueryClientProvider client={queryClient}>
       <div className="min-h-screen bg-royal-blue overflow-auto">
         <GameBoard 
-          authenticatedUser={authenticatedUser} 
+          authenticatedUser={authenticatedUser}
+          onLogout={handleLogout}
         />
       </div>
     </QueryClientProvider>

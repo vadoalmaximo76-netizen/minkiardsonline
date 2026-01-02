@@ -32,7 +32,7 @@ import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
-import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star, Hand, Music, Shuffle, User } from "lucide-react";
+import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star, Hand, Music, Shuffle, User, LogOut } from "lucide-react";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 
@@ -46,9 +46,10 @@ interface AuthUser {
 
 interface GameBoardProps {
   authenticatedUser?: AuthUser | null;
+  onLogout?: () => void;
 }
 
-export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser }) => {
+export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogout }) => {
   const [chatOpen, setChatOpen] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [musicPlayerOpen, setMusicPlayerOpen] = useState(false);
@@ -781,6 +782,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser }) => {
                   <span className="text-yellow-400 text-xs font-bold" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
                     {authenticatedUser.puntiRankiard || 0} PR
                   </span>
+                  {onLogout && (
+                    <button
+                      onClick={onLogout}
+                      className="ml-1 text-red-400 hover:text-red-300 transition-colors"
+                      title="Esci"
+                    >
+                      <LogOut size={14} />
+                    </button>
+                  )}
                 </div>
               )}
             </div>
