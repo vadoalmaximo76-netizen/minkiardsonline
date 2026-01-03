@@ -1470,24 +1470,19 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         };
       }
 
-      // CRITICAL FIX: After MOSSE attack is resolved, continue playing more cards
-      // ONLY return null if waiting for attack, then loop again
+      // CRITICAL FIX: After MOSSE attack is resolved, END THE TURN
+      // CPU can only play ONE action card (MOSSE or BONUS) per turn
       if (this.turnState.executedThisTurn && this.waitingForAttackResolution) {
-        console.log(`🎯 CPU ${this.playerName}: MOSSE attack emitted - waiting for resolution before continuing`);
+        console.log(`🎯 CPU ${this.playerName}: MOSSE attack emitted - waiting for resolution before ending turn`);
         return null;
       }
       
-      // If attack was resolved, continue turn by refreshing game state and playing next card
+      // If attack was resolved, END TURN - CPU can only play ONE card per turn
       if (this.turnState.executedThisTurn && !this.waitingForAttackResolution) {
-        console.log(`🎯 CPU ${this.playerName}: Attack resolved - continuing turn to play more cards`);
-        // Refresh game state
-        if (this.gameManager) {
-          const updatedState = this.gameManager.getSanitizedGameState(this.gameId);
-          cpuPlayer = updatedState.players[this.playerName];
-          gameState = updatedState;
-        }
-        // Reset executed flag so we can try to play another card
-        this.turnState.executedThisTurn = false;
+        console.log(`🎯 CPU ${this.playerName}: Attack resolved - ONE CARD PER TURN RULE - ending turn`);
+        this.sendChatMessage(`Ho completato la mia azione, finisco il turno!`);
+        this.resetTurnState();
+        return { type: 'end-turn', data: { playerName: this.playerName } };
       }
       
       // NEW OPTIMIZED TURN LOGIC: Execute ALL phases in one turn
@@ -2015,7 +2010,14 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
 
   
   // Select which card to play based on strategic priorities
+  // ONE CARD PER TURN RULE: CPU can only play one action card (MOSSE or BONUS) per turn
   selectCardToPlay(cpuPlayer: any, gameState: any): any {
+    // ONE CARD PER TURN: If already played an action card this turn, don't select another
+    if (this.turnState.playedThisTurn) {
+      console.log(`CPU ${this.playerName}: Already played a card this turn - ONE CARD PER TURN rule`);
+      return null;
+    }
+    
     const hand = cpuPlayer.hand || [];
     const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali'));
     const enemies = gameState.field.filter((card: any) => card.owner !== this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali'));
