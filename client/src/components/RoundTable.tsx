@@ -165,8 +165,8 @@ export const RoundTable: React.FC = () => {
     const isMobile = window.innerWidth < 640;
     const isTablet = window.innerWidth >= 640 && window.innerWidth < 1024;
     
-    // Position cards at bottom center, below decks
-    const bottomY = 90; // Very bottom to avoid deck overlap
+    // Position cards at bottom center, closer to decks but visible
+    const bottomY = isMobile ? 78 : 75; // Higher up so cards are fully visible
     const centerX = 50;
     
     if (cardCount === 1) {
