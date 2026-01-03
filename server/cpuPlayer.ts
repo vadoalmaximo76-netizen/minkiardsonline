@@ -1600,6 +1600,10 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
 
         console.log(`🎯 CPU ${this.playerName}: Playing MOSSE card ${cardToPlay.id} - executing attack ATOMICALLY`);
         
+        // CRITICAL: Mark that we've played a card this turn - ONE CARD PER TURN RULE
+        this.turnState.playedThisTurn = true;
+        console.log(`🎯 CPU ${this.playerName}: Setting playedThisTurn=true (ONE CARD PER TURN)`);
+        
         // Play the card DIRECTLY via gameManager (atomic)
         await this.gameManager?.playCard(this.gameId, cardToPlay.id, this.playerName);
         
@@ -1630,7 +1634,11 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         return null; // CPU has already handled the card play - routes.ts doesn't need to do anything
       }
       
-      // Non-MOSSE cards: return play action for routes.ts to handle
+      // Non-MOSSE cards: Mark played and return play action for routes.ts to handle
+      // CRITICAL: Mark that we've played a card this turn - ONE CARD PER TURN RULE
+      this.turnState.playedThisTurn = true;
+      console.log(`🎯 CPU ${this.playerName}: Setting playedThisTurn=true for ${cardToPlay.type} (ONE CARD PER TURN)`);
+      
       return {
         type: 'play-card',
         data: {
