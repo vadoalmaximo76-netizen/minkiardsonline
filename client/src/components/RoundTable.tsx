@@ -157,55 +157,26 @@ export const RoundTable: React.FC = () => {
     });
   };
 
-  // Calculate positions for current player's cards (always at bottom)
+  // Calculate positions for current player's cards (always at bottom center)
   const getCurrentPlayerCardPositions = (playerCards: any[]) => {
     const cardCount = playerCards.length;
     if (cardCount === 0) return [];
     
-    // Position cards lower on landscape to avoid deck overlap
-    const isLandscape = window.innerWidth > window.innerHeight;
     const isMobile = window.innerWidth < 640;
     const isTablet = window.innerWidth >= 640 && window.innerWidth < 1024;
     
-    // Move cards to bottom, avoiding center decks area
-    const bottomY = isLandscape ? 88 : 82;
+    // Position cards at bottom center, below decks
+    const bottomY = 90; // Very bottom to avoid deck overlap
     const centerX = 50;
     
     if (cardCount === 1) {
       return [{ x: centerX, y: bottomY, angle: 0 }];
     }
     
-    // For landscape, split cards to left and right sides to avoid center decks
-    if (isLandscape && cardCount >= 2) {
-      const halfCount = Math.ceil(cardCount / 2);
-      const sideSpacing = 8; // Spacing between cards on each side
-      
-      return playerCards.map((_, cardIndex) => {
-        if (cardIndex < halfCount) {
-          // Left side cards
-          const leftStartX = 8;
-          return {
-            x: leftStartX + cardIndex * sideSpacing,
-            y: bottomY - 5,
-            angle: 0
-          };
-        } else {
-          // Right side cards
-          const rightStartX = 92;
-          const rightIndex = cardIndex - halfCount;
-          return {
-            x: rightStartX - (halfCount - 1 - rightIndex) * sideSpacing,
-            y: bottomY - 5,
-            angle: 0
-          };
-        }
-      });
-    }
-    
-    // Portrait mode: spread horizontally at bottom
-    const availableWidth = isMobile ? 80 : isTablet ? 85 : 90;
-    const cardWidth = isMobile ? 14 : isTablet ? 12 : 10;
-    const idealSpacing = cardWidth + 2;
+    // Spread cards horizontally at bottom center
+    const availableWidth = isMobile ? 75 : isTablet ? 80 : 85;
+    const cardWidth = isMobile ? 12 : isTablet ? 10 : 8;
+    const idealSpacing = cardWidth + 1;
     
     const totalNeededWidth = cardCount * idealSpacing;
     const cardSpacing = totalNeededWidth > availableWidth 
@@ -265,8 +236,8 @@ export const RoundTable: React.FC = () => {
           style={{ borderRadius: '16px' }}
         />
         
-        {/* Center Area - Decks with protection zone */}
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
+        {/* Center Area - Decks with protection zone - positioned higher to avoid card overlap */}
+        <div className="absolute top-[35%] sm:top-[40%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-3 md:gap-4 items-start justify-center bg-black/40 rounded-lg sm:rounded-xl p-2 sm:p-3 md:p-4 backdrop-blur-sm">
             <Deck
               name="PERSONAGGI"
