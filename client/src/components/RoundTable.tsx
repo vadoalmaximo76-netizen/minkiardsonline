@@ -218,9 +218,9 @@ export const RoundTable: React.FC = () => {
     <div className="mb-4 md:mb-8">
       <h2 className="text-white font-bold text-lg landscape:text-2xl md:text-2xl mb-2 landscape:mb-4 md:mb-4 text-center" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>TAVOLO DA GIOCO</h2>
       
-      {/* Rectangular Table Container */}
+      {/* Rectangular Table Container - taller to fit all cards */}
       <div 
-        className="relative w-[85vw] h-[90vh] landscape:w-[95vw] landscape:h-[90vh] sm:w-[90vw] sm:h-[85vh] md:w-[95vw] md:h-[90vh] lg:w-[98vw] lg:h-[90vh] xl:w-[98vw] xl:h-[95vh] max-w-[1600px] max-h-[1200px] min-w-[320px] min-h-[400px] mx-auto border-4 landscape:border-8 md:border-8 border-white bg-no-repeat overflow-hidden touch-manipulation"
+        className="relative w-[85vw] h-[95vh] landscape:w-[95vw] landscape:h-[95vh] sm:w-[90vw] sm:h-[90vh] md:w-[95vw] md:h-[95vh] lg:w-[98vw] lg:h-[95vh] xl:w-[98vw] xl:h-[98vh] max-w-[1600px] max-h-[1400px] min-w-[320px] min-h-[500px] mx-auto border-4 landscape:border-8 md:border-8 border-white bg-no-repeat overflow-visible touch-manipulation"
         style={{
           borderRadius: '16px',
           backgroundImage: `url('https://i.ibb.co/Y4bv4xwz/sfondo-minkiards.png')`,
@@ -236,8 +236,8 @@ export const RoundTable: React.FC = () => {
           style={{ borderRadius: '16px' }}
         />
         
-        {/* Center Area - Decks with protection zone - positioned higher to avoid card overlap */}
-        <div className="absolute top-[35%] sm:top-[40%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
+        {/* Center Area - Decks with protection zone - centered vertically */}
+        <div className="absolute top-[45%] sm:top-[45%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-3 md:gap-4 items-start justify-center bg-black/40 rounded-lg sm:rounded-xl p-2 sm:p-3 md:p-4 backdrop-blur-sm">
             <Deck
               name="PERSONAGGI"
