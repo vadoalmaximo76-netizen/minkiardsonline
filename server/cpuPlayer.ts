@@ -1567,7 +1567,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     // All cards are optimal, move to play phase
     console.log(`CPU ${this.playerName} hand composition optimal - moving to play phase`);
     this.turnState.phase = 'play_card';
-    return this.handlePlayPhase(cpuPlayer, gameState);
+    return null; // Return null to indicate no draw needed, caller will call handlePlayPhase separately
   }
 
   // Handle the play phase: select and play a card
