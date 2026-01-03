@@ -1678,16 +1678,21 @@ Rispondi SOLO in JSON:`;
       const game = this.games.get(gameId);
       if (!game) return { success: false, message: 'Game not found' };
 
-      // Find the card to duplicate (can be in field or hand)
+      // Find the card to duplicate (can be in field or ANY player's hand)
       let originalCard = game.field.find(card => card.id === cardId);
       let isInField = true;
       
       if (!originalCard) {
-        // Check in player's hand
-        const player = game.players[playerName];
-        if (player && player.hand) {
-          originalCard = player.hand.find(card => card.id === cardId);
-          isInField = false;
+        // Check in ALL players' hands (not just requesting player)
+        for (const [pName, player] of Object.entries(game.players)) {
+          if ((player as any).hand) {
+            const foundCard = (player as any).hand.find((card: any) => card.id === cardId);
+            if (foundCard) {
+              originalCard = foundCard;
+              isInField = false;
+              break;
+            }
+          }
         }
       }
 
@@ -1700,10 +1705,9 @@ Rispondi SOLO in JSON:`;
         return { success: false, message: 'Only PERSONAGGI and PERSONAGGI_SPECIALI cards can be duplicated' };
       }
 
-      // Only card owner can duplicate
-      if (originalCard.owner !== playerName) {
-        return { success: false, message: 'You can only duplicate your own cards' };
-      }
+      // ALLOW duplicating any card (including opponent's cards)
+      // The duplicate will be owned by the player who duplicates it
+      console.log(`Duplicating card owned by ${originalCard.owner} for player ${playerName}`);
 
       // Create the duplicate card with same properties
       const duplicatedCard = {
