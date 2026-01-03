@@ -1706,16 +1706,16 @@ Rispondi SOLO in JSON:`;
       }
 
       // ALLOW duplicating any card (including opponent's cards)
-      // The duplicate will be owned by the player who duplicates it
-      console.log(`Duplicating card owned by ${originalCard.owner} for player ${playerName}`);
+      // The duplicate keeps the ORIGINAL OWNER - it's a copy for the opponent, not for you
+      console.log(`Duplicating card owned by ${originalCard.owner} (requested by ${playerName})`);
 
-      // Create the duplicate card with same properties
+      // Create the duplicate card with same properties - KEEP ORIGINAL OWNER
       const duplicatedCard = {
         id: `${originalCard.type}-duplicate-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         type: originalCard.type as 'personaggi' | 'personaggi_speciali',
         frontImage: originalCard.frontImage,
         backImage: originalCard.backImage,
-        owner: playerName,
+        owner: originalCard.owner, // KEEP ORIGINAL OWNER - duplicate belongs to same player
         text: originalCard.text || '', // Copy the notes with PTI and stars
         faceDown: originalCard.faceDown || false
       };
