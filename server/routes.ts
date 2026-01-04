@@ -3023,9 +3023,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       });
                     }
                     
-                    // CRITICAL FIX: If CPU played a MOSSE card, automatically attack an enemy
+                    // CRITICAL FIX: If CPU played a MOSSE card, announce attack and wait for master to input damage
                     if (result.card && result.card.type === 'mosse') {
-                      console.log(`🎯 CPU ${nextPlayer} played MOSSE card - automatically triggering attack`);
+                      console.log(`🎯 CPU ${nextPlayer} played MOSSE card - announcing attack for master to input damage`);
                       
                       // Find enemy characters on field to attack
                       const currentGameState = gameManager.getSanitizedGameState(gameId);
@@ -3060,50 +3060,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         io.to(gameId).emit('chat-message', {
                           id: `${Date.now()}-cpu-mosse-attack`,
                           playerName: nextPlayer,
-                          message: `Uso la carta MOSSE "${mosseName}" per attaccare ${targetName} di ${targetCard.owner}!`,
+                          message: `🎯 Uso la carta MOSSE "${mosseName}" per attaccare ${targetName} di ${targetCard.owner}! Master, inserisci il danno.`,
                           timestamp: Date.now()
                         });
                         
-                        // Execute the attack after a short delay
-                        setTimeout(async () => {
-                          try {
-                            const attackResult = await gameManager.executeMossaAttack(
-                              gameId,
-                              nextPlayer,
-                              result.card!.id,
-                              targetCard.id,
-                              100, // Base damage, will be calculated properly by the attack system
-                              false, // Not a hand target
-                              (data: any) => io.to(gameId).emit('defense-request', data)
-                            );
-                            
-                            if (attackResult.success) {
-                              console.log(`✅ CPU ${nextPlayer} MOSSE attack executed successfully`);
-                            } else {
-                              console.log(`❌ CPU ${nextPlayer} MOSSE attack failed: ${attackResult.error}`);
-                            }
-                            
-                            // Return MOSSE card to deck after attack
-                            setTimeout(() => {
-                              gameManager.returnToDeck(gameId, result.card!.id, nextPlayer);
-                              console.log(`🔄 CPU ${nextPlayer} returned MOSSE card to deck`);
-                              
-                              const finalState = gameManager.getSanitizedGameState(gameId);
-                              io.to(gameId).emit('game-state-update', finalState);
-                              
-                              // End turn after attack completes
-                              setTimeout(() => {
-                                const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
-                                if (nextAfterCPU) {
-                                  io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
-                                  console.log(`Turn ended for ${nextPlayer} after MOSSE attack, next: ${nextAfterCPU}`);
-                                }
-                              }, 1000);
-                            }, 2000);
-                          } catch (err) {
-                            console.error(`Error in CPU MOSSE attack:`, err);
-                          }
-                        }, 1500);
+                        // Emit card-attacked event so master can input damage manually
+                        // This is the same flow as human attacks
+                        setTimeout(() => {
+                          io.to(gameId).emit('card-attacked', {
+                            mosseCardId: result.card!.id,
+                            targetCardId: targetCard.id,
+                            attackerName: nextPlayer,
+                            targetOwner: targetCard.owner,
+                            timestamp: Date.now(),
+                            cpuAttack: true // Flag to indicate this is a CPU attack awaiting master damage input
+                          });
+                          
+                          console.log(`📢 CPU ${nextPlayer} attack announced - waiting for master to input damage`);
+                        }, 500);
+                        
+                        // Don't end turn or return card - wait for the attack resolution flow
                         return; // Return early, don't end turn yet
                       } else {
                         console.log(`⚠️ CPU ${nextPlayer} has MOSSE card but no enemy targets on field`);
@@ -3385,9 +3361,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       const playGameState = gameManager.getSanitizedGameState(gameId);
                       io.to(gameId).emit('game-state-update', playGameState);
                       
-                      // CRITICAL FIX: If CPU played a MOSSE card, automatically attack an enemy
+                      // CRITICAL FIX: If CPU played a MOSSE card, announce attack and wait for master to input damage
                       if (playResult.card && playResult.card.type === 'mosse') {
-                        console.log(`🎯 CPU ${nextPlayer} played MOSSE card (force-end-turn) - automatically triggering attack`);
+                        console.log(`🎯 CPU ${nextPlayer} played MOSSE card (force-end-turn) - announcing attack for master to input damage`);
                         
                         // Find enemy characters on field to attack
                         const currentGameState = gameManager.getSanitizedGameState(gameId);
@@ -3422,51 +3398,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           io.to(gameId).emit('chat-message', {
                             id: `${Date.now()}-cpu-mosse-attack-fe`,
                             playerName: nextPlayer,
-                            message: `Uso la carta MOSSE "${mosseName}" per attaccare ${targetName} di ${targetCard.owner}!`,
+                            message: `🎯 Uso la carta MOSSE "${mosseName}" per attaccare ${targetName} di ${targetCard.owner}! Master, inserisci il danno.`,
                             timestamp: Date.now()
                           });
                           
-                          // Execute the attack after a short delay
-                          setTimeout(async () => {
-                            try {
-                              const attackResult = await gameManager.executeMossaAttack(
-                                gameId,
-                                nextPlayer,
-                                playResult.card!.id,
-                                targetCard.id,
-                                100, // Base damage, will be calculated properly by the attack system
-                                false, // Not a hand target
-                                (data: any) => io.to(gameId).emit('defense-request', data)
-                              );
-                              
-                              if (attackResult.success) {
-                                console.log(`✅ CPU ${nextPlayer} MOSSE attack executed successfully (force-end-turn)`);
-                              } else {
-                                console.log(`❌ CPU ${nextPlayer} MOSSE attack failed: ${attackResult.error}`);
-                              }
-                              
-                              // Return MOSSE card to deck after attack
-                              setTimeout(() => {
-                                gameManager.returnToDeck(gameId, playResult.card!.id, nextPlayer);
-                                console.log(`🔄 CPU ${nextPlayer} returned MOSSE card to deck`);
-                                
-                                const finalState = gameManager.getSanitizedGameState(gameId);
-                                io.to(gameId).emit('game-state-update', finalState);
-                                
-                                // End turn after attack completes
-                                setTimeout(() => {
-                                  const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
-                                  if (nextAfterCPU) {
-                                    io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
-                                    console.log(`Turn ended for ${nextPlayer} after MOSSE attack, next: ${nextAfterCPU}`);
-                                  }
-                                }, 1000);
-                              }, 2000);
-                            } catch (err) {
-                              console.error(`Error in CPU MOSSE attack:`, err);
-                            }
-                          }, 1500);
-                          break; // Return early, don't end turn yet
+                          // Emit card-attacked event so master can input damage manually
+                          setTimeout(() => {
+                            io.to(gameId).emit('card-attacked', {
+                              mosseCardId: playResult.card!.id,
+                              targetCardId: targetCard.id,
+                              attackerName: nextPlayer,
+                              targetOwner: targetCard.owner,
+                              timestamp: Date.now(),
+                              cpuAttack: true
+                            });
+                            
+                            console.log(`📢 CPU ${nextPlayer} attack announced (force-end-turn) - waiting for master to input damage`);
+                          }, 500);
+                          
+                          // Don't end turn or return card - wait for attack resolution
+                          break;
                         } else {
                           console.log(`⚠️ CPU ${nextPlayer} has MOSSE card but no enemy targets on field`);
                         }
