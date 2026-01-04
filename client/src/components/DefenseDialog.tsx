@@ -3,7 +3,7 @@ import { useGameState } from '../lib/stores/useGameState';
 import { socket } from '../lib/socket';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Shield, Swords, Clock, Eye } from 'lucide-react';
+import { Shield, Swords, Clock, Eye, X, ChevronLeft } from 'lucide-react';
 import { HandModal } from './HandModal';
 
 interface DefenseRequest {
@@ -22,12 +22,27 @@ interface DefenseRequest {
   defenderCardText?: string;
 }
 
+interface GameCard {
+  id: string;
+  name?: string;
+  text?: string;
+  type?: string;
+  image?: string;
+  ppiValue?: number;
+  starsValue?: number;
+  owner?: string;
+}
+
 export const DefenseDialog: React.FC = () => {
   const [defenseRequest, setDefenseRequest] = useState<DefenseRequest | null>(null);
   const [timeLeft, setTimeLeft] = useState<number>(30); // 30 second timer
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [showHand, setShowHand] = useState<boolean>(false);
-  const { playerName, gameId } = useGameState();
+  const [showDefenseCardSelect, setShowDefenseCardSelect] = useState<boolean>(false);
+  const { playerName, gameId, gameState } = useGameState();
+
+  // Get player's hand
+  const playerHand: GameCard[] = gameState?.players?.[playerName]?.hand || [];
 
   // Listen for defense requests
   useEffect(() => {
@@ -44,6 +59,7 @@ export const DefenseDialog: React.FC = () => {
         setDefenseRequest(request);
         setTimeLeft(30); // Reset timer
         setIsProcessing(false);
+        setShowDefenseCardSelect(false);
       } else {
         console.log('🛡️ Defense request not for this player, ignoring');
       }
@@ -74,27 +90,149 @@ export const DefenseDialog: React.FC = () => {
     return () => clearInterval(timer);
   }, [defenseRequest]);
 
-  const handleDefenseResponse = (defends: boolean) => {
+  const handleDefenseResponse = (defends: boolean, defenseCardId?: string) => {
     if (!defenseRequest || isProcessing) return;
     
     setIsProcessing(true);
-    console.log(`🛡️ Sending defense response: ${defends ? 'DEFEND' : 'ACCEPT'}`);
+    console.log(`🛡️ Sending defense response: ${defends ? 'DEFEND' : 'ACCEPT'}`, defenseCardId ? `with card ${defenseCardId}` : '');
+    
+    // If defending with a card, first play it to the field
+    if (defends && defenseCardId) {
+      socket.emit('play-card', {
+        cardId: defenseCardId,
+        playerName: playerName
+      });
+    }
     
     socket.emit('defense:response', {
       gameId: defenseRequest.gameId,
       attackId: defenseRequest.attackId,
-      defends
+      defends,
+      defenseCardId
     });
 
     // Close dialog after sending response
     setTimeout(() => {
       setDefenseRequest(null);
       setIsProcessing(false);
+      setShowDefenseCardSelect(false);
     }, 500);
+  };
+
+  const handleShowDefenseCards = () => {
+    setShowDefenseCardSelect(true);
+  };
+
+  const handleSelectDefenseCard = (card: GameCard) => {
+    handleDefenseResponse(true, card.id);
+  };
+
+  const handleBackToMain = () => {
+    setShowDefenseCardSelect(false);
   };
 
   if (!defenseRequest) return null;
 
+  // Show defense card selection panel
+  if (showDefenseCardSelect) {
+    return (
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+        <div className="w-full max-w-4xl max-h-[85vh] bg-gradient-to-b from-gray-900 to-gray-800 rounded-lg shadow-2xl border-2 border-blue-500 p-4 overflow-y-auto">
+          {/* Header */}
+          <div className="text-center mb-4">
+            <div className="flex items-center justify-center gap-2 text-blue-400 mb-1">
+              <Shield className="w-6 h-6" />
+              <h1 className="text-2xl font-bold">SELEZIONA CARTA PER RESPINGERE</h1>
+              <Shield className="w-6 h-6" />
+            </div>
+            <div className="flex items-center justify-center gap-1 text-gray-300 text-sm">
+              <Clock className="w-4 h-4" />
+              <span className="font-mono font-bold">{timeLeft}s</span>
+            </div>
+            <p className="text-gray-400 text-sm mt-2">
+              Scegli una carta dalla tua mano per metterla in campo e respingere l'attacco
+            </p>
+          </div>
+
+          {/* Cards Grid */}
+          {playerHand.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-4">
+              {playerHand.map((card) => (
+                <div
+                  key={card.id}
+                  onClick={() => handleSelectDefenseCard(card)}
+                  className="cursor-pointer hover:scale-105 transition-transform duration-200 bg-gray-800 rounded-lg border-2 border-gray-600 hover:border-blue-400 p-2 flex flex-col items-center"
+                >
+                  {card.image ? (
+                    <img
+                      src={card.image}
+                      alt={card.name || 'Carta'}
+                      className="w-20 h-28 object-cover rounded-md mb-2"
+                    />
+                  ) : (
+                    <div className="w-20 h-28 bg-gray-700 rounded-md mb-2 flex items-center justify-center">
+                      <span className="text-gray-500 text-xs">Carta</span>
+                    </div>
+                  )}
+                  <div className="text-white text-xs font-bold text-center truncate w-full">
+                    {card.name || card.text?.substring(0, 15) || 'Carta'}
+                  </div>
+                  {card.type && (
+                    <div className="text-gray-400 text-xs mt-1 capitalize">
+                      {card.type.replace('_', ' ')}
+                    </div>
+                  )}
+                  {(card.ppiValue !== undefined || card.starsValue !== undefined) && (
+                    <div className="flex gap-2 mt-1 text-xs">
+                      {card.ppiValue !== undefined && (
+                        <span className="text-red-400">PTI: {card.ppiValue}</span>
+                      )}
+                      {card.starsValue !== undefined && (
+                        <span className="text-yellow-400">⭐ {card.starsValue}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center text-gray-400 py-8 mb-4">
+              Non hai carte in mano
+            </div>
+          )}
+
+          {/* Back Button */}
+          <div className="flex gap-2 justify-center">
+            <Button
+              onClick={handleBackToMain}
+              className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 text-sm"
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              INDIETRO
+            </Button>
+            <Button
+              onClick={() => handleDefenseResponse(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 text-sm"
+            >
+              <Shield className="w-4 h-4 mr-1" />
+              RESPINGI SENZA CARTA
+            </Button>
+          </div>
+
+          {/* Timer Warning */}
+          {timeLeft <= 10 && (
+            <div className="text-center mt-3">
+              <p className="text-red-400 font-bold text-xs animate-pulse">
+                ⚠️ Risposta automatica in {timeLeft}s
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Main defense dialog
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
       <div className="w-full max-w-4xl max-h-[85vh] bg-gradient-to-b from-gray-900 to-gray-800 rounded-lg shadow-2xl border-2 border-red-500 p-4 overflow-y-auto">
@@ -185,7 +323,7 @@ export const DefenseDialog: React.FC = () => {
         {/* Info */}
         <div className="bg-gray-700 p-2 rounded-lg border border-gray-600 mb-3 text-center">
           <p className="text-gray-300 text-xs">
-            <strong>RESPINGI:</strong> Blocchi l'attacco, la MOSSE torna nel mazzo
+            <strong>RESPINGI:</strong> Scegli una carta dalla mano per metterla in campo e bloccare l'attacco
           </p>
           <p className="text-gray-300 text-xs">
             <strong>ACCETTA:</strong> Subisci {defenseRequest.damageValue} danni
@@ -203,7 +341,7 @@ export const DefenseDialog: React.FC = () => {
           </Button>
 
           <Button
-            onClick={() => handleDefenseResponse(true)}
+            onClick={handleShowDefenseCards}
             disabled={isProcessing}
             className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 text-sm transition-all duration-200"
           >
