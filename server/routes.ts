@@ -1489,6 +1489,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // Modify character stats (PTI and Stars) - can add or subtract
+    socket.on('modify-stats', ({ cardId, ptiAmount, stelleAmount, playerName }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        console.log(`Modify stats request: ${playerName} wants to modify card ${cardId} - PTI: ${ptiAmount}, Stelle: ${stelleAmount}`);
+        
+        const result = gameManager.modifyCardStats(gameId, cardId, ptiAmount, stelleAmount, playerName);
+        
+        if (result.success) {
+          // Update game state for all players
+          const gameState = gameManager.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', gameState);
+          
+          // Build message parts
+          const messageParts = [];
+          if (ptiAmount !== 0) {
+            messageParts.push(`${ptiAmount > 0 ? '+' : ''}${ptiAmount} PTI`);
+          }
+          if (stelleAmount !== 0) {
+            messageParts.push(`${stelleAmount > 0 ? '+' : ''}${stelleAmount} Stelle`);
+          }
+          
+          // Notify all players about the stat change
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-stats-modify`,
+            playerName: 'Sistema',
+            message: `${playerName} ha modificato le statistiche del personaggio: ${messageParts.join(', ')}! (Nuovo: PTI ${result.newPTI}, Stelle ${result.newStelle})`,
+            timestamp: Date.now()
+          });
+          
+          console.log(`Stats successfully modified by ${playerName}: PTI=${result.newPTI}, Stelle=${result.newStelle}`);
+        } else {
+          socket.emit('stats-error', {
+            message: result.message || 'Errore durante la modifica delle statistiche',
+            timestamp: Date.now()
+          });
+          
+          console.log(`Modify stats failed: ${result.message}`);
+        }
+      }
+    });
+
     // Add PR (Rankiard Points) to a character - subtracts from player's points for this game only
     socket.on('add-pr', ({ cardId, prAmount, playerName, userTotalPoints }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);

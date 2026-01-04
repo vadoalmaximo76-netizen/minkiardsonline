@@ -15,6 +15,7 @@ export const CardModal: React.FC = () => {
   const [showDuelSelect, setShowDuelSelect] = useState(false);
   const [showAddPTIPanel, setShowAddPTIPanel] = useState(false);
   const [ptiToAdd, setPtiToAdd] = useState('');
+  const [stelleToAdd, setStelleToAdd] = useState('');
   const [showAddPRPanel, setShowAddPRPanel] = useState(false);
   const [prToAdd, setPrToAdd] = useState('');
   const { selectedCard, setSelectedCard, playerName, gameState, setSelectedMosseCard, userRankiardPoints, prSpentThisGame, addPRSpent } = useGameState();
@@ -277,15 +278,20 @@ export const CardModal: React.FC = () => {
   };
 
   const handleConfirmAddPTI = () => {
-    const ptiValue = parseInt(ptiToAdd);
-    if (!isNaN(ptiValue) && ptiValue > 0 && selectedCard) {
-      socket.emit('add-pti', {
+    const ptiValue = parseInt(ptiToAdd) || 0;
+    const stelleValue = parseInt(stelleToAdd) || 0;
+    
+    // Allow if at least one value is non-zero
+    if ((ptiValue !== 0 || stelleValue !== 0) && selectedCard) {
+      socket.emit('modify-stats', {
         cardId: selectedCard.id,
         ptiAmount: ptiValue,
+        stelleAmount: stelleValue,
         playerName: effectivePlayerName
       });
       setShowAddPTIPanel(false);
       setPtiToAdd('');
+      setStelleToAdd('');
       setSelectedCard(null);
     }
   };
@@ -293,6 +299,7 @@ export const CardModal: React.FC = () => {
   const handleCancelAddPTI = () => {
     setShowAddPTIPanel(false);
     setPtiToAdd('');
+    setStelleToAdd('');
   };
 
   // Handler for adding PR (Rankiard Points) to convert to PTI
@@ -560,13 +567,13 @@ export const CardModal: React.FC = () => {
                       DUPLICA
                     </Button>
 
-                    {/* AGGIUNGI PTI button */}
+                    {/* MODIFICA STATISTICHE button */}
                     <Button
                       onClick={handleAddPTI}
                       className="aspect-square bg-cyan-600 hover:bg-cyan-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
                     >
-                      <Plus size={14} />
-                      PTI
+                      📊
+                      STATS
                     </Button>
 
                     {/* AGGIUNGI PR button */}
@@ -953,12 +960,12 @@ export const CardModal: React.FC = () => {
         </div>
       )}
 
-      {/* Add PTI Panel - Sky Blue Panel */}
+      {/* Modify Stats Panel - Sky Blue Panel for PTI and Stars */}
       {showAddPTIPanel && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[80] p-4">
           <div className="bg-cyan-600 rounded-lg p-6 max-w-md w-full shadow-xl border-4 border-cyan-400">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-white font-bold text-xl">➕ AGGIUNGI PTI</h3>
+              <h3 className="text-white font-bold text-xl">📊 MODIFICA STATISTICHE</h3>
               <Button
                 onClick={handleCancelAddPTI}
                 className="bg-red-600 hover:bg-red-700 text-white px-2 py-1"
@@ -968,24 +975,65 @@ export const CardModal: React.FC = () => {
               </Button>
             </div>
 
-            <div className="text-center mb-6">
+            <div className="text-center mb-4">
               <p className="text-white text-lg mb-2">
-                Quanti PTI vuoi aggiungere a questo personaggio?
+                Modifica PTI e Stelle di questo personaggio
               </p>
               <p className="text-cyan-200 text-sm">
-                I PTI inseriti si sommeranno a quelli già posseduti.
+                Usa valori positivi per aggiungere, negativi per sottrarre.
               </p>
             </div>
 
+            {/* PTI Section */}
+            <div className="mb-4">
+              <label className="text-white font-bold text-sm block mb-2">PTI (Punti)</label>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => setPtiToAdd(String((parseInt(ptiToAdd) || 0) - 100))}
+                  className="bg-red-500 hover:bg-red-600 text-white font-bold px-3 py-2"
+                >
+                  -100
+                </Button>
+                <input
+                  type="number"
+                  value={ptiToAdd}
+                  onChange={(e) => setPtiToAdd(e.target.value)}
+                  placeholder="0"
+                  className="flex-1 px-3 py-2 text-xl text-center font-bold rounded-lg bg-white text-cyan-800 border-2 border-cyan-300"
+                />
+                <Button
+                  onClick={() => setPtiToAdd(String((parseInt(ptiToAdd) || 0) + 100))}
+                  className="bg-green-500 hover:bg-green-600 text-white font-bold px-3 py-2"
+                >
+                  +100
+                </Button>
+              </div>
+            </div>
+
+            {/* Stelle Section */}
             <div className="mb-6">
-              <input
-                type="number"
-                value={ptiToAdd}
-                onChange={(e) => setPtiToAdd(e.target.value)}
-                placeholder="Inserisci PTI..."
-                min="1"
-                className="w-full px-4 py-3 text-2xl text-center font-bold rounded-lg bg-white text-cyan-800 border-4 border-cyan-300 focus:outline-none focus:border-cyan-100"
-              />
+              <label className="text-white font-bold text-sm block mb-2">⭐ Stelle</label>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => setStelleToAdd(String((parseInt(stelleToAdd) || 0) - 1))}
+                  className="bg-red-500 hover:bg-red-600 text-white font-bold px-4 py-2"
+                >
+                  -1
+                </Button>
+                <input
+                  type="number"
+                  value={stelleToAdd}
+                  onChange={(e) => setStelleToAdd(e.target.value)}
+                  placeholder="0"
+                  className="flex-1 px-3 py-2 text-xl text-center font-bold rounded-lg bg-white text-cyan-800 border-2 border-cyan-300"
+                />
+                <Button
+                  onClick={() => setStelleToAdd(String((parseInt(stelleToAdd) || 0) + 1))}
+                  className="bg-green-500 hover:bg-green-600 text-white font-bold px-4 py-2"
+                >
+                  +1
+                </Button>
+              </div>
             </div>
 
             <div className="flex gap-4">
@@ -997,7 +1045,7 @@ export const CardModal: React.FC = () => {
               </Button>
               <Button
                 onClick={handleConfirmAddPTI}
-                disabled={!ptiToAdd || parseInt(ptiToAdd) <= 0}
+                disabled={(!ptiToAdd || parseInt(ptiToAdd) === 0) && (!stelleToAdd || parseInt(stelleToAdd) === 0)}
                 className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 disabled:opacity-50"
               >
                 ✓ CONFERMA

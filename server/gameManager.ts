@@ -1855,6 +1855,44 @@ Rispondi SOLO in JSON:`;
     }
   }
 
+  // Modify card stats (PTI and Stars) - can add or subtract
+  modifyCardStats(gameId: string, cardId: string, ptiAmount: number, stelleAmount: number, playerName: string): { success: boolean, message?: string, newPTI?: number, newStelle?: number } {
+    try {
+      const game = this.games.get(gameId);
+      if (!game) return { success: false, message: 'Game not found' };
+
+      // Find the card in the field
+      const card = game.field.find(c => c.id === cardId);
+      if (!card) {
+        return { success: false, message: 'Card not found in field' };
+      }
+
+      // Only PERSONAGGI and PERSONAGGI_SPECIALI cards can have stats modified
+      if (card.type !== 'personaggi' && card.type !== 'personaggi_speciali') {
+        return { success: false, message: 'Solo i PERSONAGGI possono avere statistiche modificate' };
+      }
+
+      // Extract current values from card notes
+      const currentPTI = this.extractPTIFromNote(card.text || '');
+      const currentStars = this.extractStarsFromNote(card.text || '');
+      
+      // Calculate new values (capped at minimum 0)
+      const newPTI = Math.max(0, currentPTI + ptiAmount);
+      const newStelle = Math.max(0, currentStars + stelleAmount);
+      
+      // Update card notes with new values
+      card.text = `PTI: ${newPTI} | Stelle: ${newStelle}`;
+      
+      console.log(`Stats modified for card ${cardId}: PTI ${currentPTI} -> ${newPTI}, Stelle ${currentStars} -> ${newStelle}`);
+      
+      return { success: true, newPTI, newStelle };
+
+    } catch (error) {
+      console.error('Error modifying card stats:', error);
+      return { success: false, message: 'Error modifying stats' };
+    }
+  }
+
   // Helper method to merge card notes (sum PTI and stars)
   private mergeCardNotes(note1: string, note2: string): string {
     const pti1 = this.extractPTIFromNote(note1);
