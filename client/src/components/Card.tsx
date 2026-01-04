@@ -285,18 +285,28 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         return;
       }
 
-      // Attack all selected targets with the same damage
-      targetCards.forEach((target: any) => {
-        socket.emit('mosse-attack', { 
-          mosseCardId: selectedMosseCard?.id,
-          targetCardId: target.id,
-          attackerName: playerName,
-          targetOwner: target.owner,
-          damageValue: damage,
-          isHandTarget: false,
-          isFurtoAttack: false
-        });
-      });
+      // Attack all selected targets with delay between each to prevent server overwrite issues
+      const attackWithDelay = async () => {
+        for (let i = 0; i < targetCards.length; i++) {
+          const target = targetCards[i];
+          socket.emit('mosse-attack', { 
+            mosseCardId: selectedMosseCard?.id,
+            targetCardId: target.id,
+            attackerName: playerName,
+            targetOwner: target.owner,
+            damageValue: damage,
+            isHandTarget: false,
+            isFurtoAttack: false
+          });
+          
+          // Wait 500ms between attacks to allow server to process each one
+          if (i < targetCards.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+      };
+      
+      attackWithDelay();
 
       // Clear states
       setSelectedMosseCard(null);
