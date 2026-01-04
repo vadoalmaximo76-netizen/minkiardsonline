@@ -4888,9 +4888,53 @@ Rispondi SOLO in JSON:`;
           const handCardIndex = player.hand.findIndex((c: Card) => c.id === targetCardId);
           if (handCardIndex !== -1) {
             const deadCard = player.hand.splice(handCardIndex, 1)[0];
-            deadCard.eliminatedBy = attackerName;
+            // CRITICAL FIX: eliminatedBy should be the OWNER (victim), not the attacker
+            // Deaths count against the player who owned the card, not who killed it
+            deadCard.eliminatedBy = targetOwner;
             game?.graveyard?.push(deadCard);
-            console.log(`🎯 ATTACCO DISONESTO: ${targetCard.frontImage} di ${targetOwner} è morto e va nel cimitero`);
+            console.log(`🎯 ATTACCO DISONESTO: ${targetCard.frontImage} di ${targetOwner} è morto e va nel cimitero (morte contata per ${targetOwner})`);
+            
+            // Check for player elimination after ATTACCO DISONESTO kill
+            const graveyardCount = game?.graveyard?.filter(
+              (c: Card) => c.eliminatedBy === targetOwner && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+            ).length || 0;
+            
+            if (game && game.characterLimit !== 'unlimited') {
+              const limit = parseInt(game.characterLimit);
+              if (graveyardCount >= limit && !game.eliminatedPlayers.has(targetOwner)) {
+                console.log(`Player ${targetOwner} has reached character limit via ATTACCO DISONESTO - automatically eliminating`);
+                
+                const eliminationSuccess = this.markPlayerEliminated(gameId, targetOwner);
+                if (eliminationSuccess) {
+                  console.log(`Player ${targetOwner} automatically eliminated due to character limit (ATTACCO DISONESTO)`);
+                  io.to(gameId).emit('player-eliminated', { playerName: targetOwner });
+                  
+                  io.to(gameId).emit('chat-message', {
+                    id: `${Date.now()}-auto-elimination-disonesto`,
+                    playerName: 'Sistema',
+                    message: `${targetOwner} è stato eliminato! Ha perso tutti i suoi personaggi per ATTACCO DISONESTO.`,
+                    timestamp: Date.now()
+                  });
+                  
+                  const winner = this.checkForGameVictory(gameId);
+                  if (winner) {
+                    console.log(`Game won by: ${winner}`);
+                    io.to(gameId).emit('game-victory', { winner });
+                    this.completeMatch(gameId, winner);
+                  }
+                }
+              }
+            }
+            
+            // Track elimination count for SOROS activation (attacker gets credit)
+            const attackerPlayer = game?.players?.[attackerName];
+            if (attackerPlayer) {
+              if (!attackerPlayer.eliminationCount) {
+                attackerPlayer.eliminationCount = 0;
+              }
+              attackerPlayer.eliminationCount++;
+              console.log(`🗡️ ATTACCO DISONESTO: ${attackerName} has eliminated ${attackerPlayer.eliminationCount} personaggi`);
+            }
           }
         }
       } else {
