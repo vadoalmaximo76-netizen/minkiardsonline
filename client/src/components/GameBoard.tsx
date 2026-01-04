@@ -296,6 +296,21 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
 
     const handleChatMessage = (message: { id: string; playerName: string; message: string; timestamp: number }) => {
+      // Always persist messages to localStorage so they're available when chat opens
+      if (gameId) {
+        try {
+          const storedMessages = localStorage.getItem(`chat_messages_${gameId}`);
+          const existingMessages = storedMessages ? JSON.parse(storedMessages) : [];
+          // Avoid duplicates
+          if (!existingMessages.some((m: any) => m.id === message.id)) {
+            const newMessages = [...existingMessages, message];
+            localStorage.setItem(`chat_messages_${gameId}`, JSON.stringify(newMessages));
+          }
+        } catch (error) {
+          console.error('Error persisting chat message:', error);
+        }
+      }
+      
       if (!chatOpen && message.playerName !== playerName) {
         // Increment unread count
         setUnreadMessages(prev => prev + 1);
