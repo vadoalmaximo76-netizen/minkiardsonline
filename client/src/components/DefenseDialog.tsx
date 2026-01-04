@@ -24,14 +24,25 @@ interface DefenseRequest {
 
 interface GameCard {
   id: string;
-  name?: string;
   text?: string;
   type?: string;
-  image?: string;
+  frontImage?: string;
+  backImage?: string;
   ppiValue?: number;
   starsValue?: number;
   owner?: string;
 }
+
+const getCardName = (imageUrl: string) => {
+  try {
+    const url = new URL(imageUrl);
+    const filename = url.pathname.split('/').pop() || '';
+    const nameWithoutExt = filename.replace(/\.[^/.]+$/, '');
+    return decodeURIComponent(nameWithoutExt).toUpperCase();
+  } catch {
+    return 'CARTA';
+  }
+};
 
 export const DefenseDialog: React.FC = () => {
   const [defenseRequest, setDefenseRequest] = useState<DefenseRequest | null>(null);
@@ -163,10 +174,10 @@ export const DefenseDialog: React.FC = () => {
                   onClick={() => handleSelectDefenseCard(card)}
                   className="cursor-pointer hover:scale-105 transition-transform duration-200 bg-gray-800 rounded-lg border-2 border-gray-600 hover:border-blue-400 p-2 flex flex-col items-center"
                 >
-                  {card.image ? (
+                  {card.frontImage ? (
                     <img
-                      src={card.image}
-                      alt={card.name || 'Carta'}
+                      src={card.frontImage}
+                      alt={getCardName(card.frontImage)}
                       className="w-20 h-28 object-cover rounded-md mb-2"
                     />
                   ) : (
@@ -174,8 +185,8 @@ export const DefenseDialog: React.FC = () => {
                       <span className="text-gray-500 text-xs">Carta</span>
                     </div>
                   )}
-                  <div className="text-white text-xs font-bold text-center truncate w-full">
-                    {card.name || card.text?.substring(0, 15) || 'Carta'}
+                  <div className="text-white text-xs font-bold text-center w-full" style={{ wordBreak: 'break-word' }}>
+                    {card.frontImage ? getCardName(card.frontImage) : (card.text?.substring(0, 15) || 'Carta')}
                   </div>
                   {card.type && (
                     <div className="text-gray-400 text-xs mt-1 capitalize">
