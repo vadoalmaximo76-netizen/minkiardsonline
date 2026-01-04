@@ -459,8 +459,8 @@ export const CardModal: React.FC = () => {
             </Button>
           )}
 
-          {/* Field card actions */}
-          {isInField && isOwner && (
+          {/* Field card actions - available for all field cards (own and opponent's) */}
+          {isInField && (
             <>
               <Button
                 onClick={handleReturnToHand}
