@@ -49,10 +49,10 @@ const AnimatedDice: React.FC<{ isRolling: boolean; finalValue?: number; onRollCo
 
   const faceRotations: { [key: number]: [number, number, number] } = {
     1: [0, 0, 0],
-    2: [0, 0, -Math.PI / 2],
-    3: [Math.PI / 2, 0, 0],
-    4: [-Math.PI / 2, 0, 0],
-    5: [0, 0, Math.PI / 2],
+    2: [0, 0, Math.PI / 2],
+    3: [-Math.PI / 2, 0, 0],
+    4: [Math.PI / 2, 0, 0],
+    5: [0, 0, -Math.PI / 2],
     6: [Math.PI, 0, 0]
   };
 
