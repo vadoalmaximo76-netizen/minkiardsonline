@@ -570,10 +570,10 @@ export const CardModal: React.FC = () => {
                     {/* MODIFICA STATISTICHE button */}
                     <Button
                       onClick={handleAddPTI}
-                      className="aspect-square bg-cyan-600 hover:bg-cyan-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
+                      className="aspect-square bg-cyan-600 hover:bg-cyan-700 text-white font-bold p-2 flex flex-col items-center justify-center text-[9px] leading-tight"
                     >
                       📊
-                      STATS
+                      PUNTI E STELLE
                     </Button>
 
                     {/* AGGIUNGI PR button */}
