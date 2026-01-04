@@ -76,6 +76,17 @@ interface DuelState {
   active: boolean; // Whether the duel is currently active
 }
 
+interface PersistentDamage {
+  id: string;
+  attacker: string;
+  attackerCardId: string; // The character that launched the attack
+  defender: string;
+  targetCardId: string;
+  damage: number;
+  type: 'VIRUS' | 'INFLUENZA' | 'PUOZZA';
+  lastTickTurn?: number;
+}
+
 interface GameState {
   decks: {
     personaggi: Card[];
@@ -104,6 +115,7 @@ interface GameState {
   voodooLinks: VoodooLink[]; // BAMBOLA VOODOO: Track linked characters
   activeDuel?: DuelState; // Current active duel state
   prSpentThisGame: Map<string, number>; // Track Rankiard points spent by each player during this game (resets each game)
+  persistentDamages: PersistentDamage[]; // Persistent damage effects (VIRUS, etc.)
 }
 
 export class GameManager {
@@ -2131,6 +2143,17 @@ Rispondi SOLO in JSON:`;
     const game = this.games.get(gameId);
     if (!game) return;
 
+    // Remove persistent damages if the attacker character is returned to deck (except for PUOZZA)
+    if (game.persistentDamages) {
+      game.persistentDamages = game.persistentDamages.filter(d => {
+        if (d.attackerCardId === cardId && d.type !== 'PUOZZA') {
+          console.log(`Persistent damage ${d.type} removed because attacker ${cardId} returned to deck`);
+          return false;
+        }
+        return true;
+      });
+    }
+
     // Find card in field, hand, or graveyard
     let card: Card | undefined;
     
@@ -2173,6 +2196,15 @@ Rispondi SOLO in JSON:`;
   moveToGraveyard(gameId: string, cardId: string, playerName: string, attacker?: string): { success: boolean, graveyardCount?: number, cardImage?: string, eliminationCheck?: boolean, sorosActivated?: boolean, sorosImage?: string, sorosActivator?: string } {
     const game = this.games.get(gameId);
     if (!game) return { success: false };
+
+    // Remove persistent damages if the target character is moved to graveyard
+    if (game.persistentDamages) {
+      const originalLength = game.persistentDamages.length;
+      game.persistentDamages = game.persistentDamages.filter(d => d.targetCardId !== cardId);
+      if (game.persistentDamages.length < originalLength) {
+        console.log(`Persistent damages removed because target ${cardId} moved to graveyard`);
+      }
+    }
 
     // Find card in field
     const cardIndex = game.field.findIndex(card => card.id === cardId);
@@ -4409,7 +4441,7 @@ Rispondi SOLO in JSON:`;
   }
 
   // EXTRACTED AND HARDENED: Damage processing method (preserves ALL legacy logic + BAMBOLA VOODOO + ATTACCO DISONESTO + FURTO)
-  async processMosseDamage(gameId: string, attackerName: string, targetCardId: string, damageValue: number, mosseCardId: string, io: any, isVoodooReflection: boolean = false, isHandTarget: boolean = false, isFurtoAttack: boolean = false): Promise<void> {
+  async processMosseDamage(gameId: string, attackerName: string, targetCardId: string, damageValue: number, mosseCardId: string, io: any, isVoodooReflection: boolean = false, isHandTarget: boolean = false, isFurtoAttack: boolean = false, isPersistentTick: boolean = false): Promise<void> {
     const game = this.games.get(gameId);
     const gameState = this.getSanitizedGameState(gameId);
     
@@ -4437,6 +4469,72 @@ Rispondi SOLO in JSON:`;
     if (!targetCard || !targetOwner || (targetCard.type !== 'personaggi' && targetCard.type !== 'personaggi_speciali')) {
       console.log(`Target card ${targetCardId} not found${isHandTarget ? ' in hand' : ' on field'} or not a character`);
       return;
+    }
+
+    // PERSISTENT DAMAGE REGISTRATION (VIRUS, INFLUENZA, PUOZZA ITT L SANG)
+    if (!isPersistentTick && !isVoodooReflection && !isHandTarget) {
+      const mosseCard = game?.field?.find(c => c.id === mosseCardId);
+      const mosseFrontImage = mosseCard?.frontImage || '';
+      const mosseName = this.getCardNameFromUrl(mosseFrontImage).toUpperCase();
+      
+      let type: 'VIRUS' | 'INFLUENZA' | 'PUOZZA' | null = null;
+      if (mosseName.includes('VIRUS')) type = 'VIRUS';
+      else if (mosseName.includes('INFLUENZA')) type = 'INFLUENZA';
+      else if (mosseName.includes('PUOZZA') && mosseName.includes('SANG')) type = 'PUOZZA';
+
+      if (type) {
+        // Find attacker character (source of persistent effect)
+        const attackerChar = game?.field.find(c => c.owner === attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+        
+        if (attackerChar || type === 'PUOZZA') {
+          if (!game?.persistentDamages) game!.persistentDamages = [];
+          
+          game!.persistentDamages.push({
+            id: `${type}-${Date.now()}-${targetCardId}`,
+            attacker: attackerName,
+            attackerCardId: attackerChar?.id || '',
+            defender: targetOwner,
+            targetCardId: targetCardId,
+            damage: damageValue,
+            type: type
+          });
+          
+          console.log(`🦠 Persistent damage registered: ${type} from ${attackerName} to ${targetOwner} (Target: ${targetCardId})`);
+        }
+      }
+    }
+
+    // PERSISTENT DAMAGE REGISTRATION (VIRUS, INFLUENZA, PUOZZA ITT L SANG)
+    if (!isPersistentTick && !isVoodooReflection && !isHandTarget) {
+      const mosseCard = game?.field?.find(c => c.id === mosseCardId);
+      const mosseFrontImage = mosseCard?.frontImage || '';
+      const mosseName = this.getCardNameFromUrl(mosseFrontImage).toUpperCase();
+      
+      let type: 'VIRUS' | 'INFLUENZA' | 'PUOZZA' | null = null;
+      if (mosseName.includes('VIRUS')) type = 'VIRUS';
+      else if (mosseName.includes('INFLUENZA')) type = 'INFLUENZA';
+      else if (mosseName.includes('PUOZZA') && mosseName.includes('SANG')) type = 'PUOZZA';
+
+      if (type) {
+        // Find attacker character (source of persistent effect)
+        const attackerChar = game?.field.find(c => c.owner === attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+        
+        if (attackerChar || type === 'PUOZZA') {
+          if (!game?.persistentDamages) game!.persistentDamages = [];
+          
+          game!.persistentDamages.push({
+            id: `${type}-${Date.now()}-${targetCardId}`,
+            attacker: attackerName,
+            attackerCardId: attackerChar?.id || '',
+            defender: targetOwner,
+            targetCardId: targetCardId,
+            damage: damageValue,
+            type: type
+          });
+          
+          console.log(`🦠 Persistent damage registered: ${type} from ${attackerName} to ${targetOwner} (Target: ${targetCardId})`);
+        }
+      }
     }
 
     // SEMPAFAAGARA logic: special recursive damage loop
@@ -4940,15 +5038,21 @@ Rispondi SOLO in JSON:`;
               }
             }
             
-            // Track elimination count for SOROS activation (attacker gets credit)
-            const attackerPlayer = game?.players?.[attackerName];
-            if (attackerPlayer) {
-              if (!attackerPlayer.eliminationCount) {
-                attackerPlayer.eliminationCount = 0;
-              }
-              attackerPlayer.eliminationCount++;
-              console.log(`🗡️ ATTACCO DISONESTO: ${attackerName} has eliminated ${attackerPlayer.eliminationCount} personaggi`);
-            }
+    // Track elimination count for SOROS activation (attacker gets credit)
+    const attackerPlayer = game?.players?.[attackerName];
+    if (attackerPlayer) {
+      if (!attackerPlayer.eliminationCount) {
+        attackerPlayer.eliminationCount = 0;
+      }
+      attackerPlayer.eliminationCount++;
+      console.log(`🗡️ ATTACCO DISONESTO: ${attackerName} has eliminated ${attackerPlayer.eliminationCount} personaggi`);
+    }
+
+    // Remove persistent damages if the target character died
+    if (game.persistentDamages) {
+      game.persistentDamages = game.persistentDamages.filter(d => d.targetCardId !== targetCardId);
+    }
+
           }
         }
       } else {
@@ -5236,6 +5340,57 @@ Rispondi SOLO in JSON:`;
       success: true, 
       message: `🔮 BAMBOLA VOODOO attivata! ${card1.owner} e ${card2.owner} sono ora collegati!` 
     };
+  }
+
+  // PERSISTENT DAMAGE: Process persistent damage at the start of a turn
+  processPersistentDamages(gameId: string, currentPlayer: string, io: any): void {
+    const game = this.games.get(gameId);
+    if (!game || !game.persistentDamages || game.persistentDamages.length === 0) return;
+
+    // Filter damages belonging to the current player (the one who launched the attack)
+    const activeDamages = game.persistentDamages.filter(d => d.attacker === currentPlayer);
+    
+    for (const damageEffect of activeDamages) {
+      // 1. Check if the defender character is still on the field
+      const targetCard = game.field.find(c => c.id === damageEffect.targetCardId);
+      if (!targetCard) {
+        // Remove persistent damage if target is gone
+        game.persistentDamages = game.persistentDamages.filter(d => d.id !== damageEffect.id);
+        continue;
+      }
+
+      // 2. Check if the attacker character is still on the field (Except for PUOZZA ITT L SANG)
+      if (damageEffect.type !== 'PUOZZA') {
+        const attackerCard = game.field.find(c => c.id === damageEffect.attackerCardId);
+        if (!attackerCard || attackerCard.owner !== damageEffect.attacker) {
+          // Attacker is gone or moved - skip damage tick for this turn
+          console.log(`Persistent damage ${damageEffect.type} for ${damageEffect.attacker} skipped: Attacker card ${damageEffect.attackerCardId} not on field`);
+          continue;
+        }
+      }
+
+      // 3. Apply damage
+      let damageToApply = damageEffect.damage;
+      
+      // Special logic for PUOZZA: Double damage each turn
+      if (damageEffect.type === 'PUOZZA') {
+        damageEffect.damage *= 2;
+        damageToApply = damageEffect.damage;
+      }
+
+      console.log(`🔥 Persistent damage tick: ${damageEffect.type} from ${damageEffect.attacker} dealing ${damageToApply} to ${damageEffect.defender}`);
+      
+      // Broadcast damage tick
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-persistent-damage`,
+        playerName: 'Sistema',
+        message: `🔥 ${damageEffect.type}: ${damageEffect.defender} subisce ${damageToApply} danni periodici!`,
+        timestamp: Date.now()
+      });
+
+      // Call processMosseDamage but with isPersistentTick=true to avoid double registration
+      this.processMosseDamage(gameId, damageEffect.attacker, damageEffect.targetCardId, damageToApply, '', io, false, false, false, true);
+    }
   }
 
   // BAMBOLA VOODOO: Remove voodoo link (when one character dies or link is broken)
