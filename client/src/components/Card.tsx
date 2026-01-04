@@ -210,8 +210,8 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const handleDamageConfirm = () => {
     try {
       const damage = evaluateExpression(damageValue.trim());
-      if (damage <= 0) {
-        alert("Il risultato deve essere un numero positivo");
+      if (damage < 0) {
+        alert("Il risultato non può essere negativo");
         return;
       }
 
@@ -280,8 +280,8 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const handleMultiTargetDamageConfirm = () => {
     try {
       const damage = evaluateExpression(damageValue.trim());
-      if (damage <= 0) {
-        alert("Il risultato deve essere un numero positivo");
+      if (damage < 0) {
+        alert("Il risultato non può essere negativo");
         return;
       }
 
