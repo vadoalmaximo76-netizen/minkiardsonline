@@ -1115,10 +1115,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             const cardName = getCardNameFromUrl(result.cardImage);
             
-            // Emit "Ciao ciao" notification
+            // Emit "Ciao ciao" notification with cardType for animation triggering
             io.to(gameId).emit('card-to-graveyard', {
               cardName,
-              playerName
+              playerName,
+              cardType: result.cardType || 'personaggi'
             });
           }
 
@@ -1406,10 +1407,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   
                   const cardName = getCardNameFromUrl(result.cardImage);
                   
-                  // Emit "Ciao ciao" notification
+                  // Emit "Ciao ciao" notification with cardType for death animation
                   io.to(gameId).emit('card-to-graveyard', {
                     cardName,
-                    playerName: card.owner
+                    playerName: card.owner,
+                    cardType: card.type || 'personaggi'
                   });
                 }
               }
@@ -2786,10 +2788,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             const cardName = getCardNameFromUrl(result.cardImage);
             
-            // Emit "Ciao ciao" notification
+            // Emit "Ciao ciao" notification with cardType for death animation
             io.to(gameId).emit('card-to-graveyard', {
               cardName,
-              playerName
+              playerName,
+              cardType: result.cardType || 'personaggi'
             });
           }
           

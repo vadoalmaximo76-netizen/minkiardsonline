@@ -2903,7 +2903,7 @@ Rispondi SOLO in JSON:`;
     }
   }
 
-  async eliminatePersonaggi(gameId: string, cardId: string, playerName: string): Promise<{ success: boolean, cardImage?: string, eliminationCheck?: boolean }> {
+  async eliminatePersonaggi(gameId: string, cardId: string, playerName: string): Promise<{ success: boolean, cardImage?: string, cardType?: string, eliminationCheck?: boolean }> {
     const game = this.games.get(gameId);
     if (!game) return { success: false };
 
@@ -2940,7 +2940,7 @@ Rispondi SOLO in JSON:`;
         eliminatedBy: playerName
       }, playerName);
 
-      return { success: true, cardImage: card.frontImage, eliminationCheck };
+      return { success: true, cardImage: card.frontImage, cardType: card.type, eliminationCheck };
     } catch (error) {
       console.error('Error eliminating personaggi card:', error);
       return { success: false };

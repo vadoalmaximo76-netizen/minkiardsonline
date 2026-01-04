@@ -26,6 +26,16 @@ interface AudioState {
   playCharacterSound: (soundType: string) => void;
   playCardAnimationSound: (cardName: string) => void;
   initAudioContext: () => void;
+  playAttackSound: () => void;
+  playDeathSound: () => void;
+  playCardPickup: () => void;
+  playCardPlay: () => void;
+  playTurnChange: () => void;
+  playVictory: () => void;
+  playDefeat: () => void;
+  playDefenseActivated: () => void;
+  playBonusActivated: () => void;
+  playPersistentDamage: () => void;
 }
 
 export const useAudio = create<AudioState>((set, get) => ({
@@ -815,6 +825,265 @@ export const useAudio = create<AudioState>((set, get) => ({
         generic.start(audioContext.currentTime);
         generic.stop(audioContext.currentTime + 0.5);
         break;
+    }
+  },
+
+  playAttackSound: () => {
+    const { hitSound, isMuted } = get();
+    if (isMuted) return;
+
+    if (hitSound) {
+      const soundClone = hitSound.cloneNode() as HTMLAudioElement;
+      soundClone.volume = 0.5;
+      soundClone.play().catch(error => {
+        console.log("Attack sound play prevented:", error);
+      });
+    }
+  },
+
+  playDeathSound: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const frequencies = [440, 370, 294, 220, 165, 110];
+    frequencies.forEach((freq, index) => {
+      setTimeout(() => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        osc.type = 'sawtooth';
+        
+        gain.gain.setValueAtTime(0.15, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+        
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + 0.4);
+      }, index * 120);
+    });
+
+    setTimeout(() => {
+      const noise = audioContext.createBufferSource();
+      const noiseGain = audioContext.createGain();
+      const bufferSize = audioContext.sampleRate * 0.5;
+      const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+      const data = buffer.getChannelData(0);
+      
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+      
+      noise.buffer = buffer;
+      
+      const filter = audioContext.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(500, audioContext.currentTime);
+      
+      noise.connect(filter);
+      filter.connect(noiseGain);
+      noiseGain.connect(audioContext.destination);
+      
+      noiseGain.gain.setValueAtTime(0.2, audioContext.currentTime);
+      noiseGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+      
+      noise.start(audioContext.currentTime);
+      noise.stop(audioContext.currentTime + 0.5);
+    }, 400);
+  },
+
+  playCardPickup: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    
+    osc.frequency.setValueAtTime(400, audioContext.currentTime);
+    osc.frequency.linearRampToValueAtTime(800, audioContext.currentTime + 0.1);
+    osc.type = 'triangle';
+    
+    gain.gain.setValueAtTime(0.1, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+    
+    osc.start(audioContext.currentTime);
+    osc.stop(audioContext.currentTime + 0.15);
+  },
+
+  playCardPlay: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const osc1 = audioContext.createOscillator();
+    const osc2 = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(audioContext.destination);
+    
+    osc1.frequency.setValueAtTime(523, audioContext.currentTime);
+    osc1.type = 'sine';
+    
+    osc2.frequency.setValueAtTime(659, audioContext.currentTime);
+    osc2.type = 'sine';
+    
+    gain.gain.setValueAtTime(0.1, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+    
+    osc1.start(audioContext.currentTime);
+    osc2.start(audioContext.currentTime);
+    osc1.stop(audioContext.currentTime + 0.2);
+    osc2.stop(audioContext.currentTime + 0.2);
+  },
+
+  playTurnChange: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const frequencies = [392, 523, 659];
+    frequencies.forEach((freq, index) => {
+      setTimeout(() => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        osc.type = 'sine';
+        
+        gain.gain.setValueAtTime(0.08, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+        
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + 0.15);
+      }, index * 80);
+    });
+  },
+
+  playVictory: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const melody = [523, 659, 784, 1047];
+    melody.forEach((freq, index) => {
+      setTimeout(() => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        osc.type = 'square';
+        
+        gain.gain.setValueAtTime(0.15, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+        
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + 0.3);
+      }, index * 150);
+    });
+  },
+
+  playDefeat: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const melody = [392, 294, 220, 165];
+    melody.forEach((freq, index) => {
+      setTimeout(() => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        osc.type = 'sawtooth';
+        
+        gain.gain.setValueAtTime(0.1, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+        
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + 0.4);
+      }, index * 200);
+    });
+  },
+
+  playDefenseActivated: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    
+    osc.frequency.setValueAtTime(600, audioContext.currentTime);
+    osc.frequency.linearRampToValueAtTime(400, audioContext.currentTime + 0.2);
+    osc.type = 'triangle';
+    
+    gain.gain.setValueAtTime(0.15, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+    
+    osc.start(audioContext.currentTime);
+    osc.stop(audioContext.currentTime + 0.3);
+  },
+
+  playBonusActivated: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const sparkle = [800, 1000, 1200, 1000, 800];
+    sparkle.forEach((freq, index) => {
+      setTimeout(() => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        osc.type = 'sine';
+        
+        gain.gain.setValueAtTime(0.08, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+        
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + 0.1);
+      }, index * 50);
+    });
+  },
+
+  playPersistentDamage: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    for (let i = 0; i < 3; i++) {
+      setTimeout(() => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        
+        osc.frequency.setValueAtTime(200 - i * 30, audioContext.currentTime);
+        osc.type = 'square';
+        
+        gain.gain.setValueAtTime(0.12, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+        
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + 0.1);
+      }, i * 100);
     }
   }
 }));

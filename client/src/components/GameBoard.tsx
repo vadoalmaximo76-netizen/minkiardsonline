@@ -28,6 +28,7 @@ import { MusicPlayer } from "./MusicPlayer";
 import { VoiceChat } from "./VoiceChat";
 import { PickedCardModal } from "./PickedCardModal";
 import { SorosActivation } from "./SorosActivation";
+import { CharacterEffects } from "./CharacterEffects";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
@@ -112,8 +113,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [cardAnimationName, setCardAnimationName] = useState<string>("");
   const [sorosActivationVisible, setSorosActivationVisible] = useState(false);
   const [sorosData, setSorosData] = useState<{ activator: string; cardImage: string } | null>(null);
+  const [attackEffectVisible, setAttackEffectVisible] = useState(false);
+  const [attackedCharacterName, setAttackedCharacterName] = useState<string>("");
+  const [attackEffectKey, setAttackEffectKey] = useState(0);
+  const [deathEffectVisible, setDeathEffectVisible] = useState(false);
+  const [deadCharacterName, setDeadCharacterName] = useState<string>("");
+  const [deathEffectKey, setDeathEffectKey] = useState(0);
     const { selectedCard, gameId, playerName, gameState, setGameId, setUserRankiardPoints, resetPRSpent } = useGameState();
-  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted } = useAudio();
+  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted, playAttackSound, playDeathSound, playCardPickup, playCardPlay, playTurnChange } = useAudio();
 
 
   const shareInviteLink = () => {
@@ -332,18 +339,31 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
     const handleCardAttacked = ({ targetCardName, fromPlayer, toPlayer }: { targetCardName: string, fromPlayer: string, toPlayer: string }) => {
       console.log(`${fromPlayer} attacked ${toPlayer}'s ${targetCardName}`);
-      // Play damage sound when cards are attacked
+      setAttackedCharacterName(targetCardName);
+      setAttackEffectVisible(false);
+      setTimeout(() => {
+        setAttackEffectKey(prev => prev + 1);
+        setAttackEffectVisible(true);
+      }, 10);
+      playAttackSound();
       playDamageSound();
     };
 
-    const handleCardToGraveyard = ({ cardName }: { cardName: string }) => {
+    const handleCardToGraveyard = ({ cardName, cardType }: { cardName: string, cardType?: string }) => {
       setCiaoCardName(cardName);
       setCiaoNotificationVisible(true);
-      
-      // Play lose sound when card goes to graveyard
       playCardToGraveyard();
       
-      // Auto-hide after 3 seconds
+      if (cardType === 'personaggi' || cardType === 'personaggi_speciali') {
+        setDeadCharacterName(cardName);
+        setDeathEffectVisible(false);
+        setTimeout(() => {
+          setDeathEffectKey(prev => prev + 1);
+          setDeathEffectVisible(true);
+        }, 10);
+        playDeathSound();
+      }
+      
       setTimeout(() => {
         setCiaoNotificationVisible(false);
       }, 3000);
@@ -401,6 +421,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     const handleNextTurn = ({ nextPlayer }: { nextPlayer: string }) => {
       setNextTurnPlayer(nextPlayer);
       setNextTurnVisible(true);
+      playTurnChange();
     };
 
     const handlePlayerLeft = ({ playerName }: { playerName: string }) => {
@@ -1045,6 +1066,22 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           isVisible={cardAnimationVisible}
           cardName={cardAnimationName}
           onComplete={() => setCardAnimationVisible(false)}
+        />
+
+        <CharacterEffects
+          key={`attack-${attackEffectKey}`}
+          isVisible={attackEffectVisible}
+          effectType="attack"
+          characterName={attackedCharacterName}
+          onComplete={() => setAttackEffectVisible(false)}
+        />
+
+        <CharacterEffects
+          key={`death-${deathEffectKey}`}
+          isVisible={deathEffectVisible}
+          effectType="death"
+          characterName={deadCharacterName}
+          onComplete={() => setDeathEffectVisible(false)}
         />
 
         {/* Player Order Notification */}
