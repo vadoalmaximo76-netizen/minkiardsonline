@@ -4109,7 +4109,7 @@ Rispondi SOLO in JSON:`;
       const defenseBonusCards = [
         "ALTA SALVA", "BOOMERANG", "CONTRO SKRAZZKOOM", "CONVERSIONE", 
         "DIFESA VIGLIACCA", "E NN T MITT SCUORN", "E TAGG TRATTAT", 
-        "FOLATA DI VENTO", "RESPINTA", "E NN T MITT SCUORN"
+        "FOLATA DI VENTO", "RESPINTA", "E NN T MITT SSCUORN"
       ];
 
       // Extract card name from frontImage URL if name is undefined
