@@ -165,18 +165,18 @@ export const RoundTable: React.FC = () => {
     const isMobile = window.innerWidth < 640;
     const isTablet = window.innerWidth >= 640 && window.innerWidth < 1024;
     
-    // Position cards at bottom center, closer to decks but visible
-    const bottomY = isMobile ? 78 : 75; // Higher up so cards are fully visible
+    // Position cards at bottom center - MORE vertical separation from decks
+    const bottomY = isMobile ? 82 : 80; // Lower position to separate from decks
     const centerX = 50;
     
     if (cardCount === 1) {
       return [{ x: centerX, y: bottomY, angle: 0 }];
     }
     
-    // Spread cards horizontally at bottom center
-    const availableWidth = isMobile ? 75 : isTablet ? 80 : 85;
-    const cardWidth = isMobile ? 12 : isTablet ? 10 : 8;
-    const idealSpacing = cardWidth + 1;
+    // Spread cards horizontally at bottom center - MORE horizontal spacing
+    const availableWidth = isMobile ? 85 : isTablet ? 90 : 95;
+    const cardWidth = isMobile ? 18 : isTablet ? 16 : 14;
+    const idealSpacing = cardWidth + 3;
     
     const totalNeededWidth = cardCount * idealSpacing;
     const cardSpacing = totalNeededWidth > availableWidth 
