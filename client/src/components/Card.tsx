@@ -370,7 +370,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
           value={cardText}
           onChange={handleTextChange}
           placeholder="Add note..."
-          className="w-14 sm:w-16 md:w-20 lg:w-24 h-8 sm:h-10 text-[10px] sm:text-xs p-1 rounded resize-none"
+          className="w-14 sm:w-16 md:w-20 lg:w-24 h-12 sm:h-14 md:h-16 text-[10px] sm:text-xs p-1 rounded resize-none"
           disabled={!isOwner && location === 'hand'}
         />
       )}
