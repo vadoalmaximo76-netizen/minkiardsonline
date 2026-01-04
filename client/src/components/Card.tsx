@@ -33,7 +33,10 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const [showDamageInput, setShowDamageInput] = useState(false);
   const [damageValue, setDamageValue] = useState("");
   const [targetCard, setTargetCard] = useState<any>(null);
+  const [targetCards, setTargetCards] = useState<any[]>([]);
   const [showHandTargetSelect, setShowHandTargetSelect] = useState(false);
+  const [showAttackTargetSelect, setShowAttackTargetSelect] = useState(false);
+  const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
   const [isHandTarget, setIsHandTarget] = useState(false);
   const [isFurtoAttack, setIsFurtoAttack] = useState(false);
 
@@ -250,6 +253,65 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     setShowDamageInput(true);
   };
 
+  const handleToggleTarget = (cardId: string) => {
+    setSelectedTargets(prev => 
+      prev.includes(cardId) 
+        ? prev.filter(id => id !== cardId)
+        : [...prev, cardId]
+    );
+  };
+
+  const handleConfirmTargetSelection = () => {
+    if (selectedTargets.length === 0) {
+      alert('Seleziona almeno un bersaglio!');
+      return;
+    }
+    
+    const allPersonaggi = gameState?.field?.filter(
+      (c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali'
+    ) || [];
+    
+    const targets = allPersonaggi.filter((c: any) => selectedTargets.includes(c.id));
+    setTargetCards(targets);
+    setShowAttackTargetSelect(false);
+    setShowDamageInput(true);
+  };
+
+  const handleMultiTargetDamageConfirm = () => {
+    try {
+      const damage = evaluateExpression(damageValue.trim());
+      if (damage <= 0) {
+        alert("Il risultato deve essere un numero positivo");
+        return;
+      }
+
+      // Attack all selected targets with the same damage
+      targetCards.forEach((target: any) => {
+        socket.emit('mosse-attack', { 
+          mosseCardId: selectedMosseCard?.id,
+          targetCardId: target.id,
+          attackerName: playerName,
+          targetOwner: target.owner,
+          damageValue: damage,
+          isHandTarget: false,
+          isFurtoAttack: false
+        });
+      });
+
+      // Clear states
+      setSelectedMosseCard(null);
+      setShowDamageInput(false);
+      setDamageValue("");
+      setTargetCard(null);
+      setTargetCards([]);
+      setSelectedTargets([]);
+      setIsHandTarget(false);
+      setIsFurtoAttack(false);
+    } catch (error: any) {
+      alert(error.message || "Errore nel calcolo del danno");
+    }
+  };
+
   const handleTransferCard = () => {
     setShowTransferSelect(true);
   };
@@ -396,8 +458,10 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
               if (isAtaccoDisonesto) {
                 handleAttaccoDisonesto();
               } else {
-                // For regular MOSSE, select it as attack card
+                // For regular MOSSE, open target selection panel
                 setSelectedMosseCard(card);
+                setSelectedTargets([]);
+                setShowAttackTargetSelect(true);
               }
             }}
             className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-2 py-1"
@@ -609,12 +673,181 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         document.body
       )}
 
+      {/* Attack Target Selection Panel */}
+      {showAttackTargetSelect && ReactDOM.createPortal(
+        <div 
+          onClick={() => {
+            setShowAttackTargetSelect(false);
+            setSelectedTargets([]);
+            setSelectedMosseCard(null);
+          }}
+          style={{ 
+            position: 'fixed', 
+            inset: 0, 
+            backgroundColor: 'rgba(0, 0, 0, 0.95)', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            zIndex: 2147483647 
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{ 
+              width: '95vw',
+              maxWidth: '1200px',
+              maxHeight: '90vh',
+              backgroundColor: '#0f172a', 
+              borderRadius: '20px', 
+              border: '6px solid #ef4444', 
+              padding: '20px',
+              boxShadow: '0 0 100px rgba(239, 68, 68, 0.8)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+              <h2 style={{ color: '#fbbf24', fontWeight: 'bold', fontSize: '24px', margin: 0 }}>🎯 SELEZIONA BERSAGLI</h2>
+              <button
+                onClick={() => {
+                  setShowAttackTargetSelect(false);
+                  setSelectedTargets([]);
+                  setSelectedMosseCard(null);
+                }}
+                style={{ backgroundColor: '#ef4444', color: 'white', padding: '10px 20px', fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', borderRadius: '10px', border: 'none' }}
+              >
+                ✕ CHIUDI
+              </button>
+            </div>
+            
+            <p style={{ color: '#94a3b8', marginBottom: '15px', fontSize: '14px' }}>
+              Seleziona uno o più personaggi da attaccare. Puoi selezionarne più di uno per un attacco multiplo.
+            </p>
+
+            <div style={{ flex: 1, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '15px', padding: '10px' }}>
+              {(gameState?.field?.filter((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali') || []).map((character: any) => {
+                const isSelected = selectedTargets.includes(character.id);
+                const ptiMatch = (character.text || '').match(/PTI:\s*(\d+)/i);
+                const stelleMatch = (character.text || '').match(/Stelle:\s*(\d+)/i);
+                const pti = ptiMatch ? ptiMatch[1] : '?';
+                const stelle = stelleMatch ? stelleMatch[1] : '?';
+                const cardName = getCardName(character.frontImage);
+                
+                return (
+                  <div
+                    key={character.id}
+                    onClick={() => handleToggleTarget(character.id)}
+                    style={{
+                      backgroundColor: isSelected ? '#166534' : '#1e293b',
+                      border: isSelected ? '4px solid #22c55e' : '3px solid #475569',
+                      borderRadius: '15px',
+                      padding: '12px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <div style={{ position: 'relative' }}>
+                      <img 
+                        src={character.frontImage} 
+                        alt={cardName}
+                        style={{ 
+                          width: '80px', 
+                          height: '110px', 
+                          borderRadius: '10px', 
+                          objectFit: 'cover',
+                          border: isSelected ? '3px solid #22c55e' : '2px solid #64748b'
+                        }}
+                      />
+                      {isSelected && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '-10px',
+                          right: '-10px',
+                          backgroundColor: '#22c55e',
+                          borderRadius: '50%',
+                          width: '30px',
+                          height: '30px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '18px'
+                        }}>
+                          ✓
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div style={{ textAlign: 'center', width: '100%' }}>
+                      <p style={{ color: '#fbbf24', fontWeight: 'bold', fontSize: '12px', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {cardName}
+                      </p>
+                      <p style={{ color: character.owner === playerName ? '#22c55e' : '#f87171', fontSize: '11px', margin: '4px 0' }}>
+                        {character.owner === playerName ? '(TU)' : character.owner}
+                      </p>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', fontSize: '11px' }}>
+                        <span style={{ color: '#60a5fa' }}>PTI: {pti}</span>
+                        <span style={{ color: '#fbbf24' }}>⭐ {stelle}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ display: 'flex', gap: '15px', marginTop: '15px', justifyContent: 'center' }}>
+              <button
+                onClick={() => {
+                  setShowAttackTargetSelect(false);
+                  setSelectedTargets([]);
+                  setSelectedMosseCard(null);
+                }}
+                style={{ 
+                  backgroundColor: '#4b5563', 
+                  color: 'white', 
+                  padding: '15px 40px', 
+                  fontWeight: 'bold', 
+                  fontSize: '16px', 
+                  cursor: 'pointer', 
+                  borderRadius: '10px', 
+                  border: 'none' 
+                }}
+              >
+                ANNULLA
+              </button>
+              <button
+                onClick={handleConfirmTargetSelection}
+                disabled={selectedTargets.length === 0}
+                style={{ 
+                  backgroundColor: selectedTargets.length > 0 ? '#dc2626' : '#6b7280', 
+                  color: 'white', 
+                  padding: '15px 40px', 
+                  fontWeight: 'bold', 
+                  fontSize: '16px', 
+                  cursor: selectedTargets.length > 0 ? 'pointer' : 'not-allowed', 
+                  borderRadius: '10px', 
+                  border: 'none',
+                  opacity: selectedTargets.length > 0 ? 1 : 0.5
+                }}
+              >
+                ⚔️ ATTACCA ({selectedTargets.length})
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* Damage Input Dialog */}
       <Dialog open={showDamageInput} onOpenChange={setShowDamageInput}>
         <DialogContent className="bg-gray-900 border-gray-600 max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-white text-2xl font-bold">
-              {isHandTarget ? '🎯 ATTACCO DISONESTO - Inserisci Danno' : 'Inserisci Danno dell\'Attacco'}
+              {isHandTarget ? '🎯 ATTACCO DISONESTO - Inserisci Danno' : targetCards.length > 1 ? `⚔️ ATTACCO MULTIPLO (${targetCards.length} bersagli)` : 'Inserisci Danno dell\'Attacco'}
             </DialogTitle>
           </DialogHeader>
           
@@ -666,15 +899,30 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
               )}
             </div>
 
-            {/* RIGHT: Defender Character or Hand Card */}
+            {/* RIGHT: Defender Character(s) or Hand Card */}
             <div className="flex flex-col items-center">
               <p className="text-white font-bold mb-2 text-sm">
-                {isHandTarget ? 'BERSAGLIO (MANO)' : 'DIFENSORE'}
+                {isHandTarget ? 'BERSAGLIO (MANO)' : targetCards.length > 1 ? `BERSAGLI (${targetCards.length})` : 'DIFENSORE'}
               </p>
-              {targetCard ? (
+              {targetCards.length > 0 ? (
+                <div className="flex flex-wrap gap-2 justify-center max-w-48">
+                  {targetCards.map((tc: any) => (
+                    <div key={tc.id} className="flex flex-col items-center">
+                      <img 
+                        src={tc.frontImage}
+                        alt="Bersaglio"
+                        className="w-16 h-20 rounded-lg border-2 border-red-500 object-cover shadow-lg"
+                        onError={(e) => (e.currentTarget.style.display = 'none')}
+                      />
+                      <p className="text-red-400 text-[10px] text-center mt-1 max-w-16 truncate">
+                        {tc.owner}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : targetCard ? (
                 <>
                   {isHandTarget ? (
-                    // Show hand card as face-down for ATTACCO DISONESTO
                     <div className="w-24 h-32 rounded-xl border-2 border-red-500 bg-gradient-to-br from-red-900 to-red-700 flex items-center justify-center">
                       <div className="text-center">
                         <p className="text-white font-bold text-2xl">🎴</p>
@@ -719,10 +967,14 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
               ) : (
                 <>
                   <p className="text-gray-300 text-sm mb-2">
-                    Quanto danno fa la tua carta MOSSE a <span className="text-red-400 font-bold">{targetCard?.owner}</span>?
+                    {targetCards.length > 1 
+                      ? `Quanto danno fa la tua carta MOSSE a ${targetCards.length} bersagli?`
+                      : <>Quanto danno fa la tua carta MOSSE a <span className="text-red-400 font-bold">{targetCard?.owner || targetCards[0]?.owner}</span>?</>
+                    }
                   </p>
                   <p className="text-gray-400 text-xs mb-3">
                     Puoi inserire operazioni: 50x3, 100+20, 200-50, ecc.
+                    {targetCards.length > 1 && <span className="text-yellow-400 ml-1">(Lo stesso danno verrà applicato a tutti i bersagli)</span>}
                   </p>
                 </>
               )}
@@ -738,13 +990,17 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
 
             <div className="flex gap-3">
               <Button
-                onClick={handleDamageConfirm}
+                onClick={targetCards.length > 0 ? handleMultiTargetDamageConfirm : handleDamageConfirm}
                 className={`flex-1 font-bold py-3 text-lg ${isFurtoAttack ? 'bg-yellow-600 hover:bg-yellow-700 text-black' : 'bg-red-600 hover:bg-red-700 text-white'}`}
               >
-                {isFurtoAttack ? '⭐ RUBA STELLE' : '⚔️ ATTACCA'}
+                {isFurtoAttack ? '⭐ RUBA STELLE' : targetCards.length > 1 ? `⚔️ ATTACCA TUTTI (${targetCards.length})` : '⚔️ ATTACCA'}
               </Button>
               <Button
-                onClick={handleDamageCancel}
+                onClick={() => {
+                  handleDamageCancel();
+                  setTargetCards([]);
+                  setSelectedTargets([]);
+                }}
                 className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3"
               >
                 ✕ ANNULLA
