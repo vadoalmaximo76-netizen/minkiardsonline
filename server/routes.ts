@@ -2860,11 +2860,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     socket.on('end-turn', async ({ gameId, playerName }) => {
-      // Process persistent damages at end of turn
-      gameManager.processPersistentDamages(gameId, playerName, io);
-
       const nextPlayer = gameManager.endTurn(gameId, playerName);
       if (nextPlayer) {
+        // Process persistent damages for the NEXT player (at the start of their turn)
+        gameManager.processPersistentDamages(gameId, nextPlayer, io);
+        
         io.to(gameId).emit('next-turn', { nextPlayer });
         
         // Check if next player is CPU and automatically process their turn

@@ -4489,50 +4489,26 @@ Rispondi SOLO in JSON:`;
         if (attackerChar || type === 'PUOZZA') {
           if (!game?.persistentDamages) game!.persistentDamages = [];
           
-          game!.persistentDamages.push({
-            id: `${type}-${Date.now()}-${targetCardId}`,
-            attacker: attackerName,
-            attackerCardId: attackerChar?.id || '',
-            defender: targetOwner,
-            targetCardId: targetCardId,
-            damage: damageValue,
-            type: type
-          });
-          
-          console.log(`🦠 Persistent damage registered: ${type} from ${attackerName} to ${targetOwner} (Target: ${targetCardId})`);
-        }
-      }
-    }
+          // Check if this target already has this specific persistent damage type from this attacker
+          const existing = game!.persistentDamages.find(d => 
+            d.targetCardId === targetCardId && d.type === type && d.attacker === attackerName
+          );
 
-    // PERSISTENT DAMAGE REGISTRATION (VIRUS, INFLUENZA, PUOZZA ITT L SANG)
-    if (!isPersistentTick && !isVoodooReflection && !isHandTarget) {
-      const mosseCard = game?.field?.find(c => c.id === mosseCardId);
-      const mosseFrontImage = mosseCard?.frontImage || '';
-      const mosseName = this.getCardNameFromUrl(mosseFrontImage).toUpperCase();
-      
-      let type: 'VIRUS' | 'INFLUENZA' | 'PUOZZA' | null = null;
-      if (mosseName.includes('VIRUS')) type = 'VIRUS';
-      else if (mosseName.includes('INFLUENZA')) type = 'INFLUENZA';
-      else if (mosseName.includes('PUOZZA') && mosseName.includes('SANG')) type = 'PUOZZA';
-
-      if (type) {
-        // Find attacker character (source of persistent effect)
-        const attackerChar = game?.field.find(c => c.owner === attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
-        
-        if (attackerChar || type === 'PUOZZA') {
-          if (!game?.persistentDamages) game!.persistentDamages = [];
-          
-          game!.persistentDamages.push({
-            id: `${type}-${Date.now()}-${targetCardId}`,
-            attacker: attackerName,
-            attackerCardId: attackerChar?.id || '',
-            defender: targetOwner,
-            targetCardId: targetCardId,
-            damage: damageValue,
-            type: type
-          });
-          
-          console.log(`🦠 Persistent damage registered: ${type} from ${attackerName} to ${targetOwner} (Target: ${targetCardId})`);
+          if (!existing) {
+            game!.persistentDamages.push({
+              id: `${type}-${Date.now()}-${targetCardId}`,
+              attacker: attackerName,
+              attackerCardId: attackerChar?.id || '',
+              defender: targetOwner,
+              targetCardId: targetCardId,
+              damage: damageValue,
+              type: type
+            });
+            
+            console.log(`🦠 Persistent damage registered: ${type} from ${attackerName} to ${targetOwner} (Target: ${targetCardId})`);
+          } else {
+            console.log(`🦠 Persistent damage ${type} already active on ${targetCardId} from ${attackerName}`);
+          }
         }
       }
     }
@@ -5347,8 +5323,15 @@ Rispondi SOLO in JSON:`;
     const game = this.games.get(gameId);
     if (!game || !game.persistentDamages || game.persistentDamages.length === 0) return;
 
-    // Filter damages belonging to the current player (the one who launched the attack)
-    const activeDamages = game.persistentDamages.filter(d => d.attacker === currentPlayer);
+    console.log(`🔥 Processing persistent damages for game ${gameId}. Current turn owner: ${currentPlayer}. Total effects: ${game.persistentDamages.length}`);
+
+    // Tick for ALL active persistent damages where the ATTACKER is NOT the currentPlayer
+    // This means damage ticks on the opponent's turn, which is more typical for MINKIARDS.
+    // If we trigger at end of attacker's turn, it's basically the same as first application.
+    // Let's make it tick when it's the target's turn or another player's turn.
+    const activeDamages = [...game.persistentDamages].filter(d => d.attacker !== currentPlayer);
+    
+    console.log(`🔥 Active damages ticking during ${currentPlayer}'s turn: ${activeDamages.length}`);
     
     for (const damageEffect of activeDamages) {
       // 1. Check if the defender character is still on the field
