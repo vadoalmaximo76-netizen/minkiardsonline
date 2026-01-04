@@ -18,7 +18,7 @@ export const CardModal: React.FC = () => {
   const [stelleToAdd, setStelleToAdd] = useState('');
   const [showAddPRPanel, setShowAddPRPanel] = useState(false);
   const [prToAdd, setPrToAdd] = useState('');
-  const { selectedCard, setSelectedCard, playerName, gameState, setSelectedMosseCard, userRankiardPoints, prSpentThisGame, addPRSpent } = useGameState();
+  const { selectedCard, setSelectedCard, playerName, gameState, gameId, setSelectedMosseCard, userRankiardPoints, prSpentThisGame, addPRSpent } = useGameState();
   
   // Calculate available Rankiard points (total from authenticated user minus spent this game)
   const availableRankiardPoints = userRankiardPoints - prSpentThisGame;
@@ -257,6 +257,13 @@ export const CardModal: React.FC = () => {
 
   const isBambolaVoodoo = selectedCard?.frontImage?.includes('BAMBOLA-VOODOO') || selectedCard?.frontImage?.includes('BAMBOLA_VOODOO');
   const isDuello = selectedCard?.frontImage?.includes('DUELLO') || selectedCard?.frontImage?.includes('duello');
+  const isMinkiard300 = cardName === 'MINKIARD N 300';
+  
+  const handleSuperDice = () => {
+    console.log('SUPER DICE button clicked from CardModal for MINKIARD N 300');
+    socket.emit('open-super-dice', { gameId, playerName });
+    setSelectedCard(null);
+  };
 
   // Check if this card has an active voodoo link
   const hasVoodooLink = gameState?.voodooLinks?.some((link: any) => 
@@ -584,6 +591,17 @@ export const CardModal: React.FC = () => {
                       <Plus size={14} />
                       PR
                     </Button>
+
+                    {/* SUPER DADO button - only for MINKIARD N 300 */}
+                    {isMinkiard300 && (
+                      <Button
+                        onClick={handleSuperDice}
+                        className="aspect-square bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold p-2 flex flex-col items-center justify-center text-[9px] leading-tight"
+                      >
+                        🎲
+                        SUPER DADO
+                      </Button>
+                    )}
                   </>
                 )}
             </>
