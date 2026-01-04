@@ -49,10 +49,10 @@ const AnimatedDice: React.FC<{ isRolling: boolean; finalValue?: number; onRollCo
 
   const faceRotations: { [key: number]: [number, number, number] } = {
     1: [0, 0, 0],
-    2: [0, Math.PI / 2, 0],
-    3: [-Math.PI / 2, 0, 0],
-    4: [Math.PI / 2, 0, 0],
-    5: [0, -Math.PI / 2, 0],
+    2: [0, 0, -Math.PI / 2],
+    3: [Math.PI / 2, 0, 0],
+    4: [-Math.PI / 2, 0, 0],
+    5: [0, 0, Math.PI / 2],
     6: [Math.PI, 0, 0]
   };
 
@@ -114,12 +114,12 @@ const AnimatedDice: React.FC<{ isRolling: boolean; finalValue?: number; onRollCo
         <meshStandardMaterial color="#dc2626" metalness={0.3} roughness={0.4} />
       </RoundedBox>
       
-      <DiceFace position={[0, 0, size / 2 + 0.01]} rotation={[0, 0, 0]} dots={1} size={size} />
-      <DiceFace position={[0, 0, -size / 2 - 0.01]} rotation={[0, Math.PI, 0]} dots={6} size={size} />
+      <DiceFace position={[0, size / 2 + 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} dots={1} size={size} />
+      <DiceFace position={[0, -size / 2 - 0.01, 0]} rotation={[Math.PI / 2, 0, 0]} dots={6} size={size} />
       <DiceFace position={[size / 2 + 0.01, 0, 0]} rotation={[0, Math.PI / 2, 0]} dots={2} size={size} />
       <DiceFace position={[-size / 2 - 0.01, 0, 0]} rotation={[0, -Math.PI / 2, 0]} dots={5} size={size} />
-      <DiceFace position={[0, size / 2 + 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} dots={3} size={size} />
-      <DiceFace position={[0, -size / 2 - 0.01, 0]} rotation={[Math.PI / 2, 0, 0]} dots={4} size={size} />
+      <DiceFace position={[0, 0, size / 2 + 0.01]} rotation={[0, 0, 0]} dots={3} size={size} />
+      <DiceFace position={[0, 0, -size / 2 - 0.01]} rotation={[0, Math.PI, 0]} dots={4} size={size} />
     </mesh>
   );
 };
@@ -169,18 +169,27 @@ export const Dice3D: React.FC<Dice3DProps> = ({ isRolling, finalValue = 1, onRol
         shadows
         style={{ background: 'transparent' }}
       >
-        <ambientLight intensity={0.5} />
+        <ambientLight intensity={1.2} />
         <spotLight
-          position={[5, 10, 5]}
-          angle={0.3}
-          penumbra={1}
-          intensity={1}
+          position={[3, 8, 3]}
+          angle={0.4}
+          penumbra={0.5}
+          intensity={3}
           castShadow
           shadow-mapSize-width={1024}
           shadow-mapSize-height={1024}
+          color="#ffffff"
         />
-        <pointLight position={[-5, 5, -5]} intensity={0.5} color="#ff6b6b" />
-        <pointLight position={[5, 5, 5]} intensity={0.5} color="#4ecdc4" />
+        <spotLight
+          position={[-3, 6, -3]}
+          angle={0.5}
+          penumbra={1}
+          intensity={2}
+          color="#ffaa00"
+        />
+        <pointLight position={[-4, 4, -4]} intensity={1.5} color="#ff6b6b" />
+        <pointLight position={[4, 4, 4]} intensity={1.5} color="#4ecdc4" />
+        <pointLight position={[0, 5, 0]} intensity={2} color="#ffffff" />
         
         <AnimatedDice 
           isRolling={isRolling} 
@@ -226,16 +235,25 @@ export const SuperDice3D: React.FC<{
         shadows
         style={{ background: 'transparent' }}
       >
-        <ambientLight intensity={0.6} />
+        <ambientLight intensity={1.2} />
         <spotLight
-          position={[5, 10, 5]}
-          angle={0.3}
-          penumbra={1}
-          intensity={1}
+          position={[3, 8, 3]}
+          angle={0.4}
+          penumbra={0.5}
+          intensity={3}
           castShadow
+          color="#ffffff"
         />
-        <pointLight position={[-5, 5, -5]} intensity={0.5} color="#a855f7" />
-        <pointLight position={[5, 5, 5]} intensity={0.5} color="#ec4899" />
+        <spotLight
+          position={[-3, 6, -3]}
+          angle={0.5}
+          penumbra={1}
+          intensity={2}
+          color="#cc88ff"
+        />
+        <pointLight position={[-4, 4, -4]} intensity={2} color="#a855f7" />
+        <pointLight position={[4, 4, 4]} intensity={2} color="#ec4899" />
+        <pointLight position={[0, 5, 0]} intensity={2.5} color="#ffffff" />
 
         <SuperDiceMesh 
           isRolling={isRolling}
