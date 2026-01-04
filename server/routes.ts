@@ -3064,19 +3064,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           timestamp: Date.now()
                         });
                         
-                        // Emit card-attacked event so master can input damage manually
-                        // This is the same flow as human attacks
+                        // Emit cpu-damage-request event to trigger the CPUDamageDialog
                         setTimeout(() => {
-                          io.to(gameId).emit('card-attacked', {
+                          // Get the CPU's character on field for the attacker info
+                          const cpuCharacter = currentGameState?.field?.find((c: any) => 
+                            c.owner === nextPlayer && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+                          );
+                          
+                          // Find the game creator (first human player)
+                          const gameCreator = gameManager.getGameCreator(gameId);
+                          
+                          io.to(gameId).emit('cpu-damage-request', {
+                            cpuName: nextPlayer,
+                            cpuCharacterName: cpuCharacter ? getMosseName(cpuCharacter.frontImage) : nextPlayer,
                             mosseCardId: result.card!.id,
+                            mosseCardName: mosseName,
+                            mosseCardImage: result.card!.frontImage,
                             targetCardId: targetCard.id,
-                            attackerName: nextPlayer,
+                            targetCardName: targetName,
                             targetOwner: targetCard.owner,
+                            gameCreator: gameCreator || '',
                             timestamp: Date.now(),
-                            cpuAttack: true // Flag to indicate this is a CPU attack awaiting master damage input
+                            attackerCharacter: cpuCharacter ? {
+                              id: cpuCharacter.id,
+                              name: getMosseName(cpuCharacter.frontImage),
+                              image: cpuCharacter.frontImage,
+                              notes: cpuCharacter.text || ''
+                            } : null,
+                            defenderCharacter: {
+                              id: targetCard.id,
+                              name: targetName,
+                              image: targetCard.frontImage,
+                              notes: targetCard.text || ''
+                            },
+                            isHandTarget: false
                           });
                           
-                          console.log(`📢 CPU ${nextPlayer} attack announced - waiting for master to input damage`);
+                          console.log(`📢 CPU ${nextPlayer} cpu-damage-request emitted - waiting for master to input damage`);
                         }, 500);
                         
                         // Don't end turn or return card - wait for the attack resolution flow
@@ -3402,18 +3426,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
                             timestamp: Date.now()
                           });
                           
-                          // Emit card-attacked event so master can input damage manually
+                          // Emit cpu-damage-request event to trigger the CPUDamageDialog
+                          const getMosseNameFE = (url: string) => {
+                            const parts = url.split('/');
+                            const filename = parts[parts.length - 1];
+                            return filename
+                              .toLowerCase()
+                              .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+                              .replace(/[-_]/g, ' ')
+                              .split(' ')
+                              .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                              .join(' ');
+                          };
+                          
                           setTimeout(() => {
-                            io.to(gameId).emit('card-attacked', {
+                            // Get the CPU's character on field for the attacker info
+                            const cpuCharacter = currentGameState?.field?.find((c: any) => 
+                              c.owner === nextPlayer && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+                            );
+                            
+                            // Find the game creator (first human player)
+                            const gameCreator = gameManager.getGameCreator(gameId);
+                            
+                            io.to(gameId).emit('cpu-damage-request', {
+                              cpuName: nextPlayer,
+                              cpuCharacterName: cpuCharacter ? getMosseNameFE(cpuCharacter.frontImage) : nextPlayer,
                               mosseCardId: playResult.card!.id,
+                              mosseCardName: mosseName,
+                              mosseCardImage: playResult.card!.frontImage,
                               targetCardId: targetCard.id,
-                              attackerName: nextPlayer,
+                              targetCardName: targetName,
                               targetOwner: targetCard.owner,
+                              gameCreator: gameCreator || '',
                               timestamp: Date.now(),
-                              cpuAttack: true
+                              attackerCharacter: cpuCharacter ? {
+                                id: cpuCharacter.id,
+                                name: getMosseNameFE(cpuCharacter.frontImage),
+                                image: cpuCharacter.frontImage,
+                                notes: cpuCharacter.text || ''
+                              } : null,
+                              defenderCharacter: {
+                                id: targetCard.id,
+                                name: targetName,
+                                image: targetCard.frontImage,
+                                notes: targetCard.text || ''
+                              },
+                              isHandTarget: false
                             });
                             
-                            console.log(`📢 CPU ${nextPlayer} attack announced (force-end-turn) - waiting for master to input damage`);
+                            console.log(`📢 CPU ${nextPlayer} cpu-damage-request emitted (force-end-turn) - waiting for master to input damage`);
                           }, 500);
                           
                           // Don't end turn or return card - wait for attack resolution

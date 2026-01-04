@@ -115,6 +115,20 @@ export class GameManager {
     this.playerToGame.set(socketId, gameId);
   }
 
+  // Get the game creator (first human player who joined)
+  getGameCreator(gameId: string): string | null {
+    const game = this.games.get(gameId);
+    if (!game) return null;
+    
+    // Find the first human player (not CPU)
+    for (const playerName of game.turnOrder) {
+      if (!playerName.startsWith('CPU-')) {
+        return playerName;
+      }
+    }
+    return null;
+  }
+
   private createInitialDeck(type: keyof typeof CARD_DATA): Card[] {
     const frontImages = CARD_DATA[type];
     const backImage = DECK_BACK_IMAGES[type];
