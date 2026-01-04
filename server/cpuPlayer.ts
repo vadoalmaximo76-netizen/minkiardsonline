@@ -2568,7 +2568,27 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       this.turnState.phase = 'draw_needed';
       
       // Start the normal turn logic immediately
-      return this.handleDrawPhase(cpuPlayer, gameState);
+      const drawAction = this.handleDrawPhase(cpuPlayer, gameState);
+      
+      // IMPORTANT: If handleDrawPhase returns null, we need to proceed to play phase
+      if (drawAction === null) {
+        console.log(`CPU ${this.playerName}: No draw needed, forcing play phase immediately`);
+        // Force CPU to play a card - prioritize playing a character if none on field
+        const cardToPlay = this.selectCardToPlay(cpuPlayer, gameState);
+        if (cardToPlay) {
+          const cardName = this.getCardNameFromUrl(cardToPlay.frontImage);
+          this.sendChatMessage(`Gioco ${cardName}!`);
+          return {
+            type: 'play-card',
+            data: {
+              cardId: cardToPlay.id,
+              playerName: this.playerName
+            }
+          };
+        }
+      }
+      
+      return drawAction;
     }
 
     // Check if PERSONAGGI deck has cards and CPU can draw
