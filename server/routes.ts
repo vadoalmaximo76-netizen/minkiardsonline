@@ -545,6 +545,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       cardImage: result.card.frontImage
                     });
                   }
+                  
+                  // CRITICAL FIX: If CPU played a MOSSE card, automatically attack an enemy
+                  if (result.card && result.card.type === 'mosse') {
+                    console.log(`🎯 CPU ${cpuName} played MOSSE card - automatically triggering attack`);
+                    
+                    // Find enemy characters on field to attack
+                    const currentGameState = gameManager.getSanitizedGameState(gameId);
+                    const enemyCharacters = currentGameState?.field?.filter((c: any) => 
+                      c.owner !== cpuName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+                    ) || [];
+                    
+                    if (enemyCharacters.length > 0) {
+                      // Select a target (prefer lowest PTI for strategic advantage)
+                      const targetCard = enemyCharacters.reduce((best: any, current: any) => {
+                        const bestPti = parseInt((best.text || '').match(/PTI:\s*(\d+)/i)?.[1] || '9999');
+                        const currentPti = parseInt((current.text || '').match(/PTI:\s*(\d+)/i)?.[1] || '9999');
+                        return currentPti < bestPti ? current : best;
+                      });
+                      
+                      const getMosseName = (url: string) => {
+                        const parts = url.split('/');
+                        const filename = parts[parts.length - 1];
+                        return filename
+                          .toLowerCase()
+                          .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+                          .replace(/[-_]/g, ' ')
+                          .split(' ')
+                          .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                          .join(' ');
+                      };
+                      
+                      const mosseName = getMosseName(result.card.frontImage);
+                      const targetName = getMosseName(targetCard.frontImage);
+                      
+                      // Send chat message about attack
+                      io.to(gameId).emit('chat-message', {
+                        id: `${Date.now()}-cpu-mosse-attack`,
+                        playerName: cpuName,
+                        message: `Uso la carta MOSSE "${mosseName}" per attaccare ${targetName} di ${targetCard.owner}!`,
+                        timestamp: Date.now()
+                      });
+                      
+                      // Execute the attack after a short delay
+                      setTimeout(async () => {
+                        try {
+                          const attackResult = await gameManager.executeMossaAttack(
+                            gameId,
+                            cpuName,
+                            result.card!.id,
+                            targetCard.id,
+                            100, // Base damage, will be calculated properly by the attack system
+                            false, // Not a hand target
+                            (data: any) => io.to(gameId).emit('defense-request', data)
+                          );
+                          
+                          if (attackResult.success) {
+                            console.log(`✅ CPU ${cpuName} MOSSE attack executed successfully`);
+                          } else {
+                            console.log(`❌ CPU ${cpuName} MOSSE attack failed: ${attackResult.error}`);
+                          }
+                          
+                          // Return MOSSE card to deck and draw replacement
+                          setTimeout(() => {
+                            gameManager.returnToDeck(gameId, result.card!.id, cpuName);
+                            console.log(`🔄 CPU ${cpuName} returned MOSSE card to deck`);
+                            
+                            const finalState = gameManager.getSanitizedGameState(gameId);
+                            io.to(gameId).emit('game-state-update', finalState);
+                          }, 2000);
+                        } catch (err) {
+                          console.error(`Error in CPU MOSSE attack:`, err);
+                        }
+                      }, 1500);
+                    } else {
+                      console.log(`⚠️ CPU ${cpuName} has MOSSE card but no enemy targets on field`);
+                    }
+                  }
                   break;
                   
                 case 'mosse-attack':
