@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
 import { X } from "lucide-react";
+import { Dice3D } from "./Dice3D";
 
 interface DiceModalProps {
   isOpen: boolean;
@@ -18,106 +19,87 @@ export const DiceModal: React.FC<DiceModalProps> = ({
   playerWhoRolled 
 }) => {
   const [isRolling, setIsRolling] = useState(false);
+  const [finalValue, setFinalValue] = useState<number>(1);
+  const [showResult, setShowResult] = useState(false);
+  const pendingRollRef = useRef<number | null>(null);
   const { playerName, gameId } = useGameState();
+
+  useEffect(() => {
+    if (currentRoll) {
+      if (isRolling) {
+        pendingRollRef.current = currentRoll;
+        setFinalValue(currentRoll);
+        setTimeout(() => {
+          setIsRolling(false);
+        }, 1200);
+      } else {
+        setFinalValue(currentRoll);
+        setShowResult(true);
+      }
+    }
+  }, [currentRoll, isRolling]);
+
+  const handleRollComplete = useCallback(() => {
+    setShowResult(true);
+  }, []);
 
   if (!isOpen) return null;
 
   const handleRollDice = () => {
     setIsRolling(true);
+    setShowResult(false);
+    pendingRollRef.current = null;
     socket.emit('roll-dice', { gameId, playerName });
-    
-    // Stop rolling animation after 1 second
-    setTimeout(() => {
-      setIsRolling(false);
-    }, 1000);
-  };
-
-  const renderDiceFace = (number?: number) => {
-    if (!number || isRolling) {
-      // Show rolling animation (random dots)
-      const randomDots = Math.floor(Math.random() * 6) + 1;
-      return renderDots(randomDots);
-    }
-    return renderDots(number);
-  };
-
-  const renderDots = (number: number) => {
-    const dots = [];
-    
-    // Define dot positions for each number
-    const dotPositions = {
-      1: [[50, 50]], // center
-      2: [[25, 25], [75, 75]], // diagonal
-      3: [[25, 25], [50, 50], [75, 75]], // diagonal with center
-      4: [[25, 25], [75, 25], [25, 75], [75, 75]], // corners
-      5: [[25, 25], [75, 25], [50, 50], [25, 75], [75, 75]], // corners + center
-      6: [[25, 25], [75, 25], [25, 50], [75, 50], [25, 75], [75, 75]] // two columns
-    };
-
-    const positions = dotPositions[number as keyof typeof dotPositions] || [];
-    
-    positions.forEach((pos, index) => {
-      dots.push(
-        <div
-          key={index}
-          className="absolute w-4 h-4 bg-white rounded-full"
-          style={{
-            left: `${pos[0]}%`,
-            top: `${pos[1]}%`,
-            transform: 'translate(-50%, -50%)'
-          }}
-        />
-      );
-    });
-
-    return dots;
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[110] p-4">
-      <div className="bg-gray-800 rounded-lg p-8 max-w-md w-full text-center">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[110] p-4">
+      <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl p-8 max-w-md w-full text-center border border-gray-700 shadow-2xl">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-white font-bold text-xl">DADO</h3>
+          <h3 className="text-white font-bold text-2xl tracking-wide" style={{ textShadow: '0 0 10px rgba(255,255,255,0.3)' }}>
+            DADO
+          </h3>
           <Button
             onClick={onClose}
-            className="bg-red-600 hover:bg-red-700 text-white p-2"
+            className="bg-red-600 hover:bg-red-700 text-white p-2 rounded-full transition-all hover:scale-110"
             size="sm"
           >
             <X size={16} />
           </Button>
         </div>
 
-        {/* Dice Display */}
-        <div className="mb-6">
-          <div 
-            className={`w-32 h-32 bg-red-600 rounded-lg mx-auto mb-4 relative border-4 border-red-700 shadow-lg ${
-              isRolling ? 'animate-bounce' : ''
-            }`}
-          >
-            {renderDiceFace(currentRoll)}
-          </div>
-          
-          {currentRoll && !isRolling && (
-            <div className="text-white">
-              <p className="text-2xl font-bold mb-2">{currentRoll}</p>
-              {playerWhoRolled && (
-                <p className="text-sm text-gray-300">
-                  Lanciato da: {playerWhoRolled}
-                </p>
-              )}
-            </div>
-          )}
-          
-          {isRolling && (
-            <p className="text-white text-lg">Lanciando...</p>
-          )}
+        <div className="mb-6 h-[250px] relative">
+          <div className="absolute inset-0 bg-gradient-radial from-red-500/20 via-transparent to-transparent rounded-full blur-xl" />
+          <Dice3D 
+            isRolling={isRolling} 
+            finalValue={finalValue}
+            onRollComplete={handleRollComplete}
+            size={1.5}
+          />
         </div>
+        
+        {showResult && !isRolling && (
+          <div className="text-white mb-4 animate-in fade-in zoom-in duration-300">
+            <p className="text-4xl font-bold mb-2 animate-pulse" style={{ textShadow: '0 0 20px rgba(220,38,38,0.8)' }}>
+              {finalValue}
+            </p>
+            {playerWhoRolled && (
+              <p className="text-sm text-gray-400">
+                Lanciato da: <span className="text-white font-semibold">{playerWhoRolled}</span>
+              </p>
+            )}
+          </div>
+        )}
+        
+        {isRolling && (
+          <p className="text-white text-lg animate-pulse mb-4">Lanciando...</p>
+        )}
 
-        {/* Roll Button */}
         <Button
           onClick={handleRollDice}
           disabled={isRolling}
-          className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3"
+          className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white font-bold py-4 text-lg rounded-xl transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 shadow-lg"
+          style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.5)' }}
         >
           {isRolling ? 'LANCIANDO...' : 'LANCIA'}
         </Button>
