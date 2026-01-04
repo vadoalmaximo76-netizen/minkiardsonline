@@ -2860,6 +2860,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     socket.on('end-turn', async ({ gameId, playerName }) => {
+      // Process persistent damages at end of turn
+      gameManager.processPersistentDamages(gameId, playerName, io);
+
       const nextPlayer = gameManager.endTurn(gameId, playerName);
       if (nextPlayer) {
         io.to(gameId).emit('next-turn', { nextPlayer });
