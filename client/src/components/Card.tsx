@@ -388,9 +388,9 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         </div>
       )}
 
-      {/* ATTACCA button for MOSSE cards on field (owned by player) */}
+      {/* ATTACCA button for MOSSE cards on field (owned by player) - positioned AFTER text note */}
       {location === 'field' && card.type === 'mosse' && isOwner && !card.faceDown && (
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 mt-1">
           <Button
             onClick={() => {
               if (isAtaccoDisonesto) {
@@ -406,6 +406,11 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
             ⚔️ ATTACCA
           </Button>
         </div>
+      )}
+      
+      {/* Spacer for non-MOSSE field cards to maintain alignment with MOSSE cards that have ATTACCA button */}
+      {location === 'field' && card.type !== 'mosse' && !card.faceDown && (
+        <div className="h-6 sm:h-7"></div>
       )}
 
       {/* Super Dice button for MINKIARD N 300 card on field */}
