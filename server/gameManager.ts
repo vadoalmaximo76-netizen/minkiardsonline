@@ -5318,20 +5318,18 @@ Rispondi SOLO in JSON:`;
     };
   }
 
-  // PERSISTENT DAMAGE: Process persistent damage at the start of a turn
+  // PERSISTENT DAMAGE: Process persistent damage at the start of the ATTACKER's turn
   processPersistentDamages(gameId: string, currentPlayer: string, io: any): void {
     const game = this.games.get(gameId);
     if (!game || !game.persistentDamages || game.persistentDamages.length === 0) return;
 
     console.log(`🔥 Processing persistent damages for game ${gameId}. Current turn owner: ${currentPlayer}. Total effects: ${game.persistentDamages.length}`);
 
-    // Tick for ALL active persistent damages where the ATTACKER is NOT the currentPlayer
-    // This means damage ticks on the opponent's turn, which is more typical for MINKIARDS.
-    // If we trigger at end of attacker's turn, it's basically the same as first application.
-    // Let's make it tick when it's the target's turn or another player's turn.
-    const activeDamages = [...game.persistentDamages].filter(d => d.attacker !== currentPlayer);
+    // Tick for ALL active persistent damages where the ATTACKER IS the currentPlayer
+    // Per user request: "i danni devono essere inflitti automaticamente ogni volta che è il turno dell'utente che ha attivato quegli attacchi"
+    const activeDamages = [...game.persistentDamages].filter(d => d.attacker === currentPlayer);
     
-    console.log(`🔥 Active damages ticking during ${currentPlayer}'s turn: ${activeDamages.length}`);
+    console.log(`🔥 Active damages for attacker ${currentPlayer}: ${activeDamages.length}`);
     
     for (const damageEffect of activeDamages) {
       // 1. Check if the defender character is still on the field

@@ -2862,10 +2862,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('end-turn', async ({ gameId, playerName }) => {
       const nextPlayer = gameManager.endTurn(gameId, playerName);
       if (nextPlayer) {
-        // Process persistent damages for the NEXT player (at the start of their turn)
-        gameManager.processPersistentDamages(gameId, nextPlayer, io);
-        
         io.to(gameId).emit('next-turn', { nextPlayer });
+        
+        // Process persistent damages at the START of the next player's turn
+        // This applies recurring damage from cards like VIRUS, INFLUENZA, PUOZZA
+        gameManager.processPersistentDamages(gameId, nextPlayer, io);
         
         // Check if next player is CPU and automatically process their turn
         const gameState = gameManager.getSanitizedGameState(gameId);
@@ -3348,6 +3349,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (nextPlayer) {
           // Broadcast turn change to all players
           io.to(gameId).emit('next-turn', { nextPlayer });
+          
+          // Process persistent damages at the START of the next player's turn
+          gameManager.processPersistentDamages(gameId, nextPlayer, io);
           
           // Update game state
           const gameState = gameManager.getSanitizedGameState(gameId);
