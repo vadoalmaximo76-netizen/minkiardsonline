@@ -286,6 +286,8 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
       }
 
       // Attack all selected targets with delay between each to prevent server overwrite issues
+      // Server can only handle ONE pending defense at a time, so we need to wait for each attack
+      // to fully complete (including defense resolution) before sending the next one
       const attackWithDelay = async () => {
         for (let i = 0; i < targetCards.length; i++) {
           const target = targetCards[i];
@@ -299,9 +301,9 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
             isFurtoAttack: false
           });
           
-          // Wait 500ms between attacks to allow server to process each one
+          // Wait 3 seconds between attacks to allow full attack cycle (including defense resolution)
           if (i < targetCards.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 3000));
           }
         }
       };
