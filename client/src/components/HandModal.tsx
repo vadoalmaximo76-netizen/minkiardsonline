@@ -53,7 +53,9 @@ export const HandModal: React.FC<HandModalProps> = ({ onClose }) => {
               FINE TURNO
             </Button>
             <div className="text-white font-medium italic animate-pulse">
-              Ora è il turno di: <span className="text-yellow-400 font-bold uppercase">{gameState?.turn || "..."}</span>
+              Ora è il turno di: <span className="text-yellow-400 font-bold uppercase">
+                {gameState && gameState.turnOrder && gameState.turnOrder[gameState.currentTurnIndex] ? gameState.turnOrder[gameState.currentTurnIndex] : "..."}
+              </span>
             </div>
             {endTurnMessage && (
               <div className="text-sm font-bold text-white bg-black/50 px-3 py-1 rounded">
