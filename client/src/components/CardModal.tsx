@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
-import { X, Sword, Plus } from "lucide-react";
+import { X, Sword, Plus, Sparkles } from "lucide-react";
+import { CARD_DATA } from "../lib/cardData";
 
 export const CardModal: React.FC = () => {
   const [showPlayerSelect, setShowPlayerSelect] = useState(false);
@@ -18,6 +19,7 @@ export const CardModal: React.FC = () => {
   const [stelleToAdd, setStelleToAdd] = useState('');
   const [showAddPRPanel, setShowAddPRPanel] = useState(false);
   const [prToAdd, setPrToAdd] = useState('');
+  const [showPowerSelect, setShowPowerSelect] = useState(false);
   const { selectedCard, setSelectedCard, playerName, gameState, gameId, setSelectedMosseCard, userRankiardPoints, prSpentThisGame, addPRSpent } = useGameState();
   
   // Calculate available Rankiard points (total from authenticated user minus spent this game)
@@ -597,6 +599,15 @@ export const CardModal: React.FC = () => {
                       PR
                     </Button>
 
+                    {/* POTERI button - copy special powers from other characters */}
+                    <Button
+                      onClick={() => setShowPowerSelect(true)}
+                      className="aspect-square bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
+                    >
+                      <Sparkles size={14} />
+                      POTERI
+                    </Button>
+
                     {/* SUPER DADO button - only for MINKIARD N 300 */}
                     {isMinkiard300 && (
                       <Button
@@ -1145,6 +1156,66 @@ export const CardModal: React.FC = () => {
               >
                 ✓ CONFERMA
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POTERI Power Selection Modal - Show all personaggi cards */}
+      {showPowerSelect && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-60 p-4">
+          <div className="bg-gray-800 rounded-2xl p-6 max-w-4xl max-h-[85vh] overflow-y-auto border-3 border-purple-500" style={{ boxShadow: '0 0 40px rgba(139, 92, 246, 0.5)' }}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-white text-2xl font-bold">✨ SCEGLI POTERE DA COPIARE</h2>
+              <Button
+                onClick={() => setShowPowerSelect(false)}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2"
+              >
+                CHIUDI
+              </Button>
+            </div>
+            
+            <p className="text-gray-400 mb-4 text-sm">
+              Seleziona un personaggio per copiare i suoi poteri speciali su <strong className="text-purple-400">{cardName}</strong>
+            </p>
+
+            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3">
+              {CARD_DATA.personaggi.map((imageUrl, index) => {
+                const extractedName = (() => {
+                  try {
+                    const url = new URL(imageUrl);
+                    const pathname = url.pathname;
+                    const filename = pathname.split('/').pop() || '';
+                    return filename.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase();
+                  } catch {
+                    return `PERSONAGGIO ${index + 1}`;
+                  }
+                })();
+                
+                return (
+                  <div
+                    key={index}
+                    onClick={() => {
+                      socket.emit('copy-power', { 
+                        cardId: selectedCard.id, 
+                        playerName: effectivePlayerName,
+                        powerSource: extractedName 
+                      });
+                      setShowPowerSelect(false);
+                      setSelectedCard(null);
+                    }}
+                    className="cursor-pointer transition-all duration-200 hover:scale-105 hover:border-purple-500 border-2 border-transparent rounded-lg p-1 bg-gray-700"
+                  >
+                    <img 
+                      src={imageUrl} 
+                      alt={extractedName}
+                      className="w-full h-auto aspect-[2/3] object-cover rounded-md"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                    <p className="text-purple-300 font-bold text-[8px] text-center mt-1 truncate">{extractedName}</p>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
