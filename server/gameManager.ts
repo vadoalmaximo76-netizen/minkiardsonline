@@ -25,6 +25,11 @@ interface Card {
   fusionLeader?: string; // ID of the card that leads the fusion group
   // Animation trigger
   triggerAnimation?: boolean; // True if this card should trigger a special animation
+  // Parasitic attachment system (PARASSITA/SAIBAIM)
+  attachedTo?: string; // ID of the card this parasitic card is attached to
+  attachedBy?: string[]; // IDs of parasitic cards attached to this character
+  canReattach?: boolean; // False after detachment (cannot reattach)
+  originalStars?: number; // Store original stars for PARASSITA (copies target's stars)
 }
 
 interface Player {
@@ -90,6 +95,18 @@ interface PersistentDamage {
   lastTickTurn?: number;
 }
 
+interface ParasiticAttachment {
+  id: string;
+  parasiticCardId: string; // PARASSITA or SAIBAIM card
+  parasiticCardName: 'PARASSITA' | 'SAIBAIM';
+  targetCardId: string; // The character it's attached to
+  ownerPlayer: string; // The player who owns the parasitic card
+  targetPlayer: string; // The player who owns the target
+  turnsAttached: number; // How many turns since attachment
+  originalPosition: number; // Index in field for returning after detachment
+  active: boolean; // False after detachment or explosion
+}
+
 interface GameState {
   decks: {
     personaggi: Card[];
@@ -119,6 +136,7 @@ interface GameState {
   activeDuel?: DuelState; // Current active duel state
   prSpentThisGame: Map<string, number>; // Track Rankiard points spent by each player during this game (resets each game)
   persistentDamages: PersistentDamage[]; // Persistent damage effects (VIRUS, etc.)
+  parasiticAttachments: ParasiticAttachment[]; // PARASSITA/SAIBAIM attachment tracking
 }
 
 export class GameManager {
@@ -231,7 +249,9 @@ export class GameManager {
       pointsAwarded: false,
       pendingTransferRequests: [],
       voodooLinks: [],
-      prSpentThisGame: new Map<string, number>()
+      prSpentThisGame: new Map<string, number>(),
+      persistentDamages: [],
+      parasiticAttachments: []
     };
 
     // Auto-shuffle all decks when starting a new game
@@ -1555,6 +1575,316 @@ Rispondi SOLO in JSON:`;
       .split(' ')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
+  }
+
+  // PARASITIC CARD SYSTEM (PARASSITA/SAIBAIM)
+  
+  // Check if a card is PARASSITA or SAIBAIM
+  isParasiticCard(card: Card): 'PARASSITA' | 'SAIBAIM' | null {
+    const cardName = (card.name || this.getCardNameFromUrl(card.frontImage)).toUpperCase();
+    if (cardName.includes('PARASSITA')) return 'PARASSITA';
+    if (cardName.includes('SAIBAIM')) return 'SAIBAIM';
+    return null;
+  }
+
+  // Get all valid targets for a parasitic card (opponent's PERSONAGGI on field)
+  getParasiticTargets(gameId: string, ownerPlayerName: string): Card[] {
+    const game = this.games.get(gameId);
+    if (!game) return [];
+    
+    return game.field.filter(card => 
+      (card.type === 'personaggi' || card.type === 'personaggi_speciali') &&
+      card.owner !== ownerPlayerName &&
+      !card.attachedTo // Don't allow targeting cards that are themselves attached
+    );
+  }
+
+  // Get the best target for CPU (highest stars)
+  getCPUParasiticTarget(gameId: string, ownerPlayerName: string): Card | null {
+    const targets = this.getParasiticTargets(gameId, ownerPlayerName);
+    if (targets.length === 0) return null;
+    
+    // Sort by stars (highest first)
+    targets.sort((a, b) => {
+      const starsA = this.extractStarsFromNote(a.text || '');
+      const starsB = this.extractStarsFromNote(b.text || '');
+      return starsB - starsA;
+    });
+    
+    return targets[0];
+  }
+
+  // Attach a parasitic card to a target
+  async attachParasiticCard(
+    gameId: string, 
+    parasiticCardId: string, 
+    targetCardId: string, 
+    playerName: string
+  ): Promise<{ success: boolean; message?: string; attachment?: ParasiticAttachment }> {
+    const game = this.games.get(gameId);
+    if (!game) return { success: false, message: 'Game not found' };
+
+    const parasiticCard = game.field.find(c => c.id === parasiticCardId);
+    const targetCard = game.field.find(c => c.id === targetCardId);
+
+    if (!parasiticCard) {
+      return { success: false, message: 'Parasitic card not found on field' };
+    }
+
+    if (!targetCard) {
+      return { success: false, message: 'Target card not found on field' };
+    }
+
+    // Check if card can reattach (false after first detachment)
+    if (parasiticCard.canReattach === false) {
+      return { success: false, message: 'This card cannot attach anymore (already detached once)' };
+    }
+
+    const parasiticType = this.isParasiticCard(parasiticCard);
+    if (!parasiticType) {
+      return { success: false, message: 'Card is not PARASSITA or SAIBAIM' };
+    }
+
+    // Validate target is opponent's PERSONAGGI
+    if (targetCard.type !== 'personaggi' && targetCard.type !== 'personaggi_speciali') {
+      return { success: false, message: 'Can only attach to PERSONAGGI cards' };
+    }
+
+    if (targetCard.owner === playerName) {
+      return { success: false, message: 'Cannot attach to your own characters' };
+    }
+
+    // Store original field position for returning later
+    const originalPosition = game.field.findIndex(c => c.id === parasiticCardId);
+
+    // Create attachment record
+    const attachment: ParasiticAttachment = {
+      id: `attach-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      parasiticCardId,
+      parasiticCardName: parasiticType,
+      targetCardId,
+      ownerPlayer: playerName,
+      targetPlayer: targetCard.owner,
+      turnsAttached: 0,
+      originalPosition,
+      active: true
+    };
+
+    game.parasiticAttachments.push(attachment);
+
+    // Update card references
+    parasiticCard.attachedTo = targetCardId;
+    if (!targetCard.attachedBy) targetCard.attachedBy = [];
+    targetCard.attachedBy.push(parasiticCardId);
+
+    // For PARASSITA: copy target's stars
+    if (parasiticType === 'PARASSITA') {
+      const targetStars = this.extractStarsFromNote(targetCard.text || '');
+      parasiticCard.originalStars = this.extractStarsFromNote(parasiticCard.text || '');
+      const currentPTI = this.extractPTIFromNote(parasiticCard.text || '');
+      parasiticCard.text = `PTI: ${currentPTI} | Stelle: ${targetStars}`;
+      console.log(`🦠 PARASSITA copied ${targetStars} stars from target`);
+    }
+
+    // Record event
+    await this.recordEvent(gameId, 'parasitic-attach', {
+      parasiticCardId,
+      parasiticType,
+      targetCardId,
+      targetOwner: targetCard.owner
+    }, playerName);
+
+    console.log(`🦠 ${parasiticType} (${parasiticCardId}) attached to ${targetCardId} owned by ${targetCard.owner}`);
+
+    return { success: true, attachment };
+  }
+
+  // Detach parasitic card (when target dies or needs to return)
+  async detachParasiticCard(
+    gameId: string, 
+    parasiticCardId: string,
+    reason: 'target_death' | 'manual' = 'target_death'
+  ): Promise<{ success: boolean; message?: string }> {
+    const game = this.games.get(gameId);
+    if (!game) return { success: false, message: 'Game not found' };
+
+    const attachment = game.parasiticAttachments.find(
+      a => a.parasiticCardId === parasiticCardId && a.active
+    );
+
+    if (!attachment) {
+      return { success: false, message: 'No active attachment found' };
+    }
+
+    const parasiticCard = game.field.find(c => c.id === parasiticCardId);
+    const targetCard = game.field.find(c => c.id === attachment.targetCardId);
+
+    if (parasiticCard) {
+      // Clear attachment reference
+      parasiticCard.attachedTo = undefined;
+      parasiticCard.canReattach = false; // Cannot reattach after detachment
+      
+      // For PARASSITA: restore original stars
+      if (attachment.parasiticCardName === 'PARASSITA' && parasiticCard.originalStars !== undefined) {
+        const currentPTI = this.extractPTIFromNote(parasiticCard.text || '');
+        parasiticCard.text = `PTI: ${currentPTI} | Stelle: ${parasiticCard.originalStars}`;
+        parasiticCard.originalStars = undefined;
+      }
+    }
+
+    if (targetCard && targetCard.attachedBy) {
+      targetCard.attachedBy = targetCard.attachedBy.filter(id => id !== parasiticCardId);
+      if (targetCard.attachedBy.length === 0) {
+        targetCard.attachedBy = undefined;
+      }
+    }
+
+    // Mark attachment as inactive
+    attachment.active = false;
+
+    // Record event
+    await this.recordEvent(gameId, 'parasitic-detach', {
+      parasiticCardId,
+      parasiticType: attachment.parasiticCardName,
+      targetCardId: attachment.targetCardId,
+      reason
+    }, attachment.ownerPlayer);
+
+    console.log(`🦠 ${attachment.parasiticCardName} (${parasiticCardId}) detached from ${attachment.targetCardId} (reason: ${reason})`);
+
+    return { success: true };
+  }
+
+  // Process parasitic card turn effects (called at start of owner's turn)
+  async processParasiticTurnEffects(
+    gameId: string, 
+    playerName: string,
+    eventEmitter?: (event: string, data: any) => void
+  ): Promise<{ explosions: string[]; drains: { cardId: string; ptiDrained: number }[] }> {
+    const game = this.games.get(gameId);
+    if (!game) return { explosions: [], drains: [] };
+
+    const explosions: string[] = [];
+    const drains: { cardId: string; ptiDrained: number }[] = [];
+
+    // Find all active attachments owned by this player
+    const playerAttachments = game.parasiticAttachments.filter(
+      a => a.ownerPlayer === playerName && a.active
+    );
+
+    for (const attachment of playerAttachments) {
+      // Increment turn counter
+      attachment.turnsAttached++;
+
+      const parasiticCard = game.field.find(c => c.id === attachment.parasiticCardId);
+      const targetCard = game.field.find(c => c.id === attachment.targetCardId);
+
+      if (!parasiticCard || !targetCard) {
+        // Card no longer exists, deactivate attachment
+        attachment.active = false;
+        continue;
+      }
+
+      if (attachment.parasiticCardName === 'SAIBAIM') {
+        // SAIBAIM: Explode after 3 turns
+        if (attachment.turnsAttached >= 3) {
+          console.log(`💥 SAIBAIM (${attachment.parasiticCardId}) exploding after 3 turns!`);
+          
+          // Kill both SAIBAIM and target
+          explosions.push(attachment.parasiticCardId);
+          explosions.push(attachment.targetCardId);
+
+          // Move both to graveyard
+          await this.sendCardToGraveyard(gameId, attachment.parasiticCardId, playerName, 'explosion');
+          await this.sendCardToGraveyard(gameId, attachment.targetCardId, playerName, 'explosion');
+
+          attachment.active = false;
+
+          // Emit explosion event for animation
+          if (eventEmitter) {
+            eventEmitter('saibaim-explosion', {
+              saibaim: attachment.parasiticCardId,
+              target: attachment.targetCardId,
+              targetOwner: attachment.targetPlayer
+            });
+          }
+        } else {
+          // Update turn counter text on card
+          const currentPTI = this.extractPTIFromNote(parasiticCard.text || '');
+          const currentStars = this.extractStarsFromNote(parasiticCard.text || '');
+          const turnsLeft = 3 - attachment.turnsAttached;
+          parasiticCard.text = `PTI: ${currentPTI} | Stelle: ${currentStars} | ESPLODE IN ${turnsLeft} TURNI`;
+        }
+      } else if (attachment.parasiticCardName === 'PARASSITA') {
+        // PARASSITA: Drain 100 PTI from target, add to self
+        const targetPTI = this.extractPTIFromNote(targetCard.text || '');
+        const targetStars = this.extractStarsFromNote(targetCard.text || '');
+        const parasitePTI = this.extractPTIFromNote(parasiticCard.text || '');
+        const parasiteStars = this.extractStarsFromNote(parasiticCard.text || '');
+
+        const drainAmount = Math.min(100, targetPTI); // Can't drain more than target has
+
+        if (drainAmount > 0) {
+          // Update target PTI
+          targetCard.text = `PTI: ${targetPTI - drainAmount} | Stelle: ${targetStars}`;
+          // Update parasite PTI
+          parasiticCard.text = `PTI: ${parasitePTI + drainAmount} | Stelle: ${parasiteStars}`;
+
+          drains.push({ cardId: attachment.parasiticCardId, ptiDrained: drainAmount });
+
+          console.log(`🦠 PARASSITA drained ${drainAmount} PTI from ${attachment.targetCardId} (now: ${targetPTI - drainAmount} PTI)`);
+
+          // Check if target died from drain
+          if (targetPTI - drainAmount <= 0) {
+            console.log(`💀 Target ${attachment.targetCardId} killed by PARASSITA drain!`);
+            await this.sendCardToGraveyard(gameId, attachment.targetCardId, playerName, 'parasitic_drain');
+            await this.detachParasiticCard(gameId, attachment.parasiticCardId, 'target_death');
+          }
+
+          // Emit drain event for animation
+          if (eventEmitter) {
+            eventEmitter('parassita-drain', {
+              parassita: attachment.parasiticCardId,
+              target: attachment.targetCardId,
+              targetOwner: attachment.targetPlayer,
+              ptiDrained: drainAmount
+            });
+          }
+        }
+      }
+    }
+
+    return { explosions, drains };
+  }
+
+  // Check if a card can be attacked (for immunity system)
+  canCardBeAttacked(gameId: string, cardId: string, attackerOwner: string): { canAttack: boolean; reason?: string } {
+    const game = this.games.get(gameId);
+    if (!game) return { canAttack: true };
+
+    const card = game.field.find(c => c.id === cardId);
+    if (!card) return { canAttack: true };
+
+    // Check if card is a parasitic card that's attached
+    if (card.attachedTo) {
+      const attachment = game.parasiticAttachments.find(
+        a => a.parasiticCardId === cardId && a.active
+      );
+      
+      if (attachment) {
+        if (attachment.parasiticCardName === 'PARASSITA') {
+          // PARASSITA cannot be attacked by anyone while attached
+          return { canAttack: false, reason: 'PARASSITA non può essere attaccato mentre è agganciato!' };
+        } else if (attachment.parasiticCardName === 'SAIBAIM') {
+          // SAIBAIM cannot be attacked by the target it's attached to
+          if (attackerOwner === attachment.targetPlayer) {
+            return { canAttack: false, reason: 'SAIBAIM non può essere attaccato dal personaggio a cui è agganciato!' };
+          }
+        }
+      }
+    }
+
+    return { canAttack: true };
   }
 
   // Look up PERSONAGGI data from database
