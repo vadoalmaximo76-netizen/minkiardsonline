@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import ReactDOM from "react-dom";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
@@ -8,6 +8,18 @@ import { X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { FloatingNumber } from "./FloatingNumber";
+
+const parsePTI = (text: string | undefined): number | null => {
+  if (!text) return null;
+  const match = text.match(/PTI:\s*(\d+)/i);
+  return match ? parseInt(match[1], 10) : null;
+};
+
+const parseStars = (text: string | undefined): number | null => {
+  if (!text) return null;
+  const match = text.match(/stelle:\s*(\d+)/i);
+  return match ? parseInt(match[1], 10) : null;
+};
 
 interface CardProps {
   card: {
@@ -50,11 +62,23 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
   const [isHandTarget, setIsHandTarget] = useState(false);
   const [isFurtoAttack, setIsFurtoAttack] = useState(false);
+  const [prevPTI, setPrevPTI] = useState<number | null>(null);
+  const [prevStars, setPrevStars] = useState<number | null>(null);
+  const [statGlowEffect, setStatGlowEffect] = useState<'pti-up' | 'pti-down' | 'star-up' | 'star-down' | null>(null);
+  const [isNewlyPlaced, setIsNewlyPlaced] = useState(location === 'field');
 
   // Sync local cardText state with incoming card.text prop (for real-time updates)
   useEffect(() => {
     setCardText(card.text || "");
   }, [card.text]);
+
+  // Reset newly placed flag after animation completes
+  useEffect(() => {
+    if (isNewlyPlaced) {
+      const timer = setTimeout(() => setIsNewlyPlaced(false), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [isNewlyPlaced]);
   const { 
     setSelectedCard, 
     playerName, 
@@ -67,7 +91,75 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     removeShakingCard 
   } = useGameState();
 
-  const { playPointGain, playPointLoss, playStarGain, playStarLoss } = useAudio();
+  const { playPointGain, playPointLoss, playStarGain, playStarLoss, playCardPlay } = useAudio();
+
+  // Detect PTI and Star changes to trigger visual/audio effects
+  useEffect(() => {
+    if (location !== 'field') return;
+    if (card.type !== 'personaggi' && card.type !== 'personaggi_speciali') return;
+    
+    const currentPTI = parsePTI(card.text);
+    const currentStars = parseStars(card.text);
+    
+    // PTI change detection
+    if (prevPTI !== null && currentPTI !== null && currentPTI !== prevPTI) {
+      const diff = currentPTI - prevPTI;
+      if (cardRef.current) {
+        const rect = cardRef.current.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 3;
+        const id = `pti-${Date.now()}-${Math.random()}`;
+        
+        if (diff > 0) {
+          setFloatingNumbers(prev => [...prev, { id, value: diff, type: 'heal', x, y }]);
+          playPointGain();
+          setStatGlowEffect('pti-up');
+        } else {
+          setFloatingNumbers(prev => [...prev, { id, value: Math.abs(diff), type: 'damage', x, y }]);
+          playPointLoss();
+          setStatGlowEffect('pti-down');
+        }
+        
+        // Clear glow effect after animation
+        setTimeout(() => setStatGlowEffect(null), 1000);
+      }
+    }
+    
+    // Star change detection
+    if (prevStars !== null && currentStars !== null && currentStars !== prevStars) {
+      const diff = currentStars - prevStars;
+      if (cardRef.current) {
+        const rect = cardRef.current.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+        const id = `star-${Date.now()}-${Math.random()}`;
+        
+        if (diff > 0) {
+          setFloatingNumbers(prev => [...prev, { id, value: diff, type: 'star-up', x, y }]);
+          playStarGain();
+          setStatGlowEffect('star-up');
+        } else {
+          setFloatingNumbers(prev => [...prev, { id, value: Math.abs(diff), type: 'star-down', x, y }]);
+          playStarLoss();
+          setStatGlowEffect('star-down');
+        }
+        
+        // Clear glow effect after animation
+        setTimeout(() => setStatGlowEffect(null), 1000);
+      }
+    }
+    
+    // Update previous values
+    setPrevPTI(currentPTI);
+    setPrevStars(currentStars);
+  }, [card.text, location, card.type, prevPTI, prevStars, playPointGain, playPointLoss, playStarGain, playStarLoss]);
+
+  // Play card placement sound for cards entering field
+  useEffect(() => {
+    if (isNewlyPlaced && location === 'field') {
+      playCardPlay();
+    }
+  }, []);
 
   const getCardName = (imageUrl: string) => {
     try {
@@ -486,10 +578,22 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     setFloatingNumbers(prev => prev.filter(n => n.id !== id));
   };
 
+  // Get stat glow class based on effect
+  const getStatGlowClass = () => {
+    if (!statGlowEffect) return '';
+    switch (statGlowEffect) {
+      case 'pti-up': return 'stat-glow-heal';
+      case 'pti-down': return 'stat-glow-damage';
+      case 'star-up': return 'stat-glow-star-up';
+      case 'star-down': return 'stat-glow-star-down';
+      default: return '';
+    }
+  };
+
   return (
     <div 
       ref={cardRef}
-      className={`flex flex-col gap-2 ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''}`}
+      className={`flex flex-col gap-2 ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? 'card-field-entry' : ''}`}
     >
       {/* Floating Numbers */}
       {floatingNumbers.map(num => (
