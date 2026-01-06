@@ -1350,8 +1350,8 @@ Rispondi SOLO in JSON:`;
         await this.autoAnalyzePersonaggioCard(gameId, card, playerName);
       }
       
-      // Check if card has special animation
-      const cardName = this.getCardNameFromUrl(card.frontImage);
+      // Use card.name for custom cards if available, otherwise extract from URL
+      const cardName = card.name || this.getCardNameFromUrl(card.frontImage);
       const cardsWithAnimations = [
         'BAMBOLA VOODOO', 'BAMBOLA-VOODOO', 'UNA TEMPESTA BABY', 'ACCETTATA',
         'ACCHIAPPT CHESSA', 'AGO DI PINO', 'ATTACCO KAMIKAZE', 'BOMBA SENZA DETONATORE',
@@ -2039,12 +2039,7 @@ Rispondi SOLO in JSON:`;
           const analysis = await player.cpuInstance.analyzeCardImageDetailed(card.frontImage, 'personaggi');
           
           if (analysis && ((analysis.pti && analysis.pti > 0) || (analysis.stars && analysis.stars > 0))) {
-            let autoText = '';
-            if (analysis.pti && analysis.pti > 0) autoText += `PTI: ${analysis.pti}`;
-            if (analysis.stars && analysis.stars > 0) {
-              if (autoText) autoText += ' | ';
-              autoText += `Stelle: ${analysis.stars}`;
-            }
+            let autoText = `PTI: ${analysis.pti} | Stelle: ${analysis.stars}`;
             
             card.text = autoText;
             console.log(`CPU ${playerName} auto-analyzed with AI fallback: ${autoText}`);
