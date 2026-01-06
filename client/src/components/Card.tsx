@@ -675,7 +675,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
               >
                 {/* Health bar fill */}
                 <div 
-                  className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t ${colorClass} transition-all duration-500 ease-out`}
+                  className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t ${colorClass} transition-all duration-150 ease-out`}
                   style={{ 
                     height: `${healthPercent}%`,
                     boxShadow: healthPercent > 0 ? `0 0 10px rgba(59, 130, 246, 0.6), inset 0 1px 3px rgba(255,255,255,0.4)` : 'none',
