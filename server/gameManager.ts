@@ -171,13 +171,23 @@ export class GameManager {
         if (targetDeck && !targetDeck.some(c => c.id === cardId)) {
           const isCharacterCard = cardRecord.deckType === 'personaggi' || cardRecord.deckType === 'personaggi_speciali';
           
+          let cardText = cardRecord.name || '';
+          if (isCharacterCard) {
+            const ptiText = cardRecord.pti != null ? `PTI: ${cardRecord.pti}` : '';
+            const starsText = cardRecord.stars != null ? `Stelle: ${cardRecord.stars}` : '';
+            const metaInfo = [ptiText, starsText].filter(Boolean).join(' | ');
+            if (metaInfo) {
+              cardText = cardText ? `${cardText}\n${metaInfo}` : metaInfo;
+            }
+          }
+          
           const card: Card = {
             id: cardId,
             type: cardRecord.deckType as 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali',
             frontImage: cardRecord.imageData,
             backImage: this.getBackImageForDeck(cardRecord.deckType),
             owner: '',
-            text: cardRecord.name,
+            text: cardText,
             pti: isCharacterCard ? cardRecord.pti : null,
             stars: isCharacterCard ? cardRecord.stars : null
           };
@@ -2852,13 +2862,24 @@ Rispondi SOLO in JSON:`;
       
       for (let i = 0; i < cards.length; i++) {
         const cardData = cards[i];
+        
+        let cardText = cardData.name || '';
+        if (isCharacterDeck) {
+          const ptiText = cardData.pti != null ? `PTI: ${cardData.pti}` : '';
+          const starsText = cardData.stars != null ? `Stelle: ${cardData.stars}` : '';
+          const metaInfo = [ptiText, starsText].filter(Boolean).join(' | ');
+          if (metaInfo) {
+            cardText = cardText ? `${cardText}\n${metaInfo}` : metaInfo;
+          }
+        }
+        
         const card: Card = {
           id: `custom-${deckType}-${Date.now()}-${i}`,
           type: deckType as 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali',
           frontImage: cardData.data,
           backImage: this.getBackImageForDeck(deckType),
           owner: '',
-          text: cardData.name,
+          text: cardText,
           pti: isCharacterDeck ? cardData.pti : null,
           stars: isCharacterDeck ? cardData.stars : null
         };
