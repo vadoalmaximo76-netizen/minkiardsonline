@@ -617,7 +617,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   }, []);
 
   return (
-    <div className="min-h-screen bg-royal-blue p-4 relative">
+    <div className="min-h-screen bg-arena-deep text-slate-100 p-4 relative">
       {/* Background image */}
       <div 
         className="fixed inset-0 bg-cover bg-center opacity-50"

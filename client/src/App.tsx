@@ -160,9 +160,9 @@ function App() {
   if (isInitializing || isReconnecting) {
     return (
       <QueryClientProvider client={queryClient}>
-        <div className="min-h-screen bg-royal-blue flex items-center justify-center">
+        <div className="min-h-screen bg-arena-deep flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-500 mx-auto mb-4"></div>
             <p className="text-white text-xl">
               {isInitializing ? 'Inizializzazione...' : 'Ripristino sessione...'}
             </p>
@@ -198,7 +198,7 @@ function App() {
   if (showAuthDialog && !authenticatedUser) {
     return (
       <QueryClientProvider client={queryClient}>
-        <div className="min-h-screen bg-royal-blue flex items-center justify-center">
+        <div className="min-h-screen bg-arena-deep flex items-center justify-center">
           <AuthDialog open={showAuthDialog} onSuccess={handleAuthSuccess} />
         </div>
       </QueryClientProvider>
@@ -208,10 +208,12 @@ function App() {
   if (showNameDialog || !playerName) {
     return (
       <QueryClientProvider client={queryClient}>
-        <PlayerNameDialog
-          open={showNameDialog}
-          onSubmit={handleNameSubmit}
-        />
+        <div className="min-h-screen bg-arena-deep flex items-center justify-center">
+          <PlayerNameDialog
+            open={showNameDialog}
+            onSubmit={handleNameSubmit}
+          />
+        </div>
       </QueryClientProvider>
     );
   }
@@ -219,10 +221,12 @@ function App() {
   if (showRoomDialog || !gameId) {
     return (
       <QueryClientProvider client={queryClient}>
-        <RoomCodeDialog
-          open={showRoomDialog || !gameId}
-          onSubmit={handleRoomSubmit}
-        />
+        <div className="min-h-screen bg-arena-deep flex items-center justify-center">
+          <RoomCodeDialog
+            open={showRoomDialog || !gameId}
+            onSubmit={handleRoomSubmit}
+          />
+        </div>
       </QueryClientProvider>
     );
   }
@@ -242,7 +246,7 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-royal-blue overflow-auto">
+      <div className="min-h-screen bg-arena-deep overflow-auto">
         <GameBoard 
           authenticatedUser={authenticatedUser}
           onLogout={handleLogout}

@@ -254,68 +254,62 @@
   min-height: 100vh;
 }
 
-/* Custom colors */
+/* Custom colors - CardMaster Arena Style */
+:root {
+  --background-arena: #020617;
+  --accent-purple: #9333ea;
+  --accent-gold: #fbbf24;
+  --card-glow: rgba(147, 51, 234, 0.3);
+}
+
+.bg-arena-deep {
+  background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
+}
+
 .bg-royal-blue {
-  background: linear-gradient(135deg, #1e3a8a 0%, #3730a3 50%, #1e40af 100%);
+  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
+  border: 1px solid rgba(147, 51, 234, 0.2);
 }
 
-.bg-sky-blue {
-  background-color: #0ea5e9;
-}
-
-.bg-sky-blue:hover {
-  background-color: #0284c7;
-}
-
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5);
-}
-
-/* Card animations */
-.card-hover {
-  transition: transform 0.2s ease-in-out;
-}
-
-.card-hover:hover {
-  transform: scale(1.05);
-}
-
-/* Button styling for sky-blue theme */
 .sky-blue-button {
-  background-color: #0ea5e9;
+  background: linear-gradient(to bottom, #9333ea, #7e22ce);
   color: white;
   font-weight: bold;
-  border: none;
-  border-radius: 0.375rem;
-  padding: 0.5rem 1rem;
-  transition: background-color 0.2s ease-in-out;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.75rem;
+  padding: 0.5rem 1.25rem;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .sky-blue-button:hover {
-  background-color: #0284c7;
+  background: linear-gradient(to bottom, #a855f7, #9333ea);
+  transform: translateY(-1px);
+  box-shadow: 0 0 15px rgba(147, 51, 234, 0.5);
+}
+
+/* Card styling upgrade */
+.card-master {
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.card-master:hover {
+  transform: translateY(-5px) scale(1.05);
+  box-shadow: 0 0 20px var(--card-glow);
+  border-color: rgba(147, 51, 234, 0.5);
 }
 
 /* Game field styling */
 .game-field {
-  background: rgba(30, 58, 138, 0.3);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(147, 51, 234, 0.2);
+  border-radius: 1.5rem;
 }
 
 /* Chat styling */

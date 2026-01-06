@@ -415,11 +415,11 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         <img
           src={showBack || card.faceDown ? card.backImage : card.frontImage}
           alt="Card"
-          className={`w-14 h-auto aspect-[2/3] sm:w-16 md:w-20 lg:w-24 rounded-md sm:rounded-lg md:rounded-xl cursor-pointer hover:scale-105 transition-transform shadow-lg object-cover
+          className={`w-14 h-auto aspect-[2/3] sm:w-16 md:w-20 lg:w-24 card-master cursor-pointer shadow-lg object-cover
             ${shouldAnimateScaleDissolvenza ? 'card-scale-dissolve' : shouldAnimate ? 'card-appear' : ''} 
             ${isEliminated && isPersonaggio ? 'card-disperse' : ''} 
             ${isShaking && !isEliminated ? 'animate-shake' : ''} 
-            ${isMosseSelected ? 'ring-4 ring-red-500 ring-opacity-70' : ''}
+            ${isMosseSelected ? 'ring-4 ring-purple-500 ring-opacity-70' : ''}
             ${card.faceDown ? 'ring-2 ring-orange-400 ring-opacity-50' : ''}`}
           onClick={handleCardClick}
         />

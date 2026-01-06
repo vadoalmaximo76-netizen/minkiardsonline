@@ -46,14 +46,14 @@ export const PlayerHand: React.FC = () => {
         </h2>
         <Button
           onClick={handleEndTurn}
-          className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold text-xs sm:text-sm px-2 sm:px-4 py-1 sm:py-2"
+          className="sky-blue-button text-xs sm:text-sm px-2 sm:px-4 py-1 sm:py-2"
           title="Termina il turno del giocatore corrente e passa al successivo"
         >
           <span className="hidden sm:inline">FINE TURNO</span>
           <span className="sm:hidden">FINE</span>
         </Button>
         {endTurnMessage && (
-          <div className="text-xs sm:text-sm font-bold text-white bg-black/50 px-2 sm:px-3 py-1 rounded">
+          <div className="text-xs sm:text-sm font-bold text-white bg-purple-600/20 border border-purple-500/30 px-2 sm:px-3 py-1 rounded-xl">
             {endTurnMessage}
           </div>
         )}
