@@ -15,6 +15,9 @@ export const GameField: React.FC = () => {
   const attachedParasiticCards = fieldCards.filter(card => card.attachedTo);
   const regularCards = fieldCards.filter(card => !card.attachedTo);
 
+  console.log('GAMEFIELD: attachedParasiticCards:', attachedParasiticCards.map(c => ({ id: c.id, attachedTo: c.attachedTo })));
+  console.log('GAMEFIELD: regularCards:', regularCards.map(c => ({ id: c.id, owner: c.owner })));
+
   // Create a map of target cards to their attached parasitic cards
   const attachedCardsMap = attachedParasiticCards.reduce((acc, card) => {
     if (card.attachedTo) {
@@ -25,6 +28,8 @@ export const GameField: React.FC = () => {
     }
     return acc;
   }, {} as Record<string, typeof fieldCards>);
+  
+  console.log('GAMEFIELD: attachedCardsMap:', attachedCardsMap);
 
   // Group regular cards by player
   const cardsByPlayer = regularCards.reduce((acc, card) => {
