@@ -11,8 +11,23 @@ export const GameField: React.FC = () => {
   const fieldCards = gameState?.field || [];
   const players = gameState?.players || {};
 
-  // Group cards by player
-  const cardsByPlayer = fieldCards.reduce((acc, card) => {
+  // Separate attached parasitic cards from regular cards
+  const attachedParasiticCards = fieldCards.filter(card => card.attachedTo);
+  const regularCards = fieldCards.filter(card => !card.attachedTo);
+
+  // Create a map of target cards to their attached parasitic cards
+  const attachedCardsMap = attachedParasiticCards.reduce((acc, card) => {
+    if (card.attachedTo) {
+      if (!acc[card.attachedTo]) {
+        acc[card.attachedTo] = [];
+      }
+      acc[card.attachedTo].push(card);
+    }
+    return acc;
+  }, {} as Record<string, typeof fieldCards>);
+
+  // Group regular cards by player
+  const cardsByPlayer = regularCards.reduce((acc, card) => {
     if (!acc[card.owner]) {
       acc[card.owner] = [];
     }
@@ -57,6 +72,9 @@ export const GameField: React.FC = () => {
                 const canMoveLeft = index > 0;
                 const canMoveRight = index < playerCards.length - 1;
                 
+                // Get attached parasitic cards for this target
+                const attachedCards = attachedCardsMap[card.id] || [];
+                
                 return (
                   <div key={card.id} className="flex items-center gap-1">
                     {/* Left Arrow */}
@@ -71,11 +89,37 @@ export const GameField: React.FC = () => {
                       </Button>
                     )}
                     
-                    {/* Card */}
-                    <Card
-                      card={card}
-                      location="field"
-                    />
+                    {/* Card with attached parasitic cards */}
+                    <div className="relative">
+                      <Card
+                        card={card}
+                        location="field"
+                      />
+                      
+                      {/* Attached parasitic cards - displayed overlapping on the right side */}
+                      {attachedCards.length > 0 && (
+                        <div className="absolute -right-8 top-1/2 -translate-y-1/2 flex flex-col gap-1 z-10">
+                          {attachedCards.map((parasiticCard, pIndex) => (
+                            <div 
+                              key={parasiticCard.id} 
+                              className="relative transform scale-75 origin-left"
+                              style={{ marginTop: pIndex > 0 ? '-40px' : '0' }}
+                            >
+                              <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-0.5 bg-red-500 animate-pulse" />
+                              <div className="border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/50 animate-pulse">
+                                <Card
+                                  card={parasiticCard}
+                                  location="field"
+                                />
+                              </div>
+                              <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-red-600 text-white text-xs px-1 rounded whitespace-nowrap">
+                                {parasiticCard.owner}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     
                     {/* Right Arrow */}
                     {isOwner && (

@@ -16,6 +16,11 @@ interface Card {
   fusedWith?: string[]; // Array of card IDs that are fused with this card
   isFused?: boolean; // True if this card is part of a fusion
   fusionLeader?: string; // ID of the card that leads the fusion group
+  // Parasitic card system
+  attachedTo?: string; // ID of the card this parasitic card is attached to
+  attachedBy?: string[]; // IDs of parasitic cards attached to this card
+  canReattach?: boolean; // False if the card detached and cannot reattach
+  name?: string; // Card name for custom cards
 }
 
 interface Player {

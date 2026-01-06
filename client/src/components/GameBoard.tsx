@@ -522,7 +522,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('parasitic-target-select', handleParasiticTargetSelect);
 
     // PARASITIC CARDS: Handler for attachment notification
-    const handleParasiticAttached = ({ parasiticType, targetName, ownerPlayer, targetPlayer }: {
+    const handleParasiticAttached = ({ parasiticCardId, parasiticType, targetCardId, targetName, ownerPlayer, targetPlayer }: {
       parasiticCardId: string;
       parasiticType: 'PARASSITA' | 'SAIBAIM';
       targetCardId: string;
@@ -534,6 +534,18 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       if (ownerPlayer === playerName) {
         setParasiticTargetSelect({ visible: false, parasiticCardId: '', parasiticType: null, targets: [] });
       }
+      
+      // Show attachment notification to all players
+      setPersonaggioNotificationVisible(true);
+      setPersonaggioCardName(parasiticType);
+      setPersonaggioMessage(`${parasiticType} di ${ownerPlayer} si è agganciato a ${targetName} di ${targetPlayer}!`);
+      setPersonaggioCardImage(parasiticType === 'PARASSITA' 
+        ? 'https://i.postimg.cc/j5X32dn7/parassita.png'
+        : 'https://i.postimg.cc/RFs123nX/saibaim.png');
+      
+      setTimeout(() => {
+        setPersonaggioNotificationVisible(false);
+      }, 4000);
     };
     socket.on('parasitic-attached', handleParasiticAttached);
 
