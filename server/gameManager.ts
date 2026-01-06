@@ -3596,82 +3596,8 @@ Rispondi SOLO in JSON:`;
           }
         });
         
-        // PARASITIC CARDS: Process PARASSITA drain and SAIBAIM timer for cards owned by next player
-        const parasiticCards = gameState.field.filter(card => 
-          card.owner === nextPlayer && 
-          card.attachedTo && 
-          (card.type === 'personaggi' || card.type === 'personaggi_speciali')
-        );
-        
-        for (const parasite of parasiticCards) {
-          const parasiteName = this.getCardNameFromUrl(parasite.frontImage || '').toUpperCase();
-          const targetCard = gameState.field.find(c => c.id === parasite.attachedTo);
-          
-          if (!targetCard) {
-            // Target no longer exists, detach the parasite
-            console.log(`🦠 PARASITE DETACH: Target ${parasite.attachedTo} no longer exists`);
-            parasite.attachedTo = undefined;
-            parasite.canReattach = false;
-            continue;
-          }
-          
-          if (parasiteName.includes('PARASSITA')) {
-            // PARASSITA: Drain 100 PTI from target and add to self
-            const targetNotes = targetCard.text || '';
-            const targetPtiMatch = targetNotes.match(/PTI:\s*(\d+)/i);
-            let targetPti = targetPtiMatch ? parseInt(targetPtiMatch[1]) : 0;
-            
-            const parasiteNotes = parasite.text || '';
-            const parasitePtiMatch = parasiteNotes.match(/PTI:\s*(\d+)/i);
-            let parasitePti = parasitePtiMatch ? parseInt(parasitePtiMatch[1]) : 300; // Default PARASSITA PTI
-            
-            // Drain 100 PTI
-            const drainAmount = Math.min(100, targetPti);
-            targetPti -= drainAmount;
-            parasitePti += drainAmount;
-            
-            // Update target card PTI
-            let cleanTargetText = targetNotes.replace(/PTI:\s*\d+/i, '').replace(/^\s*\|\s*/, '').replace(/\s*\|\s*$/, '').trim();
-            targetCard.text = cleanTargetText ? `PTI: ${targetPti} | ${cleanTargetText}` : `PTI: ${targetPti}`;
-            
-            // Update parasite card PTI (preserve stars)
-            let cleanParasiteText = parasiteNotes.replace(/PTI:\s*\d+/i, '').replace(/^\s*\|\s*/, '').replace(/\s*\|\s*$/, '').trim();
-            parasite.text = cleanParasiteText ? `PTI: ${parasitePti} | ${cleanParasiteText}` : `PTI: ${parasitePti}`;
-            
-            console.log(`🦠 PARASSITA DRAIN: Drained ${drainAmount} PTI from ${targetCard.owner}'s card. Target now has ${targetPti} PTI, PARASSITA has ${parasitePti} PTI`);
-            
-            // Check if target died from drain
-            if (targetPti <= 0) {
-              console.log(`🦠 PARASSITA DRAIN KILL: Target died from PTI drain!`);
-              // Mark for graveyard processing (will be handled separately)
-              (parasite as any).targetDiedFromDrain = true;
-              (parasite as any).targetIdForDeath = targetCard.id;
-              (parasite as any).targetOwnerForDeath = targetCard.owner;
-            }
-          } else if (parasiteName.includes('SAIBAIM')) {
-            // SAIBAIM: Increment turn counter
-            parasite.turnCounter = (parasite.turnCounter || 0) + 1;
-            
-            // Update text to show turn count
-            let cleanText = (parasite.text || '').replace(/\s\|\s\d+\sTURN[IO]/gi, '').trim();
-            if (/^\d+\sTURN[IO]$/i.test(cleanText)) {
-              cleanText = '';
-            }
-            const suffix = parasite.turnCounter === 1 ? '1 TURNO' : `${parasite.turnCounter} TURNI`;
-            parasite.text = cleanText ? `${cleanText} | ${suffix}` : suffix;
-            
-            console.log(`🦠 SAIBAIM TIMER: Turn ${parasite.turnCounter}/3 for explosion`);
-            
-            // Check if 3 turns have passed
-            if (parasite.turnCounter >= 3) {
-              console.log(`💥 SAIBAIM EXPLOSION: 3 turns reached! Killing both SAIBAIM and target!`);
-              // Mark for explosion processing
-              (parasite as any).readyToExplode = true;
-              (parasite as any).explosionTargetId = targetCard.id;
-              (parasite as any).explosionTargetOwner = targetCard.owner;
-            }
-          }
-        }
+        // NOTE: PARASITIC CARD effects (PARASSITA drain, SAIBAIM explosion) are processed
+        // by processParasiticTurnEffects() which is called from routes.ts after endTurn()
 
         // Found a non-eliminated player
         // Initialize usedCardsThisTurn for the next player if not exists
