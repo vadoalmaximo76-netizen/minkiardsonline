@@ -10,13 +10,13 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-purple-600 text-white hover:bg-purple-500 active:scale-95",
+          "bg-transparent border-2 border-purple-500 text-white shadow-[0_0_8px_rgba(168,85,247,0.4)] hover:bg-purple-600 hover:shadow-[0_0_12px_rgba(168,85,247,0.6)] active:bg-purple-700 active:scale-95",
         destructive:
-          "bg-red-600 text-white hover:bg-red-500 active:scale-95",
+          "bg-transparent border-2 border-red-500 text-white shadow-[0_0_8px_rgba(239,68,68,0.4)] hover:bg-red-600 hover:shadow-[0_0_12px_rgba(239,68,68,0.6)] active:bg-red-700 active:scale-95",
         outline:
-          "border border-slate-600 bg-slate-800/50 text-white hover:bg-slate-700/50",
+          "border-2 border-slate-500 bg-transparent text-white shadow-[0_0_6px_rgba(148,163,184,0.3)] hover:bg-slate-700/50 hover:shadow-[0_0_10px_rgba(148,163,184,0.4)]",
         secondary:
-          "bg-slate-700 text-white hover:bg-slate-600",
+          "bg-transparent border-2 border-slate-400 text-white shadow-[0_0_6px_rgba(148,163,184,0.3)] hover:bg-slate-700 hover:shadow-[0_0_10px_rgba(148,163,184,0.4)]",
         ghost: "hover:bg-slate-700/50 text-slate-300",
         link: "text-purple-400 underline-offset-4 hover:underline",
       },
