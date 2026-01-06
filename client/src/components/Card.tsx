@@ -62,6 +62,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
   const [isHandTarget, setIsHandTarget] = useState(false);
   const [isFurtoAttack, setIsFurtoAttack] = useState(false);
+  const [showPowerSelect, setShowPowerSelect] = useState(false);
   const [prevPTI, setPrevPTI] = useState<number | null>(null);
   const [prevStars, setPrevStars] = useState<number | null>(null);
   const [statGlowEffect, setStatGlowEffect] = useState<'pti-up' | 'pti-down' | 'star-up' | 'star-down' | null>(null);
@@ -714,6 +715,20 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         </div>
       )}
 
+      {/* POTERI button for PERSONAGGI cards on field - copy special powers from other characters */}
+      {location === 'field' && isPersonaggio && isOwner && !card.faceDown && (
+        <div className="flex flex-col gap-1 mt-1">
+          <Button
+            onClick={() => setShowPowerSelect(true)}
+            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold text-xs px-2 py-1"
+            size="sm"
+            style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
+          >
+            ✨ POTERI
+          </Button>
+        </div>
+      )}
+
       {location === 'graveyard' && showActions && (
         <div className="flex flex-wrap gap-1">
           {isOwner && (
@@ -1232,6 +1247,101 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* POTERI Power Selection Modal */}
+      {showPowerSelect && ReactDOM.createPortal(
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px'
+          }}
+          onClick={() => setShowPowerSelect(false)}
+        >
+          <div 
+            style={{
+              backgroundColor: '#1f2937',
+              borderRadius: '20px',
+              padding: '30px',
+              maxWidth: '900px',
+              maxHeight: '85vh',
+              overflowY: 'auto',
+              border: '3px solid #8b5cf6',
+              boxShadow: '0 0 40px rgba(139, 92, 246, 0.5)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ color: 'white', fontSize: '24px', fontWeight: 'bold', margin: 0 }}>
+                ✨ SCEGLI POTERE DA COPIARE
+              </h2>
+              <button
+                onClick={() => setShowPowerSelect(false)}
+                style={{ backgroundColor: '#dc2626', color: 'white', padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                CHIUDI
+              </button>
+            </div>
+            
+            <p style={{ color: '#9ca3af', marginBottom: '20px', fontSize: '14px' }}>
+              Seleziona un personaggio per copiare i suoi poteri speciali su <strong style={{ color: '#a78bfa' }}>{getCardName(card)}</strong>
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '15px' }}>
+              {[
+                { name: 'CIMICE', image: 'https://i.postimg.cc/sgKH2qy1/CIMICE.png', description: '-50 PTI a tutti quando attaccata, -500 PTI a tutti quando muore' },
+                { name: 'PARASSITA', image: 'https://i.postimg.cc/zXvPP4mM/PARASSITA.png', description: 'Si aggancia a un nemico, drena 100 PTI per turno' },
+                { name: 'SAIBAIM', image: 'https://i.postimg.cc/K8Lm6Qk6/SAIBAIM.png', description: 'Si aggancia a un nemico, esplode dopo 3 turni' },
+                { name: 'BAMBOLA VOODOO', image: 'https://i.postimg.cc/Xq8sJzB2/BAMBOLA-VOODOO.png', description: 'Collega due personaggi, i danni si riflettono' },
+              ].map((power) => (
+                <div
+                  key={power.name}
+                  onClick={() => {
+                    socket.emit('copy-power', { 
+                      cardId: card.id, 
+                      playerName: effectivePlayerName,
+                      powerSource: power.name 
+                    });
+                    setShowPowerSelect(false);
+                  }}
+                  style={{
+                    backgroundColor: '#374151',
+                    borderRadius: '12px',
+                    padding: '10px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    border: '2px solid transparent',
+                    textAlign: 'center'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#8b5cf6';
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'transparent';
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
+                >
+                  <img 
+                    src={power.image} 
+                    alt={power.name}
+                    style={{ width: '80px', height: '110px', objectFit: 'cover', borderRadius: '8px', margin: '0 auto 8px auto', display: 'block' }}
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                  <p style={{ color: '#a78bfa', fontWeight: 'bold', fontSize: '12px', marginBottom: '4px' }}>{power.name}</p>
+                  <p style={{ color: '#9ca3af', fontSize: '10px', lineHeight: '1.3' }}>{power.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
