@@ -106,7 +106,12 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
 
   // Helper to get card display name (works for both URL-based and custom base64 cards)
   const getCardDisplayName = (card: any): string => {
-    // If card has a text field with a name, use the first line (before any PTI/Stars info)
+    // First priority: Check if card has a custom name property (for permanent/custom cards)
+    if (card.name && card.name.trim()) {
+      return card.name.toUpperCase();
+    }
+    
+    // Second priority: If card has a text field with a name, use the first line (before any PTI/Stars info)
     if (card.text && card.text.trim()) {
       const firstLine = card.text.split('\n')[0].trim();
       if (firstLine && !firstLine.startsWith('PTI:') && !firstLine.startsWith('Stelle:')) {
@@ -114,7 +119,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
       }
     }
     
-    // For base64 images (custom cards), return a generic name if no text
+    // For base64 images (custom cards), return a generic name if no name/text
     if (card.frontImage?.startsWith('data:')) {
       return 'CARTA PERSONALIZZATA';
     }

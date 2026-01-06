@@ -49,10 +49,15 @@ export const CardModal: React.FC = () => {
   // Check if this is a face-down card belonging to another player
   const isEnemyFaceDownCard = selectedCard.faceDown && !isOwner;
   
-  // Extract card name from the frontImage URL
-  const getCardName = (imageUrl: string) => {
+  // Extract card name - checks for custom name first, then falls back to URL extraction
+  const getCardName = (cardData: any) => {
+    // First check if the card has a custom name property
+    if (cardData.name && cardData.name.trim()) {
+      return cardData.name.toUpperCase();
+    }
+    // Fall back to extracting from image URL
     try {
-      const url = new URL(imageUrl);
+      const url = new URL(cardData.frontImage);
       const pathname = url.pathname;
       const filename = pathname.split('/').pop() || '';
       // Remove file extension, replace hyphens with spaces, and convert to uppercase
@@ -63,7 +68,7 @@ export const CardModal: React.FC = () => {
   };
 
   // For enemy face-down cards, show generic name
-  const cardName = isEnemyFaceDownCard ? 'CARTA COPERTA' : getCardName(selectedCard.frontImage);
+  const cardName = isEnemyFaceDownCard ? 'CARTA COPERTA' : getCardName(selectedCard);
   
   // Determine the card location (we need to check where the card is)
   const isInField = gameState?.field?.some(card => card.id === selectedCard.id);
@@ -760,7 +765,7 @@ export const CardModal: React.FC = () => {
                   
                   const cardName = isCardPrivate 
                     ? 'CARTA NASCOSTA' 
-                    : (card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase() || 'CARTA');
+                    : getCardName(card);
                   
                   const cardImage = isCardPrivate ? card.backImage : card.frontImage;
                   
@@ -817,7 +822,7 @@ export const CardModal: React.FC = () => {
             {getAllFusableCards().length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {getAllFusableCards().map((card) => {
-                  const cardName = card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase() || 'CARTA';
+                  const cardName = getCardName(card);
                   
                   return (
                     <div 
@@ -868,7 +873,7 @@ export const CardModal: React.FC = () => {
             {getOtherPlayersPersonaggiCards().length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {getOtherPlayersPersonaggiCards().map((card) => {
-                  const cardName = card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase() || 'PERSONAGGIO';
+                  const cardName = getCardName(card);
                   
                   return (
                     <div 
@@ -937,7 +942,7 @@ export const CardModal: React.FC = () => {
                 {gameState.field
                   .filter(card => card.type === 'personaggi' || card.type === 'personaggi_speciali')
                   .map((card) => {
-                    const cardName = card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase() || 'PERSONAGGIO';
+                    const cardName = getCardName(card);
                     const isSelected = card.id === voodooCard1 || card.id === voodooCard2;
                     
                     return (

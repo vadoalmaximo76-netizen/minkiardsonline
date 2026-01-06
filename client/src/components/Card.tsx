@@ -161,9 +161,14 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     }
   }, []);
 
-  const getCardName = (imageUrl: string) => {
+  const getCardName = (cardData: any) => {
+    // First check if the card has a custom name property
+    if (cardData.name && cardData.name.trim()) {
+      return cardData.name.toUpperCase();
+    }
+    // Fall back to extracting from image URL
     try {
-      const url = new URL(imageUrl);
+      const url = new URL(cardData.frontImage);
       const pathname = url.pathname;
       const filename = pathname.split('/').pop() || '';
       return filename.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase();
@@ -172,7 +177,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     }
   };
 
-  const isAtaccoDisonesto = card.type === 'mosse' && location === 'field' && getCardName(card.frontImage) === 'ATTACCO DISONESTO';
+  const isAtaccoDisonesto = card.type === 'mosse' && location === 'field' && getCardName(card) === 'ATTACCO DISONESTO';
 
   const handleAttaccoDisonesto = () => {
     // Check if player's character has 0 stars or 0 PTI
@@ -232,7 +237,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
           (card.type === 'personaggi' || card.type === 'personaggi_speciali')) {
         
         // Check if the MOSSE card is FURTO
-        const mosseCardName = getCardName(selectedMosseCard.frontImage);
+        const mosseCardName = getCardName(selectedMosseCard);
         const isFurto = mosseCardName === 'FURTO' || mosseCardName.includes('FURTO');
         setIsFurtoAttack(isFurto);
         
@@ -540,7 +545,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const isOwner = card.owner === playerName || (isMaster && card.owner?.startsWith('CPU-'));
   
   // Check if this is the MINKIARD N 300 card
-  const isMinkiard300 = getCardName(card.frontImage) === 'MINKIARD N 300';
+  const isMinkiard300 = getCardName(card) === 'MINKIARD N 300';
   
   const handleSuperDice = () => {
     console.log('SUPER DICE button clicked for MINKIARD N 300');
@@ -950,7 +955,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
                 const stelleMatch = (character.text || '').match(/Stelle:\s*(\d+)/i);
                 const pti = ptiMatch ? ptiMatch[1] : '?';
                 const stelle = stelleMatch ? stelleMatch[1] : '?';
-                const cardName = getCardName(character.frontImage);
+                const cardName = getCardName(character);
                 
                 return (
                   <div
