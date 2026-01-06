@@ -4,7 +4,7 @@ import { Server as SocketServer } from "socket.io";
 import { GameManager } from "./gameManager";
 import OpenAI from "openai";
 import { db } from "./db";
-import { personaggi } from "../shared/schema";
+import { personaggi, customCards } from "../shared/schema";
 import { eq, ilike } from "drizzle-orm";
 
 // Initialize OpenAI
@@ -3759,6 +3759,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       gameManager.removePlayer(socket.id);
     });
+  });
+
+  // ============================================
+  // CUSTOM CARDS CRUD ENDPOINTS
+  // ============================================
+  
+  // Get all permanent custom cards
+  app.get('/api/custom-cards', async (req, res) => {
+    try {
+      const deckType = req.query.deckType as string | undefined;
+      
+      let query = db.select().from(customCards);
+      if (deckType) {
+        query = db.select().from(customCards).where(eq(customCards.deckType, deckType));
+      }
+      
+      const cards = await query;
+      res.json({ success: true, cards });
+    } catch (error) {
+      console.error('Error fetching custom cards:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch custom cards' });
+    }
+  });
+  
+  // Update a custom card
+  app.patch('/api/custom-cards/:id', async (req, res) => {
+    try {
+      const cardId = parseInt(req.params.id);
+      const { name, pti, stars } = req.body;
+      
+      if (isNaN(cardId)) {
+        return res.status(400).json({ success: false, error: 'Invalid card ID' });
+      }
+      
+      const updateData: any = {};
+      if (name !== undefined) updateData.name = name;
+      if (pti !== undefined) updateData.pti = pti;
+      if (stars !== undefined) updateData.stars = stars;
+      
+      const [updated] = await db.update(customCards)
+        .set(updateData)
+        .where(eq(customCards.id, cardId))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ success: false, error: 'Card not found' });
+      }
+      
+      res.json({ success: true, card: updated });
+    } catch (error) {
+      console.error('Error updating custom card:', error);
+      res.status(500).json({ success: false, error: 'Failed to update custom card' });
+    }
+  });
+  
+  // Delete a custom card
+  app.delete('/api/custom-cards/:id', async (req, res) => {
+    try {
+      const cardId = parseInt(req.params.id);
+      
+      if (isNaN(cardId)) {
+        return res.status(400).json({ success: false, error: 'Invalid card ID' });
+      }
+      
+      const [deleted] = await db.delete(customCards)
+        .where(eq(customCards.id, cardId))
+        .returning();
+      
+      if (!deleted) {
+        return res.status(404).json({ success: false, error: 'Card not found' });
+      }
+      
+      res.json({ success: true, message: 'Card deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting custom card:', error);
+      res.status(500).json({ success: false, error: 'Failed to delete custom card' });
+    }
   });
 
   // DEBUG ENDPOINT: Add CPU to test MOSSE sequence  

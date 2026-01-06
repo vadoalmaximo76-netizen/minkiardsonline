@@ -198,6 +198,8 @@ export class GameManager {
 
       if (permanentCards.length > 0) {
         console.log(`Loaded ${permanentCards.length} permanent custom cards into game ${gameId}`);
+        // Re-shuffle all decks after adding permanent cards so they're properly mixed in
+        this.shuffleGameDecks(game);
       }
     } catch (error) {
       console.error('Error loading permanent cards:', error);
