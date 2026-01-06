@@ -285,9 +285,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   io.on('connection', (socket) => {
     console.log('Player connected:', socket.id);
 
-    socket.on('join-game', ({ gameId, playerName, avatarId, userId }) => {
+    socket.on('join-game', async ({ gameId, playerName, avatarId, userId }) => {
       socket.join(gameId);
-      gameManager.addPlayer(gameId, playerName, socket.id);
+      
+      // Wait for player to be added and permanent cards to be loaded
+      await gameManager.addPlayer(gameId, playerName, socket.id);
       
       // Set avatar if provided
       if (avatarId) {
@@ -299,7 +301,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         gameManager.setPlayerUserId(gameId, playerName, userId);
       }
       
-      // Send current game state to the player
+      // Send current game state to the player (now includes permanent cards)
       const gameState = gameManager.getSanitizedGameState(gameId);
       socket.emit('game-state-update', gameState);
       
