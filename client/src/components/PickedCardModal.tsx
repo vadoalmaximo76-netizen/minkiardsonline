@@ -1,74 +1,105 @@
 import React, { useEffect, useState } from "react";
 import { useGameState } from "../lib/stores/useGameState";
-import { X } from "lucide-react";
+import { useAudio } from "../lib/stores/useAudio";
+import { X, Sparkles } from "lucide-react";
 
 export const PickedCardModal: React.FC = () => {
   const { pickedCard, setPickedCard } = useGameState();
+  const { playCardDraw } = useAudio();
   const [showModal, setShowModal] = useState(false);
+  const [isRevealing, setIsRevealing] = useState(false);
 
   useEffect(() => {
     if (pickedCard) {
+      setIsRevealing(true);
       setShowModal(true);
-      // Auto-close after 3 seconds
+      playCardDraw();
+      
+      setTimeout(() => setIsRevealing(false), 800);
+      
       const timer = setTimeout(() => {
         setShowModal(false);
         setPickedCard(null);
-      }, 3000);
+      }, 4000);
       return () => clearTimeout(timer);
     }
-  }, [pickedCard, setPickedCard]);
+  }, [pickedCard, setPickedCard, playCardDraw]);
 
   if (!showModal || !pickedCard) return null;
 
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'personaggi': return 'from-blue-500 to-blue-700';
+      case 'mosse': return 'from-red-500 to-red-700';
+      case 'bonus': return 'from-gray-400 to-gray-600';
+      case 'personaggi_speciali': return 'from-yellow-500 to-yellow-700';
+      default: return 'from-purple-500 to-purple-700';
+    }
+  };
+
+  const getTypeBorder = (type: string) => {
+    switch (type) {
+      case 'personaggi': return 'border-blue-400';
+      case 'mosse': return 'border-red-400';
+      case 'bonus': return 'border-gray-400';
+      case 'personaggi_speciali': return 'border-yellow-400';
+      default: return 'border-purple-400';
+    }
+  };
+
+  const getTypeGlow = (type: string) => {
+    switch (type) {
+      case 'personaggi': return 'shadow-[0_0_60px_rgba(59,130,246,0.5)]';
+      case 'mosse': return 'shadow-[0_0_60px_rgba(239,68,68,0.5)]';
+      case 'bonus': return 'shadow-[0_0_60px_rgba(161,161,170,0.4)]';
+      case 'personaggi_speciali': return 'shadow-[0_0_60px_rgba(234,179,8,0.5)]';
+      default: return 'shadow-[0_0_60px_rgba(147,51,234,0.5)]';
+    }
+  };
+
   return (
     <div className="fixed inset-0 flex items-center justify-center z-[100]">
-      {/* Semi-transparent background */}
-      <div className="absolute inset-0 bg-black/30" onClick={() => {
-        setShowModal(false);
-        setPickedCard(null);
-      }} />
+      <div 
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm" 
+        onClick={() => {
+          setShowModal(false);
+          setPickedCard(null);
+        }} 
+      />
       
-      {/* Card container */}
-      <div className="relative bg-gradient-to-b from-gray-900 to-gray-800 rounded-lg p-8 shadow-2xl border-2 border-yellow-500 max-w-sm w-full mx-4">
+      <div className={`relative flex flex-col items-center gap-6 ${isRevealing ? 'animate-card-reveal' : ''}`}>
         <button
           onClick={() => {
             setShowModal(false);
             setPickedCard(null);
           }}
-          className="absolute top-2 right-2 text-white hover:text-yellow-500 transition-colors"
+          className="absolute -top-2 -right-2 z-10 bg-slate-800 hover:bg-slate-700 text-white p-2 rounded-full transition-colors shadow-lg"
         >
-          <X size={24} />
+          <X size={20} />
         </button>
 
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-yellow-500 mb-2">Carta Pescata!</h2>
-          <p className="text-gray-300 text-sm">Solo tu puoi vederla</p>
+        <div className="flex items-center gap-2 text-white">
+          <Sparkles className="w-5 h-5 text-yellow-400 animate-pulse" />
+          <span className="text-lg font-bold tracking-wide">CARTA PESCATA</span>
+          <Sparkles className="w-5 h-5 text-yellow-400 animate-pulse" />
         </div>
 
-        {/* Large card image */}
-        <div className="flex justify-center mb-6">
+        <div className={`relative ${isRevealing ? 'card-flip-reveal' : ''}`}>
           <img
             src={pickedCard.frontImage}
             alt="Carta pescata"
-            className="w-64 h-96 rounded-lg shadow-lg object-cover border-2 border-yellow-500"
+            className={`w-56 h-auto rounded-2xl border-4 ${getTypeBorder(pickedCard.type)} ${getTypeGlow(pickedCard.type)} object-cover transition-all duration-300`}
           />
+          
+          <div className={`absolute -inset-1 bg-gradient-to-r ${getTypeColor(pickedCard.type)} rounded-2xl opacity-30 blur-xl -z-10`} />
         </div>
 
-        {/* Card info */}
-        <div className="text-center">
-          <p className="text-white font-bold mb-2">
-            Tipo: <span className="text-yellow-500">{pickedCard.type.toUpperCase()}</span>
-          </p>
-          {pickedCard.text && (
-            <p className="text-gray-300 text-sm">
-              Note: {pickedCard.text}
-            </p>
-          )}
+        <div className={`px-4 py-2 rounded-full bg-gradient-to-r ${getTypeColor(pickedCard.type)} text-white font-bold text-sm uppercase tracking-wider shadow-lg`}>
+          {pickedCard.type.replace('_', ' ')}
         </div>
 
-        {/* Close hint */}
-        <p className="text-center text-gray-400 text-xs mt-4">
-          Si chiuderà automaticamente tra pochi secondi...
+        <p className="text-slate-400 text-xs">
+          Tocca ovunque per chiudere
         </p>
       </div>
     </div>

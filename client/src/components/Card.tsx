@@ -67,7 +67,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     removeShakingCard 
   } = useGameState();
 
-  const { playBeeSound, playDamageSound } = useAudio();
+  const { playPointGain, playPointLoss, playStarGain, playStarLoss } = useAudio();
 
   const getCardName = (imageUrl: string) => {
     try {
@@ -398,22 +398,22 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
 
       if (newPti !== null && oldPti !== null && newPti > oldPti) {
         setPowerEffect('up');
-        playBeeSound();
+        playPointGain();
         addFloatingNumber(newPti - oldPti, 'heal');
         setTimeout(() => setPowerEffect(null), 1200);
       } else if (newPti !== null && oldPti !== null && newPti < oldPti) {
         setPowerEffect('down');
-        playDamageSound();
+        playPointLoss();
         addFloatingNumber(oldPti - newPti, 'damage');
         setTimeout(() => setPowerEffect(null), 1200);
       } else if (newStars !== null && oldStars !== null && newStars > oldStars) {
         setPowerEffect('up');
-        playBeeSound();
+        playStarGain();
         addFloatingNumber(newStars - oldStars, 'star-up');
         setTimeout(() => setPowerEffect(null), 1200);
       } else if (newStars !== null && oldStars !== null && newStars < oldStars) {
         setPowerEffect('down');
-        playDamageSound();
+        playStarLoss();
         addFloatingNumber(oldStars - newStars, 'star-down');
         setTimeout(() => setPowerEffect(null), 1200);
       }

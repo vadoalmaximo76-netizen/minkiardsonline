@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useGameState } from '../lib/stores/useGameState';
+import { useAudio } from '../lib/stores/useAudio';
 import { socket } from '../lib/socket';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -51,6 +52,7 @@ export const DefenseDialog: React.FC = () => {
   const [showHand, setShowHand] = useState<boolean>(false);
   const [showDefenseCardSelect, setShowDefenseCardSelect] = useState<boolean>(false);
   const { playerName, gameId, gameState } = useGameState();
+  const { playAttackSound, playDefenseActivated, playAttackBlocked } = useAudio();
 
   // Get player's hand
   const playerHand: GameCard[] = gameState?.players?.[playerName]?.hand || [];
@@ -67,6 +69,7 @@ export const DefenseDialog: React.FC = () => {
       // Only show dialog if this player is the defender
       if (request.defenderName === playerName) {
         console.log('🛡️ SHOWING DEFENSE DIALOG!');
+        playAttackSound(); // Play attack incoming sound
         setDefenseRequest(request);
         setTimeLeft(30); // Reset timer
         setIsProcessing(false);
@@ -106,6 +109,13 @@ export const DefenseDialog: React.FC = () => {
     
     setIsProcessing(true);
     console.log(`🛡️ Sending defense response: ${defends ? 'DEFEND' : 'ACCEPT'}`, defenseCardId ? `with card ${defenseCardId}` : '');
+    
+    // Play appropriate sound effect
+    if (defends) {
+      playAttackBlocked(); // Play defense success sound
+    } else {
+      playDefenseActivated(); // Play damage accepted sound
+    }
     
     // If defending with a card, first play it to the field
     if (defends && defenseCardId) {

@@ -36,6 +36,12 @@ interface AudioState {
   playDefenseActivated: () => void;
   playBonusActivated: () => void;
   playPersistentDamage: () => void;
+  playStarGain: () => void;
+  playStarLoss: () => void;
+  playPointGain: () => void;
+  playPointLoss: () => void;
+  playAttackBlocked: () => void;
+  playCardDraw: () => void;
 }
 
 export const useAudio = create<AudioState>((set, get) => ({
@@ -1085,5 +1091,148 @@ export const useAudio = create<AudioState>((set, get) => ({
         osc.stop(audioContext.currentTime + 0.1);
       }, i * 100);
     }
+  },
+
+  playStarGain: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const sparkle = [1047, 1319, 1568, 2093];
+    sparkle.forEach((freq, index) => {
+      setTimeout(() => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        osc.type = 'sine';
+        
+        gain.gain.setValueAtTime(0.1, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+        
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + 0.15);
+      }, index * 60);
+    });
+  },
+
+  playStarLoss: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const descend = [784, 523, 392, 262];
+    descend.forEach((freq, index) => {
+      setTimeout(() => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        osc.type = 'triangle';
+        
+        gain.gain.setValueAtTime(0.08, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.12);
+        
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + 0.12);
+      }, index * 80);
+    });
+  },
+
+  playPointGain: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    
+    osc.frequency.setValueAtTime(523, audioContext.currentTime);
+    osc.frequency.linearRampToValueAtTime(784, audioContext.currentTime + 0.1);
+    osc.type = 'sine';
+    
+    gain.gain.setValueAtTime(0.12, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+    
+    osc.start(audioContext.currentTime);
+    osc.stop(audioContext.currentTime + 0.2);
+  },
+
+  playPointLoss: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    
+    osc.frequency.setValueAtTime(300, audioContext.currentTime);
+    osc.frequency.linearRampToValueAtTime(150, audioContext.currentTime + 0.15);
+    osc.type = 'sawtooth';
+    
+    gain.gain.setValueAtTime(0.1, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+    
+    osc.start(audioContext.currentTime);
+    osc.stop(audioContext.currentTime + 0.2);
+  },
+
+  playAttackBlocked: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const osc1 = audioContext.createOscillator();
+    const osc2 = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(audioContext.destination);
+    
+    osc1.frequency.setValueAtTime(200, audioContext.currentTime);
+    osc2.frequency.setValueAtTime(150, audioContext.currentTime);
+    osc1.type = 'square';
+    osc2.type = 'square';
+    
+    gain.gain.setValueAtTime(0.15, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+    
+    osc1.start(audioContext.currentTime);
+    osc2.start(audioContext.currentTime);
+    osc1.stop(audioContext.currentTime + 0.3);
+    osc2.stop(audioContext.currentTime + 0.3);
+  },
+
+  playCardDraw: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const notes = [392, 523, 659, 784];
+    notes.forEach((freq, index) => {
+      setTimeout(() => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        osc.type = 'sine';
+        
+        gain.gain.setValueAtTime(0.1, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+        
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + 0.2);
+      }, index * 80);
+    });
   }
 }));
