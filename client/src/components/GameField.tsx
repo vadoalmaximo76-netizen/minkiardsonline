@@ -11,15 +11,9 @@ export const GameField: React.FC = () => {
   const fieldCards = gameState?.field || [];
   const players = gameState?.players || {};
 
-  // Debug: log field cards to see attachedTo property
-  console.log('GameField - fieldCards:', fieldCards.map(c => ({ id: c.id, owner: c.owner, attachedTo: c.attachedTo, name: c.name || c.frontImage?.split('/').pop() })));
-
   // Separate attached parasitic cards from regular cards
   const attachedParasiticCards = fieldCards.filter(card => card.attachedTo);
   const regularCards = fieldCards.filter(card => !card.attachedTo);
-  
-  console.log('GameField - attachedParasiticCards:', attachedParasiticCards.length, attachedParasiticCards.map(c => c.id));
-  console.log('GameField - regularCards:', regularCards.length);
 
   // Create a map of target cards to their attached parasitic cards
   const attachedCardsMap = attachedParasiticCards.reduce((acc, card) => {
