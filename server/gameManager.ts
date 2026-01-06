@@ -6172,6 +6172,31 @@ Rispondi SOLO in JSON:`;
     await this.playCard(gameId, cardInHand.id, playerName);
     console.log(`${playerName} played ${cardType} card as instructed`);
     
+    // PARASITIC CARDS: Check if PARASSITA or SAIBAIM was played and auto-attach for CPU
+    const playedCard = game.field.find(c => c.id === cardInHand.id);
+    if (playedCard && (playedCard.type === 'personaggi' || playedCard.type === 'personaggi_speciali')) {
+      const parasiticType = this.isParasiticCard(playedCard);
+      if (parasiticType && playedCard.canReattach !== false) {
+        console.log(`🦠 ${parasiticType} played by ${playerName} via instruction - auto-attaching`);
+        
+        const targets = this.getParasiticTargets(gameId, playerName);
+        if (targets.length > 0) {
+          // Auto-select target (highest stars)
+          const target = this.getCPUParasiticTarget(gameId, playerName);
+          if (target) {
+            console.log(`🦠 ${playerName} auto-targeting ${target.id} with ${parasiticType}`);
+            const attachResult = await this.attachParasiticCard(gameId, playedCard.id, target.id, playerName);
+            
+            if (attachResult.success) {
+              console.log(`🦠 ${parasiticType} attached to ${target.id} via instruction`);
+            }
+          }
+        } else {
+          console.log(`🦠 ${parasiticType} played but no valid targets available`);
+        }
+      }
+    }
+    
     // SPECIAL: If CPU played MOSSE card, execute attack immediately
     if (cardType === 'mosse' && playerName.startsWith('CPU-') && player.cpuInstance) {
       console.log(`${playerName} executing MOSSE attack immediately after instruction`);
