@@ -88,7 +88,7 @@ export const CARD_DATA = {
     "https://i.postimg.cc/MZVYKGR3/macchina-del-tempo.png",
     "https://i.postimg.cc/SNG7CtgW/macumba.png",
     "https://i.postimg.cc/ZKmx9hxb/Mbacc-a-Z-Vcienz.png",
-    "https://i.postimg.cc/nhcKkYWN/medicina.png",
+    "https://i.ibb.co/xKBhfHfy/Medicina.png",
     "https://i.postimg.cc/K8qPs3Sj/mini-semaforo.png",
     "https://i.postimg.cc/YST1tcSw/minkiard-n-100.png",
     "https://i.postimg.cc/d1dG1W7Z/minkiard-n-300.png",
