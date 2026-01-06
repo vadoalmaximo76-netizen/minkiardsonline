@@ -433,7 +433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         .join(' ');
                     };
                     
-                    const cardName = getCardNameFromUrl(playResult.card.frontImage);
+                    const cardName = playResult.card.name || getCardNameFromUrl(playResult.card.frontImage);
                     io.to(gameId).emit('personaggio-enters', {
                       cardName,
                       message: 'ENTRA IN SCENA',
@@ -537,7 +537,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         .join(' ');
                     };
                     
-                    const cardName = getCardNameFromUrl(result.card.frontImage);
+                    const cardName = result.card.name || getCardNameFromUrl(result.card.frontImage);
                     io.to(gameId).emit('personaggio-enters', {
                       cardName,
                       message: 'SI UNISCE ALLA ZUFFA',
@@ -884,7 +884,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .join(' ');
           };
           
-          const cardName = getCardNameFromUrl(result.card.frontImage);
+          const cardName = result.card.name || getCardNameFromUrl(result.card.frontImage);
           
           // Random dramatic messages
           const messages = [
@@ -940,7 +940,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .join(' ');
           };
           
-          const cardName = getCardNameFromUrl(result.card.frontImage);
+          const cardName = result.card.name || getCardNameFromUrl(result.card.frontImage);
           console.log(`🎬 Emitting card-animation-trigger for: ${cardName}`);
           
           io.to(gameId).emit('card-animation-trigger', {
@@ -1010,7 +1010,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .join(' ');
           };
           
-          const cardName = getCardNameFromUrl(result.card.frontImage);
+          const cardName = result.card.name || getCardNameFromUrl(result.card.frontImage);
           
           io.to(gameId).emit('card-revealed', {
             cardId: result.card.id,
@@ -1969,7 +1969,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                             .join(' ');
                         };
                         
-                        const cardName = getCardNameFromUrl(result.card.frontImage);
+                        const cardName = result.card.name || getCardNameFromUrl(result.card.frontImage);
                         io.to(gameId).emit('personaggio-enters', {
                           cardName,
                           message: 'SI UNISCE ALLA ZUFFA',
@@ -2921,7 +2921,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           .join(' ');
                       };
                       
-                      const cardName = getCardNameFromUrl(playDrawResult.card.frontImage);
+                      const cardName = playDrawResult.card.name || getCardNameFromUrl(playDrawResult.card.frontImage);
                       io.to(gameId).emit('personaggio-enters', {
                         cardName,
                         message: 'SI UNISCE ALLA ZUFFA',
@@ -3020,7 +3020,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           .join(' ');
                       };
                       
-                      const cardName = getCardNameFromUrl(result.card.frontImage);
+                      const cardName = result.card.name || getCardNameFromUrl(result.card.frontImage);
                       io.to(gameId).emit('personaggio-enters', {
                         cardName,
                         message: 'SI UNISCE ALLA ZUFFA',

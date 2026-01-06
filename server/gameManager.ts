@@ -10,6 +10,7 @@ interface Card {
   frontImage: string;
   backImage: string;
   owner: string;
+  name?: string; // Custom card name (for permanent/custom cards)
   text?: string;
   eliminatedBy?: string;
   faceDown?: boolean;
@@ -171,14 +172,12 @@ export class GameManager {
         if (targetDeck && !targetDeck.some(c => c.id === cardId)) {
           const isCharacterCard = cardRecord.deckType === 'personaggi' || cardRecord.deckType === 'personaggi_speciali';
           
-          let cardText = cardRecord.name || '';
+          // For character cards, text only contains PTI and stars (not the name)
+          let cardText = '';
           if (isCharacterCard) {
             const ptiText = cardRecord.pti != null ? `PTI: ${cardRecord.pti}` : '';
             const starsText = cardRecord.stars != null ? `Stelle: ${cardRecord.stars}` : '';
-            const metaInfo = [ptiText, starsText].filter(Boolean).join(' | ');
-            if (metaInfo) {
-              cardText = cardText ? `${cardText}\n${metaInfo}` : metaInfo;
-            }
+            cardText = [ptiText, starsText].filter(Boolean).join(' | ');
           }
           
           const card: Card = {
@@ -187,6 +186,7 @@ export class GameManager {
             frontImage: cardRecord.imageData,
             backImage: this.getBackImageForDeck(cardRecord.deckType),
             owner: '',
+            name: cardRecord.name || undefined, // Store the custom name separately
             text: cardText,
             pti: isCharacterCard ? cardRecord.pti : null,
             stars: isCharacterCard ? cardRecord.stars : null
@@ -2860,14 +2860,12 @@ Rispondi SOLO in JSON:`;
       for (let i = 0; i < cards.length; i++) {
         const cardData = cards[i];
         
-        let cardText = cardData.name || '';
+        // For character cards, text only contains PTI and stars (not the name)
+        let cardText = '';
         if (isCharacterDeck) {
           const ptiText = cardData.pti != null ? `PTI: ${cardData.pti}` : '';
           const starsText = cardData.stars != null ? `Stelle: ${cardData.stars}` : '';
-          const metaInfo = [ptiText, starsText].filter(Boolean).join(' | ');
-          if (metaInfo) {
-            cardText = cardText ? `${cardText}\n${metaInfo}` : metaInfo;
-          }
+          cardText = [ptiText, starsText].filter(Boolean).join(' | ');
         }
         
         const card: Card = {
@@ -2876,6 +2874,7 @@ Rispondi SOLO in JSON:`;
           frontImage: cardData.data,
           backImage: this.getBackImageForDeck(deckType),
           owner: '',
+          name: cardData.name || undefined, // Store the custom name separately
           text: cardText,
           pti: isCharacterDeck ? cardData.pti : null,
           stars: isCharacterDeck ? cardData.stars : null
