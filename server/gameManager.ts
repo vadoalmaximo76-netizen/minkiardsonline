@@ -4954,9 +4954,51 @@ Rispondi SOLO in JSON:`;
     // REGULAR ATTACK: Extract current PTI from card notes (exact legacy logic)
     const ptiMatch = currentNotes.match(/PTI:\s*(\d+)/i);
     let currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 0;
+    
+    // DEBUG LOGGING for ATTACCO DISONESTO
+    if (isHandTarget) {
+      console.log(`🎯 ATTACCO DISONESTO DEBUG:`, {
+        targetCardId,
+        targetOwner,
+        currentNotes,
+        ptiMatch: ptiMatch ? ptiMatch[0] : null,
+        currentPTI,
+        damageValue,
+        targetCardFrontImage: targetCard?.frontImage
+      });
+    }
+    
+    // FIX FOR ATTACCO DISONESTO: If card in hand has no PTI set, we need to handle it properly
+    // Cards without PTI shouldn't die instantly - they need to have their PTI initialized first
+    if (isHandTarget && !ptiMatch) {
+      console.log(`⚠️ ATTACCO DISONESTO: Target card ${targetCardId} has no PTI set. Card needs to be analyzed first to have valid PTI.`);
+      // Don't apply damage to cards without PTI - they can't take damage if they haven't been analyzed
+      // The attack still "hits" but we need to inform the user
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-no-pti-warning`,
+        playerName: 'Sistema',
+        message: `⚠️ Il personaggio attaccato non ha PTI definiti! La carta deve essere analizzata prima di poter subire danni.`,
+        timestamp: Date.now()
+      });
+      
+      // Sync game state without applying damage
+      const updatedGameState = this.getSanitizedGameState(gameId);
+      io.to(gameId).emit('game-state-update', updatedGameState);
+      return;
+    }
 
     // PRESERVE: Calculate new PTI after damage
     const newPTI = Math.max(0, currentPTI - damageValue);
+    
+    // DEBUG LOGGING for damage calculation
+    if (isHandTarget) {
+      console.log(`🎯 ATTACCO DISONESTO DAMAGE CALC:`, {
+        currentPTI,
+        damageValue,
+        newPTI,
+        willDie: newPTI <= 0
+      });
+    }
 
     // PRESERVE: Update card notes with new PTI
     if (ptiMatch) {
