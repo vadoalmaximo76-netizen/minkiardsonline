@@ -86,10 +86,24 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const [prevStars, setPrevStars] = useState<number | null>(null);
   const [statGlowEffect, setStatGlowEffect] = useState<'pti-up' | 'pti-down' | 'star-up' | 'star-down' | null>(null);
   const [isNewlyPlaced, setIsNewlyPlaced] = useState(location === 'field');
+  const originalPTIRef = useRef<number | null>(null);
 
   // Sync local cardText state with incoming card.text prop (for real-time updates)
   useEffect(() => {
     setCardText(card.text || "");
+  }, [card.text]);
+
+  // Capture original PTI on first valid PTI reading
+  useEffect(() => {
+    if (originalPTIRef.current === null) {
+      const originalFromText = parseOriginalPTI(card.text);
+      const currentPTI = parsePTI(card.text);
+      if (originalFromText !== null) {
+        originalPTIRef.current = originalFromText;
+      } else if (currentPTI !== null && currentPTI > 0) {
+        originalPTIRef.current = currentPTI;
+      }
+    }
   }, [card.text]);
 
   // Reset newly placed flag after animation completes
@@ -633,73 +647,82 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
       ))}
       
       {/* Card Image with Health Bar */}
-      <div className="flex gap-1">
-        {/* Vertical Health Bar for Personaggi */}
+      <div 
+        className="relative"
+        style={isEliminated && isPersonaggio ? {
+          '--tx': `translate(${scatterX}px, ${scatterY}px)`
+        } as React.CSSProperties : undefined}
+      >
+        {/* Vertical Health Bar for Personaggi - Absolutely positioned */}
         {isPersonaggio && !card.faceDown && (() => {
           const currentPTI = parsePTI(card.text);
-          const originalPTI = parseOriginalPTI(card.text);
-          const healthPercent = getHealthPercentage(currentPTI, originalPTI);
+          const originalPTI = originalPTIRef.current || parseOriginalPTI(card.text) || currentPTI || 1000;
+          const healthPercent = currentPTI !== null ? getHealthPercentage(currentPTI, originalPTI) : 100;
           const colorClass = getHealthBarColor(healthPercent);
           
           return (
-            <div className="relative flex flex-col items-center justify-end w-2 sm:w-2.5 h-auto self-stretch">
+            <div 
+              className="absolute top-0 bottom-0 flex flex-col items-center justify-center"
+              style={{ left: '-10px', width: '6px', height: 'calc(100% - 8px)', marginTop: '4px' }}
+            >
               {/* Health bar background */}
-              <div className="absolute inset-0 bg-gray-900/80 rounded-full border border-gray-600/50 overflow-hidden"
-                style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.5)' }}>
+              <div 
+                className="relative w-full h-full bg-gray-900/90 rounded-full overflow-hidden"
+                style={{ 
+                  boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.6), 0 0 6px rgba(0,0,0,0.3)',
+                  border: '1px solid rgba(255,255,255,0.1)'
+                }}
+              >
                 {/* Health bar fill */}
                 <div 
-                  className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t ${colorClass} transition-all duration-500 ease-out rounded-full`}
+                  className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t ${colorClass} transition-all duration-500 ease-out`}
                   style={{ 
                     height: `${healthPercent}%`,
-                    boxShadow: healthPercent > 0 ? `0 0 8px rgba(59, 130, 246, 0.5), inset 0 1px 2px rgba(255,255,255,0.3)` : 'none'
+                    boxShadow: healthPercent > 0 ? `0 0 10px rgba(59, 130, 246, 0.6), inset 0 1px 3px rgba(255,255,255,0.4)` : 'none',
+                    borderRadius: '9999px'
                   }}
                 />
                 {/* Gloss overlay */}
-                <div className="absolute inset-0 bg-gradient-to-r from-white/20 via-transparent to-transparent rounded-full pointer-events-none" />
-              </div>
-              {/* Health percentage indicator */}
-              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[6px] font-bold text-white drop-shadow-lg whitespace-nowrap">
-                {Math.round(healthPercent)}%
+                <div className="absolute inset-0 bg-gradient-to-r from-white/25 via-transparent to-transparent rounded-full pointer-events-none" />
+                {/* Tick marks for visual appeal */}
+                <div className="absolute inset-0 flex flex-col justify-between py-1 pointer-events-none">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="w-full h-px bg-white/20" />
+                  ))}
+                </div>
               </div>
             </div>
           );
         })()}
         
-        <div 
-          className="relative"
-          style={isEliminated && isPersonaggio ? {
-            '--tx': `translate(${scatterX}px, ${scatterY}px)`
-          } as React.CSSProperties : undefined}
-        >
-          <img
-            src={showBack || card.faceDown ? card.backImage : card.frontImage}
-            alt="Card"
-            className={`w-14 h-auto aspect-[2/3] sm:w-16 md:w-20 lg:w-24 card-master cursor-pointer object-cover rounded-xl
-              ${getEntryAnimationClass()}
-              ${card.type === 'personaggi' ? 'card-border-personaggi' : ''}
-              ${card.type === 'mosse' ? 'card-border-mosse' : ''}
-              ${card.type === 'bonus' ? 'card-border-bonus' : ''}
-              ${card.type === 'personaggi_speciali' ? 'card-border-speciali' : ''}
-              ${isEliminated && isPersonaggio ? 'card-disperse' : ''} 
-              ${isShaking && !isEliminated ? 'animate-shake' : ''} 
-              ${isMosseSelected ? 'ring-4 ring-purple-500 ring-opacity-70' : ''}
-              ${card.faceDown ? 'ring-2 ring-orange-400 ring-opacity-50' : ''}`}
-            onClick={handleCardClick}
-          />
-          
-          {location === 'field' && (
-            <div className="absolute -top-2 left-0 bg-black/70 text-white px-2 py-1 rounded text-xs">
-              {card.owner}
-            </div>
-          )}
-          
-          {/* Red X elimination animation */}
-          {isEliminated && !isPersonaggio && (
-            <div className="absolute inset-0 flex items-center justify-center bg-red-600/50 rounded-xl animate-pulse">
-              <X size={32} className="text-white animate-ping" />
-            </div>
-          )}
-        </div>
+        <img
+          src={showBack || card.faceDown ? card.backImage : card.frontImage}
+          alt="Card"
+          className={`w-14 h-auto aspect-[2/3] sm:w-16 md:w-20 lg:w-24 card-master cursor-pointer object-cover rounded-xl
+            ${getEntryAnimationClass()}
+            ${card.type === 'personaggi' ? 'card-border-personaggi' : ''}
+            ${card.type === 'mosse' ? 'card-border-mosse' : ''}
+            ${card.type === 'bonus' ? 'card-border-bonus' : ''}
+            ${card.type === 'personaggi_speciali' ? 'card-border-speciali' : ''}
+            ${isEliminated && isPersonaggio ? 'card-disperse' : ''} 
+            ${isShaking && !isEliminated ? 'animate-shake' : ''} 
+            ${isMosseSelected ? 'ring-4 ring-purple-500 ring-opacity-70' : ''}
+            ${card.faceDown ? 'ring-2 ring-orange-400 ring-opacity-50' : ''}`}
+          onClick={handleCardClick}
+        />
+        
+        {location === 'field' && (
+          <div className="absolute -top-2 left-0 bg-black/70 text-white px-2 py-1 rounded text-xs">
+            {card.owner}
+          </div>
+        )}
+        
+        {/* Red X elimination animation */}
+        {isEliminated && !isPersonaggio && (
+          <div className="absolute inset-0 flex items-center justify-center bg-red-600/50 rounded-xl animate-pulse">
+            <X size={32} className="text-white animate-ping" />
+          </div>
+        )}
       </div>
 
       {/* Card Text - Only show for non-fused cards or fusion leaders */}
