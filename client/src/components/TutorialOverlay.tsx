@@ -225,6 +225,14 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ onComplete, on
             </button>
 
             <Button
+              onClick={() => window.open('https://minkiards.wixsite.com/minkiards/post/regolamento-ufficiale', '_blank')}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3 py-1"
+              size="sm"
+            >
+              REGOLAMENTO
+            </Button>
+
+            <Button
               onClick={handleNext}
               className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white font-bold"
               size="sm"
