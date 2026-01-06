@@ -1034,3 +1034,132 @@ input:focus, select:focus {
 ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg, #a855f7, #8b5cf6);
 }
+
+/* NEON BUTTON STYLES - Transparent with colored borders, fill on hover */
+.btn-neon-blue {
+  background: transparent !important;
+  border: 2px solid #3b82f6 !important;
+  color: white !important;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.4) !important;
+  transition: all 0.2s ease !important;
+}
+.btn-neon-blue:hover {
+  background: #2563eb !important;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.6) !important;
+}
+.btn-neon-blue:active {
+  background: #1d4ed8 !important;
+  transform: scale(0.95);
+}
+
+.btn-neon-green {
+  background: transparent !important;
+  border: 2px solid #22c55e !important;
+  color: white !important;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.4) !important;
+  transition: all 0.2s ease !important;
+}
+.btn-neon-green:hover {
+  background: #16a34a !important;
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.6) !important;
+}
+.btn-neon-green:active {
+  background: #15803d !important;
+  transform: scale(0.95);
+}
+
+.btn-neon-red {
+  background: transparent !important;
+  border: 2px solid #ef4444 !important;
+  color: white !important;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.4) !important;
+  transition: all 0.2s ease !important;
+}
+.btn-neon-red:hover {
+  background: #dc2626 !important;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.6) !important;
+}
+.btn-neon-red:active {
+  background: #b91c1c !important;
+  transform: scale(0.95);
+}
+
+.btn-neon-yellow {
+  background: transparent !important;
+  border: 2px solid #eab308 !important;
+  color: white !important;
+  box-shadow: 0 0 8px rgba(234, 179, 8, 0.4) !important;
+  transition: all 0.2s ease !important;
+}
+.btn-neon-yellow:hover {
+  background: #ca8a04 !important;
+  box-shadow: 0 0 12px rgba(234, 179, 8, 0.6) !important;
+}
+.btn-neon-yellow:active {
+  background: #a16207 !important;
+  transform: scale(0.95);
+}
+
+.btn-neon-orange {
+  background: transparent !important;
+  border: 2px solid #f97316 !important;
+  color: white !important;
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.4) !important;
+  transition: all 0.2s ease !important;
+}
+.btn-neon-orange:hover {
+  background: #ea580c !important;
+  box-shadow: 0 0 12px rgba(249, 115, 22, 0.6) !important;
+}
+.btn-neon-orange:active {
+  background: #c2410c !important;
+  transform: scale(0.95);
+}
+
+.btn-neon-purple {
+  background: transparent !important;
+  border: 2px solid #a855f7 !important;
+  color: white !important;
+  box-shadow: 0 0 8px rgba(168, 85, 247, 0.4) !important;
+  transition: all 0.2s ease !important;
+}
+.btn-neon-purple:hover {
+  background: #9333ea !important;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.6) !important;
+}
+.btn-neon-purple:active {
+  background: #7c3aed !important;
+  transform: scale(0.95);
+}
+
+.btn-neon-pink {
+  background: transparent !important;
+  border: 2px solid #ec4899 !important;
+  color: white !important;
+  box-shadow: 0 0 8px rgba(236, 72, 153, 0.4) !important;
+  transition: all 0.2s ease !important;
+}
+.btn-neon-pink:hover {
+  background: #db2777 !important;
+  box-shadow: 0 0 12px rgba(236, 72, 153, 0.6) !important;
+}
+.btn-neon-pink:active {
+  background: #be185d !important;
+  transform: scale(0.95);
+}
+
+.btn-neon-gray {
+  background: transparent !important;
+  border: 2px solid #6b7280 !important;
+  color: white !important;
+  box-shadow: 0 0 8px rgba(107, 114, 128, 0.4) !important;
+  transition: all 0.2s ease !important;
+}
+.btn-neon-gray:hover {
+  background: #4b5563 !important;
+  box-shadow: 0 0 12px rgba(107, 114, 128, 0.6) !important;
+}
+.btn-neon-gray:active {
+  background: #374151 !important;
+  transform: scale(0.95);
+}

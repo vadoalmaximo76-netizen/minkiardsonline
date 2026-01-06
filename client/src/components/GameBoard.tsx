@@ -651,7 +651,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             {/* Optional continue button */}
             <Button
               onClick={() => setShowRotationWarning(false)}
-              className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2"
+              className="btn-neon-blue text-white text-sm px-4 py-2"
               style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
             >
               Continua comunque
@@ -672,14 +672,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 <Button
                   key={limit}
                   onClick={() => handleCharacterLimitSelected(limit)}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 text-lg"
+                  className="w-full btn-neon-blue text-white font-bold py-3 text-lg"
                 >
                   {limit} personaggi
                 </Button>
               ))}
               <Button
                 onClick={() => handleCharacterLimitSelected('unlimited')}
-                className="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 text-lg"
+                className="w-full btn-neon-gray text-white font-bold py-3 text-lg"
               >
                 NON SPECIFICARE
               </Button>
@@ -701,7 +701,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   setEliminationDialogOpen(false);
                   socket.emit('confirm-elimination', { gameId, playerName, confirmed: true });
                 }}
-                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 text-lg"
+                className="w-full btn-neon-red text-white font-bold py-3 text-lg"
               >
                 Sì, mi arrendo
               </Button>
@@ -710,7 +710,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   setEliminationDialogOpen(false);
                   socket.emit('confirm-elimination', { gameId, playerName, confirmed: false });
                 }}
-                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 text-lg"
+                className="w-full btn-neon-green text-white font-bold py-3 text-lg"
               >
                 No, continuo a giocare
               </Button>
@@ -739,7 +739,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             </h3>
             <Button
               onClick={() => setVictoryDialogOpen(false)}
-              className="bg-yellow-700 hover:bg-yellow-800 text-white font-bold py-2 px-6"
+              className="btn-neon-yellow text-white font-bold py-2 px-6"
             >
               Chiudi
             </Button>
@@ -769,7 +769,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               </h2>
               <Button
                 onClick={() => setRemovePlayerDialogOpen(false)}
-                className="bg-red-600 hover:bg-red-700 text-white rounded-full p-1"
+                className="btn-neon-red text-white rounded-full p-1"
               >
                 <X size={16} />
               </Button>
@@ -793,7 +793,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                         setRemovePlayerDialogOpen(false);
                       }
                     }}
-                    className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 text-left px-4 flex items-center gap-2"
+                    className="w-full btn-neon-orange text-white font-bold py-3 text-left px-4 flex items-center gap-2"
                   >
                     <Skull size={16} />
                     {player.name}
@@ -847,21 +847,21 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             <div className="flex gap-1 landscape:gap-2 md:gap-2 justify-center landscape:justify-end md:justify-end">
               <Button
                 onClick={() => window.open('https://minkiards.wixsite.com/minkiards/post/regolamento-ufficiale', '_blank')}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
+                className="btn-neon-blue text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 REGOLAMENTO
               </Button>
               <Button
                 onClick={() => setShowCpuControls(!showCpuControls)}
-                className={`${showCpuControls ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-600 hover:bg-gray-700'} text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2`}
+                className={`${showCpuControls ? 'btn-neon-purple' : 'btn-neon-gray'} text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2`}
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 GIOCA CONTRO CPU (BETA)
               </Button>
               <Button
                 onClick={handleStartGame}
-                className="bg-green-600 hover:bg-green-700 text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
+                className="btn-neon-green text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 COMINCIA
@@ -872,28 +872,28 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             <div className="flex gap-1 landscape:gap-2 md:gap-2 justify-center landscape:justify-end md:justify-end">
               <Button
                 onClick={shareInviteLink}
-                className="bg-sky-blue hover:bg-sky-blue/80 text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
+                className="btn-neon-blue text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 INVITA AMICI
               </Button>
               <Button
                 onClick={() => setRankiardOpen(!rankiardOpen)}
-                className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
+                className="btn-neon-yellow text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 RANKIARD
               </Button>
               <Button
                 onClick={handleNewGame}
-                className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
+                className="btn-neon-purple text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 NUOVA PARTITA
               </Button>
               <Button
                 onClick={handleResetGame}
-                className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
+                className="btn-neon-red text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
                 RICOMINCIA PARTITA
@@ -922,7 +922,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         {/* Music Player Button */}
         <Button
           onClick={() => setMusicPlayerOpen(!musicPlayerOpen)}
-          className="fixed bottom-14 landscape:bottom-20 md:bottom-20 left-2 landscape:left-4 md:left-4 bg-pink-600 hover:bg-pink-700 text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
+          className="fixed bottom-14 landscape:bottom-20 md:bottom-20 left-2 landscape:left-4 md:left-4 btn-neon-pink text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
           style={{ position: 'fixed' }}
           title="Music Player"
         >
@@ -935,7 +935,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             initAudioContext();
             toggleMute();
           }}
-          className="fixed bottom-2 landscape:bottom-4 md:bottom-4 left-2 landscape:left-4 md:left-4 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
+          className="fixed bottom-2 landscape:bottom-4 md:bottom-4 left-2 landscape:left-4 md:left-4 btn-neon-purple text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
           style={{ position: 'fixed' }}
           title={isMuted ? "Enable sound" : "Disable sound"}
         >
@@ -953,7 +953,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           <Button
             data-tutorial="hand"
             onClick={() => setHandModalOpen(true)}
-            className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
+            className="btn-neon-purple text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
             title="Carte in Mano"
           >
             <Hand size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
@@ -967,7 +967,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 handleOpenChat();
               }
             }}
-            className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200 relative"
+            className="btn-neon-blue text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200 relative"
             title="Chat"
           >
             <MessageCircle size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
@@ -980,7 +980,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           
           <Button
             onClick={() => setCalculatorOpen(!calculatorOpen)}
-            className="bg-green-600 hover:bg-green-700 text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
+            className="btn-neon-green text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
             title="Calculator"
           >
             <CalcIcon size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
@@ -988,7 +988,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           
           <Button
             onClick={() => setDiceOpen(true)}
-            className="bg-orange-600 hover:bg-orange-700 text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
+            className="btn-neon-orange text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
             title="Roll Dice"
           >
             <Dice6 size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
@@ -996,7 +996,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           
           <Button
             onClick={() => setGraveyardOpen(true)}
-            className="bg-gray-600 hover:bg-gray-700 text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
+            className="btn-neon-gray text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
             title="Graveyard"
           >
             <Skull size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
@@ -1012,7 +1012,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 socket.emit('shuffle-deck', { deckType });
               });
             }}
-            className="bg-sky-600 hover:bg-sky-700 text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
+            className="btn-neon-blue text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
             title="Mischia tutti i mazzi"
           >
             <Shuffle size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
@@ -1130,7 +1130,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         <div className="mt-4 sm:mt-8 md:mt-16 mb-2 sm:mb-4 md:mb-8 grid grid-cols-2 sm:flex sm:flex-row justify-center gap-1.5 sm:gap-2 md:gap-4 px-2 sm:px-4">
           <Button
             onClick={() => setAddCardsModalOpen(true)}
-            className="bg-yellow-600 hover:bg-yellow-700 text-white font-bold rounded-lg sm:rounded-xl px-2 sm:px-4 md:px-6 py-1.5 sm:py-2 md:py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-1 sm:gap-2 md:gap-3"
+            className="btn-neon-yellow text-white font-bold rounded-lg sm:rounded-xl px-2 sm:px-4 md:px-6 py-1.5 sm:py-2 md:py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-1 sm:gap-2 md:gap-3"
           >
             <Plus size={14} className="sm:w-4 sm:h-4 md:w-6 md:h-6" />
             <span className="text-[10px] sm:text-sm md:text-base">AGGIUNGI</span>
@@ -1142,7 +1142,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 active: !scenarioCardsActive 
               });
             }}
-            className={`${scenarioCardsActive ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-600 hover:bg-gray-700'} text-white font-bold rounded-lg sm:rounded-xl px-2 sm:px-4 md:px-6 py-1.5 sm:py-2 md:py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-1 sm:gap-2 md:gap-3`}
+            className={`${scenarioCardsActive ? 'btn-neon-green' : 'btn-neon-gray'} text-white font-bold rounded-lg sm:rounded-xl px-2 sm:px-4 md:px-6 py-1.5 sm:py-2 md:py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-1 sm:gap-2 md:gap-3`}
           >
             <span className="text-[10px] sm:text-sm md:text-base text-black bg-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded">
               SCENARI {scenarioCardsActive ? 'ON' : 'OFF'}
@@ -1150,14 +1150,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           </Button>
           <Button
             onClick={handleLeaveGame}
-            className="bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg sm:rounded-xl px-2 sm:px-4 md:px-6 py-1.5 sm:py-2 md:py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-1 sm:gap-2 md:gap-3"
+            className="btn-neon-red text-white font-bold rounded-lg sm:rounded-xl px-2 sm:px-4 md:px-6 py-1.5 sm:py-2 md:py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-1 sm:gap-2 md:gap-3"
           >
             <X size={14} className="sm:w-4 sm:h-4 md:w-6 md:h-6" />
             <span className="text-[10px] sm:text-sm md:text-base">LASCIA</span>
           </Button>
           <Button
             onClick={() => setRemovePlayerDialogOpen(true)}
-            className="bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-lg sm:rounded-xl px-2 sm:px-4 md:px-6 py-1.5 sm:py-2 md:py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-1 sm:gap-2 md:gap-3"
+            className="btn-neon-orange text-white font-bold rounded-lg sm:rounded-xl px-2 sm:px-4 md:px-6 py-1.5 sm:py-2 md:py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-1 sm:gap-2 md:gap-3"
           >
             <Skull size={14} className="sm:w-4 sm:h-4 md:w-6 md:h-6" />
             <span className="text-[10px] sm:text-sm md:text-base">ELIMINA</span>
@@ -1200,7 +1200,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 <h2 className="text-xl font-bold text-white">RANKIARD</h2>
                 <Button
                   onClick={() => setRankiardOpen(false)}
-                  className="bg-red-600 hover:bg-red-700 text-white rounded-full p-1"
+                  className="btn-neon-red text-white rounded-full p-1"
                 >
                   <X size={16} />
                 </Button>
@@ -1223,21 +1223,21 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 <div className="grid grid-cols-1 gap-2">
                   <Button
                     onClick={() => window.open('https://drive.google.com/file/d/12bbZFsDw6AFFpqexTS-rHTMlkPhcRZgG/view', '_blank')}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 flex items-center justify-center gap-2"
+                    className="btn-neon-blue text-white font-bold py-2 px-4 flex items-center justify-center gap-2"
                   >
                     <ExternalLink size={16} />
                     CLASSIFICA RANKIARD
                   </Button>
                   <Button
                     onClick={() => window.open('https://drive.google.com/file/d/1IEyFgz3stHj4W7k8VZrl8opIwkmP_7WC/view', '_blank')}
-                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 flex items-center justify-center gap-2"
+                    className="btn-neon-green text-white font-bold py-2 px-4 flex items-center justify-center gap-2"
                   >
                     <ExternalLink size={16} />
                     ASSEGNAZIONE PUNTI RANKIARD
                   </Button>
                   <Button
                     onClick={() => window.open('https://drive.google.com/file/d/1KSPlXXs2lDg3-0MqlJvkgippLUBCnEbz/view', '_blank')}
-                    className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 flex items-center justify-center gap-2"
+                    className="btn-neon-purple text-white font-bold py-2 px-4 flex items-center justify-center gap-2"
                   >
                     <ExternalLink size={16} />
                     BANCA POTERI
@@ -1256,7 +1256,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 <h2 className="text-xl font-bold text-white">ISTRUZIONI</h2>
                 <Button
                   onClick={() => setInstructionsOpen(false)}
-                  className="bg-red-600 hover:bg-red-700 text-white rounded-full p-1"
+                  className="btn-neon-red text-white rounded-full p-1"
                 >
                   <X size={16} />
                 </Button>
@@ -1315,7 +1315,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 <div className="flex gap-2">
                   <Button
                     onClick={handleExecuteGameInstruction}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2"
+                    className="flex-1 btn-neon-green text-white font-bold py-2"
                   >
                     {conversationMode ? "💬 RISPONDI" : "🎮 ESEGUI ISTRUZIONE"}
                   </Button>
@@ -1328,7 +1328,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                         setConversationHistory([]);
                         setGameInstruction('');
                       }}
-                      className="bg-orange-600 hover:bg-orange-700 text-white py-2 px-4"
+                      className="btn-neon-orange text-white py-2 px-4"
                     >
                       🔄 Ricomincia
                     </Button>
@@ -1341,7 +1341,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                       setAssistantQuestion('');
                       setGameInstruction('');
                     }}
-                    className="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4"
+                    className="btn-neon-gray text-white py-2 px-4"
                   >
                     ❌ Chiudi
                   </Button>

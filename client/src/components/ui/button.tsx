@@ -19,6 +19,20 @@ const buttonVariants = cva(
           "bg-transparent border-2 border-slate-400 text-white shadow-[0_0_6px_rgba(148,163,184,0.3)] hover:bg-slate-700 hover:shadow-[0_0_10px_rgba(148,163,184,0.4)]",
         ghost: "hover:bg-slate-700/50 text-slate-300",
         link: "text-purple-400 underline-offset-4 hover:underline",
+        blue:
+          "bg-transparent border-2 border-blue-500 text-white shadow-[0_0_8px_rgba(59,130,246,0.4)] hover:bg-blue-600 hover:shadow-[0_0_12px_rgba(59,130,246,0.6)] active:bg-blue-700 active:scale-95",
+        green:
+          "bg-transparent border-2 border-green-500 text-white shadow-[0_0_8px_rgba(34,197,94,0.4)] hover:bg-green-600 hover:shadow-[0_0_12px_rgba(34,197,94,0.6)] active:bg-green-700 active:scale-95",
+        red:
+          "bg-transparent border-2 border-red-500 text-white shadow-[0_0_8px_rgba(239,68,68,0.4)] hover:bg-red-600 hover:shadow-[0_0_12px_rgba(239,68,68,0.6)] active:bg-red-700 active:scale-95",
+        yellow:
+          "bg-transparent border-2 border-yellow-500 text-white shadow-[0_0_8px_rgba(234,179,8,0.4)] hover:bg-yellow-600 hover:shadow-[0_0_12px_rgba(234,179,8,0.6)] active:bg-yellow-700 active:scale-95",
+        orange:
+          "bg-transparent border-2 border-orange-500 text-white shadow-[0_0_8px_rgba(249,115,22,0.4)] hover:bg-orange-600 hover:shadow-[0_0_12px_rgba(249,115,22,0.6)] active:bg-orange-700 active:scale-95",
+        pink:
+          "bg-transparent border-2 border-pink-500 text-white shadow-[0_0_8px_rgba(236,72,153,0.4)] hover:bg-pink-600 hover:shadow-[0_0_12px_rgba(236,72,153,0.6)] active:bg-pink-700 active:scale-95",
+        gray:
+          "bg-transparent border-2 border-gray-500 text-white shadow-[0_0_8px_rgba(107,114,128,0.4)] hover:bg-gray-600 hover:shadow-[0_0_12px_rgba(107,114,128,0.6)] active:bg-gray-700 active:scale-95",
       },
       size: {
         default: "h-9 px-4 py-2",
