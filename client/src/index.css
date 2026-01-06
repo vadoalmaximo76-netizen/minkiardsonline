@@ -351,15 +351,37 @@
 .neon-text-area {
   background: rgba(15, 23, 42, 0.95) !important;
   color: #fff !important;
-  border: 1px solid #9333ea !important;
-  box-shadow: 0 0 5px #9333ea, inset 0 0 5px #9333ea !important;
-  text-shadow: 0 0 5px #fff, 0 0 10px #9333ea !important;
+  border-width: 1px !important;
+  border-style: solid !important;
   font-weight: bold !important;
 }
 
-.neon-text-area:focus {
+.neon-text-area.neon-personaggi {
+  border-color: #00f2ff !important;
+  box-shadow: 0 0 5px #00f2ff, inset 0 0 5px #00f2ff !important;
+  text-shadow: 0 0 5px #fff, 0 0 10px #00f2ff !important;
+}
+
+.neon-text-area.neon-mosse {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 5px #ef4444, inset 0 0 5px #ef4444 !important;
+  text-shadow: 0 0 5px #fff, 0 0 10px #ef4444 !important;
+}
+
+.neon-text-area.neon-bonus {
+  border-color: #ffffff !important;
+  box-shadow: 0 0 5px #ffffff, inset 0 0 5px #ffffff !important;
+  text-shadow: 0 0 5px #fff, 0 0 10px #ffffff !important;
+}
+
+.neon-text-area.neon-personaggi_speciali {
   border-color: #fbbf24 !important;
-  box-shadow: 0 0 10px #fbbf24, inset 0 0 5px #fbbf24 !important;
+  box-shadow: 0 0 5px #fbbf24, inset 0 0 5px #fbbf24 !important;
+  text-shadow: 0 0 5px #fff, 0 0 10px #fbbf24 !important;
+}
+
+.neon-text-area:focus {
+  filter: brightness(1.2);
 }
 
 /* Game field styling */

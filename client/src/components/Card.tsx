@@ -3,6 +3,7 @@ import ReactDOM from "react-dom";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
+import { useAudio } from "../lib/stores/useAudio";
 import { X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
@@ -56,6 +57,8 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     addShakingCard, 
     removeShakingCard 
   } = useGameState();
+
+  const { playBeeSound, playDamageSound } = useAudio();
 
   const getCardName = (imageUrl: string) => {
     try {
@@ -479,7 +482,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
           value={cardText}
           onChange={handleTextChange}
           placeholder="Add note..."
-          className="w-14 sm:w-16 md:w-20 lg:w-24 h-12 sm:h-14 md:h-16 text-[10px] sm:text-xs p-1 rounded resize-none neon-text-area"
+          className={`w-14 sm:w-16 md:w-20 lg:w-24 h-12 sm:h-14 md:h-16 text-[10px] sm:text-xs p-1 rounded resize-none neon-text-area neon-${card.type}`}
           disabled={!isOwner && location === 'hand'}
         />
       )}
