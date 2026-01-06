@@ -3485,7 +3485,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // Allow any player to force end the current turn
-    socket.on('force-end-turn', ({ gameId }) => {
+    socket.on('force-end-turn', async ({ gameId }) => {
       try {
         const game = gameManager.getGameState(gameId);
         if (!game) {
@@ -3513,6 +3513,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (nextPlayer) {
           // Broadcast turn change to all players
           io.to(gameId).emit('next-turn', { nextPlayer });
+          
+          // Process parasitic card turn effects (PARASSITA drain, SAIBAIM explosion)
+          const parasiticResults = await gameManager.processParasiticTurnEffects(
+            gameId, 
+            nextPlayer,
+            (event, data) => io.to(gameId).emit(event, data)
+          );
+          
+          // Handle SAIBAIM explosions
+          if (parasiticResults.explosions.length > 0) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-saibaim-explosion`,
+              playerName: 'SISTEMA',
+              message: `💥 SAIBAIM è esploso! Due personaggi sono stati eliminati!`,
+              timestamp: Date.now()
+            });
+          }
+          
+          // Handle PARASSITA drains
+          for (const drain of parasiticResults.drains) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-parassita-drain-${drain.cardId}`,
+              playerName: 'SISTEMA',
+              message: `🦠 PARASSITA ha drenato ${drain.ptiDrained} PTI dal bersaglio!`,
+              timestamp: Date.now()
+            });
+          }
           
           // Process persistent damages at the START of the next player's turn
           gameManager.processPersistentDamages(gameId, nextPlayer, io);
