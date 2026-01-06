@@ -12,6 +12,33 @@
   animation: shake 0.5s ease-in-out 4;
 }
 
+/* CIMICE green splash explosion effect */
+@keyframes cimice-splash {
+  0% {
+    transform: scale(0) translate(0, 0);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(2) translate(var(--splash-x, 20px), var(--splash-y, -30px));
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(3) translate(var(--splash-x2, 40px), var(--splash-y2, -60px));
+    opacity: 0;
+  }
+}
+
+.cimice-particle-1 { --splash-x: 30px; --splash-y: -40px; --splash-x2: 60px; --splash-y2: -80px; }
+.cimice-particle-2 { --splash-x: -25px; --splash-y: -35px; --splash-x2: -50px; --splash-y2: -70px; }
+.cimice-particle-3 { --splash-x: 20px; --splash-y: 30px; --splash-x2: 40px; --splash-y2: 60px; }
+.cimice-particle-4 { --splash-x: -30px; --splash-y: 25px; --splash-x2: -60px; --splash-y2: 50px; }
+.cimice-particle-5 { --splash-x: 40px; --splash-y: 0px; --splash-x2: 80px; --splash-y2: 0px; }
+.cimice-particle-6 { --splash-x: -40px; --splash-y: 0px; --splash-x2: -80px; --splash-y2: 0px; }
+.cimice-particle-7 { --splash-x: 15px; --splash-y: -50px; --splash-x2: 30px; --splash-y2: -100px; }
+.cimice-particle-8 { --splash-x: -15px; --splash-y: -45px; --splash-x2: -30px; --splash-y2: -90px; }
+.cimice-particle-9 { --splash-x: 35px; --splash-y: 35px; --splash-x2: 70px; --splash-y2: 70px; }
+.cimice-particle-10 { --splash-x: -35px; --splash-y: 35px; --splash-x2: -70px; --splash-y2: 70px; }
+
 @keyframes shuffle {
   0% { transform: translateX(0) rotate(0deg) scale(1); }
   15% { transform: translateX(-8px) rotate(-3deg) scale(1.05); }

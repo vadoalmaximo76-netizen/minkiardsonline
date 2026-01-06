@@ -132,6 +132,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     targets: Array<{ id: string; frontImage: string; owner: string; text?: string }>;
   }>({ visible: false, parasiticCardId: '', parasiticType: null, targets: [] });
   const [saibaImExplosionVisible, setSaibaImExplosionVisible] = useState(false);
+  const [cimiceEffectData, setCimiceEffectData] = useState<{
+    visible: boolean;
+    type: 'attack' | 'death';
+    damagePerCard: number;
+    affectedCards: Array<{ id: string; name: string; owner: string; oldPTI: number; newPTI: number }>;
+    message: string;
+  } | null>(null);
     const { selectedCard, gameId, playerName, gameState, setGameId, setUserRankiardPoints, resetPRSpent } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted, playAttackSound, playDeathSound, playCardPickup, playCardPlay, playTurnChange, playBonusActivated } = useAudio();
 
@@ -563,6 +570,23 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('saibaim-explosion', handleSaibaImExplosion);
 
+    // CIMICE effect (attack or death)
+    const handleCimiceEffect = (data: {
+      type: 'attack' | 'death';
+      cimiceCardId: string;
+      damagePerCard: number;
+      affectedCards: Array<{ id: string; name: string; owner: string; oldPTI: number; newPTI: number }>;
+      message: string;
+    }) => {
+      console.log('🪲 CIMICE effect received:', data);
+      setCimiceEffectData({ visible: true, ...data });
+      playBeeSound(); // Use bee sound for bug effect
+      setTimeout(() => {
+        setCimiceEffectData(null);
+      }, 4000);
+    };
+    socket.on('cimice-effect', handleCimiceEffect);
+
     const handleInstructionExecuted = ({ playerName: instructorName, instruction, result, timestamp }: { 
       playerName: string, instruction: string, result: string, timestamp: number 
     }) => {
@@ -703,6 +727,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('parasitic-target-select', handleParasiticTargetSelect);
       socket.off('parasitic-attached', handleParasiticAttached);
       socket.off('saibaim-explosion', handleSaibaImExplosion);
+      socket.off('cimice-effect', handleCimiceEffect);
     };
   }, []);
 
@@ -916,6 +941,68 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             <h1 className="text-4xl font-bold text-white animate-pulse" style={{textShadow: '4px 4px 8px rgba(0,0,0,0.8)'}}>
               SAIBAIM È ESPLOSO!
             </h1>
+          </div>
+        </div>
+      )}
+
+      {/* CIMICE Effect - Green Splash Explosion with Disclaimer */}
+      {cimiceEffectData?.visible && (
+        <div className="fixed inset-0 z-[9999] pointer-events-none overflow-hidden">
+          {/* Green pulsing background */}
+          <div className="absolute inset-0 bg-green-500 animate-pulse opacity-40" />
+          
+          {/* Green splash particles - using CSS classes for deterministic animations */}
+          <div className="absolute inset-0">
+            {[...Array(20)].map((_, i) => (
+              <div
+                key={i}
+                className={`absolute rounded-full bg-green-400 cimice-particle-${(i % 10) + 1}`}
+                style={{
+                  width: `${30 + (i * 3) % 30}px`,
+                  height: `${30 + (i * 3) % 30}px`,
+                  left: `${(i * 17) % 100}%`,
+                  top: `${(i * 23) % 100}%`,
+                  opacity: 0.5 + (i % 5) * 0.1,
+                  animation: `cimice-splash ${0.5 + (i % 5) * 0.1}s ease-out forwards`,
+                  animationDelay: `${(i % 6) * 0.05}s`,
+                  boxShadow: '0 0 20px rgba(34, 197, 94, 0.8), 0 0 40px rgba(34, 197, 94, 0.5)'
+                }}
+              />
+            ))}
+          </div>
+          
+          {/* Flying bug emoji */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-8xl animate-bounce" style={{ animationDuration: '0.5s' }}>
+              🪲
+            </div>
+          </div>
+          
+          {/* Disclaimer panel */}
+          <div className="absolute inset-x-0 top-1/4 flex justify-center">
+            <div className="bg-black/90 border-4 border-green-500 rounded-xl p-6 mx-4 max-w-2xl text-center shadow-2xl" style={{ boxShadow: '0 0 40px rgba(34, 197, 94, 0.6)' }}>
+              <h2 className="text-3xl font-bold text-green-400 mb-3" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+                {cimiceEffectData.type === 'attack' ? '🪲 CIMICE ATTACCATA!' : '🪲💀 CIMICE È MORTA!'}
+              </h2>
+              <p className="text-xl text-white mb-4" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                {cimiceEffectData.type === 'attack' 
+                  ? 'Tutti gli altri personaggi in campo perdono 50 PTI!' 
+                  : 'Tutti i personaggi in campo perdono 500 PTI!'}
+              </p>
+              <div className="text-lg text-green-300 font-bold">
+                Danni inflitti: -{cimiceEffectData.damagePerCard} PTI a {cimiceEffectData.affectedCards.length} personaggi
+              </div>
+              {cimiceEffectData.affectedCards.length > 0 && (
+                <div className="mt-3 text-sm text-green-200/80">
+                  {cimiceEffectData.affectedCards.map((card, i) => (
+                    <span key={card.id}>
+                      {card.name} ({card.oldPTI}→{card.newPTI})
+                      {i < cimiceEffectData.affectedCards.length - 1 ? ', ' : ''}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

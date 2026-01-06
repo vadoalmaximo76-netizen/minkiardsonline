@@ -2684,6 +2684,66 @@ Rispondi SOLO in JSON:`;
     return { success: false, detachedParasites };
   }
 
+  // CIMICE DEATH EFFECT: When CIMICE dies, removes 500 PTI from ALL other field characters
+  async processCimiceDeathEffect(gameId: string, cimiceCardId: string, io: any): Promise<void> {
+    const game = this.games.get(gameId);
+    if (!game) return;
+    
+    console.log(`🪲 CIMICE died! Removing 500 PTI from all other field characters`);
+    
+    const affectedCards: Array<{ id: string; name: string; owner: string; oldPTI: number; newPTI: number }> = [];
+    
+    // Get all field characters (CIMICE is already removed from field)
+    const fieldCharacters = game.field.filter((c: Card) => 
+      c.type === 'personaggi' || c.type === 'personaggi_speciali'
+    );
+    
+    for (const card of fieldCharacters) {
+      const cardPTI = this.extractPTIFromNote(card.text || '');
+      const cardStars = this.extractStarsFromNote(card.text || '');
+      const newPTI = Math.max(0, cardPTI - 500);
+      card.text = `PTI: ${newPTI} | Stelle: ${cardStars}`;
+      
+      affectedCards.push({
+        id: card.id,
+        name: this.getCardNameFromUrl(card.frontImage || ''),
+        owner: card.owner,
+        oldPTI: cardPTI,
+        newPTI
+      });
+      
+      console.log(`🪲 CIMICE death effect: ${this.getCardNameFromUrl(card.frontImage || '')} PTI ${cardPTI} → ${newPTI}`);
+    }
+    
+    // Emit CIMICE death effect event for client animation
+    io.to(gameId).emit('cimice-effect', {
+      type: 'death',
+      cimiceCardId,
+      damagePerCard: 500,
+      affectedCards,
+      message: 'CIMICE è morta! Tutti gli altri personaggi perdono 500 PTI!'
+    });
+    
+    io.to(gameId).emit('chat-message', {
+      id: `${Date.now()}-cimice-death-effect`,
+      playerName: 'SISTEMA',
+      message: `🪲💀 CIMICE è morta! Tutti i personaggi in campo perdono 500 PTI!`,
+      timestamp: Date.now()
+    });
+    
+    // Check if any cards died from CIMICE death effect (cascade deaths)
+    for (const affected of affectedCards) {
+      if (affected.newPTI <= 0) {
+        console.log(`💀 ${affected.name} killed by CIMICE death effect!`);
+        this.moveToGraveyard(gameId, affected.id, affected.owner, 'CIMICE');
+      }
+    }
+    
+    // Broadcast updated game state after CIMICE death effect
+    const updatedState = this.getSanitizedGameState(gameId);
+    io.to(gameId).emit('game-state-update', updatedState);
+  }
+
   // Wrapper for sendCardToGraveyard used by parasitic card system
   async sendCardToGraveyard(gameId: string, cardId: string, killerPlayer: string, reason: string): Promise<{ success: boolean }> {
     const game = this.games.get(gameId);
@@ -4988,6 +5048,63 @@ Rispondi SOLO in JSON:`;
       }
     }
 
+    // CIMICE ATTACK EFFECT: When attacked, removes 50 PTI from ALL other field characters
+    if (targetCardName.includes('CIMICE') && !isVoodooReflection && !isPersistentTick) {
+      console.log(`🪲 CIMICE attacked! Removing 50 PTI from all other field characters`);
+      
+      const affectedCards: Array<{ id: string; name: string; owner: string; oldPTI: number; newPTI: number }> = [];
+      
+      // Get all field characters except CIMICE itself
+      const otherFieldCharacters = game?.field?.filter((c: Card) => 
+        c.id !== targetCardId && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      ) || [];
+      
+      for (const card of otherFieldCharacters) {
+        const cardPTI = this.extractPTIFromNote(card.text || '');
+        const cardStars = this.extractStarsFromNote(card.text || '');
+        const newPTI = Math.max(0, cardPTI - 50);
+        card.text = `PTI: ${newPTI} | Stelle: ${cardStars}`;
+        
+        affectedCards.push({
+          id: card.id,
+          name: this.getCardNameFromUrl(card.frontImage || ''),
+          owner: card.owner,
+          oldPTI: cardPTI,
+          newPTI
+        });
+        
+        console.log(`🪲 CIMICE effect: ${this.getCardNameFromUrl(card.frontImage || '')} PTI ${cardPTI} → ${newPTI}`);
+      }
+      
+      // Emit CIMICE attack effect event for client animation
+      io.to(gameId).emit('cimice-effect', {
+        type: 'attack',
+        cimiceCardId: targetCardId,
+        damagePerCard: 50,
+        affectedCards,
+        message: 'CIMICE è stata attaccata! Tutti gli altri personaggi perdono 50 PTI!'
+      });
+      
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-cimice-attack-effect`,
+        playerName: 'SISTEMA',
+        message: `🪲 CIMICE attaccata! Tutti gli altri personaggi in campo perdono 50 PTI!`,
+        timestamp: Date.now()
+      });
+      
+      // Check if any cards died from CIMICE attack effect
+      for (const affected of affectedCards) {
+        if (affected.newPTI <= 0) {
+          console.log(`💀 ${affected.name} killed by CIMICE attack effect!`);
+          this.moveToGraveyard(gameId, affected.id, affected.owner, targetOwner);
+        }
+      }
+      
+      // Broadcast updated game state after CIMICE attack effect
+      const updatedState = this.getSanitizedGameState(gameId);
+      io.to(gameId).emit('game-state-update', updatedState);
+    }
+
     // PERSISTENT DAMAGE REGISTRATION (VIRUS, INFLUENZA, PUOZZA ITT L SANG)
     if (!isPersistentTick && !isVoodooReflection && !isHandTarget) {
       const mosseCard = game?.field?.find(c => c.id === mosseCardId);
@@ -5615,8 +5732,17 @@ Rispondi SOLO in JSON:`;
           }
         }
       } else {
+        // CIMICE DEATH EFFECT: Check if dying card is CIMICE before moving to graveyard
+        const dyingCardName = this.getCardNameFromUrl(targetCard.frontImage || '').toUpperCase();
+        const isCimice = dyingCardName.includes('CIMICE');
+        
         // Regular field death: move to graveyard with attacker info for SOROS activation
         const result = this.moveToGraveyard(gameId, targetCardId, targetOwner, attackerName);
+        
+        // Trigger CIMICE death effect after card is in graveyard
+        if (isCimice) {
+          await this.processCimiceDeathEffect(gameId, targetCardId, io);
+        }
         
         // HANDLE SOROS ACTIVATION
         if (result.sorosActivated && result.sorosImage && result.sorosActivator) {
