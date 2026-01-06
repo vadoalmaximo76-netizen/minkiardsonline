@@ -5,20 +5,20 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-bold transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 transform-gpu",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         default:
-          "bg-gradient-to-b from-purple-500 via-purple-600 to-purple-800 text-white shadow-[0_6px_0_0_#581c87,0_8px_15px_rgba(88,28,135,0.5)] hover:shadow-[0_4px_0_0_#581c87,0_6px_10px_rgba(88,28,135,0.6)] hover:translate-y-[2px] active:shadow-[0_0px_0_0_#581c87] active:translate-y-[6px] border-t border-purple-400/50",
+          "bg-purple-600 text-white shadow-lg shadow-purple-900/20 hover:bg-purple-500 active:scale-95 border border-purple-400/20",
         destructive:
-          "bg-gradient-to-b from-red-500 via-red-600 to-red-800 text-white shadow-[0_6px_0_0_#7f1d1d,0_8px_15px_rgba(127,29,29,0.5)] hover:shadow-[0_4px_0_0_#7f1d1d,0_6px_10px_rgba(127,29,29,0.6)] hover:translate-y-[2px] active:shadow-[0_0px_0_0_#7f1d1d] active:translate-y-[6px] border-t border-red-400/50",
+          "bg-red-600 text-white shadow-sm hover:bg-red-500 active:scale-95",
         outline:
-          "border-2 border-purple-500 bg-black/40 text-purple-100 shadow-[0_0_15px_rgba(147,51,234,0.3),inset_0_0_15px_rgba(147,51,234,0.1)] hover:shadow-[0_0_25px_rgba(147,51,234,0.5),inset_0_0_20px_rgba(147,51,234,0.2)] hover:border-purple-400 hover:scale-105",
+          "border border-purple-500/30 bg-transparent text-purple-100 shadow-sm hover:bg-purple-500/10",
         secondary:
-          "bg-gradient-to-b from-slate-600 via-slate-700 to-slate-900 text-white shadow-[0_6px_0_0_#0f172a,0_8px_15px_rgba(15,23,42,0.5)] hover:shadow-[0_4px_0_0_#0f172a,0_6px_10px_rgba(15,23,42,0.6)] hover:translate-y-[2px] active:shadow-[0_0px_0_0_#0f172a] active:translate-y-[6px] border-t border-slate-500/50",
-        ghost: "hover:bg-purple-500/20 hover:text-purple-100 text-purple-200/70 hover:shadow-[0_0_20px_rgba(147,51,234,0.3)] hover:scale-105",
-        link: "text-purple-400 underline-offset-4 hover:underline hover:text-purple-300",
+          "bg-slate-800 text-slate-100 shadow-sm hover:bg-slate-700 border border-slate-700",
+        ghost: "hover:bg-purple-500/10 hover:text-purple-100 text-purple-200/70",
+        link: "text-purple-400 underline-offset-4 hover:underline",
       },
       size: {
         default: "h-9 px-4 py-2",
