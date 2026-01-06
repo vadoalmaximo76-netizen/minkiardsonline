@@ -53,8 +53,8 @@ export const DiceModal: React.FC<DiceModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[110] p-4">
-      <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl p-8 max-w-md w-full text-center border border-gray-700 shadow-2xl">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
+      <div className="premium-panel p-8 max-w-md w-full text-center">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-white font-bold text-2xl tracking-wide" style={{ textShadow: '0 0 10px rgba(255,255,255,0.3)' }}>
             DADO

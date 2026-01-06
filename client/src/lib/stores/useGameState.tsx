@@ -11,6 +11,7 @@ interface Card {
   text?: string;
   eliminatedBy?: string;
   faceDown?: boolean; // True if the card is face-down
+  section?: string; // Section for graveyard categorization (e.g., 'CARTE CANCELLATE')
   // Fusion system
   fusedWith?: string[]; // Array of card IDs that are fused with this card
   isFused?: boolean; // True if this card is part of a fusion

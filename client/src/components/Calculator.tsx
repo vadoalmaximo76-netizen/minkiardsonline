@@ -88,7 +88,7 @@ export const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="bg-gray-800 rounded-lg border border-gray-600 shadow-lg h-full flex flex-col">
+    <div className="premium-panel h-full flex flex-col">
       {/* Header */}
       <div className="flex justify-between items-center p-3 border-b border-gray-600">
         <div className="flex items-center gap-2">

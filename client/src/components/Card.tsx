@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import ReactDOM from "react-dom";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
@@ -7,6 +7,7 @@ import { useAudio } from "../lib/stores/useAudio";
 import { X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
+import { FloatingNumber } from "./FloatingNumber";
 
 interface CardProps {
   card: {
@@ -32,6 +33,14 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const [showTransferSelect, setShowTransferSelect] = useState(false);
   const [isEliminated, setIsEliminated] = useState(false);
   const [powerEffect, setPowerEffect] = useState<'up' | 'down' | null>(null);
+  const [floatingNumbers, setFloatingNumbers] = useState<Array<{
+    id: string;
+    value: number;
+    type: 'damage' | 'heal' | 'star-up' | 'star-down';
+    x: number;
+    y: number;
+  }>>([]);
+  const cardRef = useRef<HTMLDivElement>(null);
   const [showDamageInput, setShowDamageInput] = useState(false);
   const [damageValue, setDamageValue] = useState("");
   const [targetCard, setTargetCard] = useState<any>(null);
@@ -373,16 +382,40 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
       const oldStars = getStars(oldText);
       const newStars = getStars(newText);
 
-      if ((newPti !== null && oldPti !== null && newPti > oldPti) || 
-          (newStars !== null && oldStars !== null && newStars > oldStars)) {
+      const addFloatingNumber = (value: number, type: 'damage' | 'heal' | 'star-up' | 'star-down') => {
+        if (cardRef.current) {
+          const rect = cardRef.current.getBoundingClientRect();
+          const id = `${Date.now()}-${Math.random()}`;
+          setFloatingNumbers(prev => [...prev, {
+            id,
+            value,
+            type,
+            x: rect.left + rect.width / 2,
+            y: rect.top + rect.height / 3
+          }]);
+        }
+      };
+
+      if (newPti !== null && oldPti !== null && newPti > oldPti) {
         setPowerEffect('up');
-        playBeeSound(); // Use existing adequate sound
-        setTimeout(() => setPowerEffect(null), 1000);
-      } else if ((newPti !== null && oldPti !== null && newPti < oldPti) || 
-                 (newStars !== null && oldStars !== null && newStars < oldStars)) {
+        playBeeSound();
+        addFloatingNumber(newPti - oldPti, 'heal');
+        setTimeout(() => setPowerEffect(null), 1200);
+      } else if (newPti !== null && oldPti !== null && newPti < oldPti) {
         setPowerEffect('down');
         playDamageSound();
-        setTimeout(() => setPowerEffect(null), 1000);
+        addFloatingNumber(oldPti - newPti, 'damage');
+        setTimeout(() => setPowerEffect(null), 1200);
+      } else if (newStars !== null && oldStars !== null && newStars > oldStars) {
+        setPowerEffect('up');
+        playBeeSound();
+        addFloatingNumber(newStars - oldStars, 'star-up');
+        setTimeout(() => setPowerEffect(null), 1200);
+      } else if (newStars !== null && oldStars !== null && newStars < oldStars) {
+        setPowerEffect('down');
+        playDamageSound();
+        addFloatingNumber(oldStars - newStars, 'star-down');
+        setTimeout(() => setPowerEffect(null), 1200);
       }
     }
     
@@ -431,16 +464,45 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   
   // Add animation class for newly played cards (when they appear on field)
   const shouldAnimate = location === 'field';
-  const shouldAnimateScaleDissolvenza = location === 'field' && isPersonaggio;
   const isBonus = card.type === 'bonus';
   const isMosse = card.type === 'mosse';
+  const isSpeciali = card.type === 'personaggi_speciali';
+  
+  // Get dramatic entry animation class based on card type
+  const getEntryAnimationClass = () => {
+    if (location !== 'field') return '';
+    if (isPersonaggio && !isSpeciali) return 'card-personaggi-enter';
+    if (isMosse) return 'card-mosse-enter';
+    if (isBonus) return 'card-bonus-enter';
+    if (isSpeciali) return 'card-speciali-enter';
+    return 'card-epic-enter';
+  };
   
   // Random scatter direction for elimination (pre-calculated)
   const [scatterX] = useState(() => (Math.random() - 0.5) * 80 - (Math.random() > 0.5 ? 40 : -40));
   const [scatterY] = useState(() => (Math.random() - 0.5) * 80 - 60);
 
+  const removeFloatingNumber = (id: string) => {
+    setFloatingNumbers(prev => prev.filter(n => n.id !== id));
+  };
+
   return (
-    <div className={`flex flex-col gap-2 ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''}`}>
+    <div 
+      ref={cardRef}
+      className={`flex flex-col gap-2 ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''}`}
+    >
+      {/* Floating Numbers */}
+      {floatingNumbers.map(num => (
+        <FloatingNumber
+          key={num.id}
+          value={num.value}
+          type={num.type}
+          x={num.x}
+          y={num.y}
+          onComplete={() => removeFloatingNumber(num.id)}
+        />
+      ))}
+      
       {/* Card Image */}
       <div 
         className="relative"
@@ -452,9 +514,10 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
           src={showBack || card.faceDown ? card.backImage : card.frontImage}
           alt="Card"
           className={`w-14 h-auto aspect-[2/3] sm:w-16 md:w-20 lg:w-24 card-master cursor-pointer shadow-lg object-cover
-            ${shouldAnimateScaleDissolvenza ? 'card-scale-dissolve' : shouldAnimate ? 'card-appear' : ''} 
-            ${isBonus && location === 'field' ? 'card-bonus-premium' : ''}
-            ${isMosse && location === 'field' ? 'card-mosse-premium' : ''}
+            ${getEntryAnimationClass()}
+            ${isBonus && location === 'field' ? 'card-bonus-premium card-active-glow' : ''}
+            ${isMosse && location === 'field' ? 'card-mosse-premium card-active-glow' : ''}
+            ${isPersonaggio && location === 'field' ? 'card-active-glow' : ''}
             ${isEliminated && isPersonaggio ? 'card-disperse' : ''} 
             ${isShaking && !isEliminated ? 'animate-shake' : ''} 
             ${isMosseSelected ? 'ring-4 ring-purple-500 ring-opacity-70' : ''}

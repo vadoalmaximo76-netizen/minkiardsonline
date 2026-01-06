@@ -165,7 +165,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
         <img
           src={backImage}
           alt={`${name} back`}
-          className={`w-14 sm:w-16 md:w-20 lg:w-24 aspect-[2/3] object-cover rounded-md sm:rounded-lg md:rounded-xl cursor-pointer hover:scale-105 transition-transform shadow-lg ${isShuffling ? 'animate-shuffle' : ''}`}
+          className={`w-14 sm:w-16 md:w-20 lg:w-24 aspect-[2/3] object-cover rounded-md sm:rounded-lg md:rounded-xl cursor-pointer deck-3d shadow-lg ${isShuffling ? 'animate-shuffle' : ''}`}
           onClick={handlePickCard}
         />
         
@@ -196,7 +196,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
           }}
         >
           <div 
-            className="bg-gray-900 rounded-lg shadow-2xl border-4 border-purple-600 flex flex-col w-[98vw] h-[95vh] sm:w-[95vw] sm:h-[92vh] lg:w-[92vw] lg:h-[85vh] max-w-[2000px]"
+            className="premium-panel flex flex-col w-[98vw] h-[95vh] sm:w-[95vw] sm:h-[92vh] lg:w-[92vw] lg:h-[85vh] max-w-[2000px]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}

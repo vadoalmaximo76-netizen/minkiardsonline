@@ -88,7 +88,7 @@ export const Chat: React.FC<ChatProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="bg-gray-800 rounded-lg shadow-lg h-full flex flex-col">
+    <div className="premium-panel h-full flex flex-col">
       {/* Header */}
       <div className="flex justify-between items-center p-3 border-b border-gray-600">
         <h3 className="text-white font-semibold">Chat</h3>

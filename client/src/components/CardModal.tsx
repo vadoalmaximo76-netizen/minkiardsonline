@@ -410,8 +410,8 @@ export const CardModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-      <div className="bg-gray-800 rounded-lg p-6 max-w-lg w-full">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+      <div className="premium-panel p-6 max-w-lg w-full">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-white font-bold text-lg">{cardName}</h3>
           <Button
@@ -674,8 +674,8 @@ export const CardModal: React.FC = () => {
 
       {/* Player Selection Modal for MOSTRA */}
       {showPlayerSelect && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-60 p-4">
-          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-60 p-4">
+          <div className="premium-panel p-6 max-w-md w-full">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-white font-bold text-lg">Mostra carta a:</h3>
               <Button
@@ -704,8 +704,8 @@ export const CardModal: React.FC = () => {
 
       {/* Player Selection Modal for CEDI */}
       {showTransferSelect && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-60 p-4">
-          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-60 p-4">
+          <div className="premium-panel p-6 max-w-md w-full">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-white font-bold text-lg">Cedi carta a:</h3>
               <Button
@@ -738,8 +738,8 @@ export const CardModal: React.FC = () => {
 
       {/* Card Swap Modal for all card types */}
       {showSwapSelect && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-60 p-4">
-          <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-60 p-4">
+          <div className="premium-panel p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-white font-bold text-lg">Scambia con qualsiasi carta:</h3>
               <Button
@@ -801,8 +801,8 @@ export const CardModal: React.FC = () => {
 
       {/* Card Fusion Modal for PERSONAGGI */}
       {showFusionSelect && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
-          <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
+          <div className="premium-panel p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-white font-bold text-lg">Fondi con quale PERSONAGGIO:</h3>
               <Button
@@ -852,8 +852,8 @@ export const CardModal: React.FC = () => {
 
       {/* DUELLO Selection Modal */}
       {showDuelSelect && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
-          <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
+          <div className="premium-panel p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-white font-bold text-lg">⚔️ DUELLO - Seleziona il personaggio avversario:</h3>
               <Button
@@ -903,8 +903,8 @@ export const CardModal: React.FC = () => {
 
       {/* BAMBOLA VOODOO Selection Modal */}
       {showVoodooSelect && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4">
-          <div className="bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
+          <div className="premium-panel p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-white font-bold text-lg">🔮 BAMBOLA VOODOO - Seleziona 2 PERSONAGGI da collegare:</h3>
               <Button
