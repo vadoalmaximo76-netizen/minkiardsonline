@@ -124,6 +124,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [deathEffectVisible, setDeathEffectVisible] = useState(false);
   const [deadCharacterName, setDeadCharacterName] = useState<string>("");
   const [deathEffectKey, setDeathEffectKey] = useState(0);
+  const [choosingNotification, setChoosingNotification] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
     const { selectedCard, gameId, playerName, gameState, setGameId, setUserRankiardPoints, resetPRSpent } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted, playAttackSound, playDeathSound, playCardPickup, playCardPlay, playTurnChange, playBonusActivated } = useAudio();
 
@@ -482,6 +483,18 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('super-dice-rolled', handleSuperDiceRolled);
     socket.on('soros-activated', handleSorosActivation);
 
+    // Handler for player choosing a card notification
+    const handlePlayerChoosingNotification = ({ playerName: chooserName, deckName, message }: { 
+      playerName: string, deckName: string, message: string 
+    }) => {
+      setChoosingNotification({ visible: true, message });
+      // Auto-hide after 3 seconds
+      setTimeout(() => {
+        setChoosingNotification({ visible: false, message: '' });
+      }, 3000);
+    };
+    socket.on('player-choosing-notification', handlePlayerChoosingNotification);
+
     const handleInstructionExecuted = ({ playerName: instructorName, instruction, result, timestamp }: { 
       playerName: string, instruction: string, result: string, timestamp: number 
     }) => {
@@ -618,6 +631,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('game-victory', handleGameVictory);
       socket.off('fusion-error', handleFusionError);
       socket.off('voodoo:error', handleVoodooError);
+      socket.off('player-choosing-notification', handlePlayerChoosingNotification);
     };
   }, []);
 
@@ -1128,13 +1142,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
         {/* Add Cards, Scenari and Leave Game Buttons - Bottom of page */}
         <div className="mt-4 sm:mt-8 md:mt-16 mb-2 sm:mb-4 md:mb-8 grid grid-cols-2 sm:flex sm:flex-row justify-center gap-1.5 sm:gap-2 md:gap-4 px-2 sm:px-4">
-          <Button
-            onClick={() => setAddCardsModalOpen(true)}
-            className="btn-neon-yellow text-white font-bold rounded-lg sm:rounded-xl px-2 sm:px-4 md:px-6 py-1.5 sm:py-2 md:py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-1 sm:gap-2 md:gap-3"
-          >
-            <Plus size={14} className="sm:w-4 sm:h-4 md:w-6 md:h-6" />
-            <span className="text-[10px] sm:text-sm md:text-base">AGGIUNGI</span>
-          </Button>
+          {/* Only show AGGIUNGI button for registered users (not guests) */}
+          {authenticatedUser && authenticatedUser.id > 0 && (
+            <Button
+              onClick={() => setAddCardsModalOpen(true)}
+              className="btn-neon-yellow text-white font-bold rounded-lg sm:rounded-xl px-2 sm:px-4 md:px-6 py-1.5 sm:py-2 md:py-4 shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-1 sm:gap-2 md:gap-3"
+            >
+              <Plus size={14} className="sm:w-4 sm:h-4 md:w-6 md:h-6" />
+              <span className="text-[10px] sm:text-sm md:text-base">AGGIUNGI</span>
+            </Button>
+          )}
           <Button
             onClick={() => {
               socket.emit('toggle-scenario-cards', { 
@@ -1182,6 +1199,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             onOpenChat={handleOpenChat}
           />
         ))}
+
+        {/* Player Choosing Card Notification */}
+        {choosingNotification.visible && (
+          <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 animate-slide-down">
+            <div className="bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3">
+              <span className="text-2xl">🎴</span>
+              <span className="font-semibold">{choosingNotification.message}</span>
+            </div>
+          </div>
+        )}
 
         {/* Graveyard Milestone Notification */}
         <FullScreenNotification

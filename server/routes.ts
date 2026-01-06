@@ -714,6 +714,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // Notify other players when someone is choosing a card from a deck
+    socket.on('player-choosing-card', ({ playerName, deckName }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        // Broadcast to all OTHER players in the game (not the one choosing)
+        socket.to(gameId).emit('player-choosing-notification', {
+          playerName,
+          deckName,
+          message: `L'utente ${playerName} sta scegliendo una carta dal mazzo ${deckName}`
+        });
+      }
+    });
+
     socket.on('set-avatar', ({ avatarId }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (!gameId) return;

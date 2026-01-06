@@ -75,6 +75,10 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
     console.log('SCEGLI clicked - PANNELLO ORIZZONTALE 1800x500');
     console.log('Setting showBrowser to true for deck:', name);
     console.log('Current cards in deck:', getSortedCards().length);
+    
+    // Notify other players that this player is choosing a card
+    socket.emit('player-choosing-card', { playerName, deckName: name });
+    
     setShowBrowser(true);
   };
 
