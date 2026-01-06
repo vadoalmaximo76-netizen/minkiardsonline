@@ -21,6 +21,26 @@ const parseStars = (text: string | undefined): number | null => {
   return match ? parseInt(match[1], 10) : null;
 };
 
+const parseOriginalPTI = (text: string | undefined): number | null => {
+  if (!text) return null;
+  const match = text.match(/PTI originali:\s*(\d+)/i);
+  return match ? parseInt(match[1], 10) : null;
+};
+
+const getHealthPercentage = (currentPTI: number | null, originalPTI: number | null): number => {
+  if (currentPTI === null || originalPTI === null || originalPTI <= 0) return 100;
+  const percentage = Math.max(0, Math.min(100, (currentPTI / originalPTI) * 100));
+  return percentage;
+};
+
+const getHealthBarColor = (percentage: number): string => {
+  if (percentage >= 80) return 'from-cyan-400 via-blue-500 to-blue-600';
+  if (percentage >= 60) return 'from-green-400 via-teal-500 to-cyan-500';
+  if (percentage >= 40) return 'from-yellow-400 via-orange-500 to-amber-500';
+  if (percentage >= 20) return 'from-orange-500 via-red-500 to-red-600';
+  return 'from-red-600 via-red-700 to-red-900';
+};
+
 interface CardProps {
   card: {
     id: string;
@@ -612,41 +632,74 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         />
       ))}
       
-      {/* Card Image */}
-      <div 
-        className="relative"
-        style={isEliminated && isPersonaggio ? {
-          '--tx': `translate(${scatterX}px, ${scatterY}px)`
-        } as React.CSSProperties : undefined}
-      >
-        <img
-          src={showBack || card.faceDown ? card.backImage : card.frontImage}
-          alt="Card"
-          className={`w-14 h-auto aspect-[2/3] sm:w-16 md:w-20 lg:w-24 card-master cursor-pointer object-cover rounded-xl
-            ${getEntryAnimationClass()}
-            ${card.type === 'personaggi' ? 'card-border-personaggi' : ''}
-            ${card.type === 'mosse' ? 'card-border-mosse' : ''}
-            ${card.type === 'bonus' ? 'card-border-bonus' : ''}
-            ${card.type === 'personaggi_speciali' ? 'card-border-speciali' : ''}
-            ${isEliminated && isPersonaggio ? 'card-disperse' : ''} 
-            ${isShaking && !isEliminated ? 'animate-shake' : ''} 
-            ${isMosseSelected ? 'ring-4 ring-purple-500 ring-opacity-70' : ''}
-            ${card.faceDown ? 'ring-2 ring-orange-400 ring-opacity-50' : ''}`}
-          onClick={handleCardClick}
-        />
+      {/* Card Image with Health Bar */}
+      <div className="flex gap-1">
+        {/* Vertical Health Bar for Personaggi */}
+        {isPersonaggio && !card.faceDown && (() => {
+          const currentPTI = parsePTI(card.text);
+          const originalPTI = parseOriginalPTI(card.text);
+          const healthPercent = getHealthPercentage(currentPTI, originalPTI);
+          const colorClass = getHealthBarColor(healthPercent);
+          
+          return (
+            <div className="relative flex flex-col items-center justify-end w-2 sm:w-2.5 h-auto self-stretch">
+              {/* Health bar background */}
+              <div className="absolute inset-0 bg-gray-900/80 rounded-full border border-gray-600/50 overflow-hidden"
+                style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.5)' }}>
+                {/* Health bar fill */}
+                <div 
+                  className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t ${colorClass} transition-all duration-500 ease-out rounded-full`}
+                  style={{ 
+                    height: `${healthPercent}%`,
+                    boxShadow: healthPercent > 0 ? `0 0 8px rgba(59, 130, 246, 0.5), inset 0 1px 2px rgba(255,255,255,0.3)` : 'none'
+                  }}
+                />
+                {/* Gloss overlay */}
+                <div className="absolute inset-0 bg-gradient-to-r from-white/20 via-transparent to-transparent rounded-full pointer-events-none" />
+              </div>
+              {/* Health percentage indicator */}
+              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[6px] font-bold text-white drop-shadow-lg whitespace-nowrap">
+                {Math.round(healthPercent)}%
+              </div>
+            </div>
+          );
+        })()}
         
-        {location === 'field' && (
-          <div className="absolute -top-2 left-0 bg-black/70 text-white px-2 py-1 rounded text-xs">
-            {card.owner}
-          </div>
-        )}
-        
-        {/* Red X elimination animation */}
-        {isEliminated && !isPersonaggio && (
-          <div className="absolute inset-0 flex items-center justify-center bg-red-600/50 rounded-xl animate-pulse">
-            <X size={32} className="text-white animate-ping" />
-          </div>
-        )}
+        <div 
+          className="relative"
+          style={isEliminated && isPersonaggio ? {
+            '--tx': `translate(${scatterX}px, ${scatterY}px)`
+          } as React.CSSProperties : undefined}
+        >
+          <img
+            src={showBack || card.faceDown ? card.backImage : card.frontImage}
+            alt="Card"
+            className={`w-14 h-auto aspect-[2/3] sm:w-16 md:w-20 lg:w-24 card-master cursor-pointer object-cover rounded-xl
+              ${getEntryAnimationClass()}
+              ${card.type === 'personaggi' ? 'card-border-personaggi' : ''}
+              ${card.type === 'mosse' ? 'card-border-mosse' : ''}
+              ${card.type === 'bonus' ? 'card-border-bonus' : ''}
+              ${card.type === 'personaggi_speciali' ? 'card-border-speciali' : ''}
+              ${isEliminated && isPersonaggio ? 'card-disperse' : ''} 
+              ${isShaking && !isEliminated ? 'animate-shake' : ''} 
+              ${isMosseSelected ? 'ring-4 ring-purple-500 ring-opacity-70' : ''}
+              ${card.faceDown ? 'ring-2 ring-orange-400 ring-opacity-50' : ''}`}
+            onClick={handleCardClick}
+          />
+          
+          {location === 'field' && (
+            <div className="absolute -top-2 left-0 bg-black/70 text-white px-2 py-1 rounded text-xs">
+              {card.owner}
+            </div>
+          )}
+          
+          {/* Red X elimination animation */}
+          {isEliminated && !isPersonaggio && (
+            <div className="absolute inset-0 flex items-center justify-center bg-red-600/50 rounded-xl animate-pulse">
+              <X size={32} className="text-white animate-ping" />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Card Text - Only show for non-fused cards or fusion leaders */}

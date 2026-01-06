@@ -2359,7 +2359,7 @@ Rispondi SOLO in JSON:`;
         const pti = dbResult.pti || 1000;
         const stars = dbResult.stars || 1;
         
-        let autoText = `PTI: ${pti} | Stelle: ${stars}`;
+        let autoText = `PTI: ${pti} | Stelle: ${stars} | PTI originali: ${pti}`;
         
         card.text = autoText;
         console.log(`${playerName} auto-analyzed from database: ${autoText}`);
@@ -2374,24 +2374,24 @@ Rispondi SOLO in JSON:`;
           const analysis = await player.cpuInstance.analyzeCardImageDetailed(card.frontImage, 'personaggi');
           
           if (analysis && ((analysis.pti && analysis.pti > 0) || (analysis.stars && analysis.stars > 0))) {
-            let autoText = `PTI: ${analysis.pti} | Stelle: ${analysis.stars}`;
+            let autoText = `PTI: ${analysis.pti} | Stelle: ${analysis.stars} | PTI originali: ${analysis.pti}`;
             
             card.text = autoText;
             console.log(`CPU ${playerName} auto-analyzed with AI fallback: ${autoText}`);
           } else {
-            card.text = 'PTI: 1000 | Stelle: 1';
+            card.text = 'PTI: 1000 | Stelle: 1 | PTI originali: 1000';
             console.log(`Auto-analysis failed for CPU ${playerName}, using default values`);
           }
         } else {
           // For human players, use reasonable defaults if not in database
-          card.text = 'PTI: 1000 | Stelle: 1';
+          card.text = 'PTI: 1000 | Stelle: 1 | PTI originali: 1000';
           console.log(`Human player ${playerName}: card not in database, using default values`);
         }
       }
     } catch (error) {
       console.error(`Error in auto-analysis for ${playerName}:`, error);
       // Fallback text on error
-      card.text = 'PTI: 1000 | Stelle: 1';
+      card.text = 'PTI: 1000 | Stelle: 1 | PTI originali: 1000';
     }
   }
 
