@@ -985,6 +985,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log(`⚔️ DUELLO: Auto-attack will target ${opponentCharacterId}`);
           }
         }
+        
+        // PARASITIC CARDS: Check if PARASSITA or SAIBAIM was played
+        if (result.card && (result.card.type === 'personaggi' || result.card.type === 'personaggi_speciali')) {
+          const parasiticType = gameManager.isParasiticCard(result.card);
+          if (parasiticType && result.card.canReattach !== false) {
+            console.log(`🦠 ${parasiticType} played by ${playerName} - requesting target selection`);
+            
+            const targets = gameManager.getParasiticTargets(gameId, playerName);
+            
+            if (targets.length > 0) {
+              if (playerName.startsWith('CPU-')) {
+                // CPU auto-selects target (highest stars)
+                const target = gameManager.getCPUParasiticTarget(gameId, playerName);
+                if (target) {
+                  console.log(`🦠 CPU ${playerName} auto-targeting ${target.id} with ${parasiticType}`);
+                  const attachResult = await gameManager.attachParasiticCard(gameId, result.card.id, target.id, playerName);
+                  
+                  if (attachResult.success) {
+                    const getCardNameFromUrl = (url: string) => {
+                      const parts = url.split('/');
+                      const filename = parts[parts.length - 1];
+                      return filename.toLowerCase().replace(/\.(png|jpg|jpeg|gif|webp)$/i, '').replace(/[-_]/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+                    };
+                    const targetName = target.name || getCardNameFromUrl(target.frontImage);
+                    
+                    io.to(gameId).emit('parasitic-attached', {
+                      parasiticCardId: result.card.id,
+                      parasiticType,
+                      targetCardId: target.id,
+                      targetName,
+                      ownerPlayer: playerName,
+                      targetPlayer: target.owner
+                    });
+                    
+                    io.to(gameId).emit('chat-message', {
+                      id: `${Date.now()}-parasitic-attach`,
+                      playerName: 'SISTEMA',
+                      message: `🦠 ${parasiticType} di ${playerName} si è agganciato a ${targetName}!`,
+                      timestamp: Date.now()
+                    });
+                    
+                    const updatedState = gameManager.getSanitizedGameState(gameId);
+                    io.to(gameId).emit('game-state-update', updatedState);
+                  }
+                }
+              } else {
+                // Human player - show target selection panel
+                io.to(gameId).emit('parasitic-target-select', {
+                  parasiticCardId: result.card.id,
+                  parasiticType,
+                  ownerPlayer: playerName,
+                  targets: targets.map(t => ({
+                    id: t.id,
+                    frontImage: t.frontImage,
+                    owner: t.owner,
+                    text: t.text
+                  }))
+                });
+              }
+            } else {
+              console.log(`🦠 ${parasiticType} played but no valid targets available`);
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-parasitic-no-target`,
+                playerName: 'SISTEMA',
+                message: `🦠 ${parasiticType} non ha bersagli validi a cui agganciarsi!`,
+                timestamp: Date.now()
+              });
+            }
+          }
+        }
       }
     });
 
@@ -2876,10 +2946,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // PARASITIC CARD: Human player selects target for attachment
+    socket.on('parasitic-attach-target', async ({ gameId, parasiticCardId, targetCardId, playerName }) => {
+      try {
+        console.log(`🦠 ${playerName} selecting target ${targetCardId} for parasitic card ${parasiticCardId}`);
+        
+        const attachResult = await gameManager.attachParasiticCard(gameId, parasiticCardId, targetCardId, playerName);
+        
+        if (attachResult.success && attachResult.attachment) {
+          const gameState = gameManager.getSanitizedGameState(gameId);
+          const targetCard = gameState?.field.find((c: any) => c.id === targetCardId);
+          
+          const getCardNameFromUrl = (url: string) => {
+            const parts = url.split('/');
+            const filename = parts[parts.length - 1];
+            return filename.toLowerCase().replace(/\.(png|jpg|jpeg|gif|webp)$/i, '').replace(/[-_]/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+          };
+          const targetName = targetCard?.name || getCardNameFromUrl(targetCard?.frontImage || '');
+          
+          io.to(gameId).emit('parasitic-attached', {
+            parasiticCardId,
+            parasiticType: attachResult.attachment.parasiticCardName,
+            targetCardId,
+            targetName,
+            ownerPlayer: playerName,
+            targetPlayer: attachResult.attachment.targetPlayer
+          });
+          
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-parasitic-attach`,
+            playerName: 'SISTEMA',
+            message: `🦠 ${attachResult.attachment.parasiticCardName} di ${playerName} si è agganciato a ${targetName}!`,
+            timestamp: Date.now()
+          });
+          
+          io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        } else {
+          socket.emit('parasitic-attach-error', { message: attachResult.message || 'Attachment failed' });
+        }
+      } catch (error) {
+        console.error('Error in parasitic-attach-target:', error);
+        socket.emit('parasitic-attach-error', { message: 'Error attaching parasitic card' });
+      }
+    });
+
     socket.on('end-turn', async ({ gameId, playerName }) => {
       const nextPlayer = gameManager.endTurn(gameId, playerName);
       if (nextPlayer) {
         io.to(gameId).emit('next-turn', { nextPlayer });
+        
+        // Process parasitic card turn effects (PARASSITA drain, SAIBAIM explosion)
+        const parasiticResults = await gameManager.processParasiticTurnEffects(
+          gameId, 
+          nextPlayer,
+          (event, data) => io.to(gameId).emit(event, data)
+        );
+        
+        // Handle SAIBAIM explosions
+        if (parasiticResults.explosions.length > 0) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-saibaim-explosion`,
+            playerName: 'SISTEMA',
+            message: `💥 SAIBAIM è esploso! Due personaggi sono stati eliminati!`,
+            timestamp: Date.now()
+          });
+        }
+        
+        // Handle PARASSITA drains
+        for (const drain of parasiticResults.drains) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-parassita-drain-${drain.cardId}`,
+            playerName: 'SISTEMA',
+            message: `🦠 PARASSITA ha drenato ${drain.ptiDrained} PTI dal bersaglio!`,
+            timestamp: Date.now()
+          });
+        }
+        
+        // Send updated game state after parasitic effects
+        if (parasiticResults.explosions.length > 0 || parasiticResults.drains.length > 0) {
+          io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        }
         
         // Process persistent damages at the START of the next player's turn
         // This applies recurring damage from cards like VIRUS, INFLUENZA, PUOZZA

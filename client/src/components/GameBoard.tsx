@@ -125,6 +125,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [deadCharacterName, setDeadCharacterName] = useState<string>("");
   const [deathEffectKey, setDeathEffectKey] = useState(0);
   const [choosingNotification, setChoosingNotification] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
+  const [parasiticTargetSelect, setParasiticTargetSelect] = useState<{
+    visible: boolean;
+    parasiticCardId: string;
+    parasiticType: 'PARASSITA' | 'SAIBAIM' | null;
+    targets: Array<{ id: string; frontImage: string; owner: string; text?: string }>;
+  }>({ visible: false, parasiticCardId: '', parasiticType: null, targets: [] });
+  const [saibaImExplosionVisible, setSaibaImExplosionVisible] = useState(false);
     const { selectedCard, gameId, playerName, gameState, setGameId, setUserRankiardPoints, resetPRSpent } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted, playAttackSound, playDeathSound, playCardPickup, playCardPlay, playTurnChange, playBonusActivated } = useAudio();
 
@@ -495,6 +502,55 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('player-choosing-notification', handlePlayerChoosingNotification);
 
+    // PARASITIC CARDS: Handler for target selection
+    const handleParasiticTargetSelect = ({ parasiticCardId, parasiticType, ownerPlayer, targets }: {
+      parasiticCardId: string;
+      parasiticType: 'PARASSITA' | 'SAIBAIM';
+      ownerPlayer: string;
+      targets: Array<{ id: string; frontImage: string; owner: string; text?: string }>;
+    }) => {
+      // Only show to the player who owns the parasitic card
+      if (ownerPlayer === playerName) {
+        setParasiticTargetSelect({
+          visible: true,
+          parasiticCardId,
+          parasiticType,
+          targets
+        });
+      }
+    };
+    socket.on('parasitic-target-select', handleParasiticTargetSelect);
+
+    // PARASITIC CARDS: Handler for attachment notification
+    const handleParasiticAttached = ({ parasiticType, targetName, ownerPlayer, targetPlayer }: {
+      parasiticCardId: string;
+      parasiticType: 'PARASSITA' | 'SAIBAIM';
+      targetCardId: string;
+      targetName: string;
+      ownerPlayer: string;
+      targetPlayer: string;
+    }) => {
+      // Only close target selection for the owner player who made the selection
+      if (ownerPlayer === playerName) {
+        setParasiticTargetSelect({ visible: false, parasiticCardId: '', parasiticType: null, targets: [] });
+      }
+    };
+    socket.on('parasitic-attached', handleParasiticAttached);
+
+    // SAIBAIM explosion effect
+    const handleSaibaImExplosion = ({ saibaim, target, targetOwner }: {
+      saibaim: string;
+      target: string;
+      targetOwner: string;
+    }) => {
+      setSaibaImExplosionVisible(true);
+      playCardAnimationSound('BOMBA'); // Use explosion sound
+      setTimeout(() => {
+        setSaibaImExplosionVisible(false);
+      }, 2000);
+    };
+    socket.on('saibaim-explosion', handleSaibaImExplosion);
+
     const handleInstructionExecuted = ({ playerName: instructorName, instruction, result, timestamp }: { 
       playerName: string, instruction: string, result: string, timestamp: number 
     }) => {
@@ -632,6 +688,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('fusion-error', handleFusionError);
       socket.off('voodoo:error', handleVoodooError);
       socket.off('player-choosing-notification', handlePlayerChoosingNotification);
+      socket.off('parasitic-target-select', handleParasiticTargetSelect);
+      socket.off('parasitic-attached', handleParasiticAttached);
+      socket.off('saibaim-explosion', handleSaibaImExplosion);
     };
   }, []);
 
@@ -769,6 +828,82 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             <span className="font-bold">
               {playerEliminationNotification.player} è stato eliminato dalla partita!
             </span>
+          </div>
+        </div>
+      )}
+
+      {/* PARASITIC CARD: Target Selection Dialog */}
+      {parasiticTargetSelect.visible && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-green-900 to-green-700 rounded-lg p-6 w-full max-w-2xl mx-4 border-4 border-green-400 shadow-[0_0_30px_rgba(34,197,94,0.5)]">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-white mb-2" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+                🦠 {parasiticTargetSelect.parasiticType === 'PARASSITA' ? 'PARASSITA' : 'SAIBAIM'}
+              </h2>
+              <p className="text-green-100" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                {parasiticTargetSelect.parasiticType === 'PARASSITA' 
+                  ? 'Scegli il personaggio nemico a cui agganciarti per drenare i suoi PTI!' 
+                  : 'Scegli il personaggio nemico a cui agganciarti per esplodere insieme dopo 3 turni!'}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-80 overflow-y-auto">
+              {parasiticTargetSelect.targets.map((target) => (
+                <button
+                  key={target.id}
+                  onClick={() => {
+                    socket.emit('parasitic-attach-target', {
+                      gameId,
+                      parasiticCardId: parasiticTargetSelect.parasiticCardId,
+                      targetCardId: target.id,
+                      playerName
+                    });
+                  }}
+                  className="bg-gray-800/80 hover:bg-green-600 transition-all duration-200 rounded-lg p-3 border-2 border-green-400 hover:border-green-300 hover:shadow-[0_0_20px_rgba(34,197,94,0.6)]"
+                >
+                  {target.frontImage ? (
+                    <img 
+                      src={target.frontImage} 
+                      alt="Target" 
+                      className="w-full h-32 object-cover rounded mb-2"
+                    />
+                  ) : (
+                    <div className="w-full h-32 bg-gray-700 rounded mb-2 flex items-center justify-center">
+                      <span className="text-white text-xs">Carta</span>
+                    </div>
+                  )}
+                  <p className="text-white text-sm font-bold" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                    {target.owner}
+                  </p>
+                  {target.text && (
+                    <p className="text-green-200 text-xs" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                      {target.text}
+                    </p>
+                  )}
+                </button>
+              ))}
+            </div>
+            <div className="mt-4 text-center">
+              <p className="text-green-200 text-xs" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                {parasiticTargetSelect.parasiticType === 'PARASSITA' 
+                  ? '⚠️ Il PARASSITA non può essere attaccato mentre è agganciato' 
+                  : '⚠️ Il SAIBAIM esploderà dopo 3 turni eliminando entrambi i personaggi'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SAIBAIM Explosion Effect */}
+      {saibaImExplosionVisible && (
+        <div className="fixed inset-0 z-[9999] pointer-events-none">
+          <div className="absolute inset-0 bg-orange-500 animate-pulse opacity-50" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-8xl animate-bounce">💥</div>
+          </div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <h1 className="text-4xl font-bold text-white animate-pulse" style={{textShadow: '4px 4px 8px rgba(0,0,0,0.8)'}}>
+              SAIBAIM È ESPLOSO!
+            </h1>
           </div>
         </div>
       )}

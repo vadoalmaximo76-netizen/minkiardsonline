@@ -30,6 +30,9 @@ interface Card {
   attachedBy?: string[]; // IDs of parasitic cards attached to this character
   canReattach?: boolean; // False after detachment (cannot reattach)
   originalStars?: number; // Store original stars for PARASSITA (copies target's stars)
+  // MOSSE card usage tracking
+  used?: boolean; // Whether this MOSSE card has been used this turn
+  usedBy?: string; // Player who used this MOSSE card
 }
 
 interface Player {
@@ -2569,7 +2572,7 @@ Rispondi SOLO in JSON:`;
     }
   }
 
-  moveToGraveyard(gameId: string, cardId: string, playerName: string, attacker?: string): { success: boolean, graveyardCount?: number, cardImage?: string, eliminationCheck?: boolean, sorosActivated?: boolean, sorosImage?: string, sorosActivator?: string } {
+  moveToGraveyard(gameId: string, cardId: string, playerName: string, attacker?: string): { success: boolean, graveyardCount?: number, cardImage?: string, cardType?: string, eliminationCheck?: boolean, sorosActivated?: boolean, sorosImage?: string, sorosActivator?: string, detachedParasites?: string[] } {
     const game = this.games.get(gameId);
     if (!game) return { success: false };
 
@@ -2579,6 +2582,35 @@ Rispondi SOLO in JSON:`;
       game.persistentDamages = game.persistentDamages.filter(d => d.targetCardId !== cardId);
       if (game.persistentDamages.length < originalLength) {
         console.log(`Persistent damages removed because target ${cardId} moved to graveyard`);
+      }
+    }
+
+    // PARASITIC CARDS: If this card has parasitic attachments, detach them
+    const detachedParasites: string[] = [];
+    if (game.parasiticAttachments) {
+      const attachmentsToDetach = game.parasiticAttachments.filter(
+        a => a.targetCardId === cardId && a.active
+      );
+      
+      for (const attachment of attachmentsToDetach) {
+        const parasiticCard = game.field.find(c => c.id === attachment.parasiticCardId);
+        if (parasiticCard) {
+          // Clear attachment reference
+          parasiticCard.attachedTo = undefined;
+          parasiticCard.canReattach = false; // Cannot reattach after detachment
+          
+          // For PARASSITA: restore original stars
+          if (attachment.parasiticCardName === 'PARASSITA' && parasiticCard.originalStars !== undefined) {
+            const currentPTI = this.extractPTIFromNote(parasiticCard.text || '');
+            parasiticCard.text = `PTI: ${currentPTI} | Stelle: ${parasiticCard.originalStars}`;
+            parasiticCard.originalStars = undefined;
+          }
+          
+          detachedParasites.push(attachment.parasiticCardId);
+          console.log(`🦠 ${attachment.parasiticCardName} (${attachment.parasiticCardId}) detached because target ${cardId} died`);
+        }
+        
+        attachment.active = false;
       }
     }
 
@@ -2630,7 +2662,7 @@ Rispondi SOLO in JSON:`;
                 console.log(`🎭 SOROS automatically played on field for ${attacker}!`);
                 
                 // Return flag indicating SOROS was activated (routes.ts will emit to all players)
-                return { success: true, graveyardCount, cardImage: card.frontImage, eliminationCheck: false, sorosActivated: true, sorosImage: soros.frontImage, sorosActivator: attacker };
+                return { success: true, graveyardCount, cardImage: card.frontImage, cardType: card.type, eliminationCheck: false, sorosActivated: true, sorosImage: soros.frontImage, sorosActivator: attacker, detachedParasites };
               }
             }
           }
@@ -2645,11 +2677,29 @@ Rispondi SOLO in JSON:`;
           }
         }
 
-        return { success: true, graveyardCount, cardImage: card.frontImage, eliminationCheck, sorosActivated: false };
+        return { success: true, graveyardCount, cardImage: card.frontImage, cardType: card.type, eliminationCheck, sorosActivated: false, detachedParasites };
       }
     }
     
-    return { success: false };
+    return { success: false, detachedParasites };
+  }
+
+  // Wrapper for sendCardToGraveyard used by parasitic card system
+  async sendCardToGraveyard(gameId: string, cardId: string, killerPlayer: string, reason: string): Promise<{ success: boolean }> {
+    const game = this.games.get(gameId);
+    if (!game) return { success: false };
+    
+    // Find the card to get its owner
+    const card = game.field.find(c => c.id === cardId);
+    if (!card) return { success: false };
+    
+    const result = this.moveToGraveyard(gameId, cardId, card.owner, killerPlayer);
+    
+    if (result.success) {
+      console.log(`📦 Card ${cardId} sent to graveyard (reason: ${reason})`);
+    }
+    
+    return { success: result.success };
   }
 
 
