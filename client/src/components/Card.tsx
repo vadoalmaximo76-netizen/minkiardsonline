@@ -513,11 +513,12 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         <img
           src={showBack || card.faceDown ? card.backImage : card.frontImage}
           alt="Card"
-          className={`w-14 h-auto aspect-[2/3] sm:w-16 md:w-20 lg:w-24 card-master cursor-pointer shadow-lg object-cover
+          className={`w-14 h-auto aspect-[2/3] sm:w-16 md:w-20 lg:w-24 card-master cursor-pointer object-cover rounded-xl
             ${getEntryAnimationClass()}
-            ${isBonus && location === 'field' ? 'card-bonus-premium card-active-glow' : ''}
-            ${isMosse && location === 'field' ? 'card-mosse-premium card-active-glow' : ''}
-            ${isPersonaggio && location === 'field' ? 'card-active-glow' : ''}
+            ${card.type === 'personaggi' ? 'card-border-personaggi' : ''}
+            ${card.type === 'mosse' ? 'card-border-mosse' : ''}
+            ${card.type === 'bonus' ? 'card-border-bonus' : ''}
+            ${card.type === 'personaggi_speciali' ? 'card-border-speciali' : ''}
             ${isEliminated && isPersonaggio ? 'card-disperse' : ''} 
             ${isShaking && !isEliminated ? 'animate-shake' : ''} 
             ${isMosseSelected ? 'ring-4 ring-purple-500 ring-opacity-70' : ''}
