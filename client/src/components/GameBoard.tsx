@@ -29,6 +29,7 @@ import { VoiceChat } from "./VoiceChat";
 import { PickedCardModal } from "./PickedCardModal";
 import { SorosActivation } from "./SorosActivation";
 import { CharacterEffects } from "./CharacterEffects";
+import { TutorialOverlay } from "./TutorialOverlay";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
@@ -73,6 +74,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [personaggioMessage, setPersonaggioMessage] = useState<string>("");
   const [personaggioCardImage, setPersonaggioCardImage] = useState<string>("");
   const [addCardsModalOpen, setAddCardsModalOpen] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem("minkiards-tutorial-completed") !== "true";
+  });
   const [playerOrderVisible, setPlayerOrderVisible] = useState(false);
   const [playerOrder, setPlayerOrder] = useState<string[]>([]);
   const [nextTurnVisible, setNextTurnVisible] = useState(false);
@@ -944,8 +949,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         />
 
         {/* Game controls */}
-        <div className="fixed bottom-2 landscape:bottom-4 md:bottom-4 right-2 landscape:right-4 md:right-4 flex flex-col gap-1 landscape:gap-2 md:gap-2 z-50">
+        <div data-tutorial="tools" className="fixed bottom-2 landscape:bottom-4 md:bottom-4 right-2 landscape:right-4 md:right-4 flex flex-col gap-1 landscape:gap-2 md:gap-2 z-50">
           <Button
+            data-tutorial="hand"
             onClick={() => setHandModalOpen(true)}
             className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
             title="Carte in Mano"
@@ -1381,6 +1387,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 }, 500);
               }
             }}
+          />
+        )}
+
+        {/* Tutorial Overlay for new players */}
+        {showTutorial && (
+          <TutorialOverlay
+            onComplete={() => setShowTutorial(false)}
+            onSkip={() => setShowTutorial(false)}
           />
         )}
       </div>

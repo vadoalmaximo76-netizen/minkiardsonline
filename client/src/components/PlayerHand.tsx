@@ -45,6 +45,7 @@ export const PlayerHand: React.FC = () => {
           <span className="sm:hidden">MANO</span>
         </h2>
         <Button
+          data-tutorial="end-turn"
           onClick={handleEndTurn}
           className="sky-blue-button text-xs sm:text-sm px-2 sm:px-4 py-1 sm:py-2"
           title="Termina il turno del giocatore corrente e passa al successivo"

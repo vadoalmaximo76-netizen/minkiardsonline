@@ -220,6 +220,7 @@ export const RoundTable: React.FC = () => {
       
       {/* Rectangular Table Container - taller to fit all cards */}
       <div 
+        data-tutorial="field"
         className="relative w-[85vw] h-[95vh] landscape:w-[95vw] landscape:h-[95vh] sm:w-[90vw] sm:h-[90vh] md:w-[95vw] md:h-[95vh] lg:w-[98vw] lg:h-[95vh] xl:w-[98vw] xl:h-[98vh] max-w-[1600px] max-h-[1400px] min-w-[320px] min-h-[500px] mx-auto border-4 landscape:border-8 md:border-8 border-purple-500/30 game-field bg-no-repeat overflow-visible touch-manipulation"
         style={{
           borderRadius: '24px',
@@ -238,7 +239,7 @@ export const RoundTable: React.FC = () => {
         
         {/* Center Area - Decks with protection zone - centered vertically */}
         <div className="absolute top-[45%] sm:top-[45%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-3 md:gap-4 items-start justify-center bg-black/40 rounded-lg sm:rounded-xl p-2 sm:p-3 md:p-4 backdrop-blur-sm">
+          <div data-tutorial="decks" className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-3 md:gap-4 items-start justify-center bg-black/40 rounded-lg sm:rounded-xl p-2 sm:p-3 md:p-4 backdrop-blur-sm">
             <Deck
               name="PERSONAGGI"
               backImage="https://i.imgur.com/r1rfUAB.png"
