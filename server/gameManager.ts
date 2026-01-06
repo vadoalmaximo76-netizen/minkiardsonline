@@ -3595,6 +3595,83 @@ Rispondi SOLO in JSON:`;
             card.text = cleanText ? `${cleanText} | ${suffix}` : suffix;
           }
         });
+        
+        // PARASITIC CARDS: Process PARASSITA drain and SAIBAIM timer for cards owned by next player
+        const parasiticCards = gameState.field.filter(card => 
+          card.owner === nextPlayer && 
+          card.attachedTo && 
+          (card.type === 'personaggi' || card.type === 'personaggi_speciali')
+        );
+        
+        for (const parasite of parasiticCards) {
+          const parasiteName = this.getCardNameFromUrl(parasite.frontImage || '').toUpperCase();
+          const targetCard = gameState.field.find(c => c.id === parasite.attachedTo);
+          
+          if (!targetCard) {
+            // Target no longer exists, detach the parasite
+            console.log(`🦠 PARASITE DETACH: Target ${parasite.attachedTo} no longer exists`);
+            parasite.attachedTo = undefined;
+            parasite.canReattach = false;
+            continue;
+          }
+          
+          if (parasiteName.includes('PARASSITA')) {
+            // PARASSITA: Drain 100 PTI from target and add to self
+            const targetNotes = targetCard.text || '';
+            const targetPtiMatch = targetNotes.match(/PTI:\s*(\d+)/i);
+            let targetPti = targetPtiMatch ? parseInt(targetPtiMatch[1]) : 0;
+            
+            const parasiteNotes = parasite.text || '';
+            const parasitePtiMatch = parasiteNotes.match(/PTI:\s*(\d+)/i);
+            let parasitePti = parasitePtiMatch ? parseInt(parasitePtiMatch[1]) : 300; // Default PARASSITA PTI
+            
+            // Drain 100 PTI
+            const drainAmount = Math.min(100, targetPti);
+            targetPti -= drainAmount;
+            parasitePti += drainAmount;
+            
+            // Update target card PTI
+            let cleanTargetText = targetNotes.replace(/PTI:\s*\d+/i, '').replace(/^\s*\|\s*/, '').replace(/\s*\|\s*$/, '').trim();
+            targetCard.text = cleanTargetText ? `PTI: ${targetPti} | ${cleanTargetText}` : `PTI: ${targetPti}`;
+            
+            // Update parasite card PTI (preserve stars)
+            let cleanParasiteText = parasiteNotes.replace(/PTI:\s*\d+/i, '').replace(/^\s*\|\s*/, '').replace(/\s*\|\s*$/, '').trim();
+            parasite.text = cleanParasiteText ? `PTI: ${parasitePti} | ${cleanParasiteText}` : `PTI: ${parasitePti}`;
+            
+            console.log(`🦠 PARASSITA DRAIN: Drained ${drainAmount} PTI from ${targetCard.owner}'s card. Target now has ${targetPti} PTI, PARASSITA has ${parasitePti} PTI`);
+            
+            // Check if target died from drain
+            if (targetPti <= 0) {
+              console.log(`🦠 PARASSITA DRAIN KILL: Target died from PTI drain!`);
+              // Mark for graveyard processing (will be handled separately)
+              (parasite as any).targetDiedFromDrain = true;
+              (parasite as any).targetIdForDeath = targetCard.id;
+              (parasite as any).targetOwnerForDeath = targetCard.owner;
+            }
+          } else if (parasiteName.includes('SAIBAIM')) {
+            // SAIBAIM: Increment turn counter
+            parasite.turnCounter = (parasite.turnCounter || 0) + 1;
+            
+            // Update text to show turn count
+            let cleanText = (parasite.text || '').replace(/\s\|\s\d+\sTURN[IO]/gi, '').trim();
+            if (/^\d+\sTURN[IO]$/i.test(cleanText)) {
+              cleanText = '';
+            }
+            const suffix = parasite.turnCounter === 1 ? '1 TURNO' : `${parasite.turnCounter} TURNI`;
+            parasite.text = cleanText ? `${cleanText} | ${suffix}` : suffix;
+            
+            console.log(`🦠 SAIBAIM TIMER: Turn ${parasite.turnCounter}/3 for explosion`);
+            
+            // Check if 3 turns have passed
+            if (parasite.turnCounter >= 3) {
+              console.log(`💥 SAIBAIM EXPLOSION: 3 turns reached! Killing both SAIBAIM and target!`);
+              // Mark for explosion processing
+              (parasite as any).readyToExplode = true;
+              (parasite as any).explosionTargetId = targetCard.id;
+              (parasite as any).explosionTargetOwner = targetCard.owner;
+            }
+          }
+        }
 
         // Found a non-eliminated player
         // Initialize usedCardsThisTurn for the next player if not exists
@@ -4931,6 +5008,58 @@ Rispondi SOLO in JSON:`;
     if (!targetCard || !targetOwner || (targetCard.type !== 'personaggi' && targetCard.type !== 'personaggi_speciali')) {
       console.log(`Target card ${targetCardId} not found${isHandTarget ? ' in hand' : ' on field'} or not a character`);
       return;
+    }
+
+    // PARASITIC CARD ATTACK IMMUNITY CHECK
+    // Check if targetCard has attached parasitic cards (is being parasitized)
+    // PARASSITA: Cannot be attacked by anyone while attached
+    // SAIBAIM: Cannot be attacked by its target while attached
+    const attachedParasites = game?.field?.filter((c: Card) => c.attachedTo === targetCardId) || [];
+    for (const parasite of attachedParasites) {
+      const parasiteName = this.getCardNameFromUrl(parasite.frontImage || '').toUpperCase();
+      
+      if (parasiteName.includes('PARASSITA')) {
+        // PARASSITA cannot be attacked while attached - check if trying to attack the PARASSITA itself
+        if (targetCardId === parasite.id) {
+          console.log(`🦠 ATTACK BLOCKED: PARASSITA ${parasite.id} cannot be attacked while attached`);
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-parassita-immune`,
+            playerName: 'Sistema',
+            message: `🦠 PARASSITA non può essere attaccato mentre è agganciato!`,
+            timestamp: Date.now()
+          });
+          return;
+        }
+      }
+    }
+    
+    // Check if the target card IS a PARASSITA or SAIBAIM that's attached
+    const targetCardName = this.getCardNameFromUrl(targetCard.frontImage || '').toUpperCase();
+    if (targetCard.attachedTo) {
+      if (targetCardName.includes('PARASSITA')) {
+        // PARASSITA cannot be attacked by anyone while attached
+        console.log(`🦠 ATTACK BLOCKED: PARASSITA ${targetCardId} cannot be attacked while attached`);
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-parassita-immune`,
+          playerName: 'Sistema',
+          message: `🦠 PARASSITA non può essere attaccato mentre è agganciato!`,
+          timestamp: Date.now()
+        });
+        return;
+      } else if (targetCardName.includes('SAIBAIM')) {
+        // SAIBAIM cannot be attacked by its target
+        const attachedTargetCard = game?.field?.find((c: Card) => c.id === targetCard.attachedTo);
+        if (attachedTargetCard && attachedTargetCard.owner === attackerName) {
+          console.log(`🦠 ATTACK BLOCKED: SAIBAIM ${targetCardId} cannot be attacked by its target ${attackerName}`);
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-saibaim-immune`,
+            playerName: 'Sistema',
+            message: `🦠 SAIBAIM non può essere attaccato dal personaggio a cui è agganciato!`,
+            timestamp: Date.now()
+          });
+          return;
+        }
+      }
     }
 
     // PERSISTENT DAMAGE REGISTRATION (VIRUS, INFLUENZA, PUOZZA ITT L SANG)
