@@ -4961,7 +4961,7 @@ Rispondi SOLO in JSON:`;
       
       // Try to get PTI from database
       const cardName = this.getCardNameFromUrl(targetCard.frontImage || '');
-      const dbData = await this.getPersonaggioStats(cardName);
+      const dbData = await this.getPersonaggioFromDatabase(cardName);
       
       if (dbData && dbData.pti !== null) {
         // Found in database - set the PTI and stars on the card

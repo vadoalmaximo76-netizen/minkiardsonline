@@ -2357,7 +2357,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const emissionSuccess = await gameManager.emitDefenseRequest(gameId, io);
           if (!emissionSuccess) {
             console.log(`⚠️ Failed to emit defense request - proceeding with damage`);
-            await gameManager.processMosseDamage(gameId, attackerName, targetCardId, damageValue, mosseCardId, io, false, false, isFurtoAttack || false);
+            await gameManager.processMosseDamage(gameId, attackerName, targetCardId, damageValue, mosseCardId, io, false, isHandTarget || false, isFurtoAttack || false);
           }
           
           // Attack is pending defense response - processing will continue in defense:response handler
