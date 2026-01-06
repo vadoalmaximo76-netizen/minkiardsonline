@@ -1495,6 +1495,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             setTimeout(async () => {
               const result = await gameManager.eliminatePersonaggi(gameId, cardId, card.owner);
               if (result.success) {
+                // Trigger CIMICE death effect if card had CIMICE power (native or copied)
+                if (result.hasCimicePower) {
+                  console.log(`🪲 CIMICE power death triggered via update-card-text auto-elimination`);
+                  await gameManager.processCimiceDeathEffect(gameId, cardId, io);
+                }
+                
                 const updatedGameState = gameManager.getSanitizedGameState(gameId);
                 io.to(gameId).emit('game-state-update', updatedGameState);
 
@@ -2874,6 +2880,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gameId) {
         const result = await gameManager.eliminatePersonaggi(gameId, cardId, playerName);
         if (result.success) {
+          // Trigger CIMICE death effect if card had CIMICE power (native or copied)
+          if (result.hasCimicePower) {
+            console.log(`🪲 CIMICE power death triggered via eliminate-personaggi`);
+            await gameManager.processCimiceDeathEffect(gameId, cardId, io);
+          }
+          
           const gameState = gameManager.getSanitizedGameState(gameId);
           io.to(gameId).emit('game-state-update', gameState);
 

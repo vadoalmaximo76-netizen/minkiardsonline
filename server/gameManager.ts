@@ -2701,17 +2701,19 @@ Rispondi SOLO in JSON:`;
     );
     
     for (const card of fieldCharacters) {
-      // Extra safety: skip any card that is CIMICE by name
+      // Extra safety: skip any card that is CIMICE by name or has CIMICE power (shouldn't damage itself)
       const cardName = this.getCardNameFromUrl(card.frontImage || '').toUpperCase();
-      if (cardName.includes('CIMICE')) {
-        console.log(`🪲 Skipping CIMICE (${card.id}) - should not damage itself`);
+      if (cardName.includes('CIMICE') || card.copiedPower === 'CIMICE') {
+        console.log(`🪲 Skipping CIMICE power card (${card.id}) - should not damage itself`);
         continue;
       }
       
       const cardPTI = this.extractPTIFromNote(card.text || '');
       const cardStars = this.extractStarsFromNote(card.text || '');
       const newPTI = Math.max(0, cardPTI - 500);
-      card.text = `PTI: ${newPTI} | Stelle: ${cardStars}`;
+      // Preserve the "Potere di" notation if present
+      const powerMatch = card.text?.match(/\|\s*Potere di\s+\w+/i);
+      card.text = `PTI: ${newPTI} | Stelle: ${cardStars}${powerMatch ? ` ${powerMatch[0]}` : ''}`;
       
       affectedCards.push({
         id: card.id,
@@ -3471,7 +3473,7 @@ Rispondi SOLO in JSON:`;
     }
   }
 
-  async eliminatePersonaggi(gameId: string, cardId: string, playerName: string): Promise<{ success: boolean, cardImage?: string, cardType?: string, eliminationCheck?: boolean }> {
+  async eliminatePersonaggi(gameId: string, cardId: string, playerName: string): Promise<{ success: boolean, cardImage?: string, cardType?: string, eliminationCheck?: boolean, hasCimicePower?: boolean }> {
     const game = this.games.get(gameId);
     if (!game) return { success: false };
 
@@ -3480,7 +3482,14 @@ Rispondi SOLO in JSON:`;
       const cardIndex = game.field.findIndex(card => card.id === cardId && (card.type === 'personaggi' || card.type === 'personaggi_speciali'));
       if (cardIndex === -1) return { success: false };
 
-      const card = game.field.splice(cardIndex, 1)[0];
+      const card = game.field[cardIndex];
+      
+      // Check if card has CIMICE power (native or copied) before removing
+      const cardName = this.getCardNameFromUrl(card.frontImage || '').toUpperCase();
+      const hasCimicePower = cardName.includes('CIMICE') || card.copiedPower === 'CIMICE';
+      
+      // Now remove the card
+      game.field.splice(cardIndex, 1);
       
       // Mark as eliminated and add to graveyard
       card.eliminatedBy = playerName;
@@ -3508,7 +3517,7 @@ Rispondi SOLO in JSON:`;
         eliminatedBy: playerName
       }, playerName);
 
-      return { success: true, cardImage: card.frontImage, cardType: card.type, eliminationCheck };
+      return { success: true, cardImage: card.frontImage, cardType: card.type, eliminationCheck, hasCimicePower };
     } catch (error) {
       console.error('Error eliminating personaggi card:', error);
       return { success: false };
@@ -5095,8 +5104,10 @@ Rispondi SOLO in JSON:`;
     }
 
     // CIMICE ATTACK EFFECT: When attacked, removes 50 PTI from ALL other field characters
-    if (targetCardName.includes('CIMICE') && !isVoodooReflection && !isPersistentTick) {
-      console.log(`🪲 CIMICE attacked! Removing 50 PTI from all other field characters (excluding ${targetCardId})`);
+    // Also triggers for cards with copied CIMICE power
+    const hasCimicePower = targetCardName.includes('CIMICE') || targetCard.copiedPower === 'CIMICE';
+    if (hasCimicePower && !isVoodooReflection && !isPersistentTick) {
+      console.log(`🪲 CIMICE power triggered (${targetCard.copiedPower ? 'copied' : 'native'})! Removing 50 PTI from all other field characters (excluding ${targetCardId})`);
       
       const affectedCards: Array<{ id: string; name: string; owner: string; oldPTI: number; newPTI: number }> = [];
       
@@ -5106,17 +5117,19 @@ Rispondi SOLO in JSON:`;
       ) || [];
       
       for (const card of otherFieldCharacters) {
-        // Extra safety: skip any card that is CIMICE by name
+        // Extra safety: skip any card that is CIMICE by name or has CIMICE power (shouldn't damage itself)
         const cardNameCheck = this.getCardNameFromUrl(card.frontImage || '').toUpperCase();
-        if (cardNameCheck.includes('CIMICE')) {
-          console.log(`🪲 Skipping CIMICE (${card.id}) - should not damage itself`);
+        if (cardNameCheck.includes('CIMICE') || card.copiedPower === 'CIMICE') {
+          console.log(`🪲 Skipping CIMICE power card (${card.id}) - should not damage itself`);
           continue;
         }
         
         const cardPTI = this.extractPTIFromNote(card.text || '');
         const cardStars = this.extractStarsFromNote(card.text || '');
         const newPTI = Math.max(0, cardPTI - 50);
-        card.text = `PTI: ${newPTI} | Stelle: ${cardStars}`;
+        // Preserve the "Potere di" notation if present
+        const powerMatch = card.text?.match(/\|\s*Potere di\s+\w+/i);
+        card.text = `PTI: ${newPTI} | Stelle: ${cardStars}${powerMatch ? ` ${powerMatch[0]}` : ''}`;
         
         affectedCards.push({
           id: card.id,
@@ -5785,15 +5798,16 @@ Rispondi SOLO in JSON:`;
           }
         }
       } else {
-        // CIMICE DEATH EFFECT: Check if dying card is CIMICE before moving to graveyard
+        // CIMICE DEATH EFFECT: Check if dying card is CIMICE or has copied CIMICE power before moving to graveyard
         const dyingCardName = this.getCardNameFromUrl(targetCard.frontImage || '').toUpperCase();
-        const isCimice = dyingCardName.includes('CIMICE');
+        const hasCimicePower = dyingCardName.includes('CIMICE') || targetCard.copiedPower === 'CIMICE';
         
         // Regular field death: move to graveyard with attacker info for SOROS activation
         const result = this.moveToGraveyard(gameId, targetCardId, targetOwner, attackerName);
         
-        // Trigger CIMICE death effect after card is in graveyard
-        if (isCimice) {
+        // Trigger CIMICE death effect after card is in graveyard (for native CIMICE or copied power)
+        if (hasCimicePower) {
+          console.log(`🪲 CIMICE power death triggered (${targetCard.copiedPower ? 'copied' : 'native'})`);
           await this.processCimiceDeathEffect(gameId, targetCardId, io);
         }
         
