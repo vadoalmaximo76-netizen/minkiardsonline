@@ -3770,12 +3770,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const deckType = req.query.deckType as string | undefined;
       
-      let query = db.select().from(customCards);
+      let cards;
       if (deckType) {
-        query = db.select().from(customCards).where(eq(customCards.deckType, deckType));
+        cards = await db.select().from(customCards).where(eq(customCards.deckType, deckType));
+      } else {
+        cards = await db.select().from(customCards);
       }
       
-      const cards = await query;
       res.json({ success: true, cards });
     } catch (error) {
       console.error('Error fetching custom cards:', error);
@@ -3793,21 +3794,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ success: false, error: 'Invalid card ID' });
       }
       
-      const updateData: any = {};
-      if (name !== undefined) updateData.name = name;
-      if (pti !== undefined) updateData.pti = pti;
-      if (stars !== undefined) updateData.stars = stars;
+      const updateData: Record<string, any> = {};
+      if (name !== undefined && typeof name === 'string' && name.trim()) {
+        updateData.name = name.trim();
+      }
+      if (pti !== undefined) {
+        updateData.pti = pti === null || pti === '' ? null : parseInt(pti);
+      }
+      if (stars !== undefined) {
+        updateData.stars = stars === null || stars === '' ? null : parseInt(stars);
+      }
       
-      const [updated] = await db.update(customCards)
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ success: false, error: 'No valid fields to update' });
+      }
+      
+      const result = await db.update(customCards)
         .set(updateData)
         .where(eq(customCards.id, cardId))
         .returning();
       
-      if (!updated) {
+      if (!result || result.length === 0) {
         return res.status(404).json({ success: false, error: 'Card not found' });
       }
       
-      res.json({ success: true, card: updated });
+      res.json({ success: true, card: result[0] });
     } catch (error) {
       console.error('Error updating custom card:', error);
       res.status(500).json({ success: false, error: 'Failed to update custom card' });
@@ -3823,11 +3834,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ success: false, error: 'Invalid card ID' });
       }
       
-      const [deleted] = await db.delete(customCards)
+      const result = await db.delete(customCards)
         .where(eq(customCards.id, cardId))
         .returning();
       
-      if (!deleted) {
+      if (!result || result.length === 0) {
         return res.status(404).json({ success: false, error: 'Card not found' });
       }
       

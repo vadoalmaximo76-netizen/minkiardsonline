@@ -104,6 +104,27 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
     setShowBrowser(false);
   };
 
+  // Helper to get card display name (works for both URL-based and custom base64 cards)
+  const getCardDisplayName = (card: any): string => {
+    // If card has a text field with a name, use the first line (before any PTI/Stars info)
+    if (card.text && card.text.trim()) {
+      const firstLine = card.text.split('\n')[0].trim();
+      if (firstLine && !firstLine.startsWith('PTI:') && !firstLine.startsWith('Stelle:')) {
+        return firstLine.toUpperCase();
+      }
+    }
+    
+    // For base64 images (custom cards), return a generic name if no text
+    if (card.frontImage?.startsWith('data:')) {
+      return 'CARTA PERSONALIZZATA';
+    }
+    
+    // Extract from URL for regular cards
+    const parts = card.frontImage?.split('/') || [];
+    const filename = parts[parts.length - 1] || '';
+    return filename.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase();
+  };
+
   // Function to extract filename from URL and sort alphabetically
   const getSortedCards = () => {
     if (!gameState?.decks?.[type]) return [];
@@ -113,34 +134,15 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
     // Apply search filter if searchTerm exists
     if (searchTerm.trim()) {
       filteredCards = filteredCards.filter(card => {
-        const getFileName = (url: string) => {
-          const parts = url.split('/');
-          const filename = parts[parts.length - 1];
-          // Remove file extension and convert spaces/dashes
-          return filename.toLowerCase()
-            .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
-            .replace(/-/g, ' ')
-            .replace(/_/g, ' ');
-        };
-        
-        const cardName = getFileName(card.frontImage);
+        const cardName = getCardDisplayName(card).toLowerCase();
         return cardName.includes(searchTerm.toLowerCase().trim());
       });
     }
     
     return filteredCards.sort((a, b) => {
-      // Extract filename from URL
-      const getFileName = (url: string) => {
-        const parts = url.split('/');
-        const filename = parts[parts.length - 1];
-        // Remove file extension and convert to lowercase for comparison
-        return filename.toLowerCase().replace(/\.(png|jpg|jpeg|gif|webp)$/i, '');
-      };
-      
-      const filenameA = getFileName(a.frontImage);
-      const filenameB = getFileName(b.frontImage);
-      
-      return filenameA.localeCompare(filenameB);
+      const nameA = getCardDisplayName(a).toLowerCase();
+      const nameB = getCardDisplayName(b).toLowerCase();
+      return nameA.localeCompare(nameB);
     });
   };
 
@@ -266,12 +268,19 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
                     <img
                       src={card.frontImage}
                       alt="Card"
-                      className="w-full aspect-[3/4] object-cover rounded-xl border-2 border-gray-500 hover:border-white transition-all shadow-xl"
+                      className={`w-full aspect-[3/4] object-cover rounded-xl border-2 hover:border-white transition-all shadow-xl ${
+                        card.id?.startsWith('permanent-') || card.id?.startsWith('custom-') 
+                          ? 'border-green-500' 
+                          : 'border-gray-500'
+                      }`}
                       onClick={() => handleCardClick(card)}
                     />
                     <span className="text-white text-xs sm:text-sm lg:text-base mt-2 text-center w-full px-1 leading-tight font-medium">
-                      {card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase()}
+                      {getCardDisplayName(card)}
                     </span>
+                    {(card.id?.startsWith('permanent-') || card.id?.startsWith('custom-')) && (
+                      <span className="text-green-400 text-[10px] mt-0.5">PERSONALIZZATA</span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -290,8 +299,11 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
           <div className="bg-gray-800 rounded-xl p-4 sm:p-6 text-center border-2 border-white/20 w-full max-w-2xl">
             {/* Card Name */}
             <h4 className="text-white font-bold text-base sm:text-xl lg:text-2xl mb-3 sm:mb-4" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
-              {selectedCardForZoom.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase()}
+              {getCardDisplayName(selectedCardForZoom)}
             </h4>
+            {(selectedCardForZoom.id?.startsWith('permanent-') || selectedCardForZoom.id?.startsWith('custom-')) && (
+              <span className="inline-block bg-green-600 text-white text-xs px-2 py-1 rounded mb-3">CARTA PERSONALIZZATA</span>
+            )}
             
             {/* Full Size Card Image */}
             <div className="mb-4 flex items-center justify-center" style={{ minHeight: '400px', maxHeight: '60vh' }}>
