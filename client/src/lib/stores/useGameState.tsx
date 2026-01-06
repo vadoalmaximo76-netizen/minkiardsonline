@@ -101,15 +101,7 @@ export const useGameState = create<GameStateStore>()(
     (set, get) => {
       // Listen for game state updates
       socket.on('game-state-update', (gameState: GameState) => {
-        console.log('CLIENT: Received game-state-update');
-        console.log('CLIENT: Field cards with attachment info:', gameState?.field?.map(c => ({
-          id: c.id,
-          owner: c.owner,
-          attachedTo: c.attachedTo,
-          attachedBy: c.attachedBy
-        })));
         set({ gameState });
-        console.log('CLIENT: Game state updated in store');
       });
 
       // Listen for picked cards (private to player)

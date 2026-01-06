@@ -16,6 +16,21 @@ export const RoundTable: React.FC = () => {
   const turnOrder: string[] = [];
   const scenarioCardsActive = false;
 
+  // Separate attached parasitic cards from regular cards
+  const attachedParasiticCards = fieldCards.filter(card => card.attachedTo);
+  const regularCards = fieldCards.filter(card => !card.attachedTo);
+  
+  // Create a map of target cards to their attached parasitic cards
+  const attachedCardsMap = attachedParasiticCards.reduce((acc, card) => {
+    if (card.attachedTo) {
+      if (!acc[card.attachedTo]) {
+        acc[card.attachedTo] = [];
+      }
+      acc[card.attachedTo].push(card);
+    }
+    return acc;
+  }, {} as Record<string, typeof fieldCards>);
+
   // Determine player order for positioning around the table
   const getOrderedPlayers = () => {
     let orderedList;
@@ -46,8 +61,8 @@ export const RoundTable: React.FC = () => {
 
   const otherPlayers = getOrderedPlayers();
 
-  // Group cards by player
-  const cardsByPlayer = fieldCards.reduce((acc, card) => {
+  // Group regular cards by player (attached parasitic cards are rendered with their targets)
+  const cardsByPlayer = regularCards.reduce((acc, card) => {
     if (!acc[card.owner]) {
       acc[card.owner] = [];
     }
@@ -290,6 +305,9 @@ export const RoundTable: React.FC = () => {
                   const cardPos = cardPositions[cardIndex];
                   if (!cardPos) return null;
                   
+                  // Get attached parasitic cards for this target
+                  const attachedCards = attachedCardsMap[card.id] || [];
+                  
                   return (
                     <div
                       key={card.id}
@@ -300,11 +318,34 @@ export const RoundTable: React.FC = () => {
                         transform: `translate(-50%, -50%) rotate(${cardPos.angle + 90}deg)`,
                       }}
                     >
-                      <div className={`${cardScale}`}>
-                        <Card
-                          card={card}
-                          location="field"
-                        />
+                      <div className="flex items-center gap-1">
+                        <div className={`${cardScale}`}>
+                          <Card
+                            card={card}
+                            location="field"
+                          />
+                        </div>
+                        
+                        {/* Attached parasitic cards */}
+                        {attachedCards.map((parasiticCard) => (
+                          <div key={parasiticCard.id} className="flex items-center">
+                            <div className="w-2 h-1 bg-red-500 animate-pulse" />
+                            <div className={`${cardScale} relative`}>
+                              <div className="border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/50 ring-2 ring-red-400 animate-pulse">
+                                <Card
+                                  card={parasiticCard}
+                                  location="field"
+                                />
+                              </div>
+                              <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[8px] px-1 py-0.5 rounded-full whitespace-nowrap font-bold">
+                                {parasiticCard.owner}
+                              </div>
+                              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-purple-600 text-white text-[8px] px-1 py-0.5 rounded-full whitespace-nowrap font-bold">
+                                AGGANCIATO
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   );
@@ -349,6 +390,9 @@ export const RoundTable: React.FC = () => {
                 const canMoveLeft = cardIndex > 0;
                 const canMoveRight = cardIndex < currentPlayerCards.length - 1;
                 
+                // Get attached parasitic cards for this target
+                const attachedCards = attachedCardsMap[card.id] || [];
+                
                 return (
                   <div
                     key={card.id}
@@ -376,6 +420,27 @@ export const RoundTable: React.FC = () => {
                           location="field"
                         />
                       </div>
+                      
+                      {/* Attached parasitic cards */}
+                      {attachedCards.map((parasiticCard) => (
+                        <div key={parasiticCard.id} className="flex items-center">
+                          <div className="w-2 h-1 bg-red-500 animate-pulse" />
+                          <div className={`${cardScale} relative`}>
+                            <div className="border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/50 ring-2 ring-red-400 animate-pulse">
+                              <Card
+                                card={parasiticCard}
+                                location="field"
+                              />
+                            </div>
+                            <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[8px] px-1 py-0.5 rounded-full whitespace-nowrap font-bold">
+                              {parasiticCard.owner}
+                            </div>
+                            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-purple-600 text-white text-[8px] px-1 py-0.5 rounded-full whitespace-nowrap font-bold">
+                              AGGANCIATO
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                       
                       {/* Right Arrow */}
                       <Button
@@ -427,9 +492,13 @@ export const RoundTable: React.FC = () => {
                     maxWidth: '100%'
                   }}>
                     {playerCards.length > 0 ? (
-                      playerCards.map((card, index) => (
+                      playerCards.map((card, index) => {
+                        // Get attached parasitic cards for this target
+                        const attachedCards = attachedCardsMap[card.id] || [];
+                        
+                        return (
                         <div key={card.id} className="flex flex-col items-center gap-0.5">
-                          {/* Card with arrows */}
+                          {/* Card with arrows and attached cards */}
                           <div className="flex items-center gap-0.5">
                             {/* Left Arrow for current player */}
                             {isCurrentPlayer && (
@@ -449,6 +518,27 @@ export const RoundTable: React.FC = () => {
                               location="field"
                             />
                             
+                            {/* Attached parasitic cards */}
+                            {attachedCards.map((parasiticCard) => (
+                              <div key={parasiticCard.id} className="flex items-center">
+                                <div className="w-2 h-1 bg-red-500 animate-pulse" />
+                                <div className="relative">
+                                  <div className="border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/50 ring-2 ring-red-400 animate-pulse">
+                                    <Card
+                                      card={parasiticCard}
+                                      location="field"
+                                    />
+                                  </div>
+                                  <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[8px] px-1 py-0.5 rounded-full whitespace-nowrap font-bold">
+                                    {parasiticCard.owner}
+                                  </div>
+                                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-purple-600 text-white text-[8px] px-1 py-0.5 rounded-full whitespace-nowrap font-bold">
+                                    AGGANCIATO
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                            
                             {/* Right Arrow for current player */}
                             {isCurrentPlayer && (
                               <Button
@@ -462,7 +552,8 @@ export const RoundTable: React.FC = () => {
                             )}
                           </div>
                         </div>
-                      ))
+                      );
+                      })
                     ) : (
                       <p className="text-white/60 italic col-span-full">Nessuna carta in campo</p>
                     )}
