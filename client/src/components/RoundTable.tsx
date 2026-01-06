@@ -75,15 +75,15 @@ export const RoundTable: React.FC = () => {
     const mobileBuffer = isMobile && isPortrait ? 6 : 0; // Extra buffer for mobile portrait
     
     const positions = [
-      // Top positions (much further from center to avoid deck overlap on mobile)
-      { x: 50, y: Math.max(5, 8 - mobileBuffer), angle: -90 },    // Top center
-      { x: 18 + mobileBuffer, y: Math.max(8, 12 - mobileBuffer), angle: -135 },  // Top left
-      { x: 82 - mobileBuffer, y: Math.max(8, 12 - mobileBuffer), angle: -45 },   // Top right
+      // Top positions (moved slightly down to be closer to decks)
+      { x: 50, y: Math.max(10, 15 - mobileBuffer), angle: -90 },    // Top center
+      { x: 18 + mobileBuffer, y: Math.max(12, 18 - mobileBuffer), angle: -135 },  // Top left
+      { x: 82 - mobileBuffer, y: Math.max(12, 18 - mobileBuffer), angle: -45 },   // Top right
       // Side positions with much more spacing and buffer from center
-      { x: Math.max(4, 8 - mobileBuffer), y: 25 + mobileBuffer, angle: 180 },    // Left side upper
-      { x: Math.min(96, 92 + mobileBuffer), y: 25 + mobileBuffer, angle: 0 },     // Right side upper
-      { x: Math.max(4, 8 - mobileBuffer), y: 65 + mobileBuffer, angle: 180 },    // Left side lower  
-      { x: Math.min(96, 92 + mobileBuffer), y: 65 + mobileBuffer, angle: 0 },     // Right side lower
+      { x: Math.max(4, 8 - mobileBuffer), y: 35 + mobileBuffer, angle: 180 },    // Left side upper
+      { x: Math.min(96, 92 + mobileBuffer), y: 35 + mobileBuffer, angle: 0 },     // Right side upper
+      { x: Math.max(4, 8 - mobileBuffer), y: 60 + mobileBuffer, angle: 180 },    // Left side lower  
+      { x: Math.min(96, 92 + mobileBuffer), y: 60 + mobileBuffer, angle: 0 },     // Right side lower
     ];
     
     // For different player counts, select optimal positions
@@ -165,8 +165,8 @@ export const RoundTable: React.FC = () => {
     const isMobile = window.innerWidth < 640;
     const isTablet = window.innerWidth >= 640 && window.innerWidth < 1024;
     
-    // Position cards at bottom center - MORE vertical separation from decks
-    const bottomY = isMobile ? 82 : 80; // Lower position to separate from decks
+    // Position cards at bottom center - slightly closer to decks
+    const bottomY = isMobile ? 78 : 75; // Moved up slightly from 82/80 to be closer to decks
     const centerX = 50;
     
     if (cardCount === 1) {
