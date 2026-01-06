@@ -4779,7 +4779,7 @@ Rispondi SOLO in JSON:`;
     }
 
     // REGULAR DAMAGE LOGIC (original code starts here)
-    const currentNotes = targetCard.text || '';
+    let currentNotes = targetCard.text || '';
     let updatedNotes = currentNotes;
     let shouldDie = false;
 
@@ -4955,36 +4955,60 @@ Rispondi SOLO in JSON:`;
     const ptiMatch = currentNotes.match(/PTI:\s*(\d+)/i);
     let currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 0;
     
+    // FIX FOR ATTACCO DISONESTO: If card in hand has no PTI set, look it up from database
+    if (isHandTarget && !ptiMatch) {
+      console.log(`🎯 ATTACCO DISONESTO: Target card ${targetCardId} has no PTI in text. Looking up from database...`);
+      
+      // Try to get PTI from database
+      const cardName = this.getCardNameFromUrl(targetCard.frontImage || '');
+      const dbData = await this.getPersonaggioStats(cardName);
+      
+      if (dbData && dbData.pti !== null) {
+        // Found in database - set the PTI and stars on the card
+        currentPTI = dbData.pti;
+        const starsValue = dbData.stars || 0;
+        targetCard.text = `PTI: ${currentPTI} | Stelle: ${starsValue}`;
+        currentNotes = targetCard.text;
+        updatedNotes = currentNotes;
+        
+        // Update the card in the player's hand
+        const player = game?.players?.[targetOwner];
+        if (player) {
+          const handCardIndex = player.hand.findIndex((c: Card) => c.id === targetCardId);
+          if (handCardIndex !== -1) {
+            player.hand[handCardIndex].text = targetCard.text;
+          }
+        }
+        
+        console.log(`✅ ATTACCO DISONESTO: Found ${cardName} in database - PTI: ${currentPTI}, Stelle: ${starsValue}`);
+      } else {
+        console.log(`⚠️ ATTACCO DISONESTO: Card ${cardName} not found in database. Using default PTI of 100.`);
+        // Default PTI if not found in database
+        currentPTI = 100;
+        targetCard.text = `PTI: ${currentPTI} | Stelle: 0`;
+        currentNotes = targetCard.text;
+        updatedNotes = currentNotes;
+        
+        const player = game?.players?.[targetOwner];
+        if (player) {
+          const handCardIndex = player.hand.findIndex((c: Card) => c.id === targetCardId);
+          if (handCardIndex !== -1) {
+            player.hand[handCardIndex].text = targetCard.text;
+          }
+        }
+      }
+    }
+    
     // DEBUG LOGGING for ATTACCO DISONESTO
     if (isHandTarget) {
       console.log(`🎯 ATTACCO DISONESTO DEBUG:`, {
         targetCardId,
         targetOwner,
-        currentNotes,
-        ptiMatch: ptiMatch ? ptiMatch[0] : null,
+        currentNotes: targetCard.text,
         currentPTI,
         damageValue,
         targetCardFrontImage: targetCard?.frontImage
       });
-    }
-    
-    // FIX FOR ATTACCO DISONESTO: If card in hand has no PTI set, we need to handle it properly
-    // Cards without PTI shouldn't die instantly - they need to have their PTI initialized first
-    if (isHandTarget && !ptiMatch) {
-      console.log(`⚠️ ATTACCO DISONESTO: Target card ${targetCardId} has no PTI set. Card needs to be analyzed first to have valid PTI.`);
-      // Don't apply damage to cards without PTI - they can't take damage if they haven't been analyzed
-      // The attack still "hits" but we need to inform the user
-      io.to(gameId).emit('chat-message', {
-        id: `${Date.now()}-no-pti-warning`,
-        playerName: 'Sistema',
-        message: `⚠️ Il personaggio attaccato non ha PTI definiti! La carta deve essere analizzata prima di poter subire danni.`,
-        timestamp: Date.now()
-      });
-      
-      // Sync game state without applying damage
-      const updatedGameState = this.getSanitizedGameState(gameId);
-      io.to(gameId).emit('game-state-update', updatedGameState);
-      return;
     }
 
     // PRESERVE: Calculate new PTI after damage
