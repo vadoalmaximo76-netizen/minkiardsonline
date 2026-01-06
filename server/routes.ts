@@ -2147,21 +2147,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('add-custom-cards', ({ gameId, playerName, deckType, images }) => {
+    socket.on('add-custom-cards', async ({ gameId, playerName, deckType, cards }) => {
       const playerGameId = gameManager.getPlayerGameId(socket.id);
       
       if (playerGameId === gameId) {
-        const result = gameManager.addCustomCards(gameId, deckType, images);
+        const result = await gameManager.addCustomCards(gameId, deckType, cards, playerName);
         
         if (result.success) {
           const gameState = gameManager.getSanitizedGameState(gameId);
           io.to(gameId).emit('game-state-update', gameState);
           
-          // Notify all players about the new cards
           io.to(gameId).emit('cards-added', {
             playerName,
             deckType,
-            count: images.length,
+            count: cards.length,
             deckLabel: deckType.toUpperCase().replace('_', ' ')
           });
         }

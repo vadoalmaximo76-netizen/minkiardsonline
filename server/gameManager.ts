@@ -1,6 +1,6 @@
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from '../client/src/lib/cardData';
 import { db } from './db';
-import { matches, gameEvents, personaggi, type InsertMatch, type InsertGameEvent } from '../shared/schema';
+import { matches, gameEvents, personaggi, customCards, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
 import { eq, ilike, sql } from 'drizzle-orm';
 import { CPUPlayer } from './cpuPlayer';
 
@@ -16,6 +16,8 @@ interface Card {
   section?: string;
   turnCounter?: number;
   placedBy?: string;
+  pti?: number | null;
+  stars?: number | null;
   // Fusion system
   fusedWith?: string[]; // Array of card IDs that are fused with this card
   isFused?: boolean; // True if this card is part of a fusion
@@ -155,6 +157,43 @@ export class GameManager {
     }));
   }
 
+  async loadPermanentCardsIntoDeck(gameId: string): Promise<void> {
+    const game = this.games.get(gameId);
+    if (!game) return;
+
+    try {
+      const permanentCards = await db.select().from(customCards);
+      
+      permanentCards.forEach((cardRecord) => {
+        const cardId = `permanent-${cardRecord.deckType}-${cardRecord.id}`;
+        
+        const targetDeck = game.decks[cardRecord.deckType as keyof typeof game.decks];
+        if (targetDeck && !targetDeck.some(c => c.id === cardId)) {
+          const isCharacterCard = cardRecord.deckType === 'personaggi' || cardRecord.deckType === 'personaggi_speciali';
+          
+          const card: Card = {
+            id: cardId,
+            type: cardRecord.deckType as 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali',
+            frontImage: cardRecord.imageData,
+            backImage: this.getBackImageForDeck(cardRecord.deckType),
+            owner: '',
+            text: cardRecord.name,
+            pti: isCharacterCard ? cardRecord.pti : null,
+            stars: isCharacterCard ? cardRecord.stars : null
+          };
+
+          targetDeck.push(card);
+        }
+      });
+
+      if (permanentCards.length > 0) {
+        console.log(`Loaded ${permanentCards.length} permanent custom cards into game ${gameId}`);
+      }
+    } catch (error) {
+      console.error('Error loading permanent cards:', error);
+    }
+  }
+
   private initializeGame(gameId: string): GameState {
     const gameState = {
       decks: {
@@ -192,8 +231,8 @@ export class GameManager {
   async addPlayer(gameId: string, playerName: string, socketId: string, isCPU: boolean = false): Promise<void> {
     if (!this.games.has(gameId)) {
       this.games.set(gameId, this.initializeGame(gameId));
-      // Create match record when first player joins
       await this.createMatchRecord(gameId);
+      await this.loadPermanentCardsIntoDeck(gameId);
     }
 
     const game = this.games.get(gameId)!;
@@ -2799,22 +2838,31 @@ Rispondi SOLO in JSON:`;
     }));
   }
 
-  addCustomCards(gameId: string, deckType: string, images: Array<{ name: string, data: string }>): { success: boolean } {
+  async addCustomCards(
+    gameId: string, 
+    deckType: string, 
+    cards: Array<{ name: string, data: string, pti: number | null, stars: number | null, isPermanent: boolean }>,
+    playerName: string
+  ): Promise<{ success: boolean }> {
     const game = this.games.get(gameId);
     if (!game) return { success: false };
 
     try {
-      images.forEach((image, index) => {
-        const card = {
-          id: `custom-${deckType}-${Date.now()}-${index}`,
+      const isCharacterDeck = deckType === 'personaggi' || deckType === 'personaggi_speciali';
+      
+      for (let i = 0; i < cards.length; i++) {
+        const cardData = cards[i];
+        const card: Card = {
+          id: `custom-${deckType}-${Date.now()}-${i}`,
           type: deckType as 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali',
-          frontImage: image.data, // Base64 data URL
+          frontImage: cardData.data,
           backImage: this.getBackImageForDeck(deckType),
           owner: '',
-          text: ''
+          text: cardData.name,
+          pti: isCharacterDeck ? cardData.pti : null,
+          stars: isCharacterDeck ? cardData.stars : null
         };
         
-        // Add to appropriate deck
         if (deckType === 'personaggi') {
           game.decks.personaggi.push(card);
         } else if (deckType === 'mosse') {
@@ -2824,7 +2872,24 @@ Rispondi SOLO in JSON:`;
         } else if (deckType === 'personaggi_speciali') {
           game.decks.personaggi_speciali.push(card);
         }
-      });
+
+        if (cardData.isPermanent) {
+          try {
+            const customCardRecord: InsertCustomCard = {
+              name: cardData.name,
+              deckType: deckType,
+              imageData: cardData.data,
+              pti: cardData.pti,
+              stars: cardData.stars,
+              createdBy: playerName
+            };
+            await db.insert(customCards).values(customCardRecord);
+            console.log(`Permanent card "${cardData.name}" saved to database`);
+          } catch (dbError) {
+            console.error('Error saving permanent card to database:', dbError);
+          }
+        }
+      }
       
       return { success: true };
     } catch (error) {

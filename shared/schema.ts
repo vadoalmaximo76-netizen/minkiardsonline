@@ -43,6 +43,17 @@ export const personaggi = pgTable("personaggi", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const customCards = pgTable("custom_cards", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  deckType: text("deck_type").notNull(), // 'personaggi', 'mosse', 'bonus', 'personaggi_speciali'
+  imageData: text("image_data").notNull(), // Base64 image data
+  pti: integer("pti"), // Only for personaggi and personaggi_speciali
+  stars: integer("stars"), // Only for personaggi and personaggi_speciali
+  createdBy: text("created_by"), // Player name who created the card
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   email: true,
@@ -70,12 +81,22 @@ export const insertPersonaggioSchema = createInsertSchema(personaggi).pick({
   pti: true,
   stars: true,
 });
+export const insertCustomCardSchema = createInsertSchema(customCards).pick({
+  name: true,
+  deckType: true,
+  imageData: true,
+  pti: true,
+  stars: true,
+  createdBy: true,
+});
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type Match = typeof matches.$inferSelect;
 export type GameEvent = typeof gameEvents.$inferSelect;
 export type Personaggio = typeof personaggi.$inferSelect;
+export type CustomCard = typeof customCards.$inferSelect;
 export type InsertMatch = z.infer<typeof insertMatchSchema>;
 export type InsertGameEvent = z.infer<typeof insertGameEventSchema>;
 export type InsertPersonaggio = z.infer<typeof insertPersonaggioSchema>;
+export type InsertCustomCard = z.infer<typeof insertCustomCardSchema>;
