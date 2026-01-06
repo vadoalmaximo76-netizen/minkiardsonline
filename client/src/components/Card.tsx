@@ -30,6 +30,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const [showPlayerSelect, setShowPlayerSelect] = useState(false);
   const [showTransferSelect, setShowTransferSelect] = useState(false);
   const [isEliminated, setIsEliminated] = useState(false);
+  const [powerEffect, setPowerEffect] = useState<'up' | 'down' | null>(null);
   const [showDamageInput, setShowDamageInput] = useState(false);
   const [damageValue, setDamageValue] = useState("");
   const [targetCard, setTargetCard] = useState<any>(null);
@@ -349,8 +350,38 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newText = e.target.value;
+    const oldText = cardText;
     setCardText(newText);
     socket.emit('update-card-text', { cardId: card.id, text: newText });
+
+    // Premium 3D Effects for Power/Star changes
+    if (location === 'field') {
+      const getPti = (t: string) => {
+        const match = t.match(/PTI:\s*(\d+)/i);
+        return match ? parseInt(match[1]) : (t.match(/^\d+$/) ? parseInt(t) : null);
+      };
+      const getStars = (t: string) => {
+        const match = t.match(/stelle:\s*(\d+)/i);
+        return match ? parseInt(match[1]) : null;
+      };
+
+      const oldPti = getPti(oldText);
+      const newPti = getPti(newText);
+      const oldStars = getStars(oldText);
+      const newStars = getStars(newText);
+
+      if ((newPti !== null && oldPti !== null && newPti > oldPti) || 
+          (newStars !== null && oldStars !== null && newStars > oldStars)) {
+        setPowerEffect('up');
+        playBeeSound(); // Use existing adequate sound
+        setTimeout(() => setPowerEffect(null), 1000);
+      } else if ((newPti !== null && oldPti !== null && newPti < oldPti) || 
+                 (newStars !== null && oldStars !== null && newStars < oldStars)) {
+        setPowerEffect('down');
+        playDamageSound();
+        setTimeout(() => setPowerEffect(null), 1000);
+      }
+    }
     
     // Check if PTI has reached 0 for a PERSONAGGI card on field
     if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && location === 'field') {
@@ -398,13 +429,15 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   // Add animation class for newly played cards (when they appear on field)
   const shouldAnimate = location === 'field';
   const shouldAnimateScaleDissolvenza = location === 'field' && isPersonaggio;
+  const isBonus = card.type === 'bonus';
+  const isMosse = card.type === 'mosse';
   
   // Random scatter direction for elimination (pre-calculated)
   const [scatterX] = useState(() => (Math.random() - 0.5) * 80 - (Math.random() > 0.5 ? 40 : -40));
   const [scatterY] = useState(() => (Math.random() - 0.5) * 80 - 60);
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className={`flex flex-col gap-2 ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''}`}>
       {/* Card Image */}
       <div 
         className="relative"
@@ -417,6 +450,8 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
           alt="Card"
           className={`w-14 h-auto aspect-[2/3] sm:w-16 md:w-20 lg:w-24 card-master cursor-pointer shadow-lg object-cover
             ${shouldAnimateScaleDissolvenza ? 'card-scale-dissolve' : shouldAnimate ? 'card-appear' : ''} 
+            ${isBonus && location === 'field' ? 'card-bonus-premium' : ''}
+            ${isMosse && location === 'field' ? 'card-mosse-premium' : ''}
             ${isEliminated && isPersonaggio ? 'card-disperse' : ''} 
             ${isShaking && !isEliminated ? 'animate-shake' : ''} 
             ${isMosseSelected ? 'ring-4 ring-purple-500 ring-opacity-70' : ''}
@@ -444,7 +479,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
           value={cardText}
           onChange={handleTextChange}
           placeholder="Add note..."
-          className="w-14 sm:w-16 md:w-20 lg:w-24 h-12 sm:h-14 md:h-16 text-[10px] sm:text-xs p-1 rounded resize-none"
+          className="w-14 sm:w-16 md:w-20 lg:w-24 h-12 sm:h-14 md:h-16 text-[10px] sm:text-xs p-1 rounded resize-none neon-text-area"
           disabled={!isOwner && location === 'hand'}
         />
       )}
