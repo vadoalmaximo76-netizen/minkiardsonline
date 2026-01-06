@@ -89,37 +89,37 @@ export const GameField: React.FC = () => {
                       </Button>
                     )}
                     
-                    {/* Card with attached parasitic cards */}
-                    <div className="relative">
-                      <Card
-                        card={card}
-                        location="field"
-                      />
-                      
-                      {/* Attached parasitic cards - displayed overlapping on the right side */}
-                      {attachedCards.length > 0 && (
-                        <div className="absolute -right-8 top-1/2 -translate-y-1/2 flex flex-col gap-1 z-10">
-                          {attachedCards.map((parasiticCard, pIndex) => (
-                            <div 
-                              key={parasiticCard.id} 
-                              className="relative transform scale-75 origin-left"
-                              style={{ marginTop: pIndex > 0 ? '-40px' : '0' }}
-                            >
-                              <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-0.5 bg-red-500 animate-pulse" />
-                              <div className="border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/50 animate-pulse">
-                                <Card
-                                  card={parasiticCard}
-                                  location="field"
-                                />
-                              </div>
-                              <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-red-600 text-white text-xs px-1 rounded whitespace-nowrap">
-                                {parasiticCard.owner}
-                              </div>
-                            </div>
-                          ))}
+                    {/* Target Card */}
+                    <Card
+                      card={card}
+                      location="field"
+                    />
+                    
+                    {/* Attached parasitic cards - displayed as full-size cards next to target */}
+                    {attachedCards.map((parasiticCard) => (
+                      <div key={parasiticCard.id} className="flex items-center">
+                        {/* Connection line */}
+                        <div className="w-3 h-1 bg-red-500 animate-pulse" />
+                        
+                        {/* Parasitic card with visual indicator */}
+                        <div className="relative">
+                          <div className="border-3 border-red-500 rounded-lg shadow-lg shadow-red-500/50 ring-2 ring-red-400 ring-opacity-75 animate-pulse">
+                            <Card
+                              card={parasiticCard}
+                              location="field"
+                            />
+                          </div>
+                          {/* Owner label */}
+                          <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-red-600 text-white text-xs px-2 py-0.5 rounded-full whitespace-nowrap font-bold shadow-md">
+                            {parasiticCard.owner}
+                          </div>
+                          {/* Attached indicator */}
+                          <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-purple-600 text-white text-xs px-2 py-0.5 rounded-full whitespace-nowrap font-bold shadow-md">
+                            AGGANCIATO
+                          </div>
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    ))}
                     
                     {/* Right Arrow */}
                     {isOwner && (
