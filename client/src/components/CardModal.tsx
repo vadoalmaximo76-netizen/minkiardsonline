@@ -411,15 +411,15 @@ export const CardModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-      <div className="premium-panel p-6 max-w-lg w-full">
+      <div className="premium-panel p-6 max-w-lg w-full relative">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-white font-bold text-lg">{cardName}</h3>
           <Button
             onClick={handleClose}
-            className="bg-sky-blue hover:bg-sky-blue/80 text-white p-2"
+            className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-700 text-white rounded-full p-1.5 shadow-lg border-2 border-white/20 z-[70]"
             size="sm"
           >
-            <X size={16} />
+            <X size={20} />
           </Button>
         </div>
 
