@@ -33,6 +33,8 @@ interface Card {
   // MOSSE card usage tracking
   used?: boolean; // Whether this MOSSE card has been used this turn
   usedBy?: string; // Player who used this MOSSE card
+  // POTERI system - copied powers
+  copiedPower?: string; // Name of character whose power was copied (e.g., 'CIMICE', 'PARASSITA')
 }
 
 interface Player {
@@ -3098,6 +3100,43 @@ Rispondi SOLO in JSON:`;
     return Object.values(game.players)
       .filter(player => player.isCPU)
       .map(player => player.name);
+  }
+
+  // POTERI system - Copy special power from another character
+  copyPowerToCard(gameId: string, cardId: string, playerName: string, powerSource: string): { success: boolean; cardName?: string } {
+    const game = this.games.get(gameId);
+    if (!game) return { success: false };
+    
+    // Find the card on field
+    const card = game.field.find(c => c.id === cardId);
+    if (!card) {
+      console.log(`✨ POTERI: Card ${cardId} not found on field`);
+      return { success: false };
+    }
+    
+    // Verify ownership
+    if (card.owner !== playerName) {
+      console.log(`✨ POTERI: Card ${cardId} does not belong to ${playerName}`);
+      return { success: false };
+    }
+    
+    // Set the copied power
+    card.copiedPower = powerSource.toUpperCase();
+    
+    // Update the card text to show the copied power
+    const currentText = card.text || '';
+    const cardName = this.getCardNameFromUrl(card.frontImage || '');
+    
+    // Remove any existing "Potere di" notation
+    const cleanedText = currentText.replace(/\s*\|\s*Potere di\s+\w+/gi, '');
+    
+    // Add the new power notation
+    card.text = `${cleanedText} | Potere di ${powerSource}`;
+    
+    console.log(`✨ POTERI: ${cardName} now has the power of ${powerSource}`);
+    console.log(`✨ POTERI: Updated text: ${card.text}`);
+    
+    return { success: true, cardName };
   }
 
   updateCardText(gameId: string, cardId: string, text: string): void {

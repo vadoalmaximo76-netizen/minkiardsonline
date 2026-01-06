@@ -1454,6 +1454,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // POTERI - Copy special power from another character
+    socket.on('copy-power', ({ cardId, playerName, powerSource }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        console.log(`✨ POTERI: ${playerName} copying power of ${powerSource} to card ${cardId}`);
+        
+        const result = gameManager.copyPowerToCard(gameId, cardId, playerName, powerSource);
+        
+        if (result.success) {
+          const gameState = gameManager.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', gameState);
+          
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-power-copy`,
+            playerName: 'Sistema',
+            message: `✨ ${result.cardName} ha acquisito il potere di ${powerSource}!`,
+            timestamp: Date.now()
+          });
+        }
+      }
+    });
+
     socket.on('update-card-text', ({ cardId, text }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
