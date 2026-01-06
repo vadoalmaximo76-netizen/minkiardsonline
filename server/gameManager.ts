@@ -2689,16 +2689,23 @@ Rispondi SOLO in JSON:`;
     const game = this.games.get(gameId);
     if (!game) return;
     
-    console.log(`🪲 CIMICE died! Removing 500 PTI from all other field characters`);
+    console.log(`🪲 CIMICE died! Removing 500 PTI from all other field characters (excluding ${cimiceCardId})`);
     
     const affectedCards: Array<{ id: string; name: string; owner: string; oldPTI: number; newPTI: number }> = [];
     
-    // Get all field characters (CIMICE is already removed from field)
+    // Get all field characters EXCEPT CIMICE (explicit filter to be safe)
     const fieldCharacters = game.field.filter((c: Card) => 
-      c.type === 'personaggi' || c.type === 'personaggi_speciali'
+      c.id !== cimiceCardId && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
     );
     
     for (const card of fieldCharacters) {
+      // Extra safety: skip any card that is CIMICE by name
+      const cardName = this.getCardNameFromUrl(card.frontImage || '').toUpperCase();
+      if (cardName.includes('CIMICE')) {
+        console.log(`🪲 Skipping CIMICE (${card.id}) - should not damage itself`);
+        continue;
+      }
+      
       const cardPTI = this.extractPTIFromNote(card.text || '');
       const cardStars = this.extractStarsFromNote(card.text || '');
       const newPTI = Math.max(0, cardPTI - 500);
@@ -5050,16 +5057,23 @@ Rispondi SOLO in JSON:`;
 
     // CIMICE ATTACK EFFECT: When attacked, removes 50 PTI from ALL other field characters
     if (targetCardName.includes('CIMICE') && !isVoodooReflection && !isPersistentTick) {
-      console.log(`🪲 CIMICE attacked! Removing 50 PTI from all other field characters`);
+      console.log(`🪲 CIMICE attacked! Removing 50 PTI from all other field characters (excluding ${targetCardId})`);
       
       const affectedCards: Array<{ id: string; name: string; owner: string; oldPTI: number; newPTI: number }> = [];
       
-      // Get all field characters except CIMICE itself
+      // Get all field characters except CIMICE itself (explicit ID and name check)
       const otherFieldCharacters = game?.field?.filter((c: Card) => 
         c.id !== targetCardId && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
       ) || [];
       
       for (const card of otherFieldCharacters) {
+        // Extra safety: skip any card that is CIMICE by name
+        const cardNameCheck = this.getCardNameFromUrl(card.frontImage || '').toUpperCase();
+        if (cardNameCheck.includes('CIMICE')) {
+          console.log(`🪲 Skipping CIMICE (${card.id}) - should not damage itself`);
+          continue;
+        }
+        
         const cardPTI = this.extractPTIFromNote(card.text || '');
         const cardStars = this.extractStarsFromNote(card.text || '');
         const newPTI = Math.max(0, cardPTI - 50);
