@@ -686,14 +686,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 <Button
                   key={limit}
                   onClick={() => handleCharacterLimitSelected(limit)}
-                  className="w-full btn-neon-blue text-white font-bold py-3 text-lg"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 text-lg border-2 border-blue-400 shadow-[0_0_15px_rgba(37,99,235,0.4)]"
                 >
                   {limit} personaggi
                 </Button>
               ))}
               <Button
                 onClick={() => handleCharacterLimitSelected('unlimited')}
-                className="w-full btn-neon-gray text-white font-bold py-3 text-lg"
+                className="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 text-lg border-2 border-gray-400 shadow-[0_0_15px_rgba(75,85,99,0.4)]"
               >
                 NON SPECIFICARE
               </Button>
@@ -715,7 +715,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   setEliminationDialogOpen(false);
                   socket.emit('confirm-elimination', { gameId, playerName, confirmed: true });
                 }}
-                className="w-full btn-neon-red text-white font-bold py-3 text-lg"
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 text-lg border-2 border-red-400 shadow-[0_0_15px_rgba(220,38,38,0.4)]"
               >
                 Sì, mi arrendo
               </Button>
@@ -724,7 +724,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   setEliminationDialogOpen(false);
                   socket.emit('confirm-elimination', { gameId, playerName, confirmed: false });
                 }}
-                className="w-full btn-neon-green text-white font-bold py-3 text-lg"
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 text-lg border-2 border-green-400 shadow-[0_0_15px_rgba(22,163,74,0.4)]"
               >
                 No, continuo a giocare
               </Button>
