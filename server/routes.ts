@@ -2980,7 +2980,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             timestamp: Date.now()
           });
           
-          io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+          const updatedState = gameManager.getSanitizedGameState(gameId);
+          
+          // Debug: Log field cards with attachedTo property
+          console.log('🦠 DEBUG - Field cards after attachment:', updatedState?.field?.map((c: any) => ({
+            id: c.id,
+            owner: c.owner,
+            attachedTo: c.attachedTo,
+            attachedBy: c.attachedBy
+          })));
+          
+          io.to(gameId).emit('game-state-update', updatedState);
         } else {
           socket.emit('parasitic-attach-error', { message: attachResult.message || 'Attachment failed' });
         }
