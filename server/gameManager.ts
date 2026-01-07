@@ -112,6 +112,22 @@ interface ParasiticAttachment {
   active: boolean; // False after detachment or explosion
 }
 
+interface ClashBattle {
+  id: string;
+  attacker: string; // Player who initiated original attack
+  defender: string; // Player who counter-attacked
+  attackerTaps: number; // Attacker's tap count
+  defenderTaps: number; // Defender's tap count
+  damageValue: number; // The equal damage value both sides have
+  attackerMosseCardId: string; // Original attack MOSSE card
+  defenderMosseCardId: string; // Defense MOSSE card
+  targetCardId: string; // Original attack target
+  defenderTargetCardId: string; // Defender's target (attacker's character)
+  startTime: number; // When clash started
+  duration: number; // Duration in ms (10 seconds = 10000)
+  active: boolean;
+}
+
 interface GameState {
   decks: {
     personaggi: Card[];
@@ -142,6 +158,7 @@ interface GameState {
   prSpentThisGame: Map<string, number>; // Track Rankiard points spent by each player during this game (resets each game)
   persistentDamages: PersistentDamage[]; // Persistent damage effects (VIRUS, etc.)
   parasiticAttachments: ParasiticAttachment[]; // PARASSITA/SAIBAIM attachment tracking
+  activeClashBattle?: ClashBattle; // Current active clash battle
 }
 
 export class GameManager {
@@ -5084,6 +5101,266 @@ Rispondi SOLO in JSON:`;
     });
 
     return true;
+  }
+
+  // COUNTER-ATTACK PROCESSING: When defender uses MOSSE to counter, subtract damage values
+  async processCounterAttack(
+    gameId: string, 
+    attackId: string, 
+    defenderMosseCardId: string,
+    defenderDamage: number,
+    defenderTargetCardId: string, // Attacker's character that will receive counter damage
+    io: any
+  ): Promise<{ success: boolean; result?: 'attacker_wins' | 'defender_wins' | 'clash'; netDamage?: number }> {
+    const game = this.games.get(gameId);
+    if (!game) return { success: false };
+
+    const pendingDefense = game.pendingDefense;
+    if (!pendingDefense || pendingDefense.attackId !== attackId) {
+      console.warn(`[COUNTER-ATTACK] No matching pending defense for ${attackId}`);
+      return { success: false };
+    }
+
+    // Clear timeout
+    if (pendingDefense.timeoutId) {
+      clearTimeout(pendingDefense.timeoutId);
+    }
+
+    const { attacker, defender, damage: attackDamage, targetCardId, mosseCardId, isHandTarget } = pendingDefense;
+
+    console.log(`⚔️ COUNTER-ATTACK: ${defender} counters with ${defenderDamage} vs ${attacker}'s ${attackDamage}`);
+
+    // Clear pending defense
+    game.pendingDefense = undefined;
+
+    // Compare damages
+    if (attackDamage === defenderDamage) {
+      // EQUAL DAMAGE: Start clash battle
+      console.log(`⚡ CLASH BATTLE: Equal damage (${attackDamage}) - starting tap battle!`);
+      
+      const clashId = `clash-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      game.activeClashBattle = {
+        id: clashId,
+        attacker,
+        defender,
+        attackerTaps: 0,
+        defenderTaps: 0,
+        damageValue: attackDamage,
+        attackerMosseCardId: mosseCardId,
+        defenderMosseCardId: defenderMosseCardId,
+        targetCardId, // Defender's character
+        defenderTargetCardId, // Attacker's character
+        startTime: Date.now(),
+        duration: 10000, // 10 seconds
+        active: true
+      };
+
+      // Emit clash battle start to all players
+      io.to(gameId).emit('clash-battle-start', {
+        clashId,
+        attacker,
+        defender,
+        damageValue: attackDamage,
+        duration: 10000
+      });
+
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-clash-start`,
+        playerName: 'Sistema',
+        message: `⚡ SCONTRO! ${attacker} e ${defender} si affrontano con ${attackDamage} PTI ciascuno! Premi il tasto più velocemente!`,
+        timestamp: Date.now()
+      });
+
+      // Set timeout to resolve clash after 10 seconds
+      setTimeout(async () => {
+        await this.resolveClashBattle(gameId, clashId, io);
+      }, 10500);
+
+      return { success: true, result: 'clash' };
+    } else if (defenderDamage > attackDamage) {
+      // DEFENDER WINS: Apply net damage to attacker's character
+      const netDamage = defenderDamage - attackDamage;
+      console.log(`🛡️ COUNTER WIN: ${defender} deals ${netDamage} net damage to ${attacker}`);
+
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-counter-win`,
+        playerName: 'Sistema',
+        message: `🛡️ ${defender} respinge con successo! ${attacker} subisce ${netDamage} danni (${defenderDamage} - ${attackDamage})!`,
+        timestamp: Date.now()
+      });
+
+      // Return attacker's MOSSE to deck
+      this.returnToDeck(gameId, mosseCardId, attacker);
+      
+      // Apply net damage to attacker's character
+      await this.processMosseDamage(gameId, defender, defenderTargetCardId, netDamage, defenderMosseCardId, io, false, false, false);
+
+      // Send game state update
+      const updatedGameState = this.getSanitizedGameState(gameId);
+      io.to(gameId).emit('game-state-update', updatedGameState);
+
+      return { success: true, result: 'defender_wins', netDamage };
+    } else {
+      // ATTACKER WINS: Apply net damage to defender's character
+      const netDamage = attackDamage - defenderDamage;
+      console.log(`⚔️ ATTACK WIN: ${attacker} deals ${netDamage} net damage to ${defender}`);
+
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-attack-win`,
+        playerName: 'Sistema',
+        message: `⚔️ ${attacker} sfonda la difesa! ${defender} subisce ${netDamage} danni (${attackDamage} - ${defenderDamage})!`,
+        timestamp: Date.now()
+      });
+
+      // Return defender's MOSSE to deck
+      this.returnToDeck(gameId, defenderMosseCardId, defender);
+      
+      // Apply net damage to defender's character
+      await this.processMosseDamage(gameId, attacker, targetCardId, netDamage, mosseCardId, io, false, isHandTarget || false, false);
+
+      // Send game state update
+      const updatedGameState = this.getSanitizedGameState(gameId);
+      io.to(gameId).emit('game-state-update', updatedGameState);
+
+      return { success: true, result: 'attacker_wins', netDamage };
+    }
+  }
+
+  // CLASH BATTLE: Handle tap from participant
+  handleClashTap(gameId: string, playerName: string): { success: boolean; attackerTaps: number; defenderTaps: number } {
+    const game = this.games.get(gameId);
+    if (!game?.activeClashBattle?.active) {
+      return { success: false, attackerTaps: 0, defenderTaps: 0 };
+    }
+
+    const clash = game.activeClashBattle;
+    
+    // Only attacker and defender can tap
+    if (playerName === clash.attacker) {
+      clash.attackerTaps++;
+    } else if (playerName === clash.defender) {
+      clash.defenderTaps++;
+    } else {
+      return { success: false, attackerTaps: clash.attackerTaps, defenderTaps: clash.defenderTaps };
+    }
+
+    return { success: true, attackerTaps: clash.attackerTaps, defenderTaps: clash.defenderTaps };
+  }
+
+  // CLASH BATTLE: Check if one side completely overwhelmed
+  checkClashOverwhelm(gameId: string): { winner: string | null; loser: string | null } {
+    const game = this.games.get(gameId);
+    if (!game?.activeClashBattle?.active) {
+      return { winner: null, loser: null };
+    }
+
+    const clash = game.activeClashBattle;
+    const diff = clash.attackerTaps - clash.defenderTaps;
+    
+    // Win by 20 tap lead = complete overwhelm
+    if (diff >= 20) {
+      return { winner: clash.attacker, loser: clash.defender };
+    } else if (diff <= -20) {
+      return { winner: clash.defender, loser: clash.attacker };
+    }
+
+    return { winner: null, loser: null };
+  }
+
+  // CLASH BATTLE: Resolve at end of time or when overwhelmed
+  async resolveClashBattle(gameId: string, clashId: string, io: any): Promise<void> {
+    const game = this.games.get(gameId);
+    if (!game?.activeClashBattle || game.activeClashBattle.id !== clashId || !game.activeClashBattle.active) {
+      console.log(`[CLASH] Battle ${clashId} already resolved or not found`);
+      return;
+    }
+
+    const clash = game.activeClashBattle;
+    clash.active = false;
+
+    const { attacker, defender, attackerTaps, defenderTaps, damageValue, attackerMosseCardId, defenderMosseCardId, targetCardId, defenderTargetCardId } = clash;
+
+    console.log(`⚡ CLASH RESOLVED: ${attacker}(${attackerTaps}) vs ${defender}(${defenderTaps})`);
+
+    let winner: string;
+    let loser: string;
+    let winnerMosseCardId: string;
+    let loserMosseCardId: string;
+    let targetToHit: string;
+
+    if (attackerTaps > defenderTaps) {
+      winner = attacker;
+      loser = defender;
+      winnerMosseCardId = attackerMosseCardId;
+      loserMosseCardId = defenderMosseCardId;
+      targetToHit = targetCardId; // Hit defender's character
+    } else if (defenderTaps > attackerTaps) {
+      winner = defender;
+      loser = attacker;
+      winnerMosseCardId = defenderMosseCardId;
+      loserMosseCardId = attackerMosseCardId;
+      targetToHit = defenderTargetCardId; // Hit attacker's character
+    } else {
+      // TIE: Neither takes damage, both MOSSE returned
+      console.log(`⚡ CLASH TIE: Both return MOSSE to deck`);
+      
+      this.returnToDeck(gameId, attackerMosseCardId, attacker);
+      this.returnToDeck(gameId, defenderMosseCardId, defender);
+
+      io.to(gameId).emit('clash-battle-end', {
+        clashId,
+        winner: null,
+        attackerTaps,
+        defenderTaps,
+        isTie: true
+      });
+
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-clash-tie`,
+        playerName: 'Sistema',
+        message: `⚡ PAREGGIO! ${attacker}(${attackerTaps}) e ${defender}(${defenderTaps}) pareggiano - nessun danno inflitto!`,
+        timestamp: Date.now()
+      });
+
+      game.activeClashBattle = undefined;
+      const updatedGameState = this.getSanitizedGameState(gameId);
+      io.to(gameId).emit('game-state-update', updatedGameState);
+      return;
+    }
+
+    // Winner deals full damage, loser's MOSSE returns to deck
+    console.log(`⚡ CLASH WINNER: ${winner} beats ${loser} (${attackerTaps} vs ${defenderTaps})`);
+
+    this.returnToDeck(gameId, loserMosseCardId, loser);
+
+    io.to(gameId).emit('clash-battle-end', {
+      clashId,
+      winner,
+      loser,
+      attackerTaps,
+      defenderTaps,
+      isTie: false
+    });
+
+    io.to(gameId).emit('chat-message', {
+      id: `${Date.now()}-clash-winner`,
+      playerName: 'Sistema',
+      message: `⚡ ${winner} VINCE LO SCONTRO! (${attackerTaps} vs ${defenderTaps}) e infligge ${damageValue} danni a ${loser}!`,
+      timestamp: Date.now()
+    });
+
+    // Apply full damage from winner
+    await this.processMosseDamage(gameId, winner, targetToHit, damageValue, winnerMosseCardId, io, false, false, false);
+
+    game.activeClashBattle = undefined;
+    const updatedGameState = this.getSanitizedGameState(gameId);
+    io.to(gameId).emit('game-state-update', updatedGameState);
+  }
+
+  // Get active clash battle for a game
+  getActiveClashBattle(gameId: string): ClashBattle | undefined {
+    const game = this.games.get(gameId);
+    return game?.activeClashBattle;
   }
 
   // EXTRACTED AND HARDENED: Damage processing method (preserves ALL legacy logic + BAMBOLA VOODOO + ATTACCO DISONESTO + FURTO)

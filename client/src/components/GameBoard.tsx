@@ -20,6 +20,7 @@ import { LeaveGameNotification } from "./LeaveGameNotification";
 import { SuperDice } from "./SuperDice";
 import { TransferRequestDialog } from "./TransferRequestDialog";
 import { DefenseDialog } from "./DefenseDialog";
+import { ClashBattle } from "./ClashBattle";
 import { CPUDamageDialog } from "./CPUDamageDialog";
 import { DuelDamageDialog } from "./DuelDamageDialog";
 import { RecursiveDamagePanel } from "./RecursiveDamagePanel";
@@ -138,6 +139,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     damagePerCard: number;
     affectedCards: Array<{ id: string; name: string; owner: string; oldPTI: number; newPTI: number }>;
     message: string;
+  } | null>(null);
+  const [clashBattleData, setClashBattleData] = useState<{
+    visible: boolean;
+    clashId: string;
+    attacker: string;
+    defender: string;
+    damageValue: number;
+    duration: number;
   } | null>(null);
     const { selectedCard, gameId, playerName, gameState, setGameId, setUserRankiardPoints, resetPRSpent } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted, playAttackSound, playDeathSound, playCardPickup, playCardPlay, playTurnChange, playBonusActivated } = useAudio();
@@ -497,6 +506,39 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('super-dice-rolled', handleSuperDiceRolled);
     socket.on('soros-activated', handleSorosActivation);
 
+    // CLASH BATTLE: Start battle when equal damage values
+    const handleClashBattleStart = ({ clashId, attacker, defender, damageValue, duration }: {
+      clashId: string;
+      attacker: string;
+      defender: string;
+      damageValue: number;
+      duration: number;
+    }) => {
+      console.log(`⚡ CLASH BATTLE started: ${attacker} vs ${defender} with ${damageValue} PTI`);
+      setClashBattleData({
+        visible: true,
+        clashId,
+        attacker,
+        defender,
+        damageValue,
+        duration
+      });
+    };
+    socket.on('clash-battle-start', handleClashBattleStart);
+
+    // CLASH BATTLE: End battle
+    const handleClashBattleEnd = ({ clashId, winner, isTie }: {
+      clashId: string;
+      winner: string | null;
+      isTie: boolean;
+    }) => {
+      console.log(`⚡ CLASH BATTLE ended: winner=${winner}, tie=${isTie}`);
+      setTimeout(() => {
+        setClashBattleData(null);
+      }, 2000); // Keep visible briefly to show result
+    };
+    socket.on('clash-battle-end', handleClashBattleEnd);
+
     // Handler for player choosing a card notification
     const handlePlayerChoosingNotification = ({ playerName: chooserName, deckName, message }: { 
       playerName: string, deckName: string, message: string 
@@ -728,6 +770,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('parasitic-attached', handleParasiticAttached);
       socket.off('saibaim-explosion', handleSaibaImExplosion);
       socket.off('cimice-effect', handleCimiceEffect);
+      socket.off('clash-battle-start', handleClashBattleStart);
+      socket.off('clash-battle-end', handleClashBattleEnd);
     };
   }, []);
 
@@ -1614,6 +1658,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
         {/* Defense System Dialog */}
         <DefenseDialog />
+        
+        {/* Clash Battle - Equal damage tap battle */}
+        {clashBattleData?.visible && (
+          <ClashBattle
+            clashId={clashBattleData.clashId}
+            attacker={clashBattleData.attacker}
+            defender={clashBattleData.defender}
+            damageValue={clashBattleData.damageValue}
+            duration={clashBattleData.duration}
+          />
+        )}
         
         {/* CPU Damage Request Dialog */}
         <CPUDamageDialog />

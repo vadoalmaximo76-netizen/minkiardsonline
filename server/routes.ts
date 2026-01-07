@@ -2620,6 +2620,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // COUNTER-ATTACK: When defender uses a MOSSE to counter
+    socket.on('counter-attack', async ({ attackId, defenderMosseCardId, defenderDamage, defenderTargetCardId }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) {
+        socket.emit('counter-attack:error', { message: 'Game not found' });
+        return;
+      }
+
+      console.log(`⚔️ COUNTER-ATTACK received: ${defenderMosseCardId} with ${defenderDamage} damage`);
+      
+      const result = await gameManager.processCounterAttack(
+        gameId,
+        attackId,
+        defenderMosseCardId,
+        defenderDamage,
+        defenderTargetCardId,
+        io
+      );
+
+      if (!result.success) {
+        socket.emit('counter-attack:error', { message: 'Failed to process counter-attack' });
+      }
+    });
+
+    // CLASH BATTLE: Handle tap from participant
+    socket.on('clash-tap', ({ clashId, playerName }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+
+      const result = gameManager.handleClashTap(gameId, playerName);
+      
+      if (result.success) {
+        // Broadcast tap update to all players in real-time
+        io.to(gameId).emit('clash-tap-update', {
+          clashId,
+          attackerTaps: result.attackerTaps,
+          defenderTaps: result.defenderTaps
+        });
+
+        // Check for overwhelm (20 tap lead)
+        const overwhelmCheck = gameManager.checkClashOverwhelm(gameId);
+        if (overwhelmCheck.winner) {
+          // Resolve immediately
+          const clash = gameManager.getActiveClashBattle(gameId);
+          if (clash) {
+            gameManager.resolveClashBattle(gameId, clash.id, io);
+          }
+        }
+      }
+    });
 
     socket.on('remove-card-to-graveyard', ({ deckType, cardId, playerName, section }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);

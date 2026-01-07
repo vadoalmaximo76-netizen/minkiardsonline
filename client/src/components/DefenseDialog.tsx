@@ -4,8 +4,9 @@ import { useAudio } from '../lib/stores/useAudio';
 import { socket } from '../lib/socket';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Shield, Swords, Clock, Eye, X, ChevronLeft } from 'lucide-react';
+import { Shield, Swords, Clock, Eye, X, ChevronLeft, Target } from 'lucide-react';
 import { HandModal } from './HandModal';
+import { Input } from './ui/input';
 
 interface DefenseRequest {
   gameId: string;
@@ -51,11 +52,24 @@ export const DefenseDialog: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [showHand, setShowHand] = useState<boolean>(false);
   const [showDefenseCardSelect, setShowDefenseCardSelect] = useState<boolean>(false);
+  const [showCounterAttackFlow, setShowCounterAttackFlow] = useState<boolean>(false);
+  const [selectedMosseCard, setSelectedMosseCard] = useState<GameCard | null>(null);
+  const [counterDamage, setCounterDamage] = useState<string>('');
+  const [showTargetSelect, setShowTargetSelect] = useState<boolean>(false);
   const { playerName, gameId, gameState } = useGameState();
   const { playAttackSound, playDefenseActivated, playAttackBlocked } = useAudio();
 
   // Get player's hand
   const playerHand: GameCard[] = gameState?.players?.[playerName]?.hand || [];
+  
+  // Get MOSSE cards from player's hand for counter-attack
+  const mosseCards = playerHand.filter(card => card.type === 'mosse');
+  
+  // Get attacker's characters on field for counter-attack target
+  const attackerName = defenseRequest?.attackerName || '';
+  const attackerCharacters = (gameState?.field || []).filter(
+    (card: any) => card.owner === attackerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali')
+  );
 
   // Listen for defense requests
   useEffect(() => {
@@ -74,6 +88,10 @@ export const DefenseDialog: React.FC = () => {
         setTimeLeft(30); // Reset timer
         setIsProcessing(false);
         setShowDefenseCardSelect(false);
+        setShowCounterAttackFlow(false);
+        setSelectedMosseCard(null);
+        setCounterDamage('');
+        setShowTargetSelect(false);
       } else {
         console.log('🛡️ Defense request not for this player, ignoring');
       }
@@ -145,14 +163,215 @@ export const DefenseDialog: React.FC = () => {
   };
 
   const handleSelectDefenseCard = (card: GameCard) => {
-    handleDefenseResponse(true, card.id);
+    // Check if this is a MOSSE card - if so, start counter-attack flow
+    if (card.type === 'mosse') {
+      console.log('🛡️ Selected MOSSE for counter-attack:', card.id);
+      setSelectedMosseCard(card);
+      setShowDefenseCardSelect(false);
+      setShowCounterAttackFlow(true);
+    } else {
+      // Regular defense with non-MOSSE card
+      handleDefenseResponse(true, card.id);
+    }
   };
 
   const handleBackToMain = () => {
     setShowDefenseCardSelect(false);
+    setShowCounterAttackFlow(false);
+    setSelectedMosseCard(null);
+    setCounterDamage('');
+    setShowTargetSelect(false);
+  };
+
+  const handleCounterDamageSubmit = () => {
+    const damage = parseInt(counterDamage);
+    if (isNaN(damage) || damage <= 0) {
+      return;
+    }
+    setShowTargetSelect(true);
+  };
+
+  const handleSelectCounterTarget = (targetCard: any) => {
+    if (!defenseRequest || !selectedMosseCard || isProcessing) return;
+    
+    const damage = parseInt(counterDamage);
+    if (isNaN(damage) || damage <= 0) return;
+
+    setIsProcessing(true);
+    console.log(`⚔️ COUNTER-ATTACK: ${selectedMosseCard.id} with ${damage} damage against ${targetCard.id}`);
+
+    // First play the MOSSE card to field
+    socket.emit('play-card', {
+      cardId: selectedMosseCard.id,
+      playerName: playerName
+    });
+
+    // Then emit counter-attack
+    socket.emit('counter-attack', {
+      attackId: defenseRequest.attackId,
+      defenderMosseCardId: selectedMosseCard.id,
+      defenderDamage: damage,
+      defenderTargetCardId: targetCard.id
+    });
+
+    playAttackBlocked();
+
+    // Close dialog
+    setTimeout(() => {
+      setDefenseRequest(null);
+      setIsProcessing(false);
+      setShowDefenseCardSelect(false);
+      setShowCounterAttackFlow(false);
+      setSelectedMosseCard(null);
+      setCounterDamage('');
+      setShowTargetSelect(false);
+    }, 500);
   };
 
   if (!defenseRequest) return null;
+
+  // COUNTER-ATTACK FLOW: Show damage input and target selection
+  if (showCounterAttackFlow && selectedMosseCard) {
+    // Target selection step
+    if (showTargetSelect) {
+      return (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-2xl bg-gradient-to-b from-gray-900 to-gray-800 rounded-lg shadow-2xl border-2 border-orange-500 p-4">
+            <div className="text-center mb-4">
+              <div className="flex items-center justify-center gap-2 text-orange-400 mb-1">
+                <Target className="w-6 h-6" />
+                <h1 className="text-xl font-bold">SCEGLI BERSAGLIO DELLA RESPINTA</h1>
+                <Target className="w-6 h-6" />
+              </div>
+              <p className="text-gray-300 text-sm">
+                La tua respinta da <span className="text-yellow-400 font-bold">{counterDamage} PTI</span> contro l'attacco da <span className="text-red-400 font-bold">{defenseRequest.damageValue} PTI</span>
+              </p>
+              <p className="text-gray-400 text-xs mt-1">
+                {parseInt(counterDamage) > defenseRequest.damageValue 
+                  ? `Danno netto: ${parseInt(counterDamage) - defenseRequest.damageValue} PTI al nemico!`
+                  : parseInt(counterDamage) < defenseRequest.damageValue 
+                    ? `Danno netto: ${defenseRequest.damageValue - parseInt(counterDamage)} PTI a te!`
+                    : '⚡ VALORI UGUALI: Si attiverà uno SCONTRO!'}
+              </p>
+            </div>
+
+            {attackerCharacters.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+                {attackerCharacters.map((card: any) => (
+                  <div
+                    key={card.id}
+                    onClick={() => handleSelectCounterTarget(card)}
+                    className="cursor-pointer hover:scale-105 transition-transform duration-200 bg-gray-800 rounded-lg border-2 border-gray-600 hover:border-orange-400 p-2 flex flex-col items-center"
+                  >
+                    {card.frontImage && (
+                      <img
+                        src={card.frontImage}
+                        alt={getCardName(card.frontImage)}
+                        className="w-20 h-28 object-cover rounded-md mb-2"
+                      />
+                    )}
+                    <div className="text-white text-xs font-bold text-center">
+                      {card.frontImage ? getCardName(card.frontImage) : 'Personaggio'}
+                    </div>
+                    {card.text && (
+                      <div className="text-gray-400 text-xs mt-1 text-center line-clamp-1">
+                        {card.text}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center text-gray-400 py-4 mb-4">
+                Nessun personaggio nemico disponibile
+              </div>
+            )}
+
+            <div className="flex justify-center">
+              <Button
+                onClick={() => setShowTargetSelect(false)}
+                className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6"
+              >
+                <ChevronLeft className="w-4 h-4 mr-1" />
+                INDIETRO
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Damage input step
+    return (
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+        <div className="w-full max-w-md bg-gradient-to-b from-gray-900 to-gray-800 rounded-lg shadow-2xl border-2 border-yellow-500 p-6">
+          <div className="text-center mb-4">
+            <div className="flex items-center justify-center gap-2 text-yellow-400 mb-2">
+              <Swords className="w-6 h-6" />
+              <h1 className="text-xl font-bold">RESPINGI CON MOSSE</h1>
+              <Swords className="w-6 h-6" />
+            </div>
+            <div className="flex items-center justify-center gap-1 text-gray-300 text-sm mb-2">
+              <Clock className="w-4 h-4" />
+              <span className="font-mono font-bold">{timeLeft}s</span>
+            </div>
+          </div>
+
+          {/* Selected MOSSE card preview */}
+          <div className="flex justify-center mb-4">
+            {selectedMosseCard.frontImage && (
+              <img
+                src={selectedMosseCard.frontImage}
+                alt={getCardName(selectedMosseCard.frontImage)}
+                className="w-24 h-32 object-cover rounded-lg border-2 border-yellow-500"
+              />
+            )}
+          </div>
+
+          <p className="text-gray-300 text-center text-sm mb-2">
+            Attacco nemico: <span className="text-red-400 font-bold">{defenseRequest.damageValue} PTI</span>
+          </p>
+
+          <p className="text-gray-400 text-center text-xs mb-4">
+            Inserisci i danni della tua respinta. Se maggiore, infliggi la differenza al nemico!
+          </p>
+
+          {/* Damage input */}
+          <div className="mb-4">
+            <label className="block text-white text-sm font-bold mb-2">
+              Danno della tua MOSSE:
+            </label>
+            <Input
+              type="number"
+              value={counterDamage}
+              onChange={(e) => setCounterDamage(e.target.value)}
+              placeholder="Es: 100"
+              className="w-full bg-gray-700 border-gray-600 text-white text-center text-xl"
+              min="1"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              onClick={handleBackToMain}
+              className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2"
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              ANNULLA
+            </Button>
+            <Button
+              onClick={handleCounterDamageSubmit}
+              disabled={!counterDamage || parseInt(counterDamage) <= 0}
+              className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2"
+            >
+              <Target className="w-4 h-4 mr-1" />
+              SCEGLI BERSAGLIO
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Show defense card selection panel
   if (showDefenseCardSelect) {
