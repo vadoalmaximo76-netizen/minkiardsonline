@@ -1476,6 +1476,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // MEDICINA SOMMINISTRA - Cure VIRUS/INFLUENZA and eliminate PARASSITA
+    socket.on('somministra-medicina', async ({ cardId, playerName }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        console.log(`💊 MEDICINA SOMMINISTRA: ${playerName} using MEDICINA ${cardId}`);
+        
+        const result = await gameManager.somministraMedicina(gameId, cardId, playerName);
+        
+        if (result.success) {
+          const gameState = gameManager.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', gameState);
+          
+          // Build message about what was cured
+          const effects: string[] = [];
+          if (result.virusCleared > 0) effects.push(`${result.virusCleared} VIRUS`);
+          if (result.influenzaCleared > 0) effects.push(`${result.influenzaCleared} INFLUENZA`);
+          if (result.parassitaEliminated.length > 0) effects.push(`${result.parassitaEliminated.length} PARASSITA`);
+          
+          const effectMessage = effects.length > 0 
+            ? `Ha curato: ${effects.join(', ')}` 
+            : 'Nessun effetto da curare trovato';
+          
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-medicina`,
+            playerName: 'Sistema',
+            message: `💊 ${playerName} ha somministrato MEDICINA! ${effectMessage}`,
+            timestamp: Date.now()
+          });
+          
+          // Emit medicina effect for animation
+          io.to(gameId).emit('medicina-somministrata', {
+            playerName,
+            virusCleared: result.virusCleared,
+            influenzaCleared: result.influenzaCleared,
+            parassitaEliminated: result.parassitaEliminated
+          });
+        }
+      }
+    });
+
     socket.on('update-card-text', ({ cardId, text }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {

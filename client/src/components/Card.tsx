@@ -581,9 +581,17 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   // Check if this is the MINKIARD N 300 card
   const isMinkiard300 = getCardName(card) === 'MINKIARD N 300';
   
+  // Check if this is the MEDICINA bonus card
+  const isMedicina = card.type === 'bonus' && getCardName(card).toUpperCase().includes('MEDICINA');
+  
   const handleSuperDice = () => {
     console.log('SUPER DICE button clicked for MINKIARD N 300');
     socket.emit('open-super-dice', { gameId, playerName });
+  };
+
+  const handleSomministraMedicina = () => {
+    console.log('SOMMINISTRA button clicked for MEDICINA');
+    socket.emit('somministra-medicina', { cardId: card.id, playerName: effectivePlayerName });
   };
   
   const otherPlayers = Object.keys(gameState?.players || {}).filter(p => p !== playerName);
@@ -786,6 +794,20 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
             style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
           >
             LANCIA IL SUPER DADO
+          </Button>
+        </div>
+      )}
+
+      {/* SOMMINISTRA button for MEDICINA bonus card on field */}
+      {location === 'field' && isMedicina && isOwner && !card.faceDown && (
+        <div className="flex flex-col gap-1">
+          <Button
+            onClick={handleSomministraMedicina}
+            className="bg-green-600 hover:bg-green-700 text-white font-bold text-xs px-2 py-1"
+            size="sm"
+            style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
+          >
+            💊 SOMMINISTRA
           </Button>
         </div>
       )}

@@ -1892,6 +1892,72 @@ Rispondi SOLO in JSON:`;
     return { canAttack: true };
   }
 
+  // MEDICINA SOMMINISTRA - Cure VIRUS/INFLUENZA and eliminate PARASSITA
+  async somministraMedicina(gameId: string, medicinaCardId: string, playerName: string): Promise<{ 
+    success: boolean; 
+    virusCleared: number; 
+    influenzaCleared: number; 
+    parassitaEliminated: string[];
+    message?: string 
+  }> {
+    const game = this.games.get(gameId);
+    if (!game) return { success: false, virusCleared: 0, influenzaCleared: 0, parassitaEliminated: [], message: 'Game not found' };
+
+    let virusCleared = 0;
+    let influenzaCleared = 0;
+    const parassitaEliminated: string[] = [];
+
+    // Clear all VIRUS and INFLUENZA persistent damage effects
+    if (game.persistentDamages && game.persistentDamages.length > 0) {
+      const originalLength = game.persistentDamages.length;
+      game.persistentDamages = game.persistentDamages.filter(d => {
+        if (d.type === 'VIRUS') {
+          virusCleared++;
+          console.log(`💊 MEDICINA cleared VIRUS effect from ${d.targetCardId}`);
+          return false;
+        }
+        if (d.type === 'INFLUENZA') {
+          influenzaCleared++;
+          console.log(`💊 MEDICINA cleared INFLUENZA effect from ${d.targetCardId}`);
+          return false;
+        }
+        return true;
+      });
+      console.log(`💊 MEDICINA cleared ${originalLength - game.persistentDamages.length} persistent damage effects`);
+    }
+
+    // Find and eliminate all PARASSITA cards on field
+    const parassitaCards = game.field.filter(card => {
+      const cardName = this.getCardNameFromUrl(card.frontImage).toUpperCase();
+      return cardName.includes('PARASSITA');
+    });
+
+    for (const parassita of parassitaCards) {
+      console.log(`💊 MEDICINA eliminating PARASSITA: ${parassita.id}`);
+      
+      // Detach if attached
+      if (parassita.attachedTo) {
+        await this.detachParasiticCard(gameId, parassita.id, 'manual');
+      }
+      
+      // Send to graveyard
+      await this.sendCardToGraveyard(gameId, parassita.id, parassita.owner, 'medicina');
+      parassitaEliminated.push(parassita.id);
+    }
+
+    // Send MEDICINA card to graveyard after use
+    await this.sendCardToGraveyard(gameId, medicinaCardId, playerName, 'used');
+
+    console.log(`💊 MEDICINA SOMMINISTRA complete: ${virusCleared} VIRUS, ${influenzaCleared} INFLUENZA cleared, ${parassitaEliminated.length} PARASSITA eliminated`);
+
+    return { 
+      success: true, 
+      virusCleared, 
+      influenzaCleared, 
+      parassitaEliminated 
+    };
+  }
+
   // Look up PERSONAGGI data from database
   private async getPersonaggioFromDatabase(cardName: string): Promise<{ pti: number | null, stars: number | null } | null> {
     try {
