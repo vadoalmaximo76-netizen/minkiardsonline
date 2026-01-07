@@ -42,6 +42,9 @@ interface AudioState {
   playPointLoss: () => void;
   playAttackBlocked: () => void;
   playCardDraw: () => void;
+  playClashTap: () => void;
+  playClashBattleStart: () => void;
+  playClashVictory: () => void;
 }
 
 export const useAudio = create<AudioState>((set, get) => ({
@@ -1233,6 +1236,76 @@ export const useAudio = create<AudioState>((set, get) => ({
         osc.start(audioContext.currentTime);
         osc.stop(audioContext.currentTime + 0.2);
       }, index * 80);
+    });
+  },
+
+  playClashTap: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    
+    osc.frequency.setValueAtTime(800 + Math.random() * 200, audioContext.currentTime);
+    osc.type = 'square';
+    
+    gain.gain.setValueAtTime(0.08, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.05);
+    
+    osc.start(audioContext.currentTime);
+    osc.stop(audioContext.currentTime + 0.05);
+  },
+
+  playClashBattleStart: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const frequencies = [220, 330, 440, 550, 660, 880];
+    frequencies.forEach((freq, index) => {
+      setTimeout(() => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        osc.type = 'sawtooth';
+        
+        gain.gain.setValueAtTime(0.15, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+        
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + 0.2);
+      }, index * 60);
+    });
+  },
+
+  playClashVictory: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const frequencies = [523, 659, 784, 1047];
+    frequencies.forEach((freq, index) => {
+      setTimeout(() => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        osc.type = 'sine';
+        
+        gain.gain.setValueAtTime(0.2, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+        
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + 0.4);
+      }, index * 100);
     });
   }
 }));

@@ -5171,6 +5171,60 @@ Rispondi SOLO in JSON:`;
         timestamp: Date.now()
       });
 
+      // CPU AUTO-TAP: If either participant is CPU, automatically tap for them
+      const attackerIsCPU = attacker.startsWith('CPU');
+      const defenderIsCPU = defender.startsWith('CPU');
+      
+      if (attackerIsCPU || defenderIsCPU) {
+        // Generate random number of taps between 15-25
+        const cpuTaps = Math.floor(Math.random() * 11) + 15; // 15-25 taps
+        const tapInterval = 10000 / cpuTaps; // Spread taps over 10 seconds
+        
+        if (attackerIsCPU) {
+          console.log(`🤖 CPU ${attacker} will auto-tap ${cpuTaps} times`);
+          for (let i = 0; i < cpuTaps; i++) {
+            setTimeout(() => {
+              const result = this.handleClashTap(gameId, attacker);
+              if (result.success) {
+                io.to(gameId).emit('clash-tap-update', {
+                  clashId,
+                  attackerTaps: result.attackerTaps,
+                  defenderTaps: result.defenderTaps
+                });
+                
+                // Check for overwhelm (20 tap lead)
+                const overwhelmCheck = this.checkClashOverwhelm(gameId);
+                if (overwhelmCheck.winner) {
+                  this.resolveClashBattle(gameId, clashId, io);
+                }
+              }
+            }, Math.random() * tapInterval + (i * tapInterval * 0.8));
+          }
+        }
+        
+        if (defenderIsCPU) {
+          console.log(`🤖 CPU ${defender} will auto-tap ${cpuTaps} times`);
+          for (let i = 0; i < cpuTaps; i++) {
+            setTimeout(() => {
+              const result = this.handleClashTap(gameId, defender);
+              if (result.success) {
+                io.to(gameId).emit('clash-tap-update', {
+                  clashId,
+                  attackerTaps: result.attackerTaps,
+                  defenderTaps: result.defenderTaps
+                });
+                
+                // Check for overwhelm (20 tap lead)
+                const overwhelmCheck = this.checkClashOverwhelm(gameId);
+                if (overwhelmCheck.winner) {
+                  this.resolveClashBattle(gameId, clashId, io);
+                }
+              }
+            }, Math.random() * tapInterval + (i * tapInterval * 0.8));
+          }
+        }
+      }
+
       // Set timeout to resolve clash after 10 seconds
       setTimeout(async () => {
         await this.resolveClashBattle(gameId, clashId, io);
