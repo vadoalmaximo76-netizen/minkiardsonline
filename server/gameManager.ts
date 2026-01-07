@@ -1945,8 +1945,8 @@ Rispondi SOLO in JSON:`;
       parassitaEliminated.push(parassita.id);
     }
 
-    // Send MEDICINA card to graveyard after use
-    await this.sendCardToGraveyard(gameId, medicinaCardId, playerName, 'used');
+    // Return MEDICINA card to deck after use (not graveyard)
+    this.returnToDeck(gameId, medicinaCardId, playerName);
 
     console.log(`💊 MEDICINA SOMMINISTRA complete: ${virusCleared} VIRUS, ${influenzaCleared} INFLUENZA cleared, ${parassitaEliminated.length} PARASSITA eliminated`);
 
