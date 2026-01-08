@@ -116,6 +116,22 @@ export const useGameState = create<GameStateStore>()(
         set({ pickedCard: data.card });
       });
 
+      // Listen for hand restoration on reconnect
+      socket.on('restore-hand', (data: { playerName: string; hand: Card[] }) => {
+        console.log(`Restoring hand for ${data.playerName}: ${data.hand.length} cards`);
+        set((state) => {
+          if (!state.gameState) return state;
+          const newGameState = { ...state.gameState };
+          if (newGameState.players[data.playerName]) {
+            newGameState.players[data.playerName] = {
+              ...newGameState.players[data.playerName],
+              hand: data.hand
+            };
+          }
+          return { gameState: newGameState };
+        });
+      });
+
       return {
         gameState: null,
         playerName: "",

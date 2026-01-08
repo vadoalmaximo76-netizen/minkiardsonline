@@ -346,6 +346,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const gameState = gameManager.getSanitizedGameState(gameId);
         socket.emit('game-state-update', gameState);
         
+        // CRITICAL: Send the player's hand privately to restore it after page refresh
+        if (player.hand && player.hand.length > 0) {
+          console.log(`Restoring ${player.hand.length} cards to ${playerName}'s hand`);
+          socket.emit('restore-hand', { playerName, hand: player.hand });
+        }
+        
         // Notify other players about the reconnection
         socket.to(gameId).emit('player-reconnected', { playerName });
         
