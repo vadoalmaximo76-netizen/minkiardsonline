@@ -1796,6 +1796,11 @@ Rispondi SOLO in JSON:`;
     const protectedCard = game.field.find(c => c.id === characterId);
     const protectedName = protectedCard ? this.getCardNameFromUrl(protectedCard.frontImage) : 'personaggio';
     
+    // Remove the protectedByRifugio marker so the label disappears
+    if (protectedCard) {
+      delete protectedCard.protectedByRifugio;
+    }
+    
     io.to(gameId).emit('chat-message', {
       id: `${Date.now()}-rifugio-broken`,
       playerName: 'Sistema',
@@ -1826,6 +1831,11 @@ Rispondi SOLO in JSON:`;
         
         const protectedCard = game.field.find(c => c.id === protection.protectedCharacterId);
         const protectedName = protectedCard ? this.getCardNameFromUrl(protectedCard.frontImage) : 'personaggio';
+        
+        // Restore the protectedByRifugio marker so the label reappears
+        if (protectedCard) {
+          protectedCard.protectedByRifugio = protection.rifugioCardId;
+        }
         
         io.to(gameId).emit('chat-message', {
           id: `${Date.now()}-rifugio-restored`,
