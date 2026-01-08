@@ -1801,6 +1801,13 @@ Rispondi SOLO in JSON:`;
       delete protectedCard.protectedByRifugio;
     }
     
+    // Clear rifugioProtecting on the RIFUGIO card so PROTEGGI button reappears
+    const rifugioCard = game.field.find(c => c.id === protection.rifugioCardId);
+    if (rifugioCard) {
+      delete rifugioCard.rifugioProtecting;
+      console.log(`🏠 Cleared rifugioProtecting on RIFUGIO card - PROTEGGI button now available`);
+    }
+    
     io.to(gameId).emit('chat-message', {
       id: `${Date.now()}-rifugio-broken`,
       playerName: 'Sistema',
@@ -1845,6 +1852,13 @@ Rispondi SOLO in JSON:`;
         if (protectedCard) {
           protectedCard.protectedByRifugio = protection.rifugioCardId;
           console.log(`🏠 Restored protectedByRifugio marker on ${protectedName}`);
+        }
+        
+        // Restore rifugioProtecting on the RIFUGIO card so PROTEGGI button hides again
+        const rifugioCard = game.field.find(c => c.id === protection.rifugioCardId);
+        if (rifugioCard) {
+          rifugioCard.rifugioProtecting = protection.protectedCharacterId;
+          console.log(`🏠 Restored rifugioProtecting on RIFUGIO card - PROTEGGI button now hidden`);
         }
         
         io.to(gameId).emit('chat-message', {
