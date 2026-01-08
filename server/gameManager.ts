@@ -39,6 +39,12 @@ interface Card {
   protectedByRifugio?: string; // ID of RIFUGIO card protecting this character
   rifugioProtecting?: string; // ID of character this RIFUGIO is protecting
   rifugioPTI?: number; // Current PTI of this RIFUGIO card
+  // BARRIERA shield system
+  isBarrieraShield?: boolean; // True if this is a BARRIERA shield card
+  barrieraOriginalId?: string; // For clones: ID of the original BARRIERA
+  barrieraShieldIndex?: number; // 0, 1, or 2 for the three shields
+  barrieraPTI?: number; // PTI for this BARRIERA shield (50)
+  barrieraProtecting?: string; // ID of character this BARRIERA is protecting
 }
 
 interface Player {
@@ -143,6 +149,16 @@ interface RifugioProtection {
   usedMosseThisTurn: boolean; // Track if character used MOSSE this turn
 }
 
+interface BarrieraShield {
+  id: string;
+  originalCardId: string; // ID of the original BARRIERA card that was played
+  shieldCardIds: string[]; // IDs of the 3 BARRIERA copies on field
+  protectedCharacterId: string; // The character being protected
+  ownerPlayer: string; // The player who owns BARRIERA
+  shieldsPTI: number[]; // PTI for each of the 3 shields [50, 50, 50]
+  active: boolean; // True while at least one shield has PTI > 0
+}
+
 interface GameState {
   decks: {
     personaggi: Card[];
@@ -175,6 +191,7 @@ interface GameState {
   parasiticAttachments: ParasiticAttachment[]; // PARASSITA/SAIBAIM attachment tracking
   activeClashBattle?: ClashBattle; // Current active clash battle
   rifugioProtections: RifugioProtection[]; // RIFUGIO shelter protection tracking
+  barrieraShields: BarrieraShield[]; // BARRIERA shield protection tracking
 }
 
 export class GameManager {
@@ -290,7 +307,8 @@ export class GameManager {
       prSpentThisGame: new Map<string, number>(),
       persistentDamages: [],
       parasiticAttachments: [],
-      rifugioProtections: []
+      rifugioProtections: [],
+      barrieraShields: []
     };
 
     // Auto-shuffle all decks when starting a new game
