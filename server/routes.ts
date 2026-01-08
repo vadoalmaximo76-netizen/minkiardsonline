@@ -1864,6 +1864,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // RIFUGIO: Get valid targets for RIFUGIO protection
+    socket.on('rifugio:get-targets', ({ rifugioCardId, playerName }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) {
+        socket.emit('rifugio:error', { message: 'Game not found' });
+        return;
+      }
+      
+      console.log(`🏠 RIFUGIO target request from ${playerName}`);
+      
+      const targets = gameManager.getRifugioTargets(gameId, playerName);
+      socket.emit('rifugio:targets', { rifugioCardId, targets });
+    });
+
+    // RIFUGIO: Activate RIFUGIO protection on a character
+    socket.on('rifugio:activate', ({ rifugioCardId, targetCharacterId, playerName }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) {
+        socket.emit('rifugio:error', { message: 'Game not found' });
+        return;
+      }
+      
+      console.log(`🏠 RIFUGIO activation request: ${playerName} protecting ${targetCharacterId}`);
+      
+      const result = gameManager.activateRifugio(gameId, rifugioCardId, targetCharacterId, playerName, io);
+      
+      if (result.success) {
+        // Send updated game state with RIFUGIO protection
+        const gameState = gameManager.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', gameState);
+        
+        console.log(`🏠 RIFUGIO activated successfully`);
+      } else {
+        socket.emit('rifugio:error', { message: result.message });
+        console.log(`🏠 RIFUGIO activation failed: ${result.message}`);
+      }
+    });
+
     // DUELLO: Start a duel between two characters
     socket.on('duel:start', async ({ duelCardId, initiatorPlayer, opponentCharacterId }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
@@ -2468,6 +2506,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           gameManager.markCardTypeAsUsed(gameId, mosseCard.frontImage, attackerName);
         }
         
+        // RIFUGIO: Break protection when a player's protected character uses MOSSE
+        // Find attacker's characters that are protected by RIFUGIO and break their protection
+        const gameStateForRifugio = gameManager.getSanitizedGameState(gameId);
+        const attackerProtectedChars = gameStateForRifugio?.field?.filter(
+          (c: any) => c.owner === attackerName && c.protectedByRifugio
+        ) || [];
+        for (const protectedChar of attackerProtectedChars) {
+          gameManager.breakRifugioProtection(gameId, protectedChar.id, io);
+        }
+
         // NEW: Execute defense-enabled MOSSE attack (unified emission)
         const attackResult = await gameManager.executeMossaAttack(
           gameId, 
@@ -3155,6 +3203,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Process persistent damages at the START of the next player's turn
         // This applies recurring damage from cards like VIRUS, INFLUENZA, PUOZZA
         gameManager.processPersistentDamages(gameId, nextPlayer, io);
+        
+        // RIFUGIO: Restore protection for the next player's characters at start of their turn
+        gameManager.restoreRifugioProtection(gameId, nextPlayer, io);
         
         // Check if next player is CPU and automatically process their turn
         const gameState = gameManager.getSanitizedGameState(gameId);

@@ -53,6 +53,9 @@ interface CardProps {
     isFused?: boolean;
     fusionLeader?: string;
     fusedWith?: string[];
+    protectedByRifugio?: string;
+    rifugioProtecting?: string;
+    rifugioPTI?: number;
   };
   location: 'hand' | 'field' | 'graveyard';
   showBack?: boolean;
@@ -584,6 +587,13 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   // Check if this is the MEDICINA bonus card
   const isMedicina = card.type === 'bonus' && getCardName(card).toUpperCase().includes('MEDICINA');
   
+  // Check if this is the RIFUGIO bonus card
+  const isRifugio = card.type === 'bonus' && getCardName(card).toUpperCase().includes('RIFUGIO');
+  
+  // State for RIFUGIO target selection
+  const [showRifugioTargetSelect, setShowRifugioTargetSelect] = useState(false);
+  const [rifugioTargets, setRifugioTargets] = useState<any[]>([]);
+  
   const handleSuperDice = () => {
     console.log('SUPER DICE button clicked for MINKIARD N 300');
     socket.emit('open-super-dice', { gameId, playerName });
@@ -593,6 +603,37 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     console.log('SOMMINISTRA button clicked for MEDICINA');
     socket.emit('somministra-medicina', { cardId: card.id, playerName: effectivePlayerName });
   };
+
+  const handleActivateRifugio = () => {
+    console.log('PROTEGGI button clicked for RIFUGIO');
+    socket.emit('rifugio:get-targets', { rifugioCardId: card.id, playerName: effectivePlayerName });
+    setShowRifugioTargetSelect(true);
+  };
+
+  const handleRifugioTargetSelect = (targetCharacterId: string) => {
+    console.log(`RIFUGIO protecting character ${targetCharacterId}`);
+    socket.emit('rifugio:activate', { 
+      rifugioCardId: card.id, 
+      targetCharacterId, 
+      playerName: effectivePlayerName 
+    });
+    setShowRifugioTargetSelect(false);
+    setRifugioTargets([]);
+  };
+
+  // Listen for RIFUGIO targets
+  useEffect(() => {
+    const handleRifugioTargets = (data: { rifugioCardId: string; targets: any[] }) => {
+      if (data.rifugioCardId === card.id) {
+        setRifugioTargets(data.targets);
+      }
+    };
+
+    socket.on('rifugio:targets', handleRifugioTargets);
+    return () => {
+      socket.off('rifugio:targets', handleRifugioTargets);
+    };
+  }, [card.id]);
   
   const otherPlayers = Object.keys(gameState?.players || {}).filter(p => p !== playerName);
   const isShaking = shakingCards.has(card.id);
@@ -661,6 +702,18 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
           '--tx': `translate(${scatterX}px, ${scatterY}px)`
         } as React.CSSProperties : undefined}
       >
+        {/* NEL RIFUGIO Label for protected characters */}
+        {isPersonaggio && !card.faceDown && card.protectedByRifugio && (
+          <div 
+            className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-20 whitespace-nowrap"
+          >
+            <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg border border-emerald-400/50"
+                 style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+              🏠 NEL RIFUGIO
+            </div>
+          </div>
+        )}
+
         {/* Vertical Health Bar for Personaggi - Absolutely positioned */}
         {isPersonaggio && !card.faceDown && (() => {
           const currentPTI = parsePTI(card.text);
@@ -810,6 +863,117 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
             💊 SOMMINISTRA
           </Button>
         </div>
+      )}
+
+      {/* PROTEGGI button for RIFUGIO bonus card on field */}
+      {location === 'field' && isRifugio && isOwner && !card.faceDown && !card.rifugioProtecting && (
+        <div className="flex flex-col gap-1">
+          <Button
+            onClick={handleActivateRifugio}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-2 py-1"
+            size="sm"
+            style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
+          >
+            🏠 PROTEGGI
+          </Button>
+        </div>
+      )}
+
+      {/* RIFUGIO Target Selection Modal */}
+      {showRifugioTargetSelect && ReactDOM.createPortal(
+        <div 
+          onClick={() => setShowRifugioTargetSelect(false)}
+          style={{ 
+            position: 'fixed', 
+            inset: 0, 
+            backgroundColor: 'rgba(0, 0, 0, 0.90)', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            zIndex: 2147483647 
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{ 
+              width: '600px',
+              maxWidth: '95vw',
+              backgroundColor: '#0f172a', 
+              borderRadius: '16px', 
+              border: '4px solid #10b981', 
+              padding: '24px',
+              boxShadow: '0 0 60px rgba(16, 185, 129, 0.6)'
+            }}
+          >
+            <h2 style={{ 
+              color: '#10b981', 
+              fontSize: '24px', 
+              fontWeight: 'bold', 
+              marginBottom: '20px',
+              textAlign: 'center',
+              textShadow: '0 0 10px rgba(16, 185, 129, 0.5)'
+            }}>
+              🏠 SELEZIONA PERSONAGGIO DA PROTEGGERE
+            </h2>
+            
+            {rifugioTargets.length === 0 ? (
+              <p style={{ color: '#9ca3af', textAlign: 'center' }}>
+                Nessun personaggio disponibile...
+              </p>
+            ) : (
+              <div style={{ 
+                display: 'flex', 
+                flexWrap: 'wrap', 
+                gap: '16px', 
+                justifyContent: 'center' 
+              }}>
+                {rifugioTargets.map((target: any) => (
+                  <div 
+                    key={target.id}
+                    onClick={() => handleRifugioTargetSelect(target.id)}
+                    style={{ 
+                      cursor: 'pointer',
+                      padding: '8px',
+                      borderRadius: '12px',
+                      border: '3px solid #10b981',
+                      backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'scale(1.05)';
+                      e.currentTarget.style.boxShadow = '0 0 20px rgba(16, 185, 129, 0.5)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    <img 
+                      src={target.frontImage} 
+                      alt="Character"
+                      style={{ 
+                        width: '120px', 
+                        height: '170px', 
+                        objectFit: 'cover',
+                        borderRadius: '8px'
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <div style={{ textAlign: 'center', marginTop: '20px' }}>
+              <Button
+                onClick={() => setShowRifugioTargetSelect(false)}
+                className="bg-gray-600 hover:bg-gray-700 text-white font-bold px-6 py-2"
+              >
+                Annulla
+              </Button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       {location === 'graveyard' && showActions && (

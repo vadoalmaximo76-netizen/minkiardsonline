@@ -35,6 +35,10 @@ interface Card {
   usedBy?: string; // Player who used this MOSSE card
   // POTERI system - copied powers
   copiedPower?: string; // Name of character whose power was copied (e.g., 'CIMICE', 'PARASSITA')
+  // RIFUGIO shelter protection system
+  protectedByRifugio?: string; // ID of RIFUGIO card protecting this character
+  rifugioProtecting?: string; // ID of character this RIFUGIO is protecting
+  rifugioPTI?: number; // Current PTI of this RIFUGIO card
 }
 
 interface Player {
@@ -128,6 +132,17 @@ interface ClashBattle {
   active: boolean;
 }
 
+interface RifugioProtection {
+  id: string;
+  rifugioCardId: string; // The RIFUGIO bonus card on field
+  protectedCharacterId: string; // The character being protected
+  ownerPlayer: string; // The player who owns both RIFUGIO and protected character
+  currentPTI: number; // Current health of RIFUGIO (starts at 1000)
+  maxPTI: number; // Always 1000
+  protectionActive: boolean; // False when protected character uses MOSSE
+  usedMosseThisTurn: boolean; // Track if character used MOSSE this turn
+}
+
 interface GameState {
   decks: {
     personaggi: Card[];
@@ -159,6 +174,7 @@ interface GameState {
   persistentDamages: PersistentDamage[]; // Persistent damage effects (VIRUS, etc.)
   parasiticAttachments: ParasiticAttachment[]; // PARASSITA/SAIBAIM attachment tracking
   activeClashBattle?: ClashBattle; // Current active clash battle
+  rifugioProtections: RifugioProtection[]; // RIFUGIO shelter protection tracking
 }
 
 export class GameManager {
@@ -273,7 +289,8 @@ export class GameManager {
       voodooLinks: [],
       prSpentThisGame: new Map<string, number>(),
       persistentDamages: [],
-      parasiticAttachments: []
+      parasiticAttachments: [],
+      rifugioProtections: []
     };
 
     // Auto-shuffle all decks when starting a new game
@@ -1597,6 +1614,239 @@ Rispondi SOLO in JSON:`;
       .split(' ')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
+  }
+
+  // RIFUGIO SHELTER PROTECTION SYSTEM
+  
+  // Check if a card is RIFUGIO
+  isRifugioCard(card: Card): boolean {
+    const cardName = (card.name || this.getCardNameFromUrl(card.frontImage)).toUpperCase();
+    return cardName.includes('RIFUGIO');
+  }
+  
+  // Get valid targets for RIFUGIO (own PERSONAGGI on field)
+  getRifugioTargets(gameId: string, ownerPlayerName: string): Card[] {
+    const game = this.games.get(gameId);
+    if (!game) return [];
+    
+    // Get own characters on field that aren't already protected
+    const protectedIds = game.rifugioProtections.map(r => r.protectedCharacterId);
+    
+    return game.field.filter(card => 
+      (card.type === 'personaggi' || card.type === 'personaggi_speciali') &&
+      card.owner === ownerPlayerName &&
+      !protectedIds.includes(card.id)
+    );
+  }
+  
+  // Activate RIFUGIO protection on a character
+  activateRifugio(gameId: string, rifugioCardId: string, targetCharacterId: string, ownerPlayer: string, io: any): { success: boolean; message?: string } {
+    const game = this.games.get(gameId);
+    if (!game) return { success: false, message: 'Game not found' };
+    
+    const rifugioCard = game.field.find(c => c.id === rifugioCardId);
+    const targetCard = game.field.find(c => c.id === targetCharacterId);
+    
+    if (!rifugioCard) return { success: false, message: 'RIFUGIO not found on field' };
+    if (!targetCard) return { success: false, message: 'Target character not found on field' };
+    
+    // Verify ownership
+    if (rifugioCard.owner !== ownerPlayer || targetCard.owner !== ownerPlayer) {
+      return { success: false, message: 'You can only protect your own characters' };
+    }
+    
+    // Check if character is already protected
+    const existingProtection = game.rifugioProtections.find(r => r.protectedCharacterId === targetCharacterId);
+    if (existingProtection) {
+      return { success: false, message: 'Character is already protected by a RIFUGIO' };
+    }
+    
+    // Create protection
+    const protection: RifugioProtection = {
+      id: `rifugio-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      rifugioCardId,
+      protectedCharacterId: targetCharacterId,
+      ownerPlayer,
+      currentPTI: 1000,
+      maxPTI: 1000,
+      protectionActive: true,
+      usedMosseThisTurn: false
+    };
+    
+    game.rifugioProtections.push(protection);
+    
+    // Mark RIFUGIO card with protection data
+    rifugioCard.rifugioProtecting = targetCharacterId;
+    rifugioCard.rifugioPTI = 1000;
+    
+    // Mark protected character
+    targetCard.protectedByRifugio = rifugioCardId;
+    
+    const targetName = this.getCardNameFromUrl(targetCard.frontImage);
+    
+    io.to(gameId).emit('chat-message', {
+      id: `${Date.now()}-rifugio-activated`,
+      playerName: 'Sistema',
+      message: `🏠 ${ownerPlayer} ha attivato RIFUGIO per proteggere ${targetName}! Il rifugio ha 1000 PTI.`,
+      timestamp: Date.now()
+    });
+    
+    io.to(gameId).emit('rifugio-activated', {
+      rifugioCardId,
+      protectedCharacterId: targetCharacterId,
+      ownerPlayer,
+      rifugioPTI: 1000
+    });
+    
+    console.log(`🏠 RIFUGIO activated: protecting ${targetName} for ${ownerPlayer}`);
+    
+    return { success: true };
+  }
+  
+  // Check if a character is protected by RIFUGIO (and protection is active)
+  isProtectedByRifugio(gameId: string, characterId: string): RifugioProtection | null {
+    const game = this.games.get(gameId);
+    if (!game) return null;
+    
+    const protection = game.rifugioProtections.find(r => 
+      r.protectedCharacterId === characterId && r.protectionActive && r.currentPTI > 0
+    );
+    
+    return protection || null;
+  }
+  
+  // Deal damage to RIFUGIO (returns true if destroyed)
+  damageRifugio(gameId: string, rifugioCardId: string, damage: number, attackerName: string, io: any): boolean {
+    const game = this.games.get(gameId);
+    if (!game) return false;
+    
+    const protection = game.rifugioProtections.find(r => r.rifugioCardId === rifugioCardId);
+    if (!protection) return false;
+    
+    const rifugioCard = game.field.find(c => c.id === rifugioCardId);
+    if (!rifugioCard) return false;
+    
+    protection.currentPTI -= damage;
+    rifugioCard.rifugioPTI = protection.currentPTI;
+    
+    io.to(gameId).emit('rifugio-damaged', {
+      rifugioCardId,
+      damage,
+      remainingPTI: protection.currentPTI,
+      attackerName
+    });
+    
+    console.log(`🏠 RIFUGIO damaged: ${damage} PTI, remaining: ${protection.currentPTI}`);
+    
+    if (protection.currentPTI <= 0) {
+      // RIFUGIO destroyed - return to deck
+      const protectedCard = game.field.find(c => c.id === protection.protectedCharacterId);
+      const protectedName = protectedCard ? this.getCardNameFromUrl(protectedCard.frontImage) : 'personaggio';
+      
+      // Remove protection
+      game.rifugioProtections = game.rifugioProtections.filter(r => r.id !== protection.id);
+      
+      // Clear protection markers
+      if (protectedCard) {
+        delete protectedCard.protectedByRifugio;
+      }
+      
+      // Move RIFUGIO back to deck
+      this.returnToDeck(gameId, rifugioCardId, protection.ownerPlayer);
+      
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-rifugio-destroyed`,
+        playerName: 'Sistema',
+        message: `🏠💥 RIFUGIO è stato distrutto! ${protectedName} non è più protetto e può essere attaccato!`,
+        timestamp: Date.now()
+      });
+      
+      io.to(gameId).emit('rifugio-destroyed', {
+        rifugioCardId,
+        protectedCharacterId: protection.protectedCharacterId,
+        ownerPlayer: protection.ownerPlayer
+      });
+      
+      console.log(`🏠💥 RIFUGIO destroyed and returned to deck`);
+      
+      return true; // Destroyed
+    }
+    
+    return false; // Still active
+  }
+  
+  // Called when a character protected by RIFUGIO uses a MOSSE - breaks protection until next turn
+  breakRifugioProtection(gameId: string, characterId: string, io: any): void {
+    const game = this.games.get(gameId);
+    if (!game) return;
+    
+    const protection = game.rifugioProtections.find(r => r.protectedCharacterId === characterId);
+    if (!protection || !protection.protectionActive) return;
+    
+    protection.protectionActive = false;
+    protection.usedMosseThisTurn = true;
+    
+    const protectedCard = game.field.find(c => c.id === characterId);
+    const protectedName = protectedCard ? this.getCardNameFromUrl(protectedCard.frontImage) : 'personaggio';
+    
+    io.to(gameId).emit('chat-message', {
+      id: `${Date.now()}-rifugio-broken`,
+      playerName: 'Sistema',
+      message: `🏠⚔️ ${protectedName} ha usato una mossa! Non è più protetto da RIFUGIO fino al prossimo turno.`,
+      timestamp: Date.now()
+    });
+    
+    io.to(gameId).emit('rifugio-protection-broken', {
+      protectedCharacterId: characterId,
+      rifugioCardId: protection.rifugioCardId
+    });
+    
+    console.log(`🏠⚔️ RIFUGIO protection broken for ${protectedName} - used MOSSE`);
+  }
+  
+  // Called at start of player's turn - restore RIFUGIO protection if character didn't use MOSSE
+  restoreRifugioProtection(gameId: string, playerName: string, io: any): void {
+    const game = this.games.get(gameId);
+    if (!game) return;
+    
+    const playerProtections = game.rifugioProtections.filter(r => r.ownerPlayer === playerName);
+    
+    for (const protection of playerProtections) {
+      if (!protection.protectionActive && protection.currentPTI > 0) {
+        // Restore protection if character didn't use MOSSE this turn
+        protection.protectionActive = true;
+        protection.usedMosseThisTurn = false;
+        
+        const protectedCard = game.field.find(c => c.id === protection.protectedCharacterId);
+        const protectedName = protectedCard ? this.getCardNameFromUrl(protectedCard.frontImage) : 'personaggio';
+        
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-rifugio-restored`,
+          playerName: 'Sistema',
+          message: `🏠✨ ${protectedName} è di nuovo protetto da RIFUGIO!`,
+          timestamp: Date.now()
+        });
+        
+        io.to(gameId).emit('rifugio-protection-restored', {
+          protectedCharacterId: protection.protectedCharacterId,
+          rifugioCardId: protection.rifugioCardId
+        });
+        
+        console.log(`🏠✨ RIFUGIO protection restored for ${protectedName}`);
+      }
+    }
+  }
+  
+  // Get RIFUGIO protection data for a character (for UI)
+  getRifugioProtectionData(gameId: string, characterId: string): { isProtected: boolean; rifugioPTI: number; rifugioCardId?: string } | null {
+    const protection = this.isProtectedByRifugio(gameId, characterId);
+    if (!protection) return null;
+    
+    return {
+      isProtected: true,
+      rifugioPTI: protection.currentPTI,
+      rifugioCardId: protection.rifugioCardId
+    };
   }
 
   // PARASITIC CARD SYSTEM (PARASSITA/SAIBAIM)
@@ -5497,6 +5747,34 @@ Rispondi SOLO in JSON:`;
           });
           return;
         }
+      }
+    }
+
+    // RIFUGIO PROTECTION CHECK: If target is protected by RIFUGIO, redirect attack to RIFUGIO
+    if (!isHandTarget && !isVoodooReflection) {
+      const rifugioProtection = this.isProtectedByRifugio(gameId, targetCardId);
+      if (rifugioProtection) {
+        const targetName = this.getCardNameFromUrl(targetCard.frontImage || '');
+        console.log(`🏠 ATTACK REDIRECTED: ${targetName} is protected by RIFUGIO - redirecting ${damageValue} damage`);
+        
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-rifugio-redirect`,
+          playerName: 'Sistema',
+          message: `🏠 ${targetName} è protetto da RIFUGIO! L'attacco viene assorbito dal rifugio.`,
+          timestamp: Date.now()
+        });
+        
+        // Apply damage to RIFUGIO instead
+        this.damageRifugio(gameId, rifugioProtection.rifugioCardId, damageValue, attackerName, io);
+        
+        // Return MOSSE to deck after use
+        this.returnToDeck(gameId, mosseCardId, attackerName);
+        
+        // Update game state
+        const updatedGameState = this.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', updatedGameState);
+        
+        return; // Don't apply damage to protected character
       }
     }
 
