@@ -1679,10 +1679,12 @@ Rispondi SOLO in JSON:`;
     rifugioCard.rifugioProtecting = targetCharacterId;
     rifugioCard.rifugioPTI = 1000;
     
+    // Set the card text to include PTI so it can be attacked by CPU
+    const targetName = this.getCardNameFromUrl(targetCard.frontImage);
+    rifugioCard.text = `PTI: 1000\nPTI originali: 1000\nProtegge: ${targetName}`;
+    
     // Mark protected character
     targetCard.protectedByRifugio = rifugioCardId;
-    
-    const targetName = this.getCardNameFromUrl(targetCard.frontImage);
     
     io.to(gameId).emit('chat-message', {
       id: `${Date.now()}-rifugio-activated`,
@@ -1728,6 +1730,11 @@ Rispondi SOLO in JSON:`;
     
     protection.currentPTI -= damage;
     rifugioCard.rifugioPTI = protection.currentPTI;
+    
+    // Update card text with new PTI value
+    const protectedCardForText = game.field.find(c => c.id === protection.protectedCharacterId);
+    const protectedNameForText = protectedCardForText ? this.getCardNameFromUrl(protectedCardForText.frontImage) : 'personaggio';
+    rifugioCard.text = `PTI: ${Math.max(0, protection.currentPTI)}\nPTI originali: 1000\nProtegge: ${protectedNameForText}`;
     
     io.to(gameId).emit('rifugio-damaged', {
       rifugioCardId,
