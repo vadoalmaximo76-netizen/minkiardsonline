@@ -1527,6 +1527,53 @@ Rispondi SOLO in JSON:`;
     const attackTypeLabel = isHandTarget ? '🎯 ATTACCO DISONESTO' : '⚔️ MOSSE';
     console.log(`${attackTypeLabel}: ${attackerName} uses ${mosseCardId} to attack ${targetOwnerName}'s ${targetCardId}`);
     
+    // BARRIERA BYPASS: If target is protected by BARRIERA, skip defense dialog and auto-apply damage
+    if (!isHandTarget) {
+      const barrieraProtection = this.isProtectedByBarriera(gameId, targetCardId);
+      if (barrieraProtection) {
+        const activeShield = this.getActiveBarrieraShieldCard(gameId, targetCardId);
+        if (activeShield) {
+          const targetName = this.getCardNameFromUrl(targetCard.frontImage || '');
+          console.log(`🛡️ BARRIERA BYPASS: ${targetName} is protected - auto-applying ${damageValue} damage to shield (no defense dialog)`);
+          
+          // Track card usage
+          if (!attacker.usedCardsThisTurn) {
+            attacker.usedCardsThisTurn = [];
+          }
+          attacker.usedCardsThisTurn.push(mosseCard.frontImage);
+          
+          // Record event
+          await this.recordEvent(gameId, 'mosse-attack', {
+            attackerName,
+            mosseCardId,
+            targetCardId,
+            targetOwner: targetOwnerName,
+            isHandTarget: false,
+            outcome: 'barriera_auto_absorbed'
+          }, attackerName);
+          
+          // Return MOSSE to deck (needs io from caller - mark for cleanup)
+          // NOTE: damageBarriera will be called when attack result is processed
+          
+          return {
+            success: true,
+            result: {
+              targetCardId,
+              targetOwner: targetOwnerName,
+              mosseCardId,
+              attackerName,
+              isHandTarget: false,
+              requiresDefenseResponse: false, // BARRIERA auto-absorbs - no defense needed
+              barrieraAbsorbed: true,
+              barrieraShieldId: activeShield.id, // Shield to apply damage to
+              damageValue: damageValue, // Damage to apply
+              message: `${attackerName} attacca ${targetName} ma la BARRIERA assorbe automaticamente il danno!`
+            }
+          };
+        }
+      }
+    }
+    
     // NUOVO SISTEMA: Non eliminare automaticamente, richiedere input umano per il danno
     // Track card usage to prevent reuse
     if (!attacker.usedCardsThisTurn) {

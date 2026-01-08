@@ -604,6 +604,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           
                           if (attackResult.success) {
                             console.log(`✅ CPU ${cpuName} MOSSE attack executed successfully`);
+                            
+                            // BARRIERA HANDLING: If attack was auto-absorbed by BARRIERA
+                            if (attackResult.result?.barrieraAbsorbed) {
+                              const barrieraDamage = attackResult.result.damageValue || 100;
+                              console.log(`🛡️ CPU ${cpuName} attack auto-absorbed by BARRIERA - ${barrieraDamage} damage`);
+                              
+                              io.to(gameId).emit('chat-message', {
+                                id: `${Date.now()}-cpu-barriera-absorb`,
+                                playerName: 'Sistema',
+                                message: `🛡️ BARRIERA assorbe automaticamente ${barrieraDamage} danni dell'attacco di ${cpuName}!`,
+                                timestamp: Date.now()
+                              });
+                              
+                              // Apply damage to BARRIERA shield using result's damage value
+                              gameManager.damageBarriera(gameId, attackResult.result.barrieraShieldId, barrieraDamage, cpuName, io);
+                              
+                              // Return MOSSE to deck
+                              gameManager.returnToDeck(gameId, result.card!.id, cpuName);
+                              
+                              // Update game state
+                              const barrieraState = gameManager.getSanitizedGameState(gameId);
+                              io.to(gameId).emit('game-state-update', barrieraState);
+                              return; // Attack absorbed
+                            }
                           } else {
                             console.log(`❌ CPU ${cpuName} MOSSE attack failed: ${attackResult.error}`);
                           }
@@ -2580,6 +2604,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
           timestamp: Date.now()
         });
 
+        // BARRIERA HANDLING: If attack was auto-absorbed by BARRIERA, apply damage and return
+        if (attackResult.result?.barrieraAbsorbed) {
+          // Use damage from result to ensure consistency
+          const barrieraDamage = attackResult.result.damageValue || damageValue;
+          console.log(`🛡️ BARRIERA auto-absorbed attack - applying ${barrieraDamage} damage to shield ${attackResult.result.barrieraShieldId}`);
+          
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-barriera-absorb`,
+            playerName: 'Sistema',
+            message: `🛡️ BARRIERA assorbe automaticamente ${barrieraDamage} danni dell'attacco!`,
+            timestamp: Date.now()
+          });
+          
+          // Apply damage to BARRIERA shield using the result's damage value
+          gameManager.damageBarriera(gameId, attackResult.result.barrieraShieldId, barrieraDamage, attackerName, io);
+          
+          // Return MOSSE to deck
+          gameManager.returnToDeck(gameId, mosseCardId, attackerName);
+          
+          // Update game state
+          const updatedGameState = gameManager.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', updatedGameState);
+          
+          return; // Attack absorbed - no defense dialog needed
+        }
+
         if (attackResult.result?.requiresDefenseResponse) {
           console.log(`🛡️ Defense system activated - waiting for ${targetOwner}'s response to attack ${attackResult.result.attackId}`);
           
@@ -3919,6 +3969,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       );
                       
                       if (attackResult.success) {
+                        // BARRIERA HANDLING: If attack was auto-absorbed by BARRIERA
+                        if (attackResult.result?.barrieraAbsorbed) {
+                          const barrieraDamage = attackResult.result.damageValue || defaultCPUDamage;
+                          console.log(`🛡️ CPU ${nextPlayer} attack auto-absorbed by BARRIERA - ${barrieraDamage} damage`);
+                          
+                          io.to(gameId).emit('chat-message', {
+                            id: `${Date.now()}-cpu-barriera-absorb`,
+                            playerName: 'Sistema',
+                            message: `🛡️ BARRIERA assorbe automaticamente ${barrieraDamage} danni dell'attacco di ${nextPlayer}!`,
+                            timestamp: Date.now()
+                          });
+                          
+                          // Apply damage to BARRIERA shield using result's damage value
+                          gameManager.damageBarriera(gameId, attackResult.result.barrieraShieldId, barrieraDamage, cpuAction.data.playerName, io);
+                          
+                          // Return MOSSE to deck
+                          gameManager.returnToDeck(gameId, cpuAction.data.mosseCardId, cpuAction.data.playerName);
+                          
+                          // Update and end turn
+                          const barrieraGameState = gameManager.getSanitizedGameState(gameId);
+                          io.to(gameId).emit('game-state-update', barrieraGameState);
+                          
+                          setTimeout(() => {
+                            const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
+                            if (nextAfterCPU) {
+                              io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                            }
+                          }, 1500);
+                          break;
+                        }
+                        
                         // CRITICAL: Emit defense:request if required
                         if (attackResult.result && attackResult.result.requiresDefenseResponse) {
                           console.log(`🛡️ Emitting defense:request for CPU attack`);
