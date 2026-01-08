@@ -1813,6 +1813,9 @@ Rispondi SOLO in JSON:`;
       rifugioCardId: protection.rifugioCardId
     });
     
+    // Emit game state update so client sees the broken protection
+    io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+    
     console.log(`🏠⚔️ RIFUGIO protection broken for ${protectedName} - used MOSSE`);
   }
   
@@ -1821,9 +1824,15 @@ Rispondi SOLO in JSON:`;
     const game = this.games.get(gameId);
     if (!game) return;
     
+    console.log(`🏠 restoreRifugioProtection called for ${playerName}`);
+    console.log(`🏠 Total rifugioProtections: ${game.rifugioProtections.length}`);
+    
     const playerProtections = game.rifugioProtections.filter(r => r.ownerPlayer === playerName);
+    console.log(`🏠 ${playerName}'s protections: ${playerProtections.length}`);
     
     for (const protection of playerProtections) {
+      console.log(`🏠 Protection status: protectionActive=${protection.protectionActive}, currentPTI=${protection.currentPTI}, usedMosseThisTurn=${protection.usedMosseThisTurn}`);
+      
       if (!protection.protectionActive && protection.currentPTI > 0) {
         // Restore protection if character didn't use MOSSE this turn
         protection.protectionActive = true;
@@ -1835,6 +1844,7 @@ Rispondi SOLO in JSON:`;
         // Restore the protectedByRifugio marker so the label reappears
         if (protectedCard) {
           protectedCard.protectedByRifugio = protection.rifugioCardId;
+          console.log(`🏠 Restored protectedByRifugio marker on ${protectedName}`);
         }
         
         io.to(gameId).emit('chat-message', {
@@ -1848,6 +1858,9 @@ Rispondi SOLO in JSON:`;
           protectedCharacterId: protection.protectedCharacterId,
           rifugioCardId: protection.rifugioCardId
         });
+        
+        // Emit game state update so client sees the restored protection
+        io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
         
         console.log(`🏠✨ RIFUGIO protection restored for ${protectedName}`);
       }
