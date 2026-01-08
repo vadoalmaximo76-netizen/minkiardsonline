@@ -6094,6 +6094,38 @@ Rispondi SOLO in JSON:`;
       }
     }
 
+    // BARRIERA PROTECTION CHECK: If target is protected by BARRIERA, redirect attack to BARRIERA shield (auto-damage, no defense)
+    if (!isHandTarget && !isVoodooReflection) {
+      const barrieraProtection = this.isProtectedByBarriera(gameId, targetCardId);
+      if (barrieraProtection) {
+        const targetName = this.getCardNameFromUrl(targetCard.frontImage || '');
+        const activeShield = this.getActiveBarrieraShieldCard(gameId, targetCardId);
+        
+        if (activeShield) {
+          console.log(`🛡️ ATTACK REDIRECTED: ${targetName} is protected by BARRIERA - auto-applying ${damageValue} damage to shield`);
+          
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-barriera-redirect`,
+            playerName: 'Sistema',
+            message: `🛡️ ${targetName} è protetto da BARRIERA! L'attacco viene assorbito automaticamente dalla barriera.`,
+            timestamp: Date.now()
+          });
+          
+          // BARRIERA auto-accepts damage (no defense dialog)
+          this.damageBarriera(gameId, activeShield.id, damageValue, attackerName, io);
+          
+          // Return MOSSE to deck after use
+          this.returnToDeck(gameId, mosseCardId, attackerName);
+          
+          // Update game state
+          const updatedGameState = this.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', updatedGameState);
+          
+          return; // Attack absorbed by BARRIERA
+        }
+      }
+    }
+
     // RIFUGIO PROTECTION CHECK: If target is protected by RIFUGIO, redirect attack to RIFUGIO
     if (!isHandTarget && !isVoodooReflection) {
       const rifugioProtection = this.isProtectedByRifugio(gameId, targetCardId);

@@ -590,9 +590,19 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   // Check if this is the RIFUGIO bonus card
   const isRifugio = card.type === 'bonus' && getCardName(card).toUpperCase().includes('RIFUGIO');
   
+  // Check if this is the BARRIERA bonus card (not a shield clone)
+  const isBarriera = card.type === 'bonus' && getCardName(card).toUpperCase().includes('BARRIERA') && !card.isBarrieraShield;
+  
+  // Check if this is a BARRIERA shield (the duplicated cards)
+  const isBarrieraShield = card.isBarrieraShield === true;
+  
   // State for RIFUGIO target selection
   const [showRifugioTargetSelect, setShowRifugioTargetSelect] = useState(false);
   const [rifugioTargets, setRifugioTargets] = useState<any[]>([]);
+  
+  // State for BARRIERA target selection
+  const [showBarrieraTargetSelect, setShowBarrieraTargetSelect] = useState(false);
+  const [barrieraTargets, setBarrieraTargets] = useState<any[]>([]);
   
   const handleSuperDice = () => {
     console.log('SUPER DICE button clicked for MINKIARD N 300');
@@ -621,6 +631,23 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     setRifugioTargets([]);
   };
 
+  const handleActivateBarriera = () => {
+    console.log('PROTEGGI button clicked for BARRIERA');
+    socket.emit('barriera:get-targets', { barrieraCardId: card.id, playerName: effectivePlayerName });
+    setShowBarrieraTargetSelect(true);
+  };
+
+  const handleBarrieraTargetSelect = (targetCharacterId: string) => {
+    console.log(`BARRIERA protecting character ${targetCharacterId}`);
+    socket.emit('barriera:activate', { 
+      barrieraCardId: card.id, 
+      targetCharacterId, 
+      playerName: effectivePlayerName 
+    });
+    setShowBarrieraTargetSelect(false);
+    setBarrieraTargets([]);
+  };
+
   // Listen for RIFUGIO targets
   useEffect(() => {
     const handleRifugioTargets = (data: { rifugioCardId: string; targets: any[] }) => {
@@ -632,6 +659,20 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     socket.on('rifugio:targets', handleRifugioTargets);
     return () => {
       socket.off('rifugio:targets', handleRifugioTargets);
+    };
+  }, [card.id]);
+
+  // Listen for BARRIERA targets
+  useEffect(() => {
+    const handleBarrieraTargets = (data: { barrieraCardId: string; targets: any[] }) => {
+      if (data.barrieraCardId === card.id) {
+        setBarrieraTargets(data.targets);
+      }
+    };
+
+    socket.on('barriera:targets', handleBarrieraTargets);
+    return () => {
+      socket.off('barriera:targets', handleBarrieraTargets);
     };
   }, [card.id]);
   
@@ -879,6 +920,20 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         </div>
       )}
 
+      {/* PROTEGGI button for BARRIERA bonus card on field (only before activation) */}
+      {location === 'field' && isBarriera && isOwner && !card.faceDown && (
+        <div className="flex flex-col gap-1">
+          <Button
+            onClick={handleActivateBarriera}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-2 py-1"
+            size="sm"
+            style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
+          >
+            🛡️ PROTEGGI
+          </Button>
+        </div>
+      )}
+
       {/* RIFUGIO Target Selection Modal */}
       {showRifugioTargetSelect && ReactDOM.createPortal(
         <div 
@@ -966,6 +1021,103 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
             <div style={{ textAlign: 'center', marginTop: '20px' }}>
               <Button
                 onClick={() => setShowRifugioTargetSelect(false)}
+                className="bg-gray-600 hover:bg-gray-700 text-white font-bold px-6 py-2"
+              >
+                Annulla
+              </Button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* BARRIERA Target Selection Modal */}
+      {showBarrieraTargetSelect && ReactDOM.createPortal(
+        <div 
+          onClick={() => setShowBarrieraTargetSelect(false)}
+          style={{ 
+            position: 'fixed', 
+            inset: 0, 
+            backgroundColor: 'rgba(0, 0, 0, 0.90)', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            zIndex: 2147483647 
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{ 
+              width: '600px',
+              maxWidth: '95vw',
+              backgroundColor: '#0f172a', 
+              borderRadius: '16px', 
+              border: '4px solid #3b82f6', 
+              padding: '24px',
+              boxShadow: '0 0 60px rgba(59, 130, 246, 0.6)'
+            }}
+          >
+            <h2 style={{ 
+              color: '#3b82f6', 
+              fontSize: '24px', 
+              fontWeight: 'bold', 
+              marginBottom: '20px',
+              textAlign: 'center',
+              textShadow: '0 0 10px rgba(59, 130, 246, 0.5)'
+            }}>
+              🛡️ SELEZIONA PERSONAGGIO DA PROTEGGERE
+            </h2>
+            
+            {barrieraTargets.length === 0 ? (
+              <p style={{ color: '#9ca3af', textAlign: 'center' }}>
+                Nessun personaggio disponibile...
+              </p>
+            ) : (
+              <div style={{ 
+                display: 'flex', 
+                flexWrap: 'wrap', 
+                gap: '16px', 
+                justifyContent: 'center' 
+              }}>
+                {barrieraTargets.map((target: any) => (
+                  <div 
+                    key={target.id}
+                    onClick={() => handleBarrieraTargetSelect(target.id)}
+                    style={{ 
+                      cursor: 'pointer',
+                      padding: '8px',
+                      borderRadius: '12px',
+                      border: '3px solid #3b82f6',
+                      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'scale(1.05)';
+                      e.currentTarget.style.boxShadow = '0 0 20px rgba(59, 130, 246, 0.5)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    <img 
+                      src={target.frontImage} 
+                      alt="Character"
+                      style={{ 
+                        width: '120px', 
+                        height: '170px', 
+                        objectFit: 'cover',
+                        borderRadius: '8px'
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <div style={{ textAlign: 'center', marginTop: '20px' }}>
+              <Button
+                onClick={() => setShowBarrieraTargetSelect(false)}
                 className="bg-gray-600 hover:bg-gray-700 text-white font-bold px-6 py-2"
               >
                 Annulla

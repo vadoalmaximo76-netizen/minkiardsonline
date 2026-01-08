@@ -1902,6 +1902,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // BARRIERA: Get valid targets for BARRIERA protection
+    socket.on('barriera:get-targets', ({ barrieraCardId, playerName }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) {
+        socket.emit('barriera:error', { message: 'Game not found' });
+        return;
+      }
+      
+      console.log(`🛡️ BARRIERA target request from ${playerName}`);
+      
+      const targets = gameManager.getBarrieraTargets(gameId, playerName);
+      socket.emit('barriera:targets', { barrieraCardId, targets });
+    });
+
+    // BARRIERA: Activate BARRIERA protection on a character
+    socket.on('barriera:activate', ({ barrieraCardId, targetCharacterId, playerName }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) {
+        socket.emit('barriera:error', { message: 'Game not found' });
+        return;
+      }
+      
+      console.log(`🛡️ BARRIERA activation request: ${playerName} protecting ${targetCharacterId}`);
+      
+      const result = gameManager.activateBarriera(gameId, barrieraCardId, targetCharacterId, playerName, io);
+      
+      if (result.success) {
+        // Send updated game state with BARRIERA protection
+        const gameState = gameManager.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', gameState);
+        
+        console.log(`🛡️ BARRIERA activated successfully`);
+      } else {
+        socket.emit('barriera:error', { message: result.message });
+        console.log(`🛡️ BARRIERA activation failed: ${result.message}`);
+      }
+    });
+
     // DUELLO: Start a duel between two characters
     socket.on('duel:start', async ({ duelCardId, initiatorPlayer, opponentCharacterId }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);

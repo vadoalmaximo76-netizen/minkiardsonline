@@ -21,6 +21,13 @@ interface Card {
   attachedBy?: string[]; // IDs of parasitic cards attached to this card
   canReattach?: boolean; // False if the card detached and cannot reattach
   name?: string; // Card name for custom cards
+  // RIFUGIO system
+  protectedByRifugio?: string; // ID of RIFUGIO protecting this character
+  rifugioProtecting?: string; // ID of character this RIFUGIO protects
+  // BARRIERA shield system
+  isBarrieraShield?: boolean; // True if this is a BARRIERA shield card
+  barrieraProtecting?: string; // ID of character this BARRIERA protects
+  barrieraPTI?: number; // PTI for this BARRIERA shield
 }
 
 interface Player {
