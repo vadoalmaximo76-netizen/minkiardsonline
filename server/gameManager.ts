@@ -1629,13 +1629,16 @@ Rispondi SOLO in JSON:`;
     const game = this.games.get(gameId);
     if (!game) return [];
     
-    // Get own characters on field that aren't already protected
-    const protectedIds = game.rifugioProtections.map(r => r.protectedCharacterId);
+    // Get own characters on field that aren't already ACTIVELY protected
+    // Characters with inactive protection (exited shelter) can be re-protected
+    const activelyProtectedIds = game.rifugioProtections
+      .filter(r => r.protectionActive)
+      .map(r => r.protectedCharacterId);
     
     return game.field.filter(card => 
       (card.type === 'personaggi' || card.type === 'personaggi_speciali') &&
       card.owner === ownerPlayerName &&
-      !protectedIds.includes(card.id)
+      !activelyProtectedIds.includes(card.id)
     );
   }
   
@@ -1655,13 +1658,46 @@ Rispondi SOLO in JSON:`;
       return { success: false, message: 'You can only protect your own characters' };
     }
     
-    // Check if character is already protected
+    // Check if character has an existing protection record
     const existingProtection = game.rifugioProtections.find(r => r.protectedCharacterId === targetCharacterId);
+    
     if (existingProtection) {
-      return { success: false, message: 'Character is already protected by a RIFUGIO' };
+      // If protection exists but is inactive (character exited shelter), reactivate it
+      if (!existingProtection.protectionActive && existingProtection.currentPTI > 0) {
+        existingProtection.protectionActive = true;
+        existingProtection.usedMosseThisTurn = false;
+        
+        // Update RIFUGIO card markers
+        rifugioCard.rifugioProtecting = targetCharacterId;
+        
+        // Mark protected character
+        targetCard.protectedByRifugio = rifugioCardId;
+        
+        const targetName = this.getCardNameFromUrl(targetCard.frontImage);
+        
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-rifugio-reactivated`,
+          playerName: 'Sistema',
+          message: `🏠✨ ${targetName} è tornato nel RIFUGIO! Protezione riattivata con ${existingProtection.currentPTI} PTI.`,
+          timestamp: Date.now()
+        });
+        
+        io.to(gameId).emit('rifugio-activated', {
+          rifugioCardId,
+          protectedCharacterId: targetCharacterId,
+          ownerPlayer,
+          rifugioPTI: existingProtection.currentPTI
+        });
+        
+        console.log(`🏠✨ RIFUGIO reactivated: ${targetName} returned to shelter with ${existingProtection.currentPTI} PTI`);
+        
+        return { success: true };
+      } else if (existingProtection.protectionActive) {
+        return { success: false, message: 'Character is already protected by a RIFUGIO' };
+      }
     }
     
-    // Create protection
+    // Create new protection
     const protection: RifugioProtection = {
       id: `rifugio-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       rifugioCardId,
