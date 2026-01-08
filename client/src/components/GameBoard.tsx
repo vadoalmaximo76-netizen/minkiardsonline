@@ -506,6 +506,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('super-dice-rolled', handleSuperDiceRolled);
     socket.on('soros-activated', handleSorosActivation);
 
+    // MOSSE ATTACK ERROR: Handle attack errors (e.g., one MOSSE per turn limit)
+    const handleAttackError = ({ message }: { message: string }) => {
+      console.log(`❌ Attack error: ${message}`);
+      setChoosingNotification({ visible: true, message: `❌ ${message}` });
+      setTimeout(() => {
+        setChoosingNotification({ visible: false, message: '' });
+      }, 4000);
+    };
+    socket.on('attack-error', handleAttackError);
+    socket.on('attack-blocked', handleAttackError);
+
     // CLASH BATTLE: Start battle when equal damage values
     const handleClashBattleStart = ({ clashId, attacker, defender, damageValue, duration }: {
       clashId: string;
@@ -772,6 +783,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('cimice-effect', handleCimiceEffect);
       socket.off('clash-battle-start', handleClashBattleStart);
       socket.off('clash-battle-end', handleClashBattleEnd);
+      socket.off('attack-error', handleAttackError);
+      socket.off('attack-blocked', handleAttackError);
     };
   }, []);
 

@@ -54,6 +54,7 @@ interface Player {
   isCPU?: boolean;
   cpuInstance?: CPUPlayer;
   usedCardsThisTurn?: string[]; // Track card images used this turn to prevent reuse
+  usedMosseThisTurn?: boolean; // Track if player has used a MOSSE attack this turn (one per turn limit)
   disconnectedAt?: Date; // When player disconnected (null if connected)
   eliminationCount?: number; // Track how many opponent personaggi cards this player has eliminated (for SOROS activation)
   avatar?: string; // Player's chosen avatar ID
@@ -1491,6 +1492,12 @@ Rispondi SOLO in JSON:`;
       return { success: false, error: 'Attacker not found' };
     }
 
+    // ONE MOSSE PER TURN RULE: Check if player has already used a MOSSE this turn
+    if (attacker.usedMosseThisTurn) {
+      console.log(`❌ ${attackerName} già ha usato una MOSSE questo turno - attacco bloccato`);
+      return { success: false, error: 'Puoi usare solo una MOSSE per turno. Aspetta il tuo prossimo turno.' };
+    }
+
     // Find MOSSE card on field (should be played first)
     const mosseCard = game.field.find(c => c.id === mosseCardId && c.owner === attackerName && c.type === 'mosse');
     if (!mosseCard) {
@@ -1542,6 +1549,10 @@ Rispondi SOLO in JSON:`;
           }
           attacker.usedCardsThisTurn.push(mosseCard.frontImage);
           
+          // ONE MOSSE PER TURN: Mark that this player has used their MOSSE for this turn
+          attacker.usedMosseThisTurn = true;
+          console.log(`✅ ${attackerName} ha usato la MOSSE per questo turno (BARRIERA) - nessun altro attacco permesso fino al prossimo turno`);
+          
           // Record event
           await this.recordEvent(gameId, 'mosse-attack', {
             attackerName,
@@ -1580,6 +1591,10 @@ Rispondi SOLO in JSON:`;
       attacker.usedCardsThisTurn = [];
     }
     attacker.usedCardsThisTurn.push(mosseCard.frontImage);
+    
+    // ONE MOSSE PER TURN: Mark that this player has used their MOSSE for this turn
+    attacker.usedMosseThisTurn = true;
+    console.log(`✅ ${attackerName} ha usato la MOSSE per questo turno - nessun altro attacco permesso fino al prossimo turno`);
 
     // Record attack initiation event (maintain backward compatibility)
     await this.recordEvent(gameId, 'mosse-attack', {
@@ -4371,9 +4386,10 @@ Rispondi SOLO in JSON:`;
       return null; // CPU cannot end turn without executing an action
     }
 
-    // Reset usedCardsThisTurn for the current player when their turn ends
+    // Reset usedCardsThisTurn and usedMosseThisTurn for the current player when their turn ends
     if (gameState.players[playerName]) {
       gameState.players[playerName].usedCardsThisTurn = [];
+      gameState.players[playerName].usedMosseThisTurn = false;
     }
 
     // Check if there's an active duel
@@ -4399,9 +4415,12 @@ Rispondi SOLO in JSON:`;
         gameState.currentTurnIndex = nextPlayerIndex;
       }
       
-      // Initialize usedCardsThisTurn for the next player if not exists
-      if (gameState.players[nextPlayer] && !gameState.players[nextPlayer].usedCardsThisTurn) {
-        gameState.players[nextPlayer].usedCardsThisTurn = [];
+      // Initialize usedCardsThisTurn and reset usedMosseThisTurn for the next player
+      if (gameState.players[nextPlayer]) {
+        if (!gameState.players[nextPlayer].usedCardsThisTurn) {
+          gameState.players[nextPlayer].usedCardsThisTurn = [];
+        }
+        gameState.players[nextPlayer].usedMosseThisTurn = false;
       }
       
       console.log(`⚔️ DUELLO: Turn switched to ${nextPlayer}`);
@@ -4439,9 +4458,12 @@ Rispondi SOLO in JSON:`;
         // by processParasiticTurnEffects() which is called from routes.ts after endTurn()
 
         // Found a non-eliminated player
-        // Initialize usedCardsThisTurn for the next player if not exists
-        if (gameState.players[nextPlayer] && !gameState.players[nextPlayer].usedCardsThisTurn) {
-          gameState.players[nextPlayer].usedCardsThisTurn = [];
+        // Initialize usedCardsThisTurn and reset usedMosseThisTurn for the next player
+        if (gameState.players[nextPlayer]) {
+          if (!gameState.players[nextPlayer].usedCardsThisTurn) {
+            gameState.players[nextPlayer].usedCardsThisTurn = [];
+          }
+          gameState.players[nextPlayer].usedMosseThisTurn = false;
         }
         return nextPlayer;
       }
@@ -4464,9 +4486,10 @@ Rispondi SOLO in JSON:`;
 
     console.log(`🔨 Force ending turn for ${currentPlayerName} (bypassing validation)`);
 
-    // Reset usedCardsThisTurn for the current player when their turn ends
+    // Reset usedCardsThisTurn and usedMosseThisTurn for the current player when their turn ends
     if (gameState.players[currentPlayerName]) {
       gameState.players[currentPlayerName].usedCardsThisTurn = [];
+      gameState.players[currentPlayerName].usedMosseThisTurn = false;
     }
 
     // Check if there's an active duel
@@ -4492,9 +4515,12 @@ Rispondi SOLO in JSON:`;
         gameState.currentTurnIndex = nextPlayerIndex;
       }
       
-      // Initialize usedCardsThisTurn for the next player if not exists
-      if (gameState.players[nextPlayer] && !gameState.players[nextPlayer].usedCardsThisTurn) {
-        gameState.players[nextPlayer].usedCardsThisTurn = [];
+      // Initialize usedCardsThisTurn and reset usedMosseThisTurn for the next player
+      if (gameState.players[nextPlayer]) {
+        if (!gameState.players[nextPlayer].usedCardsThisTurn) {
+          gameState.players[nextPlayer].usedCardsThisTurn = [];
+        }
+        gameState.players[nextPlayer].usedMosseThisTurn = false;
       }
       
       console.log(`⚔️ DUELLO: Turn switched to ${nextPlayer}`);
@@ -4529,9 +4555,12 @@ Rispondi SOLO in JSON:`;
         });
 
         // Found a non-eliminated player
-        // Initialize usedCardsThisTurn for the next player if not exists
-        if (gameState.players[nextPlayer] && !gameState.players[nextPlayer].usedCardsThisTurn) {
-          gameState.players[nextPlayer].usedCardsThisTurn = [];
+        // Initialize usedCardsThisTurn and reset usedMosseThisTurn for the next player
+        if (gameState.players[nextPlayer]) {
+          if (!gameState.players[nextPlayer].usedCardsThisTurn) {
+            gameState.players[nextPlayer].usedCardsThisTurn = [];
+          }
+          gameState.players[nextPlayer].usedMosseThisTurn = false;
         }
         return nextPlayer;
       }
@@ -4793,6 +4822,7 @@ Rispondi SOLO in JSON:`;
       if (game.players[player].usedCardsThisTurn) {
         game.players[player].usedCardsThisTurn = [];
       }
+      game.players[player].usedMosseThisTurn = false;
     }
 
     // Reset game state
