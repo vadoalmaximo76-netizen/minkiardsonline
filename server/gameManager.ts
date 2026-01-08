@@ -1947,6 +1947,252 @@ Rispondi SOLO in JSON:`;
     };
   }
 
+  // BARRIERA SHIELD SYSTEM
+  
+  // Check if a card is BARRIERA
+  isBarrieraCard(card: Card): boolean {
+    const cardName = (card.name || this.getCardNameFromUrl(card.frontImage)).toUpperCase();
+    return cardName.includes('BARRIERA');
+  }
+  
+  // Get player's PERSONAGGI on field for BARRIERA target selection
+  getBarrieraTargets(gameId: string, ownerPlayerName: string): Card[] {
+    const game = this.games.get(gameId);
+    if (!game) return [];
+    
+    // Get own characters on field that aren't already protected by BARRIERA
+    const protectedIds = game.barrieraShields
+      .filter(b => b.active)
+      .map(b => b.protectedCharacterId);
+    
+    return game.field.filter(card => 
+      (card.type === 'personaggi' || card.type === 'personaggi_speciali') &&
+      card.owner === ownerPlayerName &&
+      !protectedIds.includes(card.id)
+    );
+  }
+  
+  // Activate BARRIERA: creates 3 copies on field with 50 PTI each
+  activateBarriera(gameId: string, barrieraCardId: string, targetCharacterId: string, ownerPlayer: string, io: any): { success: boolean; message?: string } {
+    const game = this.games.get(gameId);
+    if (!game) return { success: false, message: 'Game not found' };
+    
+    const barrieraCard = game.field.find(c => c.id === barrieraCardId);
+    const targetCard = game.field.find(c => c.id === targetCharacterId);
+    
+    if (!barrieraCard) return { success: false, message: 'BARRIERA not found on field' };
+    if (!targetCard) return { success: false, message: 'Target character not found on field' };
+    
+    // Verify ownership
+    if (barrieraCard.owner !== ownerPlayer || targetCard.owner !== ownerPlayer) {
+      return { success: false, message: 'You can only protect your own characters' };
+    }
+    
+    // Check if character is already protected by BARRIERA
+    const existingProtection = game.barrieraShields.find(b => b.protectedCharacterId === targetCharacterId && b.active);
+    if (existingProtection) {
+      return { success: false, message: 'Character is already protected by BARRIERA' };
+    }
+    
+    const targetName = this.getCardNameFromUrl(targetCard.frontImage);
+    
+    // Transform the original BARRIERA into the first shield
+    barrieraCard.isBarrieraShield = true;
+    barrieraCard.barrieraOriginalId = barrieraCardId;
+    barrieraCard.barrieraShieldIndex = 0;
+    barrieraCard.barrieraPTI = 50;
+    barrieraCard.barrieraProtecting = targetCharacterId;
+    barrieraCard.text = `PTI: 50\nProtegge: ${targetName}`;
+    barrieraCard.pti = 50;
+    barrieraCard.stars = 0;
+    
+    const shieldCardIds = [barrieraCardId];
+    
+    // Create 2 clone cards
+    for (let i = 1; i <= 2; i++) {
+      const cloneId = `${barrieraCardId}-clone-${i}`;
+      const cloneCard: Card = {
+        id: cloneId,
+        type: 'bonus',
+        frontImage: barrieraCard.frontImage,
+        backImage: barrieraCard.backImage,
+        owner: ownerPlayer,
+        name: 'BARRIERA',
+        text: `PTI: 50\nProtegge: ${targetName}`,
+        pti: 50,
+        stars: 0,
+        isBarrieraShield: true,
+        barrieraOriginalId: barrieraCardId,
+        barrieraShieldIndex: i,
+        barrieraPTI: 50,
+        barrieraProtecting: targetCharacterId
+      };
+      game.field.push(cloneCard);
+      shieldCardIds.push(cloneId);
+    }
+    
+    // Mark target character as protected
+    targetCard.protectedByRifugio = undefined; // Clear any RIFUGIO protection
+    
+    // Create BARRIERA shield record
+    const shield: BarrieraShield = {
+      id: `barriera-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      originalCardId: barrieraCardId,
+      shieldCardIds,
+      protectedCharacterId: targetCharacterId,
+      ownerPlayer,
+      shieldsPTI: [50, 50, 50],
+      active: true
+    };
+    
+    game.barrieraShields.push(shield);
+    
+    io.to(gameId).emit('chat-message', {
+      id: `${Date.now()}-barriera-activated`,
+      playerName: 'Sistema',
+      message: `🛡️🛡️🛡️ ${ownerPlayer} ha attivato BARRIERA per proteggere ${targetName}! Sono apparse 3 barriere con 50 PTI ciascuna!`,
+      timestamp: Date.now()
+    });
+    
+    io.to(gameId).emit('barriera-activated', {
+      barrieraCardId,
+      shieldCardIds,
+      protectedCharacterId: targetCharacterId,
+      ownerPlayer
+    });
+    
+    io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+    
+    console.log(`🛡️ BARRIERA activated: 3 shields protecting ${targetName} for ${ownerPlayer}`);
+    
+    return { success: true };
+  }
+  
+  // Check if a character is protected by BARRIERA
+  isProtectedByBarriera(gameId: string, characterId: string): BarrieraShield | null {
+    const game = this.games.get(gameId);
+    if (!game) return null;
+    
+    const shield = game.barrieraShields.find(b => 
+      b.protectedCharacterId === characterId && 
+      b.active &&
+      b.shieldsPTI.some(pti => pti > 0)
+    );
+    
+    return shield || null;
+  }
+  
+  // Get the first active BARRIERA shield card to redirect attacks to
+  getActiveBarrieraShieldCard(gameId: string, protectedCharacterId: string): Card | null {
+    const game = this.games.get(gameId);
+    if (!game) return null;
+    
+    const shield = this.isProtectedByBarriera(gameId, protectedCharacterId);
+    if (!shield) return null;
+    
+    // Find the first shield that still has PTI
+    for (let i = 0; i < shield.shieldCardIds.length; i++) {
+      if (shield.shieldsPTI[i] > 0) {
+        const shieldCard = game.field.find(c => c.id === shield.shieldCardIds[i]);
+        if (shieldCard) return shieldCard;
+      }
+    }
+    
+    return null;
+  }
+  
+  // Apply damage to a BARRIERA shield (auto-accept, no defense)
+  damageBarriera(gameId: string, shieldCardId: string, damage: number, attackerName: string, io: any): { destroyed: boolean; allShieldsDestroyed: boolean } {
+    const game = this.games.get(gameId);
+    if (!game) return { destroyed: false, allShieldsDestroyed: false };
+    
+    // Find the shield record that contains this card
+    const shield = game.barrieraShields.find(b => b.shieldCardIds.includes(shieldCardId) && b.active);
+    if (!shield) return { destroyed: false, allShieldsDestroyed: false };
+    
+    const shieldIndex = shield.shieldCardIds.indexOf(shieldCardId);
+    if (shieldIndex === -1) return { destroyed: false, allShieldsDestroyed: false };
+    
+    const shieldCard = game.field.find(c => c.id === shieldCardId);
+    if (!shieldCard) return { destroyed: false, allShieldsDestroyed: false };
+    
+    const oldPTI = shield.shieldsPTI[shieldIndex];
+    shield.shieldsPTI[shieldIndex] = Math.max(0, oldPTI - damage);
+    
+    // Update card display
+    if (shieldCard.barrieraPTI !== undefined) {
+      shieldCard.barrieraPTI = shield.shieldsPTI[shieldIndex];
+    }
+    shieldCard.pti = shield.shieldsPTI[shieldIndex];
+    
+    const protectedCard = game.field.find(c => c.id === shield.protectedCharacterId);
+    const protectedName = protectedCard ? this.getCardNameFromUrl(protectedCard.frontImage) : 'personaggio';
+    
+    // Update text
+    shieldCard.text = `PTI: ${shield.shieldsPTI[shieldIndex]}\nProtegge: ${protectedName}`;
+    
+    console.log(`🛡️ BARRIERA shield ${shieldIndex + 1} took ${damage} damage: ${oldPTI} → ${shield.shieldsPTI[shieldIndex]} PTI`);
+    
+    io.to(gameId).emit('chat-message', {
+      id: `${Date.now()}-barriera-damage`,
+      playerName: 'Sistema',
+      message: `🛡️💥 BARRIERA ha assorbito ${damage} danni! PTI rimanenti: ${shield.shieldsPTI[shieldIndex]}`,
+      timestamp: Date.now()
+    });
+    
+    // Check if this specific shield is destroyed
+    const thisShieldDestroyed = shield.shieldsPTI[shieldIndex] <= 0;
+    
+    if (thisShieldDestroyed) {
+      // Remove the destroyed shield card from field
+      game.field = game.field.filter(c => c.id !== shieldCardId);
+      
+      const remainingShields = shield.shieldsPTI.filter(pti => pti > 0).length;
+      
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-barriera-destroyed`,
+        playerName: 'Sistema',
+        message: `🛡️💀 Una BARRIERA è stata distrutta! Barriere rimanenti: ${remainingShields}`,
+        timestamp: Date.now()
+      });
+      
+      console.log(`🛡️💀 BARRIERA shield ${shieldIndex + 1} destroyed! ${remainingShields} shields remaining`);
+    }
+    
+    // Check if ALL shields are destroyed
+    const allShieldsDestroyed = shield.shieldsPTI.every(pti => pti <= 0);
+    
+    if (allShieldsDestroyed) {
+      shield.active = false;
+      
+      // Return the ORIGINAL card to deck (not the clones)
+      this.returnToDeck(gameId, shield.originalCardId, shield.ownerPlayer);
+      
+      // Remove all remaining shield cards from field (the clones disappear)
+      for (const cardId of shield.shieldCardIds) {
+        game.field = game.field.filter(c => c.id !== cardId);
+      }
+      
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-barriera-all-destroyed`,
+        playerName: 'Sistema',
+        message: `🛡️💀💀💀 Tutte le BARRIERE sono state distrutte! ${protectedName} può essere attaccato di nuovo! Una BARRIERA torna nel mazzo.`,
+        timestamp: Date.now()
+      });
+      
+      io.to(gameId).emit('barriera-destroyed', {
+        protectedCharacterId: shield.protectedCharacterId,
+        ownerPlayer: shield.ownerPlayer
+      });
+      
+      console.log(`🛡️💀💀💀 All BARRIERA shields destroyed! ${protectedName} is now vulnerable`);
+    }
+    
+    io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+    
+    return { destroyed: thisShieldDestroyed, allShieldsDestroyed };
+  }
+
   // PARASITIC CARD SYSTEM (PARASSITA/SAIBAIM)
   
   // Check if a card is PARASSITA or SAIBAIM
