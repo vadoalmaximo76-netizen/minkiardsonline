@@ -626,6 +626,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
                               // Update game state
                               const barrieraState = gameManager.getSanitizedGameState(gameId);
                               io.to(gameId).emit('game-state-update', barrieraState);
+                              
+                              // CRITICAL: End CPU turn after BARRIERA attack (one attack per turn on BARRIERA)
+                              // Reset CPU state immediately before turn ends
+                              const currentGameForBarriera = gameManager.getGameState(gameId);
+                              if (currentGameForBarriera && currentGameForBarriera.players[cpuName]?.cpuInstance) {
+                                currentGameForBarriera.players[cpuName].cpuInstance.resetTurnState();
+                              }
+                              
+                              setTimeout(() => {
+                                const nextAfterCPU = gameManager.endTurn(gameId, cpuName);
+                                if (nextAfterCPU) {
+                                  console.log(`🎯 CPU ${cpuName} turn ended after BARRIERA attack, next: ${nextAfterCPU}`);
+                                  io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                                  
+                                  // Fetch fresh game state after turn ended
+                                  const freshGameAfterBarriera = gameManager.getGameState(gameId);
+                                  if (freshGameAfterBarriera && freshGameAfterBarriera.players[nextAfterCPU]?.isCPU) {
+                                    setTimeout(() => {
+                                      gameManager.processCPUTurn(gameId, nextAfterCPU, io);
+                                    }, 1500);
+                                  }
+                                }
+                              }, 1500);
                               return; // Attack absorbed
                             }
                           } else {
@@ -2027,6 +2050,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!attackResult.success) {
         console.log(`CPU attack failed: ${attackResult.error}`);
         socket.emit('attack-error', { message: attackResult.error });
+        
+        // CRITICAL: Reset CPU state immediately
+        const currentGame = gameManager.getGameState(gameId);
+        if (currentGame && currentGame.players[cpuName]?.cpuInstance) {
+          currentGame.players[cpuName].cpuInstance.resetTurnState();
+          console.log(`🔧 CPU ${cpuName}: Turn state reset after failed attack`);
+        }
+        
+        // End CPU turn and move to next player (use forceEndTurn to bypass validation)
+        setTimeout(() => {
+          const nextPlayer = gameManager.forceEndTurn(gameId);
+          if (nextPlayer) {
+            console.log(`🎯 CPU ${cpuName} turn ended after failed attack, next: ${nextPlayer}`);
+            io.to(gameId).emit('next-turn', { nextPlayer });
+            
+            // Fetch fresh game state after turn ended
+            const freshState = gameManager.getSanitizedGameState(gameId);
+            io.to(gameId).emit('game-state-update', freshState);
+            
+            // Process next CPU turn if needed - use fresh state check
+            const freshGame = gameManager.getGameState(gameId);
+            if (freshGame && freshGame.players[nextPlayer]?.isCPU) {
+              setTimeout(() => {
+                gameManager.processCPUTurn(gameId, nextPlayer, io);
+              }, 1500);
+            }
+          }
+        }, 500);
+        
         return;
       }
 
