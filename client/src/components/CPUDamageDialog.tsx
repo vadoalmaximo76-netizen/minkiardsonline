@@ -245,7 +245,7 @@ export const CPUDamageDialog: React.FC = () => {
                       handleDamageSubmit();
                     }
                   }}
-                  placeholder="Es: 50 o 100+50"
+                  placeholder="Es: 50, 100+50, 200*2"
                   className="w-full px-4 py-3 text-center text-2xl font-bold border-2 border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                   autoFocus
                   disabled={isProcessing}

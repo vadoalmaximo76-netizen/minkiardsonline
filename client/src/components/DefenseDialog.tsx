@@ -449,7 +449,7 @@ export const DefenseDialog: React.FC = () => {
               type="text"
               value={counterDamage}
               onChange={(e) => setCounterDamage(e.target.value)}
-              placeholder="Es: 100 o 50+50"
+              placeholder="Es: 100, 50+50, 200*2"
               className="w-full bg-gray-700 border-gray-600 text-white text-center text-xl"
             />
           </div>
