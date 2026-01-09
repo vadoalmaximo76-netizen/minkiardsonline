@@ -8,6 +8,17 @@ import { Shield, Swords, Clock, Eye, X, ChevronLeft, Target, Timer } from 'lucid
 import { HandModal } from './HandModal';
 import { Input } from './ui/input';
 
+const evaluateMathExpression = (expr: string): number | null => {
+  const cleaned = expr.replace(/\s/g, '');
+  if (!/^[\d+\-*/().]+$/.test(cleaned)) return null;
+  try {
+    const result = Function('"use strict"; return (' + cleaned + ')')();
+    return typeof result === 'number' && isFinite(result) ? Math.floor(result) : null;
+  } catch {
+    return null;
+  }
+};
+
 interface DefenseRequest {
   gameId: string;
   attackId: string;
@@ -216,8 +227,8 @@ export const DefenseDialog: React.FC = () => {
   };
 
   const handleCounterDamageSubmit = () => {
-    const damage = parseInt(counterDamage);
-    if (isNaN(damage) || damage <= 0) {
+    const damage = evaluateMathExpression(counterDamage);
+    if (damage === null || damage < 0) {
       return;
     }
     setShowTargetSelect(true);
@@ -226,8 +237,8 @@ export const DefenseDialog: React.FC = () => {
   const handleSelectCounterTarget = (targetCard: any) => {
     if (!defenseRequest || !selectedMosseCard || isProcessing) return;
     
-    const damage = parseInt(counterDamage);
-    if (isNaN(damage) || damage <= 0) return;
+    const damage = evaluateMathExpression(counterDamage);
+    if (damage === null || damage < 0) return;
 
     setIsProcessing(true);
     console.log(`⚔️ COUNTER-ATTACK: ${selectedMosseCard.id} with ${damage} damage against ${targetCard.id}`);
@@ -337,13 +348,13 @@ export const DefenseDialog: React.FC = () => {
                 <Target className="w-6 h-6" />
               </div>
               <p className="text-gray-300 text-sm">
-                La tua respinta da <span className="text-yellow-400 font-bold">{counterDamage} PTI</span> contro l'attacco da <span className="text-red-400 font-bold">{defenseRequest.damageValue} PTI</span>
+                La tua respinta da <span className="text-yellow-400 font-bold">{evaluateMathExpression(counterDamage) ?? 0} PTI</span> contro l'attacco da <span className="text-red-400 font-bold">{defenseRequest.damageValue} PTI</span>
               </p>
               <p className="text-gray-400 text-xs mt-1">
-                {parseInt(counterDamage) > defenseRequest.damageValue 
-                  ? `Danno netto: ${parseInt(counterDamage) - defenseRequest.damageValue} PTI al nemico!`
-                  : parseInt(counterDamage) < defenseRequest.damageValue 
-                    ? `Danno netto: ${defenseRequest.damageValue - parseInt(counterDamage)} PTI a te!`
+                {(evaluateMathExpression(counterDamage) ?? 0) > defenseRequest.damageValue 
+                  ? `Danno netto: ${(evaluateMathExpression(counterDamage) ?? 0) - defenseRequest.damageValue} PTI al nemico!`
+                  : (evaluateMathExpression(counterDamage) ?? 0) < defenseRequest.damageValue 
+                    ? `Danno netto: ${defenseRequest.damageValue - (evaluateMathExpression(counterDamage) ?? 0)} PTI a te!`
                     : '⚡ VALORI UGUALI: Si attiverà uno SCONTRO!'}
               </p>
             </div>
@@ -435,12 +446,11 @@ export const DefenseDialog: React.FC = () => {
               Danno della tua MOSSE:
             </label>
             <Input
-              type="number"
+              type="text"
               value={counterDamage}
               onChange={(e) => setCounterDamage(e.target.value)}
-              placeholder="Es: 100"
+              placeholder="Es: 100 o 50+50"
               className="w-full bg-gray-700 border-gray-600 text-white text-center text-xl"
-              min="1"
             />
           </div>
 
@@ -454,7 +464,7 @@ export const DefenseDialog: React.FC = () => {
             </Button>
             <Button
               onClick={handleCounterDamageSubmit}
-              disabled={!counterDamage || parseInt(counterDamage) <= 0}
+              disabled={!counterDamage || evaluateMathExpression(counterDamage) === null || (evaluateMathExpression(counterDamage) ?? -1) < 0}
               className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2"
             >
               <Target className="w-4 h-4 mr-1" />

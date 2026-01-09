@@ -6,6 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Swords, Bot, Dices, X } from 'lucide-react';
 import { DiceModal } from './DiceModal';
 
+const evaluateMathExpression = (expr: string): number | null => {
+  const cleaned = expr.replace(/\s/g, '');
+  if (!/^[\d+\-*/().]+$/.test(cleaned)) return null;
+  try {
+    const result = Function('"use strict"; return (' + cleaned + ')')();
+    return typeof result === 'number' && isFinite(result) ? Math.floor(result) : null;
+  } catch {
+    return null;
+  }
+};
+
 interface CharacterData {
   id: string;
   name: string;
@@ -79,8 +90,8 @@ export const CPUDamageDialog: React.FC = () => {
   const handleDamageSubmit = () => {
     if (!damageRequest || isProcessing) return;
     
-    const damage = parseInt(damageValue);
-    if (isNaN(damage) || damage < 0) {
+    const damage = evaluateMathExpression(damageValue);
+    if (damage === null || damage < 0) {
       alert('Inserisci un valore di danno valido (minimo 0)!');
       return;
     }
@@ -226,8 +237,7 @@ export const CPUDamageDialog: React.FC = () => {
                   PTI da togliere:
                 </label>
                 <input
-                  type="number"
-                  min="0"
+                  type="text"
                   value={damageValue}
                   onChange={(e) => setDamageValue(e.target.value)}
                   onKeyPress={(e) => {
@@ -235,7 +245,7 @@ export const CPUDamageDialog: React.FC = () => {
                       handleDamageSubmit();
                     }
                   }}
-                  placeholder="Danno (es. 50)"
+                  placeholder="Es: 50 o 100+50"
                   className="w-full px-4 py-3 text-center text-2xl font-bold border-2 border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                   autoFocus
                   disabled={isProcessing}
