@@ -596,6 +596,19 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   // Check if this is the BARRIERA bonus card (not a shield clone)
   const isBarriera = card.type === 'bonus' && getCardName(card).toUpperCase().includes('BARRIERA') && !card.isBarrieraShield;
   
+  // Check if this card has a special effect that can be interrupted
+  const cardNameUpper = getCardName(card).toUpperCase();
+  const isSpecialEffectCard = location === 'field' && (
+    cardNameUpper.includes('VIRUS') ||
+    cardNameUpper.includes('INFLUENZA') ||
+    cardNameUpper.includes('OSTAGGIO') ||
+    cardNameUpper.includes('BAMBOLA') ||
+    cardNameUpper.includes('VOODOO') ||
+    cardNameUpper.includes('PARASSITA') ||
+    cardNameUpper.includes('SAIBAIM') ||
+    cardNameUpper.includes('DUELLO')
+  );
+  
   // Check if this is a BARRIERA shield (the duplicated cards)
   const isBarrieraShield = card.isBarrieraShield === true;
   
@@ -649,6 +662,11 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     });
     setShowBarrieraTargetSelect(false);
     setBarrieraTargets([]);
+  };
+
+  const handleInterruptEffect = () => {
+    console.log(`INTERROMPI clicked for card ${card.id}`);
+    socket.emit('interrupt-effect', { cardId: card.id, playerName: effectivePlayerName });
   };
 
   // Listen for RIFUGIO targets
@@ -940,6 +958,20 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
             style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
           >
             🛡️ PROTEGGI
+          </Button>
+        </div>
+      )}
+
+      {/* INTERROMPI button for special effect cards on field */}
+      {isSpecialEffectCard && isOwner && !card.faceDown && (
+        <div className="flex flex-col gap-1">
+          <Button
+            onClick={handleInterruptEffect}
+            className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-2 py-1"
+            size="sm"
+            style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
+          >
+            🛑 INTERROMPI
           </Button>
         </div>
       )}

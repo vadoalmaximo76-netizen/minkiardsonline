@@ -1208,6 +1208,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // INTERRUPT SPECIAL EFFECT - For cards with special ongoing effects
+    socket.on('interrupt-effect', ({ cardId, playerName }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) {
+        socket.emit('error', { message: 'Game not found' });
+        return;
+      }
+      
+      console.log(`🛑 INTERRUPT-EFFECT: ${playerName} interrupting effect of card ${cardId}`);
+      
+      const result = gameManager.interruptSpecialEffect(gameId, cardId, playerName, io);
+      
+      if (result.success) {
+        const gameState = gameManager.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', gameState);
+      } else {
+        socket.emit('error', { message: result.message || 'Failed to interrupt effect' });
+      }
+    });
+
     socket.on('move-to-graveyard', ({ cardId, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {

@@ -2581,6 +2581,127 @@ Rispondi SOLO in JSON:`;
     return { success: true, message: `${hostageName} è stato liberato!` };
   }
 
+  // INTERRUPT SPECIAL EFFECT - Generic interrupt for special effect cards
+  interruptSpecialEffect(gameId: string, cardId: string, playerName: string, io: any): { success: boolean; message?: string } {
+    const game = this.games.get(gameId);
+    if (!game) return { success: false, message: 'Game not found' };
+    
+    const card = game.field.find(c => c.id === cardId);
+    if (!card) return { success: false, message: 'Card not found on field' };
+    
+    // Check if player owns the card or is game master
+    const isMaster = game.turnOrder?.[0] === playerName;
+    if (card.owner !== playerName && !isMaster) {
+      return { success: false, message: 'Non puoi interrompere una carta che non ti appartiene' };
+    }
+    
+    const cardName = (card.name || this.getCardNameFromUrl(card.frontImage)).toUpperCase();
+    console.log(`🛑 INTERROMPI: ${playerName} interrupting ${cardName} (${cardId})`);
+    
+    // Handle OSTAGGIO interruption
+    if (cardName.includes('OSTAGGIO') && card.isOstaggioCard) {
+      // Find the hostage
+      const hostage = game.field.find(c => c.hostageOstaggioCardId === cardId);
+      if (hostage) {
+        this.releaseHostage(gameId, hostage.id, io);
+      }
+      
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-effect-interrupted`,
+        playerName: 'Sistema',
+        message: `🛑 ${playerName} ha interrotto l'effetto di OSTAGGIO!`,
+        timestamp: Date.now()
+      });
+      
+      // Return card to deck
+      this.returnToDeck(gameId, cardId, card.owner);
+      return { success: true, message: 'OSTAGGIO interrotto' };
+    }
+    
+    // Handle BAMBOLA VOODOO interruption
+    if (cardName.includes('BAMBOLA') || cardName.includes('VOODOO')) {
+      // Remove voodoo links involving this card
+      if (game.voodooLinks) {
+        const link = game.voodooLinks.find(l => l.bonusCardId === cardId);
+        if (link) {
+          this.removeVoodooLink(gameId, link.card1Id);
+        }
+      }
+      
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-effect-interrupted`,
+        playerName: 'Sistema',
+        message: `🛑 ${playerName} ha interrotto l'effetto di BAMBOLA VOODOO!`,
+        timestamp: Date.now()
+      });
+      
+      this.returnToDeck(gameId, cardId, card.owner);
+      return { success: true, message: 'BAMBOLA VOODOO interrotto' };
+    }
+    
+    // Handle VIRUS/INFLUENZA interruption (persistent damage)
+    if (cardName.includes('VIRUS') || cardName.includes('INFLUENZA')) {
+      if (game.persistentDamages) {
+        game.persistentDamages = game.persistentDamages.filter(d => d.attackerCardId !== cardId);
+      }
+      
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-effect-interrupted`,
+        playerName: 'Sistema',
+        message: `🛑 ${playerName} ha interrotto l'effetto di ${cardName}!`,
+        timestamp: Date.now()
+      });
+      
+      this.returnToDeck(gameId, cardId, card.owner);
+      return { success: true, message: `${cardName} interrotto` };
+    }
+    
+    // Handle PARASSITA/SAIBAIM interruption (parasitic cards)
+    if (cardName.includes('PARASSITA') || cardName.includes('SAIBAIM')) {
+      // Detach the parasitic card
+      this.detachParasiticCard(gameId, cardId, 'manual');
+      
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-effect-interrupted`,
+        playerName: 'Sistema',
+        message: `🛑 ${playerName} ha interrotto l'effetto di ${cardName}!`,
+        timestamp: Date.now()
+      });
+      
+      this.returnToDeck(gameId, cardId, card.owner);
+      return { success: true, message: `${cardName} interrotto` };
+    }
+    
+    // Handle DUELLO interruption
+    if (cardName.includes('DUELLO')) {
+      if (game.activeDuel && game.activeDuel.active) {
+        game.activeDuel.active = false;
+        delete game.activeDuel;
+      }
+      
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-effect-interrupted`,
+        playerName: 'Sistema',
+        message: `🛑 ${playerName} ha interrotto il DUELLO!`,
+        timestamp: Date.now()
+      });
+      
+      this.returnToDeck(gameId, cardId, card.owner);
+      return { success: true, message: 'DUELLO interrotto' };
+    }
+    
+    // Generic interruption for any other special effect card
+    io.to(gameId).emit('chat-message', {
+      id: `${Date.now()}-effect-interrupted`,
+      playerName: 'Sistema',
+      message: `🛑 ${playerName} ha interrotto l'effetto di ${cardName}!`,
+      timestamp: Date.now()
+    });
+    
+    this.returnToDeck(gameId, cardId, card.owner);
+    return { success: true, message: `${cardName} interrotto` };
+  }
+
   // PARASITIC CARD SYSTEM (PARASSITA/SAIBAIM)
   
   // Check if a card is PARASSITA or SAIBAIM
