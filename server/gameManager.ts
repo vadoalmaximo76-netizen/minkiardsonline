@@ -2603,7 +2603,11 @@ Rispondi SOLO in JSON:`;
       // Find the hostage
       const hostage = game.field.find(c => c.hostageOstaggioCardId === cardId);
       if (hostage) {
+        // releaseHostage already handles returning OSTAGGIO card to deck
         this.releaseHostage(gameId, hostage.id, io);
+      } else {
+        // No hostage found, just return the OSTAGGIO card to deck
+        this.returnToDeck(gameId, cardId, card.owner);
       }
       
       io.to(gameId).emit('chat-message', {
@@ -2613,8 +2617,6 @@ Rispondi SOLO in JSON:`;
         timestamp: Date.now()
       });
       
-      // Return card to deck
-      this.returnToDeck(gameId, cardId, card.owner);
       return { success: true, message: 'OSTAGGIO interrotto' };
     }
     
@@ -2642,7 +2644,11 @@ Rispondi SOLO in JSON:`;
     // Handle VIRUS/INFLUENZA interruption (persistent damage)
     if (cardName.includes('VIRUS') || cardName.includes('INFLUENZA')) {
       if (game.persistentDamages) {
-        game.persistentDamages = game.persistentDamages.filter(d => d.attackerCardId !== cardId);
+        // Filter by type matching the card name and by the card owner (attacker)
+        const typeName = cardName.includes('VIRUS') ? 'VIRUS' : 'INFLUENZA';
+        const removedCount = game.persistentDamages.filter(d => d.type === typeName && d.attacker === card.owner).length;
+        game.persistentDamages = game.persistentDamages.filter(d => !(d.type === typeName && d.attacker === card.owner));
+        console.log(`🛑 INTERROMPI: Removed ${removedCount} ${typeName} persistent damage entries from ${card.owner}`);
       }
       
       io.to(gameId).emit('chat-message', {
