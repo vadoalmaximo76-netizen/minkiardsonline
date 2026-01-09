@@ -641,6 +641,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                               }
                               
                               setTimeout(() => {
+                                // Process delayed damages before ending turn
+                                gameManager.processDelayedDamages(gameId, cpuName, io);
+                                
                                 const nextAfterCPU = gameManager.endTurn(gameId, cpuName);
                                 if (nextAfterCPU) {
                                   console.log(`🎯 CPU ${cpuName} turn ended after BARRIERA attack, next: ${nextAfterCPU}`);
@@ -2086,6 +2089,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // End CPU turn and move to next player (use forceEndTurn to bypass validation)
         setTimeout(() => {
+          // Process delayed damages before ending turn
+          gameManager.processDelayedDamages(gameId, cpuName, io);
+          
           const nextPlayer = gameManager.forceEndTurn(gameId);
           if (nextPlayer) {
             console.log(`🎯 CPU ${cpuName} turn ended after failed attack, next: ${nextPlayer}`);
@@ -2313,6 +2319,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   
                   // End CPU turn after action
                   setTimeout(() => {
+                    // Process delayed damages before ending turn
+                    gameManager.processDelayedDamages(gameId, currentPlayer, io);
+                    
                     const nextAfterCPU = gameManager.endTurn(gameId, currentPlayer);
                     if (nextAfterCPU) {
                       io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
@@ -3068,6 +3077,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               
               // NEW RULE: Turn ends after using a card
               setTimeout(() => {
+                // Process delayed damages before ending turn
+                gameManager.processDelayedDamages(gameId, playerName, io);
+                
                 const nextPlayer = gameManager.endTurn(gameId, playerName);
                 if (nextPlayer) {
                   io.to(gameId).emit('next-turn', { nextPlayer });
@@ -3187,6 +3199,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               
               // NEW RULE: Turn ends after playing a card
               setTimeout(() => {
+                // Process delayed damages before ending turn
+                gameManager.processDelayedDamages(gameId, playerName, io);
+                
                 const nextPlayer = gameManager.endTurn(gameId, playerName);
                 if (nextPlayer) {
                   io.to(gameId).emit('next-turn', { nextPlayer });
@@ -3250,6 +3265,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   
                   // Turn ends after attack
                   setTimeout(() => {
+                    // Process delayed damages before ending turn
+                    gameManager.processDelayedDamages(gameId, playerName, io);
+                    
                     const nextPlayer = gameManager.endTurn(gameId, playerName);
                     if (nextPlayer) {
                       io.to(gameId).emit('next-turn', { nextPlayer });
@@ -4231,6 +4249,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         
                         // End turn after completing action
                         setTimeout(() => {
+                          // Process delayed damages before ending turn
+                          gameManager.processDelayedDamages(gameId, nextPlayer, io);
+                          
                           const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
                           if (nextAfterCPU) {
                             io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
@@ -4249,6 +4270,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       }
                       
                       setTimeout(() => {
+                        // Process delayed damages before ending turn
+                        gameManager.processDelayedDamages(gameId, nextPlayer, io);
+                        
                         const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
                         if (nextAfterCPU) {
                           io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
@@ -4259,6 +4283,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     default:
                       // For other actions, just end turn after delay
                       setTimeout(() => {
+                        // Process delayed damages before ending turn
+                        gameManager.processDelayedDamages(gameId, nextPlayer, io);
+                        
                         const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
                         if (nextAfterCPU) {
                           io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
@@ -4267,6 +4294,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   }
                 } else {
                   // CPU had no valid actions, just end turn
+                  // Process delayed damages before ending turn
+                  gameManager.processDelayedDamages(gameId, nextPlayer, io);
+                  
                   const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
                   if (nextAfterCPU) {
                     io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
@@ -4275,6 +4305,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               } catch (error) {
                 console.error(`Error processing CPU turn for ${nextPlayer}:`, error);
                 // If CPU fails, just end their turn
+                // Process delayed damages before ending turn
+                gameManager.processDelayedDamages(gameId, nextPlayer, io);
+                
                 const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
                 if (nextAfterCPU) {
                   io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
