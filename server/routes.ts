@@ -2058,7 +2058,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // CPU DAMAGE REQUEST: Handle damage submission from game creator for CPU attacks
-    socket.on('cpu-damage-submit', async ({ cpuName, mosseCardId, targetCardId, targetOwner, damageValue }) => {
+    socket.on('cpu-damage-submit', async ({ cpuName, mosseCardId, targetCardId, targetOwner, damageValue, starsToRemove }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (!gameId) {
         console.log(`cpu-damage-submit: gameId not found for socket ${socket.id}`);
@@ -2133,14 +2133,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (pendingDefense) {
           pendingDefense.damage = damageValue;
           pendingDefense.mosseCardId = mosseCardId;
-          console.log(`📝 Stored damage value ${damageValue} for pending defense ${pendingDefense.attackId}`);
+          (pendingDefense as any).starsToRemove = starsToRemove || 0;
+          console.log(`📝 Stored damage value ${damageValue}, stars: ${starsToRemove || 0} for pending defense ${pendingDefense.attackId}`);
         }
         
         // Emit defense request to the defender
         const emissionSuccess = await gameManager.emitDefenseRequest(gameId, io);
         if (!emissionSuccess) {
           console.log(`⚠️ Failed to emit defense request - proceeding with damage`);
-          await gameManager.processMosseDamage(gameId, cpuName, targetCardId, damageValue, mosseCardId, io);
+          await gameManager.processMosseDamage(gameId, cpuName, targetCardId, damageValue, mosseCardId, io, false, false, false, false, starsToRemove || 0);
         }
         
         // Attack is pending defense response - processing will continue in defense:response handler
@@ -2148,7 +2149,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // If no defense required, process damage immediately
-      await gameManager.processMosseDamage(gameId, cpuName, targetCardId, damageValue, mosseCardId, io);
+      await gameManager.processMosseDamage(gameId, cpuName, targetCardId, damageValue, mosseCardId, io, false, false, false, false, starsToRemove || 0);
       
       // NEW: Notify CPU that attack is resolved and immediately continue their turn
       const game = gameManager.getGameState(gameId);
@@ -2614,7 +2615,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('mosse-attack', async ({ mosseCardId, targetCardId, attackerName, targetOwner, damageValue, isHandTarget, isFurtoAttack }) => {
+    socket.on('mosse-attack', async ({ mosseCardId, targetCardId, attackerName, targetOwner, damageValue, starsToRemove, isHandTarget, isFurtoAttack }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
         console.log(`🗡️  DEFENSE-ENABLED MOSSE ATTACK: ${attackerName} → ${targetOwner} (damage: ${damageValue})`);
@@ -2745,7 +2746,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (attackResult.result?.isHostageTarget) {
           console.log(`⛓️ Attacking hostage character - applying damage directly (no defense)`);
           
-          await gameManager.processMosseDamage(gameId, attackerName, targetCardId, damageValue, mosseCardId, io, false, false, false);
+          await gameManager.processMosseDamage(gameId, attackerName, targetCardId, damageValue, mosseCardId, io, false, false, false, false, starsToRemove || 0);
           
           io.to(gameId).emit('chat-message', {
             id: `${Date.now()}-hostage-attacked`,
@@ -2770,14 +2771,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             pendingDefense.damage = damageValue; // Store the manually input damage
             pendingDefense.mosseCardId = mosseCardId; // Store MOSSE card for return
             (pendingDefense as any).isFurtoAttack = isFurtoAttack || false; // Store FURTO flag
-            console.log(`📝 Stored damage value ${damageValue} for pending defense ${pendingDefense.attackId}${isFurtoAttack ? ' (FURTO - star stealing)' : ''}`);
+            (pendingDefense as any).starsToRemove = starsToRemove || 0; // Store stars to remove
+            console.log(`📝 Stored damage value ${damageValue}, stars: ${starsToRemove || 0} for pending defense ${pendingDefense.attackId}${isFurtoAttack ? ' (FURTO - star stealing)' : ''}`);
           }
           
           // UNIFIED DEFENSE EMISSION: Use GameManager.emitDefenseRequest instead of direct emission
           const emissionSuccess = await gameManager.emitDefenseRequest(gameId, io);
           if (!emissionSuccess) {
             console.log(`⚠️ Failed to emit defense request - proceeding with damage`);
-            await gameManager.processMosseDamage(gameId, attackerName, targetCardId, damageValue, mosseCardId, io, false, isHandTarget || false, isFurtoAttack || false);
+            await gameManager.processMosseDamage(gameId, attackerName, targetCardId, damageValue, mosseCardId, io, false, isHandTarget || false, isFurtoAttack || false, false, starsToRemove || 0);
           }
           
           // Attack is pending defense response - processing will continue in defense:response handler
@@ -2785,7 +2787,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // If no defense required, process damage immediately
-        await gameManager.processMosseDamage(gameId, attackerName, targetCardId, damageValue, mosseCardId, io, false, isHandTarget || false, isFurtoAttack || false);
+        await gameManager.processMosseDamage(gameId, attackerName, targetCardId, damageValue, mosseCardId, io, false, isHandTarget || false, isFurtoAttack || false, false, starsToRemove || 0);
         
         // NEW: If CPU attacked without defense, continue their turn
         const gameStateAfterAttack = gameManager.getGameState(gameId);

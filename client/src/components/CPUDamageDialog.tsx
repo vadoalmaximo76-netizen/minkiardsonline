@@ -32,6 +32,7 @@ interface CPUDamageRequest {
 export const CPUDamageDialog: React.FC = () => {
   const [damageRequest, setDamageRequest] = useState<CPUDamageRequest | null>(null);
   const [damageValue, setDamageValue] = useState<string>('');
+  const [starsToRemove, setStarsToRemove] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [isDiceModalOpen, setIsDiceModalOpen] = useState<boolean>(false);
   const [currentDiceRoll, setCurrentDiceRoll] = useState<number | undefined>(undefined);
@@ -54,6 +55,7 @@ export const CPUDamageDialog: React.FC = () => {
         console.log('🤖 SHOWING CPU DAMAGE DIALOG!');
         setDamageRequest(request);
         setDamageValue('');
+        setStarsToRemove('');
         setIsProcessing(false);
       } else {
         console.log('🤖 CPU damage request not for this player, ignoring');
@@ -83,21 +85,29 @@ export const CPUDamageDialog: React.FC = () => {
       return;
     }
     
+    const stars = starsToRemove.trim() !== '' ? parseInt(starsToRemove) : 0;
+    if (isNaN(stars) || stars < 0) {
+      alert('Inserisci un valore di stelle valido (minimo 0)!');
+      return;
+    }
+    
     setIsProcessing(true);
-    console.log(`🤖 Submitting CPU damage: ${damage}`);
+    console.log(`🤖 Submitting CPU damage: ${damage}, stars to remove: ${stars}`);
     
     socket.emit('cpu-damage-submit', {
       cpuName: damageRequest.cpuName,
       mosseCardId: damageRequest.mosseCardId,
       targetCardId: damageRequest.targetCardId,
       targetOwner: damageRequest.targetOwner,
-      damageValue: damage
+      damageValue: damage,
+      starsToRemove: stars
     });
 
     // Close dialog after sending response
     setTimeout(() => {
       setDamageRequest(null);
       setDamageValue('');
+      setStarsToRemove('');
       setIsProcessing(false);
     }, 500);
   };
@@ -209,26 +219,47 @@ export const CPUDamageDialog: React.FC = () => {
               </div>
             </div>
             
-            {/* Damage Input */}
-            <div className="bg-purple-50 p-4 rounded-lg border-2 border-purple-200">
-              <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
-                Inserisci il danno di questa mossa:
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={damageValue}
-                onChange={(e) => setDamageValue(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && damageValue !== '') {
-                    handleDamageSubmit();
-                  }
-                }}
-                placeholder="Danno (es. 50 o 0)"
-                className="w-full px-4 py-3 text-center text-2xl font-bold border-2 border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                autoFocus
-                disabled={isProcessing}
-              />
+            {/* Damage and Stars Input */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-purple-50 p-4 rounded-lg border-2 border-purple-200">
+                <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
+                  PTI da togliere:
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={damageValue}
+                  onChange={(e) => setDamageValue(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && damageValue !== '') {
+                      handleDamageSubmit();
+                    }
+                  }}
+                  placeholder="Danno (es. 50)"
+                  className="w-full px-4 py-3 text-center text-2xl font-bold border-2 border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  autoFocus
+                  disabled={isProcessing}
+                />
+              </div>
+              <div className="bg-yellow-50 p-4 rounded-lg border-2 border-yellow-300">
+                <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
+                  ⭐ Stelle da togliere:
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={starsToRemove}
+                  onChange={(e) => setStarsToRemove(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && damageValue !== '') {
+                      handleDamageSubmit();
+                    }
+                  }}
+                  placeholder="Stelle (es. 1)"
+                  className="w-full px-4 py-3 text-center text-2xl font-bold border-2 border-yellow-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  disabled={isProcessing}
+                />
+              </div>
             </div>
             
             {/* Action Buttons */}

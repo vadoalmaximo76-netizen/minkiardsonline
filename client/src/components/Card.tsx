@@ -78,6 +78,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const cardRef = useRef<HTMLDivElement>(null);
   const [showDamageInput, setShowDamageInput] = useState(false);
   const [damageValue, setDamageValue] = useState("");
+  const [starsToRemove, setStarsToRemove] = useState("");
   const [targetCard, setTargetCard] = useState<any>(null);
   const [targetCards, setTargetCards] = useState<any[]>([]);
   const [showHandTargetSelect, setShowHandTargetSelect] = useState(false);
@@ -362,6 +363,12 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         return;
       }
 
+      const stars = starsToRemove.trim() !== '' ? parseInt(starsToRemove) : 0;
+      if (isNaN(stars) || stars < 0) {
+        alert("Il valore delle stelle non è valido");
+        return;
+      }
+
       // Attack with damage value
       socket.emit('mosse-attack', { 
         mosseCardId: selectedMosseCard?.id,
@@ -369,6 +376,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         attackerName: playerName,
         targetOwner: targetCard?.owner,
         damageValue: damage,
+        starsToRemove: stars,
         isHandTarget: isHandTarget,
         isFurtoAttack: isFurtoAttack  // NEW: Pass FURTO flag for star stealing
       });
@@ -377,6 +385,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
       setSelectedMosseCard(null);
       setShowDamageInput(false);
       setDamageValue("");
+      setStarsToRemove("");
       setTargetCard(null);
       setIsHandTarget(false);
       setIsFurtoAttack(false);
@@ -388,6 +397,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const handleDamageCancel = () => {
     setShowDamageInput(false);
     setDamageValue("");
+    setStarsToRemove("");
     setTargetCard(null);
     setIsHandTarget(false);
     setIsFurtoAttack(false);
@@ -432,6 +442,12 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
         return;
       }
 
+      const stars = starsToRemove.trim() !== '' ? parseInt(starsToRemove) : 0;
+      if (isNaN(stars) || stars < 0) {
+        alert("Il valore delle stelle non è valido");
+        return;
+      }
+
       // Attack all selected targets with delay between each to prevent server overwrite issues
       // Server can only handle ONE pending defense at a time, so we need to wait for each attack
       // to fully complete (including defense resolution) before sending the next one
@@ -444,6 +460,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
             attackerName: playerName,
             targetOwner: target.owner,
             damageValue: damage,
+            starsToRemove: stars,
             isHandTarget: false,
             isFurtoAttack: false
           });
@@ -461,6 +478,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
       setSelectedMosseCard(null);
       setShowDamageInput(false);
       setDamageValue("");
+      setStarsToRemove("");
       setTargetCard(null);
       setTargetCards([]);
       setSelectedTargets([]);
@@ -1633,39 +1651,68 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
 
           {/* Damage Input Section */}
           <div className="space-y-4 mt-6">
-            <div className={`p-4 rounded-lg border ${isFurtoAttack ? 'bg-yellow-900 border-yellow-600' : 'bg-gray-800 border-gray-600'}`}>
-              {isFurtoAttack ? (
-                <>
-                  <p className="text-yellow-300 text-lg font-bold mb-2">
-                    ⭐ FURTO - Quante STELLE rubi a <span className="text-red-400 font-bold">{targetCard?.owner}</span>?
-                  </p>
-                  <p className="text-yellow-200 text-xs mb-3">
-                    Le stelle rubate verranno sottratte dal personaggio avversario. Se le stelle scendono a 0, il personaggio non potrà più usare MOSSE. Se scendono sotto 0, il personaggio muore!
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="text-gray-300 text-sm mb-2">
-                    {targetCards.length > 1 
-                      ? `Quanto danno fa la tua carta MOSSE a ${targetCards.length} bersagli?`
-                      : <>Quanto danno fa la tua carta MOSSE a <span className="text-red-400 font-bold">{targetCard?.owner || targetCards[0]?.owner}</span>?</>
-                    }
-                  </p>
-                  <p className="text-gray-400 text-xs mb-3">
-                    Puoi inserire operazioni: 50x3, 100+20, 200-50, ecc.
-                    {targetCards.length > 1 && <span className="text-yellow-400 ml-1">(Lo stesso danno verrà applicato a tutti i bersagli)</span>}
-                  </p>
-                </>
-              )}
-              <Input
-                type="text"
-                value={damageValue}
-                onChange={(e) => setDamageValue(e.target.value)}
-                placeholder={isFurtoAttack ? "es: 1, 2, 3..." : "es: 50x3, 100+50, 150..."}
-                className={`text-lg font-bold ${isFurtoAttack ? 'bg-yellow-800 border-yellow-500 text-white' : 'bg-gray-700 border-gray-600 text-white'}`}
-                autoFocus
-              />
-            </div>
+            {isFurtoAttack ? (
+              <div className="p-4 rounded-lg border bg-yellow-900 border-yellow-600">
+                <p className="text-yellow-300 text-lg font-bold mb-2">
+                  ⭐ FURTO - Quante STELLE rubi a <span className="text-red-400 font-bold">{targetCard?.owner}</span>?
+                </p>
+                <p className="text-yellow-200 text-xs mb-3">
+                  Le stelle rubate verranno sottratte dal personaggio avversario. Se le stelle scendono a 0, il personaggio non potrà più usare MOSSE. Se scendono sotto 0, il personaggio muore!
+                </p>
+                <Input
+                  type="text"
+                  value={damageValue}
+                  onChange={(e) => setDamageValue(e.target.value)}
+                  placeholder="es: 1, 2, 3..."
+                  className="text-lg font-bold bg-yellow-800 border-yellow-500 text-white"
+                  autoFocus
+                />
+              </div>
+            ) : (
+              <>
+                <p className="text-gray-300 text-sm mb-2">
+                  {targetCards.length > 1 
+                    ? `Quanto danno fa la tua carta MOSSE a ${targetCards.length} bersagli?`
+                    : <>Quanto danno fa la tua carta MOSSE a <span className="text-red-400 font-bold">{targetCard?.owner || targetCards[0]?.owner}</span>?</>
+                  }
+                  {targetCards.length > 1 && <span className="text-yellow-400 ml-1 block text-xs mt-1">(Lo stesso danno verrà applicato a tutti i bersagli)</span>}
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 rounded-lg border bg-gray-800 border-gray-600">
+                    <label className="block text-gray-300 text-sm font-medium mb-2">
+                      PTI da togliere:
+                    </label>
+                    <Input
+                      type="text"
+                      value={damageValue}
+                      onChange={(e) => setDamageValue(e.target.value)}
+                      placeholder="es: 50x3, 100+50..."
+                      className="text-lg font-bold bg-gray-700 border-gray-600 text-white"
+                      autoFocus
+                    />
+                    <p className="text-gray-400 text-xs mt-2">
+                      Puoi inserire operazioni: 50x3, 100+20, 200-50, ecc.
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-lg border bg-yellow-900/50 border-yellow-600">
+                    <label className="block text-yellow-300 text-sm font-medium mb-2">
+                      ⭐ Stelle da togliere:
+                    </label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={starsToRemove}
+                      onChange={(e) => setStarsToRemove(e.target.value)}
+                      placeholder="es: 1, 2..."
+                      className="text-lg font-bold bg-yellow-800/50 border-yellow-500 text-white"
+                    />
+                    <p className="text-yellow-200/70 text-xs mt-2">
+                      Lascia vuoto per non togliere stelle
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
 
             <div className="flex gap-3">
               <Button

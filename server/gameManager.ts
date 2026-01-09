@@ -87,6 +87,8 @@ interface PendingDefense {
   mosseCardId: string;    // the attack (MOSSE) card used
   deckType: string;
   isHandTarget?: boolean; // NEW: Whether this is ATTACCO DISONESTO (target in hand)
+  starsToRemove?: number; // Stars to remove from target alongside PTI damage
+  isFurtoAttack?: boolean; // Whether this is a FURTO attack
   createdAt: Date;
   timeoutId?: NodeJS.Timeout;
 }
@@ -6229,8 +6231,7 @@ Rispondi SOLO in JSON:`;
     game.pendingDefense = undefined;
 
     // Retain local copy for processing
-    const { attacker, defender, targetCardId, mosseCardId, damage, isHandTarget } = pendingDefense;
-    const isFurtoAttack = (pendingDefense as any).isFurtoAttack || false;
+    const { attacker, defender, targetCardId, mosseCardId, damage, isHandTarget, starsToRemove = 0, isFurtoAttack = false } = pendingDefense;
 
     // STRUCTURED LOGGING: Log resolution details
     console.log(`[DEFENSE-RESOLVE] Processing defense resolution`, {
@@ -6308,7 +6309,7 @@ Rispondi SOLO in JSON:`;
       });
 
       // Apply damage using existing processMosseDamage to targetCardId owned by defender
-      await this.processMosseDamage(gameId, attacker, targetCardId, damage, mosseCardId, io, false, isHandTarget || false, isFurtoAttack);
+      await this.processMosseDamage(gameId, attacker, targetCardId, damage, mosseCardId, io, false, isHandTarget || false, isFurtoAttack, false, starsToRemove);
       
       // DUELLO: Switch turn to opponent after attack is accepted
       if (game.activeDuel && game.activeDuel.active) {
@@ -6484,8 +6485,8 @@ Rispondi SOLO in JSON:`;
       // Return attacker's MOSSE to deck
       this.returnToDeck(gameId, mosseCardId, attacker);
       
-      // Apply net damage to attacker's character
-      await this.processMosseDamage(gameId, defender, defenderTargetCardId, netDamage, defenderMosseCardId, io, false, false, false);
+      // Apply net damage to attacker's character (no star removal in counter-attacks)
+      await this.processMosseDamage(gameId, defender, defenderTargetCardId, netDamage, defenderMosseCardId, io, false, false, false, false, 0);
 
       // Send game state update
       const updatedGameState = this.getSanitizedGameState(gameId);
@@ -6507,8 +6508,8 @@ Rispondi SOLO in JSON:`;
       // Return defender's MOSSE to deck
       this.returnToDeck(gameId, defenderMosseCardId, defender);
       
-      // Apply net damage to defender's character
-      await this.processMosseDamage(gameId, attacker, targetCardId, netDamage, mosseCardId, io, false, isHandTarget || false, false);
+      // Apply net damage to defender's character (no star removal in counter-attacks)
+      await this.processMosseDamage(gameId, attacker, targetCardId, netDamage, mosseCardId, io, false, isHandTarget || false, false, false, 0);
 
       // Send game state update
       const updatedGameState = this.getSanitizedGameState(gameId);
@@ -6641,8 +6642,8 @@ Rispondi SOLO in JSON:`;
       timestamp: Date.now()
     });
 
-    // Apply full damage from winner
-    await this.processMosseDamage(gameId, winner, targetToHit, damageValue, winnerMosseCardId, io, false, false, false);
+    // Apply full damage from winner (no star removal in clash battles)
+    await this.processMosseDamage(gameId, winner, targetToHit, damageValue, winnerMosseCardId, io, false, false, false, false, 0);
 
     game.activeClashBattle = undefined;
     const updatedGameState = this.getSanitizedGameState(gameId);
@@ -6655,8 +6656,8 @@ Rispondi SOLO in JSON:`;
     return game?.activeClashBattle;
   }
 
-  // EXTRACTED AND HARDENED: Damage processing method (preserves ALL legacy logic + BAMBOLA VOODOO + ATTACCO DISONESTO + FURTO)
-  async processMosseDamage(gameId: string, attackerName: string, targetCardId: string, damageValue: number, mosseCardId: string, io: any, isVoodooReflection: boolean = false, isHandTarget: boolean = false, isFurtoAttack: boolean = false, isPersistentTick: boolean = false): Promise<void> {
+  // EXTRACTED AND HARDENED: Damage processing method (preserves ALL legacy logic + BAMBOLA VOODOO + ATTACCO DISONESTO + FURTO + STAR REMOVAL)
+  async processMosseDamage(gameId: string, attackerName: string, targetCardId: string, damageValue: number, mosseCardId: string, io: any, isVoodooReflection: boolean = false, isHandTarget: boolean = false, isFurtoAttack: boolean = false, isPersistentTick: boolean = false, starsToRemove: number = 0): Promise<void> {
     const game = this.games.get(gameId);
     const gameState = this.getSanitizedGameState(gameId);
     
@@ -7338,6 +7339,22 @@ Rispondi SOLO in JSON:`;
       updatedNotes = currentNotes ? `${currentNotes}\nPTI: ${newPTI}` : `PTI: ${newPTI}`;
     }
 
+    // STAR REMOVAL: Apply star damage if specified
+    let starsRemovedMessage = '';
+    if (starsToRemove > 0) {
+      const currentStars = this.extractStarsFromNote(updatedNotes);
+      const newStars = Math.max(0, currentStars - starsToRemove);
+      updatedNotes = updatedNotes.replace(/Stelle:\s*\d+/i, `Stelle: ${newStars}`);
+      
+      // If no stars field exists, add it
+      if (!updatedNotes.match(/Stelle:/i)) {
+        updatedNotes = `${updatedNotes} | Stelle: ${newStars}`;
+      }
+      
+      starsRemovedMessage = ` | ⭐ Stelle: ${currentStars} → ${newStars}`;
+      console.log(`⭐ STAR REMOVAL: ${targetOwner}'s card lost ${starsToRemove} stars: ${currentStars} → ${newStars}`);
+    }
+
     // PRESERVE: Update the card in the game state (works for both hand and field)
     if (isHandTarget) {
       // For hand targets, update directly in player's hand
@@ -7353,7 +7370,7 @@ Rispondi SOLO in JSON:`;
       this.updateCardText(gameId, targetCardId, updatedNotes);
     }
     
-    console.log(`${isHandTarget ? '🎯 ATTACCO DISONESTO: ' : ''}${targetOwner}'s ${targetCard.frontImage} took ${damageValue} damage: ${currentPTI} → ${newPTI} PTI`);
+    console.log(`${isHandTarget ? '🎯 ATTACCO DISONESTO: ' : ''}${targetOwner}'s ${targetCard.frontImage} took ${damageValue} damage: ${currentPTI} → ${newPTI} PTI${starsToRemove > 0 ? `, -${starsToRemove} stars` : ''}`);
     
     // PRESERVE: Mark action as completed for CPU turn flow
     if (attackerName.startsWith('CPU-')) {
@@ -7364,7 +7381,7 @@ Rispondi SOLO in JSON:`;
     io.to(gameId).emit('chat-message', {
       id: `${Date.now()}-damage`,
       playerName: 'Sistema',
-      message: `⚔️ ${attackerName} attacca ${targetCard.owner}! Danno: ${damageValue} | PTI: ${currentPTI} → ${newPTI}`,
+      message: `⚔️ ${attackerName} attacca ${targetCard.owner}! Danno: ${damageValue} | PTI: ${currentPTI} → ${newPTI}${starsRemovedMessage}`,
       timestamp: Date.now()
     });
 
