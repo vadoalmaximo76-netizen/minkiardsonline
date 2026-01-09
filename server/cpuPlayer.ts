@@ -1412,12 +1412,14 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       
       // Check if this is the opening sequence (no cards in hand, no character on field)
       if (this.openingSequenceState.phase !== 'completed') {
-        // Reset opening sequence if CPU already has a character on field from previous games
-        const hasCharacterOnField = gameState.field.some((card: any) => 
-          card.owner === this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali')
+        // Reset opening sequence if CPU already has a USABLE character on field (not hostaged)
+        const hasUsableCharacterOnField = gameState.field.some((card: any) => 
+          card.owner === this.playerName && 
+          (card.type === 'personaggi' || card.type === 'personaggi_speciali') &&
+          !card.isHostage
         );
         
-        if (hasCharacterOnField && this.openingSequenceState.phase === 'pick-initial') {
+        if (hasUsableCharacterOnField && this.openingSequenceState.phase === 'pick-initial') {
           console.log(`CPU ${this.playerName} already has character on field, skipping opening sequence`);
           this.openingSequenceState.phase = 'completed';
         } else {
@@ -1436,19 +1438,32 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         }
       }
       
-      // MINKIARDS FUNDAMENTAL RULE: Must have character on field to do ANY action except playing a character
-      const hasCharacter = gameState.field.find((card: any) => 
-        card.owner === this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali')
+      // MINKIARDS FUNDAMENTAL RULE: Must have USABLE character on field (not hostaged) to do ANY action except playing a character
+      const usableCharacter = gameState.field.find((card: any) => 
+        card.owner === this.playerName && 
+        (card.type === 'personaggi' || card.type === 'personaggi_speciali') &&
+        !card.isHostage // Hostaged characters cannot act
       );
       
-      if (!hasCharacter) {
+      // Check if CPU has a hostaged character (for messaging)
+      const hostagedCharacter = gameState.field.find((card: any) => 
+        card.owner === this.playerName && 
+        (card.type === 'personaggi' || card.type === 'personaggi_speciali') &&
+        card.isHostage
+      );
+      
+      if (!usableCharacter) {
         // First priority: Play character from hand if available
         const characterInHand = cpuPlayer.hand.find((c: any) => 
           c.type === 'personaggi' || c.type === 'personaggi_speciali'
         );
         
         if (characterInHand) {
-          this.sendChatMessage(`Devo mettere un personaggio in campo!`);
+          if (hostagedCharacter) {
+            this.sendChatMessage(`Il mio personaggio è in ostaggio! Devo mettere un altro personaggio in campo!`);
+          } else {
+            this.sendChatMessage(`Devo mettere un personaggio in campo!`);
+          }
           this.markActionExecuted('execute'); // This counts as an action
           return {
             type: 'play-card',
@@ -1460,7 +1475,11 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         }
         
         // Second priority: Draw a character if no character in hand
-        this.sendChatMessage(`Non ho un personaggio! Devo pescarne uno.`);
+        if (hostagedCharacter) {
+          this.sendChatMessage(`Il mio personaggio è in ostaggio e non ho altri personaggi! Devo pescarne uno.`);
+        } else {
+          this.sendChatMessage(`Non ho un personaggio! Devo pescarne uno.`);
+        }
         return {
           type: 'pick-card',
           data: {

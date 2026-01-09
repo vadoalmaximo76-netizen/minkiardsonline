@@ -1507,6 +1507,27 @@ Rispondi SOLO in JSON:`;
       return { success: false, error: 'MOSSE card not found on field or not owned by attacker' };
     }
 
+    // OSTAGGIO CHECK: Find attacker's character on field and check if it's hostaged
+    const attackerCharacter = game.field.find(c => 
+      c.owner === attackerName && 
+      (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+      !c.isHostage
+    );
+    if (!attackerCharacter) {
+      // Check if player has a hostaged character
+      const hostagedCharacter = game.field.find(c => 
+        c.owner === attackerName && 
+        (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+        c.isHostage
+      );
+      if (hostagedCharacter) {
+        console.log(`⛓️ ${attackerName}'s character is hostaged - cannot use MOSSE to attack`);
+        return { success: false, error: 'Il tuo personaggio è in ostaggio! Non può usare carte MOSSE finché non viene liberato. Metti in campo un altro personaggio.' };
+      }
+      // No character on field at all
+      return { success: false, error: 'Devi avere un personaggio in campo per usare carte MOSSE.' };
+    }
+
     // Find target card - either on field OR in hand (for ATTACCO DISONESTO)
     let targetCard: any;
     let targetOwnerName: string = '';
