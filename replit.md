@@ -30,7 +30,18 @@ The system supports email/password and Google OAuth authentication. Passwords ar
 User management is handled by Drizzle ORM with Neon Database (PostgreSQL). Game state is maintained in memory during active sessions.
 
 ## Card System
-Cards are defined with images, ownership tracking, and custom annotations. Key features include automatic card mechanics (draw, analysis, death, return to deck), an interactive defense system for MOSSE attacks with targeted notifications and timeouts, a comprehensive CPU attack system integrated with the defense mechanism, a BAMBOLA VOODOO system for character linking and damage reflection, and a DUELLO (Duel) system for turn-based combat between two players.
+Cards are defined with images, ownership tracking, and custom annotations. Key features include automatic card mechanics (draw, analysis, death, return to deck), an interactive defense system for MOSSE attacks with targeted notifications and timeouts, a comprehensive CPU attack system integrated with the defense mechanism, a BAMBOLA VOODOO system for character linking and damage reflection, a DUELLO (Duel) system for turn-based combat between two players, and the OSTAGGIO (Hostage) system for capturing enemy characters.
+
+## OSTAGGIO (Hostage) System
+The OSTAGGIO MOSSE card captures an enemy character for 3 turns. Features include:
+- **Damage & Capture**: Damage is dealt to the target, and if surviving, the character becomes a hostage
+- **Field Positioning**: OSTAGGIO card stays on field, and the hostage character moves next to it
+- **Incapacitation**: Hostaged characters cannot attack or defend for 3 turns of the captor
+- **Vulnerability**: Hostaged characters can receive damage from other attacks without being able to defend
+- **Turn Countdown**: Hostage duration counts only the captor's turns, not all players' turns
+- **Automatic Release**: After 3 turns, the character returns to original owner with full usability
+- **Instant Death**: If target has less than 300 PTI when OSTAGGIO is applied, they die immediately
+- **Visual Indicators**: Hostage cards show amber border, turn countdown, and original owner info
 
 ## Audio System
 A comprehensive sound effect system using Web Audio API provides in-game audio for various events, character actions, and 28 special card animations, with user control for muting.

@@ -89,11 +89,39 @@ export const GameField: React.FC = () => {
                       </Button>
                     )}
                     
-                    {/* Target Card */}
-                    <Card
-                      card={card}
-                      location="field"
-                    />
+                    {/* Target Card - with hostage styling if applicable */}
+                    <div className="relative">
+                      {/* Hostage indicator styling */}
+                      {card.isHostage && (
+                        <div className="absolute inset-0 border-4 border-amber-500 rounded-lg z-10 pointer-events-none animate-pulse" />
+                      )}
+                      {/* OSTAGGIO card indicator */}
+                      {card.isOstaggioCard && (
+                        <div className="absolute inset-0 border-4 border-purple-600 rounded-lg z-10 pointer-events-none" />
+                      )}
+                      <Card
+                        card={card}
+                        location="field"
+                      />
+                      {/* Hostage label */}
+                      {card.isHostage && (
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-600 text-white text-xs px-2 py-0.5 rounded-full whitespace-nowrap font-bold shadow-md z-20">
+                          ⛓️ OSTAGGIO ({card.hostageTurnsRemaining} turni)
+                        </div>
+                      )}
+                      {/* OSTAGGIO card holding label */}
+                      {card.isOstaggioCard && (
+                        <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-purple-700 text-white text-xs px-2 py-0.5 rounded-full whitespace-nowrap font-bold shadow-md z-20">
+                          ⛓️ IN USO
+                        </div>
+                      )}
+                      {/* Hostage original owner indicator */}
+                      {card.isHostage && card.hostageOriginalOwner && (
+                        <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gray-700 text-white text-xs px-2 py-0.5 rounded-full whitespace-nowrap font-bold shadow-md z-20">
+                          Proprietà di: {card.hostageOriginalOwner}
+                        </div>
+                      )}
+                    </div>
                     
                     {/* Attached parasitic cards - displayed as full-size cards next to target */}
                     {attachedCards.map((parasiticCard) => (

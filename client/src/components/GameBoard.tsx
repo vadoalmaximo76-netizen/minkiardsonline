@@ -623,6 +623,73 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('saibaim-explosion', handleSaibaImExplosion);
 
+    // OSTAGGIO (HOSTAGE) event handlers
+    const handleHostageApplied = ({ ostaggioCardId, targetCardId, targetName, captorPlayer, originalOwner, turnsRemaining, damageDealt }: {
+      ostaggioCardId: string;
+      targetCardId: string;
+      targetName: string;
+      captorPlayer: string;
+      originalOwner: string;
+      turnsRemaining: number;
+      damageDealt: number;
+    }) => {
+      console.log(`⛓️ OSTAGGIO applied: ${targetName} captured by ${captorPlayer}`);
+      setPersonaggioNotificationVisible(true);
+      setPersonaggioCardName('OSTAGGIO');
+      setPersonaggioMessage(`⛓️ ${captorPlayer} prende ${targetName} in OSTAGGIO per ${turnsRemaining} turni! (${damageDealt} danni inflitti)`);
+      setPersonaggioCardImage('');
+      
+      setTimeout(() => {
+        setPersonaggioNotificationVisible(false);
+      }, 4000);
+    };
+    socket.on('hostage-applied', handleHostageApplied);
+
+    const handleHostageUpdated = ({ targetCardId, turnsRemaining, captorPlayer }: {
+      targetCardId: string;
+      turnsRemaining: number;
+      captorPlayer: string;
+    }) => {
+      console.log(`⛓️ OSTAGGIO update: ${turnsRemaining} turns remaining`);
+    };
+    socket.on('hostage-updated', handleHostageUpdated);
+
+    const handleHostageReleased = ({ targetCardId, targetName, originalOwner, captorPlayer }: {
+      targetCardId: string;
+      targetName: string;
+      originalOwner: string;
+      captorPlayer: string;
+    }) => {
+      console.log(`⛓️🔓 OSTAGGIO released: ${targetName} freed`);
+      setPersonaggioNotificationVisible(true);
+      setPersonaggioCardName('OSTAGGIO TERMINATO');
+      setPersonaggioMessage(`⛓️🔓 ${targetName} è stato liberato dall'OSTAGGIO e torna a ${originalOwner}!`);
+      setPersonaggioCardImage('');
+      
+      setTimeout(() => {
+        setPersonaggioNotificationVisible(false);
+      }, 4000);
+    };
+    socket.on('hostage-released', handleHostageReleased);
+
+    const handleHostageDied = ({ targetCardId, targetName, captorPlayer, originalOwner }: {
+      targetCardId: string;
+      targetName: string;
+      captorPlayer: string;
+      originalOwner: string;
+    }) => {
+      console.log(`⛓️💀 OSTAGGIO death: ${targetName} died`);
+      setPersonaggioNotificationVisible(true);
+      setPersonaggioCardName('OSTAGGIO - MORTE');
+      setPersonaggioMessage(`⛓️💀 ${targetName} aveva meno di 300 PTI ed è morto sotto OSTAGGIO!`);
+      setPersonaggioCardImage('');
+      
+      setTimeout(() => {
+        setPersonaggioNotificationVisible(false);
+      }, 4000);
+    };
+    socket.on('hostage-died', handleHostageDied);
+
     // CIMICE effect (attack or death)
     const handleCimiceEffect = (data: {
       type: 'attack' | 'death';
@@ -781,6 +848,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('parasitic-attached', handleParasiticAttached);
       socket.off('saibaim-explosion', handleSaibaImExplosion);
       socket.off('cimice-effect', handleCimiceEffect);
+      socket.off('hostage-applied', handleHostageApplied);
+      socket.off('hostage-updated', handleHostageUpdated);
+      socket.off('hostage-released', handleHostageReleased);
+      socket.off('hostage-died', handleHostageDied);
       socket.off('clash-battle-start', handleClashBattleStart);
       socket.off('clash-battle-end', handleClashBattleEnd);
       socket.off('attack-error', handleAttackError);

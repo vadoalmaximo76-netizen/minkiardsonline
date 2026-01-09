@@ -28,6 +28,14 @@ interface Card {
   isBarrieraShield?: boolean; // True if this is a BARRIERA shield card
   barrieraProtecting?: string; // ID of character this BARRIERA protects
   barrieraPTI?: number; // PTI for this BARRIERA shield
+  // OSTAGGIO (Hostage) system
+  isHostage?: boolean; // True if this character is held hostage
+  hostagedBy?: string; // Player name who used OSTAGGIO
+  hostageOstaggioCardId?: string; // ID of the OSTAGGIO card holding this character
+  hostageOriginalOwner?: string; // Original owner of the hostage character
+  hostageTurnsRemaining?: number; // Turns remaining before release
+  isOstaggioCard?: boolean; // True if this MOSSE card is OSTAGGIO and is active on field
+  ostaggioHoldingCardId?: string; // ID of the character card this OSTAGGIO is holding
 }
 
 interface Player {
