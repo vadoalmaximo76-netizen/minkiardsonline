@@ -1594,6 +1594,71 @@ Rispondi SOLO in JSON:`;
       }
     }
     
+    // OSTAGGIO SPECIAL HANDLING: Detect OSTAGGIO card and apply special effects
+    if (this.isOstaggioCard(mosseCard) && !isHandTarget) {
+      console.log(`⛓️ OSTAGGIO detected: ${attackerName} using OSTAGGIO on ${targetCardId}`);
+      
+      // Track card usage
+      if (!attacker.usedCardsThisTurn) {
+        attacker.usedCardsThisTurn = [];
+      }
+      attacker.usedCardsThisTurn.push(mosseCard.frontImage);
+      
+      // Record event
+      await this.recordEvent(gameId, 'mosse-attack', {
+        attackerName,
+        mosseCardId,
+        targetCardId,
+        targetOwner: targetOwnerName,
+        isHandTarget: false,
+        outcome: 'ostaggio_applied'
+      }, attackerName);
+      
+      // Return special result indicating OSTAGGIO attack
+      // The actual application will be handled by routes.ts after damage input
+      return {
+        success: true,
+        result: {
+          targetCardId,
+          targetOwner: targetOwnerName,
+          mosseCardId,
+          attackerName,
+          isHandTarget: false,
+          requiresDefenseResponse: false, // OSTAGGIO bypasses defense
+          isOstaggioAttack: true,
+          damageValue: damageValue,
+          message: `${attackerName} usa OSTAGGIO! Il personaggio non può difendersi!`
+        }
+      };
+    }
+    
+    // HOSTAGE TARGET CHECK: Hostaged characters cannot defend
+    if (targetCard.isHostage) {
+      console.log(`⛓️ Target ${targetCardId} is hostage - no defense allowed, damage applied directly`);
+      
+      // Track card usage
+      if (!attacker.usedCardsThisTurn) {
+        attacker.usedCardsThisTurn = [];
+      }
+      attacker.usedCardsThisTurn.push(mosseCard.frontImage);
+      
+      // Return result indicating hostage attack (no defense)
+      return {
+        success: true,
+        result: {
+          targetCardId,
+          targetOwner: targetOwnerName,
+          mosseCardId,
+          attackerName,
+          isHandTarget: false,
+          requiresDefenseResponse: false, // Hostage cannot defend
+          isHostageTarget: true,
+          damageValue: damageValue,
+          message: `${attackerName} attacca un personaggio in ostaggio! Nessuna difesa possibile!`
+        }
+      };
+    }
+    
     // NUOVO SISTEMA: Non eliminare automaticamente, richiedere input umano per il danno
     // Track card usage to prevent reuse
     if (!attacker.usedCardsThisTurn) {

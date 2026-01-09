@@ -2688,6 +2688,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return; // Attack absorbed - no defense dialog needed
         }
 
+        // OSTAGGIO HANDLING: If this is an OSTAGGIO attack, apply hostage effect
+        if (attackResult.result?.isOstaggioAttack) {
+          console.log(`⛓️ OSTAGGIO attack detected - applying hostage effect to ${targetCardId}`);
+          
+          const ostaggioResult = gameManager.applyOstaggio(
+            gameId,
+            mosseCardId,
+            targetCardId,
+            attackerName,
+            damageValue,
+            io
+          );
+          
+          if (ostaggioResult.success) {
+            // Update game state
+            const updatedGameState = gameManager.getSanitizedGameState(gameId);
+            io.to(gameId).emit('game-state-update', updatedGameState);
+          } else {
+            socket.emit('attack-error', { message: ostaggioResult.message || 'OSTAGGIO failed' });
+          }
+          
+          return; // OSTAGGIO bypasses defense dialog
+        }
+
+        // HOSTAGE TARGET HANDLING: If attacking a hostaged character, apply damage directly (no defense)
+        if (attackResult.result?.isHostageTarget) {
+          console.log(`⛓️ Attacking hostage character - applying damage directly (no defense)`);
+          
+          await gameManager.processMosseDamage(gameId, attackerName, targetCardId, damageValue, mosseCardId, io, false, false, false);
+          
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-hostage-attacked`,
+            playerName: 'Sistema',
+            message: `⛓️⚔️ Il personaggio in ostaggio non può difendersi e subisce ${damageValue} danni!`,
+            timestamp: Date.now()
+          });
+          
+          // Update game state
+          const updatedGameState = gameManager.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', updatedGameState);
+          
+          return; // Hostage cannot defend - no defense dialog
+        }
+
         if (attackResult.result?.requiresDefenseResponse) {
           console.log(`🛡️ Defense system activated - waiting for ${targetOwner}'s response to attack ${attackResult.result.attackId}`);
           
@@ -3352,6 +3396,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // RIFUGIO: Restore protection for the next player's characters at start of their turn
         gameManager.restoreRifugioProtection(gameId, nextPlayer, io);
+        
+        // OSTAGGIO: Process hostage turn countdown for the player who just ended their turn
+        gameManager.processHostageTurns(gameId, playerName, io);
+        
+        // Send game state update after hostage processing
+        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
         
         // Check if next player is CPU and automatically process their turn
         const gameState = gameManager.getSanitizedGameState(gameId);
