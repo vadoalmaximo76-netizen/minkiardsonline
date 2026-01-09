@@ -581,8 +581,11 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   // Check if player owns the card OR is master and card belongs to CPU
   const isOwner = card.owner === playerName || (isMaster && card.owner?.startsWith('CPU-'));
   
-  // Check if this is the MINKIARD N 300 card
   const isMinkiard300 = getCardName(card) === 'MINKIARD N 300';
+  
+  // OSTAGGIO: Hostage label visibility
+  const isHostage = (card as any).isHostage;
+  const hostageTurnsRemaining = (card as any).hostageTurnsRemaining;
   
   // Check if this is the MEDICINA bonus card
   const isMedicina = card.type === 'bonus' && getCardName(card).toUpperCase().includes('MEDICINA');
@@ -752,6 +755,13 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
                  style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
               🏠 NEL RIFUGIO
             </div>
+          </div>
+        )}
+
+        {/* OSTAGGIO Label */}
+        {isHostage && (
+          <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-amber-600 text-white text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap font-bold shadow-lg z-[100] border border-amber-400 animate-bounce">
+            ⛓️ In ostaggio ({hostageTurnsRemaining} t)
           </div>
         )}
 
