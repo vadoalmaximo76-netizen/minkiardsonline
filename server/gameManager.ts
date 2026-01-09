@@ -45,6 +45,15 @@ interface Card {
   barrieraShieldIndex?: number; // 0, 1, or 2 for the three shields
   barrieraPTI?: number; // PTI for this BARRIERA shield (50)
   barrieraProtecting?: string; // ID of character this BARRIERA is protecting
+  // OSTAGGIO (Hostage) system
+  isHostage?: boolean; // True if this character is held hostage
+  hostagedBy?: string; // Player name who used OSTAGGIO
+  hostageOstaggioCardId?: string; // ID of the OSTAGGIO card holding this character
+  hostageOriginalOwner?: string; // Original owner of the hostage character
+  hostageOriginalFieldIndex?: number; // Original position on the field
+  hostageTurnsRemaining?: number; // Turns remaining before release (counts captor's turns only)
+  isOstaggioCard?: boolean; // True if this MOSSE card is OSTAGGIO and is active on field
+  ostaggioHoldingCardId?: string; // ID of the character card this OSTAGGIO is holding
 }
 
 interface Player {
@@ -2249,6 +2258,241 @@ Rispondi SOLO in JSON:`;
     io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
     
     return { destroyed: thisShieldDestroyed, allShieldsDestroyed };
+  }
+
+  // OSTAGGIO (HOSTAGE) SYSTEM
+  
+  // Check if a MOSSE card is OSTAGGIO
+  isOstaggioCard(card: Card): boolean {
+    const cardName = (card.name || this.getCardNameFromUrl(card.frontImage)).toUpperCase();
+    return cardName.includes('OSTAGGIO');
+  }
+  
+  // Get all hostaged characters for a captor player
+  getHostagedCharacters(gameId: string, captorName: string): Card[] {
+    const game = this.games.get(gameId);
+    if (!game) return [];
+    
+    return game.field.filter(card => 
+      card.isHostage && card.hostagedBy === captorName
+    );
+  }
+  
+  // Check if a character is held hostage
+  isCharacterHostage(gameId: string, cardId: string): boolean {
+    const game = this.games.get(gameId);
+    if (!game) return false;
+    
+    const card = game.field.find(c => c.id === cardId);
+    return card?.isHostage === true;
+  }
+  
+  // Apply OSTAGGIO effect to a target character
+  applyOstaggio(
+    gameId: string, 
+    ostaggioCardId: string, 
+    targetCardId: string, 
+    captorPlayer: string,
+    damageValue: number,
+    io: any
+  ): { success: boolean; died?: boolean; message?: string } {
+    const game = this.games.get(gameId);
+    if (!game) return { success: false, message: 'Game not found' };
+    
+    const ostaggioCard = game.field.find(c => c.id === ostaggioCardId);
+    const targetCard = game.field.find(c => c.id === targetCardId);
+    
+    if (!ostaggioCard) return { success: false, message: 'OSTAGGIO card not found on field' };
+    if (!targetCard) return { success: false, message: 'Target character not found on field' };
+    
+    // Can only take hostage from opponents
+    if (targetCard.owner === captorPlayer) {
+      return { success: false, message: 'Cannot take your own character hostage' };
+    }
+    
+    // Can't hostage already hostaged characters
+    if (targetCard.isHostage) {
+      return { success: false, message: 'Character is already held hostage' };
+    }
+    
+    const targetName = this.getCardNameFromUrl(targetCard.frontImage);
+    const originalOwner = targetCard.owner;
+    const originalFieldIndex = game.field.indexOf(targetCard);
+    
+    // Get target's current PTI
+    const ptiMatch = targetCard.text?.match(/PTI:\s*(\d+)/i);
+    let currentPTI = ptiMatch ? parseInt(ptiMatch[1], 10) : 0;
+    
+    // Apply damage first
+    const newPTI = currentPTI - damageValue;
+    
+    // Update PTI in card text
+    if (targetCard.text) {
+      targetCard.text = targetCard.text.replace(/PTI:\s*\d+/i, `PTI: ${Math.max(0, newPTI)}`);
+    }
+    
+    // Special death condition: if PTI was less than 300 before hostage OR becomes 0 after damage
+    if (currentPTI < 300 || newPTI <= 0) {
+      // Character dies immediately
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-ostaggio-death`,
+        playerName: 'Sistema',
+        message: `⛓️💀 ${targetName} aveva meno di 300 PTI o è stato eliminato - muore direttamente sotto OSTAGGIO!`,
+        timestamp: Date.now()
+      });
+      
+      // Move to graveyard
+      this.moveToGraveyard(gameId, targetCardId, originalOwner, captorPlayer);
+      
+      // Return OSTAGGIO to deck since target died
+      this.returnToDeck(gameId, ostaggioCardId, captorPlayer);
+      
+      io.to(gameId).emit('hostage-died', {
+        targetCardId,
+        targetName,
+        captorPlayer,
+        originalOwner
+      });
+      
+      console.log(`⛓️💀 OSTAGGIO: ${targetName} died immediately (PTI < 300 or eliminated)`);
+      return { success: true, died: true, message: `${targetName} è morto sotto OSTAGGIO!` };
+    }
+    
+    // Mark OSTAGGIO card as active and staying on field
+    ostaggioCard.isOstaggioCard = true;
+    ostaggioCard.ostaggioHoldingCardId = targetCardId;
+    ostaggioCard.text = `⛓️ Tiene in ostaggio: ${targetName}\nTurni rimanenti: 3`;
+    
+    // Mark target as hostage
+    targetCard.isHostage = true;
+    targetCard.hostagedBy = captorPlayer;
+    targetCard.hostageOstaggioCardId = ostaggioCardId;
+    targetCard.hostageOriginalOwner = originalOwner;
+    targetCard.hostageOriginalFieldIndex = originalFieldIndex;
+    targetCard.hostageTurnsRemaining = 3;
+    
+    // Move hostage card next to OSTAGGIO card on field
+    const ostaggioIndex = game.field.indexOf(ostaggioCard);
+    if (ostaggioIndex !== -1) {
+      // Remove target from current position
+      game.field = game.field.filter(c => c.id !== targetCardId);
+      // Insert right after OSTAGGIO card
+      game.field.splice(ostaggioIndex + 1, 0, targetCard);
+    }
+    
+    io.to(gameId).emit('chat-message', {
+      id: `${Date.now()}-ostaggio-applied`,
+      playerName: 'Sistema',
+      message: `⛓️ ${captorPlayer} prende ${targetName} in OSTAGGIO per 3 turni! ${damageValue} danni inflitti. Il personaggio non può attaccare né difendersi!`,
+      timestamp: Date.now()
+    });
+    
+    io.to(gameId).emit('hostage-applied', {
+      ostaggioCardId,
+      targetCardId,
+      targetName,
+      captorPlayer,
+      originalOwner,
+      turnsRemaining: 3,
+      damageDealt: damageValue
+    });
+    
+    console.log(`⛓️ OSTAGGIO: ${captorPlayer} took ${targetName} hostage for 3 turns (${damageValue} damage dealt)`);
+    return { success: true, died: false, message: `${targetName} è ora in ostaggio!` };
+  }
+  
+  // Process hostage turn countdown (called when captor's turn ends)
+  processHostageTurns(gameId: string, captorPlayerName: string, io: any): void {
+    const game = this.games.get(gameId);
+    if (!game) return;
+    
+    // Find all characters held hostage by this player
+    const hostages = game.field.filter(c => c.isHostage && c.hostagedBy === captorPlayerName);
+    
+    for (const hostage of hostages) {
+      if (hostage.hostageTurnsRemaining && hostage.hostageTurnsRemaining > 0) {
+        hostage.hostageTurnsRemaining--;
+        
+        // Update OSTAGGIO card text
+        const ostaggioCard = game.field.find(c => c.id === hostage.hostageOstaggioCardId);
+        if (ostaggioCard) {
+          const hostageName = this.getCardNameFromUrl(hostage.frontImage);
+          ostaggioCard.text = `⛓️ Tiene in ostaggio: ${hostageName}\nTurni rimanenti: ${hostage.hostageTurnsRemaining}`;
+        }
+        
+        io.to(gameId).emit('hostage-updated', {
+          targetCardId: hostage.id,
+          turnsRemaining: hostage.hostageTurnsRemaining,
+          captorPlayer: captorPlayerName
+        });
+        
+        console.log(`⛓️ OSTAGGIO: ${this.getCardNameFromUrl(hostage.frontImage)} has ${hostage.hostageTurnsRemaining} turns remaining`);
+        
+        // Check if hostage should be released
+        if (hostage.hostageTurnsRemaining <= 0) {
+          this.releaseHostage(gameId, hostage.id, io);
+        }
+      }
+    }
+  }
+  
+  // Release a hostage character
+  releaseHostage(gameId: string, hostageCardId: string, io: any): { success: boolean; message?: string } {
+    const game = this.games.get(gameId);
+    if (!game) return { success: false, message: 'Game not found' };
+    
+    const hostageCard = game.field.find(c => c.id === hostageCardId);
+    if (!hostageCard || !hostageCard.isHostage) {
+      return { success: false, message: 'Card is not a hostage' };
+    }
+    
+    const hostageName = this.getCardNameFromUrl(hostageCard.frontImage);
+    const originalOwner = hostageCard.hostageOriginalOwner || hostageCard.owner;
+    const ostaggioCardId = hostageCard.hostageOstaggioCardId;
+    const captorPlayer = hostageCard.hostagedBy;
+    
+    // Clear hostage state
+    delete hostageCard.isHostage;
+    delete hostageCard.hostagedBy;
+    delete hostageCard.hostageOstaggioCardId;
+    delete hostageCard.hostageOriginalOwner;
+    delete hostageCard.hostageOriginalFieldIndex;
+    delete hostageCard.hostageTurnsRemaining;
+    
+    // Restore original owner
+    hostageCard.owner = originalOwner;
+    
+    // Find and clear OSTAGGIO card, return to deck
+    if (ostaggioCardId) {
+      const ostaggioCard = game.field.find(c => c.id === ostaggioCardId);
+      if (ostaggioCard) {
+        delete ostaggioCard.isOstaggioCard;
+        delete ostaggioCard.ostaggioHoldingCardId;
+        ostaggioCard.text = '';
+        
+        // Return OSTAGGIO to captor's deck
+        if (captorPlayer) {
+          this.returnToDeck(gameId, ostaggioCardId, captorPlayer);
+        }
+      }
+    }
+    
+    io.to(gameId).emit('chat-message', {
+      id: `${Date.now()}-hostage-released`,
+      playerName: 'Sistema',
+      message: `⛓️🔓 ${hostageName} è stato liberato dall'OSTAGGIO e torna a disposizione di ${originalOwner}!`,
+      timestamp: Date.now()
+    });
+    
+    io.to(gameId).emit('hostage-released', {
+      targetCardId: hostageCardId,
+      targetName: hostageName,
+      originalOwner,
+      captorPlayer
+    });
+    
+    console.log(`⛓️🔓 OSTAGGIO: ${hostageName} released, returned to ${originalOwner}`);
+    return { success: true, message: `${hostageName} è stato liberato!` };
   }
 
   // PARASITIC CARD SYSTEM (PARASSITA/SAIBAIM)
