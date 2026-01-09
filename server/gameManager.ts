@@ -120,6 +120,17 @@ interface PersistentDamage {
   lastTickTurn?: number;
 }
 
+interface DelayedDamage {
+  id: string;
+  attackerName: string;
+  defenderName: string;
+  targetCardId: string;
+  damageValue: number;
+  mosseCardId: string;
+  turnsRemaining: number; // Countdown of defender's turns until damage is applied
+  createdAt: number;
+}
+
 interface ParasiticAttachment {
   id: string;
   parasiticCardId: string; // PARASSITA or SAIBAIM card
@@ -202,6 +213,7 @@ interface GameState {
   activeClashBattle?: ClashBattle; // Current active clash battle
   rifugioProtections: RifugioProtection[]; // RIFUGIO shelter protection tracking
   barrieraShields: BarrieraShield[]; // BARRIERA shield protection tracking
+  delayedDamages: DelayedDamage[]; // Delayed damage effects from defense
 }
 
 export class GameManager {
@@ -318,7 +330,8 @@ export class GameManager {
       persistentDamages: [],
       parasiticAttachments: [],
       rifugioProtections: [],
-      barrieraShields: []
+      barrieraShields: [],
+      delayedDamages: []
     };
 
     // Auto-shuffle all decks when starting a new game
@@ -2884,6 +2897,107 @@ Rispondi SOLO in JSON:`;
     console.log(`🦠 ${attachment.parasiticCardName} (${parasiticCardId}) detached from ${attachment.targetCardId} (reason: ${reason})`);
 
     return { success: true };
+  }
+
+  // DELAYED DAMAGE SYSTEM
+  
+  // Add a delayed damage entry
+  addDelayedDamage(
+    gameId: string,
+    attackerName: string,
+    defenderName: string,
+    targetCardId: string,
+    damageValue: number,
+    mosseCardId: string,
+    turnsToDelay: number
+  ): boolean {
+    const game = this.games.get(gameId);
+    if (!game) return false;
+    
+    if (!game.delayedDamages) {
+      game.delayedDamages = [];
+    }
+    
+    const delayedDamage: DelayedDamage = {
+      id: `delay-${Date.now()}-${targetCardId}`,
+      attackerName,
+      defenderName,
+      targetCardId,
+      damageValue,
+      mosseCardId,
+      turnsRemaining: turnsToDelay,
+      createdAt: Date.now()
+    };
+    
+    game.delayedDamages.push(delayedDamage);
+    console.log(`⏳ DELAYED DAMAGE: ${damageValue} PTI from ${attackerName} to ${defenderName}'s card, triggers in ${turnsToDelay} turns`);
+    
+    return true;
+  }
+  
+  // Process delayed damages at the end of a player's turn
+  processDelayedDamages(
+    gameId: string,
+    playerName: string,
+    io: any
+  ): { appliedDamages: { targetCardId: string; damage: number }[] } {
+    const game = this.games.get(gameId);
+    if (!game || !game.delayedDamages) return { appliedDamages: [] };
+    
+    const appliedDamages: { targetCardId: string; damage: number }[] = [];
+    
+    // Process delayed damages for this player (defender)
+    for (const delayed of game.delayedDamages) {
+      if (delayed.defenderName !== playerName) continue;
+      
+      // Decrease turn counter
+      delayed.turnsRemaining--;
+      console.log(`⏳ DELAYED DAMAGE: ${delayed.damageValue} PTI to ${playerName}, ${delayed.turnsRemaining} turns remaining`);
+      
+      // If turns reached 0, apply the damage
+      if (delayed.turnsRemaining <= 0) {
+        const targetCard = game.field.find(c => c.id === delayed.targetCardId);
+        
+        if (targetCard) {
+          const currentPTI = this.extractPTIFromNote(targetCard.text || '');
+          const newPTI = Math.max(0, currentPTI - delayed.damageValue);
+          
+          // Update PTI
+          const stars = this.extractStarsFromNote(targetCard.text || '');
+          targetCard.text = `PTI: ${newPTI}${stars > 0 ? ` | Stelle: ${stars}` : ''}`;
+          
+          appliedDamages.push({ targetCardId: delayed.targetCardId, damage: delayed.damageValue });
+          
+          const cardName = targetCard.name || this.getCardNameFromUrl(targetCard.frontImage);
+          
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-delayed-damage`,
+            playerName: 'Sistema',
+            message: `⏳💥 DANNO RITARDATO! ${cardName} di ${playerName} subisce ${delayed.damageValue} PTI! (PTI: ${currentPTI} → ${newPTI})`,
+            timestamp: Date.now()
+          });
+          
+          console.log(`⏳💥 DELAYED DAMAGE APPLIED: ${delayed.damageValue} PTI to ${cardName}, new PTI: ${newPTI}`);
+          
+          // Check if character died
+          if (newPTI <= 0) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-delayed-death`,
+              playerName: 'Sistema',
+              message: `💀 ${cardName} di ${playerName} è stato eliminato dal danno ritardato!`,
+              timestamp: Date.now()
+            });
+            
+            this.moveToGraveyard(gameId, delayed.targetCardId, playerName, delayed.attackerName);
+          }
+        }
+      }
+    }
+    
+    // Remove expired delayed damages
+    game.delayedDamages = game.delayedDamages.filter(d => d.turnsRemaining > 0);
+    
+    return { appliedDamages };
   }
 
   // Process parasitic card turn effects (called at start of owner's turn)

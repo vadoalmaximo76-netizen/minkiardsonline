@@ -2804,6 +2804,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // PRODUCTION-READY DEFENSE RESPONSE: Enhanced security and validation
+    // DELAYED DAMAGE - Player chooses to delay receiving damage
+    socket.on('defense:delay', ({ gameId: clientGameId, attackId, delayTurns, targetCardId, damageValue, attackerName, defenderName, mosseCardId }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id) || clientGameId;
+      
+      if (!gameId) {
+        socket.emit('defense:error', { message: 'Game not found', code: 'NO_GAME_FOUND' });
+        return;
+      }
+
+      console.log(`⏳ DEFENSE DELAY: ${defenderName} delays ${damageValue} damage by ${delayTurns} turns`);
+      
+      // Clear pending defense
+      gameManager.clearPendingDefense(gameId);
+      
+      // Add delayed damage entry
+      const success = gameManager.addDelayedDamage(
+        gameId,
+        attackerName,
+        defenderName,
+        targetCardId,
+        damageValue,
+        mosseCardId,
+        delayTurns
+      );
+      
+      if (success) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-damage-delayed`,
+          playerName: 'Sistema',
+          message: `⏳ ${defenderName} ha ritardato il danno di ${damageValue} PTI! Si attiverà tra ${delayTurns} ${delayTurns === 1 ? 'turno' : 'turni'}.`,
+          timestamp: Date.now()
+        });
+        
+        io.to(gameId).emit('defense:result', {
+          attackId,
+          success: true,
+          damageDelayed: true,
+          delayTurns
+        });
+        
+        // Update game state
+        const gameState = gameManager.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', gameState);
+      } else {
+        socket.emit('defense:error', { message: 'Failed to delay damage', code: 'DELAY_FAILED' });
+      }
+    });
+
     socket.on('defense:response', async ({ attackId, defends, gameId: clientGameId }) => {
       const startTime = Date.now();
       const gameId = gameManager.getPlayerGameId(socket.id) || clientGameId;
@@ -3897,6 +3945,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         console.log(`Force ending turn for ${currentPlayerName} (requested by player)`);
+
+        // Process delayed damages for the current player BEFORE ending their turn
+        const delayedDamageResults = gameManager.processDelayedDamages(gameId, currentPlayerName, io);
+        if (delayedDamageResults.appliedDamages.length > 0) {
+          console.log(`⏳ Applied ${delayedDamageResults.appliedDamages.length} delayed damages for ${currentPlayerName}`);
+        }
 
         // Force end the current player's turn (bypasses validation)
         const nextPlayer = gameManager.forceEndTurn(gameId);

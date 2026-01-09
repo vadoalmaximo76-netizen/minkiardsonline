@@ -4,7 +4,7 @@ import { useAudio } from '../lib/stores/useAudio';
 import { socket } from '../lib/socket';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Shield, Swords, Clock, Eye, X, ChevronLeft, Target } from 'lucide-react';
+import { Shield, Swords, Clock, Eye, X, ChevronLeft, Target, Timer } from 'lucide-react';
 import { HandModal } from './HandModal';
 import { Input } from './ui/input';
 
@@ -56,6 +56,8 @@ export const DefenseDialog: React.FC = () => {
   const [selectedMosseCard, setSelectedMosseCard] = useState<GameCard | null>(null);
   const [counterDamage, setCounterDamage] = useState<string>('');
   const [showTargetSelect, setShowTargetSelect] = useState<boolean>(false);
+  const [showDelayPanel, setShowDelayPanel] = useState<boolean>(false);
+  const [delayTurns, setDelayTurns] = useState<string>('');
   const { playerName, gameId, gameState } = useGameState();
   const { playAttackSound, playDefenseActivated, playAttackBlocked } = useAudio();
 
@@ -92,6 +94,8 @@ export const DefenseDialog: React.FC = () => {
         setSelectedMosseCard(null);
         setCounterDamage('');
         setShowTargetSelect(false);
+        setShowDelayPanel(false);
+        setDelayTurns('');
       } else {
         console.log('🛡️ Defense request not for this player, ignoring');
       }
@@ -181,6 +185,34 @@ export const DefenseDialog: React.FC = () => {
     setSelectedMosseCard(null);
     setCounterDamage('');
     setShowTargetSelect(false);
+    setShowDelayPanel(false);
+    setDelayTurns('');
+  };
+
+  const handleDelayDamage = () => {
+    const turns = parseInt(delayTurns);
+    if (!defenseRequest || isProcessing || isNaN(turns) || turns < 1) return;
+    
+    setIsProcessing(true);
+    console.log(`⏳ Delaying damage by ${turns} turns`);
+    
+    socket.emit('defense:delay', {
+      gameId: defenseRequest.gameId,
+      attackId: defenseRequest.attackId,
+      delayTurns: turns,
+      targetCardId: defenseRequest.targetCardId,
+      damageValue: defenseRequest.damageValue,
+      attackerName: defenseRequest.attackerName,
+      defenderName: defenseRequest.defenderName,
+      mosseCardId: defenseRequest.mosseCardId
+    });
+
+    setTimeout(() => {
+      setDefenseRequest(null);
+      setIsProcessing(false);
+      setShowDelayPanel(false);
+      setDelayTurns('');
+    }, 500);
   };
 
   const handleCounterDamageSubmit = () => {
@@ -229,6 +261,67 @@ export const DefenseDialog: React.FC = () => {
   };
 
   if (!defenseRequest) return null;
+
+  // DELAY PANEL: Show turn input for delaying damage
+  if (showDelayPanel) {
+    return (
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+        <div className="w-full max-w-md bg-gradient-to-b from-gray-900 to-gray-800 rounded-lg shadow-2xl border-2 border-amber-500 p-6">
+          <div className="text-center mb-4">
+            <div className="flex items-center justify-center gap-2 text-amber-400 mb-2">
+              <Timer className="w-6 h-6" />
+              <h1 className="text-xl font-bold">RITARDA IL DANNO</h1>
+              <Timer className="w-6 h-6" />
+            </div>
+            <div className="flex items-center justify-center gap-1 text-gray-300 text-sm mb-2">
+              <Clock className="w-4 h-4" />
+              <span className="font-mono font-bold">{timeLeft}s</span>
+            </div>
+          </div>
+
+          <p className="text-gray-300 text-center text-sm mb-2">
+            Danno da ricevere: <span className="text-red-400 font-bold">{defenseRequest.damageValue} PTI</span>
+          </p>
+
+          <p className="text-gray-400 text-center text-xs mb-4">
+            Inserisci dopo quanti TUOI turni vuoi subire questo danno.
+          </p>
+
+          <div className="mb-4">
+            <label className="block text-white text-sm font-bold mb-2">
+              Numero di turni:
+            </label>
+            <Input
+              type="number"
+              value={delayTurns}
+              onChange={(e) => setDelayTurns(e.target.value)}
+              placeholder="Es: 3"
+              className="w-full bg-gray-700 border-gray-600 text-white text-center text-xl"
+              min="1"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              onClick={handleBackToMain}
+              className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2"
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              ANNULLA
+            </Button>
+            <Button
+              onClick={handleDelayDamage}
+              disabled={!delayTurns || parseInt(delayTurns) < 1 || isProcessing}
+              className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2"
+            >
+              <Timer className="w-4 h-4 mr-1" />
+              CONFERMA
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // COUNTER-ATTACK FLOW: Show damage input and target selection
   if (showCounterAttackFlow && selectedMosseCard) {
@@ -566,15 +659,18 @@ export const DefenseDialog: React.FC = () => {
             <strong>RESPINGI:</strong> Scegli una carta dalla mano per metterla in campo e bloccare l'attacco
           </p>
           <p className="text-gray-300 text-xs">
+            <strong>RITARDA:</strong> Subisci il danno dopo un certo numero dei tuoi turni
+          </p>
+          <p className="text-gray-300 text-xs">
             <strong>ACCETTA:</strong> Subisci {defenseRequest.damageValue} danni
           </p>
         </div>
 
         {/* Buttons */}
-        <div className="flex gap-2 justify-center mb-2">
+        <div className="flex gap-2 justify-center mb-2 flex-wrap">
           <Button
             onClick={() => setShowHand(true)}
-            className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 text-sm transition-all duration-200"
+            className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-3 text-sm transition-all duration-200 min-w-[80px]"
           >
             <Eye className="w-4 h-4 mr-1" />
             VEDI MANO
@@ -583,16 +679,25 @@ export const DefenseDialog: React.FC = () => {
           <Button
             onClick={handleShowDefenseCards}
             disabled={isProcessing}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 text-sm transition-all duration-200"
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 text-sm transition-all duration-200 min-w-[80px]"
           >
             <Shield className="w-4 h-4 mr-1" />
             {isProcessing ? 'Aspetta...' : 'RESPINGI'}
           </Button>
 
           <Button
+            onClick={() => setShowDelayPanel(true)}
+            disabled={isProcessing}
+            className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-3 text-sm transition-all duration-200 min-w-[80px]"
+          >
+            <Timer className="w-4 h-4 mr-1" />
+            {isProcessing ? 'Aspetta...' : 'RITARDA'}
+          </Button>
+
+          <Button
             onClick={() => handleDefenseResponse(false)}
             disabled={isProcessing}
-            className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 text-sm transition-all duration-200"
+            className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 text-sm transition-all duration-200 min-w-[80px]"
           >
             <Swords className="w-4 h-4 mr-1" />
             {isProcessing ? 'Aspetta...' : 'ACCETTA'}
