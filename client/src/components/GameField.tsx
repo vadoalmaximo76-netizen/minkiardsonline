@@ -106,7 +106,7 @@ export const GameField: React.FC = () => {
                       {/* Hostage label */}
                       {card.isHostage && (
                         <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-600 text-white text-xs px-2 py-0.5 rounded-full whitespace-nowrap font-bold shadow-md z-20">
-                          ⛓️ OSTAGGIO ({card.hostageTurnsRemaining} turni)
+                          ⛓️ In ostaggio ({card.hostageTurnsRemaining} turni)
                         </div>
                       )}
                       {/* OSTAGGIO card holding label */}
