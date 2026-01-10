@@ -31,6 +31,7 @@ import { PickedCardModal } from "./PickedCardModal";
 import { SorosActivation } from "./SorosActivation";
 import { CharacterEffects } from "./CharacterEffects";
 import { TutorialOverlay } from "./TutorialOverlay";
+import { AdBanner, InterstitialAd } from "./AdBanner";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
@@ -109,6 +110,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [eliminationDialogOpen, setEliminationDialogOpen] = useState(false);
   const [victoryDialogOpen, setVictoryDialogOpen] = useState(false);
   const [victoryPlayer, setVictoryPlayer] = useState<string>('');
+  const [showInterstitialAd, setShowInterstitialAd] = useState(false);
   const [removePlayerDialogOpen, setRemovePlayerDialogOpen] = useState(false);
   const [playerEliminationNotification, setPlayerEliminationNotification] = useState<{
     visible: boolean;
@@ -789,6 +791,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     const handleGameVictory = ({ winner }: { winner: string }) => {
       setVictoryPlayer(winner);
       setVictoryDialogOpen(true);
+      setTimeout(() => setShowInterstitialAd(true), 3000);
     };
 
     const handleFusionError = ({ message }: { message: string }) => {
@@ -1797,6 +1800,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             onSkip={() => setShowTutorial(false)}
           />
         )}
+
+        {/* Floating Ad Banner - bottom right corner */}
+        <div className="fixed bottom-4 right-4 z-40 max-w-xs opacity-90 hover:opacity-100 transition-opacity">
+          <AdBanner format="rectangle" style={{ maxWidth: '300px', maxHeight: '250px' }} />
+        </div>
+
+        {/* Interstitial Ad - shown between games */}
+        <InterstitialAd
+          show={showInterstitialAd}
+          onClose={() => setShowInterstitialAd(false)}
+        />
       </div>
     </div>
   );

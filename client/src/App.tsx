@@ -4,6 +4,7 @@ import { GameBoard } from "./components/GameBoard";
 import { PlayerNameDialog } from "./components/PlayerNameDialog";
 import { RoomCodeDialog } from "./components/RoomCodeDialog";
 import { AuthDialog } from "./components/AuthDialog";
+import { AdBanner } from "./components/AdBanner";
 import { useGameState } from "./lib/stores/useGameState";
 import { socket } from "./lib/socket";
 import "@fontsource/inter";
@@ -221,11 +222,17 @@ function App() {
   if (showRoomDialog || !gameId) {
     return (
       <QueryClientProvider client={queryClient}>
-        <div className="min-h-screen bg-arena-deep flex items-center justify-center">
+        <div className="min-h-screen bg-arena-deep flex flex-col items-center justify-center">
+          <div className="w-full max-w-md mb-4">
+            <AdBanner format="horizontal" className="mx-auto" />
+          </div>
           <RoomCodeDialog
             open={showRoomDialog || !gameId}
             onSubmit={handleRoomSubmit}
           />
+          <div className="w-full max-w-md mt-4">
+            <AdBanner format="horizontal" className="mx-auto" />
+          </div>
         </div>
       </QueryClientProvider>
     );
