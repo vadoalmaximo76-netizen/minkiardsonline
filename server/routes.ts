@@ -4,8 +4,11 @@ import { Server as SocketServer } from "socket.io";
 import { GameManager } from "./gameManager";
 import OpenAI from "openai";
 import { db } from "./db";
-import { personaggi, customCards } from "../shared/schema";
+import { personaggi, customCards, cardModifications } from "../shared/schema";
 import { eq, ilike } from "drizzle-orm";
+import { CARD_DATA } from "../client/src/lib/cardData";
+
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "vadoalmaximo76@gmail.com";
 
 // Initialize OpenAI
 const openai = new OpenAI({ 
@@ -4488,7 +4491,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/custom-cards/:id', async (req, res) => {
     try {
       const cardId = parseInt(req.params.id);
-      const { name, pti, stars } = req.body;
+      const { name, pti, stars, effect } = req.body;
       
       if (isNaN(cardId)) {
         return res.status(400).json({ success: false, error: 'Invalid card ID' });
@@ -4503,6 +4506,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (stars !== undefined) {
         updateData.stars = stars === null || stars === '' ? null : parseInt(stars);
+      }
+      if (effect !== undefined) {
+        updateData.effect = effect || null;
       }
       
       if (Object.keys(updateData).length === 0) {
@@ -4546,6 +4552,133 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting custom card:', error);
       res.status(500).json({ success: false, error: 'Failed to delete custom card' });
+    }
+  });
+
+  // ============================================
+  // ADMIN CARD MODIFICATIONS ENDPOINTS
+  // ============================================
+
+  // Check if user is admin
+  app.get('/api/admin/check', (req, res) => {
+    const userEmail = req.query.email as string;
+    const isAdmin = userEmail?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    res.json({ success: true, isAdmin });
+  });
+
+  // Get all existing game cards with their modifications
+  app.get('/api/admin/existing-cards', async (req, res) => {
+    try {
+      const userEmail = req.query.email as string;
+      if (userEmail?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ success: false, error: 'Unauthorized' });
+      }
+
+      const deckType = req.query.deckType as string;
+      
+      // Get all card modifications from database
+      const modifications = await db.select().from(cardModifications);
+      const modMap = new Map(modifications.map(m => [m.originalCardId, m]));
+
+      // Get cards from CARD_DATA
+      const deckKeys = deckType ? [deckType] : ['personaggi', 'mosse', 'bonus', 'personaggi_speciali'];
+      const cards: any[] = [];
+
+      for (const deck of deckKeys) {
+        const deckData = CARD_DATA[deck as keyof typeof CARD_DATA] || [];
+        deckData.forEach((imageUrl: string, index: number) => {
+          const cardId = `${deck}_${index}`;
+          const urlParts = imageUrl.split('/');
+          const filename = urlParts[urlParts.length - 1];
+          const originalName = decodeURIComponent(filename)
+            .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+            .replace(/[-_]/g, ' ')
+            .trim();
+
+          const mod = modMap.get(cardId);
+          
+          cards.push({
+            id: cardId,
+            deckType: deck,
+            originalName,
+            originalImageUrl: imageUrl,
+            name: mod?.name || null,
+            imageUrl: mod?.imageUrl || null,
+            pti: mod?.pti || null,
+            stars: mod?.stars || null,
+            effect: mod?.effect || null,
+            isModified: !!mod
+          });
+        });
+      }
+
+      res.json({ success: true, cards });
+    } catch (error) {
+      console.error('Error fetching existing cards:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch cards' });
+    }
+  });
+
+  // Save card modification (admin only)
+  app.post('/api/admin/card-modification', async (req, res) => {
+    try {
+      const { email, originalCardId, deckType, name, imageUrl, pti, stars, effect } = req.body;
+      
+      if (email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ success: false, error: 'Unauthorized' });
+      }
+
+      // Check if modification exists
+      const existing = await db.select().from(cardModifications)
+        .where(eq(cardModifications.originalCardId, originalCardId));
+
+      if (existing.length > 0) {
+        // Update existing
+        const result = await db.update(cardModifications)
+          .set({
+            name: name || null,
+            imageUrl: imageUrl || null,
+            pti: pti !== undefined && pti !== '' ? parseInt(pti) : null,
+            stars: stars !== undefined && stars !== '' ? parseInt(stars) : null,
+            effect: effect || null,
+            modifiedBy: email,
+            modifiedAt: new Date()
+          })
+          .where(eq(cardModifications.originalCardId, originalCardId))
+          .returning();
+        
+        res.json({ success: true, modification: result[0] });
+      } else {
+        // Insert new
+        const result = await db.insert(cardModifications)
+          .values({
+            originalCardId,
+            deckType,
+            name: name || null,
+            imageUrl: imageUrl || null,
+            pti: pti !== undefined && pti !== '' ? parseInt(pti) : null,
+            stars: stars !== undefined && stars !== '' ? parseInt(stars) : null,
+            effect: effect || null,
+            modifiedBy: email
+          })
+          .returning();
+        
+        res.json({ success: true, modification: result[0] });
+      }
+    } catch (error) {
+      console.error('Error saving card modification:', error);
+      res.status(500).json({ success: false, error: 'Failed to save modification' });
+    }
+  });
+
+  // Get all card modifications (for game use)
+  app.get('/api/card-modifications', async (req, res) => {
+    try {
+      const modifications = await db.select().from(cardModifications);
+      res.json({ success: true, modifications });
+    } catch (error) {
+      console.error('Error fetching card modifications:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch modifications' });
     }
   });
 

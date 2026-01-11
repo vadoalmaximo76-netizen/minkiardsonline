@@ -50,8 +50,22 @@ export const customCards = pgTable("custom_cards", {
   imageData: text("image_data").notNull(), // Base64 image data
   pti: integer("pti"), // Only for personaggi and personaggi_speciali
   stars: integer("stars"), // Only for personaggi and personaggi_speciali
+  effect: text("effect"), // AI-processed effect description (not shown on card)
   createdBy: text("created_by"), // Player name who created the card
   createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const cardModifications = pgTable("card_modifications", {
+  id: serial("id").primaryKey(),
+  originalCardId: text("original_card_id").notNull().unique(), // Card ID from cardData.ts
+  deckType: text("deck_type").notNull(), // 'personaggi', 'mosse', 'bonus', 'personaggi_speciali'
+  name: text("name"), // Modified name (null = use original)
+  imageUrl: text("image_url"), // Modified image URL (null = use original)
+  pti: integer("pti"), // Modified PTI (null = use original)
+  stars: integer("stars"), // Modified stars (null = use original)
+  effect: text("effect"), // AI-processed effect description
+  modifiedBy: text("modified_by"), // Admin email who modified
+  modifiedAt: timestamp("modified_at").notNull().defaultNow(),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -87,7 +101,19 @@ export const insertCustomCardSchema = createInsertSchema(customCards).pick({
   imageData: true,
   pti: true,
   stars: true,
+  effect: true,
   createdBy: true,
+});
+
+export const insertCardModificationSchema = createInsertSchema(cardModifications).pick({
+  originalCardId: true,
+  deckType: true,
+  name: true,
+  imageUrl: true,
+  pti: true,
+  stars: true,
+  effect: true,
+  modifiedBy: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -96,7 +122,9 @@ export type Match = typeof matches.$inferSelect;
 export type GameEvent = typeof gameEvents.$inferSelect;
 export type Personaggio = typeof personaggi.$inferSelect;
 export type CustomCard = typeof customCards.$inferSelect;
+export type CardModification = typeof cardModifications.$inferSelect;
 export type InsertMatch = z.infer<typeof insertMatchSchema>;
 export type InsertGameEvent = z.infer<typeof insertGameEventSchema>;
 export type InsertPersonaggio = z.infer<typeof insertPersonaggioSchema>;
 export type InsertCustomCard = z.infer<typeof insertCustomCardSchema>;
+export type InsertCardModification = z.infer<typeof insertCardModificationSchema>;

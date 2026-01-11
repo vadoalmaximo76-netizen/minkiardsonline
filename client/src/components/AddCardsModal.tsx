@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "./ui/button";
-import { X, Upload, Plus, Pencil, Trash2, Save } from "lucide-react";
+import { X, Upload, Plus, Pencil, Trash2, Save, Shield, Sparkles, Search } from "lucide-react";
 import { socket } from "../lib/socket";
 import { useGameState } from "../lib/stores/useGameState";
 import { Input } from "./ui/input";
@@ -18,6 +18,7 @@ interface UploadedCardData {
   name: string;
   pti: number | null;
   stars: number | null;
+  effect: string;
   isPermanent: boolean;
 }
 
@@ -28,8 +29,22 @@ interface PermanentCard {
   imageData: string;
   pti: number | null;
   stars: number | null;
+  effect: string | null;
   createdBy: string | null;
   createdAt: string;
+}
+
+interface ExistingCard {
+  id: string;
+  deckType: string;
+  originalName: string;
+  originalImageUrl: string;
+  name: string | null;
+  imageUrl: string | null;
+  pti: number | null;
+  stars: number | null;
+  effect: string | null;
+  isModified: boolean;
 }
 
 export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose }) => {
@@ -39,11 +54,35 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   const [permanentCards, setPermanentCards] = useState<PermanentCard[]>([]);
   const [loadingPermanent, setLoadingPermanent] = useState(false);
   const [editingCard, setEditingCard] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', pti: '', stars: '' });
-  const [activeTab, setActiveTab] = useState<'add' | 'manage'>('add');
+  const [editForm, setEditForm] = useState({ name: '', pti: '', stars: '', effect: '' });
+  const [activeTab, setActiveTab] = useState<'add' | 'manage' | 'existing'>('add');
   const { gameId, playerName } = useGameState();
+  
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [existingCards, setExistingCards] = useState<ExistingCard[]>([]);
+  const [loadingExisting, setLoadingExisting] = useState(false);
+  const [editingExistingCard, setEditingExistingCard] = useState<string | null>(null);
+  const [existingEditForm, setExistingEditForm] = useState({ name: '', imageUrl: '', pti: '', stars: '', effect: '' });
+  const [searchQuery, setSearchQuery] = useState('');
 
   const isCharacterDeck = selectedDeck === 'personaggi' || selectedDeck === 'personaggi_speciali';
+  const userEmail = localStorage.getItem('userEmail') || '';
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      try {
+        const res = await fetch(`/api/admin/check?email=${encodeURIComponent(userEmail)}`);
+        const data = await res.json();
+        setIsAdmin(data.isAdmin);
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+      }
+    };
+    
+    if (isOpen && userEmail) {
+      checkAdmin();
+    }
+  }, [isOpen, userEmail]);
 
   const fetchPermanentCards = async () => {
     setLoadingPermanent(true);
@@ -60,11 +99,33 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     }
   };
 
+  const fetchExistingCards = async () => {
+    if (!isAdmin) return;
+    setLoadingExisting(true);
+    try {
+      const response = await fetch(`/api/admin/existing-cards?email=${encodeURIComponent(userEmail)}&deckType=${selectedDeck}`);
+      const data = await response.json();
+      if (data.success) {
+        setExistingCards(data.cards);
+      }
+    } catch (error) {
+      console.error('Error fetching existing cards:', error);
+    } finally {
+      setLoadingExisting(false);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       fetchPermanentCards();
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && isAdmin && activeTab === 'existing') {
+      fetchExistingCards();
+    }
+  }, [isOpen, isAdmin, activeTab, selectedDeck]);
 
   useEffect(() => {
     const handleCardsAdded = () => {
@@ -106,6 +167,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       name: file.name.replace(/\.[^/.]+$/, ""),
       pti: null,
       stars: null,
+      effect: '',
       isPermanent: false
     }));
     
@@ -159,6 +221,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
             data: base64,
             pti: isCharacterDeck ? card.pti : null,
             stars: isCharacterDeck ? card.stars : null,
+            effect: card.effect.trim() || null,
             isPermanent: card.isPermanent
           };
         })
@@ -186,7 +249,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     setEditForm({
       name: card.name,
       pti: card.pti?.toString() || '',
-      stars: card.stars?.toString() || ''
+      stars: card.stars?.toString() || '',
+      effect: card.effect || ''
     });
   };
 
@@ -198,7 +262,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
         body: JSON.stringify({
           name: editForm.name,
           pti: editForm.pti ? parseInt(editForm.pti) : null,
-          stars: editForm.stars ? parseInt(editForm.stars) : null
+          stars: editForm.stars ? parseInt(editForm.stars) : null,
+          effect: editForm.effect || null
         })
       });
       
@@ -237,13 +302,72 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     }
   };
 
+  const handleEditExistingCard = (card: ExistingCard) => {
+    setEditingExistingCard(card.id);
+    setExistingEditForm({
+      name: card.name || '',
+      imageUrl: card.imageUrl || '',
+      pti: card.pti?.toString() || '',
+      stars: card.stars?.toString() || '',
+      effect: card.effect || ''
+    });
+  };
+
+  const handleSaveExistingEdit = async (card: ExistingCard) => {
+    try {
+      const response = await fetch('/api/admin/card-modification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: userEmail,
+          originalCardId: card.id,
+          deckType: card.deckType,
+          name: existingEditForm.name || null,
+          imageUrl: existingEditForm.imageUrl || null,
+          pti: existingEditForm.pti || null,
+          stars: existingEditForm.stars || null,
+          effect: existingEditForm.effect || null
+        })
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        await fetchExistingCards();
+        setEditingExistingCard(null);
+        alert('Modifiche salvate!');
+      } else {
+        alert('Errore durante il salvataggio');
+      }
+    } catch (error) {
+      console.error('Error saving existing card modification:', error);
+      alert('Errore durante il salvataggio');
+    }
+  };
+
   const filteredPermanentCards = permanentCards.filter(card => card.deckType === selectedDeck);
+  
+  const filteredExistingCards = existingCards.filter(card => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      card.originalName.toLowerCase().includes(query) ||
+      (card.name && card.name.toLowerCase().includes(query))
+    );
+  });
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-lg p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-white font-bold text-xl">GESTIONE CARTE</h3>
+          <div className="flex items-center gap-3">
+            <h3 className="text-white font-bold text-xl">GESTIONE CARTE</h3>
+            {isAdmin && (
+              <span className="bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded flex items-center gap-1">
+                <Shield size={12} />
+                ADMIN
+              </span>
+            )}
+          </div>
           <Button
             onClick={onClose}
             className="bg-red-600 hover:bg-red-700 text-white p-2"
@@ -253,7 +377,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
           </Button>
         </div>
 
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6 flex-wrap">
           <Button
             onClick={() => setActiveTab('add')}
             className={`flex-1 py-3 font-bold ${activeTab === 'add' ? 'bg-green-600' : 'bg-gray-600 hover:bg-gray-500'}`}
@@ -268,6 +392,15 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
             <Pencil size={18} className="mr-2" />
             CARTE PERMANENTI ({permanentCards.length})
           </Button>
+          {isAdmin && (
+            <Button
+              onClick={() => setActiveTab('existing')}
+              className={`flex-1 py-3 font-bold ${activeTab === 'existing' ? 'bg-yellow-600' : 'bg-gray-600 hover:bg-gray-500'}`}
+            >
+              <Shield size={18} className="mr-2" />
+              MODIFICA CARTE GIOCO
+            </Button>
+          )}
         </div>
 
         <div className="mb-6">
@@ -399,6 +532,20 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                             </div>
                           )}
                           
+                          <div>
+                            <label className="text-white text-sm mb-1 flex items-center gap-1">
+                              <Sparkles size={14} className="text-purple-400" />
+                              Effetto (elaborato da AI)
+                            </label>
+                            <textarea
+                              value={card.effect}
+                              onChange={(e) => updateCardData(index, 'effect', e.target.value)}
+                              placeholder="Descrivi l'effetto della carta... (non visibile sulla carta, gestito dal sistema)"
+                              className="w-full bg-gray-600 text-white border border-gray-500 rounded-md p-2 text-sm resize-none"
+                              rows={2}
+                            />
+                          </div>
+                          
                           <div className="flex items-center gap-3">
                             <div 
                               className={`flex items-center gap-2 px-3 py-2 rounded cursor-pointer transition-colors ${
@@ -444,9 +591,10 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
               </Button>
             </div>
 
-            <div className="mt-4 text-gray-400 text-xs text-center">
+            <div className="mt-4 text-gray-400 text-xs text-center space-y-1">
               <p><strong>Temporanea:</strong> La carta sara disponibile solo per questa partita</p>
               <p><strong>Permanente:</strong> La carta sara salvata e disponibile in tutte le partite future</p>
+              <p><strong>Effetto:</strong> Descrivi come funziona la carta - il sistema lo elaborera automaticamente</p>
             </div>
           </>
         )}
@@ -504,6 +652,20 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                               </div>
                             )}
                             
+                            <div>
+                              <label className="text-white text-sm mb-1 flex items-center gap-1">
+                                <Sparkles size={14} className="text-purple-400" />
+                                Effetto (AI)
+                              </label>
+                              <textarea
+                                value={editForm.effect}
+                                onChange={(e) => setEditForm(prev => ({ ...prev, effect: e.target.value }))}
+                                placeholder="Descrivi l'effetto..."
+                                className="w-full bg-gray-600 text-white border border-gray-500 rounded-md p-2 text-sm resize-none"
+                                rows={2}
+                              />
+                            </div>
+                            
                             <div className="flex gap-2">
                               <Button
                                 onClick={() => handleSaveEdit(card.id)}
@@ -533,6 +695,13 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                               <div className="text-gray-300 text-sm">
                                 {card.pti !== null && <span className="mr-3">PTI: {card.pti}</span>}
                                 {card.stars !== null && <span>Stelle: {card.stars}</span>}
+                              </div>
+                            )}
+                            
+                            {card.effect && (
+                              <div className="text-purple-300 text-xs mt-1 flex items-center gap-1">
+                                <Sparkles size={12} />
+                                Effetto: {card.effect.substring(0, 50)}...
                               </div>
                             )}
                             
@@ -571,6 +740,192 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
             
             <div className="mt-4 text-gray-400 text-xs text-center">
               <p>Le carte permanenti vengono caricate automaticamente all'inizio di ogni nuova partita</p>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'existing' && isAdmin && (
+          <div>
+            <div className="bg-yellow-600/20 border border-yellow-500 rounded-lg p-3 mb-4">
+              <p className="text-yellow-300 text-sm flex items-center gap-2">
+                <Shield size={16} />
+                <strong>Modalita Admin:</strong> Modifica le carte esistenti del gioco. Le modifiche sono permanenti.
+              </p>
+            </div>
+
+            <div className="mb-4">
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <Input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Cerca carta per nome..."
+                  className="bg-gray-700 text-white border-gray-500 pl-10"
+                />
+              </div>
+            </div>
+
+            <h4 className="text-white font-semibold mb-3">
+              Carte in {getDeckLabel(selectedDeck)} ({filteredExistingCards.length}):
+            </h4>
+            
+            {loadingExisting ? (
+              <div className="text-center text-gray-400 py-8">Caricamento...</div>
+            ) : filteredExistingCards.length === 0 ? (
+              <div className="text-center text-gray-400 py-8">
+                Nessuna carta trovata
+              </div>
+            ) : (
+              <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2">
+                {filteredExistingCards.map((card) => (
+                  <div key={card.id} className={`bg-gray-700 rounded-lg p-4 ${card.isModified ? 'border-2 border-yellow-500' : ''}`}>
+                    <div className="flex gap-4">
+                      <img
+                        src={card.imageUrl || card.originalImageUrl}
+                        alt={card.name || card.originalName}
+                        className={`w-20 h-28 object-cover rounded border-2 flex-shrink-0 ${getDeckColor(card.deckType).replace('bg-', 'border-')}`}
+                      />
+                      
+                      <div className="flex-1">
+                        {editingExistingCard === card.id ? (
+                          <div className="space-y-3">
+                            <div>
+                              <label className="text-gray-400 text-xs">Nome originale: {card.originalName}</label>
+                              <Input
+                                type="text"
+                                value={existingEditForm.name}
+                                onChange={(e) => setExistingEditForm(prev => ({ ...prev, name: e.target.value }))}
+                                placeholder="Nuovo nome (lascia vuoto per originale)"
+                                className="bg-gray-600 text-white border-gray-500"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="text-gray-400 text-xs">URL Immagine personalizzata</label>
+                              <Input
+                                type="text"
+                                value={existingEditForm.imageUrl}
+                                onChange={(e) => setExistingEditForm(prev => ({ ...prev, imageUrl: e.target.value }))}
+                                placeholder="URL nuova immagine (lascia vuoto per originale)"
+                                className="bg-gray-600 text-white border-gray-500"
+                              />
+                            </div>
+                            
+                            {isCharacterDeck && (
+                              <div className="flex gap-3">
+                                <div className="flex-1">
+                                  <label className="text-gray-400 text-xs">PTI</label>
+                                  <Input
+                                    type="number"
+                                    value={existingEditForm.pti}
+                                    onChange={(e) => setExistingEditForm(prev => ({ ...prev, pti: e.target.value }))}
+                                    placeholder="PTI"
+                                    className="bg-gray-600 text-white border-gray-500"
+                                  />
+                                </div>
+                                <div className="flex-1">
+                                  <label className="text-gray-400 text-xs">Stelle</label>
+                                  <Input
+                                    type="number"
+                                    value={existingEditForm.stars}
+                                    onChange={(e) => setExistingEditForm(prev => ({ ...prev, stars: e.target.value }))}
+                                    placeholder="Stelle"
+                                    className="bg-gray-600 text-white border-gray-500"
+                                  />
+                                </div>
+                              </div>
+                            )}
+                            
+                            <div>
+                              <label className="text-white text-sm mb-1 flex items-center gap-1">
+                                <Sparkles size={14} className="text-purple-400" />
+                                Effetto (elaborato da AI)
+                              </label>
+                              <textarea
+                                value={existingEditForm.effect}
+                                onChange={(e) => setExistingEditForm(prev => ({ ...prev, effect: e.target.value }))}
+                                placeholder="Descrivi l'effetto della carta... Il sistema lo elaborera automaticamente durante il gioco."
+                                className="w-full bg-gray-600 text-white border border-gray-500 rounded-md p-2 text-sm resize-none"
+                                rows={3}
+                              />
+                            </div>
+                            
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={() => handleSaveExistingEdit(card)}
+                                className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1"
+                                size="sm"
+                              >
+                                <Save size={14} className="mr-1" />
+                                Salva Modifiche
+                              </Button>
+                              <Button
+                                onClick={() => setEditingExistingCard(null)}
+                                className="bg-gray-500 hover:bg-gray-600 text-white text-xs px-3 py-1"
+                                size="sm"
+                              >
+                                Annulla
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-2">
+                              <h5 className="text-white font-bold text-lg">
+                                {card.name || card.originalName}
+                              </h5>
+                              {card.isModified && (
+                                <span className="bg-yellow-500 text-black text-xs px-1 rounded">Modificata</span>
+                              )}
+                            </div>
+                            
+                            {card.name && card.name !== card.originalName && (
+                              <div className="text-gray-400 text-xs">
+                                Originale: {card.originalName}
+                              </div>
+                            )}
+                            
+                            <div className={`inline-block px-2 py-1 rounded text-xs text-white mb-2 ${getDeckColor(card.deckType)}`}>
+                              {getDeckLabel(card.deckType)}
+                            </div>
+                            
+                            {isCharacterDeck && (card.pti || card.stars) && (
+                              <div className="text-gray-300 text-sm">
+                                {card.pti !== null && <span className="mr-3">PTI: {card.pti}</span>}
+                                {card.stars !== null && <span>Stelle: {card.stars}</span>}
+                              </div>
+                            )}
+                            
+                            {card.effect && (
+                              <div className="text-purple-300 text-xs mt-1 flex items-start gap-1">
+                                <Sparkles size={12} className="mt-0.5 flex-shrink-0" />
+                                <span>Effetto: {card.effect.substring(0, 80)}{card.effect.length > 80 ? '...' : ''}</span>
+                              </div>
+                            )}
+                            
+                            <div className="flex gap-2 mt-3">
+                              <Button
+                                onClick={() => handleEditExistingCard(card)}
+                                className="bg-yellow-600 hover:bg-yellow-700 text-white text-xs px-3 py-1"
+                                size="sm"
+                              >
+                                <Pencil size={14} className="mr-1" />
+                                Modifica Carta
+                              </Button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <div className="mt-4 text-gray-400 text-xs text-center">
+              <p>Le modifiche vengono applicate a tutte le partite future</p>
+              <p className="text-purple-300 mt-1">L'effetto descritto verra elaborato dall'AI durante il gioco</p>
             </div>
           </div>
         )}
