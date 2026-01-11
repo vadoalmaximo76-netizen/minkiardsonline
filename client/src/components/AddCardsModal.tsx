@@ -66,23 +66,35 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   const [searchQuery, setSearchQuery] = useState('');
 
   const isCharacterDeck = selectedDeck === 'personaggi' || selectedDeck === 'personaggi_speciali';
-  const userEmail = localStorage.getItem('userEmail') || '';
+  const authToken = localStorage.getItem('authToken') || '';
+
+  const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${authToken}`
+  });
 
   useEffect(() => {
     const checkAdmin = async () => {
+      if (!authToken) {
+        setIsAdmin(false);
+        return;
+      }
       try {
-        const res = await fetch(`/api/admin/check?email=${encodeURIComponent(userEmail)}`);
+        const res = await fetch('/api/admin/check', {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
         const data = await res.json();
         setIsAdmin(data.isAdmin);
       } catch (error) {
         console.error('Error checking admin status:', error);
+        setIsAdmin(false);
       }
     };
     
-    if (isOpen && userEmail) {
+    if (isOpen) {
       checkAdmin();
     }
-  }, [isOpen, userEmail]);
+  }, [isOpen, authToken]);
 
   const fetchPermanentCards = async () => {
     setLoadingPermanent(true);
@@ -100,10 +112,12 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   };
 
   const fetchExistingCards = async () => {
-    if (!isAdmin) return;
+    if (!isAdmin || !authToken) return;
     setLoadingExisting(true);
     try {
-      const response = await fetch(`/api/admin/existing-cards?email=${encodeURIComponent(userEmail)}&deckType=${selectedDeck}`);
+      const response = await fetch(`/api/admin/existing-cards?deckType=${selectedDeck}`, {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
       const data = await response.json();
       if (data.success) {
         setExistingCards(data.cards);
@@ -317,9 +331,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     try {
       const response = await fetch('/api/admin/card-modification', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
-          email: userEmail,
           originalCardId: card.id,
           deckType: card.deckType,
           name: existingEditForm.name || null,

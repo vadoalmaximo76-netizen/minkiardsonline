@@ -4,9 +4,10 @@ import { Server as SocketServer } from "socket.io";
 import { GameManager } from "./gameManager";
 import OpenAI from "openai";
 import { db } from "./db";
-import { personaggi, customCards, cardModifications } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users } from "../shared/schema";
 import { eq, ilike } from "drizzle-orm";
 import { CARD_DATA } from "../client/src/lib/cardData";
+import { authMiddleware } from "./auth";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "vadoalmaximo76@gmail.com";
 
@@ -4559,18 +4560,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ADMIN CARD MODIFICATIONS ENDPOINTS
   // ============================================
 
-  // Check if user is admin
-  app.get('/api/admin/check', (req, res) => {
-    const userEmail = req.query.email as string;
-    const isAdmin = userEmail?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-    res.json({ success: true, isAdmin });
+  // Check if user is admin (requires authentication)
+  app.get('/api/admin/check', authMiddleware, async (req, res) => {
+    try {
+      const userEmail = req.user?.email;
+      const isAdmin = userEmail?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+      res.json({ success: true, isAdmin });
+    } catch (error) {
+      res.json({ success: true, isAdmin: false });
+    }
   });
 
-  // Get all existing game cards with their modifications
-  app.get('/api/admin/existing-cards', async (req, res) => {
+  // Get all existing game cards with their modifications (admin only)
+  app.get('/api/admin/existing-cards', authMiddleware, async (req, res) => {
     try {
-      const userEmail = req.query.email as string;
-      if (userEmail?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+      const userEmail = req.user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
         return res.status(403).json({ success: false, error: 'Unauthorized' });
       }
 
@@ -4620,13 +4625,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Save card modification (admin only)
-  app.post('/api/admin/card-modification', async (req, res) => {
+  app.post('/api/admin/card-modification', authMiddleware, async (req, res) => {
     try {
-      const { email, originalCardId, deckType, name, imageUrl, pti, stars, effect } = req.body;
-      
-      if (email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+      const userEmail = req.user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
         return res.status(403).json({ success: false, error: 'Unauthorized' });
       }
+
+      const { originalCardId, deckType, name, imageUrl, pti, stars, effect } = req.body;
 
       // Check if modification exists
       const existing = await db.select().from(cardModifications)
@@ -4641,7 +4647,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             pti: pti !== undefined && pti !== '' ? parseInt(pti) : null,
             stars: stars !== undefined && stars !== '' ? parseInt(stars) : null,
             effect: effect || null,
-            modifiedBy: email,
+            modifiedBy: userEmail,
             modifiedAt: new Date()
           })
           .where(eq(cardModifications.originalCardId, originalCardId))
@@ -4659,7 +4665,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             pti: pti !== undefined && pti !== '' ? parseInt(pti) : null,
             stars: stars !== undefined && stars !== '' ? parseInt(stars) : null,
             effect: effect || null,
-            modifiedBy: email
+            modifiedBy: userEmail
           })
           .returning();
         
