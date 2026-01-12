@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Target, Gift, Clock, CheckCircle, Loader2, X, ChevronRight } from "lucide-react";
 import { Button } from "./ui/button";
 import { Progress } from "./ui/progress";
+import { CoinAnimation } from "./CoinAnimation";
 
 interface Mission {
   id: number;
@@ -33,6 +34,7 @@ export const MissionsPanel: React.FC<MissionsPanelProps> = ({
   const [missions, setMissions] = useState<Mission[]>([]);
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState<number | null>(null);
+  const [coinAnimation, setCoinAnimation] = useState<{ active: boolean; points: number }>({ active: false, points: 0 });
 
   useEffect(() => {
     if (isOpen && authToken) {
@@ -76,9 +78,13 @@ export const MissionsPanel: React.FC<MissionsPanelProps> = ({
 
       if (response.ok) {
         const data = await response.json();
+        const claimedMission = missions.find(m => m.id === missionId);
         setMissions(prev => prev.map(m => 
           m.id === missionId ? { ...m, claimed: true } : m
         ));
+        if (claimedMission) {
+          setCoinAnimation({ active: true, points: claimedMission.rewardPoints });
+        }
         if (onPointsUpdated && data.newTotal !== undefined) {
           onPointsUpdated(data.newTotal);
         }
@@ -111,7 +117,13 @@ export const MissionsPanel: React.FC<MissionsPanelProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <>
+      <CoinAnimation
+        isActive={coinAnimation.active}
+        pointsAwarded={coinAnimation.points}
+        onComplete={() => setCoinAnimation({ active: false, points: 0 })}
+      />
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-gradient-to-b from-gray-900 to-gray-950 rounded-xl border border-cyan-500/30 shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b border-white/10">
           <div className="flex items-center gap-3">
@@ -213,5 +225,6 @@ export const MissionsPanel: React.FC<MissionsPanelProps> = ({
         </div>
       </div>
     </div>
+    </>
   );
 };

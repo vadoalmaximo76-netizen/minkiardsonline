@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Trophy, Gift, CheckCircle, Loader2, X, Lock, Star } from "lucide-react";
 import { Button } from "./ui/button";
 import { Progress } from "./ui/progress";
+import { CoinAnimation } from "./CoinAnimation";
 
 interface Achievement {
   id: number;
@@ -70,6 +71,7 @@ export const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [coinAnimation, setCoinAnimation] = useState<{ active: boolean; points: number }>({ active: false, points: 0 });
 
   useEffect(() => {
     if (isOpen && authToken) {
@@ -113,9 +115,13 @@ export const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
 
       if (response.ok) {
         const data = await response.json();
+        const claimedAchievement = achievements.find(a => a.id === achievementId);
         setAchievements(prev => prev.map(a => 
           a.id === achievementId ? { ...a, claimed: true } : a
         ));
+        if (claimedAchievement) {
+          setCoinAnimation({ active: true, points: claimedAchievement.rewardPoints });
+        }
         if (onPointsUpdated && data.newTotal !== undefined) {
           onPointsUpdated(data.newTotal);
         }
@@ -145,7 +151,13 @@ export const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <>
+      <CoinAnimation
+        isActive={coinAnimation.active}
+        pointsAwarded={coinAnimation.points}
+        onComplete={() => setCoinAnimation({ active: false, points: 0 })}
+      />
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-gradient-to-b from-gray-900 to-gray-950 rounded-xl border border-purple-500/30 shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b border-white/10">
           <div className="flex items-center gap-3">
@@ -279,5 +291,6 @@ export const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
         </div>
       </div>
     </div>
+    </>
   );
 };
