@@ -8,6 +8,14 @@ import { personaggi, customCards, cardModifications, users } from "../shared/sch
 import { eq, ilike, and, desc } from "drizzle-orm";
 import { CARD_DATA } from "../client/src/lib/cardData";
 import { authMiddleware } from "./auth";
+import { 
+  initializeMissionsAndAchievements, 
+  getPlayerDailyMissions, 
+  getPlayerAchievements, 
+  claimMissionReward, 
+  claimAchievementReward,
+  trackGameEvent 
+} from "./missionsAndAchievements";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "lucaforte94@gmail.com";
 
@@ -4900,6 +4908,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('🎯 DEBUG: Error adding CPU:', error);
       res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
+  // Initialize missions and achievements system
+  initializeMissionsAndAchievements().catch(err => console.error('Failed to init missions:', err));
+
+  // MISSIONS & ACHIEVEMENTS API ROUTES
+  
+  // Get player's daily missions
+  app.get('/api/missions', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const missions = await getPlayerDailyMissions(user.email);
+      res.json({ success: true, missions });
+    } catch (error) {
+      console.error('Error fetching missions:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch missions' });
+    }
+  });
+
+  // Get player's achievements
+  app.get('/api/achievements', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const achievements = await getPlayerAchievements(user.email);
+      res.json({ success: true, achievements });
+    } catch (error) {
+      console.error('Error fetching achievements:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch achievements' });
+    }
+  });
+
+  // Claim mission reward
+  app.post('/api/missions/claim', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { missionId } = req.body;
+      const result = await claimMissionReward(user.email, missionId);
+      
+      if (result.success) {
+        const updatedUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+        res.json({ 
+          success: true, 
+          pointsAwarded: result.pointsAwarded,
+          newTotal: updatedUser[0]?.puntiRankiard || 0
+        });
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error('Error claiming mission reward:', error);
+      res.status(500).json({ success: false, error: 'Failed to claim reward' });
+    }
+  });
+
+  // Claim achievement reward
+  app.post('/api/achievements/claim', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { achievementId } = req.body;
+      const result = await claimAchievementReward(user.email, achievementId);
+      
+      if (result.success) {
+        const updatedUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+        res.json({ 
+          success: true, 
+          pointsAwarded: result.pointsAwarded,
+          newTotal: updatedUser[0]?.puntiRankiard || 0
+        });
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error) {
+      console.error('Error claiming achievement reward:', error);
+      res.status(500).json({ success: false, error: 'Failed to claim reward' });
+    }
+  });
+
+  // Track game event for missions/achievements (called by game manager)
+  app.post('/api/track-event', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { eventType, data } = req.body;
+      const result = await trackGameEvent(user.email, eventType, data);
+      res.json({ success: true, ...result });
+    } catch (error) {
+      console.error('Error tracking event:', error);
+      res.status(500).json({ success: false, error: 'Failed to track event' });
     }
   });
 
