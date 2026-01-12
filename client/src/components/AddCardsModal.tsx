@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "./ui/button";
-import { X, Upload, Plus, Pencil, Trash2, Save, Shield, Sparkles, Search, RotateCcw } from "lucide-react";
+import { X, Upload, Plus, Pencil, Trash2, Save, Shield, Sparkles, Search, RotateCcw, Volume2 } from "lucide-react";
 import { socket } from "../lib/socket";
 import { useGameState } from "../lib/stores/useGameState";
 import { Input } from "./ui/input";
@@ -19,6 +19,7 @@ interface UploadedCardData {
   pti: number | null;
   stars: number | null;
   effect: string;
+  audioUrl: string;
   isPermanent: boolean;
 }
 
@@ -30,6 +31,7 @@ interface PermanentCard {
   pti: number | null;
   stars: number | null;
   effect: string | null;
+  audioUrl: string | null;
   createdBy: string | null;
   createdAt: string;
 }
@@ -44,6 +46,7 @@ interface ExistingCard {
   pti: number | null;
   stars: number | null;
   effect: string | null;
+  audioUrl: string | null;
   isDeleted: boolean;
   isModified: boolean;
 }
@@ -55,7 +58,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   const [permanentCards, setPermanentCards] = useState<PermanentCard[]>([]);
   const [loadingPermanent, setLoadingPermanent] = useState(false);
   const [editingCard, setEditingCard] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', pti: '', stars: '', effect: '' });
+  const [editForm, setEditForm] = useState({ name: '', pti: '', stars: '', effect: '', audioUrl: '' });
   const [activeTab, setActiveTab] = useState<'add' | 'manage' | 'existing'>('add');
   const { gameId, playerName } = useGameState();
   
@@ -63,7 +66,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   const [existingCards, setExistingCards] = useState<ExistingCard[]>([]);
   const [loadingExisting, setLoadingExisting] = useState(false);
   const [editingExistingCard, setEditingExistingCard] = useState<string | null>(null);
-  const [existingEditForm, setExistingEditForm] = useState({ name: '', imageUrl: '', pti: '', stars: '', effect: '' });
+  const [existingEditForm, setExistingEditForm] = useState({ name: '', imageUrl: '', pti: '', stars: '', effect: '', audioUrl: '' });
   const [searchQuery, setSearchQuery] = useState('');
 
   const isCharacterDeck = selectedDeck === 'personaggi' || selectedDeck === 'personaggi_speciali';
@@ -183,6 +186,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       pti: null,
       stars: null,
       effect: '',
+      audioUrl: '',
       isPermanent: false
     }));
     
@@ -237,6 +241,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
             pti: isCharacterDeck ? card.pti : null,
             stars: isCharacterDeck ? card.stars : null,
             effect: card.effect.trim() || null,
+            audioUrl: card.audioUrl.trim() || null,
             isPermanent: card.isPermanent
           };
         })
@@ -265,7 +270,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       name: card.name,
       pti: card.pti?.toString() || '',
       stars: card.stars?.toString() || '',
-      effect: card.effect || ''
+      effect: card.effect || '',
+      audioUrl: card.audioUrl || ''
     });
   };
 
@@ -278,7 +284,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
           name: editForm.name,
           pti: editForm.pti ? parseInt(editForm.pti) : null,
           stars: editForm.stars ? parseInt(editForm.stars) : null,
-          effect: editForm.effect || null
+          effect: editForm.effect || null,
+          audioUrl: editForm.audioUrl || null
         })
       });
       
@@ -324,7 +331,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       imageUrl: card.imageUrl || '',
       pti: card.pti?.toString() || '',
       stars: card.stars?.toString() || '',
-      effect: card.effect || ''
+      effect: card.effect || '',
+      audioUrl: card.audioUrl || ''
     });
   };
 
@@ -340,7 +348,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
           imageUrl: existingEditForm.imageUrl || null,
           pti: existingEditForm.pti || null,
           stars: existingEditForm.stars || null,
-          effect: existingEditForm.effect || null
+          effect: existingEditForm.effect || null,
+          audioUrl: existingEditForm.audioUrl || null
         })
       });
       
@@ -592,6 +601,20 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                             />
                           </div>
                           
+                          <div>
+                            <label className="text-white text-sm mb-1 flex items-center gap-1">
+                              <Volume2 size={14} className="text-cyan-400" />
+                              Audio (URL o link)
+                            </label>
+                            <Input
+                              type="text"
+                              value={card.audioUrl}
+                              onChange={(e) => updateCardData(index, 'audioUrl', e.target.value)}
+                              placeholder="https://... o link audio da riprodurre quando la carta viene giocata"
+                              className="bg-gray-600 text-white border-gray-500"
+                            />
+                          </div>
+                          
                           <div className="flex items-center gap-3">
                             <div 
                               className={`flex items-center gap-2 px-3 py-2 rounded cursor-pointer transition-colors ${
@@ -709,6 +732,20 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                                 placeholder="Descrivi l'effetto..."
                                 className="w-full bg-gray-600 text-white border border-gray-500 rounded-md p-2 text-sm resize-none"
                                 rows={2}
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="text-white text-sm mb-1 flex items-center gap-1">
+                                <Volume2 size={14} className="text-cyan-400" />
+                                Audio URL
+                              </label>
+                              <Input
+                                type="text"
+                                value={editForm.audioUrl}
+                                onChange={(e) => setEditForm(prev => ({ ...prev, audioUrl: e.target.value }))}
+                                placeholder="https://... link audio"
+                                className="bg-gray-600 text-white border-gray-500"
                               />
                             </div>
                             
@@ -901,6 +938,20 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                                 placeholder="Descrivi l'effetto della carta... Il sistema lo elaborera automaticamente durante il gioco."
                                 className="w-full bg-gray-600 text-white border border-gray-500 rounded-md p-2 text-sm resize-none"
                                 rows={3}
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="text-white text-sm mb-1 flex items-center gap-1">
+                                <Volume2 size={14} className="text-cyan-400" />
+                                Audio URL
+                              </label>
+                              <Input
+                                type="text"
+                                value={existingEditForm.audioUrl}
+                                onChange={(e) => setExistingEditForm(prev => ({ ...prev, audioUrl: e.target.value }))}
+                                placeholder="https://... link audio da riprodurre quando la carta viene giocata"
+                                className="bg-gray-600 text-white border-gray-500"
                               />
                             </div>
                             
