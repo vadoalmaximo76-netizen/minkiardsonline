@@ -382,6 +382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Set user data on socket for game invitation lookups (called when user logs in)
     // Validates JWT token to prevent impersonation
     socket.on('set-user-data', async ({ authToken }) => {
+      console.log(`Received set-user-data event from socket ${socket.id}, authToken present: ${!!authToken}`);
       if (!authToken) return;
       
       try {

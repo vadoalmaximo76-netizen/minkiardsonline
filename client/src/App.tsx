@@ -103,6 +103,7 @@ function App() {
               setShowAuthDialog(false);
               
               // Register user with socket for targeted notifications (game invites)
+              console.log('Emitting set-user-data after login validation');
               socket.emit('set-user-data', { authToken });
               
               if (hasActiveSession()) {
@@ -247,6 +248,7 @@ function App() {
     // Register user with socket for targeted notifications (game invites)
     const authToken = localStorage.getItem('authToken');
     if (authToken) {
+      console.log('handleAuthSuccess: Emitting set-user-data, socket connected:', socket.connected);
       socket.emit('set-user-data', { authToken });
     }
     
