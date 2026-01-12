@@ -9,7 +9,7 @@ import { eq, ilike } from "drizzle-orm";
 import { CARD_DATA } from "../client/src/lib/cardData";
 import { authMiddleware } from "./auth";
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "vadoalmaximo76@gmail.com";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "lucaforte94@gmail.com";
 
 // Initialize OpenAI
 const openai = new OpenAI({ 
