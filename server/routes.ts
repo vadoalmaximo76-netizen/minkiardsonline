@@ -4646,7 +4646,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ success: false, error: 'Unauthorized' });
       }
 
-      const { originalCardId, deckType, name, imageUrl, pti, stars, effect } = req.body;
+      const { originalCardId, deckType, name, imageUrl, pti, stars, effect, audioUrl } = req.body;
+
+      // Helper to safely parse integer values (handles NaN, empty strings, undefined)
+      const safeParseInt = (value: any): number | null => {
+        if (value === undefined || value === null || value === '') return null;
+        const parsed = parseInt(value);
+        return isNaN(parsed) ? null : parsed;
+      };
 
       // Check if modification exists
       const existing = await db.select().from(cardModifications)
@@ -4658,9 +4665,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .set({
             name: name || null,
             imageUrl: imageUrl || null,
-            pti: pti !== undefined && pti !== '' ? parseInt(pti) : null,
-            stars: stars !== undefined && stars !== '' ? parseInt(stars) : null,
+            pti: safeParseInt(pti),
+            stars: safeParseInt(stars),
             effect: effect || null,
+            audioUrl: audioUrl || null,
             modifiedBy: userEmail,
             modifiedAt: new Date()
           })
@@ -4676,9 +4684,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             deckType,
             name: name || null,
             imageUrl: imageUrl || null,
-            pti: pti !== undefined && pti !== '' ? parseInt(pti) : null,
-            stars: stars !== undefined && stars !== '' ? parseInt(stars) : null,
+            pti: safeParseInt(pti),
+            stars: safeParseInt(stars),
             effect: effect || null,
+            audioUrl: audioUrl || null,
             modifiedBy: userEmail
           })
           .returning();
