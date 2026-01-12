@@ -121,6 +121,55 @@ export const insertCardModificationSchema = createInsertSchema(cardModifications
   modifiedBy: true,
 });
 
+export const achievements = pgTable("achievements", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  category: text("category").notNull(),
+  icon: text("icon").notNull(),
+  requirement: integer("requirement").notNull(),
+  rewardPoints: integer("reward_points").notNull().default(50),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const playerAchievements = pgTable("player_achievements", {
+  id: serial("id").primaryKey(),
+  usernameOrEmail: text("username_or_email").notNull(),
+  achievementId: integer("achievement_id").notNull(),
+  progress: integer("progress").notNull().default(0),
+  completed: boolean("completed").notNull().default(false),
+  completedAt: timestamp("completed_at"),
+  claimed: boolean("claimed").notNull().default(false),
+});
+
+export const missionTemplates = pgTable("mission_templates", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  type: text("type").notNull(),
+  requirement: integer("requirement").notNull(),
+  rewardPoints: integer("reward_points").notNull().default(20),
+  difficulty: text("difficulty").notNull().default("easy"),
+});
+
+export const playerDailyMissions = pgTable("player_daily_missions", {
+  id: serial("id").primaryKey(),
+  usernameOrEmail: text("username_or_email").notNull(),
+  missionId: integer("mission_id").notNull(),
+  progress: integer("progress").notNull().default(0),
+  completed: boolean("completed").notNull().default(false),
+  claimed: boolean("claimed").notNull().default(false),
+  assignedDate: text("assigned_date").notNull(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const insertAchievementSchema = createInsertSchema(achievements);
+export const insertPlayerAchievementSchema = createInsertSchema(playerAchievements);
+export const insertMissionTemplateSchema = createInsertSchema(missionTemplates);
+export const insertPlayerDailyMissionSchema = createInsertSchema(playerDailyMissions);
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type Match = typeof matches.$inferSelect;
@@ -133,3 +182,11 @@ export type InsertGameEvent = z.infer<typeof insertGameEventSchema>;
 export type InsertPersonaggio = z.infer<typeof insertPersonaggioSchema>;
 export type InsertCustomCard = z.infer<typeof insertCustomCardSchema>;
 export type InsertCardModification = z.infer<typeof insertCardModificationSchema>;
+export type Achievement = typeof achievements.$inferSelect;
+export type PlayerAchievement = typeof playerAchievements.$inferSelect;
+export type MissionTemplate = typeof missionTemplates.$inferSelect;
+export type PlayerDailyMission = typeof playerDailyMissions.$inferSelect;
+export type InsertAchievement = z.infer<typeof insertAchievementSchema>;
+export type InsertPlayerAchievement = z.infer<typeof insertPlayerAchievementSchema>;
+export type InsertMissionTemplate = z.infer<typeof insertMissionTemplateSchema>;
+export type InsertPlayerDailyMission = z.infer<typeof insertPlayerDailyMissionSchema>;
