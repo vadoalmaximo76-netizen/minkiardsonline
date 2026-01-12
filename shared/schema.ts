@@ -168,10 +168,43 @@ export const playerDailyMissions = pgTable("player_daily_missions", {
   completedAt: timestamp("completed_at"),
 });
 
+// Friend requests table
+export const friendRequests = pgTable("friend_requests", {
+  id: serial("id").primaryKey(),
+  requesterId: integer("requester_id").notNull(), // User who sent the request
+  addresseeId: integer("addressee_id").notNull(), // User who received the request
+  status: text("status").notNull().default("pending"), // pending, accepted, rejected
+  message: text("message"), // Optional message with the request
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  respondedAt: timestamp("responded_at"),
+});
+
+// Friendships table (accepted friendships)
+export const friendships = pgTable("friendships", {
+  id: serial("id").primaryKey(),
+  userAId: integer("user_a_id").notNull(), // First user (lower ID for uniqueness)
+  userBId: integer("user_b_id").notNull(), // Second user (higher ID for uniqueness)
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Game invitations table
+export const gameInvitations = pgTable("game_invitations", {
+  id: serial("id").primaryKey(),
+  senderId: integer("sender_id").notNull(),
+  receiverId: integer("receiver_id").notNull(),
+  gameId: text("game_id").notNull(),
+  status: text("status").notNull().default("pending"), // pending, accepted, declined, expired
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  expiresAt: timestamp("expires_at"),
+});
+
 export const insertAchievementSchema = createInsertSchema(achievements);
 export const insertPlayerAchievementSchema = createInsertSchema(playerAchievements);
 export const insertMissionTemplateSchema = createInsertSchema(missionTemplates);
 export const insertPlayerDailyMissionSchema = createInsertSchema(playerDailyMissions);
+export const insertFriendRequestSchema = createInsertSchema(friendRequests);
+export const insertFriendshipSchema = createInsertSchema(friendships);
+export const insertGameInvitationSchema = createInsertSchema(gameInvitations);
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -193,3 +226,9 @@ export type InsertAchievement = z.infer<typeof insertAchievementSchema>;
 export type InsertPlayerAchievement = z.infer<typeof insertPlayerAchievementSchema>;
 export type InsertMissionTemplate = z.infer<typeof insertMissionTemplateSchema>;
 export type InsertPlayerDailyMission = z.infer<typeof insertPlayerDailyMissionSchema>;
+export type FriendRequest = typeof friendRequests.$inferSelect;
+export type Friendship = typeof friendships.$inferSelect;
+export type GameInvitation = typeof gameInvitations.$inferSelect;
+export type InsertFriendRequest = z.infer<typeof insertFriendRequestSchema>;
+export type InsertFriendship = z.infer<typeof insertFriendshipSchema>;
+export type InsertGameInvitation = z.infer<typeof insertGameInvitationSchema>;

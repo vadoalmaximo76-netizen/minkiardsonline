@@ -4,8 +4,8 @@ import { Server as SocketServer } from "socket.io";
 import { GameManager } from "./gameManager";
 import OpenAI from "openai";
 import { db } from "./db";
-import { personaggi, customCards, cardModifications, users } from "../shared/schema";
-import { eq, ilike, and, desc } from "drizzle-orm";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, achievements, playerAchievements, missionTemplates, playerDailyMissions } from "../shared/schema";
+import { eq, ilike, and, desc, or, ne, sql } from "drizzle-orm";
 import { CARD_DATA } from "../client/src/lib/cardData";
 import { authMiddleware } from "./auth";
 import { 
@@ -5020,6 +5020,337 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching leaderboard:', error);
       res.status(500).json({ success: false, error: 'Failed to fetch leaderboard' });
+    }
+  });
+
+  // Get user profile with aggregated stats
+  app.get('/api/profile', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const userRecord = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      
+      if (!userRecord.length) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      
+      const currentUser = userRecord[0];
+      
+      const allUsers = await db.select({ id: users.id }).from(users).orderBy(desc(users.puntiRankiard));
+      const rank = allUsers.findIndex(u => u.id === currentUser.id) + 1;
+      
+      const completedMissionsCount = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(playerDailyMissions)
+        .where(and(
+          eq(playerDailyMissions.usernameOrEmail, user.email),
+          eq(playerDailyMissions.completed, true)
+        ));
+      
+      const allAchievements = await db.select().from(achievements);
+      const playerAchievementsData = await db
+        .select()
+        .from(playerAchievements)
+        .where(eq(playerAchievements.usernameOrEmail, user.email));
+      
+      const completedAchievementsCount = playerAchievementsData.filter(pa => pa.completed).length;
+      
+      res.json({
+        success: true,
+        profile: {
+          user: {
+            id: currentUser.id,
+            username: currentUser.username,
+            avatar: currentUser.avatar,
+            puntiRankiard: currentUser.puntiRankiard,
+            gamesPlayed: currentUser.gamesPlayed,
+            gamesWon: currentUser.gamesWon,
+            minutesPlayed: currentUser.minutesPlayed
+          },
+          rank,
+          totalPlayers: allUsers.length,
+          completedMissions: Number(completedMissionsCount[0]?.count || 0),
+          totalMissions: 3,
+          completedAchievements: completedAchievementsCount,
+          totalAchievements: allAchievements.length
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch profile' });
+    }
+  });
+
+  // Search users by username
+  app.get('/api/users/search', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const query = req.query.q as string;
+      
+      if (!query || query.length < 2) {
+        return res.json({ success: true, users: [] });
+      }
+      
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser.length) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      
+      const searchResults = await db
+        .select({
+          id: users.id,
+          username: users.username,
+          avatar: users.avatar,
+          puntiRankiard: users.puntiRankiard
+        })
+        .from(users)
+        .where(and(
+          ilike(users.username, `%${query}%`),
+          ne(users.id, currentUser[0].id)
+        ))
+        .limit(10);
+      
+      res.json({ success: true, users: searchResults });
+    } catch (error) {
+      console.error('Error searching users:', error);
+      res.status(500).json({ success: false, error: 'Failed to search users' });
+    }
+  });
+
+  // Get friends list
+  app.get('/api/friends', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      
+      if (!currentUser.length) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      
+      const userId = currentUser[0].id;
+      
+      const friendshipRecords = await db
+        .select()
+        .from(friendships)
+        .where(or(
+          eq(friendships.userAId, userId),
+          eq(friendships.userBId, userId)
+        ));
+      
+      const friendIds = friendshipRecords.map(f => 
+        f.userAId === userId ? f.userBId : f.userAId
+      );
+      
+      if (friendIds.length === 0) {
+        return res.json({ success: true, friends: [] });
+      }
+      
+      const friendsList = await db
+        .select({
+          id: users.id,
+          username: users.username,
+          avatar: users.avatar,
+          puntiRankiard: users.puntiRankiard
+        })
+        .from(users)
+        .where(sql`${users.id} IN (${sql.join(friendIds.map(id => sql`${id}`), sql`, `)})`);
+      
+      res.json({ success: true, friends: friendsList });
+    } catch (error) {
+      console.error('Error fetching friends:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch friends' });
+    }
+  });
+
+  // Get pending friend requests
+  app.get('/api/friends/requests', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      
+      if (!currentUser.length) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      
+      const pendingRequests = await db
+        .select()
+        .from(friendRequests)
+        .where(and(
+          eq(friendRequests.addresseeId, currentUser[0].id),
+          eq(friendRequests.status, 'pending')
+        ));
+      
+      const requestsWithUsers = await Promise.all(
+        pendingRequests.map(async (request) => {
+          const requester = await db.select().from(users).where(eq(users.id, request.requesterId)).limit(1);
+          return {
+            id: request.id,
+            requesterId: request.requesterId,
+            requesterUsername: requester[0]?.username || 'Unknown',
+            requesterAvatar: requester[0]?.avatar || null,
+            message: request.message,
+            createdAt: request.createdAt
+          };
+        })
+      );
+      
+      res.json({ success: true, requests: requestsWithUsers });
+    } catch (error) {
+      console.error('Error fetching friend requests:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch friend requests' });
+    }
+  });
+
+  // Send friend request
+  app.post('/api/friends/requests', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { addresseeId, message } = req.body;
+      
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser.length) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      
+      const requesterId = currentUser[0].id;
+      
+      if (requesterId === addresseeId) {
+        return res.status(400).json({ success: false, error: 'Cannot send friend request to yourself' });
+      }
+      
+      const existingRequest = await db
+        .select()
+        .from(friendRequests)
+        .where(and(
+          eq(friendRequests.requesterId, requesterId),
+          eq(friendRequests.addresseeId, addresseeId),
+          eq(friendRequests.status, 'pending')
+        ))
+        .limit(1);
+      
+      if (existingRequest.length) {
+        return res.status(400).json({ success: false, error: 'Friend request already sent' });
+      }
+      
+      const [userAId, userBId] = requesterId < addresseeId 
+        ? [requesterId, addresseeId] 
+        : [addresseeId, requesterId];
+      
+      const existingFriendship = await db
+        .select()
+        .from(friendships)
+        .where(and(
+          eq(friendships.userAId, userAId),
+          eq(friendships.userBId, userBId)
+        ))
+        .limit(1);
+      
+      if (existingFriendship.length) {
+        return res.status(400).json({ success: false, error: 'Already friends' });
+      }
+      
+      await db.insert(friendRequests).values({
+        requesterId,
+        addresseeId,
+        message: message || null,
+        status: 'pending'
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error sending friend request:', error);
+      res.status(500).json({ success: false, error: 'Failed to send friend request' });
+    }
+  });
+
+  // Respond to friend request
+  app.patch('/api/friends/requests/:id', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const requestId = parseInt(req.params.id);
+      const { accept } = req.body;
+      
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser.length) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      
+      const request = await db
+        .select()
+        .from(friendRequests)
+        .where(and(
+          eq(friendRequests.id, requestId),
+          eq(friendRequests.addresseeId, currentUser[0].id),
+          eq(friendRequests.status, 'pending')
+        ))
+        .limit(1);
+      
+      if (!request.length) {
+        return res.status(404).json({ success: false, error: 'Request not found' });
+      }
+      
+      await db
+        .update(friendRequests)
+        .set({
+          status: accept ? 'accepted' : 'rejected',
+          respondedAt: new Date()
+        })
+        .where(eq(friendRequests.id, requestId));
+      
+      if (accept) {
+        const [userAId, userBId] = request[0].requesterId < currentUser[0].id
+          ? [request[0].requesterId, currentUser[0].id]
+          : [currentUser[0].id, request[0].requesterId];
+        
+        await db.insert(friendships).values({
+          userAId,
+          userBId
+        });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error responding to friend request:', error);
+      res.status(500).json({ success: false, error: 'Failed to respond to request' });
+    }
+  });
+
+  // Invite friend to game
+  app.post('/api/friends/invite', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { friendId, gameId } = req.body;
+      
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser.length) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      
+      const friend = await db.select().from(users).where(eq(users.id, friendId)).limit(1);
+      if (!friend.length) {
+        return res.status(404).json({ success: false, error: 'Friend not found' });
+      }
+      
+      await db.insert(gameInvitations).values({
+        senderId: currentUser[0].id,
+        receiverId: friendId,
+        gameId,
+        status: 'pending',
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000)
+      });
+      
+      io.emit('game-invitation', {
+        type: 'game-invite',
+        senderId: currentUser[0].id,
+        senderUsername: currentUser[0].username,
+        receiverId: friendId,
+        gameId,
+        roomCode: gameId.replace('room-', '')
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error inviting friend:', error);
+      res.status(500).json({ success: false, error: 'Failed to invite friend' });
     }
   });
 

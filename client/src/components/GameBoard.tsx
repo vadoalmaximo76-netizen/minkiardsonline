@@ -37,6 +37,7 @@ import { LastPlayedCards } from "./LastPlayedCards";
 import { MissionsPanel } from "./MissionsPanel";
 import { AchievementsPanel } from "./AchievementsPanel";
 import { RankiardLeaderboard } from "./RankiardLeaderboard";
+import { ProfilePanel } from "./ProfilePanel";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
@@ -68,6 +69,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [missionsOpen, setMissionsOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [diceOpen, setDiceOpen] = useState(false);
   const [diceResult, setDiceResult] = useState<number | undefined>();
   const [playerWhoRolled, setPlayerWhoRolled] = useState<string | undefined>();
@@ -981,6 +983,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         onClose={() => setLeaderboardOpen(false)}
       />
       
+      {/* Profile Panel */}
+      <ProfilePanel
+        isOpen={profileOpen}
+        onClose={() => setProfileOpen(false)}
+        authToken={authToken || null}
+        gameId={gameId || undefined}
+      />
+      
       {/* Background image */}
       <div 
         className="fixed inset-0 bg-cover bg-center opacity-50"
@@ -1313,7 +1323,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             <div className="flex items-center gap-2 landscape:gap-4 md:gap-4">
               <h1 className="text-2xl landscape:text-4xl md:text-4xl font-bold text-white" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>MINKIARDS</h1>
               {authenticatedUser && (
-                <div className="flex items-center gap-1 bg-purple-900/70 px-2 py-1 rounded-lg">
+                <div className="flex items-center gap-1 bg-purple-900/70 px-2 py-1 rounded-lg cursor-pointer hover:bg-purple-800/70 transition-colors" onClick={() => setProfileOpen(true)} title="Apri Profilo">
+                  <User size={14} className="text-blue-400" />
                   <span className="text-white/80 text-xs" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
                     {authenticatedUser.username}
                   </span>
@@ -1322,7 +1333,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   </span>
                   {onLogout && (
                     <button
-                      onClick={onLogout}
+                      onClick={(e) => { e.stopPropagation(); onLogout(); }}
                       className="ml-1 text-red-400 hover:text-red-300 transition-colors"
                       title="Esci"
                     >
@@ -1367,7 +1378,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             {/* Second row: INVITA AMICI, MISSIONI, TROFEI, RANKIARD, NUOVA PARTITA and RICOMINCIA PARTITA */}
             <div className="flex gap-1 landscape:gap-2 md:gap-2 justify-center landscape:justify-end md:justify-end flex-wrap">
               <Button
-                onClick={shareInviteLink}
+                onClick={() => authenticatedUser ? setProfileOpen(true) : shareInviteLink()}
                 className="btn-neon-blue text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
                 style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
               >
