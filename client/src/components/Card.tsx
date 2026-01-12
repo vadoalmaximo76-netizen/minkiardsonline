@@ -761,7 +761,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   return (
     <div 
       ref={cardRef}
-      className={`flex flex-col gap-2 ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? 'card-field-entry' : ''}`}
+      className={`relative flex flex-col gap-2 ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? getEntryAnimationClass() : ''}`}
     >
       {/* Floating Numbers */}
       {floatingNumbers.map(num => (
@@ -774,6 +774,49 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
           onComplete={() => removeFloatingNumber(num.id)}
         />
       ))}
+
+      {/* Particle Effects for newly placed cards */}
+      {isNewlyPlaced && location === 'field' && (
+        <div className="absolute inset-0 pointer-events-none overflow-visible z-50">
+          {/* Energy burst particles */}
+          {[...Array(12)].map((_, i) => {
+            const angle = (i * 30) * (Math.PI / 180);
+            const distance = 60 + (i % 3) * 20;
+            const x = Math.cos(angle) * distance;
+            const y = Math.sin(angle) * distance;
+            const delay = i * 0.05;
+            const size = 4 + (i % 4) * 2;
+            const particleColor = isSpeciali ? '#fbbf24' : isMosse ? '#ef4444' : isBonus ? '#ffffff' : '#00f2ff';
+            
+            return (
+              <div
+                key={i}
+                className="absolute left-1/2 top-1/2 rounded-full"
+                style={{
+                  width: `${size}px`,
+                  height: `${size}px`,
+                  backgroundColor: particleColor,
+                  boxShadow: `0 0 ${size * 2}px ${particleColor}, 0 0 ${size * 4}px ${particleColor}`,
+                  animation: `card-particle-burst 0.8s ease-out ${delay}s forwards`,
+                  transform: `translate(-50%, -50%)`,
+                  '--particle-x': `${x}px`,
+                  '--particle-y': `${y}px`,
+                } as React.CSSProperties}
+              />
+            );
+          })}
+          {/* Central flash */}
+          <div 
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{
+              width: '120%',
+              height: '120%',
+              background: `radial-gradient(circle, ${isSpeciali ? 'rgba(251,191,36,0.6)' : isMosse ? 'rgba(239,68,68,0.6)' : isBonus ? 'rgba(255,255,255,0.6)' : 'rgba(0,242,255,0.6)'} 0%, transparent 70%)`,
+              animation: 'card-flash-burst 0.6s ease-out forwards',
+            }}
+          />
+        </div>
+      )}
       
       {/* Card Image with Health Bar */}
       <div 
