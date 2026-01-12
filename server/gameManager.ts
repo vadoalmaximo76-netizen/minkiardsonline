@@ -1649,7 +1649,12 @@ Rispondi SOLO in JSON:`;
 
     try {
       // Use Replit's native AI integration key first, fallback to user's key
-      const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+      const replitKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+      const userKey = process.env.OPENAI_API_KEY;
+      const apiKey = replitKey || userKey;
+      
+      console.log(`🔑 AI Key check: Replit native=${replitKey ? 'YES' : 'NO'}, User key=${userKey ? 'YES' : 'NO'}`);
+      
       if (!apiKey) {
         console.log('⚠️ No OpenAI API key - skipping custom card effect processing');
         return;
