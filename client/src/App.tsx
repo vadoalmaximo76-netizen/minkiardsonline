@@ -7,6 +7,7 @@ import { AuthDialog } from "./components/AuthDialog";
 import { AdBanner } from "./components/AdBanner";
 import { useGameState } from "./lib/stores/useGameState";
 import { socket } from "./lib/socket";
+import { preloadCriticalImages } from "./lib/imagePreloader";
 import "@fontsource/inter";
 import "./index.css";
 
@@ -41,6 +42,8 @@ function App() {
     const initializeApp = async () => {
       try {
         socket.connect();
+        
+        preloadCriticalImages();
         
         const authToken = localStorage.getItem('authToken');
         

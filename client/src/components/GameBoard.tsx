@@ -32,6 +32,7 @@ import { SorosActivation } from "./SorosActivation";
 import { CharacterEffects } from "./CharacterEffects";
 import { TutorialOverlay } from "./TutorialOverlay";
 import { AdBanner, InterstitialAd } from "./AdBanner";
+import { ConnectionStatus } from "./ConnectionStatus";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
@@ -904,6 +905,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
   return (
     <div className="min-h-screen bg-arena-deep text-slate-100 p-4 relative">
+      {/* Connection Status Banner */}
+      <ConnectionStatus />
+      
       {/* Background image */}
       <div 
         className="fixed inset-0 bg-cover bg-center opacity-50"

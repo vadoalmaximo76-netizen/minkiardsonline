@@ -90,6 +90,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const [prevStars, setPrevStars] = useState<number | null>(null);
   const [statGlowEffect, setStatGlowEffect] = useState<'pti-up' | 'pti-down' | 'star-up' | 'star-down' | null>(null);
   const [isNewlyPlaced, setIsNewlyPlaced] = useState(location === 'field');
+  const [imageLoaded, setImageLoaded] = useState(false);
   const originalPTIRef = useRef<number | null>(null);
   const prevLocationRef = useRef<string>(location);
 
@@ -896,10 +897,20 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
           );
         })()}
         
+        {/* Loading placeholder */}
+        {!imageLoaded && (
+          <div className="w-14 h-auto aspect-[2/3] sm:w-16 md:w-20 lg:w-24 rounded-xl bg-gradient-to-br from-slate-700 via-slate-600 to-slate-700 animate-pulse flex items-center justify-center">
+            <div className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
         <img
           src={showBack || card.faceDown ? card.backImage : card.frontImage}
           alt="Card"
+          loading="lazy"
+          onLoad={() => setImageLoaded(true)}
+          onError={() => setImageLoaded(true)}
           className={`w-14 h-auto aspect-[2/3] sm:w-16 md:w-20 lg:w-24 card-master cursor-pointer object-cover rounded-xl
+            ${!imageLoaded ? 'hidden' : ''}
             ${getEntryAnimationClass()}
             ${card.type === 'personaggi' ? 'card-border-personaggi' : ''}
             ${card.type === 'mosse' ? 'card-border-mosse' : ''}
