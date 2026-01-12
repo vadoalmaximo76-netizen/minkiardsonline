@@ -311,6 +311,78 @@ export class GameManager {
     }
   }
 
+  // Apply modifications to a single card (used by refresh)
+  private applyModificationToCard(card: Card, mod: any): void {
+    if (mod.name) card.name = mod.name;
+    if (mod.imageUrl) card.frontImage = mod.imageUrl;
+    if (mod.pti !== null && mod.pti !== undefined) card.pti = mod.pti;
+    if (mod.stars !== null && mod.stars !== undefined) card.stars = mod.stars;
+    if (mod.effect) card.effect = mod.effect;
+    // Always update audioUrl (including clearing it if null/undefined)
+    card.audioUrl = mod.audioUrl || undefined;
+  }
+
+  // Refresh card metadata for all active games (called after admin modifications)
+  async refreshCardMetadataForAllGames(): Promise<string[]> {
+    const refreshedGameIds: string[] = [];
+    
+    try {
+      const modifications = await this.loadCardModifications();
+      
+      this.games.forEach((game: GameState, gameId: string) => {
+        // Apply modifications to all cards in decks
+        for (const deckType of ['personaggi', 'mosse', 'bonus', 'personaggi_speciali'] as const) {
+          game.decks[deckType].forEach((card: Card) => {
+            const mod = modifications.get(card.id);
+            if (mod) {
+              this.applyModificationToCard(card, mod);
+            }
+          });
+        }
+        
+        // Apply modifications to all player hands
+        const players = game.players as Record<string, Player>;
+        Object.values(players).forEach((player: Player) => {
+          player.hand.forEach((card: Card) => {
+            const mod = modifications.get(card.id);
+            if (mod) {
+              this.applyModificationToCard(card, mod);
+              console.log(`Refreshed card ${card.id} in ${player.name}'s hand: audioUrl=${mod.audioUrl}`);
+            }
+          });
+        });
+        
+        // Apply modifications to cards on field
+        game.field.forEach((card: Card) => {
+          const mod = modifications.get(card.id);
+          if (mod) {
+            this.applyModificationToCard(card, mod);
+          }
+        });
+        
+        // Apply modifications to cards in graveyard
+        game.graveyard.forEach((card: Card) => {
+          const mod = modifications.get(card.id);
+          if (mod) {
+            this.applyModificationToCard(card, mod);
+          }
+        });
+        
+        refreshedGameIds.push(gameId);
+        console.log(`Refreshed card metadata for game ${gameId}`);
+      });
+    } catch (error) {
+      console.error('Error refreshing card metadata:', error);
+    }
+    
+    return refreshedGameIds;
+  }
+
+  // Get all active game IDs (for broadcasting updates)
+  getActiveGameIds(): string[] {
+    return Array.from(this.games.keys());
+  }
+
   async loadPermanentCardsIntoDeck(gameId: string): Promise<void> {
     const game = this.games.get(gameId);
     if (!game) return;

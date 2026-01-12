@@ -5,7 +5,7 @@ import { GameManager } from "./gameManager";
 import OpenAI from "openai";
 import { db } from "./db";
 import { personaggi, customCards, cardModifications, users } from "../shared/schema";
-import { eq, ilike } from "drizzle-orm";
+import { eq, ilike, and, desc } from "drizzle-orm";
 import { CARD_DATA } from "../client/src/lib/cardData";
 import { authMiddleware } from "./auth";
 
@@ -945,14 +945,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const gameState = gameManager.getSanitizedGameState(gameId);
         io.to(gameId).emit('game-state-update', gameState);
         
+        // Check for audioUrl - either on card directly or from database modifications
+        let audioUrl = result.card?.audioUrl;
+        if (!audioUrl && result.card) {
+          try {
+            const cardIdStr = result.card.id;
+            
+            // Check if it's a custom card (permanent custom cards from database)
+            if (cardIdStr.startsWith('custom-')) {
+              // Look up in customCards table by matching the card name or image
+              const customCardResults = await db.select().from(customCards)
+                .where(eq(customCards.name, result.card.name || ''))
+                .limit(1);
+              if (customCardResults.length > 0 && customCardResults[0].audioUrl) {
+                audioUrl = customCardResults[0].audioUrl;
+                console.log(`Found audioUrl from customCards table for card ${cardId}: ${audioUrl}`);
+              }
+            } else {
+              // Look up in card modifications table for base cards (only active, non-deleted modifications)
+              const mod = await db.select().from(cardModifications)
+                .where(and(
+                  eq(cardModifications.originalCardId, cardIdStr),
+                  eq(cardModifications.isDeleted, false)
+                ))
+                .orderBy(desc(cardModifications.modifiedAt))
+                .limit(1);
+              if (mod.length > 0 && mod[0].audioUrl) {
+                audioUrl = mod[0].audioUrl;
+                console.log(`Found audioUrl from cardModifications table for card ${cardId}: ${audioUrl}`);
+              }
+            }
+          } catch (dbError) {
+            console.error('Error checking card modifications for audioUrl:', dbError);
+          }
+        }
+        
         // If the card has an audioUrl, emit audio play event
-        if (result.card?.audioUrl) {
-          console.log(`Card ${cardId} has audioUrl, emitting card-audio-play event`);
+        if (audioUrl) {
+          console.log(`Card ${cardId} has audioUrl, emitting card-audio-play event: ${audioUrl}`);
           io.to(gameId).emit('card-audio-play', {
-            cardId: result.card.id,
+            cardId: result.card?.id || cardId,
             playerName,
-            audioUrl: result.card.audioUrl,
-            cardName: result.card.name || 'Custom Card'
+            audioUrl: audioUrl,
+            cardName: result.card?.name || 'Custom Card'
           });
         }
         
@@ -4659,6 +4694,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existing = await db.select().from(cardModifications)
         .where(eq(cardModifications.originalCardId, originalCardId));
 
+      let modification;
       if (existing.length > 0) {
         // Update existing
         const result = await db.update(cardModifications)
@@ -4674,8 +4710,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
           .where(eq(cardModifications.originalCardId, originalCardId))
           .returning();
-        
-        res.json({ success: true, modification: result[0] });
+        modification = result[0];
       } else {
         // Insert new
         const result = await db.insert(cardModifications)
@@ -4691,9 +4726,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             modifiedBy: userEmail
           })
           .returning();
-        
-        res.json({ success: true, modification: result[0] });
+        modification = result[0];
       }
+      
+      // Refresh card metadata in all active games so changes take effect immediately
+      const refreshedGames = await gameManager.refreshCardMetadataForAllGames();
+      console.log(`Card modification saved. Refreshed ${refreshedGames.length} active games.`);
+      
+      // Broadcast game state updates to all active games
+      for (const gameId of refreshedGames) {
+        const gameState = gameManager.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', gameState);
+      }
+      
+      res.json({ success: true, modification });
     } catch (error) {
       console.error('Error saving card modification:', error);
       res.status(500).json({ success: false, error: 'Failed to save modification' });
