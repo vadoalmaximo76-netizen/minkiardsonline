@@ -27,8 +27,8 @@ export const LastPlayedCards: React.FC<LastPlayedCardsProps> = ({
     <>
       <Button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-2 landscape:bottom-4 md:bottom-4 left-2 landscape:left-4 md:left-4 btn-neon-cyan text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200 relative"
-        style={{ position: 'fixed' }}
+        className="fixed bottom-2 landscape:bottom-4 md:bottom-4 left-2 landscape:left-4 md:left-4 btn-neon-cyan text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200 relative pointer-events-auto"
+        style={{ position: 'fixed', zIndex: 9999 }}
         title="Ultime carte giocate"
       >
         <History size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
@@ -40,7 +40,7 @@ export const LastPlayedCards: React.FC<LastPlayedCardsProps> = ({
       </Button>
       
       {isOpen && recentCards.length > 0 && (
-        <div className="fixed bottom-16 landscape:bottom-20 md:bottom-20 left-2 landscape:left-4 md:left-4 z-50 bg-black/90 rounded-lg p-3 backdrop-blur-sm border border-white/20 shadow-xl">
+        <div className="fixed bottom-16 landscape:bottom-20 md:bottom-20 left-2 landscape:left-4 md:left-4 bg-black/90 rounded-lg p-3 backdrop-blur-sm border border-white/20 shadow-xl pointer-events-auto" style={{ zIndex: 9998 }}>
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1">
               <History className="w-4 h-4 text-cyan-400" />
