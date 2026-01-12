@@ -51,6 +51,7 @@ export const customCards = pgTable("custom_cards", {
   pti: integer("pti"), // Only for personaggi and personaggi_speciali
   stars: integer("stars"), // Only for personaggi and personaggi_speciali
   effect: text("effect"), // AI-processed effect description (not shown on card)
+  audioUrl: text("audio_url"), // URL or base64 audio to play when card is played
   createdBy: text("created_by"), // Player name who created the card
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -64,6 +65,7 @@ export const cardModifications = pgTable("card_modifications", {
   pti: integer("pti"), // Modified PTI (null = use original)
   stars: integer("stars"), // Modified stars (null = use original)
   effect: text("effect"), // AI-processed effect description
+  audioUrl: text("audio_url"), // URL or base64 audio to play when card is played
   isDeleted: boolean("is_deleted").default(false), // Hide card from game
   modifiedBy: text("modified_by"), // Admin email who modified
   modifiedAt: timestamp("modified_at").notNull().defaultNow(),
@@ -103,6 +105,7 @@ export const insertCustomCardSchema = createInsertSchema(customCards).pick({
   pti: true,
   stars: true,
   effect: true,
+  audioUrl: true,
   createdBy: true,
 });
 
@@ -114,6 +117,7 @@ export const insertCardModificationSchema = createInsertSchema(cardModifications
   pti: true,
   stars: true,
   effect: true,
+  audioUrl: true,
   modifiedBy: true,
 });
 
