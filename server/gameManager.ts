@@ -221,6 +221,7 @@ interface GameState {
   rifugioProtections: RifugioProtection[]; // RIFUGIO shelter protection tracking
   barrieraShields: BarrieraShield[]; // BARRIERA shield protection tracking
   delayedDamages: DelayedDamage[]; // Delayed damage effects from defense
+  playerDeathModifiers: Map<string, number>; // Per-player death limit modifiers (+/- deaths)
 }
 
 export class GameManager {
@@ -547,7 +548,8 @@ export class GameManager {
       parasiticAttachments: [],
       rifugioProtections: [],
       barrieraShields: [],
-      delayedDamages: []
+      delayedDamages: [],
+      playerDeathModifiers: new Map<string, number>()
     };
 
     // Auto-shuffle all decks when starting a new game
@@ -819,6 +821,21 @@ export class GameManager {
     if (lowercaseInstruction.includes('reset') || 
         (lowercaseInstruction.includes('ricomincia') && lowercaseInstruction.includes('partita'))) {
       return await this.resetGameInstruction(gameId, playerName, instruction);
+    }
+
+    // Death limit modifier patterns: "L'utente X può avere 1/2 morto/morti in più/meno"
+    const deathModifierMatch = instruction.match(/l'utente\s+(\S+)\s+pu[oò]\s+avere\s+(\d+)\s+mort[io]\s+in\s+(pi[uù]|meno)/i);
+    if (deathModifierMatch) {
+      const targetPlayerName = deathModifierMatch[1];
+      const modifierValue = parseInt(deathModifierMatch[2]);
+      const modifierDirection = deathModifierMatch[3].toLowerCase().includes('pi') ? 1 : -1;
+      const actualModifier = modifierValue * modifierDirection;
+      
+      // Find matching player (case-insensitive)
+      const matchingPlayer = players.find(p => p.toLowerCase() === targetPlayerName.toLowerCase());
+      if (matchingPlayer) {
+        return await this.modifyPlayerDeathLimit(gameId, playerName, matchingPlayer, actualModifier, instruction);
+      }
     }
 
     // If no pattern matched, ask clarifying questions
@@ -1114,6 +1131,39 @@ Rispondi SOLO in JSON:`;
       console.error('AI processing error:', error);
       return null; // Fall back to pattern matching
     }
+  }
+
+  private async modifyPlayerDeathLimit(gameId: string, issuerName: string, targetPlayer: string, modifier: number, instruction: string) {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+    
+    if (!game.players[targetPlayer]) {
+      return { message: `❌ Giocatore "${targetPlayer}" non trovato nella partita.` };
+    }
+    
+    // Set or update the death modifier for this player
+    const currentModifier = game.playerDeathModifiers.get(targetPlayer) || 0;
+    game.playerDeathModifiers.set(targetPlayer, modifier);
+    
+    await this.recordEvent(gameId, 'instruction-executed', {
+      instruction,
+      action: 'modify-death-limit',
+      targetPlayer,
+      modifier,
+      previousModifier: currentModifier
+    }, issuerName);
+    
+    const baseLimit = game.characterLimit === 'unlimited' ? '∞' : game.characterLimit;
+    const effectiveLimit = game.characterLimit === 'unlimited' ? 'illimitato' : 
+      (parseInt(game.characterLimit) + modifier).toString();
+    
+    const directionText = modifier > 0 ? `${modifier} morto/i in più` : `${Math.abs(modifier)} morto/i in meno`;
+    
+    console.log(`Death limit modifier set for ${targetPlayer}: ${modifier} (base: ${baseLimit}, effective: ${effectiveLimit})`);
+    
+    return { 
+      message: `⚖️ ${issuerName} ha modificato il limite di morti per ${targetPlayer}: ${directionText}!\n📊 Limite base: ${baseLimit} → Limite effettivo: ${effectiveLimit}`
+    };
   }
 
   private async reverseTurnOrder(gameId: string, playerName: string, instruction: string) {
@@ -4539,8 +4589,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         // Check if player should be eliminated (only if it's a personaggi card)
         let eliminationCheck = false;
         if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && game.characterLimit !== 'unlimited') {
-          const limit = parseInt(game.characterLimit);
-          if (graveyardCount >= limit && !game.eliminatedPlayers.has(playerName)) {
+          const baseLimit = parseInt(game.characterLimit);
+          const playerModifier = game.playerDeathModifiers.get(playerName) || 0;
+          const effectiveLimit = baseLimit + playerModifier;
+          if (graveyardCount >= effectiveLimit && !game.eliminatedPlayers.has(playerName)) {
             eliminationCheck = true;
           }
         }
@@ -5373,8 +5425,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       // Check if player should be eliminated (only if it's a personaggi card)
       let eliminationCheck = false;
       if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && game.characterLimit !== 'unlimited') {
-        const limit = parseInt(game.characterLimit);
-        if (graveyardCount >= limit && !game.eliminatedPlayers.has(playerName)) {
+        const baseLimit = parseInt(game.characterLimit);
+        const playerModifier = game.playerDeathModifiers.get(playerName) || 0;
+        const effectiveLimit = baseLimit + playerModifier;
+        if (graveyardCount >= effectiveLimit && !game.eliminatedPlayers.has(playerName)) {
           eliminationCheck = true;
         }
       }
@@ -8031,8 +8085,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             ).length || 0;
             
             if (game && game.characterLimit !== 'unlimited') {
-              const limit = parseInt(game.characterLimit);
-              if (graveyardCount >= limit && !game.eliminatedPlayers.has(targetOwner)) {
+              const baseLimit = parseInt(game.characterLimit);
+              const playerModifier = game.playerDeathModifiers.get(targetOwner) || 0;
+              const effectiveLimit = baseLimit + playerModifier;
+              if (graveyardCount >= effectiveLimit && !game.eliminatedPlayers.has(targetOwner)) {
                 console.log(`Player ${targetOwner} has reached character limit via ATTACCO DISONESTO - automatically eliminating`);
                 
                 const eliminationSuccess = this.markPlayerEliminated(gameId, targetOwner);
