@@ -824,9 +824,10 @@ export class GameManager {
     }
 
     // Death limit modifier patterns: "L'utente X può avere 1/2 morto/morti in più/meno"
-    const deathModifierMatch = instruction.match(/l'utente\s+(\S+)\s+pu[oò]\s+avere\s+(\d+)\s+mort[io]\s+in\s+(pi[uù]|meno)/i);
+    // Capture full player name (including spaces) up to "può avere"
+    const deathModifierMatch = instruction.match(/l'utente\s+(.+?)\s+pu[oò]\s+avere\s+(\d+)\s+mort[io]\s+in\s+(pi[uù]|meno)/i);
     if (deathModifierMatch) {
-      const targetPlayerName = deathModifierMatch[1];
+      const targetPlayerName = deathModifierMatch[1].trim();
       const modifierValue = parseInt(deathModifierMatch[2]);
       const modifierDirection = deathModifierMatch[3].toLowerCase().includes('pi') ? 1 : -1;
       const actualModifier = modifierValue * modifierDirection;
@@ -4591,7 +4592,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && game.characterLimit !== 'unlimited') {
           const baseLimit = parseInt(game.characterLimit);
           const playerModifier = game.playerDeathModifiers.get(playerName) || 0;
-          const effectiveLimit = baseLimit + playerModifier;
+          const effectiveLimit = Math.max(1, baseLimit + playerModifier); // Minimum 1 death required
           if (graveyardCount >= effectiveLimit && !game.eliminatedPlayers.has(playerName)) {
             eliminationCheck = true;
           }
@@ -5427,7 +5428,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && game.characterLimit !== 'unlimited') {
         const baseLimit = parseInt(game.characterLimit);
         const playerModifier = game.playerDeathModifiers.get(playerName) || 0;
-        const effectiveLimit = baseLimit + playerModifier;
+        const effectiveLimit = Math.max(1, baseLimit + playerModifier); // Minimum 1 death required
         if (graveyardCount >= effectiveLimit && !game.eliminatedPlayers.has(playerName)) {
           eliminationCheck = true;
         }
@@ -8087,7 +8088,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             if (game && game.characterLimit !== 'unlimited') {
               const baseLimit = parseInt(game.characterLimit);
               const playerModifier = game.playerDeathModifiers.get(targetOwner) || 0;
-              const effectiveLimit = baseLimit + playerModifier;
+              const effectiveLimit = Math.max(1, baseLimit + playerModifier); // Minimum 1 death required
               if (graveyardCount >= effectiveLimit && !game.eliminatedPlayers.has(targetOwner)) {
                 console.log(`Player ${targetOwner} has reached character limit via ATTACCO DISONESTO - automatically eliminating`);
                 
