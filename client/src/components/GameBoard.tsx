@@ -248,7 +248,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       setLastPlayedCards([]);
       
       // Join the new game room
-      socket.emit('join-game', { gameId: newGameId, playerName });
+      socket.emit('join-game', { gameId: newGameId, playerName, userId: authenticatedUser?.id });
     }
   };
 

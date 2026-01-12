@@ -168,8 +168,8 @@ function App() {
     const gameIdFromUrl = urlParams.get('game');
     
     if (gameIdFromUrl) {
-      // Join the game room directly with avatar
-      socket.emit('join-game', { gameId: gameIdFromUrl, playerName: name, avatarId });
+      // Join the game room directly with avatar and userId (for stats tracking)
+      socket.emit('join-game', { gameId: gameIdFromUrl, playerName: name, avatarId, userId: authenticatedUser?.id });
     } else {
       // Show room selection dialog
       setShowRoomDialog(true);

@@ -436,10 +436,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         gameManager.setPlayerAvatar(gameId, playerName, avatarId);
       }
       
-      // Set user ID for Rankiard points tracking (uses client-provided userId for game stats only)
-      // Note: socket.data for invitations is set securely via set-user-data with JWT validation
-      if (userId) {
-        gameManager.setPlayerUserId(gameId, playerName, userId);
+      // Set user ID for Rankiard points tracking
+      // Prefer JWT-validated socket.data.userId, fall back to client-provided userId
+      const validatedUserId = socket.data?.userId || userId;
+      if (validatedUserId) {
+        gameManager.setPlayerUserId(gameId, playerName, validatedUserId);
+        console.log(`Player ${playerName} associated with userId ${validatedUserId} for stats tracking`);
+      } else {
+        console.log(`Player ${playerName} has no userId - stats will not be tracked`);
       }
       
       // Send current game state to the player (now includes permanent cards)
