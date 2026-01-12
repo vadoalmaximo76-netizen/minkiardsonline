@@ -321,6 +321,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   io.on('connection', (socket) => {
     console.log('Player connected:', socket.id);
 
+    // Register authenticated user with socket for targeted notifications (validates auth token)
+    socket.on('register-user', async ({ authToken }) => {
+      if (authToken) {
+        try {
+          const decoded = jwt.verify(authToken, jwtSecret) as { email: string };
+          const userRecord = await db.select().from(users).where(eq(users.email, decoded.email)).limit(1);
+          if (userRecord.length > 0) {
+            (socket as any).data = { userId: userRecord[0].id };
+            console.log(`Socket ${socket.id} registered for user ${userRecord[0].id} (${userRecord[0].username})`);
+          }
+        } catch (error) {
+          console.log(`Socket ${socket.id} failed to register - invalid token`);
+        }
+      }
+    });
+
     socket.on('join-game', async ({ gameId, playerName, avatarId, userId }) => {
       socket.join(gameId);
       
@@ -5338,14 +5354,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         expiresAt: new Date(Date.now() + 30 * 60 * 1000)
       });
       
-      io.emit('game-invitation', {
-        type: 'game-invite',
-        senderId: currentUser[0].id,
-        senderUsername: currentUser[0].username,
-        receiverId: friendId,
-        gameId,
-        roomCode: gameId.replace('room-', '')
-      });
+      // Emit to specific user's socket only - find their socket by iterating connections
+      const sockets = await io.fetchSockets();
+      for (const s of sockets) {
+        // Check if this socket belongs to the receiver (we'll match by stored user data)
+        const socketData = (s as any).data;
+        if (socketData && socketData.userId === friendId) {
+          s.emit('game-invitation', {
+            type: 'game-invite',
+            senderId: currentUser[0].id,
+            senderUsername: currentUser[0].username,
+            receiverId: friendId,
+            gameId,
+            roomCode: gameId.replace('room-', '')
+          });
+          break;
+        }
+      }
       
       res.json({ success: true });
     } catch (error) {

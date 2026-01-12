@@ -59,6 +59,9 @@ function App() {
               setAuthenticatedUser(data.user);
               setShowAuthDialog(false);
               
+              // Register user with socket for targeted notifications (game invites)
+              socket.emit('register-user', { authToken });
+              
               if (hasActiveSession()) {
                 console.log('Found active session, attempting to restore...');
                 const restored = await restoreSession();
@@ -182,6 +185,12 @@ function App() {
     setPlayerName(user.username);
     setPendingAvatar(user.avatar);
     generateSessionId();
+    
+    // Register user with socket for targeted notifications (game invites)
+    const authToken = localStorage.getItem('authToken');
+    if (authToken) {
+      socket.emit('register-user', { authToken });
+    }
     
     const urlParams = new URLSearchParams(window.location.search);
     const gameIdFromUrl = urlParams.get('game');
