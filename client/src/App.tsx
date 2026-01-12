@@ -64,6 +64,15 @@ function App() {
           setGameInvitation(data);
         });
         
+        // Re-register user data on reconnection to ensure invitations work
+        socket.on('connect', () => {
+          const storedToken = localStorage.getItem('authToken');
+          if (storedToken) {
+            console.log('Socket reconnected, re-registering user for invitations');
+            socket.emit('set-user-data', { authToken: storedToken });
+          }
+        });
+        
         // Simulate loading progress while waiting
         const progressInterval = setInterval(() => {
           setLoadingProgress(prev => {
@@ -151,6 +160,7 @@ function App() {
     return () => {
       socket.off('server-ready');
       socket.off('game-invitation');
+      socket.off('connect');
       socket.disconnect();
     };
   }, [setGameId, hasActiveSession, restoreSession, setPlayerName, generateSessionId]);

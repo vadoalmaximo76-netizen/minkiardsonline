@@ -5445,9 +5445,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Emit to specific user's socket only - find their socket by iterating connections
       const sockets = await io.fetchSockets();
+      console.log(`Looking for socket for user ${friendId} (${friend[0].username}) among ${sockets.length} connected sockets`);
+      
+      let inviteSent = false;
       for (const s of sockets) {
-        // Check if this socket belongs to the receiver (we'll match by stored user data)
         const socketData = (s as any).data;
+        console.log(`Checking socket ${s.id}: userId=${socketData?.userId}, username=${socketData?.username}`);
         if (socketData && socketData.userId === friendId) {
           s.emit('game-invitation', {
             type: 'game-invite',
@@ -5457,8 +5460,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             gameId,
             roomCode: gameId.replace('room-', '')
           });
+          console.log(`Game invitation sent to ${friend[0].username} via socket ${s.id}`);
+          inviteSent = true;
           break;
         }
+      }
+      
+      if (!inviteSent) {
+        console.log(`Friend ${friend[0].username} (id: ${friendId}) not found online - no socket with matching userId`);
       }
       
       res.json({ success: true });
