@@ -1640,7 +1640,79 @@ Rispondi SOLO in JSON:`;
     return {};
   }
 
-  // Process custom card effect using AI
+  // Parse effect text using keywords (no AI required)
+  private parseEffectKeywords(effectText: string): Array<{ type: string; target: string; value: number; description: string }> {
+    const actions: Array<{ type: string; target: string; value: number; description: string }> = [];
+    const text = effectText.toLowerCase();
+    
+    // Extract numbers from text
+    const extractNumber = (str: string): number => {
+      const match = str.match(/(\d+)/);
+      return match ? parseInt(match[1], 10) : 100;
+    };
+
+    // DAMAGE patterns
+    if (text.includes('danno') || text.includes('infligge') || text.includes('danneggia') || 
+        text.includes('colpisce') || text.includes('attacca') || text.includes('ferisce')) {
+      const value = extractNumber(text);
+      let target = 'opponents';
+      if (text.includes('tutti') || text.includes('ogni')) target = 'all';
+      if (text.includes('casuale') || text.includes('random')) target = 'random';
+      actions.push({ type: 'damage', target, value, description: `Infligge ${value} danni` });
+    }
+
+    // HEAL patterns
+    if (text.includes('cura') || text.includes('guarisce') || text.includes('ripristina') || 
+        text.includes('rigenera') || text.includes('recupera')) {
+      const value = extractNumber(text);
+      let target = 'self';
+      if (text.includes('tutti') || text.includes('alleati')) target = 'all';
+      actions.push({ type: 'heal', target, value, description: `Cura ${value} PTI` });
+    }
+
+    // DRAW patterns
+    if (text.includes('pesca') || text.includes('prendi carta') || text.includes('estrai')) {
+      const value = extractNumber(text) || 1;
+      actions.push({ type: 'draw', target: 'self', value, description: `Pesca ${value} carte` });
+    }
+
+    // DISCARD patterns
+    if (text.includes('scarta') || text.includes('elimina dalla mano') || text.includes('rimuovi')) {
+      const value = extractNumber(text) || 1;
+      let target = 'opponents';
+      if (text.includes('avversari') || text.includes('nemici')) target = 'opponents';
+      actions.push({ type: 'discard', target, value, description: `Scarta ${value} carte` });
+    }
+
+    // STARS patterns
+    if (text.includes('stella') || text.includes('stelle')) {
+      const value = extractNumber(text) || 1;
+      if (text.includes('guadagna') || text.includes('ottiene') || text.includes('+')) {
+        actions.push({ type: 'modify_stars', target: 'self', value, description: `Guadagna ${value} stelle` });
+      } else if (text.includes('perde') || text.includes('rimuovi') || text.includes('-')) {
+        actions.push({ type: 'modify_stars', target: 'opponents', value: -value, description: `Rimuove ${value} stelle` });
+      }
+    }
+
+    // PTI modification patterns
+    if ((text.includes('pti') || text.includes('punti')) && !text.includes('danno') && !text.includes('cura')) {
+      const value = extractNumber(text);
+      if (text.includes('aumenta') || text.includes('+') || text.includes('guadagna')) {
+        actions.push({ type: 'heal', target: 'self', value, description: `Aumenta PTI di ${value}` });
+      } else if (text.includes('diminuisce') || text.includes('-') || text.includes('riduce')) {
+        actions.push({ type: 'damage', target: 'opponents', value, description: `Riduce PTI di ${value}` });
+      }
+    }
+
+    // Special/Generic patterns
+    if (actions.length === 0 && text.length > 5) {
+      actions.push({ type: 'special', target: 'self', value: 0, description: effectText });
+    }
+
+    return actions;
+  }
+
+  // Process custom card effect using AI or keyword parsing
   async processCustomCardEffect(gameId: string, card: Card, playerName: string): Promise<void> {
     const game = this.games.get(gameId);
     if (!game || !card.effect) return;
@@ -1656,7 +1728,25 @@ Rispondi SOLO in JSON:`;
       console.log(`🔑 AI Key check: Replit native=${replitKey ? 'YES' : 'NO'}, User key=${userKey ? 'YES' : 'NO'}`);
       
       if (!apiKey) {
-        console.log('⚠️ No OpenAI API key - skipping custom card effect processing');
+        console.log('🔧 No OpenAI API key - using keyword-based effect parsing');
+        
+        // Use keyword-based parsing instead
+        const actions = this.parseEffectKeywords(card.effect);
+        console.log(`🎴 Keyword-parsed actions:`, actions);
+        
+        if (actions.length > 0) {
+          for (const action of actions) {
+            await this.executeCustomEffectAction(gameId, action, playerName, card);
+          }
+          
+          // Record the effect execution
+          await this.recordEvent(gameId, 'custom-card-effect', {
+            cardId: card.id,
+            cardName: card.name,
+            effect: card.effect,
+            result: { actions, message: `Effetto attivato: ${actions.map(a => a.description).join(', ')}` }
+          }, playerName);
+        }
         return;
       }
 
