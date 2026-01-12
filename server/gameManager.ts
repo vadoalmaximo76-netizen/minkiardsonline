@@ -1,6 +1,6 @@
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from '../client/src/lib/cardData';
 import { db } from './db';
-import { matches, gameEvents, personaggi, customCards, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
+import { matches, gameEvents, personaggi, customCards, cardModifications, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
 import { eq, ilike, sql } from 'drizzle-orm';
 import { CPUPlayer } from './cpuPlayer';
 
@@ -241,18 +241,30 @@ export class GameManager {
     return null;
   }
 
-  private createInitialDeck(type: keyof typeof CARD_DATA): Card[] {
+  private createInitialDeck(type: keyof typeof CARD_DATA, deletedCardIds: Set<string> = new Set()): Card[] {
     const frontImages = CARD_DATA[type];
     const backImage = DECK_BACK_IMAGES[type];
     
-    return frontImages.map((frontImage, index) => ({
-      id: `${type}-${index}`,
-      type,
-      frontImage,
-      backImage,
-      owner: '',
-      text: ''
-    }));
+    return frontImages
+      .map((frontImage, index) => ({
+        id: `${type}-${index}`,
+        type,
+        frontImage,
+        backImage,
+        owner: '',
+        text: ''
+      }))
+      .filter(card => !deletedCardIds.has(card.id));
+  }
+
+  async loadDeletedCardIds(): Promise<Set<string>> {
+    try {
+      const modifications = await db.select().from(cardModifications).where(eq(cardModifications.isDeleted, true));
+      return new Set(modifications.map(m => m.originalCardId));
+    } catch (error) {
+      console.error('Error loading deleted card IDs:', error);
+      return new Set();
+    }
   }
 
   async loadPermanentCardsIntoDeck(gameId: string): Promise<void> {
@@ -303,13 +315,13 @@ export class GameManager {
     }
   }
 
-  private initializeGame(gameId: string): GameState {
+  private initializeGame(gameId: string, deletedCardIds: Set<string> = new Set()): GameState {
     const gameState = {
       decks: {
-        personaggi: this.createInitialDeck('personaggi'),
-        mosse: this.createInitialDeck('mosse'),
-        bonus: this.createInitialDeck('bonus'),
-        personaggi_speciali: this.createInitialDeck('personaggi_speciali')
+        personaggi: this.createInitialDeck('personaggi', deletedCardIds),
+        mosse: this.createInitialDeck('mosse', deletedCardIds),
+        bonus: this.createInitialDeck('bonus', deletedCardIds),
+        personaggi_speciali: this.createInitialDeck('personaggi_speciali', deletedCardIds)
       },
       players: {},
       field: [],
@@ -344,7 +356,8 @@ export class GameManager {
 
   async addPlayer(gameId: string, playerName: string, socketId: string, isCPU: boolean = false): Promise<void> {
     if (!this.games.has(gameId)) {
-      this.games.set(gameId, this.initializeGame(gameId));
+      const deletedCardIds = await this.loadDeletedCardIds();
+      this.games.set(gameId, this.initializeGame(gameId, deletedCardIds));
       await this.createMatchRecord(gameId);
       await this.loadPermanentCardsIntoDeck(gameId);
     }
