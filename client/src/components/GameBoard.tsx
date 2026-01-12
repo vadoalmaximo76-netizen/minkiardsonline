@@ -36,6 +36,7 @@ import { ConnectionStatus } from "./ConnectionStatus";
 import { LastPlayedCards } from "./LastPlayedCards";
 import { MissionsPanel } from "./MissionsPanel";
 import { AchievementsPanel } from "./AchievementsPanel";
+import { RankiardLeaderboard } from "./RankiardLeaderboard";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
@@ -66,6 +67,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [graveyardOpen, setGraveyardOpen] = useState(false);
   const [missionsOpen, setMissionsOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [diceOpen, setDiceOpen] = useState(false);
   const [diceResult, setDiceResult] = useState<number | undefined>();
   const [playerWhoRolled, setPlayerWhoRolled] = useState<string | undefined>();
@@ -973,6 +975,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         }}
       />
       
+      {/* Rankiard Leaderboard */}
+      <RankiardLeaderboard
+        isOpen={leaderboardOpen}
+        onClose={() => setLeaderboardOpen(false)}
+      />
+      
       {/* Background image */}
       <div 
         className="fixed inset-0 bg-cover bg-center opacity-50"
@@ -1748,10 +1756,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 
                 <div className="grid grid-cols-1 gap-2">
                   <Button
-                    onClick={() => window.open('https://drive.google.com/file/d/12bbZFsDw6AFFpqexTS-rHTMlkPhcRZgG/view', '_blank')}
+                    onClick={() => setLeaderboardOpen(true)}
                     className="btn-neon-blue text-white font-bold py-2 px-4 flex items-center justify-center gap-2"
                   >
-                    <ExternalLink size={16} />
+                    <Trophy size={16} />
                     CLASSIFICA RANKIARD
                   </Button>
                   <Button

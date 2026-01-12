@@ -4999,5 +4999,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get Rankiard leaderboard - public endpoint
+  app.get('/api/leaderboard', async (req, res) => {
+    try {
+      const leaderboard = await db
+        .select({
+          id: users.id,
+          username: users.username,
+          avatar: users.avatar,
+          puntiRankiard: users.puntiRankiard,
+          gamesPlayed: users.gamesPlayed,
+          gamesWon: users.gamesWon,
+          minutesPlayed: users.minutesPlayed
+        })
+        .from(users)
+        .orderBy(desc(users.puntiRankiard))
+        .limit(100);
+      
+      res.json({ success: true, leaderboard });
+    } catch (error) {
+      console.error('Error fetching leaderboard:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch leaderboard' });
+    }
+  });
+
   return httpServer;
 }

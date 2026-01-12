@@ -10,6 +10,9 @@ export const users = pgTable("users", {
   googleId: text("google_id").unique(), // Google OAuth ID
   avatar: text("avatar"), // Avatar ID from predefined list
   puntiRankiard: integer("punti_rankiard").notNull().default(0), // Accumulated Rankiard points
+  gamesPlayed: integer("games_played").notNull().default(0), // Total games played
+  gamesWon: integer("games_won").notNull().default(0), // Total games won
+  minutesPlayed: integer("minutes_played").notNull().default(0), // Total minutes played
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
