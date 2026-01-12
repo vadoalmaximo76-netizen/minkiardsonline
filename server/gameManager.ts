@@ -872,12 +872,14 @@ export class GameManager {
   private async processInstructionWithAI(gameId: string, playerName: string, instruction: string) {
     try {
       // Skip AI if we know we have quota issues, rely on pattern matching
-      if (!process.env.OPENAI_API_KEY) {
+      // Use Replit's native AI integration key first, fallback to user's key
+      const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+      if (!apiKey) {
         return null;
       }
 
       const OpenAI = (await import('openai')).default;
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const openai = new OpenAI({ apiKey });
 
       // Get current game state for context
       const game = this.games.get(gameId);
@@ -1646,13 +1648,15 @@ Rispondi SOLO in JSON:`;
     console.log(`🎴 Processing custom card effect for ${card.name || card.id}: "${card.effect}"`);
 
     try {
-      if (!process.env.OPENAI_API_KEY) {
+      // Use Replit's native AI integration key first, fallback to user's key
+      const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+      if (!apiKey) {
         console.log('⚠️ No OpenAI API key - skipping custom card effect processing');
         return;
       }
 
       const OpenAI = (await import('openai')).default;
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const openai = new OpenAI({ apiKey });
 
       // Build game context
       const gameContext = {
