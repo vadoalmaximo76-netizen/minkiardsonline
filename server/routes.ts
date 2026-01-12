@@ -379,6 +379,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
     
+    // Set user data on socket for game invitation lookups (called when user logs in)
+    // Validates JWT token to prevent impersonation
+    socket.on('set-user-data', async ({ authToken }) => {
+      if (!authToken) return;
+      
+      try {
+        // Verify JWT token and extract user info securely (use same secret as auth.ts)
+        const jwt = await import('jsonwebtoken');
+        const decoded = jwt.verify(authToken, jwtSecret) as { userId: number; email: string };
+        
+        if (decoded && decoded.userId) {
+          // Fetch username from database for verified user
+          const userRecord = await db.select().from(users).where(eq(users.id, decoded.userId)).limit(1);
+          if (userRecord.length > 0) {
+            socket.data = socket.data || {};
+            socket.data.userId = decoded.userId;
+            socket.data.username = userRecord[0].username;
+            console.log(`Socket ${socket.id} securely associated with user ${decoded.userId} (${userRecord[0].username})`);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to verify auth token for socket:', error);
+      }
+    });
+    
     // Also emit server-ready immediately on connect if cache is already loaded
     if (personaggiCacheLoaded) {
       socket.emit('server-ready');
@@ -411,7 +436,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         gameManager.setPlayerAvatar(gameId, playerName, avatarId);
       }
       
-      // Set user ID for Rankiard points tracking
+      // Set user ID for Rankiard points tracking (uses client-provided userId for game stats only)
+      // Note: socket.data for invitations is set securely via set-user-data with JWT validation
       if (userId) {
         gameManager.setPlayerUserId(gameId, playerName, userId);
       }

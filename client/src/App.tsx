@@ -29,6 +29,12 @@ function App() {
   const [isInitializing, setIsInitializing] = useState(true);
   const [serverReady, setServerReady] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [gameInvitation, setGameInvitation] = useState<{
+    senderId: number;
+    senderUsername: string;
+    gameId: string;
+    roomCode: string;
+  } | null>(null);
   const { 
     setPlayerName, 
     playerName, 
@@ -50,6 +56,12 @@ function App() {
           console.log('Server cache loaded, ready to play!');
           setServerReady(true);
           setLoadingProgress(100);
+        });
+        
+        // Listen for game invitations from friends
+        socket.on('game-invitation', (data: { senderId: number; senderUsername: string; gameId: string; roomCode: string }) => {
+          console.log('Game invitation received:', data);
+          setGameInvitation(data);
         });
         
         // Simulate loading progress while waiting
@@ -80,7 +92,7 @@ function App() {
               setShowAuthDialog(false);
               
               // Register user with socket for targeted notifications (game invites)
-              socket.emit('register-user', { authToken });
+              socket.emit('set-user-data', { authToken });
               
               if (hasActiveSession()) {
                 console.log('Found active session, attempting to restore...');
@@ -138,6 +150,7 @@ function App() {
 
     return () => {
       socket.off('server-ready');
+      socket.off('game-invitation');
       socket.disconnect();
     };
   }, [setGameId, hasActiveSession, restoreSession, setPlayerName, generateSessionId]);
@@ -222,7 +235,7 @@ function App() {
     // Register user with socket for targeted notifications (game invites)
     const authToken = localStorage.getItem('authToken');
     if (authToken) {
-      socket.emit('register-user', { authToken });
+      socket.emit('set-user-data', { authToken });
     }
     
     const urlParams = new URLSearchParams(window.location.search);
@@ -296,9 +309,63 @@ function App() {
     setGameId('');
   };
 
+  const handleAcceptInvitation = () => {
+    if (gameInvitation && authenticatedUser) {
+      const inviteGameId = gameInvitation.gameId;
+      setGameId(inviteGameId);
+      generateSessionId();
+      
+      // Update URL
+      const newUrl = `${window.location.origin}?game=${inviteGameId}`;
+      window.history.pushState(null, '', newUrl);
+      
+      // Join the game
+      socket.emit('join-game', { 
+        gameId: inviteGameId, 
+        playerName: authenticatedUser.username, 
+        avatarId: authenticatedUser.avatar,
+        userId: authenticatedUser.id 
+      });
+      
+      setGameInvitation(null);
+      setShowRoomDialog(false);
+    }
+  };
+
+  const handleDeclineInvitation = () => {
+    setGameInvitation(null);
+  };
+
   return (
     <QueryClientProvider client={queryClient}>
       <div className="min-h-screen bg-arena-deep overflow-auto">
+        {/* Game Invitation Notification */}
+        {gameInvitation && (
+          <div className="fixed top-4 right-4 z-50 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg shadow-2xl p-4 max-w-sm animate-pulse border-2 border-white/20">
+            <div className="text-white font-bold text-lg mb-2">Invito alla Partita!</div>
+            <div className="text-white/90 mb-3">
+              <span className="font-semibold">{gameInvitation.senderUsername}</span> ti ha invitato a giocare!
+            </div>
+            <div className="text-white/70 text-sm mb-3">
+              Stanza: {gameInvitation.roomCode}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleAcceptInvitation}
+                className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg font-medium transition-colors"
+              >
+                Accetta
+              </button>
+              <button
+                onClick={handleDeclineInvitation}
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg font-medium transition-colors"
+              >
+                Rifiuta
+              </button>
+            </div>
+          </div>
+        )}
+        
         <GameBoard 
           authenticatedUser={authenticatedUser}
           onLogout={handleLogout}
