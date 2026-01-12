@@ -12,6 +12,7 @@ interface Card {
   owner: string;
   name?: string; // Custom card name (for permanent/custom cards)
   text?: string;
+  effect?: string; // AI-processed effect description for custom cards
   eliminatedBy?: string;
   faceDown?: boolean;
   section?: string;
@@ -298,7 +299,8 @@ export class GameManager {
             name: cardRecord.name || undefined, // Store the custom name separately
             text: cardText,
             pti: isCharacterCard ? cardRecord.pti : null,
-            stars: isCharacterCard ? cardRecord.stars : null
+            stars: isCharacterCard ? cardRecord.stars : null,
+            effect: cardRecord.effect || undefined // Store AI-processed effect
           };
 
           targetDeck.push(card);
@@ -1493,6 +1495,11 @@ Rispondi SOLO in JSON:`;
         cardName: cardName
       }, playerName);
       
+      // Process custom card effect if present
+      if (card.effect && card.id.startsWith('permanent-')) {
+        await this.processCustomCardEffect(gameId, card, playerName);
+      }
+      
       // DUELLO: Auto-activate MOSSE cards during duel
       let duelAutoAttack = false;
       if (game.activeDuel && game.activeDuel.active && card.type === 'mosse') {
@@ -1512,6 +1519,216 @@ Rispondi SOLO in JSON:`;
     }
     
     return {};
+  }
+
+  // Process custom card effect using AI
+  async processCustomCardEffect(gameId: string, card: Card, playerName: string): Promise<void> {
+    const game = this.games.get(gameId);
+    if (!game || !card.effect) return;
+
+    console.log(`🎴 Processing custom card effect for ${card.name || card.id}: "${card.effect}"`);
+
+    try {
+      if (!process.env.OPENAI_API_KEY) {
+        console.log('⚠️ No OpenAI API key - skipping custom card effect processing');
+        return;
+      }
+
+      const OpenAI = (await import('openai')).default;
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+      // Build game context
+      const gameContext = {
+        players: Object.keys(game.players),
+        field: game.field.map(c => ({ 
+          id: c.id, 
+          type: c.type, 
+          name: c.name || this.getCardNameFromUrl(c.frontImage),
+          owner: c.owner,
+          pti: c.pti,
+          stars: c.stars
+        })),
+        currentPlayer: playerName,
+        cardPlayed: {
+          id: card.id,
+          name: card.name,
+          type: card.type,
+          pti: card.pti,
+          stars: card.stars
+        }
+      };
+
+      const prompt = `Sei il sistema di gioco MINKIARDS. Una carta personalizzata è stata giocata con questo effetto:
+
+**EFFETTO:** "${card.effect}"
+
+**CARTA GIOCATA:**
+- Nome: ${card.name || 'Carta Personalizzata'}
+- Tipo: ${card.type}
+- Giocatore: ${playerName}
+${card.pti ? `- PTI: ${card.pti}` : ''}
+${card.stars ? `- Stelle: ${card.stars}` : ''}
+
+**STATO PARTITA:**
+- Giocatori: ${gameContext.players.join(', ')}
+- Carte in campo: ${JSON.stringify(gameContext.field)}
+
+Analizza l'effetto e determina le azioni da eseguire. Rispondi in JSON con:
+{
+  "actions": [
+    {
+      "type": "damage" | "heal" | "draw" | "discard" | "modify_pti" | "modify_stars" | "special",
+      "target": "all" | "self" | "opponents" | "specific_card_id" | "random",
+      "value": number,
+      "description": "descrizione dell'azione"
+    }
+  ],
+  "message": "messaggio da mostrare ai giocatori"
+}
+
+Se l'effetto richiede interazione utente (scelta target), usa type "special" con description dettagliata.`;
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-5",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        max_tokens: 500
+      });
+
+      const effectResult = JSON.parse(response.choices[0].message.content || '{"actions": [], "message": "Effetto non processato"}');
+      
+      console.log(`🎴 Custom card effect result:`, effectResult);
+
+      // Execute each action
+      for (const action of effectResult.actions || []) {
+        await this.executeCustomEffectAction(gameId, action, playerName, card);
+      }
+
+      // Record the effect execution
+      await this.recordEvent(gameId, 'custom-card-effect', {
+        cardId: card.id,
+        cardName: card.name,
+        effect: card.effect,
+        result: effectResult
+      }, playerName);
+
+    } catch (error) {
+      console.error('Error processing custom card effect:', error);
+    }
+  }
+
+  // Execute a single action from custom card effect
+  private async executeCustomEffectAction(gameId: string, action: any, playerName: string, card: Card): Promise<void> {
+    const game = this.games.get(gameId);
+    if (!game) return;
+
+    console.log(`🎴 Executing custom effect action: ${action.type} - ${action.description}`);
+
+    switch (action.type) {
+      case 'damage':
+        if (action.target === 'all' || action.target === 'opponents') {
+          // Apply damage to all opponent characters
+          for (const fieldCard of game.field) {
+            if (fieldCard.owner !== playerName && 
+                (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') &&
+                fieldCard.pti != null) {
+              fieldCard.pti = Math.max(0, fieldCard.pti - (action.value || 0));
+              console.log(`💥 Custom effect: ${fieldCard.name || fieldCard.id} took ${action.value} damage, now at ${fieldCard.pti} PTI`);
+            }
+          }
+        }
+        break;
+
+      case 'heal':
+        if (action.target === 'self') {
+          // Find player's character on field
+          const playerChar = game.field.find(c => 
+            c.owner === playerName && 
+            (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          );
+          if (playerChar && playerChar.pti != null) {
+            playerChar.pti = (playerChar.pti || 0) + (action.value || 0);
+            console.log(`💚 Custom effect: ${playerChar.name || playerChar.id} healed ${action.value}, now at ${playerChar.pti} PTI`);
+          }
+        }
+        break;
+
+      case 'draw':
+        // Make player draw cards
+        const deckType = card.type === 'personaggi' || card.type === 'personaggi_speciali' ? 'personaggi' : 'mosse';
+        for (let i = 0; i < (action.value || 1); i++) {
+          this.pickCard(gameId, deckType, playerName);
+        }
+        console.log(`🎴 Custom effect: ${playerName} drew ${action.value || 1} cards`);
+        break;
+
+      case 'discard':
+        // Discard cards from hand or field
+        if (action.target === 'opponents' || action.target === 'all') {
+          // Discard random cards from each opponent's hand
+          for (const [opponentName, opponent] of Object.entries(game.players)) {
+            if (opponentName === playerName && action.target === 'opponents') continue;
+            const discardCount = Math.min(action.value || 1, opponent.hand.length);
+            for (let i = 0; i < discardCount; i++) {
+              if (opponent.hand.length > 0) {
+                const randomIndex = Math.floor(Math.random() * opponent.hand.length);
+                const discardedCard = opponent.hand.splice(randomIndex, 1)[0];
+                game.graveyard.push(discardedCard);
+                console.log(`🗑️ Custom effect: ${opponentName} discarded ${discardedCard.name || discardedCard.id}`);
+              }
+            }
+          }
+        } else if (action.target === 'self') {
+          // Player discards from own hand
+          const player = game.players[playerName];
+          const discardCount = Math.min(action.value || 1, player.hand.length);
+          for (let i = 0; i < discardCount; i++) {
+            if (player.hand.length > 0) {
+              const randomIndex = Math.floor(Math.random() * player.hand.length);
+              const discardedCard = player.hand.splice(randomIndex, 1)[0];
+              game.graveyard.push(discardedCard);
+              console.log(`🗑️ Custom effect: ${playerName} discarded ${discardedCard.name || discardedCard.id}`);
+            }
+          }
+        } else if (action.target) {
+          // Discard specific card by ID
+          const targetCard = game.field.find(c => c.id === action.target);
+          if (targetCard) {
+            game.field = game.field.filter(c => c.id !== action.target);
+            game.graveyard.push(targetCard);
+            console.log(`🗑️ Custom effect: Discarded ${targetCard.name || targetCard.id} from field`);
+          }
+        }
+        break;
+
+      case 'modify_pti':
+        if (action.target && action.target !== 'all') {
+          const targetCard = game.field.find(c => c.id === action.target);
+          if (targetCard && targetCard.pti != null) {
+            targetCard.pti = action.value || 0;
+            console.log(`⚡ Custom effect: ${targetCard.name || targetCard.id} PTI set to ${targetCard.pti}`);
+          }
+        }
+        break;
+
+      case 'modify_stars':
+        if (action.target && action.target !== 'all') {
+          const targetCard = game.field.find(c => c.id === action.target);
+          if (targetCard && targetCard.stars != null) {
+            targetCard.stars = action.value || 0;
+            console.log(`⭐ Custom effect: ${targetCard.name || targetCard.id} stars set to ${targetCard.stars}`);
+          }
+        }
+        break;
+
+      case 'special':
+        console.log(`🌟 Special custom effect: ${action.description}`);
+        // Special effects that require manual handling or user interaction
+        break;
+
+      default:
+        console.log(`❓ Unknown custom effect type: ${action.type}`);
+    }
   }
 
   // NEW: Authoritative MOSSE attack execution
