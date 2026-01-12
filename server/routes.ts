@@ -945,6 +945,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const gameState = gameManager.getSanitizedGameState(gameId);
         io.to(gameId).emit('game-state-update', gameState);
         
+        // If the card has an audioUrl, emit audio play event
+        if (result.card?.audioUrl) {
+          console.log(`Card ${cardId} has audioUrl, emitting card-audio-play event`);
+          io.to(gameId).emit('card-audio-play', {
+            cardId: result.card.id,
+            playerName,
+            audioUrl: result.card.audioUrl,
+            cardName: result.card.name || 'Custom Card'
+          });
+        }
+        
         // If a PERSONAGGI card was played, emit special notification
         if (result.isPersonaggio && result.card) {
           const getCardNameFromUrl = (url: string) => {

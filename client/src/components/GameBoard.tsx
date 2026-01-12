@@ -692,6 +692,29 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('hostage-died', handleHostageDied);
 
+    // CARD AUDIO: Play audio when a card with audioUrl is placed on field
+    const handleCardAudioPlay = ({ cardId, playerName: audioPlayerName, audioUrl, cardName }: {
+      cardId: string;
+      playerName: string;
+      audioUrl: string;
+      cardName: string;
+    }) => {
+      console.log(`🔊 Card audio triggered: ${cardName} by ${audioPlayerName}, URL: ${audioUrl}`);
+      
+      if (audioUrl) {
+        try {
+          const audio = new Audio(audioUrl);
+          audio.volume = 0.7;
+          audio.play().catch(err => {
+            console.error('Error playing card audio:', err);
+          });
+        } catch (err) {
+          console.error('Error creating card audio:', err);
+        }
+      }
+    };
+    socket.on('card-audio-play', handleCardAudioPlay);
+
     // CIMICE effect (attack or death)
     const handleCimiceEffect = (data: {
       type: 'attack' | 'death';
@@ -855,6 +878,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('hostage-updated', handleHostageUpdated);
       socket.off('hostage-released', handleHostageReleased);
       socket.off('hostage-died', handleHostageDied);
+      socket.off('card-audio-play', handleCardAudioPlay);
       socket.off('clash-battle-start', handleClashBattleStart);
       socket.off('clash-battle-end', handleClashBattleEnd);
       socket.off('attack-error', handleAttackError);

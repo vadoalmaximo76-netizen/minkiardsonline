@@ -34,6 +34,8 @@ interface Card {
   // MOSSE card usage tracking
   used?: boolean; // Whether this MOSSE card has been used this turn
   usedBy?: string; // Player who used this MOSSE card
+  // Audio for custom cards
+  audioUrl?: string; // URL to audio file to play when card is placed on field
   // POTERI system - copied powers
   copiedPower?: string; // Name of character whose power was copied (e.g., 'CIMICE', 'PARASSITA')
   // RIFUGIO shelter protection system
@@ -268,6 +270,47 @@ export class GameManager {
     }
   }
 
+  async loadCardModifications(): Promise<Map<string, any>> {
+    try {
+      const modifications = await db.select().from(cardModifications).where(eq(cardModifications.isDeleted, false));
+      const modMap = new Map<string, any>();
+      modifications.forEach(mod => {
+        modMap.set(mod.originalCardId, mod);
+      });
+      return modMap;
+    } catch (error) {
+      console.error('Error loading card modifications:', error);
+      return new Map();
+    }
+  }
+
+  async applyCardModificationsToDecks(gameId: string): Promise<void> {
+    const game = this.games.get(gameId);
+    if (!game) return;
+
+    try {
+      const modifications = await this.loadCardModifications();
+      
+      for (const deckType of ['personaggi', 'mosse', 'bonus', 'personaggi_speciali'] as const) {
+        const deck = game.decks[deckType];
+        deck.forEach((card, index) => {
+          const mod = modifications.get(card.id);
+          if (mod) {
+            if (mod.name) card.name = mod.name;
+            if (mod.imageUrl) card.frontImage = mod.imageUrl;
+            if (mod.pti !== null && mod.pti !== undefined) card.pti = mod.pti;
+            if (mod.stars !== null && mod.stars !== undefined) card.stars = mod.stars;
+            if (mod.effect) card.effect = mod.effect;
+            if (mod.audioUrl) card.audioUrl = mod.audioUrl;
+            console.log(`Applied modifications to card ${card.id}: name=${mod.name}, audioUrl=${mod.audioUrl}`);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error applying card modifications:', error);
+    }
+  }
+
   async loadPermanentCardsIntoDeck(gameId: string): Promise<void> {
     const game = this.games.get(gameId);
     if (!game) return;
@@ -300,7 +343,8 @@ export class GameManager {
             text: cardText,
             pti: isCharacterCard ? cardRecord.pti : null,
             stars: isCharacterCard ? cardRecord.stars : null,
-            effect: cardRecord.effect || undefined // Store AI-processed effect
+            effect: cardRecord.effect || undefined, // Store AI-processed effect
+            audioUrl: cardRecord.audioUrl || undefined // Store audio URL for playback
           };
 
           targetDeck.push(card);
@@ -362,6 +406,7 @@ export class GameManager {
       this.games.set(gameId, this.initializeGame(gameId, deletedCardIds));
       await this.createMatchRecord(gameId);
       await this.loadPermanentCardsIntoDeck(gameId);
+      await this.applyCardModificationsToDecks(gameId);
     }
 
     const game = this.games.get(gameId)!;
@@ -4874,7 +4919,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   async addCustomCards(
     gameId: string, 
     deckType: string, 
-    cards: Array<{ name: string, data: string, pti: number | null, stars: number | null, isPermanent: boolean }>,
+    cards: Array<{ name: string, data: string, pti: number | null, stars: number | null, effect?: string | null, audioUrl?: string | null, isPermanent: boolean }>,
     playerName: string
   ): Promise<{ success: boolean }> {
     const game = this.games.get(gameId);
@@ -4903,7 +4948,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           name: cardData.name || undefined, // Store the custom name separately
           text: cardText,
           pti: isCharacterDeck ? cardData.pti : null,
-          stars: isCharacterDeck ? cardData.stars : null
+          stars: isCharacterDeck ? cardData.stars : null,
+          effect: cardData.effect || undefined,
+          audioUrl: cardData.audioUrl || undefined
         };
         
         if (deckType === 'personaggi') {
@@ -4924,10 +4971,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               imageData: cardData.data,
               pti: cardData.pti,
               stars: cardData.stars,
+              effect: cardData.effect || null,
+              audioUrl: cardData.audioUrl || null,
               createdBy: playerName
             };
             await db.insert(customCards).values(customCardRecord);
-            console.log(`Permanent card "${cardData.name}" saved to database`);
+            console.log(`Permanent card "${cardData.name}" saved to database with audioUrl: ${cardData.audioUrl}`);
           } catch (dbError) {
             console.error('Error saving permanent card to database:', dbError);
           }
