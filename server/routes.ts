@@ -3,11 +3,14 @@ import { createServer, type Server } from "http";
 import { Server as SocketServer } from "socket.io";
 import { GameManager } from "./gameManager";
 import OpenAI from "openai";
+import jwt from "jsonwebtoken";
 import { db } from "./db";
 import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, achievements, playerAchievements, missionTemplates, playerDailyMissions } from "../shared/schema";
 import { eq, ilike, and, desc, or, ne, sql } from "drizzle-orm";
 import { CARD_DATA } from "../client/src/lib/cardData";
 import { authMiddleware } from "./auth";
+
+const jwtSecret = process.env.JWT_SECRET || "minkiards-secret-key-change-in-production";
 import { 
   initializeMissionsAndAchievements, 
   getPlayerDailyMissions, 
@@ -71,8 +74,72 @@ function getCardNameFromImageUrl(imageUrl: string): string {
   }
 }
 
-// Look up PERSONAGGI data from database
+// In-memory cache for PERSONAGGI card data (populated on startup)
+const personaggiCache = new Map<string, { pti: number | null, stars: number | null, name: string }>();
+let personaggiCacheLoaded = false;
+
+// Load all PERSONAGGI data into cache on startup
+async function loadPersonaggiCache(): Promise<void> {
+  if (personaggiCacheLoaded) return;
+  
+  try {
+    console.log('📦 Loading PERSONAGGI cache from database...');
+    const allPersonaggi = await db.select().from(personaggi);
+    
+    for (const p of allPersonaggi) {
+      if (p.name) {
+        // Store with multiple key variations for fast lookup
+        const normalizedName = p.name.toLowerCase().replace(/[-_]/g, ' ').trim();
+        personaggiCache.set(normalizedName, { pti: p.pti, stars: p.stars, name: p.name });
+        // Also store uppercase version
+        personaggiCache.set(p.name.toUpperCase(), { pti: p.pti, stars: p.stars, name: p.name });
+      }
+    }
+    
+    personaggiCacheLoaded = true;
+    console.log(`📦 PERSONAGGI cache loaded: ${personaggiCache.size} entries`);
+  } catch (error) {
+    console.error('Error loading PERSONAGGI cache:', error);
+  }
+}
+
+// Look up PERSONAGGI data - uses in-memory cache for speed
+function getPersonaggioFromCache(cardName: string): { pti: number | null, stars: number | null } | null {
+  const normalizedName = cardName.toLowerCase().replace(/[-_]/g, ' ').trim();
+  
+  // Try exact match first
+  let cached = personaggiCache.get(normalizedName);
+  if (cached) {
+    console.log(`✅ Cache hit: ${cached.name} - PTI: ${cached.pti}, Stelle: ${cached.stars}`);
+    return { pti: cached.pti, stars: cached.stars };
+  }
+  
+  // Try uppercase match
+  cached = personaggiCache.get(cardName.toUpperCase());
+  if (cached) {
+    console.log(`✅ Cache hit: ${cached.name} - PTI: ${cached.pti}, Stelle: ${cached.stars}`);
+    return { pti: cached.pti, stars: cached.stars };
+  }
+  
+  // Fuzzy search through cache entries
+  const entries = Array.from(personaggiCache.entries());
+  for (const [key, value] of entries) {
+    if (key.includes(normalizedName) || normalizedName.includes(key)) {
+      console.log(`✅ Cache fuzzy hit: ${value.name} - PTI: ${value.pti}, Stelle: ${value.stars}`);
+      return { pti: value.pti, stars: value.stars };
+    }
+  }
+  
+  console.log(`❌ Cache miss: ${cardName}`);
+  return null;
+}
+
+// Look up PERSONAGGI data from database (fallback if cache misses)
 async function getPersonaggioFromDatabase(cardName: string): Promise<{ pti: number | null, stars: number | null } | null> {
+  // Try cache first for instant response
+  const cached = getPersonaggioFromCache(cardName);
+  if (cached) return cached;
+  
   try {
     console.log(`🔍 Looking up ${cardName} in PERSONAGGI database...`);
     
@@ -97,6 +164,11 @@ async function getPersonaggioFromDatabase(cardName: string): Promise<{ pti: numb
     
     if (result.length > 0) {
       console.log(`✅ Found in database: ${result[0].name} - PTI: ${result[0].pti}, Stelle: ${result[0].stars}`);
+      
+      // Add to cache for future lookups
+      const normalizedName = cardName.toLowerCase().replace(/[-_]/g, ' ').trim();
+      personaggiCache.set(normalizedName, { pti: result[0].pti, stars: result[0].stars, name: result[0].name });
+      
       return {
         pti: result[0].pti,
         stars: result[0].stars
@@ -307,6 +379,9 @@ function getCharacterSoundType(cardName: string): string | null {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Load PERSONAGGI cache on startup for fast lookups
+  await loadPersonaggiCache();
+  
   const httpServer = createServer(app);
   const io = new SocketServer(httpServer, {
     cors: {
@@ -867,18 +942,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gameId) {
         const card = await gameManager.pickCardAndReturn(gameId, deckType, playerName);
         if (card) {
-          // Look up PERSONAGGI data from database when picked (to get PTI and stars in hand)
+          // Look up PERSONAGGI data using fast cache (instant if cached)
           if (card.type === 'personaggi' || card.type === 'personaggi_speciali') {
             try {
               const cardName = getCardNameFromImageUrl(card.frontImage).replace(/-/g, ' ');
-              console.log(`Querying database for PERSONAGGI card when picked: ${cardName}`);
-              const dbData = await getPersonaggioFromDatabase(cardName);
+              // Use cache-first lookup (synchronous if cached)
+              const dbData = getPersonaggioFromCache(cardName);
               if (dbData && dbData.pti !== null && dbData.stars !== null) {
                 card.text = `PTI: ${dbData.pti} | Stelle: ${dbData.stars}`;
-                console.log(`✅ Database lookup successful: PTI: ${dbData.pti} | Stelle: ${dbData.stars}`);
               }
             } catch (error) {
-              console.error('Error querying database for card on pick:', error);
+              console.error('Error querying cache for card on pick:', error);
             }
           }
           
@@ -907,21 +981,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Use pickCardAndReturn to get the card reference for PTI/stars assignment
         const card = await gameManager.pickCardAndReturn(gameId, deckType, playerName);
         if (card) {
-          // Look up PERSONAGGI data from database when picked (to get PTI and stars in hand)
+          // Look up PERSONAGGI data using fast cache
           if (card.type === 'personaggi' || card.type === 'personaggi_speciali') {
             try {
               const cardName = getCardNameFromImageUrl(card.frontImage).replace(/-/g, ' ');
-              console.log(`CPU ${playerName}: Querying database for PERSONAGGI card: ${cardName}`);
-              const dbData = await getPersonaggioFromDatabase(cardName);
+              const dbData = getPersonaggioFromCache(cardName);
               if (dbData && dbData.pti !== null && dbData.stars !== null) {
                 card.text = `PTI: ${dbData.pti} | Stelle: ${dbData.stars}`;
-                console.log(`✅ CPU ${playerName} card database lookup successful: PTI: ${dbData.pti} | Stelle: ${dbData.stars}`);
               } else {
                 card.text = 'PTI: 1000 | Stelle: 1';
-                console.log(`CPU ${playerName}: Card not in database, using defaults`);
               }
             } catch (error) {
-              console.error('Error querying database for CPU card on pick:', error);
+              console.error('Error querying cache for CPU card on pick:', error);
               card.text = 'PTI: 1000 | Stelle: 1';
             }
           }
@@ -953,21 +1024,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`ChooseSpecificCard result for ${playerName}:`, success);
         
         if (success) {
-          // Look up PERSONAGGI data from database when picked (to get PTI and stars in hand)
+          // Look up PERSONAGGI data using fast cache
           if (deckType === 'personaggi' || deckType === 'personaggi_speciali') {
             const game = gameManager.getGameState(gameId);
             const pickedCard = game?.players[playerName]?.hand.find((c: any) => c.id === cardId);
             if (pickedCard) {
               try {
                 const cardName = getCardNameFromImageUrl(pickedCard.frontImage).replace(/-/g, ' ');
-                console.log(`Querying database for PERSONAGGI card when chosen: ${cardName}`);
-                const dbData = await getPersonaggioFromDatabase(cardName);
+                const dbData = getPersonaggioFromCache(cardName);
                 if (dbData && dbData.pti !== null && dbData.stars !== null) {
                   pickedCard.text = `PTI: ${dbData.pti} | Stelle: ${dbData.stars}`;
-                  console.log(`✅ Database lookup successful: PTI: ${dbData.pti} | Stelle: ${dbData.stars}`);
                 }
               } catch (error) {
-                console.error('Error querying database for card on choose:', error);
+                console.error('Error querying cache for card on choose:', error);
               }
             }
           }
@@ -1000,6 +1069,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`CPU ${playerName} played ${result.card.type} card - maintaining hand limit (1 card per type)`);
         }
         
+        // IMMEDIATE: Send game state update first for responsiveness
         const gameState = gameManager.getSanitizedGameState(gameId);
         io.to(gameId).emit('game-state-update', gameState);
         
@@ -1026,10 +1096,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
         
-        // Check for audioUrl - either on card directly or from database modifications
+        // Check for audioUrl - on card directly first (instant), then database if needed
         let audioUrl = result.card?.audioUrl;
         console.log(`[AUDIO DEBUG] Card ${cardId} played. Card audioUrl from memory: ${audioUrl || 'NOT SET'}`);
         
+        // Only do database lookup if no audioUrl in memory and card exists
         if (!audioUrl && result.card) {
           try {
             const cardIdStr = result.card.id;
