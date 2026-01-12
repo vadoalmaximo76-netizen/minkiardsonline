@@ -4642,7 +4642,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const deck of deckKeys) {
         const deckData = CARD_DATA[deck as keyof typeof CARD_DATA] || [];
         deckData.forEach((imageUrl: string, index: number) => {
-          const cardId = `${deck}_${index}`;
+          const cardId = `${deck}-${index}`;
           const urlParts = imageUrl.split('/');
           const filename = urlParts[urlParts.length - 1];
           const originalName = decodeURIComponent(filename)
