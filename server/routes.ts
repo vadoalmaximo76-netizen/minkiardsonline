@@ -386,7 +386,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       try {
         // Verify JWT token and extract user info securely (use same secret as auth.ts)
-        const jwt = await import('jsonwebtoken');
         const decoded = jwt.verify(authToken, jwtSecret) as { userId: number; email: string };
         
         if (decoded && decoded.userId) {
