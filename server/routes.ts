@@ -947,6 +947,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Check for audioUrl - either on card directly or from database modifications
         let audioUrl = result.card?.audioUrl;
+        console.log(`[AUDIO DEBUG] Card ${cardId} played. Card audioUrl from memory: ${audioUrl || 'NOT SET'}`);
+        
         if (!audioUrl && result.card) {
           try {
             const cardIdStr = result.card.id;
