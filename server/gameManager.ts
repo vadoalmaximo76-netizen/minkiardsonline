@@ -1,8 +1,9 @@
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from '../client/src/lib/cardData';
 import { db } from './db';
-import { matches, gameEvents, personaggi, customCards, cardModifications, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
+import { matches, gameEvents, personaggi, customCards, cardModifications, users, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
 import { eq, ilike, sql } from 'drizzle-orm';
 import { CPUPlayer } from './cpuPlayer';
+import { trackGameEvent } from './missionsAndAchievements';
 
 interface Card {
   id: string;
@@ -224,6 +225,34 @@ interface GameState {
 export class GameManager {
   private games: Map<string, GameState> = new Map();
   private playerToGame: Map<string, string> = new Map();
+
+  private async getUserEmail(userId: number): Promise<string | null> {
+    try {
+      const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      return user[0]?.email || null;
+    } catch (error) {
+      console.error('Failed to get user email:', error);
+      return null;
+    }
+  }
+
+  private async trackPlayerEvent(gameId: string, playerName: string, eventType: string, data: any = {}): Promise<{ completedAchievements: any[], completedMissions: any[] }> {
+    try {
+      const game = this.games.get(gameId);
+      if (!game) return { completedAchievements: [], completedMissions: [] };
+      
+      const userId = game.playerUserIds.get(playerName);
+      if (!userId) return { completedAchievements: [], completedMissions: [] };
+      
+      const email = await this.getUserEmail(userId);
+      if (!email) return { completedAchievements: [], completedMissions: [] };
+      
+      return await trackGameEvent(email, eventType, data);
+    } catch (error) {
+      console.error('Failed to track event:', error);
+      return { completedAchievements: [], completedMissions: [] };
+    }
+  }
 
   // Public method to update player-to-game mapping
   setPlayerToGame(socketId: string, gameId: string): void {
@@ -1195,6 +1224,15 @@ Rispondi SOLO in JSON:`;
       await this.awardRankiardPoints(game, winnerPlayer);
       console.log(`Rankiard points awarded for match ${gameId}, winner: ${winnerPlayer}`);
 
+      // Track game events for missions/achievements
+      const humanPlayers = Object.keys(game.players).filter(p => !game.players[p].isCPU);
+      for (const player of humanPlayers) {
+        await this.trackPlayerEvent(gameId, player, 'game_played', {});
+      }
+      if (winnerPlayer && !game.players[winnerPlayer]?.isCPU) {
+        await this.trackPlayerEvent(gameId, winnerPlayer, 'game_won', {});
+      }
+
     } catch (error) {
       console.error('Failed to complete match:', error);
     }
@@ -1613,6 +1651,9 @@ Rispondi SOLO in JSON:`;
         triggerAnimation: card.triggerAnimation || false,
         cardName: cardName
       }, playerName);
+      
+      // Track for missions/achievements
+      await this.trackPlayerEvent(gameId, playerName, 'card_played', { cardType: card.type });
       
       // Process custom card effect if present
       if (card.effect && card.id.startsWith('permanent-')) {
@@ -4400,6 +4441,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             
             attackerPlayer.eliminationCount++;
             console.log(`🗡️ ${attacker} has eliminated ${attackerPlayer.eliminationCount} personaggi`);
+            
+            // Track elimination for missions/achievements (fire-and-forget)
+            this.trackPlayerEvent(gameId, attacker, 'elimination', {}).catch(() => {});
             
             // SOROS activation at 6 eliminations
             if (attackerPlayer.eliminationCount === 6 && !sorosActivated) {
@@ -7771,6 +7815,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     // PRESERVE: Calculate new PTI after damage
     const newPTI = Math.max(0, currentPTI - damageValue);
+    
+    // Track damage dealt for missions/achievements (fire-and-forget)
+    this.trackPlayerEvent(gameId, attackerName, 'damage_dealt', { amount: damageValue }).catch(() => {});
     
     // DEBUG LOGGING for damage calculation
     if (isHandTarget) {
