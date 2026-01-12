@@ -114,9 +114,9 @@ interface GameStateStore {
 export const useGameState = create<GameStateStore>()(
   persist(
     (set, get) => {
-      // Listen for game state updates
-      socket.on('game-state-update', (gameState: GameState) => {
-        set({ gameState });
+      // Listen for game state updates - apply all updates (let React handle memoization)
+      socket.on('game-state-update', (newGameState: GameState) => {
+        set({ gameState: newGameState });
       });
 
       // Listen for picked cards (private to player)

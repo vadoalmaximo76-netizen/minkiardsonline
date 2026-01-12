@@ -30,6 +30,38 @@ const openai = new OpenAI({
 // Track voice chat participants: gameId -> Set of playerNames
 const voiceChatRooms = new Map<string, Map<string, string>>(); // gameId -> Map(playerName -> socketId)
 
+// Throttled game state updates to reduce broadcast frequency
+const pendingStateUpdates = new Map<string, NodeJS.Timeout>();
+const THROTTLE_DELAY = 50; // ms - batch updates within this window
+
+function emitThrottledGameState(io: SocketServer, gameId: string, gameState: any) {
+  // Clear any pending update for this game
+  const existing = pendingStateUpdates.get(gameId);
+  if (existing) {
+    clearTimeout(existing);
+  }
+  
+  // Schedule the update with a small delay to batch rapid changes
+  const timeout = setTimeout(() => {
+    io.to(gameId).emit('game-state-update', gameState);
+    pendingStateUpdates.delete(gameId);
+  }, THROTTLE_DELAY);
+  
+  pendingStateUpdates.set(gameId, timeout);
+}
+
+// Immediate state update (for critical events like game start, player join)
+function emitImmediateGameState(io: SocketServer, gameId: string, gameState: any) {
+  // Clear any pending throttled update
+  const existing = pendingStateUpdates.get(gameId);
+  if (existing) {
+    clearTimeout(existing);
+    pendingStateUpdates.delete(gameId);
+  }
+  
+  io.to(gameId).emit('game-state-update', gameState);
+}
+
 // Local database of MINKIARDS card values (DISABLED - values were incorrect)
 // TODO: Get real values from user and populate this database accurately
 const MINKIARDS_CARD_DATA: Record<string, { pti: number, stars: number, powers?: string }> = {
@@ -74,65 +106,9 @@ function getCardNameFromImageUrl(imageUrl: string): string {
   }
 }
 
-// In-memory cache for PERSONAGGI card data (populated on startup)
-const personaggiCache = new Map<string, { pti: number | null, stars: number | null, name: string }>();
-let personaggiCacheLoaded = false;
-
-// Load all PERSONAGGI data into cache on startup
-async function loadPersonaggiCache(): Promise<void> {
-  if (personaggiCacheLoaded) return;
-  
-  try {
-    console.log('📦 Loading PERSONAGGI cache from database...');
-    const allPersonaggi = await db.select().from(personaggi);
-    
-    for (const p of allPersonaggi) {
-      if (p.name) {
-        // Store with multiple key variations for fast lookup
-        const normalizedName = p.name.toLowerCase().replace(/[-_]/g, ' ').trim();
-        personaggiCache.set(normalizedName, { pti: p.pti, stars: p.stars, name: p.name });
-        // Also store uppercase version
-        personaggiCache.set(p.name.toUpperCase(), { pti: p.pti, stars: p.stars, name: p.name });
-      }
-    }
-    
-    personaggiCacheLoaded = true;
-    console.log(`📦 PERSONAGGI cache loaded: ${personaggiCache.size} entries`);
-  } catch (error) {
-    console.error('Error loading PERSONAGGI cache:', error);
-  }
-}
-
-// Look up PERSONAGGI data - uses in-memory cache for speed
-function getPersonaggioFromCache(cardName: string): { pti: number | null, stars: number | null } | null {
-  const normalizedName = cardName.toLowerCase().replace(/[-_]/g, ' ').trim();
-  
-  // Try exact match first
-  let cached = personaggiCache.get(normalizedName);
-  if (cached) {
-    console.log(`✅ Cache hit: ${cached.name} - PTI: ${cached.pti}, Stelle: ${cached.stars}`);
-    return { pti: cached.pti, stars: cached.stars };
-  }
-  
-  // Try uppercase match
-  cached = personaggiCache.get(cardName.toUpperCase());
-  if (cached) {
-    console.log(`✅ Cache hit: ${cached.name} - PTI: ${cached.pti}, Stelle: ${cached.stars}`);
-    return { pti: cached.pti, stars: cached.stars };
-  }
-  
-  // Fuzzy search through cache entries
-  const entries = Array.from(personaggiCache.entries());
-  for (const [key, value] of entries) {
-    if (key.includes(normalizedName) || normalizedName.includes(key)) {
-      console.log(`✅ Cache fuzzy hit: ${value.name} - PTI: ${value.pti}, Stelle: ${value.stars}`);
-      return { pti: value.pti, stars: value.stars };
-    }
-  }
-  
-  console.log(`❌ Cache miss: ${cardName}`);
-  return null;
-}
+// Import cache from shared module
+import { personaggiCache, personaggiCacheLoaded, loadPersonaggiCache, getPersonaggioFromCache, isCacheReady } from './personaggiCache';
+export { personaggiCache, personaggiCacheLoaded, getPersonaggioFromCache };
 
 // Look up PERSONAGGI data from database (fallback if cache misses)
 async function getPersonaggioFromDatabase(cardName: string): Promise<{ pti: number | null, stars: number | null } | null> {
@@ -504,7 +480,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const cpuName = await gameManager.addCPUPlayer(gameId);
         const gameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        emitThrottledGameState(io, gameId, gameState);
         io.to(gameId).emit('player-joined', { playerName: cpuName });
         
         // CPU sends a greeting message when joining
@@ -551,7 +527,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     }
                     
                     const openingGameState = gameManager.getSanitizedGameState(gameId);
-                    io.to(gameId).emit('game-state-update', openingGameState);
+                    emitThrottledGameState(io, gameId, openingGameState);
                     
                     // Continue with the next phase of opening sequence
                     setTimeout(async () => {
@@ -565,7 +541,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   console.log(`CPU ${cpuName} playing character and continuing sequence`);
                   const playResult = await gameManager.playCard(gameId, currentAction.data.cardId, currentAction.data.playerName);
                   const playGameState = gameManager.getSanitizedGameState(gameId);
-                  io.to(gameId).emit('game-state-update', playGameState);
+                  emitThrottledGameState(io, gameId, playGameState);
                   
                   // Track in last played cards history
                   if (playResult.card) {
@@ -619,7 +595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     gameManager.returnToDeck(gameId, currentAction.data.mosseCardId, currentAction.data.attackerName);
                     
                     const updatedGameState = gameManager.getSanitizedGameState(gameId);
-                    io.to(gameId).emit('game-state-update', updatedGameState);
+                    emitThrottledGameState(io, gameId, updatedGameState);
                     
                     // CPU announces the manual return
                     io.to(gameId).emit('chat-message', {
@@ -641,7 +617,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   const replacementSuccess = await gameManager.pickCard(gameId, currentAction.data.deckType, currentAction.data.playerName);
                   if (replacementSuccess) {
                     const finalGameState = gameManager.getSanitizedGameState(gameId);
-                    io.to(gameId).emit('game-state-update', finalGameState);
+                    emitThrottledGameState(io, gameId, finalGameState);
                   }
                   // Opening sequence complete - turn ends naturally
                   break;
@@ -655,7 +631,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   const pickSuccess = await gameManager.pickCard(gameId, currentAction.data.deckType, currentAction.data.playerName);
                   if (pickSuccess) {
                     const pickGameState = gameManager.getSanitizedGameState(gameId);
-                    io.to(gameId).emit('game-state-update', pickGameState);
+                    emitThrottledGameState(io, gameId, pickGameState);
                   }
                   break;
                   
@@ -679,7 +655,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   }
                   
                   const updatedGameState = gameManager.getSanitizedGameState(gameId);
-                  io.to(gameId).emit('game-state-update', updatedGameState);
+                  emitThrottledGameState(io, gameId, updatedGameState);
                   
                   if (result.isPersonaggio && result.card) {
                     const getCardNameFromUrl = (url: string) => {
@@ -780,7 +756,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                               
                               // Update game state
                               const barrieraState = gameManager.getSanitizedGameState(gameId);
-                              io.to(gameId).emit('game-state-update', barrieraState);
+                              emitThrottledGameState(io, gameId, barrieraState);
                               
                               // CRITICAL: End CPU turn after BARRIERA attack (one attack per turn on BARRIERA)
                               // Reset CPU state immediately before turn ends
@@ -819,7 +795,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                             console.log(`🔄 CPU ${cpuName} returned MOSSE card to deck`);
                             
                             const finalState = gameManager.getSanitizedGameState(gameId);
-                            io.to(gameId).emit('game-state-update', finalState);
+                            emitThrottledGameState(io, gameId, finalState);
                           }, 2000);
                         } catch (err) {
                           console.error(`Error in CPU MOSSE attack:`, err);
@@ -889,7 +865,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Update game state 
           const gameState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', gameState);
+          emitThrottledGameState(io, gameId, gameState);
           
           // Send success response to the instructor
           socket.emit('instruction-success', {
@@ -914,7 +890,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gameId) {
         gameManager.shuffleDeck(gameId, deckType);
         const gameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        emitThrottledGameState(io, gameId, gameState);
         io.to(gameId).emit('deck-shuffled', { deckType });
       }
     });
@@ -944,7 +920,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const success = gameManager.setPlayerAvatar(gameId, playerName, avatarId);
       if (success) {
         const gameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        emitThrottledGameState(io, gameId, gameState);
         io.to(gameId).emit('avatar-changed', { playerName, avatarId });
       }
     });
@@ -970,7 +946,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Emit to all players to update game state
           const gameState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', gameState);
+          emitThrottledGameState(io, gameId, gameState);
           
           // Emit the picked card ONLY to the player who picked it
           const playerSocketId = gameManager.getPlayerSocketId(gameId, playerName);
@@ -1011,7 +987,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           console.log(`CPU ${playerName} drew replacement ${deckType} card successfully`);
           const gameState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', gameState);
+          emitThrottledGameState(io, gameId, gameState);
           
           // Send chat message to notify players
           io.to(gameId).emit('chat-message', {
@@ -1055,7 +1031,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           const gameState = gameManager.getSanitizedGameState(gameId);
           console.log(`Emitting game-state-update to room ${gameId}`);
-          io.to(gameId).emit('game-state-update', gameState);
+          emitThrottledGameState(io, gameId, gameState);
           console.log(`Game state updated after ${playerName} picked card ${cardId}`);
           
           // Log the updated player hand count from sanitized game state
@@ -1083,7 +1059,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // IMMEDIATE: Send game state update first for responsiveness
         const gameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        emitThrottledGameState(io, gameId, gameState);
         
         // Emit card-played event for last played cards history
         if (result.card) {
@@ -1299,7 +1275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     });
                     
                     const updatedState = gameManager.getSanitizedGameState(gameId);
-                    io.to(gameId).emit('game-state-update', updatedState);
+                    emitThrottledGameState(io, gameId, updatedState);
                   }
                 }
               } else {
@@ -1335,7 +1311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gameId) {
         const result = await gameManager.playCardFaceDown(gameId, cardId, playerName);
         const gameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        emitThrottledGameState(io, gameId, gameState);
         
         if (result.card) {
           io.to(gameId).emit('card-played-face-down', {
@@ -1352,7 +1328,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gameId) {
         const result = await gameManager.revealCard(gameId, cardId, playerName);
         const gameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        emitThrottledGameState(io, gameId, gameState);
         
         if (result.card) {
           const getCardNameFromUrl = (url: string) => {
@@ -1414,7 +1390,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gameId) {
         gameManager.returnToHand(gameId, cardId, playerName);
         const gameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        emitThrottledGameState(io, gameId, gameState);
       }
     });
 
@@ -1423,7 +1399,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gameId) {
         gameManager.returnToDeck(gameId, cardId, playerName);
         const gameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        emitThrottledGameState(io, gameId, gameState);
       }
     });
 
@@ -1441,7 +1417,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (result.success) {
         const gameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        emitThrottledGameState(io, gameId, gameState);
       } else {
         socket.emit('error', { message: result.message || 'Failed to interrupt effect' });
       }
@@ -1473,7 +1449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           const gameState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', gameState);
+          emitThrottledGameState(io, gameId, gameState);
 
           // Get card name from image URL for "Ciao ciao" notification
           if (result.cardImage) {
@@ -1554,7 +1530,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Emit game state update
             const gameState = gameManager.getSanitizedGameState(gameId);
-            io.to(gameId).emit('game-state-update', gameState);
+            emitThrottledGameState(io, gameId, gameState);
           }
         }
       }
@@ -1618,7 +1594,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Update game state
           const gameState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', gameState);
+          emitThrottledGameState(io, gameId, gameState);
         }
       }
     });
@@ -1655,7 +1631,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Update game state
             const gameState = gameManager.getSanitizedGameState(gameId);
-            io.to(gameId).emit('game-state-update', gameState);
+            emitThrottledGameState(io, gameId, gameState);
             
             // Notify sender that transfer was accepted
             const fromPlayerData = game?.players[request.fromPlayer];
@@ -1717,7 +1693,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gameId) {
         gameManager.swapPersonaggiCards(gameId, player1, card1Id, player2, card2Id);
         const gameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        emitThrottledGameState(io, gameId, gameState);
         
         // Emit notification to all players about the swap
         io.to(gameId).emit('cards-swapped', {
@@ -1734,7 +1710,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gameId) {
         gameManager.swapCardsBetweenPlayers(gameId, player1, card1Id, player2, card2Id);
         const gameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        emitThrottledGameState(io, gameId, gameState);
         
         // Emit notification to all players about the swap
         io.to(gameId).emit('cards-swapped', {
@@ -1756,7 +1732,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (result.success) {
           const gameState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', gameState);
+          emitThrottledGameState(io, gameId, gameState);
           
           io.to(gameId).emit('chat-message', {
             id: `${Date.now()}-power-copy`,
@@ -1778,7 +1754,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (result.success) {
           const gameState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', gameState);
+          emitThrottledGameState(io, gameId, gameState);
           
           // Build message about what was cured
           const effects: string[] = [];
@@ -1834,7 +1810,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 }
                 
                 const updatedGameState = gameManager.getSanitizedGameState(gameId);
-                io.to(gameId).emit('game-state-update', updatedGameState);
+                emitThrottledGameState(io, gameId, updatedGameState);
 
                 // Get card name from image URL for "Ciao ciao" notification
                 if (result.cardImage) {
@@ -1864,7 +1840,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
-        io.to(gameId).emit('game-state-update', gameState);
+        emitThrottledGameState(io, gameId, gameState);
       }
     });
 
@@ -1879,7 +1855,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (result.success) {
           // Update game state for all players
           const gameState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', gameState);
+          emitThrottledGameState(io, gameId, gameState);
           
           // Notify all players about the fusion
           io.to(gameId).emit('cards-fused', {
@@ -1913,7 +1889,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (result.success) {
           // Update game state for all players
           const gameState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', gameState);
+          emitThrottledGameState(io, gameId, gameState);
           
           // Notify all players about the separation
           io.to(gameId).emit('cards-separated', {
@@ -1956,7 +1932,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (result.success) {
           // Update game state for all players
           const gameState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', gameState);
+          emitThrottledGameState(io, gameId, gameState);
           
           // Notify all players about the duplication
           io.to(gameId).emit('card-duplicated', {
@@ -1991,7 +1967,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (result.success) {
           // Update game state for all players
           const gameState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', gameState);
+          emitThrottledGameState(io, gameId, gameState);
           
           // Notify all players about the PTI addition
           io.to(gameId).emit('chat-message', {
@@ -2024,7 +2000,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (result.success) {
           // Update game state for all players
           const gameState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', gameState);
+          emitThrottledGameState(io, gameId, gameState);
           
           // Build message parts
           const messageParts = [];
@@ -2066,7 +2042,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (result.success) {
           // Update game state for all players
           const gameState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', gameState);
+          emitThrottledGameState(io, gameId, gameState);
           
           // Notify all players about the PR conversion
           io.to(gameId).emit('chat-message', {
@@ -2117,7 +2093,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Send updated game state with voodoo links
         const gameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        emitThrottledGameState(io, gameId, gameState);
         
         console.log(`🔮 BAMBOLA VOODOO activated successfully`);
       } else {
@@ -2148,7 +2124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Send updated game state
         const gameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        emitThrottledGameState(io, gameId, gameState);
         
         console.log(`🔮 BAMBOLA VOODOO link removed successfully`);
       } else {
@@ -2185,7 +2161,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (result.success) {
         // Send updated game state with RIFUGIO protection
         const gameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        emitThrottledGameState(io, gameId, gameState);
         
         console.log(`🏠 RIFUGIO activated successfully`);
       } else {
@@ -2223,7 +2199,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (result.success) {
         // Send updated game state with BARRIERA protection
         const gameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        emitThrottledGameState(io, gameId, gameState);
         
         console.log(`🛡️ BARRIERA activated successfully`);
       } else {
@@ -2264,7 +2240,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Send updated game state
         const gameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        emitThrottledGameState(io, gameId, gameState);
         
         console.log(`⚔️ DUELLO started successfully`);
       } else {
@@ -2315,7 +2291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Fetch fresh game state after turn ended
             const freshState = gameManager.getSanitizedGameState(gameId);
-            io.to(gameId).emit('game-state-update', freshState);
+            emitThrottledGameState(io, gameId, freshState);
             
             // Process next CPU turn if needed - use fresh state check
             const freshGame = gameManager.getGameState(gameId);
@@ -2435,7 +2411,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       const pickSuccess = await gameManager.pickCard(gameId, cpuAction.data.deckType, cpuAction.data.playerName);
                       if (pickSuccess) {
                         const pickGameState = gameManager.getSanitizedGameState(gameId);
-                        io.to(gameId).emit('game-state-update', pickGameState);
+                        emitThrottledGameState(io, gameId, pickGameState);
                       }
                       break;
                       
@@ -2457,7 +2433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       }
                       
                       const playAndDrawGameState = gameManager.getSanitizedGameState(gameId);
-                      io.to(gameId).emit('game-state-update', playAndDrawGameState);
+                      emitThrottledGameState(io, gameId, playAndDrawGameState);
                       
                       // SPECIAL RULE: If it's a MOSSE card, automatically attack
                       if (cpuAction.data.drawType === 'mosse' && playResult.card) {
@@ -2519,7 +2495,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       }
                       
                       const updatedGameState = gameManager.getSanitizedGameState(gameId);
-                      io.to(gameId).emit('game-state-update', updatedGameState);
+                      emitThrottledGameState(io, gameId, updatedGameState);
                       
                       if (result.isPersonaggio && result.card) {
                         const getCardNameFromUrl = (url: string) => {
@@ -2637,7 +2613,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (playerGameId === gameId) {
         gameManager.resetGame(gameId);
         const gameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        emitThrottledGameState(io, gameId, gameState);
         
         // Notify all players that the game has been reset
         io.to(gameId).emit('game-reset', { message: 'La partita è stata riavviata!' });
@@ -2702,7 +2678,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (result.success) {
           const gameState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', gameState);
+          emitThrottledGameState(io, gameId, gameState);
           
           // Emit notification that the super dice card was placed
           io.to(gameId).emit('super-dice-card-placed', {
@@ -2723,7 +2699,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (result.success) {
           const gameState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', gameState);
+          emitThrottledGameState(io, gameId, gameState);
           
           io.to(gameId).emit('cards-added', {
             playerName,
@@ -2742,7 +2718,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (success) {
           const gameState = gameManager.getSanitizedGameState(gameId);
           // Broadcast updated game state and scenario card state to all players
-          io.to(gameId).emit('game-state-update', gameState);
+          emitThrottledGameState(io, gameId, gameState);
           io.to(gameId).emit('scenario-cards-toggled', { 
             active,
             timestamp: Date.now()
@@ -2819,7 +2795,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const updatedGameState = gameManager.getSanitizedGameState(gameId);
           
           // Broadcast updated game state to all players
-          io.to(gameId).emit('game-state-update', updatedGameState);
+          emitThrottledGameState(io, gameId, updatedGameState);
           
           // Broadcast instruction execution notification to all players
           io.to(gameId).emit('instruction-executed', {
@@ -2940,7 +2916,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Update game state
           const updatedGameState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', updatedGameState);
+          emitThrottledGameState(io, gameId, updatedGameState);
           
           return; // Attack absorbed - no defense dialog needed
         }
@@ -2961,7 +2937,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (ostaggioResult.success) {
             // Update game state
             const updatedGameState = gameManager.getSanitizedGameState(gameId);
-            io.to(gameId).emit('game-state-update', updatedGameState);
+            emitThrottledGameState(io, gameId, updatedGameState);
           } else {
             socket.emit('attack-error', { message: ostaggioResult.message || 'OSTAGGIO failed' });
           }
@@ -2984,7 +2960,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Update game state
           const updatedGameState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', updatedGameState);
+          emitThrottledGameState(io, gameId, updatedGameState);
           
           return; // Hostage cannot defend - no defense dialog
         }
@@ -3084,7 +3060,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Update game state
         const gameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        emitThrottledGameState(io, gameId, gameState);
       } else {
         socket.emit('defense:error', { message: 'Failed to delay damage', code: 'DELAY_FAILED' });
       }
@@ -3241,7 +3217,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           const gameState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', gameState);
+          emitThrottledGameState(io, gameId, gameState);
           
           // ALWAYS check for game victory after any graveyard change
           const winner = gameManager.checkForGameVictory(gameId);
@@ -3266,7 +3242,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Send updated game state
         const gameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        emitThrottledGameState(io, gameId, gameState);
         
         // Notify players about the manual return
         io.to(gameId).emit('chat-message', {
@@ -3302,7 +3278,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               
               // Send updated game state
               const gameState = gameManager.getSanitizedGameState(gameId);
-              io.to(gameId).emit('game-state-update', gameState);
+              emitThrottledGameState(io, gameId, gameState);
               
               // NEW RULE: Turn ends after using a card
               setTimeout(() => {
@@ -3321,7 +3297,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Send immediate game state update after drawing
         const gameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        emitThrottledGameState(io, gameId, gameState);
       }
     });
     
@@ -3382,7 +3358,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const pickedCard = await gameManager.pickCard(gameId, deckType, playerName);
         if (pickedCard) {
           const gameState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', gameState);
+          emitThrottledGameState(io, gameId, gameState);
           
           io.to(gameId).emit('chat-message', {
             id: `${Date.now()}-pick-order`,
@@ -3417,7 +3393,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const result = await gameManager.playCard(gameId, cardToPlay.id, playerName);
             if (result && result.card) {
               const updatedGameState = gameManager.getSanitizedGameState(gameId);
-              io.to(gameId).emit('game-state-update', updatedGameState);
+              emitThrottledGameState(io, gameId, updatedGameState);
               
               io.to(gameId).emit('chat-message', {
                 id: `${Date.now()}-play-order`,
@@ -3490,7 +3466,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 setTimeout(() => {
                   gameManager.returnToDeck(gameId, mosseCard.id, playerName);
                   const updatedGameState = gameManager.getSanitizedGameState(gameId);
-                  io.to(gameId).emit('game-state-update', updatedGameState);
+                  emitThrottledGameState(io, gameId, updatedGameState);
                   
                   // Turn ends after attack
                   setTimeout(() => {
@@ -3530,7 +3506,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           const gameState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', gameState);
+          emitThrottledGameState(io, gameId, gameState);
 
           // Get card name from image URL for "Ciao ciao" notification
           if (result.cardImage) {
@@ -3586,7 +3562,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const success = gameManager.moveCardPosition(gameId, cardId, direction);
         if (success) {
           const gameState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', gameState);
+          emitThrottledGameState(io, gameId, gameState);
         }
       }
     });
@@ -3607,7 +3583,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Send updated game state
         const gameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        emitThrottledGameState(io, gameId, gameState);
       } else {
         console.error(`[remove-player] Failed to remove ${playerToRemove} from game`);
       }
@@ -3658,7 +3634,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           
           const updatedState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', updatedState);
+          emitThrottledGameState(io, gameId, updatedState);
         } else {
           socket.emit('parasitic-attach-error', { message: attachResult.message || 'Attachment failed' });
         }
@@ -3702,7 +3678,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Send updated game state after parasitic effects
         if (parasiticResults.explosions.length > 0 || parasiticResults.drains.length > 0) {
-          io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+          emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
         }
         
         // Process persistent damages at the START of the next player's turn
@@ -3716,7 +3692,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         gameManager.processHostageTurns(gameId, playerName, io);
         
         // Send game state update after hostage processing
-        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+        emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
         
         // Check if next player is CPU and automatically process their turn
         const gameState = gameManager.getSanitizedGameState(gameId);
@@ -3736,7 +3712,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     const pickSuccess = await gameManager.pickCard(gameId, cpuAction.data.deckType, cpuAction.data.playerName);
                     if (pickSuccess) {
                       const pickGameState = gameManager.getSanitizedGameState(gameId);
-                      io.to(gameId).emit('game-state-update', pickGameState);
+                      emitThrottledGameState(io, gameId, pickGameState);
                     }
                     break;
                     
@@ -3759,7 +3735,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     }
                     
                     const playDrawGameState = gameManager.getSanitizedGameState(gameId);
-                    io.to(gameId).emit('game-state-update', playDrawGameState);
+                    emitThrottledGameState(io, gameId, playDrawGameState);
                     
                     if (playDrawResult.isPersonaggio && playDrawResult.card) {
                       const getCardNameFromUrl = (url: string) => {
@@ -3863,7 +3839,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     }
                     
                     const updatedGameState = gameManager.getSanitizedGameState(gameId);
-                    io.to(gameId).emit('game-state-update', updatedGameState);
+                    emitThrottledGameState(io, gameId, updatedGameState);
                     
                     if (result.isPersonaggio && result.card) {
                       const getCardNameFromUrl = (url: string) => {
@@ -3990,7 +3966,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       gameManager.returnToDeck(gameId, cpuAction.data.mosseCardId, cpuAction.data.attackerName);
                       
                       const updatedGameState = gameManager.getSanitizedGameState(gameId);
-                      io.to(gameId).emit('game-state-update', updatedGameState);
+                      emitThrottledGameState(io, gameId, updatedGameState);
                       
                       // CPU announces the manual return
                       io.to(gameId).emit('chat-message', {
@@ -4029,7 +4005,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       }
                       
                       const updatedGameState = gameManager.getSanitizedGameState(gameId);
-                      io.to(gameId).emit('game-state-update', updatedGameState);
+                      emitThrottledGameState(io, gameId, updatedGameState);
                       
                       // Notify about the elimination
                       io.to(gameId).emit('chat-message', {
@@ -4078,7 +4054,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       
                       // Update game state after drawing
                       const drawGameState = gameManager.getSanitizedGameState(gameId);
-                      io.to(gameId).emit('game-state-update', drawGameState);
+                      emitThrottledGameState(io, gameId, drawGameState);
                       
                       // Play the card immediately (same turn activation)
                       setTimeout(async () => {
@@ -4087,7 +4063,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           console.log(`CPU ${nextPlayer} immediately played drawn card: ${drawnCard.id}`);
                           
                           const playGameState = gameManager.getSanitizedGameState(gameId);
-                          io.to(gameId).emit('game-state-update', playGameState);
+                          emitThrottledGameState(io, gameId, playGameState);
                         }
                       }, 1000); // Brief delay to show the draw then play
                     }
@@ -4151,7 +4127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const success = gameManager.leaveGame(gameId, playerName);
       if (success) {
         const gameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        emitThrottledGameState(io, gameId, gameState);
         io.to(gameId).emit('player-left', { playerName });
       }
     });
@@ -4174,7 +4150,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Update game state
           const gameState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', gameState);
+          emitThrottledGameState(io, gameId, gameState);
         }
       }
       // If not confirmed, player continues playing and will get asked again next time
@@ -4248,7 +4224,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Update game state
           const gameState = gameManager.getSanitizedGameState(gameId);
-          io.to(gameId).emit('game-state-update', gameState);
+          emitThrottledGameState(io, gameId, gameState);
 
           console.log(`Turn forcibly ended for ${currentPlayerName}, next player: ${nextPlayer}`);
           
@@ -4283,7 +4259,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       }
                       
                       const playGameState = gameManager.getSanitizedGameState(gameId);
-                      io.to(gameId).emit('game-state-update', playGameState);
+                      emitThrottledGameState(io, gameId, playGameState);
                       
                       // CRITICAL FIX: If CPU played a MOSSE card, announce attack and wait for master to input damage
                       if (playResult.card && playResult.card.type === 'mosse') {
@@ -4428,7 +4404,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           
                           // Update and end turn
                           const barrieraGameState = gameManager.getSanitizedGameState(gameId);
-                          io.to(gameId).emit('game-state-update', barrieraGameState);
+                          emitThrottledGameState(io, gameId, barrieraGameState);
                           
                           setTimeout(() => {
                             const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
@@ -4476,14 +4452,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         gameManager.returnToDeck(gameId, cpuAction.data.mosseCardId, cpuAction.data.playerName);
                         
                         const gameState = gameManager.getSanitizedGameState(gameId);
-                        io.to(gameId).emit('game-state-update', gameState);
+                        emitThrottledGameState(io, gameId, gameState);
                         
                         // Draw replacement card
                         const pickResult = await gameManager.pickCard(gameId, 'mosse', cpuAction.data.playerName);
                         if (pickResult) {
                           console.log(`CPU ${nextPlayer} drew replacement MOSSE card`);
                           const pickGameState = gameManager.getSanitizedGameState(gameId);
-                          io.to(gameId).emit('game-state-update', pickGameState);
+                          emitThrottledGameState(io, gameId, pickGameState);
                         }
                         
                         // End turn after completing action
@@ -4505,7 +4481,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       if (pickSuccess) {
                         console.log(`CPU ${nextPlayer} picked ${cpuAction.data.deckType} card`);
                         const pickGameState = gameManager.getSanitizedGameState(gameId);
-                        io.to(gameId).emit('game-state-update', pickGameState);
+                        emitThrottledGameState(io, gameId, pickGameState);
                       }
                       
                       setTimeout(() => {
@@ -4923,7 +4899,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Broadcast game state updates to all active games
       for (const gameId of refreshedGames) {
         const gameState = gameManager.getSanitizedGameState(gameId);
-        io.to(gameId).emit('game-state-update', gameState);
+        emitThrottledGameState(io, gameId, gameState);
       }
       
       res.json({ success: true, modification });
@@ -4999,7 +4975,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gameState = gameManager.getSanitizedGameState(gameId);
       
       // Broadcast to all clients in that game
-      io.to(gameId).emit('game-state-update', gameState);
+      emitThrottledGameState(io, gameId, gameState);
       io.to(gameId).emit('player-joined', { playerName: cpuName });
       
       console.log(`🎯 DEBUG: CPU ${cpuName} added successfully to game ${gameId}`);

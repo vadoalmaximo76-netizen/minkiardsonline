@@ -4,6 +4,7 @@ import { matches, gameEvents, personaggi, customCards, cardModifications, users,
 import { eq, ilike, sql } from 'drizzle-orm';
 import { CPUPlayer } from './cpuPlayer';
 import { trackGameEvent } from './missionsAndAchievements';
+import { getPersonaggioFromCache } from './personaggiCache';
 
 interface Card {
   id: string;
@@ -225,15 +226,69 @@ interface GameState {
 export class GameManager {
   private games: Map<string, GameState> = new Map();
   private playerToGame: Map<string, string> = new Map();
+  private userEmailCache: Map<number, string> = new Map();
+  private eventQueue: Array<{ email: string; eventType: string; data: any }> = [];
+  private isProcessingQueue = false;
 
   private async getUserEmail(userId: number): Promise<string | null> {
+    // Check cache first
+    const cached = this.userEmailCache.get(userId);
+    if (cached) return cached;
+    
     try {
       const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
-      return user[0]?.email || null;
+      const email = user[0]?.email || null;
+      if (email) {
+        this.userEmailCache.set(userId, email);
+      }
+      return email;
     } catch (error) {
       console.error('Failed to get user email:', error);
       return null;
     }
+  }
+
+  // Non-blocking event tracking - queues events for background processing
+  private trackPlayerEventAsync(gameId: string, playerName: string, eventType: string, data: any = {}): void {
+    const game = this.games.get(gameId);
+    if (!game) return;
+    
+    const userId = game.playerUserIds.get(playerName);
+    if (!userId) return;
+    
+    // Use cached email if available, otherwise queue with userId for later resolution
+    const cachedEmail = this.userEmailCache.get(userId);
+    if (cachedEmail) {
+      this.eventQueue.push({ email: cachedEmail, eventType, data });
+      this.processEventQueue();
+    } else {
+      // Resolve email in background and queue
+      this.getUserEmail(userId).then(email => {
+        if (email) {
+          this.eventQueue.push({ email, eventType, data });
+          this.processEventQueue();
+        }
+      }).catch(() => {});
+    }
+  }
+
+  // Process queued events in background
+  private async processEventQueue(): Promise<void> {
+    if (this.isProcessingQueue || this.eventQueue.length === 0) return;
+    
+    this.isProcessingQueue = true;
+    
+    // Process in batches of 5
+    while (this.eventQueue.length > 0) {
+      const batch = this.eventQueue.splice(0, 5);
+      await Promise.all(
+        batch.map(event => 
+          trackGameEvent(event.email, event.eventType, event.data).catch(() => {})
+        )
+      );
+    }
+    
+    this.isProcessingQueue = false;
   }
 
   private async trackPlayerEvent(gameId: string, playerName: string, eventType: string, data: any = {}): Promise<{ completedAchievements: any[], completedMissions: any[] }> {
@@ -1224,13 +1279,13 @@ Rispondi SOLO in JSON:`;
       await this.awardRankiardPoints(game, winnerPlayer);
       console.log(`Rankiard points awarded for match ${gameId}, winner: ${winnerPlayer}`);
 
-      // Track game events for missions/achievements
+      // Track game events for missions/achievements (non-blocking)
       const humanPlayers = Object.keys(game.players).filter(p => !game.players[p].isCPU);
       for (const player of humanPlayers) {
-        await this.trackPlayerEvent(gameId, player, 'game_played', {});
+        this.trackPlayerEventAsync(gameId, player, 'game_played', {});
       }
       if (winnerPlayer && !game.players[winnerPlayer]?.isCPU) {
-        await this.trackPlayerEvent(gameId, winnerPlayer, 'game_won', {});
+        this.trackPlayerEventAsync(gameId, winnerPlayer, 'game_won', {});
       }
 
     } catch (error) {
@@ -1618,10 +1673,19 @@ Rispondi SOLO in JSON:`;
       // Check if it's a PERSONAGGI or PERSONAGGI_SPECIALI card
       const isPersonaggio = card.type === 'personaggi' || card.type === 'personaggi_speciali';
       
-      // Auto-analyze cards for ALL players (PERSONAGGI only)
+      // Auto-analyze cards for ALL players (PERSONAGGI only) - try sync cache first
       if (isPersonaggio && (!card.text || card.text.trim() === '')) {
-        // Trigger automatic analysis for PERSONAGGI cards (both CPU and human players)
-        await this.autoAnalyzePersonaggioCard(gameId, card, playerName);
+        // Use synchronous cache lookup for instant response
+        this.autoAnalyzePersonaggioCardSync(card, playerName);
+        
+        // If cache missed (default values), trigger async lookup in background for humans
+        if (card.text === 'PTI: 1000 | Stelle: 1 | PTI originali: 1000') {
+          const player = game.players[playerName];
+          if (!player?.isCPU) {
+            // Async fallback for human players - will update card when data arrives
+            this.autoAnalyzePersonaggioCard(gameId, card, playerName).catch(() => {});
+          }
+        }
       }
       
       // Use card.name for custom cards if available, otherwise extract from URL
@@ -1642,8 +1706,8 @@ Rispondi SOLO in JSON:`;
         card.triggerAnimation = true;
       }
       
-      // Record play card event
-      await this.recordEvent(gameId, 'play-card', {
+      // Record play card event (non-blocking)
+      this.recordEvent(gameId, 'play-card', {
         cardId: card.id,
         cardType: card.type,
         frontImage: card.frontImage,
@@ -1652,8 +1716,8 @@ Rispondi SOLO in JSON:`;
         cardName: cardName
       }, playerName);
       
-      // Track for missions/achievements
-      await this.trackPlayerEvent(gameId, playerName, 'card_played', { cardType: card.type });
+      // Track for missions/achievements (non-blocking)
+      this.trackPlayerEventAsync(gameId, playerName, 'card_played', { cardType: card.type });
       
       // Process custom card effect if present
       if (card.effect && card.id.startsWith('permanent-')) {
@@ -3688,9 +3752,22 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   }
 
   // Look up PERSONAGGI data from database
+  // Synchronous cache-first lookup for PERSONAGGI data
+  private getPersonaggioFromDatabaseSync(cardName: string): { pti: number | null, stars: number | null } | null {
+    // Use the in-memory cache from routes.ts for instant lookup
+    const cached = getPersonaggioFromCache(cardName);
+    if (cached) return cached;
+    return null;
+  }
+
   private async getPersonaggioFromDatabase(cardName: string): Promise<{ pti: number | null, stars: number | null } | null> {
+    // Try cache first (instant)
+    const cached = getPersonaggioFromCache(cardName);
+    if (cached) return cached;
+    
+    // Fallback to database only if cache miss (rare)
     try {
-      console.log(`🔍 Looking up ${cardName} in PERSONAGGI database...`);
+      console.log(`🔍 Cache miss, looking up ${cardName} in PERSONAGGI database...`);
       
       // First try exact match
       let result = await db.select().from(personaggi).where(eq(personaggi.name, cardName.toUpperCase())).limit(1);
@@ -3698,17 +3775,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       // If no exact match, try fuzzy search
       if (result.length === 0) {
         result = await db.select().from(personaggi).where(ilike(personaggi.name, `%${cardName.toUpperCase()}%`)).limit(1);
-      }
-      
-      // If still no match, try parts of the name
-      if (result.length === 0) {
-        const nameParts = cardName.toUpperCase().split(' ');
-        for (const part of nameParts) {
-          if (part.length > 3) { // Only search meaningful parts
-            result = await db.select().from(personaggi).where(ilike(personaggi.name, `%${part}%`)).limit(1);
-            if (result.length > 0) break;
-          }
-        }
       }
       
       if (result.length > 0) {
@@ -3719,7 +3785,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         };
       }
       
-      console.log(`❌ Not found in database: ${cardName}`);
       return null;
     } catch (error) {
       console.error('Error querying PERSONAGGI database:', error);
@@ -4138,54 +4203,57 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     return match ? parseInt(match[1]) : 0;
   }
 
-  // AUTO-ANALYZE PERSONAGGI CARDS FOR ALL PLAYERS (using database lookup)
-  private async autoAnalyzePersonaggioCard(gameId: string, card: any, playerName: string) {
+  // AUTO-ANALYZE PERSONAGGI CARDS FOR ALL PLAYERS (using cache - synchronous)
+  private autoAnalyzePersonaggioCardSync(card: any, playerName: string): void {
     try {
-      console.log(`Auto-analyzing PERSONAGGI card for ${playerName}: ${card.frontImage}`);
-      
-      // Extract card name from URL
       const cardName = this.getCardNameFromUrl(card.frontImage);
       
-      // First try database lookup for exact data
-      const dbResult = await this.getPersonaggioFromDatabase(cardName);
+      // Use synchronous cache lookup for instant response
+      const cachedResult = getPersonaggioFromCache(cardName);
       
-      if (dbResult && (dbResult.pti !== null || dbResult.stars !== null)) {
-        // Found exact data in database
-        const pti = dbResult.pti || 1000;
-        const stars = dbResult.stars || 1;
-        
-        let autoText = `PTI: ${pti} | Stelle: ${stars} | PTI originali: ${pti}`;
-        
-        card.text = autoText;
-        console.log(`${playerName} auto-analyzed from database: ${autoText}`);
-        
+      if (cachedResult && (cachedResult.pti !== null || cachedResult.stars !== null)) {
+        const pti = cachedResult.pti || 1000;
+        const stars = cachedResult.stars || 1;
+        card.text = `PTI: ${pti} | Stelle: ${stars} | PTI originali: ${pti}`;
       } else {
-        // Fallback for CPU players using AI analysis
-        const game = this.games.get(gameId);
-        const player = game?.players[playerName];
-        
-        if (player?.isCPU && player.cpuInstance) {
-          // Use CPU's detailed analysis method as fallback
-          const analysis = await player.cpuInstance.analyzeCardImageDetailed(card.frontImage, 'personaggi');
-          
-          if (analysis && ((analysis.pti && analysis.pti > 0) || (analysis.stars && analysis.stars > 0))) {
-            let autoText = `PTI: ${analysis.pti} | Stelle: ${analysis.stars} | PTI originali: ${analysis.pti}`;
-            
-            card.text = autoText;
-            console.log(`CPU ${playerName} auto-analyzed with AI fallback: ${autoText}`);
-          } else {
-            card.text = 'PTI: 1000 | Stelle: 1 | PTI originali: 1000';
-            console.log(`Auto-analysis failed for CPU ${playerName}, using default values`);
-          }
-        } else {
-          // For human players, use reasonable defaults if not in database
-          card.text = 'PTI: 1000 | Stelle: 1 | PTI originali: 1000';
-          console.log(`Human player ${playerName}: card not in database, using default values`);
-        }
+        card.text = 'PTI: 1000 | Stelle: 1 | PTI originali: 1000';
       }
     } catch (error) {
-      console.error(`Error in auto-analysis for ${playerName}:`, error);
-      // Fallback text on error
+      card.text = 'PTI: 1000 | Stelle: 1 | PTI originali: 1000';
+    }
+  }
+
+  // Async version for CPU AI fallback (kept for compatibility)
+  private async autoAnalyzePersonaggioCard(gameId: string, card: any, playerName: string) {
+    try {
+      const cardName = this.getCardNameFromUrl(card.frontImage);
+      
+      // Try sync cache first
+      const cachedResult = getPersonaggioFromCache(cardName);
+      
+      if (cachedResult && (cachedResult.pti !== null || cachedResult.stars !== null)) {
+        const pti = cachedResult.pti || 1000;
+        const stars = cachedResult.stars || 1;
+        card.text = `PTI: ${pti} | Stelle: ${stars} | PTI originali: ${pti}`;
+        return;
+      }
+      
+      // Fallback for CPU players using AI analysis (async)
+      const game = this.games.get(gameId);
+      const player = game?.players[playerName];
+      
+      if (player?.isCPU && player.cpuInstance) {
+        const analysis = await player.cpuInstance.analyzeCardImageDetailed(card.frontImage, 'personaggi');
+        
+        if (analysis && ((analysis.pti && analysis.pti > 0) || (analysis.stars && analysis.stars > 0))) {
+          card.text = `PTI: ${analysis.pti} | Stelle: ${analysis.stars} | PTI originali: ${analysis.pti}`;
+        } else {
+          card.text = 'PTI: 1000 | Stelle: 1 | PTI originali: 1000';
+        }
+      } else {
+        card.text = 'PTI: 1000 | Stelle: 1 | PTI originali: 1000';
+      }
+    } catch (error) {
       card.text = 'PTI: 1000 | Stelle: 1 | PTI originali: 1000';
     }
   }
