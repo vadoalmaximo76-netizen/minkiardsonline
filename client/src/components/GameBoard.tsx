@@ -1385,7 +1385,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         {/* Music Player Button */}
         <Button
           onClick={() => setMusicPlayerOpen(!musicPlayerOpen)}
-          className="fixed bottom-14 landscape:bottom-20 md:bottom-20 left-2 landscape:left-4 md:left-4 btn-neon-pink text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
+          className="fixed bottom-36 landscape:bottom-44 md:bottom-44 left-2 landscape:left-4 md:left-4 btn-neon-pink text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
           style={{ position: 'fixed' }}
           title="Music Player"
         >
@@ -1398,7 +1398,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             initAudioContext();
             toggleMute();
           }}
-          className="fixed bottom-2 landscape:bottom-4 md:bottom-4 left-2 landscape:left-4 md:left-4 btn-neon-purple text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
+          className="fixed bottom-24 landscape:bottom-32 md:bottom-32 left-2 landscape:left-4 md:left-4 btn-neon-purple text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
           style={{ position: 'fixed' }}
           title={isMuted ? "Enable sound" : "Disable sound"}
         >
