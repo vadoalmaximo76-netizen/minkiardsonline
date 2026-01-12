@@ -396,6 +396,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   io.on('connection', (socket) => {
     console.log('Player connected:', socket.id);
 
+    // Check if server is ready (cache loaded)
+    socket.on('check-server-ready', () => {
+      if (personaggiCacheLoaded) {
+        socket.emit('server-ready');
+      }
+    });
+    
+    // Also emit server-ready immediately on connect if cache is already loaded
+    if (personaggiCacheLoaded) {
+      socket.emit('server-ready');
+    }
+
     // Register authenticated user with socket for targeted notifications (validates auth token)
     socket.on('register-user', async ({ authToken }) => {
       if (authToken) {

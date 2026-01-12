@@ -27,6 +27,8 @@ function App() {
   const [showNameDialog, setShowNameDialog] = useState(false);
   const [showRoomDialog, setShowRoomDialog] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [serverReady, setServerReady] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const { 
     setPlayerName, 
     playerName, 
@@ -42,6 +44,24 @@ function App() {
     const initializeApp = async () => {
       try {
         socket.connect();
+        
+        // Listen for server ready signal
+        socket.on('server-ready', () => {
+          console.log('Server cache loaded, ready to play!');
+          setServerReady(true);
+          setLoadingProgress(100);
+        });
+        
+        // Simulate loading progress while waiting
+        const progressInterval = setInterval(() => {
+          setLoadingProgress(prev => {
+            if (prev >= 90) return prev; // Cap at 90% until server signals ready
+            return prev + Math.random() * 15;
+          });
+        }, 200);
+        
+        // Request server status
+        socket.emit('check-server-ready');
         
         preloadCriticalImages();
         
@@ -117,6 +137,7 @@ function App() {
     initializeApp();
 
     return () => {
+      socket.off('server-ready');
       socket.disconnect();
     };
   }, [setGameId, hasActiveSession, restoreSession, setPlayerName, generateSessionId]);
@@ -163,15 +184,27 @@ function App() {
     });
   };
 
-  // Show loading screen during initialization or reconnection
-  if (isInitializing || isReconnecting) {
+  // Show loading screen during initialization, reconnection, or waiting for server
+  if (isInitializing || isReconnecting || !serverReady) {
     return (
       <QueryClientProvider client={queryClient}>
         <div className="min-h-screen bg-arena-deep flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-500 mx-auto mb-4"></div>
-            <p className="text-white text-xl">
-              {isInitializing ? 'Inizializzazione...' : 'Ripristino sessione...'}
+          <div className="text-center w-80">
+            <h1 className="text-4xl font-bold text-white mb-6" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+              MINKIARDS
+            </h1>
+            <div className="relative w-full h-4 bg-gray-700 rounded-full overflow-hidden mb-4">
+              <div 
+                className="absolute h-full bg-gradient-to-r from-purple-500 to-blue-500 transition-all duration-300 ease-out"
+                style={{ width: `${Math.min(loadingProgress, 100)}%` }}
+              />
+            </div>
+            <p className="text-white text-lg">
+              {!serverReady ? 'Caricamento dati di gioco...' : 
+               isInitializing ? 'Inizializzazione...' : 'Ripristino sessione...'}
+            </p>
+            <p className="text-gray-400 text-sm mt-2">
+              {Math.round(loadingProgress)}%
             </p>
           </div>
         </div>
