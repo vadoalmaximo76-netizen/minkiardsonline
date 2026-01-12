@@ -703,7 +703,23 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       
       if (audioUrl) {
         try {
-          const audio = new Audio(audioUrl);
+          let playableUrl = audioUrl;
+          
+          // Convert Google Drive view/share links to direct download links
+          const driveMatch = audioUrl.match(/drive\.google\.com\/file\/d\/([^\/]+)/);
+          if (driveMatch) {
+            const fileId = driveMatch[1];
+            playableUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+            console.log(`🔊 Converted Google Drive URL to: ${playableUrl}`);
+          }
+          
+          // Also handle Dropbox links (change dl=0 to dl=1)
+          if (audioUrl.includes('dropbox.com') && audioUrl.includes('dl=0')) {
+            playableUrl = audioUrl.replace('dl=0', 'dl=1');
+            console.log(`🔊 Converted Dropbox URL to: ${playableUrl}`);
+          }
+          
+          const audio = new Audio(playableUrl);
           audio.volume = 0.7;
           audio.play().catch(err => {
             console.error('Error playing card audio:', err);
