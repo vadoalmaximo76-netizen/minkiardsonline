@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Coin {
@@ -26,8 +26,6 @@ interface CoinAnimationProps {
   targetPosition?: { x: number; y: number };
 }
 
-const COIN_SOUND_URL = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVoGAACAgICAgICAgICAgICAgICAgH9/f39/f39/gIB+fnx8fHt7e3p6enp5eXl5eXl5eXl5eXl6enp6e3t8fH19fn5/f4CAgYGCgoODhISFhYaGh4eIiImJiYmKioqKioqKioqKioqKioqKiomJiYmJiIiIh4eHhoaGhYWFhISEg4ODgoKCgYGBgICAf39/f39+fn5+fn5+fn5+fn5+fn5+f39/f4CAgICAgYGBgYGBgoKCgoKCg4ODg4ODhISEhISEhISEhISEhISEhISEhISEhIODg4ODg4ODg4KCgoKCgoKCgYGBgYGBgYCAgICAgICAgICAgH9/f39/f39/f39/f39/f39/f39/f4CAgICAgICAgICAgYGBgYGBgYGBgYKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKBgYGBgYGBgYGBgYGBgYGAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA';
-
 export const CoinAnimation: React.FC<CoinAnimationProps> = ({
   isActive,
   pointsAwarded,
@@ -38,24 +36,47 @@ export const CoinAnimation: React.FC<CoinAnimationProps> = ({
   const [particles, setParticles] = useState<Particle[]>([]);
   const [showPointsText, setShowPointsText] = useState(false);
   const [animationComplete, setAnimationComplete] = useState(false);
+  
+  const soundIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const textTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const completeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const playCoinSound = useCallback(() => {
     try {
-      const audio = new Audio(COIN_SOUND_URL);
-      audio.volume = 0.3;
-      audio.play().catch(() => {});
+      if (!audioRef.current) {
+        audioRef.current = new Audio('/sounds/success.mp3');
+      }
+      audioRef.current.currentTime = 0;
+      audioRef.current.volume = 0.4;
+      audioRef.current.play().catch(() => {});
     } catch (e) {}
   }, []);
 
   useEffect(() => {
+    return () => {
+      if (soundIntervalRef.current) clearInterval(soundIntervalRef.current);
+      if (textTimeoutRef.current) clearTimeout(textTimeoutRef.current);
+      if (completeTimeoutRef.current) clearTimeout(completeTimeoutRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
     if (isActive && pointsAwarded > 0) {
+      if (soundIntervalRef.current) clearInterval(soundIntervalRef.current);
+      if (textTimeoutRef.current) clearTimeout(textTimeoutRef.current);
+      if (completeTimeoutRef.current) clearTimeout(completeTimeoutRef.current);
+      
+      setAnimationComplete(false);
+      setShowPointsText(false);
+      
       const coinCount = Math.min(Math.max(5, Math.floor(pointsAwarded / 10)), 20);
       const newCoins: Coin[] = [];
       const newParticles: Particle[] = [];
 
       for (let i = 0; i < coinCount; i++) {
         newCoins.push({
-          id: i,
+          id: Date.now() + i,
           startX: Math.random() * window.innerWidth * 0.6 + window.innerWidth * 0.2,
           startY: window.innerHeight + 50,
           delay: i * 0.08,
@@ -66,7 +87,7 @@ export const CoinAnimation: React.FC<CoinAnimationProps> = ({
 
       for (let i = 0; i < 30; i++) {
         newParticles.push({
-          id: i,
+          id: Date.now() + 1000 + i,
           x: targetPosition.x + (Math.random() - 0.5) * 200,
           y: targetPosition.y + (Math.random() - 0.5) * 100,
           size: 3 + Math.random() * 8,
@@ -77,21 +98,23 @@ export const CoinAnimation: React.FC<CoinAnimationProps> = ({
 
       setCoins(newCoins);
       setParticles(newParticles);
-      setAnimationComplete(false);
 
-      const soundInterval = setInterval(() => {
-        playCoinSound();
-      }, 100);
+      playCoinSound();
+      let soundCount = 0;
+      soundIntervalRef.current = setInterval(() => {
+        soundCount++;
+        if (soundCount >= 3) {
+          if (soundIntervalRef.current) clearInterval(soundIntervalRef.current);
+        } else {
+          playCoinSound();
+        }
+      }, 400);
 
-      setTimeout(() => {
-        clearInterval(soundInterval);
-      }, coinCount * 100);
-
-      setTimeout(() => {
+      textTimeoutRef.current = setTimeout(() => {
         setShowPointsText(true);
       }, 600);
 
-      setTimeout(() => {
+      completeTimeoutRef.current = setTimeout(() => {
         setAnimationComplete(true);
         setShowPointsText(false);
         setCoins([]);
