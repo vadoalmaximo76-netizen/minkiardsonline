@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "./ui/button";
-import { X, Upload, Plus, Pencil, Trash2, Save, Shield, Sparkles, Search } from "lucide-react";
+import { X, Upload, Plus, Pencil, Trash2, Save, Shield, Sparkles, Search, RotateCcw } from "lucide-react";
 import { socket } from "../lib/socket";
 import { useGameState } from "../lib/stores/useGameState";
 import { Input } from "./ui/input";
@@ -44,6 +44,7 @@ interface ExistingCard {
   pti: number | null;
   stars: number | null;
   effect: string | null;
+  isDeleted: boolean;
   isModified: boolean;
 }
 
@@ -354,6 +355,38 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     } catch (error) {
       console.error('Error saving existing card modification:', error);
       alert('Errore durante il salvataggio');
+    }
+  };
+
+  const handleToggleDeleteExisting = async (card: ExistingCard) => {
+    const newDeletedState = !card.isDeleted;
+    const confirmMsg = newDeletedState 
+      ? `Vuoi eliminare "${card.name || card.originalName}" dal gioco? La carta non apparira piu nelle partite.`
+      : `Vuoi ripristinare "${card.name || card.originalName}"? La carta tornera disponibile nelle partite.`;
+    
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      const response = await fetch('/api/admin/card-delete', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          originalCardId: card.id,
+          deckType: card.deckType,
+          isDeleted: newDeletedState
+        })
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        await fetchExistingCards();
+        alert(newDeletedState ? 'Carta eliminata!' : 'Carta ripristinata!');
+      } else {
+        alert('Errore durante l\'operazione');
+      }
+    } catch (error) {
+      console.error('Error toggling card deletion:', error);
+      alert('Errore durante l\'operazione');
     }
   };
 
@@ -792,13 +825,20 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
             ) : (
               <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2">
                 {filteredExistingCards.map((card) => (
-                  <div key={card.id} className={`bg-gray-700 rounded-lg p-4 ${card.isModified ? 'border-2 border-yellow-500' : ''}`}>
+                  <div key={card.id} className={`bg-gray-700 rounded-lg p-4 ${card.isDeleted ? 'opacity-50 border-2 border-red-500' : card.isModified ? 'border-2 border-yellow-500' : ''}`}>
                     <div className="flex gap-4">
-                      <img
-                        src={card.imageUrl || card.originalImageUrl}
-                        alt={card.name || card.originalName}
-                        className={`w-20 h-28 object-cover rounded border-2 flex-shrink-0 ${getDeckColor(card.deckType).replace('bg-', 'border-')}`}
-                      />
+                      <div className="relative">
+                        <img
+                          src={card.imageUrl || card.originalImageUrl}
+                          alt={card.name || card.originalName}
+                          className={`w-20 h-28 object-cover rounded border-2 flex-shrink-0 ${card.isDeleted ? 'grayscale' : ''} ${getDeckColor(card.deckType).replace('bg-', 'border-')}`}
+                        />
+                        {card.isDeleted && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-red-900/60 rounded">
+                            <Trash2 size={24} className="text-red-300" />
+                          </div>
+                        )}
+                      </div>
                       
                       <div className="flex-1">
                         {editingExistingCard === card.id ? (
@@ -884,11 +924,14 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                           </div>
                         ) : (
                           <>
-                            <div className="flex items-center gap-2">
-                              <h5 className="text-white font-bold text-lg">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h5 className={`font-bold text-lg ${card.isDeleted ? 'text-red-400 line-through' : 'text-white'}`}>
                                 {card.name || card.originalName}
                               </h5>
-                              {card.isModified && (
+                              {card.isDeleted && (
+                                <span className="bg-red-500 text-white text-xs px-1 rounded">Eliminata</span>
+                              )}
+                              {card.isModified && !card.isDeleted && (
                                 <span className="bg-yellow-500 text-black text-xs px-1 rounded">Modificata</span>
                               )}
                             </div>
@@ -918,13 +961,32 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                             )}
                             
                             <div className="flex gap-2 mt-3">
+                              {!card.isDeleted && (
+                                <Button
+                                  onClick={() => handleEditExistingCard(card)}
+                                  className="bg-yellow-600 hover:bg-yellow-700 text-white text-xs px-3 py-1"
+                                  size="sm"
+                                >
+                                  <Pencil size={14} className="mr-1" />
+                                  Modifica
+                                </Button>
+                              )}
                               <Button
-                                onClick={() => handleEditExistingCard(card)}
-                                className="bg-yellow-600 hover:bg-yellow-700 text-white text-xs px-3 py-1"
+                                onClick={() => handleToggleDeleteExisting(card)}
+                                className={`${card.isDeleted ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'} text-white text-xs px-3 py-1`}
                                 size="sm"
                               >
-                                <Pencil size={14} className="mr-1" />
-                                Modifica Carta
+                                {card.isDeleted ? (
+                                  <>
+                                    <RotateCcw size={14} className="mr-1" />
+                                    Ripristina
+                                  </>
+                                ) : (
+                                  <>
+                                    <Trash2 size={14} className="mr-1" />
+                                    Elimina
+                                  </>
+                                )}
                               </Button>
                             </div>
                           </>
