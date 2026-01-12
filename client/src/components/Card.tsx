@@ -91,6 +91,7 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
   const [statGlowEffect, setStatGlowEffect] = useState<'pti-up' | 'pti-down' | 'star-up' | 'star-down' | null>(null);
   const [isNewlyPlaced, setIsNewlyPlaced] = useState(location === 'field');
   const originalPTIRef = useRef<number | null>(null);
+  const prevLocationRef = useRef<string>(location);
 
   // Sync local cardText state with incoming card.text prop (for real-time updates)
   useEffect(() => {
@@ -110,10 +111,19 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     }
   }, [card.text]);
 
+  // Trigger animation when card moves to field
+  useEffect(() => {
+    if (location === 'field' && prevLocationRef.current !== 'field') {
+      console.log(`🎬 Card ${card.id} entering field - triggering animation`);
+      setIsNewlyPlaced(true);
+    }
+    prevLocationRef.current = location;
+  }, [location, card.id]);
+
   // Reset newly placed flag after animation completes
   useEffect(() => {
     if (isNewlyPlaced) {
-      const timer = setTimeout(() => setIsNewlyPlaced(false), 1000);
+      const timer = setTimeout(() => setIsNewlyPlaced(false), 1500);
       return () => clearTimeout(timer);
     }
   }, [isNewlyPlaced]);
