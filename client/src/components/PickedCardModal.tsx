@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
-import { X, Sparkles } from "lucide-react";
+import { socket } from "../lib/socket";
+import { X, Sparkles, Play } from "lucide-react";
 
 export const PickedCardModal: React.FC = () => {
-  const { pickedCard, setPickedCard } = useGameState();
-  const { playCardDraw } = useAudio();
+  const { pickedCard, setPickedCard, gameId, playerName } = useGameState();
+  const { playCardDraw, playCardPlay } = useAudio();
   const [showModal, setShowModal] = useState(false);
   const [isRevealing, setIsRevealing] = useState(false);
 
@@ -24,6 +25,20 @@ export const PickedCardModal: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [pickedCard, setPickedCard, playCardDraw]);
+
+  const handlePlayCard = () => {
+    if (!pickedCard || !gameId || !playerName) return;
+    
+    socket.emit('play-card', {
+      gameId,
+      cardId: pickedCard.id,
+      playerName
+    });
+    
+    playCardPlay();
+    setShowModal(false);
+    setPickedCard(null);
+  };
 
   if (!showModal || !pickedCard) return null;
 
@@ -94,12 +109,16 @@ export const PickedCardModal: React.FC = () => {
           <div className={`absolute -inset-1 bg-gradient-to-r ${getTypeColor(pickedCard.type)} rounded-2xl opacity-30 blur-xl -z-10`} />
         </div>
 
-        <div className={`px-4 py-2 rounded-full bg-gradient-to-r ${getTypeColor(pickedCard.type)} text-white font-bold text-sm uppercase tracking-wider shadow-lg`}>
-          {pickedCard.type.replace('_', ' ')}
-        </div>
+        <button 
+          onClick={handlePlayCard}
+          className={`px-6 py-3 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white font-bold text-lg uppercase tracking-wider shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-2 cursor-pointer`}
+        >
+          <Play size={20} fill="currentColor" />
+          GIOCA
+        </button>
 
         <p className="text-slate-400 text-xs">
-          Tocca ovunque per chiudere
+          Tocca il pulsante per giocare la carta
         </p>
       </div>
     </div>
