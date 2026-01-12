@@ -1416,10 +1416,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           <Button
             data-tutorial="hand"
             onClick={() => setHandModalOpen(true)}
-            className="btn-neon-purple text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
+            className="btn-neon-purple text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200 relative"
             title="Carte in Mano"
           >
             <Hand size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
+            {gameState?.players?.[playerName]?.hand?.length ? (
+              <span className="absolute -top-1 landscape:-top-2 md:-top-2 -right-1 landscape:-right-2 md:-right-2 bg-cyan-500 text-white rounded-full text-xs w-4 h-4 landscape:w-6 landscape:h-6 md:w-6 md:h-6 flex items-center justify-center font-bold">
+                {gameState.players[playerName].hand.length}
+              </span>
+            ) : null}
           </Button>
           
           <Button
