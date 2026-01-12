@@ -260,6 +260,7 @@ function App() {
         <GameBoard 
           authenticatedUser={authenticatedUser}
           onLogout={handleLogout}
+          authToken={localStorage.getItem('authToken')}
         />
       </div>
     </QueryClientProvider>

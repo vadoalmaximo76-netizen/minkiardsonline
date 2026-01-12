@@ -34,12 +34,14 @@ import { TutorialOverlay } from "./TutorialOverlay";
 import { AdBanner, InterstitialAd } from "./AdBanner";
 import { ConnectionStatus } from "./ConnectionStatus";
 import { LastPlayedCards } from "./LastPlayedCards";
+import { MissionsPanel } from "./MissionsPanel";
+import { AchievementsPanel } from "./AchievementsPanel";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
-import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star, Hand, Music, Shuffle, User, LogOut } from "lucide-react";
+import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star, Hand, Music, Shuffle, User, LogOut, Target, Trophy } from "lucide-react";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 
@@ -54,13 +56,16 @@ interface AuthUser {
 interface GameBoardProps {
   authenticatedUser?: AuthUser | null;
   onLogout?: () => void;
+  authToken?: string | null;
 }
 
-export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogout }) => {
+export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogout, authToken }) => {
   const [chatOpen, setChatOpen] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [musicPlayerOpen, setMusicPlayerOpen] = useState(false);
   const [graveyardOpen, setGraveyardOpen] = useState(false);
+  const [missionsOpen, setMissionsOpen] = useState(false);
+  const [achievementsOpen, setAchievementsOpen] = useState(false);
   const [diceOpen, setDiceOpen] = useState(false);
   const [diceResult, setDiceResult] = useState<number | undefined>();
   const [playerWhoRolled, setPlayerWhoRolled] = useState<string | undefined>();
@@ -948,6 +953,26 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       {/* Last Played Cards History */}
       <LastPlayedCards cards={lastPlayedCards} maxCards={5} />
       
+      {/* Missions Panel */}
+      <MissionsPanel 
+        isOpen={missionsOpen}
+        onClose={() => setMissionsOpen(false)}
+        authToken={authToken || null}
+        onPointsUpdated={(newTotal) => {
+          setUserRankiardPoints(newTotal);
+        }}
+      />
+      
+      {/* Achievements Panel */}
+      <AchievementsPanel
+        isOpen={achievementsOpen}
+        onClose={() => setAchievementsOpen(false)}
+        authToken={authToken || null}
+        onPointsUpdated={(newTotal) => {
+          setUserRankiardPoints(newTotal);
+        }}
+      />
+      
       {/* Background image */}
       <div 
         className="fixed inset-0 bg-cover bg-center opacity-50"
@@ -1331,8 +1356,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               </Button>
             </div>
             
-            {/* Second row: INVITA AMICI, RANKIARD, NUOVA PARTITA and RICOMINCIA PARTITA */}
-            <div className="flex gap-1 landscape:gap-2 md:gap-2 justify-center landscape:justify-end md:justify-end">
+            {/* Second row: INVITA AMICI, MISSIONI, TROFEI, RANKIARD, NUOVA PARTITA and RICOMINCIA PARTITA */}
+            <div className="flex gap-1 landscape:gap-2 md:gap-2 justify-center landscape:justify-end md:justify-end flex-wrap">
               <Button
                 onClick={shareInviteLink}
                 className="btn-neon-blue text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
@@ -1340,6 +1365,26 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               >
                 INVITA AMICI
               </Button>
+              {authenticatedUser && (
+                <>
+                  <Button
+                    onClick={() => setMissionsOpen(true)}
+                    className="btn-neon-cyan text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
+                    style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
+                  >
+                    <Target size={14} className="mr-1" />
+                    MISSIONI
+                  </Button>
+                  <Button
+                    onClick={() => setAchievementsOpen(true)}
+                    className="btn-neon-purple text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
+                    style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
+                  >
+                    <Trophy size={14} className="mr-1" />
+                    TROFEI
+                  </Button>
+                </>
+              )}
               <Button
                 onClick={() => setRankiardOpen(!rankiardOpen)}
                 className="btn-neon-yellow text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
