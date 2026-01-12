@@ -49,8 +49,6 @@ function App() {
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        socket.connect();
-        
         // Listen for server ready signal
         socket.on('server-ready', () => {
           console.log('Server cache loaded, ready to play!');
@@ -64,14 +62,18 @@ function App() {
           setGameInvitation(data);
         });
         
-        // Re-register user data on reconnection to ensure invitations work
+        // Register user data on connection to ensure invitations work
         socket.on('connect', () => {
+          console.log('Socket connected');
           const storedToken = localStorage.getItem('authToken');
           if (storedToken) {
-            console.log('Socket reconnected, re-registering user for invitations');
+            console.log('Registering user for invitations');
             socket.emit('set-user-data', { authToken: storedToken });
           }
         });
+        
+        // Now connect after all listeners are set up
+        socket.connect();
         
         // Simulate loading progress while waiting
         const progressInterval = setInterval(() => {
