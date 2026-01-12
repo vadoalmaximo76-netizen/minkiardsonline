@@ -17,6 +17,13 @@ socket.on('connect', () => {
   console.log('Connected to server');
   reconnectAttempts = 0;
   window.dispatchEvent(new CustomEvent('socket-status', { detail: { connected: true } }));
+  
+  // Register user for invitations on every connection/reconnection
+  const authToken = localStorage.getItem('authToken');
+  if (authToken) {
+    console.log('Auto-registering user for invitations on connect');
+    socket.emit('set-user-data', { authToken });
+  }
 });
 
 socket.on('disconnect', (reason) => {
@@ -33,6 +40,13 @@ socket.on('reconnect_attempt', (attempt) => {
 socket.on('reconnect', (attempt) => {
   console.log(`Reconnected after ${attempt} attempts`);
   window.dispatchEvent(new CustomEvent('socket-status', { detail: { connected: true, reconnected: true } }));
+  
+  // Re-register user for invitations after reconnection
+  const authToken = localStorage.getItem('authToken');
+  if (authToken) {
+    console.log('Re-registering user for invitations after reconnect');
+    socket.emit('set-user-data', { authToken });
+  }
 });
 
 socket.on('reconnect_error', (error) => {
