@@ -4565,8 +4565,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userEmail = req.user?.email;
       const isAdmin = userEmail?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+      console.log('[ADMIN CHECK]', { userEmail, adminEmail: ADMIN_EMAIL, isAdmin });
       res.json({ success: true, isAdmin });
     } catch (error) {
+      console.log('[ADMIN CHECK ERROR]', error);
       res.json({ success: true, isAdmin: false });
     }
   });
