@@ -26,6 +26,30 @@ const MINKIARDS_CARD_DATA: Record<string, { pti: number, stars: number, powers?:
   // 'card-name': { pti: 0, stars: 0, powers: '' },
 };
 
+// Helper to emit card-played event for last played cards history
+function emitCardPlayed(io: SocketServer, gameId: string, card: any, playerName: string) {
+  if (!card) return;
+  const getCardNameFromUrl = (url: string) => {
+    const parts = url.split('/');
+    const filename = parts[parts.length - 1];
+    return filename
+      .toLowerCase()
+      .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+      .replace(/[-_]/g, ' ')
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+  
+  io.to(gameId).emit('card-played', {
+    cardId: card.id,
+    cardType: card.type,
+    frontImage: card.frontImage,
+    cardName: card.name || getCardNameFromUrl(card.frontImage),
+    playerName
+  });
+}
+
 // Extract card name from image URL
 function getCardNameFromImageUrl(imageUrl: string): string {
   try {
@@ -432,6 +456,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   const playGameState = gameManager.getSanitizedGameState(gameId);
                   io.to(gameId).emit('game-state-update', playGameState);
                   
+                  // Track in last played cards history
+                  if (playResult.card) {
+                    emitCardPlayed(io, gameId, playResult.card, currentAction.data.playerName);
+                  }
+                  
                   if (playResult.isPersonaggio && playResult.card) {
                     const getCardNameFromUrl = (url: string) => {
                       const parts = url.split('/');
@@ -521,6 +550,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   
                 case 'play-card':
                   const result = await gameManager.playCard(gameId, currentAction.data.cardId, currentAction.data.playerName);
+                  
+                  // Track in last played cards history
+                  if (result.card) {
+                    emitCardPlayed(io, gameId, result.card, currentAction.data.playerName);
+                  }
                   
                   // According to MINKIARDS rules: when you play a card, you automatically draw a replacement of the same type
                   if (result.card) {
@@ -944,6 +978,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const gameState = gameManager.getSanitizedGameState(gameId);
         io.to(gameId).emit('game-state-update', gameState);
+        
+        // Emit card-played event for last played cards history
+        if (result.card) {
+          const getCardNameFromUrl = (url: string) => {
+            const parts = url.split('/');
+            const filename = parts[parts.length - 1];
+            return filename
+              .toLowerCase()
+              .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+              .replace(/[-_]/g, ' ')
+              .split(' ')
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(' ');
+          };
+          
+          io.to(gameId).emit('card-played', {
+            cardId: result.card.id,
+            cardType: result.card.type,
+            frontImage: result.card.frontImage,
+            cardName: result.card.name || getCardNameFromUrl(result.card.frontImage),
+            playerName
+          });
+        }
         
         // Check for audioUrl - either on card directly or from database modifications
         let audioUrl = result.card?.audioUrl;
@@ -2279,6 +2336,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       // MINKIARDS RULE: Play card and immediately draw replacement of same type
                       const playResult = await gameManager.playCard(gameId, cpuAction.data.playCardId, cpuAction.data.playerName);
                       
+                      // Track in last played cards history
+                      if (playResult.card) {
+                        emitCardPlayed(io, gameId, playResult.card, cpuAction.data.playerName);
+                      }
+                      
                       if (playResult.card) {
                         // Draw replacement of same type
                         const drawSuccess = await gameManager.pickCard(gameId, cpuAction.data.drawType, cpuAction.data.playerName);
@@ -2343,6 +2405,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       
                     case 'play-card':
                       const result = await gameManager.playCard(gameId, cpuAction.data.cardId, cpuAction.data.playerName);
+                      
+                      // Track in last played cards history
+                      if (result.card) {
+                        emitCardPlayed(io, gameId, result.card, cpuAction.data.playerName);
+                      }
+                      
                       const updatedGameState = gameManager.getSanitizedGameState(gameId);
                       io.to(gameId).emit('game-state-update', updatedGameState);
                       
@@ -3570,6 +3638,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     console.log(`CPU ${nextPlayer} play-and-draw: ${cpuAction.data.playCardId} -> draw ${cpuAction.data.drawType}`);
                     const playDrawResult = await gameManager.playCard(gameId, cpuAction.data.playCardId, cpuAction.data.playerName);
                     
+                    // Track in last played cards history
+                    if (playDrawResult.card) {
+                      emitCardPlayed(io, gameId, playDrawResult.card, cpuAction.data.playerName);
+                    }
+                    
                     if (playDrawResult.card) {
                       // Draw replacement of same type
                       const drawSuccess = await gameManager.pickCard(gameId, cpuAction.data.drawType, cpuAction.data.playerName);
@@ -3665,6 +3738,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     
                   case 'play-card':
                     const result = await gameManager.playCard(gameId, cpuAction.data.cardId, cpuAction.data.playerName);
+                    
+                    // Track in last played cards history
+                    if (result.card) {
+                      emitCardPlayed(io, gameId, result.card, cpuAction.data.playerName);
+                    }
                     
                     // Draw replacement card of same type
                     if (result.card) {

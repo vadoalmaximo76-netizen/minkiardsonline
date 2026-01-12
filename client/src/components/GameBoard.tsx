@@ -33,6 +33,7 @@ import { CharacterEffects } from "./CharacterEffects";
 import { TutorialOverlay } from "./TutorialOverlay";
 import { AdBanner, InterstitialAd } from "./AdBanner";
 import { ConnectionStatus } from "./ConnectionStatus";
+import { LastPlayedCards } from "./LastPlayedCards";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
@@ -151,6 +152,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     damageValue: number;
     duration: number;
   } | null>(null);
+  const [lastPlayedCards, setLastPlayedCards] = useState<Array<{
+    id: string;
+    frontImage: string;
+    name?: string;
+    playerName: string;
+    timestamp: number;
+    cardType: string;
+  }>>([]);
     const { selectedCard, gameId, playerName, gameState, setGameId, setUserRankiardPoints, resetPRSpent } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted, playAttackSound, playDeathSound, playCardPickup, playCardPlay, playTurnChange, playBonusActivated } = useAudio();
 
@@ -208,6 +217,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.emit('reset-game', { gameId });
       // Reset scenario cards state when game is reset
       setScenarioCardsActive(false);
+      // Clear last played cards history
+      setLastPlayedCards([]);
     }
   };
 
@@ -223,6 +234,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.set('game', newGameId);
       window.history.pushState({}, '', newUrl);
+      
+      // Clear last played cards history for new game
+      setLastPlayedCards([]);
       
       // Join the new game room
       socket.emit('join-game', { gameId: newGameId, playerName });
@@ -435,6 +449,27 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       playCardAnimationSound(cardName);
     };
 
+    const handleCardPlayed = ({ cardId, cardType, frontImage, cardName, playerName }: { 
+      cardId: string, 
+      cardType: string, 
+      frontImage: string, 
+      cardName?: string,
+      playerName: string 
+    }) => {
+      setLastPlayedCards(prev => {
+        const newCard = {
+          id: cardId,
+          frontImage,
+          name: cardName,
+          playerName,
+          timestamp: Date.now(),
+          cardType
+        };
+        const updated = [...prev, newCard];
+        return updated.slice(-10);
+      });
+    };
+
     const handleCardPlayedFaceDown = ({ cardId, playerName, message }: { cardId: string, playerName: string, message: string }) => {
       console.log(`Card played face down: ${message}`);
       // Optional: Show a notification that a card was played face down
@@ -500,6 +535,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('bee-sound', handleBeeSound);
     socket.on('character-sound', handleCharacterSound);
     socket.on('card-animation-trigger', handleCardAnimationTrigger);
+    socket.on('card-played', handleCardPlayed);
     socket.on('card-played-face-down', handleCardPlayedFaceDown);
     socket.on('card-revealed', handleCardRevealed);
     socket.on('game-started', handleGameStarted);
@@ -869,6 +905,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('cards-added', handleCardsAdded);
       socket.off('bee-sound', handleBeeSound);
       socket.off('character-sound', handleCharacterSound);
+      socket.off('card-played', handleCardPlayed);
       socket.off('card-played-face-down', handleCardPlayedFaceDown);
       socket.off('card-revealed', handleCardRevealed);
       socket.off('game-started', handleGameStarted);
@@ -907,6 +944,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     <div className="min-h-screen bg-arena-deep text-slate-100 p-4 relative">
       {/* Connection Status Banner */}
       <ConnectionStatus />
+      
+      {/* Last Played Cards History */}
+      <LastPlayedCards cards={lastPlayedCards} maxCards={5} />
       
       {/* Background image */}
       <div 
