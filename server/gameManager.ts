@@ -1363,6 +1363,10 @@ Rispondi SOLO in JSON:`;
     try {
       const allPlayers = Object.keys(game.players).filter(p => !game.players[p].isCPU);
       const characterLimit = game.characterLimit;
+      
+      // Calculate game duration in minutes
+      const durationSeconds = Math.floor((Date.now() - game.startTime.getTime()) / 1000);
+      const durationMinutes = Math.max(1, Math.floor(durationSeconds / 60)); // At least 1 minute
 
       const finalRanking: string[] = [];
       if (winnerPlayer) {
@@ -1389,18 +1393,38 @@ Rispondi SOLO in JSON:`;
         const placement = i + 1;
         const points = this.calculateRankiardPoints(characterLimit, placement);
         const userId = game.playerUserIds.get(playerName);
+        const isWinner = playerName === winnerPlayer;
 
-        if (userId && points > 0) {
+        if (userId) {
           try {
-            await db.execute(
-              sql`UPDATE users SET punti_rankiard = punti_rankiard + ${points} WHERE id = ${userId}`
-            );
-            console.log(`Awarded ${points} Rankiard points to ${playerName} (userId: ${userId}) for ${placement}° place`);
+            // Update all user statistics: points, games played, games won, minutes played
+            // Check isWinner first (regardless of points) to always count wins correctly
+            if (isWinner) {
+              await db.execute(
+                sql`UPDATE users SET 
+                  punti_rankiard = punti_rankiard + ${points},
+                  games_played = games_played + 1,
+                  games_won = games_won + 1,
+                  minutes_played = minutes_played + ${durationMinutes}
+                WHERE id = ${userId}`
+              );
+              console.log(`Awarded ${points} Rankiard points + WIN to ${playerName} (userId: ${userId}) for ${placement}° place, +${durationMinutes} minutes`);
+            } else {
+              // Non-winner: update points (if any), games played, and minutes
+              await db.execute(
+                sql`UPDATE users SET 
+                  punti_rankiard = punti_rankiard + ${points},
+                  games_played = games_played + 1,
+                  minutes_played = minutes_played + ${durationMinutes}
+                WHERE id = ${userId}`
+              );
+              console.log(`Awarded ${points} Rankiard points to ${playerName} (userId: ${userId}) for ${placement}° place, +${durationMinutes} minutes`);
+            }
           } catch (err) {
-            console.error(`Failed to award points to ${playerName}:`, err);
+            console.error(`Failed to update stats for ${playerName}:`, err);
           }
-        } else if (points > 0) {
-          console.log(`No userId found for ${playerName}, skipping points award`);
+        } else {
+          console.log(`No userId found for ${playerName}, skipping stats update`);
         }
       }
     } catch (error) {
