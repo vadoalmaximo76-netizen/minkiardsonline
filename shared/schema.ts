@@ -64,6 +64,7 @@ export const cardModifications = pgTable("card_modifications", {
   pti: integer("pti"), // Modified PTI (null = use original)
   stars: integer("stars"), // Modified stars (null = use original)
   effect: text("effect"), // AI-processed effect description
+  isDeleted: boolean("is_deleted").default(false), // Hide card from game
   modifiedBy: text("modified_by"), // Admin email who modified
   modifiedAt: timestamp("modified_at").notNull().defaultNow(),
 });

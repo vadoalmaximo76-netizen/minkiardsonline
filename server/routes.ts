@@ -4614,6 +4614,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             pti: mod?.pti || null,
             stars: mod?.stars || null,
             effect: mod?.effect || null,
+            isDeleted: mod?.isDeleted || false,
             isModified: !!mod
           });
         });
@@ -4676,6 +4677,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error saving card modification:', error);
       res.status(500).json({ success: false, error: 'Failed to save modification' });
+    }
+  });
+
+  // Toggle card deletion (admin only)
+  app.post('/api/admin/card-delete', authMiddleware, async (req, res) => {
+    try {
+      const userEmail = req.user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ success: false, error: 'Unauthorized' });
+      }
+
+      const { originalCardId, deckType, isDeleted } = req.body;
+
+      // Check if modification exists
+      const existing = await db.select().from(cardModifications)
+        .where(eq(cardModifications.originalCardId, originalCardId));
+
+      if (existing.length > 0) {
+        // Update existing
+        const result = await db.update(cardModifications)
+          .set({
+            isDeleted: isDeleted,
+            modifiedBy: userEmail,
+            modifiedAt: new Date()
+          })
+          .where(eq(cardModifications.originalCardId, originalCardId))
+          .returning();
+        
+        res.json({ success: true, modification: result[0] });
+      } else {
+        // Insert new with just isDeleted flag
+        const result = await db.insert(cardModifications)
+          .values({
+            originalCardId,
+            deckType,
+            isDeleted: isDeleted,
+            modifiedBy: userEmail
+          })
+          .returning();
+        
+        res.json({ success: true, modification: result[0] });
+      }
+    } catch (error) {
+      console.error('Error toggling card deletion:', error);
+      res.status(500).json({ success: false, error: 'Failed to toggle deletion' });
     }
   });
 
