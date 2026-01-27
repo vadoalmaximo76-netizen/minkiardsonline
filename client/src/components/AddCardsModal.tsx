@@ -1,10 +1,97 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "./ui/button";
-import { X, Upload, Plus, Pencil, Trash2, Save, Shield, Sparkles, Search, RotateCcw, Volume2 } from "lucide-react";
+import { X, Upload, Plus, Pencil, Trash2, Save, Shield, Sparkles, Search, RotateCcw, Volume2, Wand2, ChevronRight, ChevronLeft } from "lucide-react";
 import { socket } from "../lib/socket";
 import { useGameState } from "../lib/stores/useGameState";
 import { Input } from "./ui/input";
 import { Checkbox } from "./ui/checkbox";
+
+interface EffectWizardState {
+  step: number;
+  effectType: string;
+  target: string;
+  value: string;
+  duration: string;
+  condition: string;
+  customDescription: string;
+}
+
+const EFFECT_TYPES = [
+  { id: 'protection', label: 'Protezione', description: 'La carta non può essere attaccata', icon: '🛡️' },
+  { id: 'damage', label: 'Danno', description: 'Infligge danni a carte nemiche', icon: '⚔️' },
+  { id: 'heal', label: 'Cura', description: 'Ripristina PTI', icon: '💚' },
+  { id: 'draw', label: 'Pesca', description: 'Fa pescare carte', icon: '🎴' },
+  { id: 'discard', label: 'Scarta', description: 'Fa scartare carte agli avversari', icon: '🗑️' },
+  { id: 'stars', label: 'Modifica Stelle', description: 'Aggiunge o rimuove stelle', icon: '⭐' },
+  { id: 'pti', label: 'Modifica PTI', description: 'Aumenta o diminuisce i PTI', icon: '💪' },
+  { id: 'custom', label: 'Effetto Personalizzato', description: 'Descrivi tu l\'effetto', icon: '✨' },
+];
+
+const TARGET_OPTIONS = [
+  { id: 'self', label: 'Se stesso', description: 'Questa carta' },
+  { id: 'owner', label: 'Proprietario', description: 'Il giocatore che possiede la carta' },
+  { id: 'opponents', label: 'Avversari', description: 'Tutti i giocatori avversari' },
+  { id: 'all', label: 'Tutti', description: 'Tutti i giocatori incluso il proprietario' },
+  { id: 'random', label: 'Casuale', description: 'Un bersaglio casuale' },
+];
+
+const DURATION_OPTIONS = [
+  { id: 'instant', label: 'Istantaneo', description: 'Si attiva una volta quando la carta viene giocata' },
+  { id: 'permanent', label: 'Permanente', description: 'Rimane attivo finché la carta è in campo' },
+  { id: 'turns', label: 'A tempo', description: 'Dura un certo numero di turni' },
+];
+
+function generateEffectDescription(wizard: EffectWizardState): string {
+  if (wizard.effectType === 'custom') {
+    return wizard.customDescription;
+  }
+
+  let description = '';
+  const value = wizard.value ? parseInt(wizard.value) : 0;
+
+  switch (wizard.effectType) {
+    case 'protection':
+      description = 'Non può essere attaccato';
+      if (wizard.duration === 'turns' && wizard.value) {
+        description += ` per ${wizard.value} turni`;
+      }
+      break;
+    case 'damage':
+      const damageTarget = wizard.target === 'opponents' ? 'agli avversari' : wizard.target === 'all' ? 'a tutti' : wizard.target === 'random' ? 'a un bersaglio casuale' : '';
+      description = `Infligge ${value || 100} danni ${damageTarget}`.trim();
+      break;
+    case 'heal':
+      const healTarget = wizard.target === 'self' ? '' : wizard.target === 'owner' ? 'al proprietario' : wizard.target === 'all' ? 'a tutti' : '';
+      description = `Cura ${value || 100} PTI ${healTarget}`.trim();
+      break;
+    case 'draw':
+      description = `Pesca ${value || 1} carte`;
+      break;
+    case 'discard':
+      description = `Gli avversari scartano ${value || 1} carte`;
+      break;
+    case 'stars':
+      if (value >= 0) {
+        description = `Guadagna ${value || 1} stelle`;
+      } else {
+        description = `Rimuove ${Math.abs(value)} stelle agli avversari`;
+      }
+      break;
+    case 'pti':
+      if (value >= 0) {
+        description = `Aumenta i PTI di ${value || 100}`;
+      } else {
+        description = `Diminuisce i PTI di ${Math.abs(value)}`;
+      }
+      break;
+  }
+
+  if (wizard.condition) {
+    description += `. Condizione: ${wizard.condition}`;
+  }
+
+  return description;
+}
 
 interface AddCardsModalProps {
   isOpen: boolean;
@@ -68,6 +155,74 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   const [editingExistingCard, setEditingExistingCard] = useState<string | null>(null);
   const [existingEditForm, setExistingEditForm] = useState({ name: '', imageUrl: '', pti: '', stars: '', effect: '', audioUrl: '' });
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Effect Wizard state
+  const [showEffectWizard, setShowEffectWizard] = useState(false);
+  const [effectWizardTarget, setEffectWizardTarget] = useState<'new' | 'permanent' | 'existing'>('new');
+  const [effectWizardCardIndex, setEffectWizardCardIndex] = useState<number | null>(null);
+  const [effectWizard, setEffectWizard] = useState<EffectWizardState>({
+    step: 1,
+    effectType: '',
+    target: 'self',
+    value: '',
+    duration: 'instant',
+    condition: '',
+    customDescription: ''
+  });
+
+  const resetEffectWizard = () => {
+    setEffectWizard({
+      step: 1,
+      effectType: '',
+      target: 'self',
+      value: '',
+      duration: 'instant',
+      condition: '',
+      customDescription: ''
+    });
+  };
+
+  const openEffectWizard = (target: 'new' | 'permanent' | 'existing', cardIndex: number | null) => {
+    resetEffectWizard();
+    setEffectWizardTarget(target);
+    setEffectWizardCardIndex(cardIndex);
+    setShowEffectWizard(true);
+  };
+
+  const applyEffectFromWizard = () => {
+    const effectDescription = generateEffectDescription(effectWizard);
+    
+    if (effectWizardTarget === 'new' && effectWizardCardIndex !== null) {
+      updateCardData(effectWizardCardIndex, 'effect', effectDescription);
+    } else if (effectWizardTarget === 'permanent') {
+      setEditForm(prev => ({ ...prev, effect: effectDescription }));
+    } else if (effectWizardTarget === 'existing') {
+      setExistingEditForm(prev => ({ ...prev, effect: effectDescription }));
+    }
+    
+    setShowEffectWizard(false);
+    resetEffectWizard();
+  };
+
+  const getStepCount = () => {
+    if (effectWizard.effectType === 'protection') return 3;
+    if (effectWizard.effectType === 'custom') return 2;
+    return 4;
+  };
+
+  const canProceedToNextStep = () => {
+    switch (effectWizard.step) {
+      case 1: return effectWizard.effectType !== '';
+      case 2: 
+        if (effectWizard.effectType === 'custom') return effectWizard.customDescription.trim() !== '';
+        if (effectWizard.effectType === 'protection') return true;
+        return effectWizard.target !== '';
+      case 3:
+        if (effectWizard.effectType === 'protection') return true;
+        return true;
+      default: return true;
+    }
+  };
 
   const isCharacterDeck = selectedDeck === 'personaggi' || selectedDeck === 'personaggi_speciali';
   const authToken = localStorage.getItem('authToken') || '';
@@ -592,13 +747,24 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                               <Sparkles size={14} className="text-purple-400" />
                               Effetto (elaborato da AI)
                             </label>
-                            <textarea
-                              value={card.effect}
-                              onChange={(e) => updateCardData(index, 'effect', e.target.value)}
-                              placeholder="Descrivi l'effetto della carta... (non visibile sulla carta, gestito dal sistema)"
-                              className="w-full bg-gray-600 text-white border border-gray-500 rounded-md p-2 text-sm resize-none"
-                              rows={2}
-                            />
+                            <div className="flex gap-2">
+                              <textarea
+                                value={card.effect}
+                                onChange={(e) => updateCardData(index, 'effect', e.target.value)}
+                                placeholder="Descrivi l'effetto della carta... (non visibile sulla carta, gestito dal sistema)"
+                                className="flex-1 bg-gray-600 text-white border border-gray-500 rounded-md p-2 text-sm resize-none"
+                                rows={2}
+                              />
+                              <Button
+                                type="button"
+                                onClick={() => openEffectWizard('new', index)}
+                                className="bg-purple-600 hover:bg-purple-700 text-white px-3 flex items-center gap-1"
+                                title="Usa la procedura guidata per configurare l'effetto"
+                              >
+                                <Wand2 size={16} />
+                                <span className="text-xs">Wizard</span>
+                              </Button>
+                            </div>
                           </div>
                           
                           <div>
@@ -726,13 +892,24 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                                 <Sparkles size={14} className="text-purple-400" />
                                 Effetto (AI)
                               </label>
-                              <textarea
-                                value={editForm.effect}
-                                onChange={(e) => setEditForm(prev => ({ ...prev, effect: e.target.value }))}
-                                placeholder="Descrivi l'effetto..."
-                                className="w-full bg-gray-600 text-white border border-gray-500 rounded-md p-2 text-sm resize-none"
-                                rows={2}
-                              />
+                              <div className="flex gap-2">
+                                <textarea
+                                  value={editForm.effect}
+                                  onChange={(e) => setEditForm(prev => ({ ...prev, effect: e.target.value }))}
+                                  placeholder="Descrivi l'effetto..."
+                                  className="flex-1 bg-gray-600 text-white border border-gray-500 rounded-md p-2 text-sm resize-none"
+                                  rows={2}
+                                />
+                                <Button
+                                  type="button"
+                                  onClick={() => openEffectWizard('permanent', null)}
+                                  className="bg-purple-600 hover:bg-purple-700 text-white px-3 flex items-center gap-1"
+                                  title="Usa la procedura guidata per configurare l'effetto"
+                                >
+                                  <Wand2 size={16} />
+                                  <span className="text-xs">Wizard</span>
+                                </Button>
+                              </div>
                             </div>
                             
                             <div>
@@ -932,13 +1109,24 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                                 <Sparkles size={14} className="text-purple-400" />
                                 Effetto (elaborato da AI)
                               </label>
-                              <textarea
-                                value={existingEditForm.effect}
-                                onChange={(e) => setExistingEditForm(prev => ({ ...prev, effect: e.target.value }))}
-                                placeholder="Descrivi l'effetto della carta... Il sistema lo elaborera automaticamente durante il gioco."
-                                className="w-full bg-gray-600 text-white border border-gray-500 rounded-md p-2 text-sm resize-none"
-                                rows={3}
-                              />
+                              <div className="flex gap-2">
+                                <textarea
+                                  value={existingEditForm.effect}
+                                  onChange={(e) => setExistingEditForm(prev => ({ ...prev, effect: e.target.value }))}
+                                  placeholder="Descrivi l'effetto della carta... Il sistema lo elaborera automaticamente durante il gioco."
+                                  className="flex-1 bg-gray-600 text-white border border-gray-500 rounded-md p-2 text-sm resize-none"
+                                  rows={3}
+                                />
+                                <Button
+                                  type="button"
+                                  onClick={() => openEffectWizard('existing', null)}
+                                  className="bg-purple-600 hover:bg-purple-700 text-white px-3 flex items-center gap-1"
+                                  title="Usa la procedura guidata per configurare l'effetto"
+                                >
+                                  <Wand2 size={16} />
+                                  <span className="text-xs">Wizard</span>
+                                </Button>
+                              </div>
                             </div>
                             
                             <div>
@@ -1056,6 +1244,223 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
           </div>
         )}
       </div>
+
+      {/* Effect Wizard Dialog */}
+      {showEffectWizard && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[70] p-4">
+          <div className="bg-gray-800 rounded-xl border border-purple-500 max-w-md w-full p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Wand2 className="text-purple-400" size={24} />
+                <h3 className="text-xl font-bold text-white">Configura Effetto</h3>
+              </div>
+              <button
+                onClick={() => setShowEffectWizard(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Progress indicator */}
+            <div className="flex items-center gap-2 mb-6">
+              {Array.from({ length: getStepCount() }).map((_, i) => (
+                <div
+                  key={i}
+                  className={`flex-1 h-1 rounded ${
+                    i + 1 <= effectWizard.step ? 'bg-purple-500' : 'bg-gray-600'
+                  }`}
+                />
+              ))}
+            </div>
+
+            {/* Step 1: Effect Type */}
+            {effectWizard.step === 1 && (
+              <div className="space-y-3">
+                <p className="text-gray-300 text-sm mb-4">Che tipo di effetto vuoi creare?</p>
+                <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+                  {EFFECT_TYPES.map(effect => (
+                    <button
+                      key={effect.id}
+                      onClick={() => setEffectWizard(prev => ({ ...prev, effectType: effect.id }))}
+                      className={`p-3 rounded-lg border text-left transition-all ${
+                        effectWizard.effectType === effect.id
+                          ? 'border-purple-500 bg-purple-600/30'
+                          : 'border-gray-600 bg-gray-700 hover:border-gray-500'
+                      }`}
+                    >
+                      <div className="text-2xl mb-1">{effect.icon}</div>
+                      <div className="text-white font-medium text-sm">{effect.label}</div>
+                      <div className="text-gray-400 text-xs">{effect.description}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Target (or Custom description) */}
+            {effectWizard.step === 2 && (
+              <div className="space-y-3">
+                {effectWizard.effectType === 'custom' ? (
+                  <>
+                    <p className="text-gray-300 text-sm mb-4">Descrivi l'effetto che vuoi creare:</p>
+                    <textarea
+                      value={effectWizard.customDescription}
+                      onChange={(e) => setEffectWizard(prev => ({ ...prev, customDescription: e.target.value }))}
+                      placeholder="Es: Quando questa carta viene giocata, il giocatore pesca 2 carte e tutti gli avversari perdono 50 PTI..."
+                      className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg p-3 text-sm resize-none"
+                      rows={5}
+                    />
+                    <p className="text-gray-500 text-xs">Sii il piu specifico possibile. Il sistema cerchera di interpretare l'effetto.</p>
+                  </>
+                ) : effectWizard.effectType === 'protection' ? (
+                  <>
+                    <p className="text-gray-300 text-sm mb-4">La carta sara protetta dagli attacchi!</p>
+                    <div className="bg-purple-600/20 border border-purple-500 rounded-lg p-4">
+                      <div className="text-2xl mb-2">🛡️</div>
+                      <p className="text-white font-medium">Protezione Attiva</p>
+                      <p className="text-gray-300 text-sm mt-2">Questa carta non potra essere bersaglio di attacchi nemici.</p>
+                    </div>
+                    <div className="mt-4">
+                      <p className="text-gray-300 text-sm mb-2">Durata della protezione:</p>
+                      <div className="space-y-2">
+                        {DURATION_OPTIONS.map(dur => (
+                          <button
+                            key={dur.id}
+                            onClick={() => setEffectWizard(prev => ({ ...prev, duration: dur.id }))}
+                            className={`w-full p-3 rounded-lg border text-left transition-all ${
+                              effectWizard.duration === dur.id
+                                ? 'border-purple-500 bg-purple-600/30'
+                                : 'border-gray-600 bg-gray-700 hover:border-gray-500'
+                            }`}
+                          >
+                            <div className="text-white font-medium text-sm">{dur.label}</div>
+                            <div className="text-gray-400 text-xs">{dur.description}</div>
+                          </button>
+                        ))}
+                      </div>
+                      {effectWizard.duration === 'turns' && (
+                        <div className="mt-3">
+                          <label className="text-gray-300 text-sm">Numero di turni:</label>
+                          <Input
+                            type="number"
+                            min="1"
+                            max="10"
+                            value={effectWizard.value}
+                            onChange={(e) => setEffectWizard(prev => ({ ...prev, value: e.target.value }))}
+                            placeholder="3"
+                            className="bg-gray-700 text-white border-gray-600 mt-1"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-gray-300 text-sm mb-4">Chi sara il bersaglio dell'effetto?</p>
+                    <div className="space-y-2">
+                      {TARGET_OPTIONS.map(target => (
+                        <button
+                          key={target.id}
+                          onClick={() => setEffectWizard(prev => ({ ...prev, target: target.id }))}
+                          className={`w-full p-3 rounded-lg border text-left transition-all ${
+                            effectWizard.target === target.id
+                              ? 'border-purple-500 bg-purple-600/30'
+                              : 'border-gray-600 bg-gray-700 hover:border-gray-500'
+                          }`}
+                        >
+                          <div className="text-white font-medium text-sm">{target.label}</div>
+                          <div className="text-gray-400 text-xs">{target.description}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Step 3: Value */}
+            {effectWizard.step === 3 && effectWizard.effectType !== 'custom' && effectWizard.effectType !== 'protection' && (
+              <div className="space-y-3">
+                <p className="text-gray-300 text-sm mb-4">
+                  {effectWizard.effectType === 'damage' && 'Quanti danni vuoi infliggere?'}
+                  {effectWizard.effectType === 'heal' && 'Quanti PTI vuoi curare?'}
+                  {effectWizard.effectType === 'draw' && 'Quante carte vuoi far pescare?'}
+                  {effectWizard.effectType === 'discard' && 'Quante carte vuoi far scartare?'}
+                  {effectWizard.effectType === 'stars' && 'Quante stelle? (usa numeri negativi per rimuovere)'}
+                  {effectWizard.effectType === 'pti' && 'Di quanto vuoi modificare i PTI? (usa numeri negativi per diminuire)'}
+                </p>
+                <Input
+                  type="number"
+                  value={effectWizard.value}
+                  onChange={(e) => setEffectWizard(prev => ({ ...prev, value: e.target.value }))}
+                  placeholder={effectWizard.effectType === 'draw' || effectWizard.effectType === 'discard' ? '1' : '100'}
+                  className="bg-gray-700 text-white border-gray-600 text-lg"
+                />
+                <p className="text-gray-500 text-xs">
+                  {effectWizard.effectType === 'damage' && 'Consigliato: 50-300 per danni normali'}
+                  {effectWizard.effectType === 'heal' && 'Consigliato: 50-200 per cure normali'}
+                  {effectWizard.effectType === 'draw' && 'Consigliato: 1-3 carte'}
+                  {effectWizard.effectType === 'discard' && 'Consigliato: 1-2 carte'}
+                </p>
+              </div>
+            )}
+
+            {/* Step 3/4: Condition (optional) */}
+            {((effectWizard.step === 3 && effectWizard.effectType === 'protection') ||
+              (effectWizard.step === 4 && effectWizard.effectType !== 'custom' && effectWizard.effectType !== 'protection')) && (
+              <div className="space-y-3">
+                <p className="text-gray-300 text-sm mb-4">Vuoi aggiungere una condizione? (opzionale)</p>
+                <textarea
+                  value={effectWizard.condition}
+                  onChange={(e) => setEffectWizard(prev => ({ ...prev, condition: e.target.value }))}
+                  placeholder="Es: Solo se il giocatore ha meno di 500 PTI..."
+                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg p-3 text-sm resize-none"
+                  rows={3}
+                />
+                <p className="text-gray-500 text-xs">Lascia vuoto se non ci sono condizioni particolari.</p>
+                
+                {/* Preview */}
+                <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 mt-4">
+                  <p className="text-gray-400 text-xs mb-2">Anteprima effetto:</p>
+                  <p className="text-white font-medium">{generateEffectDescription(effectWizard)}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Navigation buttons */}
+            <div className="flex justify-between mt-6">
+              <Button
+                onClick={() => setEffectWizard(prev => ({ ...prev, step: Math.max(1, prev.step - 1) }))}
+                disabled={effectWizard.step === 1}
+                className="bg-gray-600 hover:bg-gray-700 text-white"
+              >
+                <ChevronLeft size={16} className="mr-1" />
+                Indietro
+              </Button>
+
+              {effectWizard.step < getStepCount() ? (
+                <Button
+                  onClick={() => setEffectWizard(prev => ({ ...prev, step: prev.step + 1 }))}
+                  disabled={!canProceedToNextStep()}
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  Avanti
+                  <ChevronRight size={16} className="ml-1" />
+                </Button>
+              ) : (
+                <Button
+                  onClick={applyEffectFromWizard}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <Sparkles size={16} className="mr-1" />
+                  Applica Effetto
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
