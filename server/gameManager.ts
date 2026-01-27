@@ -1868,201 +1868,352 @@ Rispondi SOLO in JSON:`;
     return {};
   }
 
-  // Parse effect text using keywords (no AI required)
+  // Parse effect text using keywords (no AI required) - ENHANCED VERSION with 50+ patterns
   private parseEffectKeywords(effectText: string): Array<{ type: string; target: string; value: number; description: string }> {
     const actions: Array<{ type: string; target: string; value: number; description: string }> = [];
     const text = effectText.toLowerCase();
     
-    // Extract numbers from text
-    const extractNumber = (str: string): number => {
+    // Extract all numbers from text (for multi-value effects)
+    const extractNumber = (str: string, defaultVal: number = 100): number => {
       const match = str.match(/(\d+)/);
-      return match ? parseInt(match[1], 10) : 100;
+      return match ? parseInt(match[1], 10) : defaultVal;
+    };
+    
+    // Extract multiple numbers
+    const extractAllNumbers = (str: string): number[] => {
+      const matches = str.match(/\d+/g);
+      return matches ? matches.map(n => parseInt(n, 10)) : [];
+    };
+    
+    // Determine target from text
+    const determineTarget = (txt: string): string => {
+      if (txt.includes('tutti i nemici') || txt.includes('tutti gli avversari') || txt.includes('ogni avversario')) return 'all_opponents';
+      if (txt.includes('tutti') || txt.includes('ogni personaggio') || txt.includes('ognuno')) return 'all';
+      if (txt.includes('casuale') || txt.includes('random') || txt.includes('a caso')) return 'random';
+      if (txt.includes('alleato') || txt.includes('alleati') || txt.includes('compagno')) return 'allies';
+      if (txt.includes('nemico') || txt.includes('avversario') || txt.includes('nemici') || txt.includes('avversari')) return 'opponents';
+      if (txt.includes('se stesso') || txt.includes('questo personaggio') || txt.includes('questa carta')) return 'self';
+      return 'opponents'; // default
     };
 
-    // DAMAGE patterns
-    if (text.includes('danno') || text.includes('infligge') || text.includes('danneggia') || 
-        text.includes('colpisce') || text.includes('attacca') || text.includes('ferisce')) {
+    // ============ DAMAGE PATTERNS ============
+    if (text.includes('danno') || text.includes('danni') || text.includes('infligge') || text.includes('danneggia') || 
+        text.includes('colpisce') || text.includes('attacca') || text.includes('ferisce') || text.includes('distrugge') ||
+        text.includes('elimina') || text.includes('uccide') || text.includes('fa male') || text.includes('subisce') ||
+        text.includes('fa perdere') || text.includes('toglie') || text.includes('sottrae') || text.includes('leva') ||
+        text.includes('causa') || text.includes('provoca') || text.includes('perde pti') || text.includes('perde vita')) {
       const value = extractNumber(text);
-      let target = 'opponents';
-      if (text.includes('tutti') || text.includes('ogni')) target = 'all';
-      if (text.includes('casuale') || text.includes('random')) target = 'random';
+      const target = determineTarget(text);
       actions.push({ type: 'damage', target, value, description: `Infligge ${value} danni` });
     }
 
-    // HEAL patterns
-    if (text.includes('cura') || text.includes('guarisce') || text.includes('ripristina') || 
-        text.includes('rigenera') || text.includes('recupera')) {
+    // ============ HEAL PATTERNS ============
+    if (text.includes('cura') || text.includes('guarisce') || text.includes('ripristina pti') || 
+        text.includes('rigenera') || text.includes('recupera') || text.includes('guadagna pti') ||
+        text.includes('ottiene pti') || text.includes('vita +') || text.includes('+ pti') ||
+        text.includes('aggiunge pti') || text.includes('riguadagna') || text.includes('riacquista') ||
+        text.includes('si cura') || text.includes('viene curato') || text.includes('aumenta pti') ||
+        text.includes('pti in più') || text.includes('guadagna vita') || text.includes('ripara')) {
       const value = extractNumber(text);
-      let target = 'self';
-      if (text.includes('tutti') || text.includes('alleati')) target = 'all';
-      actions.push({ type: 'heal', target, value, description: `Cura ${value} PTI` });
+      const target = determineTarget(text);
+      actions.push({ type: 'heal', target: target === 'opponents' ? 'self' : target, value, description: `Cura ${value} PTI` });
     }
 
-    // DRAW patterns
-    if (text.includes('pesca') || text.includes('prendi carta') || text.includes('estrai')) {
-      const value = extractNumber(text) || 1;
+    // ============ DRAW PATTERNS ============
+    if (text.includes('pesca') || text.includes('prendi carta') || text.includes('estrai') || 
+        text.includes('prendere carta') || text.includes('pescare') || text.includes('tira una carta') ||
+        text.includes('carta dal mazzo') || text.includes('aggiungi alla mano') || text.includes('prendi dal mazzo') ||
+        text.includes('metti in mano') || text.includes('aggiungi in mano') || text.includes('carta in mano') ||
+        text.includes('ottieni carta') || text.includes('guadagna carta') || text.includes('ricevi carta')) {
+      const value = extractNumber(text, 1);
+      let deckType = 'any';
+      if (text.includes('personaggio') || text.includes('personaggi')) deckType = 'personaggi';
+      if (text.includes('mosse') || text.includes('mossa')) deckType = 'mosse';
+      if (text.includes('bonus')) deckType = 'bonus';
+      if (text.includes('special') || text.includes('speciale')) deckType = 'personaggi_speciali';
       actions.push({ type: 'draw', target: 'self', value, description: `Pesca ${value} carte` });
     }
 
-    // DISCARD patterns
-    if (text.includes('scarta') || text.includes('elimina dalla mano') || text.includes('rimuovi')) {
-      const value = extractNumber(text) || 1;
-      let target = 'opponents';
-      if (text.includes('avversari') || text.includes('nemici')) target = 'opponents';
+    // ============ DISCARD PATTERNS ============
+    if (text.includes('scarta') || text.includes('elimina dalla mano') || text.includes('butta') ||
+        text.includes('getta via') || text.includes('rimuovi dalla mano') || text.includes('perde carta') ||
+        text.includes('perde una carta') || text.includes('sacrifica') || text.includes('abbandona') ||
+        text.includes('lascia') || text.includes('si libera di') || text.includes('rinuncia a')) {
+      const value = extractNumber(text, 1);
+      const target = determineTarget(text);
       actions.push({ type: 'discard', target, value, description: `Scarta ${value} carte` });
     }
 
-    // STARS patterns
-    if (text.includes('stella') || text.includes('stelle')) {
-      const value = extractNumber(text) || 1;
-      if (text.includes('guadagna') || text.includes('ottiene') || text.includes('+')) {
+    // ============ STARS PATTERNS ============
+    if (text.includes('stella') || text.includes('stelle') || text.includes('star')) {
+      const value = extractNumber(text, 1);
+      if (text.includes('guadagna') || text.includes('ottiene') || text.includes('+') || text.includes('aggiunge') || text.includes('riceve')) {
         actions.push({ type: 'modify_stars', target: 'self', value, description: `Guadagna ${value} stelle` });
-      } else if (text.includes('perde') || text.includes('rimuovi') || text.includes('-')) {
+      } else if (text.includes('perde') || text.includes('rimuovi') || text.includes('-') || text.includes('toglie') || text.includes('sottrae')) {
         actions.push({ type: 'modify_stars', target: 'opponents', value: -value, description: `Rimuove ${value} stelle` });
       }
     }
 
-    // PTI modification patterns
-    if ((text.includes('pti') || text.includes('punti')) && !text.includes('danno') && !text.includes('cura')) {
+    // ============ PTI MODIFICATION PATTERNS ============
+    if ((text.includes('pti') || text.includes('punti')) && !actions.some(a => a.type === 'damage' || a.type === 'heal')) {
       const value = extractNumber(text);
-      if (text.includes('aumenta') || text.includes('+') || text.includes('guadagna')) {
+      if (text.includes('aumenta') || text.includes('+') || text.includes('guadagna') || text.includes('aggiunge') || text.includes('bonus')) {
         actions.push({ type: 'heal', target: 'self', value, description: `Aumenta PTI di ${value}` });
-      } else if (text.includes('diminuisce') || text.includes('-') || text.includes('riduce')) {
+      } else if (text.includes('diminuisce') || text.includes('-') || text.includes('riduce') || text.includes('toglie') || text.includes('malus')) {
         actions.push({ type: 'damage', target: 'opponents', value, description: `Riduce PTI di ${value}` });
       }
     }
 
-    // PROTECTION/IMMUNITY patterns - card cannot be attacked
+    // ============ PROTECTION/IMMUNITY PATTERNS ============
     if (text.includes('non può essere attaccat') || text.includes('immune') || 
-        text.includes('invulnerabile') || text.includes('protetto') ||
+        text.includes('invulnerabile') || text.includes('protetto') || text.includes('protezione') ||
         text.includes('non può ricevere dann') || text.includes('intoccabile') ||
-        text.includes('cannot be attacked') || text.includes('invincibile')) {
-      actions.push({ type: 'protection', target: 'self', value: 1, description: 'Non può essere attaccato' });
+        text.includes('cannot be attacked') || text.includes('invincibile') || text.includes('inattaccabile') ||
+        text.includes('non subisce') || text.includes('ignora i danni') || text.includes('ignora attacchi') ||
+        text.includes('blocca attacchi') || text.includes('blocca danni') || text.includes('resistente') ||
+        text.includes('impenetrabile') || text.includes('blindato') || text.includes('corazzato')) {
+      const turns = extractNumber(text, 0);
+      actions.push({ type: 'protection', target: 'self', value: turns || 1, description: turns > 0 ? `Protezione per ${turns} turni` : 'Non può essere attaccato' });
     }
 
-    // COUNTER-ATTACK patterns
-    if (text.includes('contrattacco') || text.includes('contrattacca') || text.includes('quando viene attaccato')) {
+    // ============ COUNTER-ATTACK PATTERNS ============
+    if (text.includes('contrattacco') || text.includes('contrattacca') || text.includes('quando viene attaccato') ||
+        text.includes('risponde') || text.includes('reagisce') || text.includes('colpisce di ritorno') ||
+        text.includes('restituisce il colpo') || text.includes('se attaccato') || text.includes('in risposta')) {
       const value = extractNumber(text);
       actions.push({ type: 'counter', target: 'self', value, description: `Contrattacco: infligge ${value} danni` });
     }
 
-    // REFLECT patterns
-    if (text.includes('riflette') || text.includes('restituisce') || text.includes('rimbalza')) {
-      const value = extractNumber(text) || 50;
+    // ============ REFLECT PATTERNS ============
+    if (text.includes('riflette') || text.includes('restituisce') || text.includes('rimbalza') ||
+        text.includes('respinge') || text.includes('devia') || text.includes('rinvia') ||
+        text.includes('ritorna indietro') || text.includes('torna al mittente')) {
+      const value = extractNumber(text, 50);
       actions.push({ type: 'reflect', target: 'self', value, description: `Riflette ${value}% dei danni` });
     }
 
-    // STEAL patterns
-    if (text.includes('ruba') && (text.includes('carta') || text.includes('carte'))) {
-      const value = extractNumber(text) || 1;
+    // ============ STEAL PATTERNS ============
+    if ((text.includes('ruba') || text.includes('sottrae') || text.includes('prende') || text.includes('furto')) && 
+        (text.includes('carta') || text.includes('carte') || text.includes('mano'))) {
+      const value = extractNumber(text, 1);
       actions.push({ type: 'steal', target: 'opponents', value, description: `Ruba ${value} carte` });
     }
 
-    // FREEZE patterns
-    if (text.includes('congela') || text.includes('congelamento') || text.includes('non può agire')) {
-      const value = extractNumber(text) || 2;
+    // ============ FREEZE PATTERNS ============
+    if (text.includes('congela') || text.includes('congelamento') || text.includes('non può agire') ||
+        text.includes('ghiaccia') || text.includes('immobilizza') || text.includes('paralizza') ||
+        text.includes('blocca') || text.includes('ferma') || text.includes('non può muoversi') ||
+        text.includes('non può attaccare') || text.includes('cristallizza') || text.includes('iberna')) {
+      const value = extractNumber(text, 2);
       actions.push({ type: 'freeze', target: 'opponents', value, description: `Congela per ${value} turni` });
     }
 
-    // STUN patterns
-    if (text.includes('stordis') || text.includes('stordimento') || text.includes('salta il turno')) {
-      actions.push({ type: 'stun', target: 'opponents', value: 1, description: 'Stordisce: salta il prossimo turno' });
+    // ============ STUN PATTERNS ============
+    if (text.includes('stordis') || text.includes('stordimento') || text.includes('salta il turno') ||
+        text.includes('confonde') || text.includes('tramortisce') || text.includes('svenimento') ||
+        text.includes('perde il turno') || text.includes('turno perso') || text.includes('knockout')) {
+      const turns = extractNumber(text, 1);
+      actions.push({ type: 'stun', target: 'opponents', value: turns, description: `Stordisce per ${turns} turno/i` });
     }
 
-    // POISON patterns
-    if (text.includes('veleno') || text.includes('avvelena')) {
-      const value = extractNumber(text) || 50;
+    // ============ POISON PATTERNS ============
+    if (text.includes('veleno') || text.includes('avvelena') || text.includes('tossico') ||
+        text.includes('intossica') || text.includes('infetta') || text.includes('virus') ||
+        text.includes('contamina') || text.includes('corrompe') || text.includes('danni nel tempo')) {
+      const value = extractNumber(text, 50);
       actions.push({ type: 'poison', target: 'opponents', value, description: `Veleno: ${value} danni/turno` });
     }
 
-    // BURN patterns
-    if (text.includes('brucia') || text.includes('bruciatura') || text.includes('fiamme')) {
-      const value = extractNumber(text) || 30;
+    // ============ BURN PATTERNS ============
+    if (text.includes('brucia') || text.includes('bruciatura') || text.includes('fiamme') ||
+        text.includes('incendia') || text.includes('fuoco') || text.includes('infuoca') ||
+        text.includes('scottatura') || text.includes('incenerisce') || text.includes('carbonizza')) {
+      const value = extractNumber(text, 30);
       actions.push({ type: 'burn', target: 'opponents', value, description: `Bruciatura: ${value} danni/turno` });
     }
 
-    // LIFESTEAL patterns
+    // ============ LIFESTEAL PATTERNS ============
     if (text.includes('furto vita') || text.includes('vita rubata') || text.includes('assorbe vita') ||
-        (text.includes('danni') && text.includes('cura'))) {
-      const value = extractNumber(text) || 100;
+        text.includes('drena vita') || text.includes('vampiro') || text.includes('succhia vita') ||
+        text.includes('si cura dei danni') || text.includes('converte in vita') || text.includes('risucchia energia') ||
+        (text.includes('danni') && text.includes('cura') && text.includes('stesso'))) {
+      const value = extractNumber(text);
       actions.push({ type: 'lifesteal', target: 'self', value, description: `Furto Vita: ${value}` });
     }
 
-    // SHIELD patterns
-    if (text.includes('scudo') && !text.includes('attacco')) {
-      const value = extractNumber(text) || 200;
+    // ============ SHIELD PATTERNS ============
+    if ((text.includes('scudo') || text.includes('barriera') || text.includes('armatura')) && !text.includes('attacco')) {
+      const value = extractNumber(text, 200);
       actions.push({ type: 'shield', target: 'self', value, description: `Scudo: assorbe ${value} danni` });
     }
 
-    // DRAIN patterns
-    if (text.includes('assorbe') || text.includes('assorbimento') || text.includes('drain')) {
-      const value = extractNumber(text) || 100;
-      actions.push({ type: 'drain', target: 'opponents', value, description: `Assorbe ${value}` });
+    // ============ DRAIN PATTERNS ============
+    if (text.includes('assorbe') || text.includes('assorbimento') || text.includes('drain') ||
+        text.includes('risucchia') || text.includes('prosciuga') || text.includes('svuota')) {
+      const value = extractNumber(text);
+      if (!actions.some(a => a.type === 'lifesteal')) {
+        actions.push({ type: 'drain', target: 'opponents', value, description: `Assorbe ${value}` });
+      }
     }
 
-    // REVENGE patterns
-    if (text.includes('vendetta') || text.includes('quando muore') || text.includes('alla morte')) {
-      const value = extractNumber(text) || 200;
+    // ============ REVENGE PATTERNS ============
+    if (text.includes('vendetta') || text.includes('quando muore') || text.includes('alla morte') ||
+        text.includes('morendo') || text.includes('se muore') || text.includes('ultimo respiro') ||
+        text.includes('grido di morte') || text.includes('sacrificio finale') || text.includes('epitaffio')) {
+      const value = extractNumber(text, 200);
       actions.push({ type: 'revenge', target: 'self', value, description: `Vendetta: ${value} danni alla morte` });
     }
 
-    // EXTRA TURN patterns
-    if (text.includes('turno extra') || text.includes('turno aggiuntivo') || text.includes('gioca di nuovo')) {
+    // ============ EXTRA TURN PATTERNS ============
+    if (text.includes('turno extra') || text.includes('turno aggiuntivo') || text.includes('gioca di nuovo') ||
+        text.includes('altro turno') || text.includes('ripeti turno') || text.includes('turno bonus') ||
+        text.includes('gioca ancora') || text.includes('continua a giocare') || text.includes('doppio turno')) {
       actions.push({ type: 'extra_turn', target: 'self', value: 1, description: 'Turno extra' });
     }
 
-    // SKIP TURN patterns
-    if (text.includes('salta il turno') && text.includes('avversario')) {
+    // ============ SKIP TURN PATTERNS ============
+    if ((text.includes('salta il turno') || text.includes('perde il turno') || text.includes('turno saltato')) && 
+        (text.includes('avversario') || text.includes('nemico'))) {
       actions.push({ type: 'skip_turn', target: 'opponents', value: 1, description: 'L\'avversario salta il turno' });
     }
 
-    // NULLIFY patterns
-    if (text.includes('nullifica') || text.includes('annulla') || text.includes('nega')) {
+    // ============ NULLIFY PATTERNS ============
+    if (text.includes('nullifica') || text.includes('annulla') || text.includes('nega') ||
+        text.includes('cancella') || text.includes('blocca effetto') || text.includes('ignora effetto') ||
+        text.includes('disattiva') || text.includes('rimuove effetto') || text.includes('neutralizza')) {
       actions.push({ type: 'nullify', target: 'opponents', value: 1, description: 'Nullifica effetto nemico' });
     }
 
-    // RESURRECT patterns - detect if player choice is needed
-    if (text.includes('resuscita') || text.includes('riporta') || text.includes('cimitero') || 
-        text.includes('ripristina carta') || text.includes('richiama')) {
+    // ============ RESURRECT PATTERNS ============
+    if (text.includes('resuscita') || text.includes('riporta in vita') || text.includes('cimitero') || 
+        text.includes('ripristina carta') || text.includes('richiama') || text.includes('riporta') ||
+        text.includes('rianima') || text.includes('revival') || text.includes('ritorna in gioco') ||
+        text.includes('recupera dal cimitero') || text.includes('fa tornare') || text.includes('risorge') ||
+        text.includes('resuscitare') || text.includes('resurrezione') || text.includes('reincarna')) {
       // Check if effect requires player choice
       const requiresChoice = text.includes('scelta') || text.includes('scegli') || 
-                             text.includes('pannello') || text.includes('quale carta');
+                             text.includes('pannello') || text.includes('quale carta') ||
+                             text.includes('a tua scelta') || text.includes('che vuoi') ||
+                             text.includes('che preferisci') || text.includes('seleziona');
+      const value = extractNumber(text, 1);
       actions.push({ 
         type: requiresChoice ? 'resurrect_choice' : 'resurrect', 
         target: 'self', 
-        value: 1, 
+        value, 
         description: requiresChoice ? 'Scegli una carta dal cimitero da resuscitare' : 'Resuscita carta dal cimitero' 
       });
     }
 
-    // POWERUP patterns
-    if (text.includes('potenzia') || text.includes('potenziamento') || text.includes('boost')) {
-      const value = extractNumber(text) || 100;
+    // ============ POWERUP PATTERNS ============
+    if (text.includes('potenzia') || text.includes('potenziamento') || text.includes('boost') ||
+        text.includes('rafforza') || text.includes('amplifica') || text.includes('migliora') ||
+        text.includes('incrementa') || text.includes('aumenta forza') || text.includes('power up')) {
+      const value = extractNumber(text);
       actions.push({ type: 'powerup', target: 'self', value, description: `Potenziamento: +${value} PTI` });
     }
 
-    // WEAKEN patterns
-    if (text.includes('indebolis') || text.includes('indebolimento') || text.includes('riduce la forza')) {
-      const value = extractNumber(text) || 100;
+    // ============ WEAKEN PATTERNS ============
+    if (text.includes('indebolis') || text.includes('indebolimento') || text.includes('riduce la forza') ||
+        text.includes('depotenzia') || text.includes('azzoppa') || text.includes('fiacca') ||
+        text.includes('snerva') || text.includes('riduce potenza') || text.includes('meno forte')) {
+      const value = extractNumber(text);
       actions.push({ type: 'weaken', target: 'opponents', value, description: `Indebolisce: -${value} PTI` });
     }
 
-    // AURA patterns
-    if (text.includes('aura') || text.includes('alleati guadagnano') || text.includes('carte alleate')) {
-      const value = extractNumber(text) || 50;
+    // ============ AURA PATTERNS ============
+    if (text.includes('aura') || text.includes('alleati guadagnano') || text.includes('carte alleate') ||
+        text.includes('buff di gruppo') || text.includes('tutti i tuoi') || text.includes('potenzia alleati') ||
+        text.includes('benedice') || text.includes('ispira') || text.includes('rinforza alleati')) {
+      const value = extractNumber(text, 50);
       actions.push({ type: 'aura', target: 'allies', value, description: `Aura: +${value} PTI agli alleati` });
     }
 
-    // DOUBLE patterns
-    if (text.includes('raddoppia') || text.includes('doppio')) {
+    // ============ DOUBLE PATTERNS ============
+    if (text.includes('raddoppia') || text.includes('doppio') || text.includes('x2') ||
+        text.includes('duplica') || text.includes('moltiplica per 2') || text.includes('effetto doppio')) {
       actions.push({ type: 'double', target: 'self', value: 2, description: 'Raddoppia effetto' });
     }
 
-    // Special/Generic patterns
+    // ============ TRIPLE PATTERNS ============
+    if (text.includes('triplica') || text.includes('triplo') || text.includes('x3') ||
+        text.includes('moltiplica per 3') || text.includes('effetto triplo')) {
+      actions.push({ type: 'triple', target: 'self', value: 3, description: 'Triplica effetto' });
+    }
+
+    // ============ COPY PATTERNS ============
+    if (text.includes('copia') || text.includes('imita') || text.includes('clone') ||
+        text.includes('duplica effetto') || text.includes('replica') || text.includes('mima')) {
+      actions.push({ type: 'copy', target: 'any', value: 1, description: 'Copia effetto di un\'altra carta' });
+    }
+
+    // ============ SWAP PATTERNS ============
+    if (text.includes('scambia') || text.includes('inverti') || text.includes('swap') ||
+        text.includes('cambia') || text.includes('sostituisci')) {
+      actions.push({ type: 'swap', target: 'any', value: 1, description: 'Scambia con un\'altra carta' });
+    }
+
+    // ============ TRANSFORM PATTERNS ============
+    if (text.includes('trasforma') || text.includes('muta') || text.includes('evolve') ||
+        text.includes('diventa') || text.includes('si trasforma') || text.includes('metamorfosi')) {
+      actions.push({ type: 'transform', target: 'self', value: 1, description: 'Si trasforma in un\'altra carta' });
+    }
+
+    // ============ SILENCE PATTERNS ============
+    if (text.includes('silenzia') || text.includes('silenzio') || text.includes('muta') ||
+        text.includes('disabilita effetti') || text.includes('rimuove abilità') || text.includes('blocca poteri')) {
+      actions.push({ type: 'silence', target: 'opponents', value: 1, description: 'Silenzia: rimuove gli effetti nemici' });
+    }
+
+    // ============ TAUNT PATTERNS ============
+    if (text.includes('provocazione') || text.includes('provoca') || text.includes('taunt') ||
+        text.includes('attira') || text.includes('attira attenzione') || text.includes('bersaglio obbligato')) {
+      actions.push({ type: 'taunt', target: 'self', value: 1, description: 'Provocazione: deve essere attaccato per primo' });
+    }
+
+    // ============ EXECUTE PATTERNS ============
+    if (text.includes('esecuzione') || text.includes('elimina se') || text.includes('morte istantanea') ||
+        text.includes('uccide se') || text.includes('elimina istantaneamente') || text.includes('finisher')) {
+      const threshold = extractNumber(text, 300);
+      actions.push({ type: 'execute', target: 'opponents', value: threshold, description: `Esecuzione se PTI < ${threshold}` });
+    }
+
+    // ============ RETURN TO HAND PATTERNS ============
+    if ((text.includes('ritorna') || text.includes('torna') || text.includes('rimetti') || text.includes('rimanda')) && 
+        (text.includes('mano') || text.includes('hand'))) {
+      const value = extractNumber(text, 1);
+      actions.push({ type: 'return_to_hand', target: 'any', value, description: `Rimanda ${value} carte in mano` });
+    }
+
+    // ============ RETURN TO DECK PATTERNS ============
+    if ((text.includes('ritorna') || text.includes('torna') || text.includes('rimetti') || text.includes('rimanda') || text.includes('rimescola')) && 
+        (text.includes('mazzo') || text.includes('deck'))) {
+      const value = extractNumber(text, 1);
+      actions.push({ type: 'return_to_deck', target: 'any', value, description: `Rimanda ${value} carte nel mazzo` });
+    }
+
+    // ============ REVEAL PATTERNS ============
+    if (text.includes('rivela') || text.includes('mostra') || text.includes('scopri') ||
+        text.includes('guarda') || text.includes('visualizza')) {
+      actions.push({ type: 'reveal', target: 'any', value: 1, description: 'Rivela carte' });
+    }
+
+    // ============ RANDOM EFFECT PATTERNS ============
+    if (text.includes('effetto casuale') || text.includes('effetto random') || text.includes('a caso')) {
+      actions.push({ type: 'random_effect', target: 'any', value: 1, description: 'Effetto casuale' });
+    }
+
+    // ============ CONDITIONAL PATTERNS ============
+    if (text.includes('se ') || text.includes('quando ') || text.includes('ogni volta che')) {
+      // Mark as conditional for special handling
+      actions.push({ type: 'conditional', target: 'self', value: 0, description: effectText });
+    }
+
+    // ============ SPECIAL/GENERIC PATTERNS (fallback) ============
     if (actions.length === 0 && text.length > 5) {
       actions.push({ type: 'special', target: 'self', value: 0, description: effectText });
     }
 
+    console.log(`🎴 Parsed "${effectText.substring(0, 50)}..." → ${actions.length} actions: ${actions.map(a => a.type).join(', ')}`);
     return actions;
   }
 
