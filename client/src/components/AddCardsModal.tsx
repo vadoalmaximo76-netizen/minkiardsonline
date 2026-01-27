@@ -11,20 +11,58 @@ interface EffectWizardState {
   effectType: string;
   target: string;
   value: string;
+  value2: string;
   duration: string;
   condition: string;
   customDescription: string;
+  categoryFilter: string;
 }
 
 const EFFECT_TYPES = [
-  { id: 'protection', label: 'Protezione', description: 'La carta non può essere attaccata', icon: '🛡️' },
-  { id: 'damage', label: 'Danno', description: 'Infligge danni a carte nemiche', icon: '⚔️' },
-  { id: 'heal', label: 'Cura', description: 'Ripristina PTI', icon: '💚' },
-  { id: 'draw', label: 'Pesca', description: 'Fa pescare carte', icon: '🎴' },
-  { id: 'discard', label: 'Scarta', description: 'Fa scartare carte agli avversari', icon: '🗑️' },
-  { id: 'stars', label: 'Modifica Stelle', description: 'Aggiunge o rimuove stelle', icon: '⭐' },
-  { id: 'pti', label: 'Modifica PTI', description: 'Aumenta o diminuisce i PTI', icon: '💪' },
-  { id: 'custom', label: 'Effetto Personalizzato', description: 'Descrivi tu l\'effetto', icon: '✨' },
+  { id: 'protection', label: 'Protezione', description: 'La carta non può essere attaccata', icon: '🛡️', category: 'difesa' },
+  { id: 'damage', label: 'Danno', description: 'Infligge danni a carte nemiche', icon: '⚔️', category: 'attacco' },
+  { id: 'heal', label: 'Cura', description: 'Ripristina PTI', icon: '💚', category: 'supporto' },
+  { id: 'draw', label: 'Pesca', description: 'Fa pescare carte', icon: '🎴', category: 'carte' },
+  { id: 'discard', label: 'Scarta', description: 'Fa scartare carte agli avversari', icon: '🗑️', category: 'carte' },
+  { id: 'stars', label: 'Modifica Stelle', description: 'Aggiunge o rimuove stelle', icon: '⭐', category: 'risorse' },
+  { id: 'pti', label: 'Modifica PTI', description: 'Aumenta o diminuisce i PTI', icon: '💪', category: 'risorse' },
+  { id: 'counter', label: 'Contrattacco', description: 'Infligge danni quando viene attaccato', icon: '↩️', category: 'difesa' },
+  { id: 'reflect', label: 'Rifletti Danno', description: 'Restituisce parte del danno ricevuto', icon: '🪞', category: 'difesa' },
+  { id: 'steal', label: 'Ruba Carta', description: 'Ruba una carta dalla mano avversaria', icon: '🤏', category: 'carte' },
+  { id: 'copy', label: 'Copia Effetto', description: 'Copia l\'effetto di un\'altra carta', icon: '📋', category: 'speciale' },
+  { id: 'resurrect', label: 'Resuscita', description: 'Riporta una carta dal cimitero', icon: '👼', category: 'speciale' },
+  { id: 'powerup', label: 'Potenziamento', description: 'Aumenta temporaneamente le statistiche', icon: '📈', category: 'supporto' },
+  { id: 'weaken', label: 'Indebolimento', description: 'Riduce le statistiche nemiche', icon: '📉', category: 'attacco' },
+  { id: 'skip', label: 'Salta Turno', description: 'Fa saltare il turno all\'avversario', icon: '⏭️', category: 'controllo' },
+  { id: 'extra_turn', label: 'Turno Extra', description: 'Ottieni un turno aggiuntivo', icon: '🔄', category: 'controllo' },
+  { id: 'swap', label: 'Scambio', description: 'Scambia carte o statistiche', icon: '🔀', category: 'speciale' },
+  { id: 'transform', label: 'Trasformazione', description: 'Trasforma una carta in un\'altra', icon: '🦋', category: 'speciale' },
+  { id: 'poison', label: 'Veleno', description: 'Infligge danni ogni turno', icon: '☠️', category: 'attacco' },
+  { id: 'burn', label: 'Bruciatura', description: 'Brucia la carta per danni nel tempo', icon: '🔥', category: 'attacco' },
+  { id: 'freeze', label: 'Congelamento', description: 'La carta non può agire per X turni', icon: '❄️', category: 'controllo' },
+  { id: 'stun', label: 'Stordimento', description: 'La carta salta il prossimo turno', icon: '💫', category: 'controllo' },
+  { id: 'lifesteal', label: 'Furto Vita', description: 'I danni inflitti curano il proprietario', icon: '🧛', category: 'attacco' },
+  { id: 'sacrifice', label: 'Sacrificio', description: 'Sacrifica PTI o carte per un effetto', icon: '💀', category: 'speciale' },
+  { id: 'summon', label: 'Evocazione', description: 'Evoca una carta aggiuntiva', icon: '✨', category: 'speciale' },
+  { id: 'shield', label: 'Scudo', description: 'Assorbe una certa quantità di danni', icon: '🔰', category: 'difesa' },
+  { id: 'drain', label: 'Assorbimento', description: 'Ruba PTI o stelle agli avversari', icon: '🌀', category: 'attacco' },
+  { id: 'double', label: 'Raddoppia', description: 'Raddoppia danni, cure o effetti', icon: '✖️', category: 'speciale' },
+  { id: 'nullify', label: 'Nullifica', description: 'Annulla l\'effetto di una carta nemica', icon: '🚫', category: 'controllo' },
+  { id: 'revenge', label: 'Vendetta', description: 'Effetto si attiva quando la carta muore', icon: '👊', category: 'speciale' },
+  { id: 'aura', label: 'Aura', description: 'Effetto che si applica a carte alleate vicine', icon: '✴️', category: 'supporto' },
+  { id: 'custom', label: 'Personalizzato', description: 'Descrivi tu l\'effetto liberamente', icon: '🖊️', category: 'altro' },
+];
+
+const EFFECT_CATEGORIES = [
+  { id: 'all', label: 'Tutti', icon: '📋' },
+  { id: 'attacco', label: 'Attacco', icon: '⚔️' },
+  { id: 'difesa', label: 'Difesa', icon: '🛡️' },
+  { id: 'supporto', label: 'Supporto', icon: '💚' },
+  { id: 'controllo', label: 'Controllo', icon: '🎮' },
+  { id: 'carte', label: 'Carte', icon: '🎴' },
+  { id: 'risorse', label: 'Risorse', icon: '⭐' },
+  { id: 'speciale', label: 'Speciale', icon: '✨' },
+  { id: 'altro', label: 'Altro', icon: '🖊️' },
 ];
 
 const TARGET_OPTIONS = [
@@ -48,6 +86,19 @@ function generateEffectDescription(wizard: EffectWizardState): string {
 
   let description = '';
   const value = wizard.value ? parseInt(wizard.value) : 0;
+  const value2 = wizard.value2 ? parseInt(wizard.value2) : 0;
+  const getTargetText = (t: string) => {
+    switch (t) {
+      case 'opponents': return 'agli avversari';
+      case 'all': return 'a tutti';
+      case 'random': return 'a un bersaglio casuale';
+      case 'self': return '';
+      case 'owner': return 'al proprietario';
+      case 'enemy_card': return 'a una carta nemica';
+      case 'ally_card': return 'a una carta alleata';
+      default: return '';
+    }
+  };
 
   switch (wizard.effectType) {
     case 'protection':
@@ -57,12 +108,10 @@ function generateEffectDescription(wizard: EffectWizardState): string {
       }
       break;
     case 'damage':
-      const damageTarget = wizard.target === 'opponents' ? 'agli avversari' : wizard.target === 'all' ? 'a tutti' : wizard.target === 'random' ? 'a un bersaglio casuale' : '';
-      description = `Infligge ${value || 100} danni ${damageTarget}`.trim();
+      description = `Infligge ${value || 100} danni ${getTargetText(wizard.target)}`.trim();
       break;
     case 'heal':
-      const healTarget = wizard.target === 'self' ? '' : wizard.target === 'owner' ? 'al proprietario' : wizard.target === 'all' ? 'a tutti' : '';
-      description = `Cura ${value || 100} PTI ${healTarget}`.trim();
+      description = `Cura ${value || 100} PTI ${getTargetText(wizard.target)}`.trim();
       break;
     case 'draw':
       description = `Pesca ${value || 1} carte`;
@@ -83,6 +132,78 @@ function generateEffectDescription(wizard: EffectWizardState): string {
       } else {
         description = `Diminuisce i PTI di ${Math.abs(value)}`;
       }
+      break;
+    case 'counter':
+      description = `Contrattacco: quando viene attaccato, infligge ${value || 50} danni all'attaccante`;
+      break;
+    case 'reflect':
+      description = `Riflette il ${value || 50}% dei danni ricevuti all'attaccante`;
+      break;
+    case 'steal':
+      description = `Ruba ${value || 1} carta casuale dalla mano di un avversario`;
+      break;
+    case 'copy':
+      description = `Copia l'effetto dell'ultima carta giocata`;
+      break;
+    case 'resurrect':
+      description = `Riporta in mano una carta dal cimitero`;
+      break;
+    case 'powerup':
+      description = `Potenziamento: +${value || 100} PTI e +${value2 || 1} stelle per ${wizard.duration === 'turns' ? `${wizard.value2 || 2} turni` : 'permanentemente'}`;
+      break;
+    case 'weaken':
+      description = `Indebolisce: -${value || 100} PTI ${getTargetText(wizard.target)}`;
+      break;
+    case 'skip':
+      description = `L'avversario salta il prossimo turno`;
+      break;
+    case 'extra_turn':
+      description = `Ottieni un turno extra dopo questo`;
+      break;
+    case 'swap':
+      description = `Scambia ${wizard.target === 'pti' ? 'i PTI' : wizard.target === 'stars' ? 'le stelle' : 'le carte in mano'} con un avversario`;
+      break;
+    case 'transform':
+      description = `Trasforma una carta nemica in una carta casuale più debole`;
+      break;
+    case 'poison':
+      description = `Avvelena: infligge ${value || 50} danni ogni turno per ${value2 || 3} turni`;
+      break;
+    case 'burn':
+      description = `Brucia: infligge ${value || 30} danni ogni turno finché non viene curato`;
+      break;
+    case 'freeze':
+      description = `Congela una carta nemica: non può agire per ${value || 2} turni`;
+      break;
+    case 'stun':
+      description = `Stordisce una carta nemica: salta il prossimo turno`;
+      break;
+    case 'lifesteal':
+      description = `Furto Vita: i danni inflitti (${value || 100}) curano questa carta`;
+      break;
+    case 'sacrifice':
+      description = `Sacrifica ${value || 100} PTI per ${value2 > 0 ? `infliggere ${value2} danni a tutti i nemici` : 'pescare 2 carte'}`;
+      break;
+    case 'summon':
+      description = `Evoca una carta personaggio casuale dal mazzo`;
+      break;
+    case 'shield':
+      description = `Scudo: assorbe i prossimi ${value || 200} danni`;
+      break;
+    case 'drain':
+      description = `Assorbe ${value || 100} ${wizard.target === 'stars' ? 'stelle' : 'PTI'} da un avversario`;
+      break;
+    case 'double':
+      description = `Raddoppia ${wizard.target === 'damage' ? 'i danni del prossimo attacco' : wizard.target === 'heal' ? 'la prossima cura' : 'l\'effetto della prossima carta giocata'}`;
+      break;
+    case 'nullify':
+      description = `Nullifica l'effetto della prossima carta nemica`;
+      break;
+    case 'revenge':
+      description = `Vendetta: quando muore, infligge ${value || 200} danni all'uccisore`;
+      break;
+    case 'aura':
+      description = `Aura: tutte le carte alleate ${wizard.target === 'pti' ? `guadagnano +${value || 50} PTI` : `guadagnano +${value || 1} stelle`}`;
       break;
   }
 
@@ -165,9 +286,11 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     effectType: '',
     target: 'self',
     value: '',
+    value2: '',
     duration: 'instant',
     condition: '',
-    customDescription: ''
+    customDescription: '',
+    categoryFilter: 'all'
   });
 
   const resetEffectWizard = () => {
@@ -176,9 +299,11 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       effectType: '',
       target: 'self',
       value: '',
+      value2: '',
       duration: 'instant',
       condition: '',
-      customDescription: ''
+      customDescription: '',
+      categoryFilter: 'all'
     });
   };
 
@@ -205,9 +330,28 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   };
 
   const getStepCount = () => {
-    if (effectWizard.effectType === 'protection') return 3;
+    const noValueEffects = ['protection', 'copy', 'extra_turn', 'nullify', 'summon', 'resurrect'];
+    const noTargetEffects = ['protection', 'custom', 'copy', 'extra_turn', 'skip', 'nullify', 'summon', 'resurrect', 'revenge'];
+    
     if (effectWizard.effectType === 'custom') return 2;
-    return 4;
+    if (noValueEffects.includes(effectWizard.effectType)) {
+      return noTargetEffects.includes(effectWizard.effectType) ? 2 : 3;
+    }
+    return noTargetEffects.includes(effectWizard.effectType) ? 3 : 4;
+  };
+
+  const needsTarget = () => {
+    const noTargetEffects = ['protection', 'custom', 'copy', 'extra_turn', 'skip', 'nullify', 'summon', 'resurrect', 'revenge', 'counter', 'reflect', 'shield', 'stun', 'lifesteal'];
+    return !noTargetEffects.includes(effectWizard.effectType);
+  };
+
+  const needsValue = () => {
+    const noValueEffects = ['copy', 'extra_turn', 'nullify', 'summon', 'resurrect', 'skip', 'stun', 'transform'];
+    return !noValueEffects.includes(effectWizard.effectType);
+  };
+
+  const needsSecondValue = () => {
+    return ['poison', 'powerup', 'sacrifice'].includes(effectWizard.effectType);
   };
 
   const canProceedToNextStep = () => {
@@ -215,10 +359,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       case 1: return effectWizard.effectType !== '';
       case 2: 
         if (effectWizard.effectType === 'custom') return effectWizard.customDescription.trim() !== '';
-        if (effectWizard.effectType === 'protection') return true;
+        if (!needsTarget()) return true;
         return effectWizard.target !== '';
       case 3:
-        if (effectWizard.effectType === 'protection') return true;
         return true;
       default: return true;
     }
@@ -1277,28 +1420,50 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
             {/* Step 1: Effect Type */}
             {effectWizard.step === 1 && (
               <div className="space-y-3">
-                <p className="text-gray-300 text-sm mb-4">Che tipo di effetto vuoi creare?</p>
-                <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
-                  {EFFECT_TYPES.map(effect => (
+                <p className="text-gray-300 text-sm mb-2">Che tipo di effetto vuoi creare?</p>
+                
+                {/* Category Filter */}
+                <div className="flex flex-wrap gap-1 mb-3">
+                  {EFFECT_CATEGORIES.map(cat => (
+                    <button
+                      key={cat.id}
+                      onClick={() => setEffectWizard(prev => ({ ...prev, categoryFilter: cat.id }))}
+                      className={`px-2 py-1 rounded text-xs transition-all ${
+                        effectWizard.categoryFilter === cat.id
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                      }`}
+                    >
+                      {cat.icon} {cat.label}
+                    </button>
+                  ))}
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
+                  {EFFECT_TYPES.filter(e => effectWizard.categoryFilter === 'all' || e.category === effectWizard.categoryFilter).map(effect => (
                     <button
                       key={effect.id}
                       onClick={() => setEffectWizard(prev => ({ ...prev, effectType: effect.id }))}
-                      className={`p-3 rounded-lg border text-left transition-all ${
+                      className={`p-2 rounded-lg border text-left transition-all ${
                         effectWizard.effectType === effect.id
                           ? 'border-purple-500 bg-purple-600/30'
                           : 'border-gray-600 bg-gray-700 hover:border-gray-500'
                       }`}
                     >
-                      <div className="text-2xl mb-1">{effect.icon}</div>
-                      <div className="text-white font-medium text-sm">{effect.label}</div>
-                      <div className="text-gray-400 text-xs">{effect.description}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">{effect.icon}</span>
+                        <div>
+                          <div className="text-white font-medium text-xs">{effect.label}</div>
+                          <div className="text-gray-400 text-[10px] leading-tight">{effect.description}</div>
+                        </div>
+                      </div>
                     </button>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Step 2: Target (or Custom description) */}
+            {/* Step 2: Target, Custom description, or No-target confirmation */}
             {effectWizard.step === 2 && (
               <div className="space-y-3">
                 {effectWizard.effectType === 'custom' ? (
@@ -1313,57 +1478,45 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                     />
                     <p className="text-gray-500 text-xs">Sii il piu specifico possibile. Il sistema cerchera di interpretare l'effetto.</p>
                   </>
-                ) : effectWizard.effectType === 'protection' ? (
+                ) : !needsTarget() ? (
                   <>
-                    <p className="text-gray-300 text-sm mb-4">La carta sara protetta dagli attacchi!</p>
+                    <p className="text-gray-300 text-sm mb-4">Configurazione effetto:</p>
                     <div className="bg-purple-600/20 border border-purple-500 rounded-lg p-4">
-                      <div className="text-2xl mb-2">🛡️</div>
-                      <p className="text-white font-medium">Protezione Attiva</p>
-                      <p className="text-gray-300 text-sm mt-2">Questa carta non potra essere bersaglio di attacchi nemici.</p>
+                      <div className="text-2xl mb-2">{EFFECT_TYPES.find(e => e.id === effectWizard.effectType)?.icon}</div>
+                      <p className="text-white font-medium">{EFFECT_TYPES.find(e => e.id === effectWizard.effectType)?.label}</p>
+                      <p className="text-gray-300 text-sm mt-2">{EFFECT_TYPES.find(e => e.id === effectWizard.effectType)?.description}</p>
                     </div>
-                    <div className="mt-4">
-                      <p className="text-gray-300 text-sm mb-2">Durata della protezione:</p>
-                      <div className="space-y-2">
-                        {DURATION_OPTIONS.map(dur => (
-                          <button
-                            key={dur.id}
-                            onClick={() => setEffectWizard(prev => ({ ...prev, duration: dur.id }))}
-                            className={`w-full p-3 rounded-lg border text-left transition-all ${
-                              effectWizard.duration === dur.id
-                                ? 'border-purple-500 bg-purple-600/30'
-                                : 'border-gray-600 bg-gray-700 hover:border-gray-500'
-                            }`}
-                          >
-                            <div className="text-white font-medium text-sm">{dur.label}</div>
-                            <div className="text-gray-400 text-xs">{dur.description}</div>
-                          </button>
-                        ))}
-                      </div>
-                      {effectWizard.duration === 'turns' && (
-                        <div className="mt-3">
-                          <label className="text-gray-300 text-sm">Numero di turni:</label>
-                          <Input
-                            type="number"
-                            min="1"
-                            max="10"
-                            value={effectWizard.value}
-                            onChange={(e) => setEffectWizard(prev => ({ ...prev, value: e.target.value }))}
-                            placeholder="3"
-                            className="bg-gray-700 text-white border-gray-600 mt-1"
-                          />
+                    {['protection', 'shield', 'freeze', 'burn', 'poison'].includes(effectWizard.effectType) && (
+                      <div className="mt-4">
+                        <p className="text-gray-300 text-sm mb-2">Durata:</p>
+                        <div className="space-y-2">
+                          {DURATION_OPTIONS.map(dur => (
+                            <button
+                              key={dur.id}
+                              onClick={() => setEffectWizard(prev => ({ ...prev, duration: dur.id }))}
+                              className={`w-full p-2 rounded-lg border text-left transition-all ${
+                                effectWizard.duration === dur.id
+                                  ? 'border-purple-500 bg-purple-600/30'
+                                  : 'border-gray-600 bg-gray-700 hover:border-gray-500'
+                              }`}
+                            >
+                              <div className="text-white font-medium text-sm">{dur.label}</div>
+                              <div className="text-gray-400 text-xs">{dur.description}</div>
+                            </button>
+                          ))}
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <>
                     <p className="text-gray-300 text-sm mb-4">Chi sara il bersaglio dell'effetto?</p>
-                    <div className="space-y-2">
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
                       {TARGET_OPTIONS.map(target => (
                         <button
                           key={target.id}
                           onClick={() => setEffectWizard(prev => ({ ...prev, target: target.id }))}
-                          className={`w-full p-3 rounded-lg border text-left transition-all ${
+                          className={`w-full p-2 rounded-lg border text-left transition-all ${
                             effectWizard.target === target.id
                               ? 'border-purple-500 bg-purple-600/30'
                               : 'border-gray-600 bg-gray-700 hover:border-gray-500'
@@ -1380,35 +1533,71 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
             )}
 
             {/* Step 3: Value */}
-            {effectWizard.step === 3 && effectWizard.effectType !== 'custom' && effectWizard.effectType !== 'protection' && (
+            {effectWizard.step === 3 && needsValue() && effectWizard.effectType !== 'custom' && (
               <div className="space-y-3">
-                <p className="text-gray-300 text-sm mb-4">
+                <p className="text-gray-300 text-sm mb-2">
                   {effectWizard.effectType === 'damage' && 'Quanti danni vuoi infliggere?'}
                   {effectWizard.effectType === 'heal' && 'Quanti PTI vuoi curare?'}
                   {effectWizard.effectType === 'draw' && 'Quante carte vuoi far pescare?'}
                   {effectWizard.effectType === 'discard' && 'Quante carte vuoi far scartare?'}
-                  {effectWizard.effectType === 'stars' && 'Quante stelle? (usa numeri negativi per rimuovere)'}
-                  {effectWizard.effectType === 'pti' && 'Di quanto vuoi modificare i PTI? (usa numeri negativi per diminuire)'}
+                  {effectWizard.effectType === 'stars' && 'Quante stelle? (numeri negativi per rimuovere)'}
+                  {effectWizard.effectType === 'pti' && 'Di quanto modificare i PTI? (negativi per diminuire)'}
+                  {effectWizard.effectType === 'counter' && 'Quanti danni infligge al contrattacco?'}
+                  {effectWizard.effectType === 'reflect' && 'Che percentuale di danni riflette?'}
+                  {effectWizard.effectType === 'steal' && 'Quante carte ruba?'}
+                  {effectWizard.effectType === 'powerup' && 'Di quanto aumentare i PTI?'}
+                  {effectWizard.effectType === 'weaken' && 'Di quanto ridurre i PTI nemici?'}
+                  {effectWizard.effectType === 'poison' && 'Quanti danni per turno?'}
+                  {effectWizard.effectType === 'burn' && 'Quanti danni per turno?'}
+                  {effectWizard.effectType === 'freeze' && 'Per quanti turni congelare?'}
+                  {effectWizard.effectType === 'lifesteal' && 'Quanti danni (che curano)?'}
+                  {effectWizard.effectType === 'sacrifice' && 'Quanti PTI sacrificare?'}
+                  {effectWizard.effectType === 'shield' && 'Quanti danni assorbire?'}
+                  {effectWizard.effectType === 'drain' && 'Quanto assorbire?'}
+                  {effectWizard.effectType === 'revenge' && 'Quanti danni alla morte?'}
+                  {effectWizard.effectType === 'aura' && 'Di quanto potenziare gli alleati?'}
+                  {effectWizard.effectType === 'protection' && 'Per quanti turni?'}
                 </p>
                 <Input
                   type="number"
                   value={effectWizard.value}
                   onChange={(e) => setEffectWizard(prev => ({ ...prev, value: e.target.value }))}
-                  placeholder={effectWizard.effectType === 'draw' || effectWizard.effectType === 'discard' ? '1' : '100'}
+                  placeholder={['draw', 'discard', 'steal', 'freeze'].includes(effectWizard.effectType) ? '1' : effectWizard.effectType === 'reflect' ? '50' : '100'}
                   className="bg-gray-700 text-white border-gray-600 text-lg"
                 />
+                
+                {/* Second value for complex effects */}
+                {needsSecondValue() && (
+                  <div className="mt-3">
+                    <p className="text-gray-300 text-sm mb-2">
+                      {effectWizard.effectType === 'poison' && 'Per quanti turni?'}
+                      {effectWizard.effectType === 'powerup' && 'Quante stelle in piu?'}
+                      {effectWizard.effectType === 'sacrifice' && 'Quanti danni infliggere?'}
+                    </p>
+                    <Input
+                      type="number"
+                      value={effectWizard.value2}
+                      onChange={(e) => setEffectWizard(prev => ({ ...prev, value2: e.target.value }))}
+                      placeholder={effectWizard.effectType === 'poison' ? '3' : effectWizard.effectType === 'powerup' ? '1' : '200'}
+                      className="bg-gray-700 text-white border-gray-600"
+                    />
+                  </div>
+                )}
+                
                 <p className="text-gray-500 text-xs">
-                  {effectWizard.effectType === 'damage' && 'Consigliato: 50-300 per danni normali'}
-                  {effectWizard.effectType === 'heal' && 'Consigliato: 50-200 per cure normali'}
-                  {effectWizard.effectType === 'draw' && 'Consigliato: 1-3 carte'}
-                  {effectWizard.effectType === 'discard' && 'Consigliato: 1-2 carte'}
+                  {effectWizard.effectType === 'damage' && 'Consigliato: 50-300'}
+                  {effectWizard.effectType === 'heal' && 'Consigliato: 50-200'}
+                  {effectWizard.effectType === 'draw' && 'Consigliato: 1-3'}
+                  {effectWizard.effectType === 'discard' && 'Consigliato: 1-2'}
+                  {effectWizard.effectType === 'reflect' && 'Consigliato: 25-75%'}
+                  {effectWizard.effectType === 'shield' && 'Consigliato: 100-300'}
+                  {effectWizard.effectType === 'poison' && 'Consigliato: 30-100 per 2-4 turni'}
                 </p>
               </div>
             )}
 
-            {/* Step 3/4: Condition (optional) */}
-            {((effectWizard.step === 3 && effectWizard.effectType === 'protection') ||
-              (effectWizard.step === 4 && effectWizard.effectType !== 'custom' && effectWizard.effectType !== 'protection')) && (
+            {/* Final Step: Condition (optional) */}
+            {effectWizard.step === getStepCount() && effectWizard.effectType !== 'custom' && (
               <div className="space-y-3">
                 <p className="text-gray-300 text-sm mb-4">Vuoi aggiungere una condizione? (opzionale)</p>
                 <textarea

@@ -61,6 +61,18 @@ interface Card {
   ostaggioHoldingCardId?: string; // ID of the character card this OSTAGGIO is holding
   // Custom card protection system
   isProtected?: boolean; // True if this card cannot be attacked (from custom AI effects)
+  // Advanced custom effect properties
+  counterDamage?: number; // Damage dealt when attacked (counter-attack)
+  reflectPercent?: number; // Percentage of damage reflected back
+  shieldAmount?: number; // Amount of damage absorbed by shield
+  frozenTurns?: number; // Number of turns the card is frozen
+  isStunned?: boolean; // Card skips next action
+  poisonDamage?: number; // Damage per turn from poison
+  poisonTurns?: number; // Turns remaining for poison
+  burnDamage?: number; // Damage per turn from burn
+  hasLifesteal?: boolean; // Attacks heal this card
+  lifestealAmount?: number; // Amount of lifesteal damage
+  revengeDamage?: number; // Damage dealt when card dies
 }
 
 interface Player {
@@ -224,6 +236,11 @@ interface GameState {
   barrieraShields: BarrieraShield[]; // BARRIERA shield protection tracking
   delayedDamages: DelayedDamage[]; // Delayed damage effects from defense
   playerDeathModifiers: Map<string, number>; // Per-player death limit modifiers (+/- deaths)
+  // Advanced custom effect state
+  extraTurnPlayer?: string; // Player who gets an extra turn
+  skipTurnPlayers?: string[]; // Players who skip their next turn
+  nullifyNextEffect?: string; // Player whose next enemy effect is nullified
+  doubleNextEffect?: string; // Player whose next effect is doubled
 }
 
 export class GameManager {
@@ -1907,6 +1924,115 @@ Rispondi SOLO in JSON:`;
       actions.push({ type: 'protection', target: 'self', value: 1, description: 'Non può essere attaccato' });
     }
 
+    // COUNTER-ATTACK patterns
+    if (text.includes('contrattacco') || text.includes('contrattacca') || text.includes('quando viene attaccato')) {
+      const value = extractNumber(text);
+      actions.push({ type: 'counter', target: 'self', value, description: `Contrattacco: infligge ${value} danni` });
+    }
+
+    // REFLECT patterns
+    if (text.includes('riflette') || text.includes('restituisce') || text.includes('rimbalza')) {
+      const value = extractNumber(text) || 50;
+      actions.push({ type: 'reflect', target: 'self', value, description: `Riflette ${value}% dei danni` });
+    }
+
+    // STEAL patterns
+    if (text.includes('ruba') && (text.includes('carta') || text.includes('carte'))) {
+      const value = extractNumber(text) || 1;
+      actions.push({ type: 'steal', target: 'opponents', value, description: `Ruba ${value} carte` });
+    }
+
+    // FREEZE patterns
+    if (text.includes('congela') || text.includes('congelamento') || text.includes('non può agire')) {
+      const value = extractNumber(text) || 2;
+      actions.push({ type: 'freeze', target: 'opponents', value, description: `Congela per ${value} turni` });
+    }
+
+    // STUN patterns
+    if (text.includes('stordis') || text.includes('stordimento') || text.includes('salta il turno')) {
+      actions.push({ type: 'stun', target: 'opponents', value: 1, description: 'Stordisce: salta il prossimo turno' });
+    }
+
+    // POISON patterns
+    if (text.includes('veleno') || text.includes('avvelena')) {
+      const value = extractNumber(text) || 50;
+      actions.push({ type: 'poison', target: 'opponents', value, description: `Veleno: ${value} danni/turno` });
+    }
+
+    // BURN patterns
+    if (text.includes('brucia') || text.includes('bruciatura') || text.includes('fiamme')) {
+      const value = extractNumber(text) || 30;
+      actions.push({ type: 'burn', target: 'opponents', value, description: `Bruciatura: ${value} danni/turno` });
+    }
+
+    // LIFESTEAL patterns
+    if (text.includes('furto vita') || text.includes('vita rubata') || text.includes('assorbe vita') ||
+        (text.includes('danni') && text.includes('cura'))) {
+      const value = extractNumber(text) || 100;
+      actions.push({ type: 'lifesteal', target: 'self', value, description: `Furto Vita: ${value}` });
+    }
+
+    // SHIELD patterns
+    if (text.includes('scudo') && !text.includes('attacco')) {
+      const value = extractNumber(text) || 200;
+      actions.push({ type: 'shield', target: 'self', value, description: `Scudo: assorbe ${value} danni` });
+    }
+
+    // DRAIN patterns
+    if (text.includes('assorbe') || text.includes('assorbimento') || text.includes('drain')) {
+      const value = extractNumber(text) || 100;
+      actions.push({ type: 'drain', target: 'opponents', value, description: `Assorbe ${value}` });
+    }
+
+    // REVENGE patterns
+    if (text.includes('vendetta') || text.includes('quando muore') || text.includes('alla morte')) {
+      const value = extractNumber(text) || 200;
+      actions.push({ type: 'revenge', target: 'self', value, description: `Vendetta: ${value} danni alla morte` });
+    }
+
+    // EXTRA TURN patterns
+    if (text.includes('turno extra') || text.includes('turno aggiuntivo') || text.includes('gioca di nuovo')) {
+      actions.push({ type: 'extra_turn', target: 'self', value: 1, description: 'Turno extra' });
+    }
+
+    // SKIP TURN patterns
+    if (text.includes('salta il turno') && text.includes('avversario')) {
+      actions.push({ type: 'skip_turn', target: 'opponents', value: 1, description: 'L\'avversario salta il turno' });
+    }
+
+    // NULLIFY patterns
+    if (text.includes('nullifica') || text.includes('annulla') || text.includes('nega')) {
+      actions.push({ type: 'nullify', target: 'opponents', value: 1, description: 'Nullifica effetto nemico' });
+    }
+
+    // RESURRECT patterns
+    if (text.includes('resuscita') || text.includes('riporta') || text.includes('cimitero')) {
+      actions.push({ type: 'resurrect', target: 'self', value: 1, description: 'Resuscita carta dal cimitero' });
+    }
+
+    // POWERUP patterns
+    if (text.includes('potenzia') || text.includes('potenziamento') || text.includes('boost')) {
+      const value = extractNumber(text) || 100;
+      actions.push({ type: 'powerup', target: 'self', value, description: `Potenziamento: +${value} PTI` });
+    }
+
+    // WEAKEN patterns
+    if (text.includes('indebolis') || text.includes('indebolimento') || text.includes('riduce la forza')) {
+      const value = extractNumber(text) || 100;
+      actions.push({ type: 'weaken', target: 'opponents', value, description: `Indebolisce: -${value} PTI` });
+    }
+
+    // AURA patterns
+    if (text.includes('aura') || text.includes('alleati guadagnano') || text.includes('carte alleate')) {
+      const value = extractNumber(text) || 50;
+      actions.push({ type: 'aura', target: 'allies', value, description: `Aura: +${value} PTI agli alleati` });
+    }
+
+    // DOUBLE patterns
+    if (text.includes('raddoppia') || text.includes('doppio')) {
+      actions.push({ type: 'double', target: 'self', value: 2, description: 'Raddoppia effetto' });
+    }
+
     // Special/Generic patterns
     if (actions.length === 0 && text.length > 5) {
       actions.push({ type: 'special', target: 'self', value: 0, description: effectText });
@@ -2172,6 +2298,213 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if (protectedCard) {
           protectedCard.isProtected = true;
           console.log(`🛡️ Custom effect: ${protectedCard.name || protectedCard.id} is now PROTECTED and cannot be attacked!`);
+        }
+        break;
+
+      case 'counter':
+        // Mark the card as having counter-attack ability
+        const counterCard = game.field.find(c => c.id === card.id);
+        if (counterCard) {
+          counterCard.counterDamage = action.value || 50;
+          console.log(`↩️ Custom effect: ${counterCard.name || counterCard.id} now has COUNTER-ATTACK (${counterCard.counterDamage} damage)!`);
+        }
+        break;
+
+      case 'reflect':
+        // Mark the card as reflecting damage
+        const reflectCard = game.field.find(c => c.id === card.id);
+        if (reflectCard) {
+          reflectCard.reflectPercent = action.value || 50;
+          console.log(`🪞 Custom effect: ${reflectCard.name || reflectCard.id} now REFLECTS ${reflectCard.reflectPercent}% damage!`);
+        }
+        break;
+
+      case 'shield':
+        // Apply shield that absorbs damage
+        const shieldCard = game.field.find(c => c.id === card.id);
+        if (shieldCard) {
+          shieldCard.shieldAmount = (shieldCard.shieldAmount || 0) + (action.value || 200);
+          console.log(`🔰 Custom effect: ${shieldCard.name || shieldCard.id} now has SHIELD (${shieldCard.shieldAmount} absorption)!`);
+        }
+        break;
+
+      case 'freeze':
+        // Freeze target - prevent action for X turns
+        if (action.target === 'opponents') {
+          for (const fieldCard of game.field) {
+            if (fieldCard.owner !== playerName && 
+                (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali')) {
+              fieldCard.frozenTurns = action.value || 2;
+              console.log(`❄️ Custom effect: ${fieldCard.name || fieldCard.id} is FROZEN for ${fieldCard.frozenTurns} turns!`);
+            }
+          }
+        }
+        break;
+
+      case 'stun':
+        // Stun target - skip next turn
+        if (action.target === 'opponents') {
+          for (const fieldCard of game.field) {
+            if (fieldCard.owner !== playerName && 
+                (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali')) {
+              fieldCard.isStunned = true;
+              console.log(`💫 Custom effect: ${fieldCard.name || fieldCard.id} is STUNNED!`);
+            }
+          }
+        }
+        break;
+
+      case 'poison':
+        // Apply poison - damage each turn
+        if (action.target === 'opponents') {
+          for (const fieldCard of game.field) {
+            if (fieldCard.owner !== playerName && 
+                (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali')) {
+              fieldCard.poisonDamage = action.value || 50;
+              fieldCard.poisonTurns = 3;
+              console.log(`☠️ Custom effect: ${fieldCard.name || fieldCard.id} is POISONED (${fieldCard.poisonDamage}/turn)!`);
+            }
+          }
+        }
+        break;
+
+      case 'burn':
+        // Apply burn - damage each turn
+        if (action.target === 'opponents') {
+          for (const fieldCard of game.field) {
+            if (fieldCard.owner !== playerName && 
+                (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali')) {
+              fieldCard.burnDamage = action.value || 30;
+              console.log(`🔥 Custom effect: ${fieldCard.name || fieldCard.id} is BURNING (${fieldCard.burnDamage}/turn)!`);
+            }
+          }
+        }
+        break;
+
+      case 'lifesteal':
+        // Mark card as having lifesteal
+        const lifestealCard = game.field.find(c => c.id === card.id);
+        if (lifestealCard) {
+          lifestealCard.hasLifesteal = true;
+          lifestealCard.lifestealAmount = action.value || 100;
+          console.log(`🧛 Custom effect: ${lifestealCard.name || lifestealCard.id} now has LIFESTEAL!`);
+        }
+        break;
+
+      case 'revenge':
+        // Mark card as having revenge ability
+        const revengeCard = game.field.find(c => c.id === card.id);
+        if (revengeCard) {
+          revengeCard.revengeDamage = action.value || 200;
+          console.log(`👊 Custom effect: ${revengeCard.name || revengeCard.id} has REVENGE (${revengeCard.revengeDamage} on death)!`);
+        }
+        break;
+
+      case 'powerup':
+        // Boost own card stats
+        const powerupCard = game.field.find(c => c.id === card.id);
+        if (powerupCard && powerupCard.pti != null) {
+          powerupCard.pti += action.value || 100;
+          console.log(`📈 Custom effect: ${powerupCard.name || powerupCard.id} POWERED UP to ${powerupCard.pti} PTI!`);
+        }
+        break;
+
+      case 'weaken':
+        // Reduce enemy stats
+        for (const fieldCard of game.field) {
+          if (fieldCard.owner !== playerName && 
+              (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') &&
+              fieldCard.pti != null) {
+            fieldCard.pti = Math.max(0, fieldCard.pti - (action.value || 100));
+            console.log(`📉 Custom effect: ${fieldCard.name || fieldCard.id} WEAKENED to ${fieldCard.pti} PTI!`);
+          }
+        }
+        break;
+
+      case 'aura':
+        // Boost all allied cards
+        for (const fieldCard of game.field) {
+          if (fieldCard.owner === playerName && 
+              (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') &&
+              fieldCard.pti != null) {
+            fieldCard.pti += action.value || 50;
+            console.log(`✴️ Aura effect: ${fieldCard.name || fieldCard.id} boosted to ${fieldCard.pti} PTI!`);
+          }
+        }
+        break;
+
+      case 'extra_turn':
+        // Grant extra turn
+        console.log(`🔄 Custom effect: ${playerName} gets an EXTRA TURN!`);
+        game.extraTurnPlayer = playerName;
+        break;
+
+      case 'skip_turn':
+        // Mark opponents to skip turn
+        for (const pName of game.turnOrder) {
+          if (pName !== playerName) {
+            game.skipTurnPlayers = game.skipTurnPlayers || [];
+            game.skipTurnPlayers.push(pName);
+            console.log(`⏭️ Custom effect: ${pName} will SKIP next turn!`);
+          }
+        }
+        break;
+
+      case 'nullify':
+        // Block next enemy effect
+        game.nullifyNextEffect = playerName;
+        console.log(`🚫 Custom effect: Next enemy effect will be NULLIFIED!`);
+        break;
+
+      case 'steal':
+        // Steal card from opponent hand (random)
+        for (const [pName, player] of Object.entries(game.players)) {
+          if (pName !== playerName) {
+            const hand = (player as any).hand as Card[];
+            if (hand.length > 0) {
+              const stolenIdx = Math.floor(Math.random() * hand.length);
+              const stolenCard = hand.splice(stolenIdx, 1)[0];
+              stolenCard.owner = playerName;
+              game.players[playerName].hand.push(stolenCard);
+              console.log(`🤏 Custom effect: ${playerName} stole ${stolenCard.name || stolenCard.id} from ${pName}!`);
+              break;
+            }
+          }
+        }
+        break;
+
+      case 'resurrect':
+        // Return card from graveyard
+        if (game.graveyard.length > 0) {
+          const resCard = game.graveyard.pop();
+          if (resCard) {
+            resCard.owner = playerName;
+            game.players[playerName].hand.push(resCard);
+            console.log(`👼 Custom effect: ${playerName} RESURRECTED ${resCard.name || resCard.id}!`);
+          }
+        }
+        break;
+
+      case 'double':
+        // Double next effect
+        game.doubleNextEffect = playerName;
+        console.log(`✖️ Custom effect: Next effect will be DOUBLED!`);
+        break;
+
+      case 'drain':
+        // Drain PTI from opponents
+        for (const fieldCard of game.field) {
+          if (fieldCard.owner !== playerName && 
+              (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') &&
+              fieldCard.pti != null) {
+            const drainAmount = Math.min(fieldCard.pti, action.value || 100);
+            fieldCard.pti -= drainAmount;
+            const ownCard = game.field.find(c => c.id === card.id);
+            if (ownCard && ownCard.pti != null) {
+              ownCard.pti += drainAmount;
+              console.log(`🌀 Custom effect: Drained ${drainAmount} PTI from ${fieldCard.name} to ${ownCard.name}!`);
+            }
+          }
         }
         break;
 
