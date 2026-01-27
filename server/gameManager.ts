@@ -389,7 +389,7 @@ export class GameManager {
             if (mod.stars !== null && mod.stars !== undefined) card.stars = mod.stars;
             if (mod.effect) card.effect = mod.effect;
             if (mod.audioUrl) card.audioUrl = mod.audioUrl;
-            console.log(`Applied modifications to card ${card.id}: name=${mod.name}, audioUrl=${mod.audioUrl}`);
+            console.log(`✏️ Applied modifications to card ${card.id}: name=${mod.name}, effect=${mod.effect ? `"${mod.effect}"` : 'none'}, audioUrl=${mod.audioUrl}`);
           }
         });
       }
@@ -1808,7 +1808,9 @@ Rispondi SOLO in JSON:`;
       this.trackPlayerEventAsync(gameId, playerName, 'card_played', { cardType: card.type });
       
       // Process custom card effect if present (works for all cards with effects - custom, permanent, or modified)
+      console.log(`📋 Card played: ${card.id} (${card.name || 'unnamed'}), effect: ${card.effect ? `"${card.effect}"` : 'NONE'}`);
       if (card.effect) {
+        console.log(`✨ Card has effect - triggering processCustomCardEffect for ${card.id}`);
         await this.processCustomCardEffect(gameId, card, playerName);
       }
       
