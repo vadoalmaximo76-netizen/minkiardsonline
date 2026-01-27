@@ -1061,6 +1061,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // PERFORMANCE: Fetch deck contents only when SCEGLI modal opens (not in every state update)
+    socket.on('get-deck-contents', ({ deckType }: { deckType: 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali' }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        const gameState = gameManager.getGameState(gameId);
+        if (gameState && gameState.decks[deckType]) {
+          socket.emit('deck-contents', { deckType, cards: gameState.decks[deckType] });
+        }
+      }
+    });
+
     socket.on('choose-specific-card', async ({ deckType, cardId, playerName }) => {
       console.log(`CHOOSE-SPECIFIC-CARD event received:`, { deckType, cardId, playerName });
       const gameId = gameManager.getPlayerGameId(socket.id);

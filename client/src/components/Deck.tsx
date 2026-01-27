@@ -16,6 +16,8 @@ const DeckComponent: React.FC<DeckProps> = ({ name, backImage, type }) => {
   const [selectedCardForZoom, setSelectedCardForZoom] = useState<any>(null);
   const [isShuffling, setIsShuffling] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [deckCards, setDeckCards] = useState<any[]>([]);
+  const [isLoadingDeck, setIsLoadingDeck] = useState(false);
   
   // Use deckCounts for faster access (pre-calculated on server)
   // Fallback to array length for backward compatibility
@@ -96,13 +98,30 @@ const DeckComponent: React.FC<DeckProps> = ({ name, backImage, type }) => {
     }
   };
 
+  // Listen for deck contents response
+  useEffect(() => {
+    const handleDeckContents = (data: { deckType: string; cards: any[] }) => {
+      if (data.deckType === type) {
+        setDeckCards(data.cards);
+        setIsLoadingDeck(false);
+      }
+    };
+    
+    socket.on('deck-contents', handleDeckContents);
+    return () => {
+      socket.off('deck-contents', handleDeckContents);
+    };
+  }, [type]);
+
   const handleChooseCard = () => {
-    console.log('SCEGLI clicked - PANNELLO ORIZZONTALE 1800x500');
-    console.log('Setting showBrowser to true for deck:', name);
-    console.log('Current cards in deck:', getSortedCards().length);
+    console.log('SCEGLI clicked - fetching deck contents for:', name);
     
     // Notify other players that this player is choosing a card
     socket.emit('player-choosing-card', { playerName, deckName: name });
+    
+    // Fetch deck contents on demand (not stored in game state anymore for performance)
+    setIsLoadingDeck(true);
+    socket.emit('get-deck-contents', { deckType: type });
     
     setShowBrowser(true);
   };
@@ -160,10 +179,11 @@ const DeckComponent: React.FC<DeckProps> = ({ name, backImage, type }) => {
   };
 
   // Function to extract filename from URL and sort alphabetically
+  // Uses locally fetched deckCards (fetched on demand when SCEGLI opens)
   const getSortedCards = () => {
-    if (!gameState?.decks?.[type]) return [];
+    if (!deckCards || deckCards.length === 0) return [];
     
-    let filteredCards = [...gameState.decks[type]];
+    let filteredCards = [...deckCards];
     
     // Apply search filter if searchTerm exists
     if (searchTerm.trim()) {

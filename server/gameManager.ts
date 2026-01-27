@@ -1530,8 +1530,9 @@ Rispondi SOLO in JSON:`;
     const gameState = this.games.get(gameId);
     if (!gameState) return null;
 
-    // Create an optimized copy of the game state
-    // Include deck counts for quick UI access (avoids needing to count arrays)
+    // OPTIMIZED: Only send deck counts, NOT full deck contents
+    // Full decks are fetched separately via 'get-deck-contents' when SCEGLI modal opens
+    // This reduces payload size from ~2MB to ~50KB per update
     const sanitized = {
       deckCounts: {
         personaggi: gameState.decks.personaggi.length,
@@ -1539,8 +1540,6 @@ Rispondi SOLO in JSON:`;
         bonus: gameState.decks.bonus.length,
         personaggiSpeciali: gameState.decks.personaggi_speciali.length
       },
-      // Keep full decks for card browser feature (SCEGLI functionality)
-      decks: gameState.decks,
       players: {} as Record<string, any>,
       field: gameState.field,
       graveyard: gameState.graveyard,
