@@ -175,24 +175,191 @@ function generateEffectDescription(wizard: EffectWizardState): string {
   };
 
   switch (wizard.effectType) {
+    // === ATTACCO ===
+    case 'damage':
+      description = `Infligge ${value || 100} danni ${getTargetText(wizard.target)}`.trim();
+      break;
+    case 'damage_all':
+      description = `Infligge ${value || 100} danni a tutti i personaggi in campo`;
+      break;
+    case 'damage_random':
+      description = `Infligge ${value || 100} danni a un bersaglio casuale`;
+      break;
+    case 'execute':
+      description = `Esecuzione: elimina istantaneamente se i PTI sono sotto ${value || 300}`;
+      break;
+    case 'pierce':
+      description = `Penetrazione: infligge ${value || 100} danni ignorando scudi e protezioni`;
+      break;
+    case 'critical':
+      description = `Colpo Critico: ${value || 50}% di possibilità di infliggere danni doppi`;
+      break;
+    case 'weaken':
+      description = `Indebolisce: -${value || 100} PTI ${getTargetText(wizard.target)}`;
+      break;
+    case 'lifesteal':
+      description = `Furto Vita: infligge ${value || 100} danni e cura questa carta dello stesso ammontare`;
+      break;
+    case 'drain':
+      description = `Assorbe ${value || 100} ${wizard.target === 'stars' ? 'stelle' : 'PTI'} da un avversario`;
+      break;
+    case 'poison':
+      description = `Avvelena: infligge ${value || 50} danni ogni turno per ${value2 || 3} turni`;
+      break;
+    case 'burn':
+      description = `Brucia: infligge ${value || 30} danni ogni turno finché non viene curato`;
+      break;
+    case 'bleed':
+      description = `Sanguinamento: infligge ${value || 40} danni ogni turno per ${value2 || 3} turni`;
+      break;
+    case 'curse':
+      description = `Maledizione: applica effetto negativo per ${value || 3} turni`;
+      break;
+    case 'explosion':
+      description = `Esplosione: infligge ${value || 150} danni a tutti i nemici nell'area`;
+      break;
+    
+    // === DIFESA ===
     case 'protection':
       description = 'Non può essere attaccato';
       if (wizard.duration === 'turns' && wizard.value) {
         description += ` per ${wizard.value} turni`;
       }
       break;
-    case 'damage':
-      description = `Infligge ${value || 100} danni ${getTargetText(wizard.target)}`.trim();
+    case 'immunity':
+      description = `Immune a effetti negativi per ${value || 2} turni`;
       break;
+    case 'shield':
+      description = `Scudo: assorbe i prossimi ${value || 200} danni`;
+      break;
+    case 'barrier':
+      description = `Barriera: blocca completamente il primo attacco ricevuto`;
+      break;
+    case 'counter':
+      description = `Contrattacco: quando viene attaccato, infligge ${value || 50} danni all'attaccante`;
+      break;
+    case 'reflect':
+      description = `Riflette il ${value || 50}% dei danni ricevuti all'attaccante`;
+      break;
+    case 'dodge':
+      description = `Schivata: ${value || 30}% di possibilità di evitare gli attacchi`;
+      break;
+    case 'armor':
+      description = `Armatura: riduce tutti i danni ricevuti di ${value || 50}`;
+      break;
+    case 'regeneration':
+      description = `Rigenerazione: recupera ${value || 50} PTI ogni turno`;
+      break;
+    case 'taunt':
+      description = `Provocazione: i nemici devono attaccare questa carta`;
+      break;
+    case 'stealth':
+      description = `Invisibilità: non può essere bersagliato per ${value || 2} turni`;
+      break;
+    
+    // === SUPPORTO ===
     case 'heal':
       description = `Cura ${value || 100} PTI ${getTargetText(wizard.target)}`.trim();
       break;
+    case 'heal_all':
+      description = `Cura ${value || 100} PTI a tutti gli alleati`;
+      break;
+    case 'powerup':
+      description = `Potenziamento: +${value || 100} PTI per ${wizard.duration === 'turns' ? `${value2 || 2} turni` : 'permanentemente'}`;
+      break;
+    case 'buff':
+      description = `Buff: +${value || 100} PTI a una carta alleata`;
+      break;
+    case 'cleanse':
+      description = `Purificazione: rimuove tutti gli effetti negativi`;
+      break;
+    case 'bless':
+      description = `Benedizione: conferisce +${value || 50} PTI e immunità per 1 turno`;
+      break;
+    case 'inspire':
+      description = `Ispirazione: tutte le carte alleate guadagnano +${value || 30} PTI`;
+      break;
+    case 'aura':
+      description = `Aura: tutte le carte alleate guadagnano +${value || 50} PTI`;
+      break;
+    case 'revive_boost':
+      description = `Rinascita Potenziata: resuscita con +${value || 200} PTI extra`;
+      break;
+    
+    // === CONTROLLO ===
+    case 'freeze':
+      description = `Congela una carta nemica: non può agire per ${value || 2} turni`;
+      break;
+    case 'stun':
+      description = `Stordisce una carta nemica: salta il prossimo turno`;
+      break;
+    case 'silence':
+      description = `Silenzio: disabilita gli effetti di una carta nemica per ${value || 2} turni`;
+      break;
+    case 'sleep':
+      description = `Sonno: la carta nemica non può agire finché non viene colpita`;
+      break;
+    case 'confuse':
+      description = `Confusione: la carta nemica può colpire i propri alleati per ${value || 2} turni`;
+      break;
+    case 'fear':
+      description = `Paura: la carta nemica non può attaccare per ${value || 2} turni`;
+      break;
+    case 'charm':
+      description = `Charme: controlla temporaneamente una carta nemica per ${value || 1} turno`;
+      break;
+    case 'skip':
+      description = `L'avversario salta il prossimo turno`;
+      break;
+    case 'extra_turn':
+      description = `Ottieni un turno extra dopo questo`;
+      break;
+    case 'nullify':
+      description = `Nullifica l'effetto della prossima carta nemica`;
+      break;
+    case 'banish':
+      description = `Esilio: rimuove una carta dal gioco per ${value || 2} turni`;
+      break;
+    case 'slow':
+      description = `Rallentamento: riduce la velocità di azione del nemico`;
+      break;
+    case 'lock':
+      description = `Blocco: impedisce l'uso di abilità per ${value || 2} turni`;
+      break;
+    
+    // === CARTE ===
     case 'draw':
       description = `Pesca ${value || 1} carte`;
+      break;
+    case 'draw_specific':
+      description = `Pesca ${value || 1} carta di tipo specifico dal mazzo`;
       break;
     case 'discard':
       description = `Gli avversari scartano ${value || 1} carte`;
       break;
+    case 'steal':
+      description = `Ruba ${value || 1} carta casuale dalla mano di un avversario`;
+      break;
+    case 'reveal':
+      description = `Rivela le carte in mano dell'avversario`;
+      break;
+    case 'shuffle':
+      description = `Rimescola ${value || 1} carte nel mazzo`;
+      break;
+    case 'search':
+      description = `Cerca una carta specifica nel mazzo e aggiungila alla mano`;
+      break;
+    case 'return_hand':
+      description = `Riporta ${value || 1} carta dal campo alla mano`;
+      break;
+    case 'return_deck':
+      description = `Riporta ${value || 1} carta nel mazzo`;
+      break;
+    case 'mill':
+      description = `L'avversario scarta ${value || 3} carte dal mazzo al cimitero`;
+      break;
+    
+    // === RISORSE ===
     case 'stars':
       if (value >= 0) {
         description = `Guadagna ${value || 1} stelle`;
@@ -207,32 +374,28 @@ function generateEffectDescription(wizard: EffectWizardState): string {
         description = `Diminuisce i PTI di ${Math.abs(value)}`;
       }
       break;
-    case 'counter':
-      description = `Contrattacco: quando viene attaccato, infligge ${value || 50} danni all'attaccante`;
+    case 'energy':
+      description = `Genera ${value || 1} energia`;
       break;
-    case 'reflect':
-      description = `Riflette il ${value || 50}% dei danni ricevuti all'attaccante`;
+    case 'mana':
+      description = `Genera ${value || 1} mana`;
       break;
-    case 'steal':
-      description = `Ruba ${value || 1} carta casuale dalla mano di un avversario`;
+    case 'gold':
+      description = `Guadagna ${value || 100} oro`;
       break;
+    case 'exp':
+      description = `Guadagna ${value || 50} punti esperienza`;
+      break;
+    
+    // === SPECIALE ===
     case 'copy':
       description = `Copia l'effetto dell'ultima carta giocata`;
       break;
     case 'resurrect':
-      description = `Riporta in mano una carta dal cimitero`;
+      description = `Riporta una carta casuale dal cimitero`;
       break;
-    case 'powerup':
-      description = `Potenziamento: +${value || 100} PTI e +${value2 || 1} stelle per ${wizard.duration === 'turns' ? `${wizard.value2 || 2} turni` : 'permanentemente'}`;
-      break;
-    case 'weaken':
-      description = `Indebolisce: -${value || 100} PTI ${getTargetText(wizard.target)}`;
-      break;
-    case 'skip':
-      description = `L'avversario salta il prossimo turno`;
-      break;
-    case 'extra_turn':
-      description = `Ottieni un turno extra dopo questo`;
+    case 'resurrect_choice':
+      description = `Scegli quale carta riportare dal cimitero`;
       break;
     case 'swap':
       description = `Scambia ${wizard.target === 'pti' ? 'i PTI' : wizard.target === 'stars' ? 'le stelle' : 'le carte in mano'} con un avversario`;
@@ -240,20 +403,8 @@ function generateEffectDescription(wizard: EffectWizardState): string {
     case 'transform':
       description = `Trasforma una carta nemica in una carta casuale più debole`;
       break;
-    case 'poison':
-      description = `Avvelena: infligge ${value || 50} danni ogni turno per ${value2 || 3} turni`;
-      break;
-    case 'burn':
-      description = `Brucia: infligge ${value || 30} danni ogni turno finché non viene curato`;
-      break;
-    case 'freeze':
-      description = `Congela una carta nemica: non può agire per ${value || 2} turni`;
-      break;
-    case 'stun':
-      description = `Stordisce una carta nemica: salta il prossimo turno`;
-      break;
-    case 'lifesteal':
-      description = `Furto Vita: i danni inflitti (${value || 100}) curano questa carta`;
+    case 'clone':
+      description = `Crea una copia di questa carta`;
       break;
     case 'sacrifice':
       description = `Sacrifica ${value || 100} PTI per ${value2 > 0 ? `infliggere ${value2} danni a tutti i nemici` : 'pescare 2 carte'}`;
@@ -261,23 +412,64 @@ function generateEffectDescription(wizard: EffectWizardState): string {
     case 'summon':
       description = `Evoca una carta personaggio casuale dal mazzo`;
       break;
-    case 'shield':
-      description = `Scudo: assorbe i prossimi ${value || 200} danni`;
-      break;
-    case 'drain':
-      description = `Assorbe ${value || 100} ${wizard.target === 'stars' ? 'stelle' : 'PTI'} da un avversario`;
-      break;
     case 'double':
       description = `Raddoppia ${wizard.target === 'damage' ? 'i danni del prossimo attacco' : wizard.target === 'heal' ? 'la prossima cura' : 'l\'effetto della prossima carta giocata'}`;
       break;
-    case 'nullify':
-      description = `Nullifica l'effetto della prossima carta nemica`;
+    case 'triple':
+      description = `Triplica ${wizard.target === 'damage' ? 'i danni del prossimo attacco' : wizard.target === 'heal' ? 'la prossima cura' : 'l\'effetto della prossima carta giocata'}`;
       break;
     case 'revenge':
       description = `Vendetta: quando muore, infligge ${value || 200} danni all'uccisore`;
       break;
-    case 'aura':
-      description = `Aura: tutte le carte alleate ${wizard.target === 'pti' ? `guadagnano +${value || 50} PTI` : `guadagnano +${value || 1} stelle`}`;
+    case 'chain':
+      description = `Concatenazione: l'effetto colpisce ${value || 3} bersagli in sequenza`;
+      break;
+    case 'combo':
+      description = `Combo: effetto potenziato del ${value || 50}% se combinato con altre carte`;
+      break;
+    case 'random_effect':
+      description = `Applica un effetto casuale`;
+      break;
+    case 'conditional':
+      description = wizard.condition ? `Se ${wizard.condition}: attiva l'effetto` : `Effetto condizionale`;
+      break;
+    case 'triggered':
+      description = wizard.condition ? `Quando ${wizard.condition}: attiva l'effetto` : `Effetto innescato`;
+      break;
+    case 'passive':
+      description = `Effetto passivo sempre attivo`;
+      break;
+    case 'fusion':
+      description = `Fusione: combina con un'altra carta per creare una carta più potente`;
+      break;
+    case 'split':
+      description = `Divisione: divide questa carta in ${value || 2} carte più deboli`;
+      break;
+    case 'teleport':
+      description = `Teletrasporto: sposta una carta in una posizione diversa`;
+      break;
+    case 'time_travel':
+      description = `Viaggio nel Tempo: riporta il gioco a ${value || 1} turni fa`;
+      break;
+    
+    // === ALTRO ===
+    case 'weather':
+      description = `Meteo: cambia le condizioni del campo per ${value || 3} turni`;
+      break;
+    case 'terrain':
+      description = `Terreno: modifica il terreno di gioco`;
+      break;
+    case 'trap':
+      description = `Trappola: si attiva quando un nemico ${wizard.condition || 'attacca'}`;
+      break;
+    case 'counter_spell':
+      description = `Contromagia: annulla la prossima mossa nemica`;
+      break;
+    case 'gamble':
+      description = `Scommessa: 50% possibilità di guadagnare o perdere ${value || 100} PTI`;
+      break;
+    case 'mimic':
+      description = `Mimetismo: copia le statistiche di un'altra carta`;
       break;
   }
 

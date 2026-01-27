@@ -73,6 +73,35 @@ interface Card {
   hasLifesteal?: boolean; // Attacks heal this card
   lifestealAmount?: number; // Amount of lifesteal damage
   revengeDamage?: number; // Damage dealt when card dies
+  // New advanced effect properties
+  criticalChance?: number; // Chance for critical hit
+  bleedDamage?: number; // Bleed damage per turn
+  bleedTurns?: number; // Turns remaining for bleed
+  isCursed?: boolean; // Card is cursed
+  curseTurns?: number; // Turns remaining for curse
+  isImmune?: boolean; // Immune to negative effects
+  immuneTurns?: number; // Turns remaining for immunity
+  hasBarrier?: boolean; // Blocks first attack
+  dodgeChance?: number; // Chance to dodge attacks
+  armorAmount?: number; // Damage reduction
+  regeneration?: number; // PTI regenerated per turn
+  hasTaunt?: boolean; // Forces enemies to attack this card
+  isStealthed?: boolean; // Cannot be targeted
+  stealthTurns?: number; // Turns remaining for stealth
+  isSilenced?: boolean; // Effects disabled
+  silenceTurns?: number; // Turns remaining for silence
+  isAsleep?: boolean; // Cannot act until hit
+  isConfused?: boolean; // May hit allies
+  confuseTurns?: number; // Turns remaining for confusion
+  hasFear?: boolean; // Cannot attack
+  fearTurns?: number; // Turns remaining for fear
+  originalOwner?: string; // Original owner (for charm)
+  charmTurns?: number; // Turns remaining for charm
+  banishTurns?: number; // Turns remaining for banishment
+  isSlowed?: boolean; // Reduced action speed
+  isLocked?: boolean; // Cannot use abilities
+  lockTurns?: number; // Turns remaining for lock
+  isTrap?: boolean; // This card is a trap
 }
 
 interface Player {
@@ -242,6 +271,13 @@ interface GameState {
   nullifyNextEffect?: string; // Player whose next enemy effect is nullified
   doubleNextEffect?: string; // Player whose next effect is doubled
   pendingEffects?: Map<string, { type: string; cardId: string; timestamp: number }>; // Pending interactive effects
+  // New advanced game state properties
+  tripleNextEffect?: string; // Player whose next effect is tripled
+  banishedCards?: Card[]; // Cards removed from game temporarily
+  weatherEffect?: string; // Current weather effect
+  weatherTurns?: number; // Turns remaining for weather
+  terrainEffect?: string; // Current terrain effect
+  counterSpellActive?: string; // Player with counter spell ready
 }
 
 export class GameManager {
@@ -2208,6 +2244,239 @@ Rispondi SOLO in JSON:`;
       actions.push({ type: 'conditional', target: 'self', value: 0, description: effectText });
     }
 
+    // ============ NEW ATTACK PATTERNS ============
+    if (text.includes('a tutti') && (text.includes('danno') || text.includes('danni'))) {
+      const value = extractNumber(text);
+      actions.push({ type: 'damage_all', target: 'all', value, description: `Danno a tutti: ${value}` });
+    }
+
+    if (text.includes('casuale') && (text.includes('danno') || text.includes('danni') || text.includes('colpisce'))) {
+      const value = extractNumber(text);
+      actions.push({ type: 'damage_random', target: 'random', value, description: `Danno casuale: ${value}` });
+    }
+
+    if (text.includes('esecuzione') || text.includes('elimina istantaneamente') || text.includes('uccide se pti')) {
+      const value = extractNumber(text, 300);
+      actions.push({ type: 'execute', target: 'opponents', value, description: `Esecuzione sotto ${value} PTI` });
+    }
+
+    if (text.includes('penetrazione') || text.includes('ignora scudi') || text.includes('ignora protezioni')) {
+      const value = extractNumber(text);
+      actions.push({ type: 'pierce', target: 'opponents', value, description: `Penetrazione: ${value} danni` });
+    }
+
+    if (text.includes('critico') || text.includes('colpo critico') || text.includes('danni doppi')) {
+      const value = extractNumber(text, 50);
+      actions.push({ type: 'critical', target: 'self', value, description: `${value}% critico` });
+    }
+
+    if (text.includes('sanguinamento') || text.includes('sanguina')) {
+      const value = extractNumber(text, 40);
+      actions.push({ type: 'bleed', target: 'opponents', value, description: `Sanguinamento: ${value}/turno` });
+    }
+
+    if (text.includes('maledizione') || text.includes('maledice')) {
+      const value = extractNumber(text, 3);
+      actions.push({ type: 'curse', target: 'opponents', value, description: `Maledizione per ${value} turni` });
+    }
+
+    if (text.includes('esplosione') || text.includes('esplode') || text.includes('danni ad area')) {
+      const value = extractNumber(text, 150);
+      actions.push({ type: 'explosion', target: 'opponents', value, description: `Esplosione: ${value} danni` });
+    }
+
+    // ============ NEW DEFENSE PATTERNS ============
+    if (text.includes('immunità') || text.includes('immune a effetti')) {
+      const value = extractNumber(text, 2);
+      actions.push({ type: 'immunity', target: 'self', value, description: `Immunità per ${value} turni` });
+    }
+
+    if (text.includes('barriera') && !text.includes('scudo')) {
+      actions.push({ type: 'barrier', target: 'self', value: 1, description: 'Barriera attiva' });
+    }
+
+    if (text.includes('schivata') || text.includes('schiva') || text.includes('evita attacchi')) {
+      const value = extractNumber(text, 30);
+      actions.push({ type: 'dodge', target: 'self', value, description: `${value}% schivata` });
+    }
+
+    if (text.includes('armatura') && !text.includes('scudo')) {
+      const value = extractNumber(text, 50);
+      actions.push({ type: 'armor', target: 'self', value, description: `Armatura: -${value} danni ricevuti` });
+    }
+
+    if (text.includes('rigenerazione') || text.includes('rigenera ogni turno') || text.includes('recupera ogni turno')) {
+      const value = extractNumber(text, 50);
+      actions.push({ type: 'regeneration', target: 'self', value, description: `Rigenerazione: ${value}/turno` });
+    }
+
+    if (text.includes('invisibilità') || text.includes('invisibile') || text.includes('non può essere bersagliato')) {
+      const value = extractNumber(text, 2);
+      actions.push({ type: 'stealth', target: 'self', value, description: `Invisibile per ${value} turni` });
+    }
+
+    // ============ NEW SUPPORT PATTERNS ============
+    if ((text.includes('cura') || text.includes('guarisce')) && text.includes('tutti gli alleati')) {
+      const value = extractNumber(text);
+      actions.push({ type: 'heal_all', target: 'allies', value, description: `Cura di gruppo: ${value} PTI` });
+    }
+
+    if (text.includes('buff') || (text.includes('potenzia') && text.includes('alleato'))) {
+      const value = extractNumber(text, 100);
+      actions.push({ type: 'buff', target: 'allies', value, description: `Buff: +${value} PTI` });
+    }
+
+    if (text.includes('purifica') || text.includes('purificazione') || text.includes('rimuove effetti negativi')) {
+      actions.push({ type: 'cleanse', target: 'allies', value: 1, description: 'Purificazione' });
+    }
+
+    if (text.includes('benedizione') || text.includes('benedice')) {
+      const value = extractNumber(text, 50);
+      actions.push({ type: 'bless', target: 'self', value, description: `Benedizione: +${value} PTI` });
+    }
+
+    if (text.includes('ispirazione') || text.includes('ispira')) {
+      const value = extractNumber(text, 30);
+      actions.push({ type: 'inspire', target: 'allies', value, description: `Ispirazione: +${value} PTI` });
+    }
+
+    if (text.includes('rinascita potenziata') || (text.includes('resuscita') && text.includes('extra'))) {
+      const value = extractNumber(text, 200);
+      actions.push({ type: 'revive_boost', target: 'self', value, description: `Rinascita: +${value} PTI` });
+    }
+
+    // ============ NEW CONTROL PATTERNS ============
+    if (text.includes('silenzio') || text.includes('silenzia') || text.includes('disabilita effetti')) {
+      const value = extractNumber(text, 2);
+      actions.push({ type: 'silence', target: 'opponents', value, description: `Silenzio per ${value} turni` });
+    }
+
+    if (text.includes('sonno') || text.includes('addormenta')) {
+      actions.push({ type: 'sleep', target: 'opponents', value: 1, description: 'Sonno' });
+    }
+
+    if (text.includes('confusione') || (text.includes('confonde') && !text.includes('stordis'))) {
+      const value = extractNumber(text, 2);
+      actions.push({ type: 'confuse', target: 'opponents', value, description: `Confusione per ${value} turni` });
+    }
+
+    if (text.includes('paura') || text.includes('terrorizza') || text.includes('non può attaccare')) {
+      const value = extractNumber(text, 2);
+      actions.push({ type: 'fear', target: 'opponents', value, description: `Paura per ${value} turni` });
+    }
+
+    if (text.includes('charme') || text.includes('controlla') || text.includes('seduce')) {
+      const value = extractNumber(text, 1);
+      actions.push({ type: 'charm', target: 'opponents', value, description: `Charme per ${value} turni` });
+    }
+
+    if (text.includes('esilio') || text.includes('esilia') || text.includes('bandisce')) {
+      const value = extractNumber(text, 2);
+      actions.push({ type: 'banish', target: 'opponents', value, description: `Esilio per ${value} turni` });
+    }
+
+    if (text.includes('rallentamento') || text.includes('rallenta')) {
+      actions.push({ type: 'slow', target: 'opponents', value: 1, description: 'Rallentamento' });
+    }
+
+    if (text.includes('blocco abilità') || text.includes('blocca abilità') || text.includes('impedisce')) {
+      const value = extractNumber(text, 2);
+      actions.push({ type: 'lock', target: 'opponents', value, description: `Blocco per ${value} turni` });
+    }
+
+    // ============ NEW CARD PATTERNS ============
+    if (text.includes('pesca') && (text.includes('specifico') || text.includes('specifica') || text.includes('tipo'))) {
+      const value = extractNumber(text, 1);
+      actions.push({ type: 'draw_specific', target: 'self', value, description: `Pesca specifica: ${value}` });
+    }
+
+    if (text.includes('rivela') || text.includes('mostra mano')) {
+      actions.push({ type: 'reveal', target: 'opponents', value: 1, description: 'Rivela mano' });
+    }
+
+    if (text.includes('mescola') || text.includes('rimescola')) {
+      actions.push({ type: 'shuffle', target: 'any', value: 1, description: 'Mescola' });
+    }
+
+    if (text.includes('cerca nel mazzo') || text.includes('cerca carta')) {
+      actions.push({ type: 'search', target: 'self', value: 1, description: 'Cerca nel mazzo' });
+    }
+
+    if (text.includes('ritorna in mano') || text.includes('riporta in mano')) {
+      const value = extractNumber(text, 1);
+      actions.push({ type: 'return_hand', target: 'any', value, description: `Ritorna ${value} in mano` });
+    }
+
+    if (text.includes('ritorna nel mazzo') || text.includes('riporta nel mazzo') || text.includes('rimetti nel mazzo')) {
+      const value = extractNumber(text, 1);
+      actions.push({ type: 'return_deck', target: 'any', value, description: `Ritorna ${value} nel mazzo` });
+    }
+
+    if (text.includes('milling') || text.includes('scarta dal mazzo')) {
+      const value = extractNumber(text, 3);
+      actions.push({ type: 'mill', target: 'opponents', value, description: `Mill: ${value} carte` });
+    }
+
+    // ============ NEW SPECIAL PATTERNS ============
+    if (text.includes('clone') || text.includes('clona') || text.includes('crea copia')) {
+      actions.push({ type: 'clone', target: 'self', value: 1, description: 'Clona' });
+    }
+
+    if (text.includes('concatenazione') || text.includes('catena') || text.includes('colpisce in sequenza')) {
+      const value = extractNumber(text, 3);
+      actions.push({ type: 'chain', target: 'opponents', value, description: `Catena: ${value} bersagli` });
+    }
+
+    if (text.includes('combo') || text.includes('combinato')) {
+      const value = extractNumber(text, 50);
+      actions.push({ type: 'combo', target: 'self', value, description: `Combo: +${value}%` });
+    }
+
+    if (text.includes('fusione') || text.includes('fonde') || text.includes('unisce')) {
+      actions.push({ type: 'fusion', target: 'self', value: 1, description: 'Fusione' });
+    }
+
+    if (text.includes('divisione') || text.includes('divide') || text.includes('separa')) {
+      const value = extractNumber(text, 2);
+      actions.push({ type: 'split', target: 'self', value, description: `Divide in ${value}` });
+    }
+
+    if (text.includes('teletrasporto') || text.includes('teletrasporta')) {
+      actions.push({ type: 'teleport', target: 'any', value: 1, description: 'Teletrasporto' });
+    }
+
+    if (text.includes('viaggio nel tempo') || text.includes('ritorna al turno')) {
+      const value = extractNumber(text, 1);
+      actions.push({ type: 'time_travel', target: 'all', value, description: `Viaggio nel tempo: ${value} turni` });
+    }
+
+    // ============ OTHER PATTERNS ============
+    if (text.includes('meteo') || text.includes('clima') || text.includes('condizioni atmosferiche')) {
+      const value = extractNumber(text, 3);
+      actions.push({ type: 'weather', target: 'all', value, description: 'Meteo cambiato' });
+    }
+
+    if (text.includes('terreno') || text.includes('modifica campo')) {
+      actions.push({ type: 'terrain', target: 'all', value: 1, description: 'Terreno modificato' });
+    }
+
+    if (text.includes('trappola') || text.includes('si attiva quando')) {
+      actions.push({ type: 'trap', target: 'self', value: 1, description: 'Trappola' });
+    }
+
+    if (text.includes('contromagia') || text.includes('annulla prossima mossa')) {
+      actions.push({ type: 'counter_spell', target: 'opponents', value: 1, description: 'Contromagia' });
+    }
+
+    if (text.includes('scommessa') || text.includes('50%') || text.includes('rischio')) {
+      const value = extractNumber(text, 100);
+      actions.push({ type: 'gamble', target: 'self', value, description: `Scommessa: ${value} PTI` });
+    }
+
+    if (text.includes('mimetismo') || text.includes('mimetico') || text.includes('copia statistiche')) {
+      actions.push({ type: 'mimic', target: 'any', value: 1, description: 'Mimetismo' });
+    }
+
     // ============ SPECIAL/GENERIC PATTERNS (fallback) ============
     if (actions.length === 0 && text.length > 5) {
       actions.push({ type: 'special', target: 'self', value: 0, description: effectText });
@@ -2397,9 +2666,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       case 'draw':
         // Make player draw cards
-        const deckType = card.type === 'personaggi' || card.type === 'personaggi_speciali' ? 'personaggi' : 'mosse';
+        const drawDeckType = card.type === 'personaggi' || card.type === 'personaggi_speciali' ? 'personaggi' : 'mosse';
         for (let i = 0; i < (action.value || 1); i++) {
-          this.pickCard(gameId, deckType, playerName);
+          this.pickCard(gameId, drawDeckType, playerName);
         }
         console.log(`🎴 Custom effect: ${playerName} drew ${action.value || 1} cards`);
         break;
@@ -2702,6 +2971,540 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               ownCard.pti += drainAmount;
               console.log(`🌀 Custom effect: Drained ${drainAmount} PTI from ${fieldCard.name} to ${ownCard.name}!`);
             }
+          }
+        }
+        break;
+
+      // === NEW EFFECT HANDLERS ===
+      
+      case 'damage_all':
+        // Damage ALL characters on field (including allies)
+        for (const fieldCard of game.field) {
+          if ((fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') && fieldCard.pti != null) {
+            fieldCard.pti = Math.max(0, fieldCard.pti - (action.value || 100));
+            console.log(`💥 Custom effect: ${fieldCard.name || fieldCard.id} took ${action.value} damage (ALL), now at ${fieldCard.pti} PTI`);
+          }
+        }
+        break;
+
+      case 'damage_random':
+        // Damage a random enemy character
+        const enemyChars = game.field.filter(c => 
+          c.owner !== playerName && 
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali') && 
+          c.pti != null
+        );
+        if (enemyChars.length > 0) {
+          const randomTarget = enemyChars[Math.floor(Math.random() * enemyChars.length)];
+          randomTarget.pti = Math.max(0, (randomTarget.pti || 0) - (action.value || 100));
+          console.log(`🎲 Custom effect: ${randomTarget.name || randomTarget.id} took ${action.value} random damage, now at ${randomTarget.pti} PTI`);
+        }
+        break;
+
+      case 'execute':
+        // Instant kill if PTI below threshold
+        const threshold = action.value || 300;
+        for (const fieldCard of game.field) {
+          if (fieldCard.owner !== playerName && 
+              (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') &&
+              fieldCard.pti != null && fieldCard.pti < threshold) {
+            fieldCard.pti = 0;
+            console.log(`⚡ Custom effect: EXECUTED ${fieldCard.name || fieldCard.id} (PTI was below ${threshold})!`);
+          }
+        }
+        break;
+
+      case 'pierce':
+        // Damage ignoring shields/protection
+        for (const fieldCard of game.field) {
+          if (fieldCard.owner !== playerName && 
+              (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') &&
+              fieldCard.pti != null) {
+            fieldCard.pti = Math.max(0, fieldCard.pti - (action.value || 100));
+            console.log(`🗡️ Custom effect: PIERCED ${fieldCard.name || fieldCard.id} for ${action.value} damage (ignores shields)!`);
+          }
+        }
+        break;
+
+      case 'critical':
+        // Mark card as having critical chance
+        const critCard = game.field.find(c => c.id === card.id);
+        if (critCard) {
+          critCard.criticalChance = action.value || 50;
+          console.log(`💢 Custom effect: ${critCard.name || critCard.id} now has ${critCard.criticalChance}% CRITICAL CHANCE!`);
+        }
+        break;
+
+      case 'bleed':
+        // Apply bleed effect
+        for (const fieldCard of game.field) {
+          if (fieldCard.owner !== playerName && 
+              (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali')) {
+            fieldCard.bleedDamage = action.value || 40;
+            fieldCard.bleedTurns = 3;
+            console.log(`🩸 Custom effect: ${fieldCard.name || fieldCard.id} is BLEEDING (${fieldCard.bleedDamage}/turn)!`);
+          }
+        }
+        break;
+
+      case 'curse':
+        // Apply curse effect
+        for (const fieldCard of game.field) {
+          if (fieldCard.owner !== playerName && 
+              (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali')) {
+            fieldCard.isCursed = true;
+            fieldCard.curseTurns = action.value || 3;
+            console.log(`🔮 Custom effect: ${fieldCard.name || fieldCard.id} is CURSED for ${fieldCard.curseTurns} turns!`);
+          }
+        }
+        break;
+
+      case 'explosion':
+        // Area damage to all enemies
+        for (const fieldCard of game.field) {
+          if (fieldCard.owner !== playerName && 
+              (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') &&
+              fieldCard.pti != null) {
+            fieldCard.pti = Math.max(0, fieldCard.pti - (action.value || 150));
+            console.log(`💣 Custom effect: EXPLOSION hit ${fieldCard.name || fieldCard.id} for ${action.value} damage!`);
+          }
+        }
+        break;
+
+      case 'immunity':
+        // Grant immunity to negative effects
+        const immuneCard = game.field.find(c => c.id === card.id);
+        if (immuneCard) {
+          immuneCard.isImmune = true;
+          immuneCard.immuneTurns = action.value || 2;
+          console.log(`🔒 Custom effect: ${immuneCard.name || immuneCard.id} is now IMMUNE for ${immuneCard.immuneTurns} turns!`);
+        }
+        break;
+
+      case 'barrier':
+        // Block first attack completely
+        const barrierCard = game.field.find(c => c.id === card.id);
+        if (barrierCard) {
+          barrierCard.hasBarrier = true;
+          console.log(`🧱 Custom effect: ${barrierCard.name || barrierCard.id} now has a BARRIER!`);
+        }
+        break;
+
+      case 'dodge':
+        // Grant dodge chance
+        const dodgeCard = game.field.find(c => c.id === card.id);
+        if (dodgeCard) {
+          dodgeCard.dodgeChance = action.value || 30;
+          console.log(`💨 Custom effect: ${dodgeCard.name || dodgeCard.id} now has ${dodgeCard.dodgeChance}% DODGE CHANCE!`);
+        }
+        break;
+
+      case 'armor':
+        // Reduce all damage received
+        const armorCard = game.field.find(c => c.id === card.id);
+        if (armorCard) {
+          armorCard.armorAmount = action.value || 50;
+          console.log(`🦾 Custom effect: ${armorCard.name || armorCard.id} now has ${armorCard.armorAmount} ARMOR!`);
+        }
+        break;
+
+      case 'regeneration':
+        // Heal each turn
+        const regenCard = game.field.find(c => c.id === card.id);
+        if (regenCard) {
+          regenCard.regeneration = action.value || 50;
+          console.log(`💗 Custom effect: ${regenCard.name || regenCard.id} now REGENERATES ${regenCard.regeneration} PTI/turn!`);
+        }
+        break;
+
+      case 'taunt':
+        // Force enemies to attack this card
+        const tauntCard = game.field.find(c => c.id === card.id);
+        if (tauntCard) {
+          tauntCard.hasTaunt = true;
+          console.log(`😤 Custom effect: ${tauntCard.name || tauntCard.id} is now TAUNTING!`);
+        }
+        break;
+
+      case 'stealth':
+        // Cannot be targeted
+        const stealthCard = game.field.find(c => c.id === card.id);
+        if (stealthCard) {
+          stealthCard.isStealthed = true;
+          stealthCard.stealthTurns = action.value || 2;
+          console.log(`👻 Custom effect: ${stealthCard.name || stealthCard.id} is now STEALTHED for ${stealthCard.stealthTurns} turns!`);
+        }
+        break;
+
+      case 'heal_all':
+        // Heal all allied characters
+        for (const fieldCard of game.field) {
+          if (fieldCard.owner === playerName && 
+              (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') &&
+              fieldCard.pti != null) {
+            fieldCard.pti += action.value || 100;
+            console.log(`💖 Custom effect: ${fieldCard.name || fieldCard.id} HEALED to ${fieldCard.pti} PTI!`);
+          }
+        }
+        break;
+
+      case 'buff':
+        // Boost a single ally
+        const allyCards = game.field.filter(c => 
+          c.owner === playerName && 
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+          c.pti != null
+        );
+        if (allyCards.length > 0) {
+          const buffTarget = allyCards[0];
+          buffTarget.pti = (buffTarget.pti || 0) + (action.value || 100);
+          console.log(`⬆️ Custom effect: ${buffTarget.name || buffTarget.id} BUFFED to ${buffTarget.pti} PTI!`);
+        }
+        break;
+
+      case 'cleanse':
+        // Remove negative effects from allies
+        for (const fieldCard of game.field) {
+          if (fieldCard.owner === playerName) {
+            fieldCard.poisonDamage = 0;
+            fieldCard.poisonTurns = 0;
+            fieldCard.burnDamage = 0;
+            fieldCard.bleedDamage = 0;
+            fieldCard.bleedTurns = 0;
+            fieldCard.isCursed = false;
+            fieldCard.frozenTurns = 0;
+            fieldCard.isStunned = false;
+            fieldCard.isSilenced = false;
+            console.log(`✨ Custom effect: ${fieldCard.name || fieldCard.id} CLEANSED!`);
+          }
+        }
+        break;
+
+      case 'bless':
+        // Grant PTI bonus and immunity
+        const blessCard = game.field.find(c => c.id === card.id);
+        if (blessCard && blessCard.pti != null) {
+          blessCard.pti += action.value || 50;
+          blessCard.isImmune = true;
+          blessCard.immuneTurns = 1;
+          console.log(`🙏 Custom effect: ${blessCard.name || blessCard.id} BLESSED! +${action.value} PTI and immune for 1 turn!`);
+        }
+        break;
+
+      case 'inspire':
+        // Boost all allies
+        for (const fieldCard of game.field) {
+          if (fieldCard.owner === playerName && 
+              (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') &&
+              fieldCard.pti != null) {
+            fieldCard.pti += action.value || 30;
+            console.log(`🎺 Custom effect: ${fieldCard.name || fieldCard.id} INSPIRED! +${action.value} PTI!`);
+          }
+        }
+        break;
+
+      case 'revive_boost':
+        // Resurrect with extra PTI
+        if (game.graveyard.length > 0) {
+          const playerCards = game.graveyard.filter(c => c.owner === playerName);
+          const resCard = playerCards.length > 0 ? playerCards[playerCards.length - 1] : game.graveyard[game.graveyard.length - 1];
+          if (resCard) {
+            game.graveyard = game.graveyard.filter(c => c.id !== resCard.id);
+            resCard.owner = playerName;
+            if (resCard.pti != null) resCard.pti += action.value || 200;
+            game.players[playerName].hand.push(resCard);
+            console.log(`🌟 Custom effect: ${resCard.name || resCard.id} REVIVED with +${action.value} PTI bonus!`);
+          }
+        }
+        break;
+
+      case 'silence':
+        // Disable enemy effects
+        for (const fieldCard of game.field) {
+          if (fieldCard.owner !== playerName && 
+              (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali')) {
+            fieldCard.isSilenced = true;
+            fieldCard.silenceTurns = action.value || 2;
+            console.log(`🤐 Custom effect: ${fieldCard.name || fieldCard.id} SILENCED for ${fieldCard.silenceTurns} turns!`);
+          }
+        }
+        break;
+
+      case 'sleep':
+        // Target cannot act until hit
+        for (const fieldCard of game.field) {
+          if (fieldCard.owner !== playerName && 
+              (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali')) {
+            fieldCard.isAsleep = true;
+            console.log(`😴 Custom effect: ${fieldCard.name || fieldCard.id} is now ASLEEP!`);
+          }
+        }
+        break;
+
+      case 'confuse':
+        // Target may hit allies
+        for (const fieldCard of game.field) {
+          if (fieldCard.owner !== playerName && 
+              (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali')) {
+            fieldCard.isConfused = true;
+            fieldCard.confuseTurns = action.value || 2;
+            console.log(`😵 Custom effect: ${fieldCard.name || fieldCard.id} is CONFUSED for ${fieldCard.confuseTurns} turns!`);
+          }
+        }
+        break;
+
+      case 'fear':
+        // Target cannot attack
+        for (const fieldCard of game.field) {
+          if (fieldCard.owner !== playerName && 
+              (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali')) {
+            fieldCard.hasFear = true;
+            fieldCard.fearTurns = action.value || 2;
+            console.log(`😨 Custom effect: ${fieldCard.name || fieldCard.id} has FEAR for ${fieldCard.fearTurns} turns!`);
+          }
+        }
+        break;
+
+      case 'charm':
+        // Control enemy temporarily
+        const charmTarget = game.field.find(c => 
+          c.owner !== playerName && 
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (charmTarget) {
+          charmTarget.originalOwner = charmTarget.owner;
+          charmTarget.owner = playerName;
+          charmTarget.charmTurns = action.value || 1;
+          console.log(`💕 Custom effect: ${charmTarget.name || charmTarget.id} is CHARMED for ${charmTarget.charmTurns} turns!`);
+        }
+        break;
+
+      case 'banish':
+        // Remove from game temporarily
+        const banishTarget = game.field.find(c => 
+          c.owner !== playerName && 
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (banishTarget) {
+          game.field = game.field.filter(c => c.id !== banishTarget.id);
+          if (!game.banishedCards) game.banishedCards = [];
+          banishTarget.banishTurns = action.value || 2;
+          game.banishedCards.push(banishTarget);
+          console.log(`🌀 Custom effect: ${banishTarget.name || banishTarget.id} is BANISHED for ${banishTarget.banishTurns} turns!`);
+        }
+        break;
+
+      case 'slow':
+        // Reduce action speed
+        for (const fieldCard of game.field) {
+          if (fieldCard.owner !== playerName && 
+              (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali')) {
+            fieldCard.isSlowed = true;
+            console.log(`🐌 Custom effect: ${fieldCard.name || fieldCard.id} is SLOWED!`);
+          }
+        }
+        break;
+
+      case 'lock':
+        // Prevent ability use
+        for (const fieldCard of game.field) {
+          if (fieldCard.owner !== playerName && 
+              (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali')) {
+            fieldCard.isLocked = true;
+            fieldCard.lockTurns = action.value || 2;
+            console.log(`🔐 Custom effect: ${fieldCard.name || fieldCard.id} is LOCKED for ${fieldCard.lockTurns} turns!`);
+          }
+        }
+        break;
+
+      case 'reveal':
+        // Reveal opponent's hand (logged only)
+        for (const [pName, player] of Object.entries(game.players)) {
+          if (pName !== playerName) {
+            console.log(`👁️ Custom effect: ${pName}'s hand revealed: ${(player as any).hand.map((c: any) => c.name || c.id).join(', ')}`);
+          }
+        }
+        break;
+
+      case 'shuffle':
+        // Shuffle cards back into deck (simplified - just log)
+        console.log(`🔀 Custom effect: Cards shuffled into deck!`);
+        break;
+
+      case 'search':
+        // Search deck for specific card (simplified - draw)
+        const searchDeckType = card.type === 'personaggi' || card.type === 'personaggi_speciali' ? 'personaggi' : 'mosse';
+        this.pickCard(gameId, searchDeckType, playerName);
+        console.log(`🔍 Custom effect: Searched and drew a card!`);
+        break;
+
+      case 'return_hand':
+        // Return card from field to hand
+        const returnTarget = game.field.find(c => 
+          c.owner !== playerName && 
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (returnTarget) {
+          game.field = game.field.filter(c => c.id !== returnTarget.id);
+          game.players[returnTarget.owner || playerName]?.hand.push(returnTarget);
+          console.log(`✋ Custom effect: ${returnTarget.name || returnTarget.id} returned to hand!`);
+        }
+        break;
+
+      case 'return_deck':
+        // Return card to deck
+        const deckTarget = game.field.find(c => 
+          c.owner !== playerName && 
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (deckTarget) {
+          game.field = game.field.filter(c => c.id !== deckTarget.id);
+          console.log(`📚 Custom effect: ${deckTarget.name || deckTarget.id} returned to deck!`);
+        }
+        break;
+
+      case 'mill':
+        // Discard from deck to graveyard
+        for (const [pName, player] of Object.entries(game.players)) {
+          if (pName !== playerName) {
+            const millCount = action.value || 3;
+            console.log(`⚙️ Custom effect: ${pName} milled ${millCount} cards!`);
+          }
+        }
+        break;
+
+      case 'triple':
+        // Triple next effect
+        game.tripleNextEffect = playerName;
+        console.log(`3️⃣ Custom effect: Next effect will be TRIPLED!`);
+        break;
+
+      case 'copy':
+        // Copy last played card effect
+        console.log(`📋 Custom effect: Copying last played effect!`);
+        break;
+
+      case 'clone':
+        // Create copy of this card
+        const cloneSource = game.field.find(c => c.id === card.id);
+        if (cloneSource) {
+          const clonedCard = { ...cloneSource, id: `${cloneSource.id}-clone-${Date.now()}` };
+          game.players[playerName].hand.push(clonedCard);
+          console.log(`👯 Custom effect: Created a CLONE of ${cloneSource.name || cloneSource.id}!`);
+        }
+        break;
+
+      case 'chain':
+        // Hit multiple targets
+        const chainCount = action.value || 3;
+        const chainTargets = game.field.filter(c => 
+          c.owner !== playerName && 
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        ).slice(0, chainCount);
+        for (const target of chainTargets) {
+          if (target.pti != null) {
+            target.pti = Math.max(0, target.pti - 50);
+            console.log(`⛓️ Custom effect: Chain hit ${target.name || target.id} for 50 damage!`);
+          }
+        }
+        break;
+
+      case 'combo':
+        // Enhanced effect when combined
+        console.log(`🎰 Custom effect: COMBO bonus activated!`);
+        break;
+
+      case 'random_effect':
+        // Apply random effect
+        const randomEffects = ['damage', 'heal', 'draw', 'powerup'];
+        const randEffect = randomEffects[Math.floor(Math.random() * randomEffects.length)];
+        console.log(`🎲 Custom effect: Random effect triggered: ${randEffect}!`);
+        break;
+
+      case 'conditional':
+      case 'triggered':
+      case 'passive':
+        // These are marker effects, handled specially
+        console.log(`📌 Custom effect: Conditional/triggered/passive effect registered!`);
+        break;
+
+      case 'fusion':
+        // Combine cards
+        console.log(`🔗 Custom effect: FUSION activated!`);
+        break;
+
+      case 'split':
+        // Split into multiple cards
+        console.log(`✂️ Custom effect: Card SPLIT into multiple!`);
+        break;
+
+      case 'teleport':
+        // Move card position
+        console.log(`🌀 Custom effect: Card TELEPORTED!`);
+        break;
+
+      case 'time_travel':
+        // Revert game state (not implemented)
+        console.log(`⏰ Custom effect: TIME TRAVEL activated!`);
+        break;
+
+      case 'weather':
+        // Change field conditions
+        game.weatherEffect = action.description || 'unknown';
+        game.weatherTurns = action.value || 3;
+        console.log(`🌦️ Custom effect: WEATHER changed for ${game.weatherTurns} turns!`);
+        break;
+
+      case 'terrain':
+        // Modify terrain
+        game.terrainEffect = action.description || 'unknown';
+        console.log(`🏔️ Custom effect: TERRAIN modified!`);
+        break;
+
+      case 'trap':
+        // Set trap
+        const trapCard = game.field.find(c => c.id === card.id);
+        if (trapCard) {
+          trapCard.isTrap = true;
+          console.log(`🪤 Custom effect: TRAP set!`);
+        }
+        break;
+
+      case 'counter_spell':
+        // Cancel next enemy action
+        game.counterSpellActive = playerName;
+        console.log(`🛑 Custom effect: COUNTER SPELL ready!`);
+        break;
+
+      case 'gamble':
+        // 50/50 chance
+        if (Math.random() > 0.5) {
+          const gamblerCard = game.field.find(c => c.id === card.id);
+          if (gamblerCard && gamblerCard.pti != null) {
+            gamblerCard.pti += action.value || 100;
+            console.log(`🎰 Custom effect: GAMBLE WON! +${action.value} PTI!`);
+          }
+        } else {
+          const gamblerCard = game.field.find(c => c.id === card.id);
+          if (gamblerCard && gamblerCard.pti != null) {
+            gamblerCard.pti = Math.max(0, gamblerCard.pti - (action.value || 100));
+            console.log(`🎰 Custom effect: GAMBLE LOST! -${action.value} PTI!`);
+          }
+        }
+        break;
+
+      case 'mimic':
+        // Copy another card's stats
+        const mimicTarget = game.field.find(c => 
+          c.id !== card.id && 
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (mimicTarget) {
+          const mimicCard = game.field.find(c => c.id === card.id);
+          if (mimicCard && mimicTarget.pti != null) {
+            mimicCard.pti = mimicTarget.pti;
+            mimicCard.stars = mimicTarget.stars;
+            console.log(`🎭 Custom effect: MIMICKED ${mimicTarget.name || mimicTarget.id}'s stats!`);
           }
         }
         break;
