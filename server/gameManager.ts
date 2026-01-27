@@ -59,6 +59,8 @@ interface Card {
   hostageTurnsRemaining?: number; // Turns remaining before release (counts captor's turns only)
   isOstaggioCard?: boolean; // True if this MOSSE card is OSTAGGIO and is active on field
   ostaggioHoldingCardId?: string; // ID of the character card this OSTAGGIO is holding
+  // Custom card protection system
+  isProtected?: boolean; // True if this card cannot be attacked (from custom AI effects)
 }
 
 interface Player {
@@ -1895,6 +1897,14 @@ Rispondi SOLO in JSON:`;
       }
     }
 
+    // PROTECTION/IMMUNITY patterns - card cannot be attacked
+    if (text.includes('non può essere attaccat') || text.includes('immune') || 
+        text.includes('invulnerabile') || text.includes('protetto') ||
+        text.includes('non può ricevere dann') || text.includes('intoccabile') ||
+        text.includes('cannot be attacked') || text.includes('invincibile')) {
+      actions.push({ type: 'protection', target: 'self', value: 1, description: 'Non può essere attaccato' });
+    }
+
     // Special/Generic patterns
     if (actions.length === 0 && text.length > 5) {
       actions.push({ type: 'special', target: 'self', value: 0, description: effectText });
@@ -2133,6 +2143,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         // Special effects that require manual handling or user interaction
         break;
 
+      case 'protection':
+        // Mark the card as protected/immune from attacks
+        const protectedCard = game.field.find(c => c.id === card.id);
+        if (protectedCard) {
+          protectedCard.isProtected = true;
+          console.log(`🛡️ Custom effect: ${protectedCard.name || protectedCard.id} is now PROTECTED and cannot be attacked!`);
+        }
+        break;
+
       default:
         console.log(`❓ Unknown custom effect type: ${action.type}`);
     }
@@ -2209,6 +2228,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     const attackTypeLabel = isHandTarget ? '🎯 ATTACCO DISONESTO' : '⚔️ MOSSE';
     console.log(`${attackTypeLabel}: ${attackerName} uses ${mosseCardId} to attack ${targetOwnerName}'s ${targetCardId}`);
+    
+    // PROTECTION CHECK: Check if target card has custom protection effect (isProtected)
+    if (!isHandTarget) {
+      const protectionCheck = this.canCardBeAttacked(gameId, targetCardId, attackerName);
+      if (!protectionCheck.canAttack) {
+        console.log(`🛡️ PROTECTION: Attack blocked - ${protectionCheck.reason}`);
+        return { success: false, error: protectionCheck.reason || 'Questa carta non può essere attaccata!' };
+      }
+    }
     
     // BARRIERA BYPASS: If target is protected by BARRIERA, skip defense dialog and auto-apply damage
     if (!isHandTarget) {
@@ -3748,6 +3776,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     const card = game.field.find(c => c.id === cardId);
     if (!card) return { canAttack: true };
+
+    // Check if card has custom protection effect (from AI-processed effects)
+    if (card.isProtected) {
+      return { canAttack: false, reason: `${card.name || 'Questa carta'} non può essere attaccato! (Effetto: protezione)` };
+    }
 
     // Check if card is a parasitic card that's attached
     if (card.attachedTo) {
