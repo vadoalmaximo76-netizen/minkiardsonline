@@ -32,7 +32,7 @@ const voiceChatRooms = new Map<string, Map<string, string>>(); // gameId -> Map(
 
 // Throttled game state updates to reduce broadcast frequency
 const pendingStateUpdates = new Map<string, NodeJS.Timeout>();
-const THROTTLE_DELAY = 50; // ms - batch updates within this window
+const THROTTLE_DELAY = 100; // ms - batch updates within this window (increased for slow connections)
 
 function emitThrottledGameState(io: SocketServer, gameId: string, gameState: any) {
   // Clear any pending update for this game
@@ -364,7 +364,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       origin: "*",
       methods: ["GET", "POST"]
     },
-    maxHttpBufferSize: 10e6 // 10MB limit for large images
+    maxHttpBufferSize: 10e6, // 10MB limit for large images
+    perMessageDeflate: {
+      threshold: 1024, // Compress messages larger than 1KB
+      zlibDeflateOptions: {
+        chunkSize: 16 * 1024
+      },
+      zlibInflateOptions: {
+        chunkSize: 16 * 1024
+      },
+      clientNoContextTakeover: true,
+      serverNoContextTakeover: true
+    }
   });
 
   const gameManager = new GameManager();

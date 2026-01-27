@@ -1,6 +1,11 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { shallow } from "zustand/shallow";
 import { socket } from "../socket";
+
+// Debounce game state updates for performance on slow connections
+let gameStateUpdateTimeout: NodeJS.Timeout | null = null;
+const GAME_STATE_DEBOUNCE_MS = 50; // Debounce rapid updates
 
 interface Card {
   id: string;
@@ -114,9 +119,43 @@ interface GameStateStore {
 export const useGameState = create<GameStateStore>()(
   persist(
     (set, get) => {
-      // Listen for game state updates - apply all updates (let React handle memoization)
+      // Listen for game state updates - optimized for slow connections
+      // Use eventCounter to detect meaningful changes, apply immediately when counter changes
       socket.on('game-state-update', (newGameState: GameState) => {
-        set({ gameState: newGameState });
+        // Clear any pending update
+        if (gameStateUpdateTimeout) {
+          clearTimeout(gameStateUpdateTimeout);
+        }
+        
+        // Get event counters - treat missing/undefined as "changed" to be safe
+        const currentState = get().gameState;
+        const newEventCounter = (newGameState as any).eventCounter;
+        const oldEventCounter = currentState ? (currentState as any).eventCounter : undefined;
+        
+        // Always apply immediately if:
+        // - No current state (initial load)
+        // - Event counter is missing (can't determine if critical - be safe)
+        // - Event counter changed (actual game action occurred)
+        // - Structural changes (player join/leave, turn change)
+        const eventCounterMissing = newEventCounter === undefined || oldEventCounter === undefined;
+        const eventCounterChanged = newEventCounter !== oldEventCounter;
+        
+        const isCriticalUpdate = !currentState || 
+          eventCounterMissing ||
+          eventCounterChanged ||
+          currentState.currentTurnIndex !== newGameState.currentTurnIndex ||
+          Object.keys(currentState.players).length !== Object.keys(newGameState.players).length;
+        
+        if (isCriticalUpdate) {
+          // Critical updates: apply immediately
+          set({ gameState: newGameState });
+        } else {
+          // Same eventCounter = redundant broadcast, debounce to reduce re-renders
+          gameStateUpdateTimeout = setTimeout(() => {
+            set({ gameState: newGameState });
+            gameStateUpdateTimeout = null;
+          }, GAME_STATE_DEBOUNCE_MS);
+        }
       });
 
       // Listen for picked cards (private to player)

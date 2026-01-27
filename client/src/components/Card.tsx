@@ -56,6 +56,9 @@ interface CardProps {
     protectedByRifugio?: string;
     rifugioProtecting?: string;
     rifugioPTI?: number;
+    isBarrieraShield?: boolean;
+    barrieraProtecting?: string;
+    barrieraPTI?: number;
   };
   location: 'hand' | 'field' | 'graveyard';
   showBack?: boolean;

@@ -1506,12 +1506,21 @@ Rispondi SOLO in JSON:`;
   }
 
   // Get sanitized game state for Socket.IO transmission (removes circular references)
+  // Optimized to reduce payload size for slow connections
   getSanitizedGameState(gameId: string): any {
     const gameState = this.games.get(gameId);
     if (!gameState) return null;
 
-    // Create a deep copy of the game state without circular references
+    // Create an optimized copy of the game state
+    // Include deck counts for quick UI access (avoids needing to count arrays)
     const sanitized = {
+      deckCounts: {
+        personaggi: gameState.decks.personaggi.length,
+        mosse: gameState.decks.mosse.length,
+        bonus: gameState.decks.bonus.length,
+        personaggiSpeciali: gameState.decks.personaggiSpeciali.length
+      },
+      // Keep full decks for card browser feature (SCEGLI functionality)
       decks: gameState.decks,
       players: {} as Record<string, any>,
       field: gameState.field,
@@ -1529,10 +1538,12 @@ Rispondi SOLO in JSON:`;
     };
 
     // Sanitize players by removing cpuInstance references
+    // Only send essential hand data to reduce payload
     for (const [playerName, player] of Object.entries(gameState.players)) {
       sanitized.players[playerName] = {
         name: player.name,
         hand: player.hand,
+        handCount: player.hand.length, // Quick reference for UI
         socketId: player.socketId,
         isCPU: player.isCPU,
         avatar: player.avatar

@@ -17,7 +17,10 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
   const [isShuffling, setIsShuffling] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
-  const remainingCards = gameState?.decks?.[type]?.length || 0;
+  // Use deckCounts for faster access (pre-calculated on server)
+  // Fallback to array length for backward compatibility
+  const deckType = type === 'personaggi_speciali' ? 'personaggiSpeciali' : type;
+  const remainingCards = (gameState as any)?.deckCounts?.[deckType] ?? gameState?.decks?.[type]?.length ?? 0;
 
   // Handle Escape key to close modal
   useEffect(() => {
@@ -65,9 +68,31 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
     }, 1000);
   };
 
+  // Track pending pick for optimistic UI with server acknowledgment
+  const [isPicking, setIsPicking] = useState(false);
+  
+  // Listen for server acknowledgment to clear pending state
+  useEffect(() => {
+    const handlePickResult = () => {
+      setIsPicking(false);
+    };
+    
+    // Clear pending state on any card pick confirmation or game state update
+    socket.on('card-picked-private', handlePickResult);
+    
+    return () => {
+      socket.off('card-picked-private', handlePickResult);
+    };
+  }, []);
+
   const handlePickCard = () => {
-    if (remainingCards > 0) {
+    if (remainingCards > 0 && !isPicking) {
+      // Optimistic UI: show immediate feedback
+      setIsPicking(true);
       socket.emit('pick-card', { deckType: type, playerName });
+      
+      // Fallback timeout in case server doesn't respond (e.g., network failure)
+      setTimeout(() => setIsPicking(false), 3000);
     }
   };
 
@@ -176,7 +201,7 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
         <img
           src={backImage}
           alt={`${name} back`}
-          className={`w-14 sm:w-16 md:w-20 lg:w-24 aspect-[2/3] object-cover rounded-md sm:rounded-lg md:rounded-xl cursor-pointer deck-3d shadow-lg ${isShuffling ? 'animate-shuffle' : ''}`}
+          className={`w-14 sm:w-16 md:w-20 lg:w-24 aspect-[2/3] object-cover rounded-md sm:rounded-lg md:rounded-xl cursor-pointer deck-3d shadow-lg transition-all duration-150 ${isShuffling ? 'animate-shuffle' : ''} ${isPicking ? 'scale-95 opacity-70' : 'hover:scale-105'}`}
           onClick={handlePickCard}
         />
         
