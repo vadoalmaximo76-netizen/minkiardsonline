@@ -4955,72 +4955,74 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const cardIndex = game.field.findIndex(card => card.id === cardId);
     if (cardIndex !== -1) {
       const card = game.field.splice(cardIndex, 1)[0];
-      if (card.owner === playerName) {
-        // BAMBOLA VOODOO: Remove any voodoo links when character dies
-        if (card.type === 'personaggi' || card.type === 'personaggi_speciali') {
-          this.removeVoodooLink(gameId, cardId);
-        }
-        
-        card.eliminatedBy = playerName;
-        game.graveyard.push(card);
-
-        // Count PERSONAGGI cards in graveyard for this player (only personaggi count for elimination)
-        const graveyardCount = game.graveyard.filter(
-          graveyardCard => graveyardCard.eliminatedBy === playerName && (graveyardCard.type === 'personaggi' || graveyardCard.type === 'personaggi_speciali')
-        ).length;
-
-        // NEW: Track elimination count for SOROS activation
-        let sorosActivated = false;
-        if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && attacker) {
-          // Increment elimination count for the attacker
-          const attackerPlayer = game.players[attacker];
-          if (attackerPlayer) {
-            if (!attackerPlayer.eliminationCount) {
-              attackerPlayer.eliminationCount = 0;
-            }
-            
-            attackerPlayer.eliminationCount++;
-            console.log(`🗡️ ${attacker} has eliminated ${attackerPlayer.eliminationCount} personaggi`);
-            
-            // Track elimination for missions/achievements (fire-and-forget)
-            this.trackPlayerEvent(gameId, attacker, 'elimination', {}).catch(() => {});
-            
-            // SOROS activation at 6 eliminations
-            if (attackerPlayer.eliminationCount === 6 && !sorosActivated) {
-              sorosActivated = true;
-              console.log(`🎭 SOROS ACTIVATED! ${attacker} has eliminated 6 personaggi!`);
-              
-              // Find SOROS in personaggi_speciali deck
-              const sorosIndex = game.decks.personaggi_speciali.findIndex((c: Card) => 
-                c.frontImage && c.frontImage.includes('soros')
-              );
-              
-              if (sorosIndex !== -1) {
-                const soros = game.decks.personaggi_speciali.splice(sorosIndex, 1)[0];
-                soros.owner = attacker;
-                game.field.push(soros);
-                console.log(`🎭 SOROS automatically played on field for ${attacker}!`);
-                
-                // Return flag indicating SOROS was activated (routes.ts will emit to all players)
-                return { success: true, graveyardCount, cardImage: card.frontImage, cardType: card.type, eliminationCheck: false, sorosActivated: true, sorosImage: soros.frontImage, sorosActivator: attacker, detachedParasites };
-              }
-            }
-          }
-        }
-
-        // Check if player should be eliminated (only if it's a personaggi card)
-        let eliminationCheck = false;
-        if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && game.characterLimit !== 'unlimited') {
-          const baseLimit = parseInt(game.characterLimit);
-          const playerModifier = game.playerDeathModifiers.get(playerName) || 0;
-          const effectiveLimit = Math.max(1, baseLimit + playerModifier); // Minimum 1 death required
-          if (graveyardCount >= effectiveLimit && !game.eliminatedPlayers.has(playerName)) {
-            eliminationCheck = true;
-          }
-        }
-
-        return { success: true, graveyardCount, cardImage: card.frontImage, cardType: card.type, eliminationCheck, sorosActivated: false, detachedParasites };
+      const cardOwner = card.owner || playerName; // Use card's owner or default to playerName
+      
+      // BAMBOLA VOODOO: Remove any voodoo links when character dies
+      if (card.type === 'personaggi' || card.type === 'personaggi_speciali') {
+        this.removeVoodooLink(gameId, cardId);
       }
+      
+      // FIXED: Always add card to graveyard, set eliminatedBy to who removed it
+      card.eliminatedBy = playerName;
+      game.graveyard.push(card);
+      console.log(`Card ${cardId} moved to graveyard. Owner: ${cardOwner}, Eliminated by: ${playerName}`);
+
+      // Count PERSONAGGI cards in graveyard for this player (only personaggi count for elimination)
+      const graveyardCount = game.graveyard.filter(
+        graveyardCard => graveyardCard.eliminatedBy === playerName && (graveyardCard.type === 'personaggi' || graveyardCard.type === 'personaggi_speciali')
+      ).length;
+
+      // NEW: Track elimination count for SOROS activation
+      let sorosActivated = false;
+      if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && attacker) {
+        // Increment elimination count for the attacker
+        const attackerPlayer = game.players[attacker];
+        if (attackerPlayer) {
+          if (!attackerPlayer.eliminationCount) {
+            attackerPlayer.eliminationCount = 0;
+          }
+          
+          attackerPlayer.eliminationCount++;
+          console.log(`🗡️ ${attacker} has eliminated ${attackerPlayer.eliminationCount} personaggi`);
+          
+          // Track elimination for missions/achievements (fire-and-forget)
+          this.trackPlayerEvent(gameId, attacker, 'elimination', {}).catch(() => {});
+          
+          // SOROS activation at 6 eliminations
+          if (attackerPlayer.eliminationCount === 6 && !sorosActivated) {
+            sorosActivated = true;
+            console.log(`🎭 SOROS ACTIVATED! ${attacker} has eliminated 6 personaggi!`);
+            
+            // Find SOROS in personaggi_speciali deck
+            const sorosIndex = game.decks.personaggi_speciali.findIndex((c: Card) => 
+              c.frontImage && c.frontImage.includes('soros')
+            );
+            
+            if (sorosIndex !== -1) {
+              const soros = game.decks.personaggi_speciali.splice(sorosIndex, 1)[0];
+              soros.owner = attacker;
+              game.field.push(soros);
+              console.log(`🎭 SOROS automatically played on field for ${attacker}!`);
+              
+              // Return flag indicating SOROS was activated (routes.ts will emit to all players)
+              return { success: true, graveyardCount, cardImage: card.frontImage, cardType: card.type, eliminationCheck: false, sorosActivated: true, sorosImage: soros.frontImage, sorosActivator: attacker, detachedParasites };
+            }
+          }
+        }
+      }
+
+      // Check if player should be eliminated (only if it's a personaggi card)
+      let eliminationCheck = false;
+      if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && game.characterLimit !== 'unlimited') {
+        const baseLimit = parseInt(game.characterLimit);
+        const playerModifier = game.playerDeathModifiers.get(playerName) || 0;
+        const effectiveLimit = Math.max(1, baseLimit + playerModifier); // Minimum 1 death required
+        if (graveyardCount >= effectiveLimit && !game.eliminatedPlayers.has(playerName)) {
+          eliminationCheck = true;
+        }
+      }
+
+      return { success: true, graveyardCount, cardImage: card.frontImage, cardType: card.type, eliminationCheck, sorosActivated: false, detachedParasites };
     }
     
     return { success: false, detachedParasites };
