@@ -17,6 +17,14 @@ The server is built with Express.js and TypeScript, utilizing Socket.IO for real
 ## Real-time Communication
 Socket.IO facilitates WebSocket connections for real-time events such as game joining, card actions, player interactions, and game state synchronization.
 
+## Network Performance Optimizations
+The game is optimized for slow internet connections with several performance enhancements:
+- **Server-side throttling**: Game state updates are throttled to 100ms to batch rapid changes
+- **Message compression**: Socket.IO perMessageDeflate compression reduces payload size (threshold 1KB)
+- **Smart update batching**: Client uses server's eventCounter to detect meaningful changes; only redundant broadcasts are debounced
+- **Optimistic UI**: Deck card picks show immediate visual feedback while awaiting server confirmation
+- **Pre-calculated counts**: deckCounts and handCount sent in state for quick UI access
+
 ## Game State Management
 Game state is managed on both client and server, with the server as the authoritative source. It tracks deck states, player hands, field positions, and the graveyard, ensuring consistent views for all players.
 
