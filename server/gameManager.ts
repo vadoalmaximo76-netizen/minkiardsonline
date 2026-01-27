@@ -2032,7 +2032,28 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }, playerName);
 
     } catch (error) {
-      console.error('Error processing custom card effect:', error);
+      console.error('Error processing custom card effect with AI:', error);
+      
+      // Fallback to keyword-based parsing when AI fails
+      console.log('🔧 AI failed - falling back to keyword-based effect parsing');
+      const actions = this.parseEffectKeywords(card.effect);
+      console.log(`🎴 Fallback keyword-parsed actions:`, actions);
+      
+      if (actions.length > 0) {
+        for (const action of actions) {
+          await this.executeCustomEffectAction(gameId, action, playerName, card);
+        }
+        
+        // Record the effect execution
+        await this.recordEvent(gameId, 'custom-card-effect', {
+          cardId: card.id,
+          cardName: card.name,
+          effect: card.effect,
+          result: { actions, message: `Effetto attivato (fallback): ${actions.map(a => a.description).join(', ')}` }
+        }, playerName);
+      } else {
+        console.log('⚠️ No actions parsed from effect - effect may not be recognized');
+      }
     }
   }
 
