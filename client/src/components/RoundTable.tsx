@@ -1,4 +1,4 @@
-import React, { useMemo, memo } from "react";
+import React from "react";
 import { Card } from "./Card";
 import { Deck } from "./Deck";
 import { useGameState } from "../lib/stores/useGameState";
@@ -16,21 +16,18 @@ const RoundTableComponent: React.FC = () => {
   const turnOrder: string[] = [];
   const scenarioCardsActive = false;
 
-  // Memoize expensive card filtering computations
-  const { attachedParasiticCards, regularCards, attachedCardsMap } = useMemo(() => {
-    const attached = fieldCards.filter(card => card.attachedTo);
-    const regular = fieldCards.filter(card => !card.attachedTo);
-    const cardsMap = attached.reduce((acc, card) => {
-      if (card.attachedTo) {
-        if (!acc[card.attachedTo]) {
-          acc[card.attachedTo] = [];
-        }
-        acc[card.attachedTo].push(card);
+  // Compute card filtering directly (no memoization for real-time updates)
+  const attachedParasiticCards = fieldCards.filter(card => card.attachedTo);
+  const regularCards = fieldCards.filter(card => !card.attachedTo);
+  const attachedCardsMap = attachedParasiticCards.reduce((acc, card) => {
+    if (card.attachedTo) {
+      if (!acc[card.attachedTo]) {
+        acc[card.attachedTo] = [];
       }
-      return acc;
-    }, {} as Record<string, typeof fieldCards>);
-    return { attachedParasiticCards: attached, regularCards: regular, attachedCardsMap: cardsMap };
-  }, [fieldCards]);
+      acc[card.attachedTo].push(card);
+    }
+    return acc;
+  }, {} as Record<string, typeof fieldCards>);
 
   // Determine player order for positioning around the table
   const getOrderedPlayers = () => {
@@ -572,5 +569,5 @@ const RoundTableComponent: React.FC = () => {
   );
 };
 
-// Memoized RoundTable component
-export const RoundTable = memo(RoundTableComponent);
+// RoundTable without memoization for real-time updates
+export const RoundTable = RoundTableComponent;
