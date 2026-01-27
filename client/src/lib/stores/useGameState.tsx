@@ -127,8 +127,11 @@ export const useGameState = create<GameStateStore>()(
         
         // Skip if we've already processed this event (duplicate)
         if (newEventCounter !== -1 && newEventCounter === lastEventCounter) {
+          console.log(`[STATE] Skipping duplicate update (eventCounter: ${newEventCounter})`);
           return;
         }
+        
+        console.log(`[STATE] Applying update - eventCounter: ${newEventCounter}, field cards: ${newGameState.field?.length}, graveyard: ${newGameState.graveyard?.length}`);
         lastEventCounter = newEventCounter;
         
         // Clear any pending debounced update

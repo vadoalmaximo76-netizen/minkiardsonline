@@ -1545,6 +1545,10 @@ Rispondi SOLO in JSON:`;
     const gameState = this.games.get(gameId);
     if (!gameState) return null;
 
+    // CRITICAL: Increment eventCounter every time we broadcast state
+    // This ensures client doesn't skip updates as "duplicates"
+    gameState.eventCounter++;
+
     // OPTIMIZED: Only send deck counts, NOT full deck contents
     // Full decks are fetched separately via 'get-deck-contents' when SCEGLI modal opens
     // This reduces payload size from ~2MB to ~50KB per update
