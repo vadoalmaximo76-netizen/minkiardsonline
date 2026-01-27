@@ -1003,9 +1003,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
           
-          // Emit to all players to update game state
+          // IMMEDIATE state update for card picking (no throttle - critical for responsiveness)
           const gameState = gameManager.getSanitizedGameState(gameId);
-          emitThrottledGameState(io, gameId, gameState);
+          emitImmediateGameState(io, gameId, gameState);
           
           // Emit the picked card ONLY to the player who picked it
           const playerSocketId = gameManager.getPlayerSocketId(gameId, playerName);
@@ -1090,7 +1090,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           const gameState = gameManager.getSanitizedGameState(gameId);
           console.log(`Emitting game-state-update to room ${gameId}`);
-          emitThrottledGameState(io, gameId, gameState);
+          emitImmediateGameState(io, gameId, gameState);
           console.log(`Game state updated after ${playerName} picked card ${cardId}`);
           
           // Log the updated player hand count from sanitized game state
@@ -1116,9 +1116,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`CPU ${playerName} played ${result.card.type} card - maintaining hand limit (1 card per type)`);
         }
         
-        // IMMEDIATE: Send game state update first for responsiveness
+        // IMMEDIATE: Send game state update for responsiveness (no throttle)
         const gameState = gameManager.getSanitizedGameState(gameId);
-        emitThrottledGameState(io, gameId, gameState);
+        emitImmediateGameState(io, gameId, gameState);
         
         // Emit card-played event for last played cards history
         if (result.card) {

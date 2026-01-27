@@ -121,7 +121,7 @@ export const useGameState = create<GameStateStore>()(
   persist(
     (set, get) => {
       // Listen for game state updates - optimized for performance
-      // Apply updates immediately using requestAnimationFrame for smooth rendering
+      // Apply updates immediately (no delays for maximum responsiveness)
       socket.on('game-state-update', (newGameState: GameState) => {
         const newEventCounter = (newGameState as any).eventCounter ?? -1;
         
@@ -137,10 +137,8 @@ export const useGameState = create<GameStateStore>()(
           gameStateUpdateTimeout = null;
         }
         
-        // Use requestAnimationFrame for smooth UI updates
-        requestAnimationFrame(() => {
-          set({ gameState: newGameState });
-        });
+        // Apply immediately - no delays
+        set({ gameState: newGameState });
       });
 
       // Listen for picked cards (private to player)
