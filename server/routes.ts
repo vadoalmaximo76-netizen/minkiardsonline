@@ -33,8 +33,8 @@ const voiceChatRooms = new Map<string, Map<string, string>>(); // gameId -> Map(
 // Throttled game state updates to reduce broadcast frequency
 const pendingStateUpdates = new Map<string, NodeJS.Timeout>();
 const lastEventCounters = new Map<string, number>(); // Track eventCounter to skip true duplicates
-const THROTTLE_DELAY = 30; // ms - short delay to batch rapid changes
 
+// REAL-TIME UPDATE: All updates are now immediate (no throttling)
 function emitThrottledGameState(io: SocketServer, gameId: string, gameState: any) {
   // Only skip if exact same eventCounter (true duplicate broadcast)
   const newCounter = gameState.eventCounter ?? -1;
@@ -44,19 +44,15 @@ function emitThrottledGameState(io: SocketServer, gameId: string, gameState: any
   }
   lastEventCounters.set(gameId, newCounter);
   
-  // Clear any pending update for this game
+  // Clear any pending update for this game (legacy cleanup)
   const existing = pendingStateUpdates.get(gameId);
   if (existing) {
     clearTimeout(existing);
+    pendingStateUpdates.delete(gameId);
   }
   
-  // Schedule the update with a small delay to batch rapid changes
-  const timeout = setTimeout(() => {
-    io.to(gameId).emit('game-state-update', gameState);
-    pendingStateUpdates.delete(gameId);
-  }, THROTTLE_DELAY);
-  
-  pendingStateUpdates.set(gameId, timeout);
+  // IMMEDIATE: Emit now, no delay
+  io.to(gameId).emit('game-state-update', gameState);
 }
 
 // Immediate state update (for critical events like game start, player join)
@@ -1397,7 +1393,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gameId) {
         const result = await gameManager.playCardFaceDown(gameId, cardId, playerName);
         const gameState = gameManager.getSanitizedGameState(gameId);
-        emitThrottledGameState(io, gameId, gameState);
+        emitImmediateGameState(io, gameId, gameState);
         
         if (result.card) {
           io.to(gameId).emit('card-played-face-down', {
@@ -1414,7 +1410,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gameId) {
         const result = await gameManager.revealCard(gameId, cardId, playerName);
         const gameState = gameManager.getSanitizedGameState(gameId);
-        emitThrottledGameState(io, gameId, gameState);
+        emitImmediateGameState(io, gameId, gameState);
         
         if (result.card) {
           const getCardNameFromUrl = (url: string) => {
@@ -1554,7 +1550,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           const gameState = gameManager.getSanitizedGameState(gameId);
-          emitThrottledGameState(io, gameId, gameState);
+          emitImmediateGameState(io, gameId, gameState);
 
           // Get card name from image URL for "Ciao ciao" notification
           if (result.cardImage) {
@@ -3322,7 +3318,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           const gameState = gameManager.getSanitizedGameState(gameId);
-          emitThrottledGameState(io, gameId, gameState);
+          emitImmediateGameState(io, gameId, gameState);
           
           // ALWAYS check for game victory after any graveyard change
           const winner = gameManager.checkForGameVictory(gameId);
@@ -3347,7 +3343,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Send updated game state
         const gameState = gameManager.getSanitizedGameState(gameId);
-        emitThrottledGameState(io, gameId, gameState);
+        emitImmediateGameState(io, gameId, gameState);
         
         // Notify players about the manual return
         io.to(gameId).emit('chat-message', {
