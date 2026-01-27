@@ -1131,6 +1131,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const gameState = gameManager.getSanitizedGameState(gameId);
         emitImmediateGameState(io, gameId, gameState);
         
+        // Check for pending interactive effects (like graveyard selection)
+        const pendingEffect = gameManager.getPendingEffect(gameId, playerName);
+        if (pendingEffect && pendingEffect.type === 'resurrect_choice') {
+          // Get graveyard cards for selection
+          const graveyardCards = gameManager.getGraveyardCards(gameId);
+          if (graveyardCards.length > 0) {
+            // Emit event to show graveyard selection modal to the player
+            socket.emit('show-graveyard-selection', {
+              reason: 'resurrect',
+              cards: graveyardCards,
+              message: 'Scegli una carta dal cimitero da riportare in mano'
+            });
+            console.log(`👼 Emitted graveyard selection to ${playerName} with ${graveyardCards.length} cards`);
+          }
+        }
+        
         // Emit card-played event for last played cards history
         if (result.card) {
           const getCardNameFromUrl = (url: string) => {
@@ -1490,6 +1506,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         emitThrottledGameState(io, gameId, gameState);
       } else {
         socket.emit('error', { message: result.message || 'Failed to interrupt effect' });
+      }
+    });
+
+    // Handle resurrection card selection from graveyard (interactive choice)
+    socket.on('resurrect-select', ({ cardId, playerName }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        const result = gameManager.resurrectSelectedCard(gameId, cardId, playerName);
+        if (result.success) {
+          const gameState = gameManager.getSanitizedGameState(gameId);
+          emitImmediateGameState(io, gameId, gameState);
+          
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-resurrect`,
+            playerName: 'Sistema',
+            message: `👼 ${playerName} ha resuscitato ${result.cardName} dal cimitero!`,
+            timestamp: Date.now()
+          });
+        }
       }
     });
 

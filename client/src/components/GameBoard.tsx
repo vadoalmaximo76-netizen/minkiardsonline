@@ -139,6 +139,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [deadCharacterName, setDeadCharacterName] = useState<string>("");
   const [deathEffectKey, setDeathEffectKey] = useState(0);
   const [choosingNotification, setChoosingNotification] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
+  const [graveyardSelectionModal, setGraveyardSelectionModal] = useState<{
+    visible: boolean;
+    reason: string;
+    cards: any[];
+    message: string;
+  }>({ visible: false, reason: '', cards: [], message: '' });
   const [parasiticTargetSelect, setParasiticTargetSelect] = useState<{
     visible: boolean;
     parasiticCardId: string;
@@ -610,6 +616,18 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('player-choosing-notification', handlePlayerChoosingNotification);
 
+    // GRAVEYARD SELECTION: Handle interactive graveyard card selection
+    const handleShowGraveyardSelection = (data: { reason: string; cards: any[]; message: string }) => {
+      console.log('👼 Show graveyard selection:', data);
+      setGraveyardSelectionModal({
+        visible: true,
+        reason: data.reason,
+        cards: data.cards,
+        message: data.message
+      });
+    };
+    socket.on('show-graveyard-selection', handleShowGraveyardSelection);
+
     // PARASITIC CARDS: Handler for target selection
     const handleParasiticTargetSelect = ({ parasiticCardId, parasiticType, ownerPlayer, targets }: {
       parasiticCardId: string;
@@ -933,6 +951,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('fusion-error', handleFusionError);
       socket.off('voodoo:error', handleVoodooError);
       socket.off('player-choosing-notification', handlePlayerChoosingNotification);
+      socket.off('show-graveyard-selection', handleShowGraveyardSelection);
       socket.off('parasitic-target-select', handleParasiticTargetSelect);
       socket.off('parasitic-attached', handleParasiticAttached);
       socket.off('saibaim-explosion', handleSaibaImExplosion);
@@ -1183,6 +1202,60 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   ? '⚠️ Il PARASSITA non può essere attaccato mentre è agganciato' 
                   : '⚠️ Il SAIBAIM esploderà dopo 3 turni eliminando entrambi i personaggi'}
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* GRAVEYARD SELECTION MODAL - Interactive card selection from graveyard */}
+      {graveyardSelectionModal.visible && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-purple-900 to-purple-700 rounded-lg p-6 w-full max-w-3xl mx-4 border-4 border-purple-400 shadow-[0_0_30px_rgba(147,51,234,0.5)]">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-white mb-2" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+                👼 SCEGLI CARTA DAL CIMITERO
+              </h2>
+              <p className="text-purple-100" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                {graveyardSelectionModal.message || 'Seleziona una carta da riportare in mano'}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-h-96 overflow-y-auto">
+              {graveyardSelectionModal.cards.map((card: any) => (
+                <button
+                  key={card.id}
+                  onClick={() => {
+                    socket.emit('resurrect-select', {
+                      cardId: card.id,
+                      playerName
+                    });
+                    setGraveyardSelectionModal({ visible: false, reason: '', cards: [], message: '' });
+                  }}
+                  className="bg-gray-800/80 hover:bg-purple-600 transition-all duration-200 rounded-lg p-3 border-2 border-purple-400 hover:border-purple-300 hover:shadow-[0_0_20px_rgba(147,51,234,0.6)]"
+                >
+                  {card.frontImage ? (
+                    <img 
+                      src={card.frontImage} 
+                      alt="Graveyard Card" 
+                      className="w-full h-32 object-cover rounded mb-2"
+                    />
+                  ) : (
+                    <div className="w-full h-32 bg-gray-700 rounded mb-2 flex items-center justify-center">
+                      <span className="text-white text-xs">Carta</span>
+                    </div>
+                  )}
+                  <p className="text-white text-sm font-bold truncate" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                    {card.name || card.id}
+                  </p>
+                </button>
+              ))}
+            </div>
+            <div className="mt-4 text-center">
+              <button
+                onClick={() => setGraveyardSelectionModal({ visible: false, reason: '', cards: [], message: '' })}
+                className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded"
+              >
+                Annulla
+              </button>
             </div>
           </div>
         </div>

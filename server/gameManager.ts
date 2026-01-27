@@ -241,6 +241,7 @@ interface GameState {
   skipTurnPlayers?: string[]; // Players who skip their next turn
   nullifyNextEffect?: string; // Player whose next enemy effect is nullified
   doubleNextEffect?: string; // Player whose next effect is doubled
+  pendingEffects?: Map<string, { type: string; cardId: string; timestamp: number }>; // Pending interactive effects
 }
 
 export class GameManager {
@@ -1503,6 +1504,20 @@ Rispondi SOLO in JSON:`;
     return this.games.get(gameId) || null;
   }
 
+  // Get pending interactive effect for a player
+  getPendingEffect(gameId: string, playerName: string): { type: string; cardId: string; timestamp: number } | null {
+    const game = this.games.get(gameId);
+    if (!game || !game.pendingEffects) return null;
+    return game.pendingEffects.get(playerName) || null;
+  }
+
+  // Get graveyard cards for selection
+  getGraveyardCards(gameId: string): Card[] {
+    const game = this.games.get(gameId);
+    if (!game) return [];
+    return game.graveyard;
+  }
+
   setPlayerAvatar(gameId: string, playerName: string, avatarId: string): boolean {
     const game = this.games.get(gameId);
     if (!game || !game.players[playerName]) return false;
@@ -2002,9 +2017,18 @@ Rispondi SOLO in JSON:`;
       actions.push({ type: 'nullify', target: 'opponents', value: 1, description: 'Nullifica effetto nemico' });
     }
 
-    // RESURRECT patterns
-    if (text.includes('resuscita') || text.includes('riporta') || text.includes('cimitero')) {
-      actions.push({ type: 'resurrect', target: 'self', value: 1, description: 'Resuscita carta dal cimitero' });
+    // RESURRECT patterns - detect if player choice is needed
+    if (text.includes('resuscita') || text.includes('riporta') || text.includes('cimitero') || 
+        text.includes('ripristina carta') || text.includes('richiama')) {
+      // Check if effect requires player choice
+      const requiresChoice = text.includes('scelta') || text.includes('scegli') || 
+                             text.includes('pannello') || text.includes('quale carta');
+      actions.push({ 
+        type: requiresChoice ? 'resurrect_choice' : 'resurrect', 
+        target: 'self', 
+        value: 1, 
+        description: requiresChoice ? 'Scegli una carta dal cimitero da resuscitare' : 'Resuscita carta dal cimitero' 
+      });
     }
 
     // POWERUP patterns
@@ -2471,14 +2495,36 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
 
       case 'resurrect':
-        // Return card from graveyard
+        // Return card from graveyard (auto-select the player's most recently died card)
         if (game.graveyard.length > 0) {
-          const resCard = game.graveyard.pop();
+          // Find the player's own card in graveyard (most recent first)
+          const playerGraveyardCards = game.graveyard.filter(c => c.eliminatedBy === playerName || c.owner === playerName);
+          const resCard = playerGraveyardCards.length > 0 
+            ? game.graveyard.splice(game.graveyard.indexOf(playerGraveyardCards[playerGraveyardCards.length - 1]), 1)[0]
+            : game.graveyard.pop();
           if (resCard) {
             resCard.owner = playerName;
             game.players[playerName].hand.push(resCard);
             console.log(`👼 Custom effect: ${playerName} RESURRECTED ${resCard.name || resCard.id}!`);
           }
+        }
+        break;
+
+      case 'resurrect_choice':
+        // Emit event to client to show graveyard selection modal
+        if (game.graveyard.length > 0) {
+          // Store pending effect for this player
+          if (!game.pendingEffects) game.pendingEffects = new Map();
+          game.pendingEffects.set(playerName, {
+            type: 'resurrect_choice',
+            cardId: card.id,
+            timestamp: Date.now()
+          });
+          console.log(`👼 Custom effect: ${playerName} needs to choose a card from graveyard!`);
+          // Emit event to show graveyard selection - the client will listen for this
+          // This is handled in routes.ts via custom-card-effect event with special handling
+        } else {
+          console.log(`👼 Custom effect: No cards in graveyard to resurrect!`);
         }
         break;
 
@@ -5026,6 +5072,34 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
     
     return { success: false, detachedParasites };
+  }
+
+  // Resurrect a specific card selected by the player from the graveyard
+  resurrectSelectedCard(gameId: string, cardId: string, playerName: string): { success: boolean; cardName?: string } {
+    const game = this.games.get(gameId);
+    if (!game) return { success: false };
+
+    // Find the card in graveyard
+    const cardIndex = game.graveyard.findIndex(c => c.id === cardId);
+    if (cardIndex === -1) {
+      console.log(`👼 Resurrect failed: Card ${cardId} not found in graveyard`);
+      return { success: false };
+    }
+
+    // Remove from graveyard and add to player's hand
+    const card = game.graveyard.splice(cardIndex, 1)[0];
+    card.owner = playerName;
+    game.players[playerName].hand.push(card);
+
+    const cardName = card.name || this.getCardNameFromUrl(card.frontImage);
+    console.log(`👼 ${playerName} resurrected ${cardName} from graveyard!`);
+
+    // Clear pending effect
+    if (game.pendingEffects) {
+      game.pendingEffects.delete(playerName);
+    }
+
+    return { success: true, cardName };
   }
 
   // CIMICE DEATH EFFECT: When CIMICE dies, removes 500 PTI from ALL other field characters
