@@ -1805,8 +1805,8 @@ Rispondi SOLO in JSON:`;
       // Track for missions/achievements (non-blocking)
       this.trackPlayerEventAsync(gameId, playerName, 'card_played', { cardType: card.type });
       
-      // Process custom card effect if present
-      if (card.effect && card.id.startsWith('permanent-')) {
+      // Process custom card effect if present (works for all custom cards, not just permanent)
+      if (card.effect && (card.id.startsWith('permanent-') || card.id.startsWith('custom-'))) {
         await this.processCustomCardEffect(gameId, card, playerName);
       }
       
