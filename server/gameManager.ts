@@ -1552,21 +1552,19 @@ Rispondi SOLO in JSON:`;
       currentTurnIndex: gameState.currentTurnIndex,
       spectators: gameState.spectators,
       characterLimit: gameState.characterLimit,
-      eliminatedPlayers: Array.from(gameState.eliminatedPlayers), // Convert Set to Array for JSON serialization
-      voodooLinks: gameState.voodooLinks || [] // BAMBOLA VOODOO: Include active voodoo links
+      eliminatedPlayers: Array.from(gameState.eliminatedPlayers),
+      voodooLinks: gameState.voodooLinks || []
     };
 
     // Sanitize players by removing cpuInstance references
-    // Only send essential hand data to reduce payload
     for (const [playerName, player] of Object.entries(gameState.players)) {
       sanitized.players[playerName] = {
         name: player.name,
         hand: player.hand,
-        handCount: player.hand.length, // Quick reference for UI
+        handCount: player.hand.length,
         socketId: player.socketId,
         isCPU: player.isCPU,
         avatar: player.avatar
-        // Note: cpuInstance is intentionally omitted to prevent circular references
       };
     }
 

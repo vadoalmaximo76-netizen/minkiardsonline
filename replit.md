@@ -19,11 +19,14 @@ Socket.IO facilitates WebSocket connections for real-time events such as game jo
 
 ## Network Performance Optimizations
 The game is optimized for slow internet connections with several performance enhancements:
-- **Server-side throttling**: Game state updates are throttled to 100ms to batch rapid changes
-- **Message compression**: Socket.IO perMessageDeflate compression reduces payload size (threshold 1KB)
-- **Smart update batching**: Client uses server's eventCounter to detect meaningful changes; only redundant broadcasts are debounced
+- **Server-side throttling**: Game state updates are throttled to 30ms to batch rapid changes while maintaining responsiveness
+- **Message compression**: Socket.IO perMessageDeflate compression with 512-byte threshold and balanced compression level
+- **Duplicate detection**: eventCounter-based deduplication prevents sending identical state updates
 - **Optimistic UI**: Deck card picks show immediate visual feedback while awaiting server confirmation
 - **Pre-calculated counts**: deckCounts and handCount sent in state for quick UI access
+- **Socket.IO optimization**: Increased ping timeout (60s), WebSocket priority with upgrade support, faster reconnection (500ms delay)
+- **React memoization**: Card, Deck, and RoundTable components use React.memo to prevent unnecessary re-renders
+- **requestAnimationFrame**: Client state updates use rAF for smooth 60fps UI rendering
 
 ## Game State Management
 Game state is managed on both client and server, with the server as the authoritative source. It tracks deck states, player hands, field positions, and the graveyard, ensuring consistent views for all players.

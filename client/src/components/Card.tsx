@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
 import ReactDOM from "react-dom";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
@@ -64,7 +64,7 @@ interface CardProps {
   showBack?: boolean;
 }
 
-export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) => {
+const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false }) => {
   const [cardText, setCardText] = useState(card.text || "");
   const [showActions, setShowActions] = useState(false);
   const [showPlayerSelect, setShowPlayerSelect] = useState(false);
@@ -1802,3 +1802,23 @@ export const Card: React.FC<CardProps> = ({ card, location, showBack = false }) 
     </div>
   );
 };
+
+// Memoized Card component to prevent unnecessary re-renders
+export const Card = memo(CardComponent, (prevProps, nextProps) => {
+  // Only re-render if card data actually changed
+  const prevCard = prevProps.card;
+  const nextCard = nextProps.card;
+  return (
+    prevCard.id === nextCard.id &&
+    prevCard.text === nextCard.text &&
+    prevCard.faceDown === nextCard.faceDown &&
+    prevCard.owner === nextCard.owner &&
+    prevCard.isFused === nextCard.isFused &&
+    prevCard.fusionLeader === nextCard.fusionLeader &&
+    prevCard.protectedByRifugio === nextCard.protectedByRifugio &&
+    prevCard.isBarrieraShield === nextCard.isBarrieraShield &&
+    prevCard.barrieraPTI === nextCard.barrieraPTI &&
+    prevProps.location === nextProps.location &&
+    prevProps.showBack === nextProps.showBack
+  );
+});

@@ -5,7 +5,8 @@ import { socket } from "../socket";
 
 // Debounce game state updates for performance on slow connections
 let gameStateUpdateTimeout: NodeJS.Timeout | null = null;
-const GAME_STATE_DEBOUNCE_MS = 50; // Debounce rapid updates
+const GAME_STATE_DEBOUNCE_MS = 16; // ~60fps - minimal debounce for smooth updates
+let lastEventCounter = -1; // Track last processed event to avoid duplicates
 
 interface Card {
   id: string;
@@ -119,43 +120,27 @@ interface GameStateStore {
 export const useGameState = create<GameStateStore>()(
   persist(
     (set, get) => {
-      // Listen for game state updates - optimized for slow connections
-      // Use eventCounter to detect meaningful changes, apply immediately when counter changes
+      // Listen for game state updates - optimized for performance
+      // Apply updates immediately using requestAnimationFrame for smooth rendering
       socket.on('game-state-update', (newGameState: GameState) => {
-        // Clear any pending update
+        const newEventCounter = (newGameState as any).eventCounter ?? -1;
+        
+        // Skip if we've already processed this event (duplicate)
+        if (newEventCounter !== -1 && newEventCounter === lastEventCounter) {
+          return;
+        }
+        lastEventCounter = newEventCounter;
+        
+        // Clear any pending debounced update
         if (gameStateUpdateTimeout) {
           clearTimeout(gameStateUpdateTimeout);
+          gameStateUpdateTimeout = null;
         }
         
-        // Get event counters - treat missing/undefined as "changed" to be safe
-        const currentState = get().gameState;
-        const newEventCounter = (newGameState as any).eventCounter;
-        const oldEventCounter = currentState ? (currentState as any).eventCounter : undefined;
-        
-        // Always apply immediately if:
-        // - No current state (initial load)
-        // - Event counter is missing (can't determine if critical - be safe)
-        // - Event counter changed (actual game action occurred)
-        // - Structural changes (player join/leave, turn change)
-        const eventCounterMissing = newEventCounter === undefined || oldEventCounter === undefined;
-        const eventCounterChanged = newEventCounter !== oldEventCounter;
-        
-        const isCriticalUpdate = !currentState || 
-          eventCounterMissing ||
-          eventCounterChanged ||
-          currentState.currentTurnIndex !== newGameState.currentTurnIndex ||
-          Object.keys(currentState.players).length !== Object.keys(newGameState.players).length;
-        
-        if (isCriticalUpdate) {
-          // Critical updates: apply immediately
+        // Use requestAnimationFrame for smooth UI updates
+        requestAnimationFrame(() => {
           set({ gameState: newGameState });
-        } else {
-          // Same eventCounter = redundant broadcast, debounce to reduce re-renders
-          gameStateUpdateTimeout = setTimeout(() => {
-            set({ gameState: newGameState });
-            gameStateUpdateTimeout = null;
-          }, GAME_STATE_DEBOUNCE_MS);
-        }
+        });
       });
 
       // Listen for picked cards (private to player)

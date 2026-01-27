@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, memo } from "react";
 import { Card } from "./Card";
 import { Deck } from "./Deck";
 import { useGameState } from "../lib/stores/useGameState";
@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { socket } from "../lib/socket";
 import { Checkbox } from "./ui/checkbox";
 
-export const RoundTable: React.FC = () => {
+const RoundTableComponent: React.FC = () => {
   const { gameState, playerName, gameId, showBrowser } = useGameState();
   
   const fieldCards = gameState?.field || [];
@@ -16,20 +16,21 @@ export const RoundTable: React.FC = () => {
   const turnOrder: string[] = [];
   const scenarioCardsActive = false;
 
-  // Separate attached parasitic cards from regular cards
-  const attachedParasiticCards = fieldCards.filter(card => card.attachedTo);
-  const regularCards = fieldCards.filter(card => !card.attachedTo);
-  
-  // Create a map of target cards to their attached parasitic cards
-  const attachedCardsMap = attachedParasiticCards.reduce((acc, card) => {
-    if (card.attachedTo) {
-      if (!acc[card.attachedTo]) {
-        acc[card.attachedTo] = [];
+  // Memoize expensive card filtering computations
+  const { attachedParasiticCards, regularCards, attachedCardsMap } = useMemo(() => {
+    const attached = fieldCards.filter(card => card.attachedTo);
+    const regular = fieldCards.filter(card => !card.attachedTo);
+    const cardsMap = attached.reduce((acc, card) => {
+      if (card.attachedTo) {
+        if (!acc[card.attachedTo]) {
+          acc[card.attachedTo] = [];
+        }
+        acc[card.attachedTo].push(card);
       }
-      acc[card.attachedTo].push(card);
-    }
-    return acc;
-  }, {} as Record<string, typeof fieldCards>);
+      return acc;
+    }, {} as Record<string, typeof fieldCards>);
+    return { attachedParasiticCards: attached, regularCards: regular, attachedCardsMap: cardsMap };
+  }, [fieldCards]);
 
   // Determine player order for positioning around the table
   const getOrderedPlayers = () => {
@@ -570,3 +571,6 @@ export const RoundTable: React.FC = () => {
     </div>
   );
 };
+
+// Memoized RoundTable component
+export const RoundTable = memo(RoundTableComponent);

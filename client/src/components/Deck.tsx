@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, memo, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
@@ -10,7 +10,7 @@ interface DeckProps {
   type: 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali';
 }
 
-export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
+const DeckComponent: React.FC<DeckProps> = ({ name, backImage, type }) => {
   const { gameState, playerName } = useGameState();
   const [showBrowser, setShowBrowser] = useState(false);
   const [selectedCardForZoom, setSelectedCardForZoom] = useState<any>(null);
@@ -380,3 +380,6 @@ export const Deck: React.FC<DeckProps> = ({ name, backImage, type }) => {
     </div>
   );
 };
+
+// Memoized Deck component - only re-render when props or deck count changes
+export const Deck = memo(DeckComponent);

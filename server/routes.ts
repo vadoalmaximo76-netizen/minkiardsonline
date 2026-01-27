@@ -32,9 +32,18 @@ const voiceChatRooms = new Map<string, Map<string, string>>(); // gameId -> Map(
 
 // Throttled game state updates to reduce broadcast frequency
 const pendingStateUpdates = new Map<string, NodeJS.Timeout>();
-const THROTTLE_DELAY = 100; // ms - batch updates within this window (increased for slow connections)
+const lastEventCounters = new Map<string, number>(); // Track eventCounter to skip true duplicates
+const THROTTLE_DELAY = 30; // ms - short delay to batch rapid changes
 
 function emitThrottledGameState(io: SocketServer, gameId: string, gameState: any) {
+  // Only skip if exact same eventCounter (true duplicate broadcast)
+  const newCounter = gameState.eventCounter ?? -1;
+  const lastCounter = lastEventCounters.get(gameId) ?? -2;
+  if (newCounter !== -1 && newCounter === lastCounter) {
+    return; // True duplicate, skip
+  }
+  lastEventCounters.set(gameId, newCounter);
+  
   // Clear any pending update for this game
   const existing = pendingStateUpdates.get(gameId);
   if (existing) {
@@ -52,6 +61,9 @@ function emitThrottledGameState(io: SocketServer, gameId: string, gameState: any
 
 // Immediate state update (for critical events like game start, player join)
 function emitImmediateGameState(io: SocketServer, gameId: string, gameState: any) {
+  // Update counter
+  lastEventCounters.set(gameId, gameState.eventCounter ?? -1);
+  
   // Clear any pending throttled update
   const existing = pendingStateUpdates.get(gameId);
   if (existing) {
@@ -365,13 +377,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       methods: ["GET", "POST"]
     },
     maxHttpBufferSize: 10e6, // 10MB limit for large images
+    pingTimeout: 60000, // 60s timeout for slow connections
+    pingInterval: 25000, // 25s ping interval
+    upgradeTimeout: 30000, // 30s to upgrade connection
+    transports: ['websocket', 'polling'], // Prefer websocket
+    allowUpgrades: true,
     perMessageDeflate: {
-      threshold: 1024, // Compress messages larger than 1KB
+      threshold: 512, // Compress messages larger than 512 bytes
       zlibDeflateOptions: {
-        chunkSize: 16 * 1024
+        chunkSize: 32 * 1024, // Larger chunks for faster compression
+        level: 6 // Balanced compression level
       },
       zlibInflateOptions: {
-        chunkSize: 16 * 1024
+        chunkSize: 32 * 1024
       },
       clientNoContextTakeover: true,
       serverNoContextTakeover: true

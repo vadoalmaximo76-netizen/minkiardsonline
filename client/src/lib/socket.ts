@@ -3,11 +3,13 @@ import { io } from 'socket.io-client';
 export const socket = io('/', {
   autoConnect: false,
   transports: ['websocket', 'polling'],
+  upgrade: true,
+  rememberUpgrade: true,
   reconnection: true,
   reconnectionAttempts: 10,
-  reconnectionDelay: 1000,
-  reconnectionDelayMax: 10000,
-  timeout: 30000,
+  reconnectionDelay: 500, // Faster reconnection
+  reconnectionDelayMax: 5000,
+  timeout: 20000,
   forceNew: false
 });
 
