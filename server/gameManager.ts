@@ -1518,7 +1518,7 @@ Rispondi SOLO in JSON:`;
         personaggi: gameState.decks.personaggi.length,
         mosse: gameState.decks.mosse.length,
         bonus: gameState.decks.bonus.length,
-        personaggiSpeciali: gameState.decks.personaggiSpeciali.length
+        personaggiSpeciali: gameState.decks.personaggi_speciali.length
       },
       // Keep full decks for card browser feature (SCEGLI functionality)
       decks: gameState.decks,
