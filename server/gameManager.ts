@@ -1,6 +1,6 @@
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from '../client/src/lib/cardData';
 import { db } from './db';
-import { matches, gameEvents, personaggi, customCards, cardModifications, users, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
+import { matches, gameEvents, personaggi, customCards, cardModifications, users, gameStates, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
 import { eq, ilike, sql } from 'drizzle-orm';
 import { CPUPlayer } from './cpuPlayer';
 import { trackGameEvent } from './missionsAndAchievements';
@@ -286,6 +286,8 @@ export class GameManager {
   private userEmailCache: Map<number, string> = new Map();
   private eventQueue: Array<{ email: string; eventType: string; data: any }> = [];
   private isProcessingQueue = false;
+  private lastSaveTime: Map<string, number> = new Map(); // Throttle DB saves per game
+  private saveDebounceMs = 2000; // Save at most every 2 seconds per game
 
   private async getUserEmail(userId: number): Promise<string | null> {
     // Check cache first
@@ -1622,7 +1624,182 @@ Rispondi SOLO in JSON:`;
       };
     }
 
+    // Throttled save to database - save at most every 2 seconds per game
+    const now = Date.now();
+    const lastSave = this.lastSaveTime.get(gameId) || 0;
+    if (now - lastSave >= this.saveDebounceMs) {
+      this.lastSaveTime.set(gameId, now);
+      // Fire and forget - don't block the response
+      this.saveGameStateToDB(gameId).catch(err => 
+        console.error(`Background save failed for ${gameId}:`, err)
+      );
+    }
+
     return sanitized;
+  }
+
+  // Save game state to database for persistence across server restarts
+  async saveGameStateToDB(gameId: string): Promise<void> {
+    const game = this.games.get(gameId);
+    if (!game || game.gameEnded) return;
+
+    try {
+      // Serialize the game state, converting non-serializable types
+      const serializableState = {
+        decks: game.decks,
+        field: game.field,
+        graveyard: game.graveyard,
+        scenarioCardsActive: game.scenarioCardsActive,
+        matchId: game.matchId,
+        eventCounter: game.eventCounter,
+        startTime: game.startTime?.toISOString(),
+        turnOrder: game.turnOrder,
+        currentTurnIndex: game.currentTurnIndex,
+        spectators: game.spectators,
+        characterLimit: game.characterLimit,
+        eliminatedPlayers: Array.from(game.eliminatedPlayers),
+        eliminationOrder: game.eliminationOrder,
+        gameEnded: game.gameEnded,
+        pointsAwarded: game.pointsAwarded,
+        voodooLinks: game.voodooLinks,
+        persistentDamages: game.persistentDamages,
+        parasiticAttachments: game.parasiticAttachments,
+        rifugioProtections: game.rifugioProtections,
+        barrieraShields: game.barrieraShields,
+        delayedDamages: game.delayedDamages,
+        playerDeathModifiers: game.playerDeathModifiers ? Object.fromEntries(game.playerDeathModifiers) : {},
+        extraTurnPlayer: game.extraTurnPlayer,
+        skipTurnPlayers: game.skipTurnPlayers,
+        prSpentThisGame: game.prSpentThisGame ? Object.fromEntries(game.prSpentThisGame) : {},
+        // Store player info without cpuInstance
+        players: Object.fromEntries(
+          Object.entries(game.players).map(([name, player]) => [
+            name,
+            {
+              name: player.name,
+              socketId: player.socketId,
+              isCPU: player.isCPU,
+              avatar: player.avatar
+            }
+          ])
+        ),
+        // Store player-game mapping
+        playerUserIds: game.playerUserIds ? Object.fromEntries(game.playerUserIds) : {}
+      };
+
+      // Store player hands separately for easier access
+      const playerHands: Record<string, Card[]> = {};
+      for (const [playerName, player] of Object.entries(game.players)) {
+        playerHands[playerName] = player.hand;
+      }
+
+      // Upsert the game state
+      await db
+        .insert(gameStates)
+        .values({
+          gameId,
+          state: serializableState,
+          playerHands: playerHands,
+          isActive: true,
+          lastUpdated: new Date()
+        })
+        .onConflictDoUpdate({
+          target: gameStates.gameId,
+          set: {
+            state: serializableState,
+            playerHands: playerHands,
+            lastUpdated: new Date()
+          }
+        });
+
+      console.log(`💾 Game state saved to DB for ${gameId} (${Object.keys(playerHands).length} players)`);
+    } catch (error) {
+      console.error(`❌ Failed to save game state for ${gameId}:`, error);
+    }
+  }
+
+  // Load all active games from database on server startup
+  async loadActiveGamesFromDB(): Promise<void> {
+    try {
+      const activeGames = await db
+        .select()
+        .from(gameStates)
+        .where(eq(gameStates.isActive, true));
+
+      console.log(`📂 Found ${activeGames.length} active games in database`);
+
+      for (const savedGame of activeGames) {
+        try {
+          const state = savedGame.state as any;
+          const playerHands = savedGame.playerHands as Record<string, Card[]>;
+
+          // Reconstruct the game state
+          const reconstructedPlayers: Record<string, Player> = {};
+          for (const [playerName, playerInfo] of Object.entries(state.players as Record<string, any>)) {
+            reconstructedPlayers[playerName] = {
+              name: playerInfo.name,
+              hand: playerHands[playerName] || [],
+              socketId: playerInfo.socketId,
+              isCPU: playerInfo.isCPU,
+              avatar: playerInfo.avatar
+            };
+            // Re-register player-to-game mapping
+            this.playerToGame.set(playerName, savedGame.gameId);
+          }
+
+          const gameState: GameState = {
+            decks: state.decks,
+            players: reconstructedPlayers,
+            field: state.field || [],
+            graveyard: state.graveyard || [],
+            scenarioCardsActive: state.scenarioCardsActive || false,
+            matchId: state.matchId,
+            eventCounter: state.eventCounter || 0,
+            startTime: state.startTime ? new Date(state.startTime) : new Date(),
+            turnOrder: state.turnOrder || [],
+            currentTurnIndex: state.currentTurnIndex || 0,
+            spectators: state.spectators || [],
+            characterLimit: state.characterLimit || '1',
+            eliminatedPlayers: new Set(state.eliminatedPlayers || []),
+            eliminationOrder: state.eliminationOrder || [],
+            playerUserIds: new Map(Object.entries(state.playerUserIds || {})),
+            gameEnded: state.gameEnded || false,
+            pointsAwarded: state.pointsAwarded || false,
+            pendingTransferRequests: [],
+            voodooLinks: state.voodooLinks || [],
+            persistentDamages: state.persistentDamages || [],
+            parasiticAttachments: state.parasiticAttachments || [],
+            rifugioProtections: state.rifugioProtections || [],
+            barrieraShields: state.barrieraShields || [],
+            delayedDamages: state.delayedDamages || [],
+            playerDeathModifiers: new Map(Object.entries(state.playerDeathModifiers || {})),
+            prSpentThisGame: new Map(Object.entries(state.prSpentThisGame || {})),
+            extraTurnPlayer: state.extraTurnPlayer,
+            skipTurnPlayers: state.skipTurnPlayers
+          };
+
+          this.games.set(savedGame.gameId, gameState);
+          console.log(`✅ Restored game ${savedGame.gameId} with ${Object.keys(reconstructedPlayers).length} players`);
+        } catch (err) {
+          console.error(`❌ Failed to restore game ${savedGame.gameId}:`, err);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Failed to load active games from DB:', error);
+    }
+  }
+
+  // Mark a game as inactive in the database
+  async markGameInactive(gameId: string): Promise<void> {
+    try {
+      await db
+        .update(gameStates)
+        .set({ isActive: false })
+        .where(eq(gameStates.gameId, gameId));
+      console.log(`🔒 Game ${gameId} marked as inactive in DB`);
+    } catch (error) {
+      console.error(`❌ Failed to mark game ${gameId} as inactive:`, error);
+    }
   }
 
   shuffleDeck(gameId: string, deckType: keyof GameState['decks']): void {
@@ -10067,6 +10244,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       // Mark game as ended to prevent multiple victory notifications
       game.gameEnded = true;
       console.log(`Game victory declared for ${winner} - game marked as ended`);
+      // Mark game as inactive in database
+      this.markGameInactive(gameId).catch(err => console.error('Failed to mark game inactive:', err));
       return winner;
     }
 
@@ -10078,6 +10257,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const winner = activeHumans[0];
       game.gameEnded = true;
       console.log(`Game victory declared for human ${winner} (all CPUs eliminated) - game marked as ended`);
+      // Mark game as inactive in database
+      this.markGameInactive(gameId).catch(err => console.error('Failed to mark game inactive:', err));
       return winner;
     }
 

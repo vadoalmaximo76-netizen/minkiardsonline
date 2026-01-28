@@ -394,6 +394,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const gameManager = new GameManager();
 
+  // Load active games from database on server startup
+  gameManager.loadActiveGamesFromDB().then(() => {
+    console.log('🎮 Active games loaded from database');
+  }).catch(err => {
+    console.error('❌ Failed to load active games:', err);
+  });
+
   io.on('connection', (socket) => {
     console.log('Player connected:', socket.id);
 
