@@ -1818,6 +1818,7 @@ Rispondi SOLO in JSON:`;
     if (cardIndex !== -1) {
       const card = player.hand.splice(cardIndex, 1)[0];
       card.faceDown = false; // Ensure face up when played normally
+      card.owner = playerName; // IMPORTANT: Set owner when card is played
       
       // If it's a BONUS or MOSSE being placed on the field, initialize turn counter
       if ((card.type === 'bonus' || card.type === 'mosse')) {
@@ -2651,15 +2652,40 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
 
       case 'heal':
-        if (action.target === 'self') {
-          // Find player's character on field
-          const playerChar = game.field.find(c => 
+        // Debug: log all field cards and their owners
+        console.log(`💚 HEAL DEBUG: Looking for ${playerName}'s characters. Field cards:`, 
+          game.field.map(c => ({ id: c.id, owner: c.owner, type: c.type, name: c.name })));
+        
+        if (action.target === 'self' || action.target === 'allies') {
+          // Find player's character on field - check multiple ways
+          let playerChar = game.field.find(c => 
             c.owner === playerName && 
             (c.type === 'personaggi' || c.type === 'personaggi_speciali')
           );
-          if (playerChar && playerChar.pti != null) {
-            playerChar.pti = (playerChar.pti || 0) + (action.value || 0);
-            console.log(`💚 Custom effect: ${playerChar.name || playerChar.id} healed ${action.value}, now at ${playerChar.pti} PTI`);
+          
+          // Fallback: if owner not set, find any personaggio on field (for single player testing)
+          if (!playerChar) {
+            playerChar = game.field.find(c => 
+              (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+              c.pti != null
+            );
+            console.log(`💚 HEAL DEBUG: No exact owner match, using fallback. Found:`, playerChar?.id);
+          }
+          
+          if (playerChar) {
+            const oldPti = playerChar.pti || 0;
+            playerChar.pti = oldPti + (action.value || 0);
+            console.log(`💚 Custom effect: ${playerChar.name || playerChar.id} healed ${action.value}, ${oldPti} → ${playerChar.pti} PTI`);
+          } else {
+            console.log(`💚 HEAL DEBUG: No character found on field to heal!`);
+          }
+        } else if (action.target === 'all') {
+          // Heal all characters on field
+          for (const fieldCard of game.field) {
+            if ((fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') && fieldCard.pti != null) {
+              fieldCard.pti = (fieldCard.pti || 0) + (action.value || 0);
+              console.log(`💚 Custom effect: ${fieldCard.name || fieldCard.id} healed ${action.value}, now at ${fieldCard.pti} PTI`);
+            }
           }
         }
         break;
