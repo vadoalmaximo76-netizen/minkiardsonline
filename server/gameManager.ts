@@ -616,7 +616,7 @@ export class GameManager {
     return gameState;
   }
 
-  async addPlayer(gameId: string, playerName: string, socketId: string, isCPU: boolean = false): Promise<void> {
+  async addPlayer(gameId: string, playerName: string, socketId: string, isCPU: boolean = false, authenticatedUserId?: number): Promise<{ success: boolean; error?: string }> {
     if (!this.games.has(gameId)) {
       const deletedCardIds = await this.loadDeletedCardIds();
       this.games.set(gameId, this.initializeGame(gameId, deletedCardIds));
@@ -626,6 +626,40 @@ export class GameManager {
     }
 
     const game = this.games.get(gameId)!;
+    
+    // Check if player already exists (reconnection after server restart)
+    const existingPlayer = game.players[playerName];
+    if (existingPlayer) {
+      // SECURITY: Get original userId for this player
+      const originalUserId = game.playerUserIds?.get(playerName);
+      
+      // SECURITY: If player has a userId binding, require matching authenticated user
+      if (originalUserId) {
+        if (!authenticatedUserId) {
+          console.log(`🚫 SECURITY: Unauthenticated reconnection attempt to ${gameId} as ${playerName} (requires auth)`);
+          return { success: false, error: 'Authentication required to rejoin as this player' };
+        }
+        if (originalUserId !== authenticatedUserId) {
+          console.log(`🚫 SECURITY: User ${authenticatedUserId} attempted to reconnect as ${playerName} (original userId: ${originalUserId})`);
+          return { success: false, error: 'Player identity mismatch - you cannot rejoin as another player' };
+        }
+      } else {
+        // SECURITY: Player without userId binding - allow only if authenticatedUserId is also missing
+        // This prevents authenticated users from hijacking guest players
+        if (authenticatedUserId) {
+          console.log(`🚫 SECURITY: Authenticated user ${authenticatedUserId} attempted to claim guest player ${playerName}`);
+          return { success: false, error: 'Cannot claim unbound player session' };
+        }
+      }
+      
+      // Player reconnecting - preserve their hand and state, just update socket
+      console.log(`🔄 Player ${playerName} reconnecting to ${gameId} - preserving hand with ${existingPlayer.hand.length} cards`);
+      existingPlayer.socketId = socketId;
+      existingPlayer.disconnectedAt = undefined;
+      this.playerToGame.set(socketId, gameId);
+      return { success: true };
+    }
+
     const player: Player = {
       name: playerName,
       hand: [],
@@ -652,6 +686,8 @@ export class GameManager {
     
     // Record player join event
     await this.recordEvent(gameId, 'player-join', { playerName, isCPU }, playerName);
+    
+    return { success: true };
   }
 
   private async createMatchRecord(gameId: string): Promise<void> {
@@ -1531,6 +1567,23 @@ Rispondi SOLO in JSON:`;
     return this.playerToGame.get(socketId);
   }
 
+  // Get active game ID for a player by their name (used for reconnection after server restart)
+  getActiveGameByPlayerName(playerName: string): { gameId: string; handCount: number } | null {
+    const gamesArray = Array.from(this.games.entries());
+    for (let i = 0; i < gamesArray.length; i++) {
+      const [gameId, game] = gamesArray[i];
+      if (game.gameEnded) continue;
+      const player = game.players[playerName];
+      if (player) {
+        return { 
+          gameId, 
+          handCount: player.hand.length 
+        };
+      }
+    }
+    return null;
+  }
+
   // Clean up old socket mappings when player reconnects
   cleanupOldSocketMapping(oldSocketId: string): void {
     if (oldSocketId) {
@@ -1732,19 +1785,36 @@ Rispondi SOLO in JSON:`;
         try {
           const state = savedGame.state as any;
           const playerHands = savedGame.playerHands as Record<string, Card[]>;
+          const playerUserIds = state.playerUserIds || {};
 
-          // Reconstruct the game state
+          // Reconstruct the game state - SECURITY: Only restore players with userId binding
           const reconstructedPlayers: Record<string, Player> = {};
+          let skippedPlayers = 0;
+          
           for (const [playerName, playerInfo] of Object.entries(state.players as Record<string, any>)) {
+            // SECURITY: Skip players without userId binding (guest/legacy) - they cannot be securely reconnected
+            const hasUserId = playerUserIds[playerName] != null;
+            const isCPU = (playerInfo as any).isCPU;
+            
+            if (!hasUserId && !isCPU) {
+              console.log(`⚠️ Skipping guest player ${playerName} in ${savedGame.gameId} - no userId binding for secure reconnection`);
+              skippedPlayers++;
+              continue;
+            }
+            
             reconstructedPlayers[playerName] = {
-              name: playerInfo.name,
+              name: (playerInfo as any).name,
               hand: playerHands[playerName] || [],
-              socketId: playerInfo.socketId,
-              isCPU: playerInfo.isCPU,
-              avatar: playerInfo.avatar
+              socketId: (playerInfo as any).socketId,
+              isCPU: (playerInfo as any).isCPU,
+              avatar: (playerInfo as any).avatar
             };
             // Re-register player-to-game mapping
             this.playerToGame.set(playerName, savedGame.gameId);
+          }
+          
+          if (skippedPlayers > 0) {
+            console.log(`⚠️ Skipped ${skippedPlayers} guest players in ${savedGame.gameId} - only authenticated players can reconnect after restart`);
           }
 
           const gameState: GameState = {

@@ -61,6 +61,25 @@ function App() {
           console.log('Game invitation received:', data);
           setGameInvitation(data);
         });
+
+        // Listen for active game found (after server restart)
+        socket.on('active-game-found', (data: { gameId: string; handCount: number; playerName: string }) => {
+          console.log('Active game found on server:', data);
+          if (data.playerName && data.gameId) {
+            console.log(`Rejoining game ${data.gameId} as ${data.playerName} with ${data.handCount} cards in hand`);
+            setGameId(data.gameId);
+            setPlayerName(data.playerName);
+            generateSessionId();
+            // SECURITY: Include auth token for authenticated reconnection
+            socket.emit('join-game', { 
+              gameId: data.gameId, 
+              playerName: data.playerName,
+              authToken: localStorage.getItem('authToken')
+            });
+            setShowRoomDialog(false);
+            setShowNameDialog(false);
+          }
+        });
         
         // Register user data on connection to ensure invitations work
         socket.on('connect', () => {
@@ -119,6 +138,10 @@ function App() {
                 }
               }
               
+              // Check if server has an active game for this player (after server restart)
+              // SECURITY: Send auth token, server will resolve player identity
+              socket.emit('check-active-game', { authToken });
+              
               setPlayerName(data.user.username);
               setPendingAvatar(data.user.avatar);
               
@@ -163,6 +186,7 @@ function App() {
     return () => {
       socket.off('server-ready');
       socket.off('game-invitation');
+      socket.off('active-game-found');
       socket.off('connect');
       socket.disconnect();
     };

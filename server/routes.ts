@@ -410,6 +410,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         socket.emit('server-ready');
       }
     });
+
+    // Check if player has an active game to reconnect to (after server restart)
+    // SECURITY: Only returns active game for authenticated user via JWT validation
+    socket.on('check-active-game', async ({ authToken }) => {
+      if (!authToken) {
+        socket.emit('no-active-game');
+        return;
+      }
+      
+      try {
+        // Verify JWT token to get player identity securely
+        const decoded = jwt.verify(authToken, jwtSecret) as { userId: number; email: string };
+        if (!decoded || !decoded.userId) {
+          socket.emit('no-active-game');
+          return;
+        }
+        
+        // Get username from database
+        const userRecord = await db.select().from(users).where(eq(users.id, decoded.userId)).limit(1);
+        if (userRecord.length === 0) {
+          socket.emit('no-active-game');
+          return;
+        }
+        
+        const playerName = userRecord[0].username;
+        const activeGame = gameManager.getActiveGameByPlayerName(playerName);
+        
+        if (activeGame) {
+          console.log(`🔄 Authenticated player ${playerName} has active game ${activeGame.gameId} with ${activeGame.handCount} cards in hand`);
+          socket.emit('active-game-found', { ...activeGame, playerName });
+        } else {
+          socket.emit('no-active-game');
+        }
+      } catch (error) {
+        console.error('Failed to verify auth token for active game check:', error);
+        socket.emit('no-active-game');
+      }
+    });
     
     // Set user data on socket for game invitation lookups (called when user logs in)
     // Validates JWT token to prevent impersonation
@@ -457,11 +495,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('join-game', async ({ gameId, playerName, avatarId, userId }) => {
-      socket.join(gameId);
+    socket.on('join-game', async ({ gameId, playerName, avatarId, userId, authToken }) => {
+      // SECURITY: For reconnection to existing games, require authenticated identity
+      // Use socket.data.userId if already authenticated, or verify authToken if provided
+      let validatedUserId = socket.data?.userId;
+      let validatedUsername = socket.data?.username;
       
-      // Wait for player to be added and permanent cards to be loaded
-      await gameManager.addPlayer(gameId, playerName, socket.id);
+      // If not already authenticated via set-user-data, try to verify authToken
+      if (!validatedUserId && authToken) {
+        try {
+          const decoded = jwt.verify(authToken, jwtSecret) as { userId: number; email: string };
+          if (decoded && decoded.userId) {
+            validatedUserId = decoded.userId;
+            socket.data = socket.data || {};
+            socket.data.userId = decoded.userId;
+            
+            // Get username from database for the validated user
+            const userRecord = await db.select().from(users).where(eq(users.id, decoded.userId)).limit(1);
+            if (userRecord.length > 0) {
+              validatedUsername = userRecord[0].username;
+              socket.data.username = validatedUsername;
+            }
+          }
+        } catch (err) {
+          console.log(`JWT verification failed for join-game: ${err}`);
+        }
+      }
+      
+      // Check if this is a reconnection to an existing game with an existing player
+      const existingGame = gameManager.getGameState(gameId);
+      if (existingGame && existingGame.players[playerName]) {
+        // SECURITY: Reconnection requires authenticated identity
+        if (!validatedUserId) {
+          console.log(`🚫 SECURITY: Unauthenticated reconnection attempt to ${gameId} as ${playerName}`);
+          socket.emit('join-game-error', { message: 'Authentication required to rejoin existing game' });
+          return;
+        }
+        
+        // SECURITY: Verify that the authenticated user matches the player name
+        // Allow if validatedUsername matches playerName, or if the original player had this userId
+        const originalUserId = existingGame.playerUserIds?.get(playerName);
+        const usernameMatches = validatedUsername && validatedUsername === playerName;
+        const userIdMatches = originalUserId && originalUserId === validatedUserId;
+        
+        if (!usernameMatches && !userIdMatches) {
+          console.log(`🚫 SECURITY: User ${validatedUsername} (ID: ${validatedUserId}) attempted to rejoin as ${playerName} (original ID: ${originalUserId})`);
+          socket.emit('join-game-error', { message: 'You cannot rejoin as another player' });
+          return;
+        }
+      }
+      
+      // Wait for player to be added with identity verification
+      const result = await gameManager.addPlayer(gameId, playerName, socket.id, false, validatedUserId);
+      
+      if (!result.success) {
+        console.log(`Join failed for ${playerName}: ${result.error}`);
+        socket.emit('join-game-error', { message: result.error });
+        return;
+      }
+      
+      socket.join(gameId);
       
       // Set avatar if provided
       if (avatarId) {
@@ -469,8 +562,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Set user ID for Rankiard points tracking
-      // Prefer JWT-validated socket.data.userId, fall back to client-provided userId
-      const validatedUserId = socket.data?.userId || userId;
       if (validatedUserId) {
         gameManager.setPlayerUserId(gameId, playerName, validatedUserId);
         console.log(`Player ${playerName} associated with userId ${validatedUserId} for stats tracking`);
@@ -486,7 +577,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       socket.to(gameId).emit('player-joined', { playerName });
     });
 
-    socket.on('rejoin-game', ({ gameId, playerName, sessionId }) => {
+    socket.on('rejoin-game', async ({ gameId, playerName, sessionId, authToken }) => {
       console.log(`Player ${playerName} attempting to rejoin game ${gameId} with session ${sessionId}`);
       
       try {
@@ -503,6 +594,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`Player ${playerName} not found in game ${gameId}`);
           socket.emit('join-game-error', { message: 'Player not found in game' });
           return;
+        }
+
+        // SECURITY: Verify identity before allowing rejoin
+        let validatedUserId = socket.data?.userId;
+        let validatedUsername = socket.data?.username;
+        
+        // Try to verify authToken if not already authenticated
+        if (!validatedUserId && authToken) {
+          try {
+            const decoded = jwt.verify(authToken, jwtSecret) as { userId: number; email: string };
+            if (decoded && decoded.userId) {
+              validatedUserId = decoded.userId;
+              socket.data = socket.data || {};
+              socket.data.userId = decoded.userId;
+              
+              const userRecord = await db.select().from(users).where(eq(users.id, decoded.userId)).limit(1);
+              if (userRecord.length > 0) {
+                validatedUsername = userRecord[0].username;
+                socket.data.username = validatedUsername;
+              }
+            }
+          } catch (err) {
+            console.log(`JWT verification failed for rejoin-game: ${err}`);
+          }
+        }
+        
+        // SECURITY: Check if player has a userId binding - if so, require auth
+        const originalUserId = game.playerUserIds?.get(playerName);
+        if (originalUserId) {
+          if (!validatedUserId) {
+            console.log(`🚫 SECURITY: Unauthenticated rejoin attempt to ${gameId} as ${playerName}`);
+            socket.emit('join-game-error', { message: 'Authentication required to rejoin' });
+            return;
+          }
+          
+          const usernameMatches = validatedUsername && validatedUsername === playerName;
+          const userIdMatches = originalUserId === validatedUserId;
+          
+          if (!usernameMatches && !userIdMatches) {
+            console.log(`🚫 SECURITY: User ${validatedUsername} (ID: ${validatedUserId}) attempted to rejoin as ${playerName} (original ID: ${originalUserId})`);
+            socket.emit('join-game-error', { message: 'You cannot rejoin as another player' });
+            return;
+          }
         }
 
         // Rejoin the room and update socket ID
