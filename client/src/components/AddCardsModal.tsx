@@ -22,6 +22,8 @@ interface EffectWizardState {
   aiAnswers: Record<string, string>;
   isAnalyzing: boolean;
   analysisComplete: boolean;
+  aiInterpretation: string;
+  needsMoreInfo: boolean;
 }
 
 interface AIQuestion {
@@ -608,7 +610,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     aiQuestions: [],
     aiAnswers: {},
     isAnalyzing: false,
-    analysisComplete: false
+    analysisComplete: false,
+    aiInterpretation: '',
+    needsMoreInfo: false
   });
 
   const resetEffectWizard = () => {
@@ -627,7 +631,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       aiQuestions: [],
       aiAnswers: {},
       isAnalyzing: false,
-      analysisComplete: false
+      analysisComplete: false,
+      aiInterpretation: '',
+      needsMoreInfo: false
     });
   };
 
@@ -701,7 +707,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     }
   };
 
-  const analyzeEffectWithAI = async () => {
+  const analyzeEffectWithAI = async (includeAnswers: boolean = false) => {
     if (!effectWizard.customDescription.trim()) return;
     
     setEffectWizard(prev => ({ ...prev, isAnalyzing: true }));
@@ -713,7 +719,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
         body: JSON.stringify({
           description: effectWizard.customDescription,
           animation: effectWizard.animationDescription,
-          behavior: effectWizard.behaviorDescription
+          behavior: effectWizard.behaviorDescription,
+          previousAnswers: includeAnswers ? effectWizard.aiAnswers : undefined
         })
       });
       
@@ -726,14 +733,18 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
           ...prev,
           aiQuestions: data.questions,
           isAnalyzing: false,
-          analysisComplete: false
+          analysisComplete: false,
+          aiInterpretation: data.interpretation || '',
+          needsMoreInfo: data.needsMoreInfo ?? true
         }));
       } else {
         setEffectWizard(prev => ({
           ...prev,
           aiQuestions: [],
           isAnalyzing: false,
-          analysisComplete: true
+          analysisComplete: true,
+          aiInterpretation: data.interpretation || '',
+          needsMoreInfo: false
         }));
       }
     } catch (error) {
@@ -742,7 +753,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
         ...prev,
         aiQuestions: [],
         isAnalyzing: false,
-        analysisComplete: true
+        analysisComplete: true,
+        aiInterpretation: '',
+        needsMoreInfo: false
       }));
     }
   };
@@ -2044,7 +2057,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                 
                 {!effectWizard.isAnalyzing && !effectWizard.analysisComplete && (
                   <Button
-                    onClick={analyzeEffectWithAI}
+                    onClick={() => analyzeEffectWithAI()}
                     className="w-full bg-purple-600 hover:bg-purple-700 text-white"
                   >
                     <Sparkles size={16} className="mr-2" />
@@ -2130,6 +2143,44 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                     )}
                   </div>
                 ))}
+                
+                {/* Re-analyze button after answering questions */}
+                {effectWizard.aiQuestions.every(q => effectWizard.aiAnswers[q.id]) && (
+                  <div className="mt-4 space-y-3">
+                    {effectWizard.aiInterpretation && (
+                      <div className="bg-blue-600/20 border border-blue-500 rounded-lg p-3">
+                        <p className="text-blue-400 text-xs mb-1">La mia interpretazione:</p>
+                        <p className="text-white text-sm">{effectWizard.aiInterpretation}</p>
+                      </div>
+                    )}
+                    
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => analyzeEffectWithAI(true)}
+                        disabled={effectWizard.isAnalyzing}
+                        className="flex-1 bg-amber-600 hover:bg-amber-700 text-white"
+                      >
+                        {effectWizard.isAnalyzing ? (
+                          <>
+                            <span className="animate-spin mr-2">⏳</span>
+                            Verifico...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles size={16} className="mr-2" />
+                            Verifica se servono altri dettagli
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        onClick={() => setEffectWizard(prev => ({ ...prev, analysisComplete: true, needsMoreInfo: false }))}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        Conferma e procedi
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

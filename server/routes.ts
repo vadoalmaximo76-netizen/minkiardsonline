@@ -5379,62 +5379,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Analyze custom effect with AI and generate clarifying questions
   app.post('/api/analyze-effect', authMiddleware, async (req, res) => {
     try {
-      const { description, animation, behavior } = req.body;
+      const { description, animation, behavior, previousAnswers } = req.body;
       
       if (!description || typeof description !== 'string') {
         return res.status(400).json({ success: false, error: 'Description required' });
       }
       
-      const systemPrompt = `Sei un analizzatore di effetti per un gioco di carte chiamato MINKIARDS (basato su Dragon Ball). 
-Il tuo compito è analizzare la descrizione di un effetto personalizzato e generare domande di chiarimento SE NECESSARIO.
+      const systemPrompt = `Sei un analizzatore RIGOROSO di effetti per un gioco di carte chiamato MINKIARDS (basato su Dragon Ball). 
+Il tuo compito è analizzare la descrizione di un effetto personalizzato e generare domande di chiarimento.
 
-REGOLE:
-1. Se la descrizione è chiara e completa (ha target, valori numerici, e meccaniche chiare), restituisci un array vuoto di domande
-2. Se mancano dettagli importanti, genera domande usando SOLO gli ID standard elencati sotto
-3. Le domande devono essere in italiano
-4. Ogni domanda deve avere un ID dalla lista standard, il testo della domanda, e un tipo (text, choice, number)
+REGOLE FONDAMENTALI - DEVI ESSERE MOLTO PRECISO:
+1. CHIEDI SEMPRE domande per ogni dettaglio mancante o ambiguo
+2. Non assumere MAI valori - se non è specificato un numero esatto (danni, cura, turni), CHIEDI
+3. Se il bersaglio non è specificato chiaramente (chi subisce l'effetto), CHIEDI
+4. Se la durata non è specificata per effetti temporanei (veleno, protezione, buff), CHIEDI
+5. Se ci sono condizioni di attivazione vaghe, CHIEDI di specificarle
+6. Genera domande usando SOLO gli ID standard elencati sotto
+7. Le domande devono essere in italiano, chiare e specifiche
+8. Restituisci un array vuoto SOLO se hai TUTTI questi dettagli esplicitamente specificati:
+   - Bersaglio esatto (chi subisce l'effetto)
+   - Valori numerici esatti (danni, cura, PTI, percentuali)
+   - Durata esatta per effetti temporanei
+   - Condizioni chiare (se applicabili)
+
+ESEMPI DI QUANDO CHIEDERE:
+- "infligge danni" → CHIEDI quanti danni
+- "cura il personaggio" → CHIEDI quanto cura e quale personaggio
+- "congela il nemico" → CHIEDI per quanti turni
+- "potenzia" → CHIEDI di quanto PTI
+- "protegge" → CHIEDI per quanti turni
 
 ID STANDARD PER LE DOMANDE (usa SOLO questi):
-- "target": per chiedere chi è il bersaglio
-- "damage_amount": per chiedere quanti danni
-- "heal_amount": per chiedere quanta cura  
+- "target": per chiedere chi è il bersaglio dell'effetto
+- "damage_amount": per chiedere quanti danni infligge
+- "heal_amount": per chiedere quanta cura fornisce  
 - "duration": per chiedere la durata in turni
-- "valore": per altri valori numerici generici
-- "condizione": per condizioni di attivazione
+- "valore": per altri valori numerici (PTI bonus, percentuali, etc)
+- "condizione": per condizioni di attivazione specifiche
+- "effetto_secondario": per chiarire effetti aggiuntivi
 
 OPZIONI STANDARD PER TARGET:
-["Il mio personaggio attivo", "Un personaggio nemico a scelta", "Tutti i nemici", "Tutti i personaggi in campo", "Un personaggio casuale"]
+["Il mio personaggio attivo", "Un personaggio nemico a scelta", "Tutti i nemici", "Tutti i personaggi in campo", "Un personaggio casuale", "Tutti gli alleati"]
 
 OPZIONI STANDARD PER DURATION:
-["Istantaneo", "1 turno", "2 turni", "3 turni", "Permanente"]
+["Istantaneo (una volta sola)", "1 turno", "2 turni", "3 turni", "5 turni", "Permanente (per tutta la partita)"]
 
 FORMATO RISPOSTA (JSON):
 {
-  "questions": [
-    {
-      "id": "target",
-      "question": "Chi è il bersaglio dell'effetto?",
-      "type": "choice",
-      "options": ["Il mio personaggio attivo", "Un personaggio nemico a scelta", "Tutti i nemici", "Tutti i personaggi in campo"]
-    },
-    {
-      "id": "damage_amount",
-      "question": "Quanti danni infligge l'effetto?",
-      "type": "number",
-      "placeholder": "Es: 100, 200, 500"
-    }
-  ],
-  "understood": true/false,
-  "interpretation": "Breve riassunto di come hai interpretato l'effetto"
+  "questions": [...],
+  "understood": false se mancano dettagli, true SOLO se tutto è perfettamente chiaro,
+  "interpretation": "Riassunto dettagliato di come hai interpretato l'effetto con tutti i valori",
+  "needsMoreInfo": true/false - true se servono ancora chiarimenti
 }`;
+
+      // Build context with previous answers if available
+      let answersContext = '';
+      if (previousAnswers && Object.keys(previousAnswers).length > 0) {
+        answersContext = '\n\nRISPOSTE GIÀ FORNITE:\n';
+        for (const [key, value] of Object.entries(previousAnswers)) {
+          answersContext += `- ${key}: ${value}\n`;
+        }
+        answersContext += '\nConsidera queste risposte e chiedi ALTRI dettagli se ancora mancano informazioni per implementare l\'effetto correttamente.';
+      }
 
       const userMessage = `Analizza questo effetto personalizzato:
 
 DESCRIZIONE EFFETTO: ${description}
 ${animation ? `ANIMAZIONE DESCRITTA: ${animation}` : ''}
-${behavior ? `COMPORTAMENTO DESCRITTO: ${behavior}` : ''}
+${behavior ? `COMPORTAMENTO DESCRITTO: ${behavior}` : ''}${answersContext}
 
-Genera le domande di chiarimento necessarie o restituisci un array vuoto se l'effetto è sufficientemente chiaro.`;
+Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assumere nulla che non sia esplicitamente scritto.`;
 
       try {
         const response = await openai.chat.completions.create({
@@ -5456,14 +5470,15 @@ Genera le domande di chiarimento necessarie o restituisci un array vuoto se l'ef
         res.json({ 
           success: true, 
           questions: parsed.questions || [],
-          understood: parsed.understood ?? true,
-          interpretation: parsed.interpretation || ''
+          understood: parsed.understood ?? false,
+          interpretation: parsed.interpretation || '',
+          needsMoreInfo: parsed.needsMoreInfo ?? (parsed.questions?.length > 0)
         });
       } catch (aiError) {
         console.error('OpenAI analysis error:', aiError);
-        // Fallback: use keyword-based question generation
+        // Fallback: use keyword-based question generation - always ask basic questions
         const questions = generateFallbackQuestions(description);
-        res.json({ success: true, questions, understood: true });
+        res.json({ success: true, questions, understood: questions.length === 0, needsMoreInfo: questions.length > 0 });
       }
     } catch (error) {
       console.error('Error analyzing effect:', error);
