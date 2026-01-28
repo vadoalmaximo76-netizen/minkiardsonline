@@ -1507,6 +1507,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             playerName,
             animationDescription: result.customAnimation
           });
+          
+          // CRITICAL: Re-emit game state AFTER custom effect execution to sync PTI changes
+          const updatedGameState = gameManager.getSanitizedGameState(gameId);
+          console.log(`🔄 Re-emitting game state after custom effect - Field PTIs:`, 
+            updatedGameState.field?.map((c: any) => `${c.name}: ${c.pti}`));
+          emitImmediateGameState(io, gameId, updatedGameState);
         }
         
         // DUELLO: Auto-activate MOSSE attack during duel
