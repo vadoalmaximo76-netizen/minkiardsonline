@@ -169,7 +169,24 @@ const DURATION_OPTIONS = [
 
 function generateEffectDescription(wizard: EffectWizardState): string {
   if (wizard.effectType === 'custom') {
-    return wizard.customDescription;
+    let customDesc = wizard.customDescription;
+    
+    if (wizard.animationDescription) {
+      customDesc += ` [ANIMAZIONE: ${wizard.animationDescription}]`;
+    }
+    
+    if (wizard.behaviorDescription) {
+      customDesc += ` [COMPORTAMENTO: ${wizard.behaviorDescription}]`;
+    }
+    
+    if (wizard.aiAnswers && Object.keys(wizard.aiAnswers).length > 0) {
+      const answers = Object.entries(wizard.aiAnswers)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join('; ');
+      customDesc += ` [DETTAGLI: ${answers}]`;
+    }
+    
+    return customDesc;
   }
 
   let description = '';
@@ -672,7 +689,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
         return effectWizard.target !== '';
       case 3:
         if (effectWizard.effectType === 'custom') {
-          return effectWizard.analysisComplete || effectWizard.aiQuestions.length === 0;
+          return effectWizard.analysisComplete || effectWizard.aiQuestions.length > 0;
         }
         return true;
       case 4:
@@ -736,6 +753,18 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       aiAnswers: { ...prev.aiAnswers, [questionId]: answer }
     }));
   };
+
+  // Auto-trigger analysis when entering step 3 for custom effects
+  useEffect(() => {
+    if (effectWizard.step === 3 && 
+        effectWizard.effectType === 'custom' && 
+        !effectWizard.isAnalyzing && 
+        !effectWizard.analysisComplete && 
+        effectWizard.aiQuestions.length === 0 &&
+        effectWizard.customDescription.trim()) {
+      analyzeEffectWithAI();
+    }
+  }, [effectWizard.step, effectWizard.effectType]);
 
   const isCharacterDeck = selectedDeck === 'personaggi' || selectedDeck === 'personaggi_speciali';
   const authToken = localStorage.getItem('authToken') || '';
