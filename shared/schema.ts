@@ -198,6 +198,18 @@ export const gameInvitations = pgTable("game_invitations", {
   expiresAt: timestamp("expires_at"),
 });
 
+// Persistent game state table for server restart recovery
+export const gameStates = pgTable("game_states", {
+  id: serial("id").primaryKey(),
+  gameId: text("game_id").notNull().unique(),
+  state: jsonb("state").notNull(), // Full game state as JSON
+  playerHands: jsonb("player_hands").notNull(), // Player hands mapped by name
+  isActive: boolean("is_active").notNull().default(true),
+  lastUpdated: timestamp("last_updated").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertGameStateSchema = createInsertSchema(gameStates);
 export const insertAchievementSchema = createInsertSchema(achievements);
 export const insertPlayerAchievementSchema = createInsertSchema(playerAchievements);
 export const insertMissionTemplateSchema = createInsertSchema(missionTemplates);
@@ -229,6 +241,8 @@ export type InsertPlayerDailyMission = z.infer<typeof insertPlayerDailyMissionSc
 export type FriendRequest = typeof friendRequests.$inferSelect;
 export type Friendship = typeof friendships.$inferSelect;
 export type GameInvitation = typeof gameInvitations.$inferSelect;
+export type GameState = typeof gameStates.$inferSelect;
 export type InsertFriendRequest = z.infer<typeof insertFriendRequestSchema>;
 export type InsertFriendship = z.infer<typeof insertFriendshipSchema>;
 export type InsertGameInvitation = z.infer<typeof insertGameInvitationSchema>;
+export type InsertGameState = z.infer<typeof insertGameStateSchema>;
