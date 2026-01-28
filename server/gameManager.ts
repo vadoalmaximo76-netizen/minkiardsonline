@@ -3353,6 +3353,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           if (isEnemy && isCharacter && hasPti) {
             const drainAmount = Math.min(fieldCard.pti, action.value || 100);
             fieldCard.pti -= drainAmount;
+            // CRITICAL: Also update card.text so client can see the change
+            this.updateCardTextWithPTI(fieldCard);
             totalDrained += drainAmount;
             
             // Add to own card if found
@@ -3360,6 +3362,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             if (ownCard) {
               if (ownCard.pti == null) ownCard.pti = 0;
               ownCard.pti += drainAmount;
+              // CRITICAL: Also update card.text so client can see the change
+              this.updateCardTextWithPTI(ownCard);
               console.log(`🌀 Custom effect: Drained ${drainAmount} PTI from ${fieldCard.name} to ${ownCard.name}! (${ownCard.name} now has ${ownCard.pti} PTI)`);
             } else {
               console.log(`🌀 Custom effect: Drained ${drainAmount} PTI from ${fieldCard.name} (own card not found in field)`);
@@ -7156,6 +7160,32 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     console.log(`✨ POTERI: Updated text: ${card.text}`);
     
     return { success: true, cardName };
+  }
+
+  updateCardTextWithPTI(card: Card): void {
+    if (card.pti == null) return;
+    
+    const ptiValue = card.pti;
+    const starsValue = card.stars || 0;
+    
+    // Update the text to reflect current PTI and stars
+    if (card.text) {
+      // Replace existing PTI value in text
+      if (card.text.match(/PTI:\s*\d+/i)) {
+        card.text = card.text.replace(/PTI:\s*\d+/i, `PTI: ${ptiValue}`);
+      } else {
+        // Add PTI to text if not present
+        card.text = `PTI: ${ptiValue}\n${card.text}`;
+      }
+    } else {
+      // Create new text with PTI and stars
+      card.text = `PTI: ${ptiValue}`;
+      if (starsValue > 0) {
+        card.text += `\nStelle: ${starsValue}`;
+      }
+    }
+    
+    console.log(`📝 Updated card ${card.name || card.id} text with PTI: ${ptiValue}`);
   }
 
   updateCardText(gameId: string, cardId: string, text: string): void {
