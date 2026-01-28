@@ -13,6 +13,7 @@ import { DiceModal } from "./DiceModal";
 import { FullScreenNotification } from "./FullScreenNotification";
 import { PersonaggioNotification } from "./PersonaggioNotification";
 import { CardAnimation } from "./CardAnimation";
+import { CustomAnimationOverlay } from "./CustomAnimationOverlay";
 import { AddCardsModal } from "./AddCardsModal";
 import { PlayerOrderNotification } from "./PlayerOrderNotification";
 import { NextTurnNotification } from "./NextTurnNotification";
@@ -1700,16 +1701,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         
         {/* Custom Animation Overlay */}
         {customAnimationVisible && customAnimationData && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center pointer-events-none">
-            <div className="bg-black/80 rounded-xl p-8 max-w-lg text-center animate-pulse shadow-2xl border-2 border-purple-500">
-              <div className="text-2xl font-bold text-purple-400 mb-4">
-                ✨ {customAnimationData.cardName} ✨
-              </div>
-              <div className="text-lg text-white italic">
-                {customAnimationData.animationDescription}
-              </div>
-            </div>
-          </div>
+          <CustomAnimationOverlay
+            isVisible={customAnimationVisible}
+            cardName={customAnimationData.cardName}
+            animationDescription={customAnimationData.animationDescription}
+            onComplete={() => {
+              setCustomAnimationVisible(false);
+              setCustomAnimationData(null);
+            }}
+          />
         )}
 
         <CharacterEffects
