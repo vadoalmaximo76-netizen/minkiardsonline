@@ -2629,6 +2629,34 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
   }
 
+  // Get the player's "active" character - the leftmost (first) personaggio on field
+  // This is the character that receives effects and performs attacks
+  private getPlayerActiveCharacter(game: GameState, playerName: string): Card | undefined {
+    // Find all personaggi belonging to this player on the field
+    const playerPersonaggi = game.field.filter(c => 
+      c.owner === playerName && 
+      (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+    );
+    
+    // Return the first one (leftmost) - this is the "active" character
+    if (playerPersonaggi.length > 0) {
+      console.log(`🎯 Active character for ${playerName}: ${playerPersonaggi[0].name || playerPersonaggi[0].id}`);
+      return playerPersonaggi[0];
+    }
+    
+    // Fallback: if no owner match, find first personaggio on field (for single player)
+    const anyPersonaggio = game.field.find(c => 
+      (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+      c.pti != null
+    );
+    if (anyPersonaggio) {
+      console.log(`🎯 Active character (fallback): ${anyPersonaggio.name || anyPersonaggio.id}`);
+      return anyPersonaggio;
+    }
+    
+    return undefined;
+  }
+
   // Execute a single action from custom card effect
   private async executeCustomEffectAction(gameId: string, action: any, playerName: string, card: Card): Promise<void> {
     const game = this.games.get(gameId);
@@ -2652,32 +2680,16 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
 
       case 'heal':
-        // Debug: log all field cards and their owners
-        console.log(`💚 HEAL DEBUG: Looking for ${playerName}'s characters. Field cards:`, 
-          game.field.map(c => ({ id: c.id, owner: c.owner, type: c.type, name: c.name })));
+        // Find the leftmost (first) character of the player on field - this is the "active" character
+        const healTarget = this.getPlayerActiveCharacter(game, playerName);
         
         if (action.target === 'self' || action.target === 'allies') {
-          // Find player's character on field - check multiple ways
-          let playerChar = game.field.find(c => 
-            c.owner === playerName && 
-            (c.type === 'personaggi' || c.type === 'personaggi_speciali')
-          );
-          
-          // Fallback: if owner not set, find any personaggio on field (for single player testing)
-          if (!playerChar) {
-            playerChar = game.field.find(c => 
-              (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
-              c.pti != null
-            );
-            console.log(`💚 HEAL DEBUG: No exact owner match, using fallback. Found:`, playerChar?.id);
-          }
-          
-          if (playerChar) {
-            const oldPti = playerChar.pti || 0;
-            playerChar.pti = oldPti + (action.value || 0);
-            console.log(`💚 Custom effect: ${playerChar.name || playerChar.id} healed ${action.value}, ${oldPti} → ${playerChar.pti} PTI`);
+          if (healTarget) {
+            const oldPti = healTarget.pti || 0;
+            healTarget.pti = oldPti + (action.value || 0);
+            console.log(`💚 Custom effect: ${healTarget.name || healTarget.id} healed ${action.value}, ${oldPti} → ${healTarget.pti} PTI`);
           } else {
-            console.log(`💚 HEAL DEBUG: No character found on field to heal!`);
+            console.log(`💚 HEAL: No active character found on field for ${playerName}!`);
           }
         } else if (action.target === 'all') {
           // Heal all characters on field
@@ -2764,38 +2776,46 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
 
       case 'protection':
-        // Mark the card as protected/immune from attacks
-        const protectedCard = game.field.find(c => c.id === card.id);
-        if (protectedCard) {
-          protectedCard.isProtected = true;
-          console.log(`🛡️ Custom effect: ${protectedCard.name || protectedCard.id} is now PROTECTED and cannot be attacked!`);
+        // Mark the player's active character as protected/immune from attacks
+        const protectedChar = this.getPlayerActiveCharacter(game, playerName);
+        if (protectedChar) {
+          protectedChar.isProtected = true;
+          console.log(`🛡️ Custom effect: ${protectedChar.name || protectedChar.id} is now PROTECTED and cannot be attacked!`);
+        } else {
+          console.log(`🛡️ PROTECTION: No active character found for ${playerName}!`);
         }
         break;
 
       case 'counter':
-        // Mark the card as having counter-attack ability
-        const counterCard = game.field.find(c => c.id === card.id);
-        if (counterCard) {
-          counterCard.counterDamage = action.value || 50;
-          console.log(`↩️ Custom effect: ${counterCard.name || counterCard.id} now has COUNTER-ATTACK (${counterCard.counterDamage} damage)!`);
+        // Mark player's active character as having counter-attack ability
+        const counterChar = this.getPlayerActiveCharacter(game, playerName);
+        if (counterChar) {
+          counterChar.counterDamage = action.value || 50;
+          console.log(`↩️ Custom effect: ${counterChar.name || counterChar.id} now has COUNTER-ATTACK (${counterChar.counterDamage} damage)!`);
+        } else {
+          console.log(`↩️ COUNTER: No active character found for ${playerName}!`);
         }
         break;
 
       case 'reflect':
-        // Mark the card as reflecting damage
-        const reflectCard = game.field.find(c => c.id === card.id);
-        if (reflectCard) {
-          reflectCard.reflectPercent = action.value || 50;
-          console.log(`🪞 Custom effect: ${reflectCard.name || reflectCard.id} now REFLECTS ${reflectCard.reflectPercent}% damage!`);
+        // Mark player's active character as reflecting damage
+        const reflectChar = this.getPlayerActiveCharacter(game, playerName);
+        if (reflectChar) {
+          reflectChar.reflectPercent = action.value || 50;
+          console.log(`🪞 Custom effect: ${reflectChar.name || reflectChar.id} now REFLECTS ${reflectChar.reflectPercent}% damage!`);
+        } else {
+          console.log(`🪞 REFLECT: No active character found for ${playerName}!`);
         }
         break;
 
       case 'shield':
-        // Apply shield that absorbs damage
-        const shieldCard = game.field.find(c => c.id === card.id);
-        if (shieldCard) {
-          shieldCard.shieldAmount = (shieldCard.shieldAmount || 0) + (action.value || 200);
-          console.log(`🔰 Custom effect: ${shieldCard.name || shieldCard.id} now has SHIELD (${shieldCard.shieldAmount} absorption)!`);
+        // Apply shield to player's active character
+        const shieldChar = this.getPlayerActiveCharacter(game, playerName);
+        if (shieldChar) {
+          shieldChar.shieldAmount = (shieldChar.shieldAmount || 0) + (action.value || 200);
+          console.log(`🔰 Custom effect: ${shieldChar.name || shieldChar.id} now has SHIELD (${shieldChar.shieldAmount} absorption)!`);
+        } else {
+          console.log(`🔰 SHIELD: No active character found for ${playerName}!`);
         }
         break;
 
@@ -2853,30 +2873,37 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
 
       case 'lifesteal':
-        // Mark card as having lifesteal
-        const lifestealCard = game.field.find(c => c.id === card.id);
-        if (lifestealCard) {
-          lifestealCard.hasLifesteal = true;
-          lifestealCard.lifestealAmount = action.value || 100;
-          console.log(`🧛 Custom effect: ${lifestealCard.name || lifestealCard.id} now has LIFESTEAL!`);
+        // Mark player's active character as having lifesteal
+        const lifestealChar = this.getPlayerActiveCharacter(game, playerName);
+        if (lifestealChar) {
+          lifestealChar.hasLifesteal = true;
+          lifestealChar.lifestealAmount = action.value || 100;
+          console.log(`🧛 Custom effect: ${lifestealChar.name || lifestealChar.id} now has LIFESTEAL!`);
+        } else {
+          console.log(`🧛 LIFESTEAL: No active character found for ${playerName}!`);
         }
         break;
 
       case 'revenge':
-        // Mark card as having revenge ability
-        const revengeCard = game.field.find(c => c.id === card.id);
-        if (revengeCard) {
-          revengeCard.revengeDamage = action.value || 200;
-          console.log(`👊 Custom effect: ${revengeCard.name || revengeCard.id} has REVENGE (${revengeCard.revengeDamage} on death)!`);
+        // Mark player's active character as having revenge ability
+        const revengeChar = this.getPlayerActiveCharacter(game, playerName);
+        if (revengeChar) {
+          revengeChar.revengeDamage = action.value || 200;
+          console.log(`👊 Custom effect: ${revengeChar.name || revengeChar.id} has REVENGE (${revengeChar.revengeDamage} on death)!`);
+        } else {
+          console.log(`👊 REVENGE: No active character found for ${playerName}!`);
         }
         break;
 
       case 'powerup':
-        // Boost own card stats
-        const powerupCard = game.field.find(c => c.id === card.id);
-        if (powerupCard && powerupCard.pti != null) {
-          powerupCard.pti += action.value || 100;
-          console.log(`📈 Custom effect: ${powerupCard.name || powerupCard.id} POWERED UP to ${powerupCard.pti} PTI!`);
+        // Boost player's active character stats
+        const powerupChar = this.getPlayerActiveCharacter(game, playerName);
+        if (powerupChar && powerupChar.pti != null) {
+          const oldPti = powerupChar.pti;
+          powerupChar.pti += action.value || 100;
+          console.log(`📈 Custom effect: ${powerupChar.name || powerupChar.id} POWERED UP ${oldPti} → ${powerupChar.pti} PTI!`);
+        } else {
+          console.log(`📈 POWERUP: No active character found for ${playerName}!`);
         }
         break;
 
@@ -3053,11 +3080,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
 
       case 'critical':
-        // Mark card as having critical chance
-        const critCard = game.field.find(c => c.id === card.id);
-        if (critCard) {
-          critCard.criticalChance = action.value || 50;
-          console.log(`💢 Custom effect: ${critCard.name || critCard.id} now has ${critCard.criticalChance}% CRITICAL CHANCE!`);
+        // Mark player's active character as having critical chance
+        const critChar = this.getPlayerActiveCharacter(game, playerName);
+        if (critChar) {
+          critChar.criticalChance = action.value || 50;
+          console.log(`💢 Custom effect: ${critChar.name || critChar.id} now has ${critChar.criticalChance}% CRITICAL CHANCE!`);
+        } else {
+          console.log(`💢 CRITICAL: No active character found for ${playerName}!`);
         }
         break;
 
@@ -3098,67 +3127,81 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
 
       case 'immunity':
-        // Grant immunity to negative effects
-        const immuneCard = game.field.find(c => c.id === card.id);
-        if (immuneCard) {
-          immuneCard.isImmune = true;
-          immuneCard.immuneTurns = action.value || 2;
-          console.log(`🔒 Custom effect: ${immuneCard.name || immuneCard.id} is now IMMUNE for ${immuneCard.immuneTurns} turns!`);
+        // Grant immunity to player's active character
+        const immuneChar = this.getPlayerActiveCharacter(game, playerName);
+        if (immuneChar) {
+          immuneChar.isImmune = true;
+          immuneChar.immuneTurns = action.value || 2;
+          console.log(`🔒 Custom effect: ${immuneChar.name || immuneChar.id} is now IMMUNE for ${immuneChar.immuneTurns} turns!`);
+        } else {
+          console.log(`🔒 IMMUNITY: No active character found for ${playerName}!`);
         }
         break;
 
       case 'barrier':
-        // Block first attack completely
-        const barrierCard = game.field.find(c => c.id === card.id);
-        if (barrierCard) {
-          barrierCard.hasBarrier = true;
-          console.log(`🧱 Custom effect: ${barrierCard.name || barrierCard.id} now has a BARRIER!`);
+        // Block first attack for player's active character
+        const barrierChar = this.getPlayerActiveCharacter(game, playerName);
+        if (barrierChar) {
+          barrierChar.hasBarrier = true;
+          console.log(`🧱 Custom effect: ${barrierChar.name || barrierChar.id} now has a BARRIER!`);
+        } else {
+          console.log(`🧱 BARRIER: No active character found for ${playerName}!`);
         }
         break;
 
       case 'dodge':
-        // Grant dodge chance
-        const dodgeCard = game.field.find(c => c.id === card.id);
-        if (dodgeCard) {
-          dodgeCard.dodgeChance = action.value || 30;
-          console.log(`💨 Custom effect: ${dodgeCard.name || dodgeCard.id} now has ${dodgeCard.dodgeChance}% DODGE CHANCE!`);
+        // Grant dodge chance to player's active character
+        const dodgeChar = this.getPlayerActiveCharacter(game, playerName);
+        if (dodgeChar) {
+          dodgeChar.dodgeChance = action.value || 30;
+          console.log(`💨 Custom effect: ${dodgeChar.name || dodgeChar.id} now has ${dodgeChar.dodgeChance}% DODGE CHANCE!`);
+        } else {
+          console.log(`💨 DODGE: No active character found for ${playerName}!`);
         }
         break;
 
       case 'armor':
-        // Reduce all damage received
-        const armorCard = game.field.find(c => c.id === card.id);
-        if (armorCard) {
-          armorCard.armorAmount = action.value || 50;
-          console.log(`🦾 Custom effect: ${armorCard.name || armorCard.id} now has ${armorCard.armorAmount} ARMOR!`);
+        // Reduce all damage received for player's active character
+        const armorChar = this.getPlayerActiveCharacter(game, playerName);
+        if (armorChar) {
+          armorChar.armorAmount = action.value || 50;
+          console.log(`🦾 Custom effect: ${armorChar.name || armorChar.id} now has ${armorChar.armorAmount} ARMOR!`);
+        } else {
+          console.log(`🦾 ARMOR: No active character found for ${playerName}!`);
         }
         break;
 
       case 'regeneration':
-        // Heal each turn
-        const regenCard = game.field.find(c => c.id === card.id);
-        if (regenCard) {
-          regenCard.regeneration = action.value || 50;
-          console.log(`💗 Custom effect: ${regenCard.name || regenCard.id} now REGENERATES ${regenCard.regeneration} PTI/turn!`);
+        // Apply regeneration to player's active character
+        const regenChar = this.getPlayerActiveCharacter(game, playerName);
+        if (regenChar) {
+          regenChar.regeneration = action.value || 50;
+          console.log(`💗 Custom effect: ${regenChar.name || regenChar.id} now REGENERATES ${regenChar.regeneration} PTI/turn!`);
+        } else {
+          console.log(`💗 REGENERATION: No active character found for ${playerName}!`);
         }
         break;
 
       case 'taunt':
-        // Force enemies to attack this card
-        const tauntCard = game.field.find(c => c.id === card.id);
-        if (tauntCard) {
-          tauntCard.hasTaunt = true;
-          console.log(`😤 Custom effect: ${tauntCard.name || tauntCard.id} is now TAUNTING!`);
+        // Force enemies to attack player's active character
+        const tauntChar = this.getPlayerActiveCharacter(game, playerName);
+        if (tauntChar) {
+          tauntChar.hasTaunt = true;
+          console.log(`😤 Custom effect: ${tauntChar.name || tauntChar.id} is now TAUNTING!`);
+        } else {
+          console.log(`😤 TAUNT: No active character found for ${playerName}!`);
         }
         break;
 
       case 'stealth':
-        // Cannot be targeted
-        const stealthCard = game.field.find(c => c.id === card.id);
-        if (stealthCard) {
-          stealthCard.isStealthed = true;
-          stealthCard.stealthTurns = action.value || 2;
-          console.log(`👻 Custom effect: ${stealthCard.name || stealthCard.id} is now STEALTHED for ${stealthCard.stealthTurns} turns!`);
+        // Player's active character cannot be targeted
+        const stealthChar = this.getPlayerActiveCharacter(game, playerName);
+        if (stealthChar) {
+          stealthChar.isStealthed = true;
+          stealthChar.stealthTurns = action.value || 2;
+          console.log(`👻 Custom effect: ${stealthChar.name || stealthChar.id} is now STEALTHED for ${stealthChar.stealthTurns} turns!`);
+        } else {
+          console.log(`👻 STEALTH: No active character found for ${playerName}!`);
         }
         break;
 
