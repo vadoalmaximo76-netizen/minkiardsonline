@@ -3429,8 +3429,33 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
 
       case 'fusion':
-        // Combine cards
-        console.log(`🔗 Custom effect: FUSION activated!`);
+        // Combine cards - boost the played card with stats from allies
+        const fusionCard = game.field.find(c => c.id === card.id);
+        if (fusionCard && (fusionCard.type === 'personaggi' || fusionCard.type === 'personaggi_speciali')) {
+          // Find another ally character to fuse with
+          const allyToFuse = game.field.find(c => 
+            c.id !== card.id && 
+            c.owner === playerName && 
+            (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          );
+          if (allyToFuse) {
+            // Transfer stats from ally to fusion card
+            fusionCard.pti = (fusionCard.pti || 0) + (allyToFuse.pti || 0);
+            fusionCard.stars = Math.max(fusionCard.stars || 1, allyToFuse.stars || 1) + 1;
+            fusionCard.name = `${fusionCard.name || 'Fusione'} + ${allyToFuse.name || 'Personaggio'}`;
+            // Remove the fused ally
+            game.field = game.field.filter(c => c.id !== allyToFuse.id);
+            game.graveyard.push(allyToFuse);
+            console.log(`🔗 Custom effect: FUSION! ${fusionCard.name} now has ${fusionCard.pti} PTI and ${fusionCard.stars} stars!`);
+          } else {
+            // No ally to fuse - just boost the card
+            fusionCard.pti = (fusionCard.pti || 0) + (action.value || 200);
+            console.log(`🔗 Custom effect: FUSION power boost! ${fusionCard.name} now has ${fusionCard.pti} PTI!`);
+          }
+        } else {
+          // For non-character cards, just log
+          console.log(`🔗 Custom effect: FUSION activated for ${card.name || card.id}!`);
+        }
         break;
 
       case 'split':
@@ -3444,8 +3469,45 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
 
       case 'time_travel':
-        // Revert game state (not implemented)
-        console.log(`⏰ Custom effect: TIME TRAVEL activated!`);
+        // Time travel: heal all player's characters and reset negative effects
+        const turnsBack = action.value || 1;
+        const playerChars = game.field.filter(c => 
+          c.owner === playerName && 
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        
+        for (const playerChar of playerChars) {
+          // Heal the character based on turns
+          const healAmount = turnsBack * 100;
+          playerChar.pti = (playerChar.pti || 0) + healAmount;
+          
+          // Remove negative effects
+          playerChar.frozenTurns = 0;
+          playerChar.isStunned = false;
+          playerChar.poisonDamage = 0;
+          playerChar.poisonTurns = 0;
+          playerChar.burnDamage = 0;
+          playerChar.isCursed = false;
+          playerChar.isSilenced = false;
+          playerChar.isAsleep = false;
+          playerChar.isConfused = false;
+          playerChar.hasFear = false;
+          playerChar.isSlowed = false;
+          playerChar.isLocked = false;
+          
+          console.log(`⏰ Time Travel: ${playerChar.name || playerChar.id} healed ${healAmount} PTI and cleared all debuffs!`);
+        }
+        
+        // Also resurrect one card from graveyard if available
+        const playerGraveCards = game.graveyard.filter(c => c.owner === playerName);
+        if (playerGraveCards.length > 0) {
+          const resCard = game.graveyard.splice(game.graveyard.indexOf(playerGraveCards[playerGraveCards.length - 1]), 1)[0];
+          resCard.owner = playerName;
+          game.players[playerName].hand.push(resCard);
+          console.log(`⏰ Time Travel: Resurrected ${resCard.name || resCard.id} from graveyard!`);
+        }
+        
+        console.log(`⏰ Custom effect: TIME TRAVEL ${turnsBack} turns activated!`);
         break;
 
       case 'weather':
@@ -3505,6 +3567,145 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             mimicCard.pti = mimicTarget.pti;
             mimicCard.stars = mimicTarget.stars;
             console.log(`🎭 Custom effect: MIMICKED ${mimicTarget.name || mimicTarget.id}'s stats!`);
+          }
+        }
+        break;
+
+      case 'transform':
+        // Transform card - change stats and potentially type
+        const transformCard = game.field.find(c => c.id === card.id);
+        if (transformCard) {
+          // Boost stats significantly
+          transformCard.pti = (transformCard.pti || 0) + (action.value || 300);
+          transformCard.stars = Math.min(5, (transformCard.stars || 1) + 1);
+          transformCard.name = `${transformCard.name || 'Carta'} (Trasformato)`;
+          // Clear negative effects
+          transformCard.frozenTurns = 0;
+          transformCard.isStunned = false;
+          transformCard.poisonDamage = 0;
+          transformCard.isCursed = false;
+          transformCard.isSilenced = false;
+          console.log(`🦋 Custom effect: TRANSFORMED! ${transformCard.name} now has ${transformCard.pti} PTI and ${transformCard.stars} stars!`);
+        }
+        break;
+
+      case 'split':
+        // Create a copy of the card
+        const splitCard = game.field.find(c => c.id === card.id);
+        if (splitCard && (splitCard.type === 'personaggi' || splitCard.type === 'personaggi_speciali')) {
+          const clonedCard: Card = {
+            ...splitCard,
+            id: `${splitCard.id}-clone-${Date.now()}`,
+            name: `${splitCard.name || 'Clone'} (Clone)`,
+            pti: Math.floor((splitCard.pti || 0) / 2),
+            stars: splitCard.stars || 1,
+            owner: playerName
+          };
+          game.field.push(clonedCard);
+          // Original also loses half PTI
+          splitCard.pti = Math.floor((splitCard.pti || 0) / 2);
+          console.log(`✂️ Custom effect: SPLIT! Created clone with ${clonedCard.pti} PTI!`);
+        }
+        break;
+
+      case 'teleport':
+        // Teleport - swap with a random enemy card position (represented as stat swap)
+        const teleportCard = game.field.find(c => c.id === card.id);
+        const teleportTarget = game.field.find(c => 
+          c.owner !== playerName && 
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (teleportCard && teleportTarget) {
+          // Swap PTI values
+          const tempPti = teleportCard.pti;
+          teleportCard.pti = teleportTarget.pti;
+          teleportTarget.pti = tempPti;
+          console.log(`🌀 Custom effect: TELEPORTED! Swapped PTI with ${teleportTarget.name || teleportTarget.id}!`);
+        }
+        break;
+
+      case 'copy':
+        // Copy enemy card stats
+        const copySource = game.field.find(c => 
+          c.owner !== playerName && 
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+          c.pti != null
+        );
+        if (copySource) {
+          const copyDest = game.field.find(c => c.id === card.id);
+          if (copyDest) {
+            copyDest.pti = copySource.pti;
+            copyDest.stars = copySource.stars;
+            console.log(`📋 Custom effect: COPIED stats from ${copySource.name || copySource.id}!`);
+          }
+        }
+        break;
+
+      case 'sacrifice':
+        // Sacrifice: destroy own character to deal massive damage
+        const sacrificeCard = game.field.find(c => 
+          c.id !== card.id && 
+          c.owner === playerName && 
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (sacrificeCard) {
+          const sacrificePti = sacrificeCard.pti || 0;
+          // Remove sacrificed card
+          game.field = game.field.filter(c => c.id !== sacrificeCard.id);
+          game.graveyard.push(sacrificeCard);
+          // Deal damage to all enemies equal to sacrificed PTI
+          for (const enemyCard of game.field) {
+            if (enemyCard.owner !== playerName && 
+                (enemyCard.type === 'personaggi' || enemyCard.type === 'personaggi_speciali') &&
+                enemyCard.pti != null) {
+              enemyCard.pti = Math.max(0, enemyCard.pti - sacrificePti);
+              console.log(`💀 Sacrifice damage: ${enemyCard.name || enemyCard.id} took ${sacrificePti} damage!`);
+            }
+          }
+          console.log(`💀 Custom effect: SACRIFICED ${sacrificeCard.name || sacrificeCard.id} for ${sacrificePti} damage!`);
+        }
+        break;
+
+      case 'swap':
+        // Swap PTI with target
+        const swapCard = game.field.find(c => c.id === card.id);
+        const swapTarget = game.field.find(c => 
+          c.owner !== playerName && 
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (swapCard && swapTarget && swapCard.pti != null && swapTarget.pti != null) {
+          const temp = swapCard.pti;
+          swapCard.pti = swapTarget.pti;
+          swapTarget.pti = temp;
+          console.log(`🔄 Custom effect: SWAPPED PTI with ${swapTarget.name || swapTarget.id}!`);
+        }
+        break;
+
+      case 'destroy':
+        // Destroy target card
+        const destroyTarget = game.field.find(c => 
+          c.owner !== playerName && 
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (destroyTarget) {
+          game.field = game.field.filter(c => c.id !== destroyTarget.id);
+          game.graveyard.push(destroyTarget);
+          console.log(`💥 Custom effect: DESTROYED ${destroyTarget.name || destroyTarget.id}!`);
+        }
+        break;
+
+      case 'mill':
+        // Discard cards from deck to graveyard
+        const millCount = action.value || 5;
+        for (const [pName, player] of Object.entries(game.players)) {
+          if (pName !== playerName) {
+            for (let i = 0; i < millCount; i++) {
+              if ((player as any).hand.length > 0) {
+                const milledCard = (player as any).hand.pop();
+                game.graveyard.push(milledCard);
+              }
+            }
+            console.log(`📚 Custom effect: Milled ${millCount} cards from ${pName}'s hand!`);
           }
         }
         break;
