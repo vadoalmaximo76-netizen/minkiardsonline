@@ -6292,11 +6292,22 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const pti = cachedResult.pti || 1000;
         const stars = cachedResult.stars || 1;
         card.text = `PTI: ${pti} | Stelle: ${stars} | PTI originali: ${pti}`;
+        card.pti = pti;
+        card.originalPti = pti;
+        card.stars = stars;
+        card.name = cardName;
       } else {
         card.text = 'PTI: 1000 | Stelle: 1 | PTI originali: 1000';
+        card.pti = 1000;
+        card.originalPti = 1000;
+        card.stars = 1;
+        card.name = cardName;
       }
     } catch (error) {
       card.text = 'PTI: 1000 | Stelle: 1 | PTI originali: 1000';
+      card.pti = 1000;
+      card.originalPti = 1000;
+      card.stars = 1;
     }
   }
 
@@ -6312,6 +6323,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const pti = cachedResult.pti || 1000;
         const stars = cachedResult.stars || 1;
         card.text = `PTI: ${pti} | Stelle: ${stars} | PTI originali: ${pti}`;
+        card.pti = pti;
+        card.originalPti = pti;
+        card.stars = stars;
+        card.name = cardName;
         return;
       }
       
@@ -6324,14 +6339,29 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         
         if (analysis && ((analysis.pti && analysis.pti > 0) || (analysis.stars && analysis.stars > 0))) {
           card.text = `PTI: ${analysis.pti} | Stelle: ${analysis.stars} | PTI originali: ${analysis.pti}`;
+          card.pti = analysis.pti;
+          card.originalPti = analysis.pti;
+          card.stars = analysis.stars;
+          card.name = cardName;
         } else {
           card.text = 'PTI: 1000 | Stelle: 1 | PTI originali: 1000';
+          card.pti = 1000;
+          card.originalPti = 1000;
+          card.stars = 1;
+          card.name = cardName;
         }
       } else {
         card.text = 'PTI: 1000 | Stelle: 1 | PTI originali: 1000';
+        card.pti = 1000;
+        card.originalPti = 1000;
+        card.stars = 1;
+        card.name = cardName;
       }
     } catch (error) {
       card.text = 'PTI: 1000 | Stelle: 1 | PTI originali: 1000';
+      card.pti = 1000;
+      card.originalPti = 1000;
+      card.stars = 1;
     }
   }
 
