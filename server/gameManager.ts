@@ -2559,6 +2559,20 @@ Rispondi SOLO in JSON:`;
       actions.push({ type: 'random_effect', target: 'any', value: 1, description: 'Effetto casuale' });
     }
 
+    // ============ INHERIT FROM DEAD PATTERNS ============
+    if ((text.includes('personaggio morto') || text.includes('carta morta') || text.includes('morto prima') ||
+         text.includes('ultimo morto') || text.includes('precedente morto') || text.includes('avvoltoio')) &&
+        (text.includes('aggiunge') || text.includes('ottiene') || text.includes('eredita') || 
+         text.includes('prende') || text.includes('guadagna') || text.includes('assorbe'))) {
+      actions.push({ type: 'inherit_from_dead', target: 'self', value: 1, description: 'Eredita PTI e stelle dal personaggio morto' });
+    }
+
+    // ============ CLONE SELF PATTERNS ============
+    if (text.includes('si clona') || text.includes('clona se stesso') || text.includes('si duplica') ||
+        text.includes('crea una copia di se') || text.includes('crea un clone') || text.includes('si sdoppia')) {
+      actions.push({ type: 'clone_self', target: 'self', value: 1, description: 'Si clona sul campo' });
+    }
+
     // ============ CONDITIONAL PATTERNS ============
     if (text.includes('se ') || text.includes('quando ') || text.includes('ogni volta che')) {
       // Mark as conditional for special handling
@@ -3350,9 +3364,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           const hasPti = fieldCard.pti != null && fieldCard.pti > 0;
           console.log(`🌀 Field card: ${fieldCard.name || fieldCard.id}, owner=${fieldCard.owner}, isEnemy=${isEnemy}, isChar=${isCharacter}, pti=${fieldCard.pti}`);
           
-          if (isEnemy && isCharacter && hasPti) {
+          if (isEnemy && isCharacter && hasPti && fieldCard.pti != null) {
             const drainAmount = Math.min(fieldCard.pti, action.value || 100);
-            fieldCard.pti -= drainAmount;
+            fieldCard.pti = fieldCard.pti - drainAmount;
             // CRITICAL: Also update card.text so client can see the change
             this.updateCardTextWithPTI(fieldCard);
             totalDrained += drainAmount;
@@ -3631,6 +3645,58 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             game.players[playerName].hand.push(resCard);
             console.log(`🌟 Custom effect: ${resCard.name || resCard.id} REVIVED with +${action.value} PTI bonus!`);
           }
+        }
+        break;
+
+      case 'inherit_from_dead':
+        // Inherit PTI and stars from the last dead character
+        const lastDeadChar = game.graveyard.filter(c => 
+          c.type === 'personaggi' || c.type === 'personaggi_speciali'
+        ).pop();
+        
+        if (lastDeadChar) {
+          const activeChar = this.getPlayerActiveCharacter(game, playerName);
+          if (activeChar) {
+            // Get PTI from dead card text or pti field
+            let deadPti = lastDeadChar.pti || 0;
+            if (!deadPti && lastDeadChar.text) {
+              const ptiMatch = lastDeadChar.text.match(/PTI originali:\s*(\d+)/i) || lastDeadChar.text.match(/PTI:\s*(\d+)/i);
+              if (ptiMatch) deadPti = parseInt(ptiMatch[1], 10);
+            }
+            const deadStars = lastDeadChar.stars || 0;
+            
+            // Add to active character
+            const oldPti = activeChar.pti || 0;
+            const oldStars = activeChar.stars || 0;
+            activeChar.pti = oldPti + deadPti;
+            activeChar.stars = oldStars + deadStars;
+            
+            // Update card text
+            this.updateCardTextWithPTI(activeChar);
+            
+            console.log(`🦅 INHERIT FROM DEAD: ${activeChar.name} inherited ${deadPti} PTI and ${deadStars} stars from ${lastDeadChar.name}!`);
+            console.log(`🦅 ${activeChar.name} now has ${activeChar.pti} PTI and ${activeChar.stars} stars`);
+          } else {
+            console.log(`🦅 INHERIT FROM DEAD: No active character found for ${playerName}`);
+          }
+        } else {
+          console.log(`🦅 INHERIT FROM DEAD: No dead characters in graveyard`);
+        }
+        break;
+
+      case 'clone_self':
+        // Clone the card that triggered this effect
+        const cloneSelfSource = game.field.find(c => c.id === card.id);
+        if (cloneSelfSource) {
+          const clonedCard: Card = {
+            ...cloneSelfSource,
+            id: `${cloneSelfSource.id}-clone-${Date.now()}`,
+            name: `${cloneSelfSource.name} (Clone)`,
+          };
+          game.field.push(clonedCard);
+          console.log(`🧬 CLONE SELF: Created clone of ${cloneSelfSource.name} on the field!`);
+        } else {
+          console.log(`🧬 CLONE SELF: Source card not found on field`);
         }
         break;
 
