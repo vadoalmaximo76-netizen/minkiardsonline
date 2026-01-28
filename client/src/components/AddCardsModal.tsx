@@ -16,6 +16,20 @@ interface EffectWizardState {
   condition: string;
   customDescription: string;
   categoryFilter: string;
+  animationDescription: string;
+  behaviorDescription: string;
+  aiQuestions: AIQuestion[];
+  aiAnswers: Record<string, string>;
+  isAnalyzing: boolean;
+  analysisComplete: boolean;
+}
+
+interface AIQuestion {
+  id: string;
+  question: string;
+  type: 'text' | 'choice' | 'number';
+  options?: string[];
+  placeholder?: string;
 }
 
 const EFFECT_TYPES = [
@@ -476,6 +490,21 @@ function generateEffectDescription(wizard: EffectWizardState): string {
   if (wizard.condition) {
     description += `. Condizione: ${wizard.condition}`;
   }
+  
+  if (wizard.animationDescription) {
+    description += ` [ANIMAZIONE: ${wizard.animationDescription}]`;
+  }
+  
+  if (wizard.behaviorDescription) {
+    description += ` [COMPORTAMENTO: ${wizard.behaviorDescription}]`;
+  }
+  
+  if (wizard.aiAnswers && Object.keys(wizard.aiAnswers).length > 0) {
+    const answers = Object.entries(wizard.aiAnswers)
+      .map(([key, value]) => `${key}: ${value}`)
+      .join('; ');
+    description += ` [DETTAGLI: ${answers}]`;
+  }
 
   return description;
 }
@@ -556,7 +585,13 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     duration: 'instant',
     condition: '',
     customDescription: '',
-    categoryFilter: 'all'
+    categoryFilter: 'all',
+    animationDescription: '',
+    behaviorDescription: '',
+    aiQuestions: [],
+    aiAnswers: {},
+    isAnalyzing: false,
+    analysisComplete: false
   });
 
   const resetEffectWizard = () => {
@@ -569,7 +604,13 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       duration: 'instant',
       condition: '',
       customDescription: '',
-      categoryFilter: 'all'
+      categoryFilter: 'all',
+      animationDescription: '',
+      behaviorDescription: '',
+      aiQuestions: [],
+      aiAnswers: {},
+      isAnalyzing: false,
+      analysisComplete: false
     });
   };
 
@@ -599,7 +640,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     const noValueEffects = ['protection', 'copy', 'extra_turn', 'nullify', 'summon', 'resurrect'];
     const noTargetEffects = ['protection', 'custom', 'copy', 'extra_turn', 'skip', 'nullify', 'summon', 'resurrect', 'revenge'];
     
-    if (effectWizard.effectType === 'custom') return 2;
+    if (effectWizard.effectType === 'custom') {
+      return effectWizard.aiQuestions.length > 0 ? 4 : 3;
+    }
     if (noValueEffects.includes(effectWizard.effectType)) {
       return noTargetEffects.includes(effectWizard.effectType) ? 2 : 3;
     }
@@ -628,9 +671,70 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
         if (!needsTarget()) return true;
         return effectWizard.target !== '';
       case 3:
+        if (effectWizard.effectType === 'custom') {
+          return effectWizard.analysisComplete || effectWizard.aiQuestions.length === 0;
+        }
         return true;
+      case 4:
+        const allQuestionsAnswered = effectWizard.aiQuestions.every(q => 
+          effectWizard.aiAnswers[q.id] && effectWizard.aiAnswers[q.id].trim() !== ''
+        );
+        return allQuestionsAnswered;
       default: return true;
     }
+  };
+
+  const analyzeEffectWithAI = async () => {
+    if (!effectWizard.customDescription.trim()) return;
+    
+    setEffectWizard(prev => ({ ...prev, isAnalyzing: true }));
+    
+    try {
+      const response = await fetch('/api/analyze-effect', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          description: effectWizard.customDescription,
+          animation: effectWizard.animationDescription,
+          behavior: effectWizard.behaviorDescription
+        })
+      });
+      
+      if (!response.ok) throw new Error('Analysis failed');
+      
+      const data = await response.json();
+      
+      if (data.questions && data.questions.length > 0) {
+        setEffectWizard(prev => ({
+          ...prev,
+          aiQuestions: data.questions,
+          isAnalyzing: false,
+          analysisComplete: false
+        }));
+      } else {
+        setEffectWizard(prev => ({
+          ...prev,
+          aiQuestions: [],
+          isAnalyzing: false,
+          analysisComplete: true
+        }));
+      }
+    } catch (error) {
+      console.error('Effect analysis error:', error);
+      setEffectWizard(prev => ({
+        ...prev,
+        aiQuestions: [],
+        isAnalyzing: false,
+        analysisComplete: true
+      }));
+    }
+  };
+
+  const handleAIAnswer = (questionId: string, answer: string) => {
+    setEffectWizard(prev => ({
+      ...prev,
+      aiAnswers: { ...prev.aiAnswers, [questionId]: answer }
+    }));
   };
 
   const isCharacterDeck = selectedDeck === 'personaggi' || selectedDeck === 'personaggi_speciali';
@@ -1731,18 +1835,45 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
 
             {/* Step 2: Target, Custom description, or No-target confirmation */}
             {effectWizard.step === 2 && (
-              <div className="space-y-3">
+              <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
                 {effectWizard.effectType === 'custom' ? (
                   <>
-                    <p className="text-gray-300 text-sm mb-4">Descrivi l'effetto che vuoi creare:</p>
+                    <p className="text-gray-300 text-sm mb-2">Descrivi l'effetto che vuoi creare:</p>
                     <textarea
                       value={effectWizard.customDescription}
                       onChange={(e) => setEffectWizard(prev => ({ ...prev, customDescription: e.target.value }))}
                       placeholder="Es: Quando questa carta viene giocata, il giocatore pesca 2 carte e tutti gli avversari perdono 50 PTI..."
                       className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg p-3 text-sm resize-none"
-                      rows={5}
+                      rows={3}
                     />
-                    <p className="text-gray-500 text-xs">Sii il piu specifico possibile. Il sistema cerchera di interpretare l'effetto.</p>
+                    
+                    <div className="border-t border-gray-600 pt-3 mt-3">
+                      <p className="text-gray-300 text-sm mb-2 flex items-center gap-2">
+                        <span className="text-xl">✨</span> Animazione (opzionale):
+                      </p>
+                      <textarea
+                        value={effectWizard.animationDescription}
+                        onChange={(e) => setEffectWizard(prev => ({ ...prev, animationDescription: e.target.value }))}
+                        placeholder="Es: Un'esplosione di energia dorata che si espande dal centro della carta, seguito da raggi di luce che colpiscono i bersagli..."
+                        className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg p-3 text-sm resize-none"
+                        rows={2}
+                      />
+                    </div>
+                    
+                    <div className="border-t border-gray-600 pt-3 mt-3">
+                      <p className="text-gray-300 text-sm mb-2 flex items-center gap-2">
+                        <span className="text-xl">🎮</span> Comportamento (opzionale):
+                      </p>
+                      <textarea
+                        value={effectWizard.behaviorDescription}
+                        onChange={(e) => setEffectWizard(prev => ({ ...prev, behaviorDescription: e.target.value }))}
+                        placeholder="Es: Questa carta puo essere giocata solo se hai meno di 500 PTI. Dopo l'attivazione, non puoi giocare altre carte per 2 turni..."
+                        className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg p-3 text-sm resize-none"
+                        rows={2}
+                      />
+                    </div>
+                    
+                    <p className="text-gray-500 text-xs mt-2">Descrivi l'effetto in dettaglio. Se qualcosa non e chiaro, il sistema ti fara delle domande per capire meglio.</p>
                   </>
                 ) : !needsTarget() ? (
                   <>
@@ -1859,6 +1990,117 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                   {effectWizard.effectType === 'shield' && 'Consigliato: 100-300'}
                   {effectWizard.effectType === 'poison' && 'Consigliato: 30-100 per 2-4 turni'}
                 </p>
+              </div>
+            )}
+
+            {/* Step 3 for Custom: AI Analysis */}
+            {effectWizard.step === 3 && effectWizard.effectType === 'custom' && (
+              <div className="space-y-4">
+                <div className="text-center">
+                  <div className="text-4xl mb-3">🤖</div>
+                  <p className="text-gray-300 text-sm mb-4">
+                    {effectWizard.isAnalyzing 
+                      ? 'Analisi in corso...' 
+                      : effectWizard.analysisComplete 
+                        ? 'Effetto analizzato con successo!'
+                        : 'Analizzo la tua descrizione per verificare se serve qualche chiarimento.'}
+                  </p>
+                </div>
+                
+                {effectWizard.isAnalyzing && (
+                  <div className="flex justify-center">
+                    <div className="animate-spin w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full" />
+                  </div>
+                )}
+                
+                {!effectWizard.isAnalyzing && !effectWizard.analysisComplete && (
+                  <Button
+                    onClick={analyzeEffectWithAI}
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                  >
+                    <Sparkles size={16} className="mr-2" />
+                    Analizza Effetto
+                  </Button>
+                )}
+                
+                {effectWizard.analysisComplete && effectWizard.aiQuestions.length === 0 && (
+                  <div className="bg-green-600/20 border border-green-500 rounded-lg p-4">
+                    <p className="text-green-400 text-sm text-center">
+                      La descrizione e sufficientemente chiara. Puoi procedere!
+                    </p>
+                  </div>
+                )}
+                
+                {effectWizard.aiQuestions.length > 0 && !effectWizard.analysisComplete && (
+                  <div className="bg-amber-600/20 border border-amber-500 rounded-lg p-4">
+                    <p className="text-amber-400 text-sm text-center">
+                      Ho alcune domande per capire meglio l'effetto. Clicca Avanti per rispondere.
+                    </p>
+                  </div>
+                )}
+                
+                <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
+                  <p className="text-gray-400 text-xs mb-2">Riepilogo:</p>
+                  <p className="text-white text-sm"><strong>Effetto:</strong> {effectWizard.customDescription}</p>
+                  {effectWizard.animationDescription && (
+                    <p className="text-white text-sm mt-2"><strong>Animazione:</strong> {effectWizard.animationDescription}</p>
+                  )}
+                  {effectWizard.behaviorDescription && (
+                    <p className="text-white text-sm mt-2"><strong>Comportamento:</strong> {effectWizard.behaviorDescription}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Step 4 for Custom: AI Questions */}
+            {effectWizard.step === 4 && effectWizard.effectType === 'custom' && effectWizard.aiQuestions.length > 0 && (
+              <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">❓</span>
+                  <p className="text-gray-300 text-sm">Rispondi a queste domande per completare l'effetto:</p>
+                </div>
+                
+                {effectWizard.aiQuestions.map((q, index) => (
+                  <div key={q.id} className="bg-gray-700/50 border border-gray-600 rounded-lg p-4">
+                    <p className="text-white text-sm font-medium mb-2">
+                      {index + 1}. {q.question}
+                    </p>
+                    
+                    {q.type === 'choice' && q.options ? (
+                      <div className="space-y-2">
+                        {q.options.map(option => (
+                          <button
+                            key={option}
+                            onClick={() => handleAIAnswer(q.id, option)}
+                            className={`w-full p-2 rounded-lg border text-left text-sm transition-all ${
+                              effectWizard.aiAnswers[q.id] === option
+                                ? 'border-purple-500 bg-purple-600/30 text-white'
+                                : 'border-gray-600 bg-gray-700 text-gray-300 hover:border-gray-500'
+                            }`}
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+                    ) : q.type === 'number' ? (
+                      <Input
+                        type="number"
+                        value={effectWizard.aiAnswers[q.id] || ''}
+                        onChange={(e) => handleAIAnswer(q.id, e.target.value)}
+                        placeholder={q.placeholder || 'Inserisci un numero'}
+                        className="bg-gray-700 text-white border-gray-600"
+                      />
+                    ) : (
+                      <textarea
+                        value={effectWizard.aiAnswers[q.id] || ''}
+                        onChange={(e) => handleAIAnswer(q.id, e.target.value)}
+                        placeholder={q.placeholder || 'Scrivi la tua risposta...'}
+                        className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg p-3 text-sm resize-none"
+                        rows={2}
+                      />
+                    )}
+                  </div>
+                ))}
               </div>
             )}
 

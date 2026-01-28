@@ -77,6 +77,66 @@ const MINKIARDS_CARD_DATA: Record<string, { pti: number, stars: number, powers?:
   // 'card-name': { pti: 0, stars: 0, powers: '' },
 };
 
+// Fallback question generation when AI is unavailable
+function generateFallbackQuestions(description: string): Array<{id: string, question: string, type: string, options?: string[], placeholder?: string}> {
+  const questions: Array<{id: string, question: string, type: string, options?: string[], placeholder?: string}> = [];
+  const lowerDesc = description.toLowerCase();
+  
+  // Check for missing target information
+  const hasTarget = lowerDesc.includes('bersaglio') || lowerDesc.includes('nemico') || 
+                    lowerDesc.includes('avversario') || lowerDesc.includes('tutti') ||
+                    lowerDesc.includes('personaggio') || lowerDesc.includes('target');
+  if (!hasTarget) {
+    questions.push({
+      id: 'target',
+      question: 'Chi è il bersaglio dell\'effetto?',
+      type: 'choice',
+      options: ['Il mio personaggio attivo', 'Un personaggio nemico a scelta', 'Tutti i nemici', 'Tutti i personaggi in campo']
+    });
+  }
+  
+  // Check for damage-related effects without amounts
+  const hasDamage = lowerDesc.includes('dann') || lowerDesc.includes('attacc') || 
+                    lowerDesc.includes('colp') || lowerDesc.includes('ferisce');
+  const hasNumber = /\d+/.test(description);
+  if (hasDamage && !hasNumber) {
+    questions.push({
+      id: 'damage_amount',
+      question: 'Quanti danni infligge l\'effetto?',
+      type: 'number',
+      placeholder: 'Es: 100, 200, 500'
+    });
+  }
+  
+  // Check for healing without amounts
+  const hasHeal = lowerDesc.includes('cura') || lowerDesc.includes('rigenera') || 
+                  lowerDesc.includes('riprist') || lowerDesc.includes('guarisce');
+  if (hasHeal && !hasNumber) {
+    questions.push({
+      id: 'heal_amount',
+      question: 'Quanti PTI cura l\'effetto?',
+      type: 'number',
+      placeholder: 'Es: 50, 100, 200'
+    });
+  }
+  
+  // Check for duration
+  const hasDuration = lowerDesc.includes('turni') || lowerDesc.includes('turno') || 
+                      lowerDesc.includes('permanente') || lowerDesc.includes('sempre');
+  const hasTempEffect = lowerDesc.includes('scudo') || lowerDesc.includes('protezione') ||
+                        lowerDesc.includes('potenzia') || lowerDesc.includes('buff');
+  if (hasTempEffect && !hasDuration) {
+    questions.push({
+      id: 'duration',
+      question: 'Per quanto tempo dura l\'effetto?',
+      type: 'choice',
+      options: ['Istantaneo (una volta)', '1 turno', '2 turni', '3 turni', 'Permanente']
+    });
+  }
+  
+  return questions;
+}
+
 // Helper to emit card-played event for last played cards history
 function emitCardPlayed(io: SocketServer, gameId: string, card: any, playerName: string) {
   if (!card) return;
@@ -5313,6 +5373,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error tracking event:', error);
       res.status(500).json({ success: false, error: 'Failed to track event' });
+    }
+  });
+
+  // Analyze custom effect with AI and generate clarifying questions
+  app.post('/api/analyze-effect', authMiddleware, async (req, res) => {
+    try {
+      const { description, animation, behavior } = req.body;
+      
+      if (!description || typeof description !== 'string') {
+        return res.status(400).json({ success: false, error: 'Description required' });
+      }
+      
+      const systemPrompt = `Sei un analizzatore di effetti per un gioco di carte chiamato MINKIARDS (basato su Dragon Ball). 
+Il tuo compito è analizzare la descrizione di un effetto personalizzato e generare domande di chiarimento SE NECESSARIO.
+
+REGOLE:
+1. Se la descrizione è chiara e completa, restituisci un array vuoto di domande
+2. Se mancano dettagli importanti, genera domande specifiche
+3. Le domande devono essere in italiano
+4. Ogni domanda deve avere un ID unico, il testo della domanda, e un tipo (text, choice, number)
+5. Per le domande a scelta, includi le opzioni possibili
+
+ELEMENTI DA VERIFICARE:
+- Target dell'effetto (chi viene colpito?)
+- Valore numerico (quanti danni, quanta cura, ecc.)
+- Durata (istantaneo, per X turni, permanente?)
+- Condizioni di attivazione
+- Interazioni speciali
+
+FORMATO RISPOSTA (JSON):
+{
+  "questions": [
+    {
+      "id": "target",
+      "question": "Chi è il bersaglio dell'effetto?",
+      "type": "choice",
+      "options": ["Il personaggio attivo", "Un personaggio nemico a scelta", "Tutti i nemici", "Tutti i personaggi"]
+    },
+    {
+      "id": "damage_amount",
+      "question": "Quanti danni infligge?",
+      "type": "number",
+      "placeholder": "Es: 100, 200, 500"
+    }
+  ],
+  "understood": true/false,
+  "interpretation": "Breve riassunto di come hai interpretato l'effetto"
+}`;
+
+      const userMessage = `Analizza questo effetto personalizzato:
+
+DESCRIZIONE EFFETTO: ${description}
+${animation ? `ANIMAZIONE DESCRITTA: ${animation}` : ''}
+${behavior ? `COMPORTAMENTO DESCRITTO: ${behavior}` : ''}
+
+Genera le domande di chiarimento necessarie o restituisci un array vuoto se l'effetto è sufficientemente chiaro.`;
+
+      try {
+        const response = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage }
+          ],
+          response_format: { type: 'json_object' },
+          max_tokens: 1000
+        });
+
+        const content = response.choices[0]?.message?.content;
+        if (!content) {
+          return res.json({ success: true, questions: [], understood: true });
+        }
+
+        const parsed = JSON.parse(content);
+        res.json({ 
+          success: true, 
+          questions: parsed.questions || [],
+          understood: parsed.understood ?? true,
+          interpretation: parsed.interpretation || ''
+        });
+      } catch (aiError) {
+        console.error('OpenAI analysis error:', aiError);
+        // Fallback: use keyword-based question generation
+        const questions = generateFallbackQuestions(description);
+        res.json({ success: true, questions, understood: true });
+      }
+    } catch (error) {
+      console.error('Error analyzing effect:', error);
+      res.status(500).json({ success: false, error: 'Failed to analyze effect' });
     }
   });
 
