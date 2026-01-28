@@ -3330,18 +3330,32 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       case 'drain':
         // Drain PTI from opponents
+        console.log(`🌀 Drain effect: Checking ${game.field.length} cards on field, player=${playerName}`);
+        let totalDrained = 0;
         for (const fieldCard of game.field) {
-          if (fieldCard.owner !== playerName && 
-              (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') &&
-              fieldCard.pti != null) {
+          const isEnemy = fieldCard.owner !== playerName && fieldCard.owner !== undefined;
+          const isCharacter = fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali';
+          const hasPti = fieldCard.pti != null && fieldCard.pti > 0;
+          console.log(`🌀 Field card: ${fieldCard.name || fieldCard.id}, owner=${fieldCard.owner}, isEnemy=${isEnemy}, isChar=${isCharacter}, pti=${fieldCard.pti}`);
+          
+          if (isEnemy && isCharacter && hasPti) {
             const drainAmount = Math.min(fieldCard.pti, action.value || 100);
             fieldCard.pti -= drainAmount;
+            totalDrained += drainAmount;
+            
+            // Add to own card if found
             const ownCard = game.field.find(c => c.id === card.id);
-            if (ownCard && ownCard.pti != null) {
+            if (ownCard) {
+              if (ownCard.pti == null) ownCard.pti = 0;
               ownCard.pti += drainAmount;
-              console.log(`🌀 Custom effect: Drained ${drainAmount} PTI from ${fieldCard.name} to ${ownCard.name}!`);
+              console.log(`🌀 Custom effect: Drained ${drainAmount} PTI from ${fieldCard.name} to ${ownCard.name}! (${ownCard.name} now has ${ownCard.pti} PTI)`);
+            } else {
+              console.log(`🌀 Custom effect: Drained ${drainAmount} PTI from ${fieldCard.name} (own card not found in field)`);
             }
           }
+        }
+        if (totalDrained === 0) {
+          console.log(`🌀 Drain effect: No valid targets found to drain from`);
         }
         break;
 
