@@ -2078,13 +2078,14 @@ Rispondi SOLO in JSON:`;
       // Check if it's a PERSONAGGI or PERSONAGGI_SPECIALI card
       const isPersonaggio = card.type === 'personaggi' || card.type === 'personaggi_speciali';
       
-      // Auto-analyze cards for ALL players (PERSONAGGI only) - try sync cache first
-      if (isPersonaggio && (!card.text || card.text.trim() === '')) {
-        // Use synchronous cache lookup for instant response
+      // Auto-analyze cards for ALL players (PERSONAGGI only) - ALWAYS set PTI from cache
+      if (isPersonaggio) {
+        // Always run sync analysis to ensure PTI values are set
         this.autoAnalyzePersonaggioCardSync(card, playerName);
+        console.log(`📊 Card ${card.id} PTI set: pti=${card.pti}, stars=${card.stars}, name=${card.name}`);
         
         // If cache missed (default values), trigger async lookup in background for humans
-        if (card.text === 'PTI: 1000 | Stelle: 1 | PTI originali: 1000') {
+        if (card.pti === 1000 && !card.text?.includes('originali')) {
           const player = game.players[playerName];
           if (!player?.isCPU) {
             // Async fallback for human players - will update card when data arrives
