@@ -7243,6 +7243,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         // Add PTI to text if not present
         card.text = `PTI: ${ptiValue}\n${card.text}`;
       }
+      
+      // Also update stars in text
+      if (card.text.match(/Stelle:\s*\d+/i)) {
+        card.text = card.text.replace(/Stelle:\s*\d+/i, `Stelle: ${starsValue}`);
+      } else if (starsValue > 0) {
+        // Add stars after PTI line
+        card.text = card.text.replace(/(PTI:\s*\d+)/i, `$1\nStelle: ${starsValue}`);
+      }
     } else {
       // Create new text with PTI and stars
       card.text = `PTI: ${ptiValue}`;
@@ -7251,7 +7259,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
     
-    console.log(`📝 Updated card ${card.name || card.id} text with PTI: ${ptiValue}`);
+    console.log(`📝 Updated card ${card.name || card.id} text with PTI: ${ptiValue}, Stelle: ${starsValue}`);
   }
 
   updateCardText(gameId: string, cardId: string, text: string): void {
