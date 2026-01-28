@@ -2127,9 +2127,11 @@ Rispondi SOLO in JSON:`;
       
       // Process custom card effect if present (works for all cards with effects - custom, permanent, or modified)
       console.log(`📋 Card played: ${card.id} (${card.name || 'unnamed'}), effect: ${card.effect ? `"${card.effect}"` : 'NONE'}`);
+      let customAnimation: string | undefined;
       if (card.effect) {
         console.log(`✨ Card has effect - triggering processCustomCardEffect for ${card.id}`);
-        await this.processCustomCardEffect(gameId, card, playerName);
+        const effectResult = await this.processCustomCardEffect(gameId, card, playerName);
+        customAnimation = effectResult.customAnimation;
       }
       
       // DUELLO: Auto-activate MOSSE cards during duel
@@ -2147,7 +2149,7 @@ Rispondi SOLO in JSON:`;
         console.log(`⚔️ DUELLO: Will auto-target character ${opponentCharacterId}`);
       }
       
-      return { card, isPersonaggio, duelAutoAttack };
+      return { card, isPersonaggio, duelAutoAttack, customAnimation };
     }
     
     return {};
@@ -2806,11 +2808,18 @@ Rispondi SOLO in JSON:`;
   }
 
   // Process custom card effect using AI or keyword parsing
-  async processCustomCardEffect(gameId: string, card: Card, playerName: string): Promise<void> {
+  async processCustomCardEffect(gameId: string, card: Card, playerName: string): Promise<{ customAnimation?: string }> {
     const game = this.games.get(gameId);
-    if (!game || !card.effect) return;
+    if (!game || !card.effect) return {};
 
     console.log(`🎴 Processing custom card effect for ${card.name || card.id}: "${card.effect}"`);
+    
+    // Extract custom animation from effect text [ANIMAZIONE: ...]
+    const animationMatch = card.effect.match(/\[ANIMAZIONE:\s*([^\]]+)\]/i);
+    const customAnimation = animationMatch ? animationMatch[1].trim() : undefined;
+    if (customAnimation) {
+      console.log(`🎬 Custom animation found: "${customAnimation}"`);
+    }
 
     try {
       // Use Replit's native AI integration key first, fallback to user's key
@@ -2840,7 +2849,7 @@ Rispondi SOLO in JSON:`;
             result: { actions, message: `Effetto attivato: ${actions.map(a => a.description).join(', ')}` }
           }, playerName);
         }
-        return;
+        return { customAnimation };
       }
 
       const OpenAI = (await import('openai')).default;
@@ -2944,7 +2953,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       } else {
         console.log('⚠️ No actions parsed from effect - effect may not be recognized');
       }
+      return { customAnimation };
     }
+    return { customAnimation };
   }
 
   // Get the player's "active" character - the leftmost (first) personaggio on field

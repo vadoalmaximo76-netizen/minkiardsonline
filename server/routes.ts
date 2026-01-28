@@ -1496,6 +1496,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
         
+        // Check if card has custom animation from effect wizard [ANIMAZIONE: ...]
+        if (result.customAnimation) {
+          const cardName = result.card?.name || cardId;
+          console.log(`🎬 Emitting custom-animation-trigger for: ${cardName} with animation: ${result.customAnimation}`);
+          
+          io.to(gameId).emit('custom-animation-trigger', {
+            cardId: result.card?.id || cardId,
+            cardName,
+            playerName,
+            animationDescription: result.customAnimation
+          });
+        }
+        
         // DUELLO: Auto-activate MOSSE attack during duel
         if (result.duelAutoAttack && result.card) {
           const duelState = gameManager.getDuelState(gameId);

@@ -130,6 +130,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [handModalOpen, setHandModalOpen] = useState(false);
   const [cardAnimationVisible, setCardAnimationVisible] = useState(false);
   const [cardAnimationName, setCardAnimationName] = useState<string>("");
+  const [customAnimationVisible, setCustomAnimationVisible] = useState(false);
+  const [customAnimationData, setCustomAnimationData] = useState<{ cardName: string; animationDescription: string } | null>(null);
   const [sorosActivationVisible, setSorosActivationVisible] = useState(false);
   const [sorosData, setSorosData] = useState<{ activator: string; cardImage: string } | null>(null);
   const [attackEffectVisible, setAttackEffectVisible] = useState(false);
@@ -463,6 +465,22 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       setCardAnimationVisible(true);
       playCardAnimationSound(cardName);
     };
+    
+    const handleCustomAnimationTrigger = ({ cardId, cardName, playerName, animationDescription }: { 
+      cardId: string, 
+      cardName: string, 
+      playerName: string, 
+      animationDescription: string 
+    }) => {
+      console.log(`🎬 Custom animation triggered for ${cardName}: ${animationDescription}`);
+      setCustomAnimationData({ cardName, animationDescription });
+      setCustomAnimationVisible(true);
+      // Auto-hide after 4 seconds
+      setTimeout(() => {
+        setCustomAnimationVisible(false);
+        setCustomAnimationData(null);
+      }, 4000);
+    };
 
     const handleCardPlayed = ({ cardId, cardType, frontImage, cardName, playerName }: { 
       cardId: string, 
@@ -550,6 +568,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('bee-sound', handleBeeSound);
     socket.on('character-sound', handleCharacterSound);
     socket.on('card-animation-trigger', handleCardAnimationTrigger);
+    socket.on('custom-animation-trigger', handleCustomAnimationTrigger);
     socket.on('card-played', handleCardPlayed);
     socket.on('card-played-face-down', handleCardPlayedFaceDown);
     socket.on('card-revealed', handleCardRevealed);
@@ -1678,6 +1697,20 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           cardName={cardAnimationName}
           onComplete={() => setCardAnimationVisible(false)}
         />
+        
+        {/* Custom Animation Overlay */}
+        {customAnimationVisible && customAnimationData && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center pointer-events-none">
+            <div className="bg-black/80 rounded-xl p-8 max-w-lg text-center animate-pulse shadow-2xl border-2 border-purple-500">
+              <div className="text-2xl font-bold text-purple-400 mb-4">
+                ✨ {customAnimationData.cardName} ✨
+              </div>
+              <div className="text-lg text-white italic">
+                {customAnimationData.animationDescription}
+              </div>
+            </div>
+          </div>
+        )}
 
         <CharacterEffects
           key={`attack-${attackEffectKey}`}
