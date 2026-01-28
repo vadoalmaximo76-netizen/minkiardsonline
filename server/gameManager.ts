@@ -2155,7 +2155,31 @@ Rispondi SOLO in JSON:`;
   // Parse effect text using keywords (no AI required) - ENHANCED VERSION with 50+ patterns
   private parseEffectKeywords(effectText: string): Array<{ type: string; target: string; value: number; description: string }> {
     const actions: Array<{ type: string; target: string; value: number; description: string }> = [];
-    const text = effectText.toLowerCase();
+    
+    // Extract and parse structured sections from wizard [ANIMAZIONE: ...] [COMPORTAMENTO: ...] [DETTAGLI: ...]
+    let cleanText = effectText;
+    let detailsData: Record<string, string> = {};
+    
+    // Extract [DETTAGLI: key: value; key2: value2]
+    const detailsMatch = effectText.match(/\[DETTAGLI:\s*([^\]]+)\]/i);
+    if (detailsMatch) {
+      const detailsStr = detailsMatch[1];
+      detailsStr.split(';').forEach(pair => {
+        const colonIdx = pair.indexOf(':');
+        if (colonIdx > -1) {
+          const key = pair.substring(0, colonIdx).trim().toLowerCase();
+          const value = pair.substring(colonIdx + 1).trim();
+          detailsData[key] = value;
+        }
+      });
+      cleanText = cleanText.replace(/\[DETTAGLI:[^\]]+\]/gi, '');
+    }
+    
+    // Remove [ANIMAZIONE: ...] and [COMPORTAMENTO: ...] for parsing
+    cleanText = cleanText.replace(/\[ANIMAZIONE:[^\]]+\]/gi, '');
+    cleanText = cleanText.replace(/\[COMPORTAMENTO:[^\]]+\]/gi, '');
+    
+    const text = cleanText.toLowerCase();
     
     // Extract all numbers from text (for multi-value effects)
     const extractNumber = (str: string, defaultVal: number = 100): number => {
@@ -2169,8 +2193,20 @@ Rispondi SOLO in JSON:`;
       return matches ? matches.map(n => parseInt(n, 10)) : [];
     };
     
-    // Determine target from text
+    // Determine target from structured details or text
     const determineTarget = (txt: string): string => {
+      // First check structured details
+      const targetDetail = detailsData['target'] || detailsData['bersaglio'] || '';
+      if (targetDetail) {
+        const t = targetDetail.toLowerCase();
+        if (t.includes('tutti i nemici') || t.includes('tutti gli avversari')) return 'all_opponents';
+        if (t.includes('tutti')) return 'all';
+        if (t.includes('casuale') || t.includes('random')) return 'random';
+        if (t.includes('alleato') || t.includes('alleati')) return 'allies';
+        if (t.includes('nemico') || t.includes('avversario')) return 'opponents';
+        if (t.includes('mio personaggio') || t.includes('attivo') || t.includes('personaggio attivo')) return 'self';
+      }
+      
       if (txt.includes('tutti i nemici') || txt.includes('tutti gli avversari') || txt.includes('ogni avversario')) return 'all_opponents';
       if (txt.includes('tutti') || txt.includes('ogni personaggio') || txt.includes('ognuno')) return 'all';
       if (txt.includes('casuale') || txt.includes('random') || txt.includes('a caso')) return 'random';
@@ -2179,6 +2215,17 @@ Rispondi SOLO in JSON:`;
       if (txt.includes('se stesso') || txt.includes('questo personaggio') || txt.includes('questa carta')) return 'self';
       return 'opponents'; // default
     };
+    
+    // Extract value from structured details
+    const getDetailValue = (keys: string[], defaultVal: number): number => {
+      for (const key of keys) {
+        if (detailsData[key]) {
+          const num = parseInt(detailsData[key], 10);
+          if (!isNaN(num)) return num;
+        }
+      }
+      return defaultVal;
+    };
 
     // ============ DAMAGE PATTERNS ============
     if (text.includes('danno') || text.includes('danni') || text.includes('infligge') || text.includes('danneggia') || 
@@ -2186,7 +2233,7 @@ Rispondi SOLO in JSON:`;
         text.includes('elimina') || text.includes('uccide') || text.includes('fa male') || text.includes('subisce') ||
         text.includes('fa perdere') || text.includes('toglie') || text.includes('sottrae') || text.includes('leva') ||
         text.includes('causa') || text.includes('provoca') || text.includes('perde pti') || text.includes('perde vita')) {
-      const value = extractNumber(text);
+      const value = getDetailValue(['damage_amount', 'danni', 'danno', 'valore'], extractNumber(text));
       const target = determineTarget(text);
       actions.push({ type: 'damage', target, value, description: `Infligge ${value} danni` });
     }
@@ -2198,7 +2245,7 @@ Rispondi SOLO in JSON:`;
         text.includes('aggiunge pti') || text.includes('riguadagna') || text.includes('riacquista') ||
         text.includes('si cura') || text.includes('viene curato') || text.includes('aumenta pti') ||
         text.includes('pti in più') || text.includes('guadagna vita') || text.includes('ripara')) {
-      const value = extractNumber(text);
+      const value = getDetailValue(['heal_amount', 'cura', 'guarigione', 'valore'], extractNumber(text));
       const target = determineTarget(text);
       actions.push({ type: 'heal', target: target === 'opponents' ? 'self' : target, value, description: `Cura ${value} PTI` });
     }
@@ -2248,6 +2295,20 @@ Rispondi SOLO in JSON:`;
       }
     }
 
+    // Helper to extract duration from details or text
+    const getDuration = (defaultVal: number): number => {
+      const durVal = detailsData['duration'] || detailsData['durata'] || '';
+      if (durVal) {
+        if (durVal.toLowerCase().includes('permanente')) return 999;
+        if (durVal.toLowerCase().includes('istantaneo')) return 0;
+        const num = parseInt(durVal, 10);
+        if (!isNaN(num)) return num;
+        const match = durVal.match(/(\d+)/);
+        if (match) return parseInt(match[1], 10);
+      }
+      return extractNumber(text, defaultVal);
+    };
+
     // ============ PROTECTION/IMMUNITY PATTERNS ============
     if (text.includes('non può essere attaccat') || text.includes('immune') || 
         text.includes('invulnerabile') || text.includes('protetto') || text.includes('protezione') ||
@@ -2256,7 +2317,7 @@ Rispondi SOLO in JSON:`;
         text.includes('non subisce') || text.includes('ignora i danni') || text.includes('ignora attacchi') ||
         text.includes('blocca attacchi') || text.includes('blocca danni') || text.includes('resistente') ||
         text.includes('impenetrabile') || text.includes('blindato') || text.includes('corazzato')) {
-      const turns = extractNumber(text, 0);
+      const turns = getDuration(1);
       actions.push({ type: 'protection', target: 'self', value: turns || 1, description: turns > 0 ? `Protezione per ${turns} turni` : 'Non può essere attaccato' });
     }
 
@@ -2264,7 +2325,7 @@ Rispondi SOLO in JSON:`;
     if (text.includes('contrattacco') || text.includes('contrattacca') || text.includes('quando viene attaccato') ||
         text.includes('risponde') || text.includes('reagisce') || text.includes('colpisce di ritorno') ||
         text.includes('restituisce il colpo') || text.includes('se attaccato') || text.includes('in risposta')) {
-      const value = extractNumber(text);
+      const value = getDetailValue(['damage_amount', 'valore', 'danni'], extractNumber(text));
       actions.push({ type: 'counter', target: 'self', value, description: `Contrattacco: infligge ${value} danni` });
     }
 
@@ -2272,15 +2333,16 @@ Rispondi SOLO in JSON:`;
     if (text.includes('riflette') || text.includes('restituisce') || text.includes('rimbalza') ||
         text.includes('respinge') || text.includes('devia') || text.includes('rinvia') ||
         text.includes('ritorna indietro') || text.includes('torna al mittente')) {
-      const value = extractNumber(text, 50);
+      const value = getDetailValue(['valore', 'percentuale'], extractNumber(text, 50));
       actions.push({ type: 'reflect', target: 'self', value, description: `Riflette ${value}% dei danni` });
     }
 
     // ============ STEAL PATTERNS ============
     if ((text.includes('ruba') || text.includes('sottrae') || text.includes('prende') || text.includes('furto')) && 
         (text.includes('carta') || text.includes('carte') || text.includes('mano'))) {
-      const value = extractNumber(text, 1);
-      actions.push({ type: 'steal', target: 'opponents', value, description: `Ruba ${value} carte` });
+      const value = getDetailValue(['valore', 'carte'], extractNumber(text, 1));
+      const target = determineTarget(text);
+      actions.push({ type: 'steal', target: target === 'self' ? 'opponents' : target, value, description: `Ruba ${value} carte` });
     }
 
     // ============ FREEZE PATTERNS ============
@@ -2288,32 +2350,36 @@ Rispondi SOLO in JSON:`;
         text.includes('ghiaccia') || text.includes('immobilizza') || text.includes('paralizza') ||
         text.includes('blocca') || text.includes('ferma') || text.includes('non può muoversi') ||
         text.includes('non può attaccare') || text.includes('cristallizza') || text.includes('iberna')) {
-      const value = extractNumber(text, 2);
-      actions.push({ type: 'freeze', target: 'opponents', value, description: `Congela per ${value} turni` });
+      const value = getDuration(2);
+      const target = determineTarget(text);
+      actions.push({ type: 'freeze', target: target === 'self' ? 'opponents' : target, value, description: `Congela per ${value} turni` });
     }
 
     // ============ STUN PATTERNS ============
     if (text.includes('stordis') || text.includes('stordimento') || text.includes('salta il turno') ||
         text.includes('confonde') || text.includes('tramortisce') || text.includes('svenimento') ||
         text.includes('perde il turno') || text.includes('turno perso') || text.includes('knockout')) {
-      const turns = extractNumber(text, 1);
-      actions.push({ type: 'stun', target: 'opponents', value: turns, description: `Stordisce per ${turns} turno/i` });
+      const turns = getDuration(1);
+      const target = determineTarget(text);
+      actions.push({ type: 'stun', target: target === 'self' ? 'opponents' : target, value: turns, description: `Stordisce per ${turns} turno/i` });
     }
 
     // ============ POISON PATTERNS ============
     if (text.includes('veleno') || text.includes('avvelena') || text.includes('tossico') ||
         text.includes('intossica') || text.includes('infetta') || text.includes('virus') ||
         text.includes('contamina') || text.includes('corrompe') || text.includes('danni nel tempo')) {
-      const value = extractNumber(text, 50);
-      actions.push({ type: 'poison', target: 'opponents', value, description: `Veleno: ${value} danni/turno` });
+      const value = getDetailValue(['damage_amount', 'valore', 'danni'], extractNumber(text, 50));
+      const target = determineTarget(text);
+      actions.push({ type: 'poison', target: target === 'self' ? 'opponents' : target, value, description: `Veleno: ${value} danni/turno` });
     }
 
     // ============ BURN PATTERNS ============
     if (text.includes('brucia') || text.includes('bruciatura') || text.includes('fiamme') ||
         text.includes('incendia') || text.includes('fuoco') || text.includes('infuoca') ||
         text.includes('scottatura') || text.includes('incenerisce') || text.includes('carbonizza')) {
-      const value = extractNumber(text, 30);
-      actions.push({ type: 'burn', target: 'opponents', value, description: `Bruciatura: ${value} danni/turno` });
+      const value = getDetailValue(['damage_amount', 'valore', 'danni'], extractNumber(text, 30));
+      const target = determineTarget(text);
+      actions.push({ type: 'burn', target: target === 'self' ? 'opponents' : target, value, description: `Bruciatura: ${value} danni/turno` });
     }
 
     // ============ LIFESTEAL PATTERNS ============
@@ -2321,22 +2387,23 @@ Rispondi SOLO in JSON:`;
         text.includes('drena vita') || text.includes('vampiro') || text.includes('succhia vita') ||
         text.includes('si cura dei danni') || text.includes('converte in vita') || text.includes('risucchia energia') ||
         (text.includes('danni') && text.includes('cura') && text.includes('stesso'))) {
-      const value = extractNumber(text);
+      const value = getDetailValue(['damage_amount', 'valore'], extractNumber(text));
       actions.push({ type: 'lifesteal', target: 'self', value, description: `Furto Vita: ${value}` });
     }
 
     // ============ SHIELD PATTERNS ============
     if ((text.includes('scudo') || text.includes('barriera') || text.includes('armatura')) && !text.includes('attacco')) {
-      const value = extractNumber(text, 200);
+      const value = getDetailValue(['valore', 'scudo', 'assorbimento'], extractNumber(text, 200));
       actions.push({ type: 'shield', target: 'self', value, description: `Scudo: assorbe ${value} danni` });
     }
 
     // ============ DRAIN PATTERNS ============
     if (text.includes('assorbe') || text.includes('assorbimento') || text.includes('drain') ||
         text.includes('risucchia') || text.includes('prosciuga') || text.includes('svuota')) {
-      const value = extractNumber(text);
+      const value = getDetailValue(['valore', 'drain'], extractNumber(text));
+      const target = determineTarget(text);
       if (!actions.some(a => a.type === 'lifesteal')) {
-        actions.push({ type: 'drain', target: 'opponents', value, description: `Assorbe ${value}` });
+        actions.push({ type: 'drain', target: target === 'self' ? 'opponents' : target, value, description: `Assorbe ${value}` });
       }
     }
 
@@ -2344,7 +2411,7 @@ Rispondi SOLO in JSON:`;
     if (text.includes('vendetta') || text.includes('quando muore') || text.includes('alla morte') ||
         text.includes('morendo') || text.includes('se muore') || text.includes('ultimo respiro') ||
         text.includes('grido di morte') || text.includes('sacrificio finale') || text.includes('epitaffio')) {
-      const value = extractNumber(text, 200);
+      const value = getDetailValue(['damage_amount', 'valore', 'danni'], extractNumber(text, 200));
       actions.push({ type: 'revenge', target: 'self', value, description: `Vendetta: ${value} danni alla morte` });
     }
 
@@ -2358,14 +2425,16 @@ Rispondi SOLO in JSON:`;
     // ============ SKIP TURN PATTERNS ============
     if ((text.includes('salta il turno') || text.includes('perde il turno') || text.includes('turno saltato')) && 
         (text.includes('avversario') || text.includes('nemico'))) {
-      actions.push({ type: 'skip_turn', target: 'opponents', value: 1, description: 'L\'avversario salta il turno' });
+      const target = determineTarget(text);
+      actions.push({ type: 'skip_turn', target: target === 'self' ? 'opponents' : target, value: 1, description: 'L\'avversario salta il turno' });
     }
 
     // ============ NULLIFY PATTERNS ============
     if (text.includes('nullifica') || text.includes('annulla') || text.includes('nega') ||
         text.includes('cancella') || text.includes('blocca effetto') || text.includes('ignora effetto') ||
         text.includes('disattiva') || text.includes('rimuove effetto') || text.includes('neutralizza')) {
-      actions.push({ type: 'nullify', target: 'opponents', value: 1, description: 'Nullifica effetto nemico' });
+      const target = determineTarget(text);
+      actions.push({ type: 'nullify', target: target === 'self' ? 'opponents' : target, value: 1, description: 'Nullifica effetto nemico' });
     }
 
     // ============ RESURRECT PATTERNS ============
@@ -2374,12 +2443,11 @@ Rispondi SOLO in JSON:`;
         text.includes('rianima') || text.includes('revival') || text.includes('ritorna in gioco') ||
         text.includes('recupera dal cimitero') || text.includes('fa tornare') || text.includes('risorge') ||
         text.includes('resuscitare') || text.includes('resurrezione') || text.includes('reincarna')) {
-      // Check if effect requires player choice
       const requiresChoice = text.includes('scelta') || text.includes('scegli') || 
                              text.includes('pannello') || text.includes('quale carta') ||
                              text.includes('a tua scelta') || text.includes('che vuoi') ||
                              text.includes('che preferisci') || text.includes('seleziona');
-      const value = extractNumber(text, 1);
+      const value = getDetailValue(['valore', 'carte'], extractNumber(text, 1));
       actions.push({ 
         type: requiresChoice ? 'resurrect_choice' : 'resurrect', 
         target: 'self', 
@@ -2392,23 +2460,25 @@ Rispondi SOLO in JSON:`;
     if (text.includes('potenzia') || text.includes('potenziamento') || text.includes('boost') ||
         text.includes('rafforza') || text.includes('amplifica') || text.includes('migliora') ||
         text.includes('incrementa') || text.includes('aumenta forza') || text.includes('power up')) {
-      const value = extractNumber(text);
-      actions.push({ type: 'powerup', target: 'self', value, description: `Potenziamento: +${value} PTI` });
+      const value = getDetailValue(['valore', 'potenziamento', 'pti'], extractNumber(text));
+      const target = determineTarget(text);
+      actions.push({ type: 'powerup', target: target === 'opponents' ? 'self' : target, value, description: `Potenziamento: +${value} PTI` });
     }
 
     // ============ WEAKEN PATTERNS ============
     if (text.includes('indebolis') || text.includes('indebolimento') || text.includes('riduce la forza') ||
         text.includes('depotenzia') || text.includes('azzoppa') || text.includes('fiacca') ||
         text.includes('snerva') || text.includes('riduce potenza') || text.includes('meno forte')) {
-      const value = extractNumber(text);
-      actions.push({ type: 'weaken', target: 'opponents', value, description: `Indebolisce: -${value} PTI` });
+      const value = getDetailValue(['valore', 'indebolimento'], extractNumber(text));
+      const target = determineTarget(text);
+      actions.push({ type: 'weaken', target: target === 'self' ? 'opponents' : target, value, description: `Indebolisce: -${value} PTI` });
     }
 
     // ============ AURA PATTERNS ============
     if (text.includes('aura') || text.includes('alleati guadagnano') || text.includes('carte alleate') ||
         text.includes('buff di gruppo') || text.includes('tutti i tuoi') || text.includes('potenzia alleati') ||
         text.includes('benedice') || text.includes('ispira') || text.includes('rinforza alleati')) {
-      const value = extractNumber(text, 50);
+      const value = getDetailValue(['valore', 'aura'], extractNumber(text, 50));
       actions.push({ type: 'aura', target: 'allies', value, description: `Aura: +${value} PTI agli alleati` });
     }
 

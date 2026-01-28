@@ -5389,18 +5389,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 Il tuo compito è analizzare la descrizione di un effetto personalizzato e generare domande di chiarimento SE NECESSARIO.
 
 REGOLE:
-1. Se la descrizione è chiara e completa, restituisci un array vuoto di domande
-2. Se mancano dettagli importanti, genera domande specifiche
+1. Se la descrizione è chiara e completa (ha target, valori numerici, e meccaniche chiare), restituisci un array vuoto di domande
+2. Se mancano dettagli importanti, genera domande usando SOLO gli ID standard elencati sotto
 3. Le domande devono essere in italiano
-4. Ogni domanda deve avere un ID unico, il testo della domanda, e un tipo (text, choice, number)
-5. Per le domande a scelta, includi le opzioni possibili
+4. Ogni domanda deve avere un ID dalla lista standard, il testo della domanda, e un tipo (text, choice, number)
 
-ELEMENTI DA VERIFICARE:
-- Target dell'effetto (chi viene colpito?)
-- Valore numerico (quanti danni, quanta cura, ecc.)
-- Durata (istantaneo, per X turni, permanente?)
-- Condizioni di attivazione
-- Interazioni speciali
+ID STANDARD PER LE DOMANDE (usa SOLO questi):
+- "target": per chiedere chi è il bersaglio
+- "damage_amount": per chiedere quanti danni
+- "heal_amount": per chiedere quanta cura  
+- "duration": per chiedere la durata in turni
+- "valore": per altri valori numerici generici
+- "condizione": per condizioni di attivazione
+
+OPZIONI STANDARD PER TARGET:
+["Il mio personaggio attivo", "Un personaggio nemico a scelta", "Tutti i nemici", "Tutti i personaggi in campo", "Un personaggio casuale"]
+
+OPZIONI STANDARD PER DURATION:
+["Istantaneo", "1 turno", "2 turni", "3 turni", "Permanente"]
 
 FORMATO RISPOSTA (JSON):
 {
@@ -5409,11 +5415,11 @@ FORMATO RISPOSTA (JSON):
       "id": "target",
       "question": "Chi è il bersaglio dell'effetto?",
       "type": "choice",
-      "options": ["Il personaggio attivo", "Un personaggio nemico a scelta", "Tutti i nemici", "Tutti i personaggi"]
+      "options": ["Il mio personaggio attivo", "Un personaggio nemico a scelta", "Tutti i nemici", "Tutti i personaggi in campo"]
     },
     {
       "id": "damage_amount",
-      "question": "Quanti danni infligge?",
+      "question": "Quanti danni infligge l'effetto?",
       "type": "number",
       "placeholder": "Es: 100, 200, 500"
     }
