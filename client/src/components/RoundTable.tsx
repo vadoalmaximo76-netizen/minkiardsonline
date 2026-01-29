@@ -492,6 +492,18 @@ const RoundTableComponent: React.FC = () => {
                         <ChevronRight size={10} />
                       </Button>
                     </div>
+                    
+                    {/* Activate Effect Button - for cards with custom effects */}
+                    {hasCustomEffect(card) && (
+                      <Button
+                        onClick={() => handleActivateEffect(card)}
+                        className="mt-1 px-2 py-0.5 h-6 text-[10px] bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-1 mx-auto"
+                        size="sm"
+                      >
+                        <Zap size={12} />
+                        Attiva Effetto
+                      </Button>
+                    )}
                   </div>
                 );
               });
