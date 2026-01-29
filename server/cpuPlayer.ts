@@ -1313,14 +1313,15 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
   // NEW CPU TURN LOGIC: State machine for pesca → gioca → esegui azione → fine turno
   async takeTurn(gameState: any) {
     try {
-      // CRITICAL FIX: Check if we're stuck in waiting state from previous turn
-      // If phase is NOT draw_needed AND nothing happened this turn, force reset
-      if (this.turnState.phase !== 'draw_needed' && !this.turnState.drawnThisTurn && !this.turnState.playedThisTurn) {
-        console.log(`🔧 CPU ${this.playerName}: Turn state corrupted (phase=${this.turnState.phase}) - HARD RESET`);
-        // HARD RESET - clear everything including attack flag
-        this.waitingForAttackResolution = false;
-        this.waitingForResponse = false;
-        this.resetTurnState();
+      // CRITICAL FIX: Always reset turn state at the START of a new turn
+      // The waitingForAttackResolution flag indicates we're mid-action (don't reset)
+      // If NOT waiting for attack resolution, this is a new turn - reset everything
+      if (!this.waitingForAttackResolution && !this.waitingForResponse) {
+        // Check if turn state is stale (from previous turn)
+        if (this.turnState.phase !== 'draw_needed' || this.turnState.playedThisTurn) {
+          console.log(`🔧 CPU ${this.playerName}: New turn detected - resetting stale state (phase=${this.turnState.phase}, played=${this.turnState.playedThisTurn})`);
+          this.resetTurnState();
+        }
       }
       
       console.log(`CPU ${this.playerName} is thinking... Current phase: ${this.turnState.phase}`);
