@@ -2862,6 +2862,66 @@ Rispondi SOLO in JSON:`;
 
     console.log(`🎴 Processing custom card effect for ${card.name || card.id}: "${card.effect}"`);
     
+    // Check for BERSAGLIO: scelta (target choice) - must select targets first
+    const bersaglioMatch = card.effect.match(/\[BERSAGLIO:\s*scelta\]/i);
+    if (bersaglioMatch) {
+      console.log(`🎯 Card has BERSAGLIO: scelta - requesting target selection`);
+      
+      const io = (global as any).io;
+      if (!io) {
+        console.log('❌ No io instance available for target selection');
+        return {};
+      }
+      
+      // Get all characters on field for target selection
+      const allFieldChars = game.field.filter((c: Card) => 
+        c.type === 'personaggi' || c.type === 'personaggi_speciali'
+      );
+      
+      if (allFieldChars.length === 0) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-target-no-chars`,
+          playerName: 'Sistema',
+          message: `🎯 Non ci sono personaggi in campo da selezionare!`,
+          timestamp: Date.now()
+        });
+        return {};
+      }
+      
+      // Store pending target selection
+      if (!game.pendingTargetSelections) {
+        game.pendingTargetSelections = new Map();
+      }
+      
+      const cardName = card.name || this.getCardNameFromUrl(card.frontImage || '');
+      const selectionId = `target-${Date.now()}`;
+      game.pendingTargetSelections.set(selectionId, {
+        cardId: card.id,
+        cardName,
+        effectText: card.effect.replace(/\[BERSAGLIO:\s*scelta\]/i, '').trim(),
+        owner: playerName,
+        timestamp: Date.now()
+      });
+      
+      // Emit event for custom target selection UI
+      io.to(gameId).emit('show-custom-target-selection', {
+        selectionId,
+        cardId: card.id,
+        cardName,
+        owner: playerName,
+        availableTargets: allFieldChars.map((c: Card) => ({
+          id: c.id,
+          name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+          owner: c.owner,
+          frontImage: c.frontImage || '',
+          pti: c.pti,
+          stars: c.stars
+        }))
+      });
+      
+      return {};
+    }
+    
     // Extract custom animation from effect text [ANIMAZIONE: ...]
     const animationMatch = card.effect.match(/\[ANIMAZIONE:\s*([^\]]+)\]/i);
     const customAnimation = animationMatch ? animationMatch[1].trim() : undefined;
