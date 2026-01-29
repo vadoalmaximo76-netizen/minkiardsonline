@@ -2683,10 +2683,21 @@ Rispondi SOLO in JSON:`;
       actions.push({ type: 'show_deck_selection', target: 'self', value: 1, description: 'Scegli carte dai mazzi' });
     }
 
+    // ============ CYCLE/ROTATE PATTERNS (Ciclone effect) ============
+    if ((text.includes('ciclone') || text.includes('ciclo') || 
+         (text.includes('utente successivo') && text.includes('carte')) ||
+         (text.includes('passa') && text.includes('carte') && text.includes('successivo')) ||
+         (text.includes('do le mie carte') && text.includes('utente successivo')) ||
+         (text.includes('rotazione') && text.includes('carte'))) &&
+        !actions.some(a => a.type === 'cycle_cards')) {
+      actions.push({ type: 'cycle_cards', target: 'all', value: 1, description: 'Rotazione carte tra tutti i giocatori' });
+    }
+
     // ============ CONDITIONAL PATTERNS ============
     if ((text.includes('se ') || text.includes('quando ') || text.includes('ogni volta che')) &&
-        !text.includes('pannello') && !text.includes('inserire')) {
-      // Mark as conditional for special handling (but not if it's a panel effect)
+        !text.includes('pannello') && !text.includes('inserire') &&
+        !actions.some(a => a.type === 'cycle_cards')) {
+      // Mark as conditional for special handling (but not if it's a panel effect or cycle effect)
       actions.push({ type: 'conditional', target: 'self', value: 0, description: effectText });
     }
 
@@ -8728,6 +8739,39 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         console.log(`🔮 Transform effect for ${sourceCard.name || 'card'}`);
         // For now, mark the card as transformed - actual transformation handled by specific card logic
         (sourceCard as any).isTransformed = true;
+        break;
+      
+      case 'cycle_cards':
+        // Ciclone effect: Each player passes their field cards to the next player
+        console.log(`🌀 CICLONE: Rotating field cards between all players`);
+        const turnOrder = game.turnOrder.filter((p: string) => game.players[p]);
+        if (turnOrder.length >= 2) {
+          // Store original field cards for each player
+          const playerFieldCards: { [key: string]: Card[] } = {};
+          for (const pName of turnOrder) {
+            playerFieldCards[pName] = game.field.filter((c: Card) => c.owner === pName);
+          }
+          
+          // Rotate ownership: each player gets cards from previous player
+          for (let i = 0; i < turnOrder.length; i++) {
+            const currentPlayer = turnOrder[i];
+            const previousPlayer = turnOrder[(i - 1 + turnOrder.length) % turnOrder.length];
+            const cardsToReceive = playerFieldCards[previousPlayer];
+            
+            for (const card of cardsToReceive) {
+              card.owner = currentPlayer;
+              console.log(`🌀 ${card.name || card.id} transferred from ${previousPlayer} to ${currentPlayer}`);
+            }
+          }
+          
+          // Send chat message about the rotation
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-ciclone`,
+            playerName: 'Sistema',
+            message: `🌀 CICLONE! Tutti i giocatori hanno passato le loro carte in campo al giocatore successivo!`,
+            timestamp: Date.now()
+          });
+        }
         break;
       
       default:
