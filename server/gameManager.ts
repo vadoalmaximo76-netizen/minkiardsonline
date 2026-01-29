@@ -308,6 +308,7 @@ interface GameState {
     cardName: string;
     defaultEffects: Record<number, string>;
     initiatorPlayer: string;
+    allowedCharacterIds: string[];
     timestamp: number;
   }>; // Pending automatic dice setups
 }
@@ -3034,6 +3035,7 @@ Rispondi SOLO in JSON:`;
             cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
             defaultEffects: autoEffects,
             initiatorPlayer: card.owner,
+            allowedCharacterIds: availableCharacters.map(c => c.id),
             timestamp: Date.now()
           });
           
@@ -7312,13 +7314,22 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       return { success: false, message: 'Solo chi ha attivato la carta può confermare' };
     }
 
+    // Validate selected characters against allowed list (security check)
+    const validSelectedIds = selectedCharacterIds.filter(id => 
+      autoDice.allowedCharacterIds.includes(id)
+    );
+    
+    if (validSelectedIds.length !== selectedCharacterIds.length) {
+      console.log(`🎲 Security: Rejected ${selectedCharacterIds.length - validSelectedIds.length} invalid character IDs`);
+    }
+
     // Get selected characters from field
-    const selectedCharacters = selectedCharacterIds
+    const selectedCharacters = validSelectedIds
       .map(id => game.field.find((c: Card) => c.id === id))
       .filter(Boolean) as Card[];
 
     if (selectedCharacters.length === 0) {
-      return { success: false, message: 'Nessun personaggio selezionato' };
+      return { success: false, message: 'Nessun personaggio valido selezionato' };
     }
 
     // Use custom effects if provided, otherwise use default
