@@ -514,6 +514,10 @@ const RoundTableComponent: React.FC = () => {
                       playerCards.map((card, index) => {
                         // Get attached parasitic cards for this target
                         const attachedCards = attachedCardsMap[card.id] || [];
+                        const cardHasEffect = hasCustomEffect(card);
+                        if (cardHasEffect) {
+                          console.log(`🎯 Card ${card.id} has custom effect: text="${card.text}", effect="${card.effect}"`);
+                        }
                         
                         return (
                         <div key={card.id} className="flex flex-col items-center gap-0.5">

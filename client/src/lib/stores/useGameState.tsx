@@ -15,6 +15,7 @@ interface Card {
   backImage: string;
   owner: string;
   text?: string;
+  effect?: string; // Custom effect description for cards with special abilities
   eliminatedBy?: string;
   faceDown?: boolean; // True if the card is face-down
   section?: string; // Section for graveyard categorization (e.g., 'CARTE CANCELLATE')
