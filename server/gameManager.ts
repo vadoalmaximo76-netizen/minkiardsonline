@@ -7396,17 +7396,54 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     console.log(`🎲 Auto dice rolled: ${diceResult} -> Effect: "${effectToApply}"`);
 
-    // Apply the effect to selected characters
+    // Apply the effect based on target specification in effect text
     const results: Array<{ charId: string; charName: string; effect: string }> = [];
+    
+    // Separate characters by owner
+    const playerChars = selectedCharacters.filter(c => c.owner === playerName);
+    const enemyChars = selectedCharacters.filter(c => c.owner !== playerName);
+    
+    // Normalize effect text for comparison
+    const effectLower = effectToApply.toLowerCase();
+    
+    // Determine which characters to affect based on effect text
+    let charsToAffect: Card[] = [];
+    let actualEffect = effectToApply;
+    
+    if (effectLower.includes('personaggio che usa questa carta') || 
+        effectLower.includes('chi usa questa carta') ||
+        effectLower.includes('personaggio proprio') ||
+        effectLower.includes('tuo personaggio')) {
+      // Only affect the player's own characters
+      charsToAffect = playerChars;
+      console.log(`🎲 Effect targets user's characters only: ${playerChars.map(c => c.name || 'unknown').join(', ')}`);
+    } else if (effectLower.includes('personaggio avversario') || 
+               effectLower.includes('personaggi avversari') ||
+               effectLower.includes('nemico') ||
+               effectLower.includes('nemici')) {
+      // Only affect enemy characters
+      charsToAffect = enemyChars;
+      console.log(`🎲 Effect targets enemy characters only: ${enemyChars.map(c => c.name || 'unknown').join(', ')}`);
+    } else if (effectLower.includes('personaggi coinvolti') || 
+               effectLower.includes('tutti i personaggi') ||
+               effectLower.includes('entrambi')) {
+      // Affect all selected characters
+      charsToAffect = selectedCharacters;
+      console.log(`🎲 Effect targets all involved characters: ${selectedCharacters.map(c => c.name || 'unknown').join(', ')}`);
+    } else {
+      // Default: affect all selected characters
+      charsToAffect = selectedCharacters;
+      console.log(`🎲 No specific target in effect, affecting all: ${selectedCharacters.map(c => c.name || 'unknown').join(', ')}`);
+    }
 
-    for (const char of selectedCharacters) {
+    for (const char of charsToAffect) {
       const charName = char.name || this.getCardNameFromUrl(char.frontImage || '');
       // Apply consequence
-      this.applyDiceConsequence(gameId, char.id, effectToApply, false);
+      this.applyDiceConsequence(gameId, char.id, actualEffect, false);
       results.push({
         charId: char.id,
         charName,
-        effect: effectToApply
+        effect: actualEffect
       });
     }
 
