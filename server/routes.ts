@@ -77,28 +77,265 @@ const MINKIARDS_CARD_DATA: Record<string, { pti: number, stars: number, powers?:
   // 'card-name': { pti: 0, stars: 0, powers: '' },
 };
 
-// Fallback question generation when AI is unavailable
-function generateFallbackQuestions(description: string): Array<{id: string, question: string, type: string, options?: string[], placeholder?: string}> {
-  const questions: Array<{id: string, question: string, type: string, options?: string[], placeholder?: string}> = [];
+// Build combined description including previous answers for better context
+function buildCombinedDescription(description: string, animation?: string, behavior?: string, previousAnswers?: Record<string, string>): string {
+  let combined = description;
+  if (animation) combined += ` ${animation}`;
+  if (behavior) combined += ` ${behavior}`;
+  if (previousAnswers) {
+    for (const [key, value] of Object.entries(previousAnswers)) {
+      combined += ` ${key}: ${value}`;
+    }
+  }
+  return combined;
+}
+
+// Generate follow-up questions based on answers
+function generateFollowUpQuestions(previousAnswers: Record<string, string>, description: string): Array<{id: string, question: string, type: string, options?: string[], placeholder?: string}> {
+  const followUps: Array<{id: string, question: string, type: string, options?: string[], placeholder?: string}> = [];
   const lowerDesc = description.toLowerCase();
   
-  // Check for missing target information
+  // If they chose "Altro" or custom option, ask for specifics
+  for (const [key, value] of Object.entries(previousAnswers)) {
+    const lowerValue = value.toLowerCase();
+    
+    if (lowerValue.includes('altro') || lowerValue.includes('specifica') || lowerValue.includes('personalizzato')) {
+      followUps.push({
+        id: `${key}_detail`,
+        question: `Puoi specificare meglio cosa intendi per "${value}"?`,
+        type: 'text',
+        placeholder: 'Descrivi in dettaglio...'
+      });
+    }
+    
+    // If they chose swap but didn't specify amounts
+    if (key === 'swap_what' && !lowerDesc.match(/\d+/)) {
+      if (lowerValue.includes('pti') && !previousAnswers['swap_pti_amount']) {
+        followUps.push({
+          id: 'swap_pti_amount',
+          question: 'Lo scambio riguarda tutti i PTI o solo una parte?',
+          type: 'choice',
+          options: ['Tutti i PTI vengono scambiati', 'Solo una percentuale (50%)', 'Un valore fisso specificato', 'Il giocatore sceglie quanti PTI']
+        });
+      }
+    }
+    
+    // If they chose protection, ask from what
+    if (key === 'protection_duration' && !previousAnswers['protection_from']) {
+      followUps.push({
+        id: 'protection_from',
+        question: 'La protezione è contro cosa?',
+        type: 'choice',
+        options: ['Tutti i danni', 'Solo attacchi diretti', 'Solo effetti speciali', 'Un tipo specifico (veleno, fuoco, ecc.)']
+      });
+    }
+    
+    // If they chose resurrection, ask with what stats
+    if (key === 'resurrect_choice' && !previousAnswers['resurrect_stats']) {
+      followUps.push({
+        id: 'resurrect_stats',
+        question: 'Con quali statistiche torna il personaggio?',
+        type: 'choice',
+        options: ['PTI e stelle originali', 'Metà PTI, stelle intere', 'Solo 100 PTI', 'PTI a scelta del giocatore']
+      });
+    }
+  }
+  
+  return followUps;
+}
+
+// Generate interpretation from description and answers
+function generateInterpretation(description: string, previousAnswers?: Record<string, string>): string {
+  if (!previousAnswers || Object.keys(previousAnswers).length === 0) {
+    return '';
+  }
+  
+  let interpretation = 'Effetto interpretato: ';
+  const parts: string[] = [];
+  
+  // Build interpretation from answers
+  if (previousAnswers.target) {
+    parts.push(`Bersaglio: ${previousAnswers.target}`);
+  }
+  if (previousAnswers.damage_amount) {
+    parts.push(`Danni: ${previousAnswers.damage_amount}`);
+  }
+  if (previousAnswers.heal_amount) {
+    parts.push(`Cura: ${previousAnswers.heal_amount} PTI`);
+  }
+  if (previousAnswers.duration) {
+    parts.push(`Durata: ${previousAnswers.duration}`);
+  }
+  if (previousAnswers.swap_what) {
+    parts.push(`Scambio di: ${previousAnswers.swap_what}`);
+  }
+  if (previousAnswers.swap_participants) {
+    parts.push(`Partecipanti: ${previousAnswers.swap_participants}`);
+  }
+  if (previousAnswers.condition_detail) {
+    parts.push(`Condizione: ${previousAnswers.condition_detail}`);
+  }
+  if (previousAnswers.resurrect_choice) {
+    parts.push(`Resurrezione: ${previousAnswers.resurrect_choice}`);
+  }
+  if (previousAnswers.stars_amount) {
+    parts.push(`Stelle: ${previousAnswers.stars_action || ''} ${previousAnswers.stars_amount}`);
+  }
+  
+  if (parts.length === 0) {
+    return `Descrizione base: ${description}`;
+  }
+  
+  return interpretation + parts.join('. ') + '.';
+}
+
+// Fallback question generation when AI is unavailable
+function generateFallbackQuestions(description: string, previousAnswers?: Record<string, string>): Array<{id: string, question: string, type: string, options?: string[], placeholder?: string}> {
+  const questions: Array<{id: string, question: string, type: string, options?: string[], placeholder?: string}> = [];
+  const lowerDesc = description.toLowerCase();
+  const hasNumber = /\d+/.test(description);
+  const answeredIds = previousAnswers ? Object.keys(previousAnswers) : [];
+  
+  // ============ TARGET DETECTION ============
   const hasTarget = lowerDesc.includes('bersaglio') || lowerDesc.includes('nemico') || 
                     lowerDesc.includes('avversario') || lowerDesc.includes('tutti') ||
-                    lowerDesc.includes('personaggio') || lowerDesc.includes('target');
-  if (!hasTarget) {
+                    lowerDesc.includes('personaggio') || lowerDesc.includes('target') ||
+                    lowerDesc.includes('alleato') || lowerDesc.includes('mio') ||
+                    lowerDesc.includes('tuo') || lowerDesc.includes('proprio');
+  
+  // ============ BARATTO / SCAMBIO EFFECTS ============
+  const isSwapEffect = lowerDesc.includes('baratto') || lowerDesc.includes('scambia') || 
+                       lowerDesc.includes('scambio') || lowerDesc.includes('swap') ||
+                       lowerDesc.includes('inverti') || lowerDesc.includes('trasferisci');
+  
+  if (isSwapEffect) {
+    // Ask what is being swapped
+    if (!lowerDesc.includes('pti') && !lowerDesc.includes('stelle') && !lowerDesc.includes('carta')) {
+      questions.push({
+        id: 'swap_what',
+        question: 'Cosa viene scambiato?',
+        type: 'choice',
+        options: ['I PTI tra due personaggi', 'Le stelle tra due personaggi', 'PTI e stelle insieme', 'Una carta dalla mano con una in campo', 'Una carta con il cimitero', 'Altro (specifica)']
+      });
+    }
+    // Ask who participates in the swap
     questions.push({
-      id: 'target',
-      question: 'Chi è il bersaglio dell\'effetto?',
+      id: 'swap_participants',
+      question: 'Tra chi avviene lo scambio?',
       type: 'choice',
-      options: ['Il mio personaggio attivo', 'Un personaggio nemico a scelta', 'Tutti i nemici', 'Tutti i personaggi in campo']
+      options: ['Tra un mio personaggio e uno nemico', 'Tra due miei personaggi', 'Tra il mio personaggio e uno casuale', 'Il giocatore sceglie entrambi']
+    });
+    // Ask if there are conditions
+    questions.push({
+      id: 'swap_condition',
+      question: 'Ci sono condizioni per lo scambio?',
+      type: 'choice',
+      options: ['Nessuna condizione', 'Solo se il nemico ha meno PTI', 'Solo se il nemico ha più PTI', 'Solo con personaggi attivi', 'Altra condizione (specifica)']
     });
   }
   
-  // Check for damage-related effects without amounts
+  // ============ PANEL/INPUT EFFECTS ============
+  const wantsInput = lowerDesc.includes('pannello') || lowerDesc.includes('inserire') || 
+                     lowerDesc.includes('inserisci') || lowerDesc.includes('scegli') ||
+                     lowerDesc.includes('input') || lowerDesc.includes('digita');
+  
+  if (wantsInput) {
+    if (!lowerDesc.includes('pti') && !lowerDesc.includes('mazzo') && !lowerDesc.includes('cimitero')) {
+      questions.push({
+        id: 'input_type',
+        question: 'Che tipo di input richiede il pannello?',
+        type: 'choice',
+        options: ['Un valore numerico (es. PTI)', 'Selezione da un mazzo', 'Selezione dal cimitero', 'Scelta tra opzioni', 'Selezione di un bersaglio']
+      });
+    }
+    questions.push({
+      id: 'input_purpose',
+      question: 'A cosa serve questo input?',
+      type: 'text',
+      placeholder: 'Es: "per determinare quanti PTI trasferire", "per scegliere quale carta resuscitare"'
+    });
+  }
+  
+  // ============ DEATH/GRAVEYARD EFFECTS ============
+  const deathRelated = lowerDesc.includes('morte') || lowerDesc.includes('muore') || 
+                       lowerDesc.includes('cimitero') || lowerDesc.includes('uccide') ||
+                       lowerDesc.includes('elimina') || lowerDesc.includes('resuscita') ||
+                       lowerDesc.includes('resurrezione') || lowerDesc.includes('risorge');
+  
+  if (deathRelated) {
+    if (lowerDesc.includes('resuscita') || lowerDesc.includes('resurrezione') || lowerDesc.includes('risorge') || lowerDesc.includes('riporta')) {
+      questions.push({
+        id: 'resurrect_choice',
+        question: 'Come viene scelto il personaggio da resuscitare?',
+        type: 'choice',
+        options: ['Il giocatore sceglie dal cimitero', 'Resuscita l\'ultimo morto', 'Resuscita un personaggio casuale', 'Resuscita tutti i personaggi']
+      });
+      if (!hasNumber) {
+        questions.push({
+          id: 'resurrect_pti',
+          question: 'Con quanti PTI torna in vita il personaggio?',
+          type: 'choice',
+          options: ['Con i PTI originali', 'Con metà dei PTI originali', 'Con 100 PTI', 'Con 500 PTI', 'Con un valore scelto dal giocatore']
+        });
+      }
+    }
+    if (lowerDesc.includes('morte') && !lowerDesc.includes('resuscita')) {
+      questions.push({
+        id: 'death_trigger',
+        question: 'Quando si attiva l\'effetto legato alla morte?',
+        type: 'choice',
+        options: ['Quando questo personaggio muore', 'Quando un alleato muore', 'Quando un nemico muore', 'Quando qualsiasi personaggio muore']
+      });
+    }
+  }
+  
+  // ============ CONDITIONAL EFFECTS ============
+  const hasCondition = lowerDesc.includes('se ') || lowerDesc.includes('quando ') || 
+                       lowerDesc.includes('solo se') || lowerDesc.includes('a condizione');
+  
+  if (hasCondition) {
+    questions.push({
+      id: 'condition_detail',
+      question: 'Puoi specificare meglio la condizione?',
+      type: 'text',
+      placeholder: 'Es: "se il nemico ha meno di 500 PTI", "quando viene attaccato"'
+    });
+    questions.push({
+      id: 'condition_else',
+      question: 'Cosa succede se la condizione NON è soddisfatta?',
+      type: 'choice',
+      options: ['Nulla, l\'effetto non si attiva', 'Effetto ridotto a metà', 'Un effetto diverso', 'La carta torna in mano']
+    });
+  }
+  
+  // ============ PROTECTION/INSURANCE EFFECTS ============
+  const hasProtection = lowerDesc.includes('protezione') || lowerDesc.includes('protegge') ||
+                        lowerDesc.includes('immunità') || lowerDesc.includes('immune') ||
+                        lowerDesc.includes('assicurazione') || lowerDesc.includes('assicura') ||
+                        lowerDesc.includes('scudo') || lowerDesc.includes('barriera');
+  
+  if (hasProtection) {
+    if (!lowerDesc.includes('turni') && !lowerDesc.includes('turno') && !lowerDesc.includes('permanente')) {
+      questions.push({
+        id: 'protection_duration',
+        question: 'Per quanto tempo dura la protezione?',
+        type: 'choice',
+        options: ['Solo per questo attacco', '1 turno', '2 turni', '3 turni', 'Permanente', 'Finché non viene colpito']
+      });
+    }
+    questions.push({
+      id: 'protection_type',
+      question: 'Da cosa protegge?',
+      type: 'choice',
+      options: ['Da tutti i danni', 'Solo da attacchi diretti', 'Solo da effetti speciali', 'Dalla morte (come assicurazione)', 'Da un tipo specifico di danno']
+    });
+  }
+  
+  // ============ DAMAGE EFFECTS ============
   const hasDamage = lowerDesc.includes('dann') || lowerDesc.includes('attacc') || 
-                    lowerDesc.includes('colp') || lowerDesc.includes('ferisce');
-  const hasNumber = /\d+/.test(description);
+                    lowerDesc.includes('colp') || lowerDesc.includes('ferisce') ||
+                    lowerDesc.includes('infligge') || lowerDesc.includes('toglie pti');
+  
   if (hasDamage && !hasNumber) {
     questions.push({
       id: 'damage_amount',
@@ -108,33 +345,108 @@ function generateFallbackQuestions(description: string): Array<{id: string, ques
     });
   }
   
-  // Check for healing without amounts
+  // ============ HEALING EFFECTS ============
   const hasHeal = lowerDesc.includes('cura') || lowerDesc.includes('rigenera') || 
-                  lowerDesc.includes('riprist') || lowerDesc.includes('guarisce');
+                  lowerDesc.includes('riprist') || lowerDesc.includes('guarisce') ||
+                  lowerDesc.includes('recupera pti') || lowerDesc.includes('aggiunge pti');
+  
   if (hasHeal && !hasNumber) {
     questions.push({
       id: 'heal_amount',
-      question: 'Quanti PTI cura l\'effetto?',
+      question: 'Quanti PTI cura/aggiunge l\'effetto?',
       type: 'number',
       placeholder: 'Es: 50, 100, 200'
     });
   }
   
-  // Check for duration
-  const hasDuration = lowerDesc.includes('turni') || lowerDesc.includes('turno') || 
-                      lowerDesc.includes('permanente') || lowerDesc.includes('sempre');
+  // ============ DURATION FOR TEMP EFFECTS ============
   const hasTempEffect = lowerDesc.includes('scudo') || lowerDesc.includes('protezione') ||
-                        lowerDesc.includes('potenzia') || lowerDesc.includes('buff');
-  if (hasTempEffect && !hasDuration) {
+                        lowerDesc.includes('potenzia') || lowerDesc.includes('buff') ||
+                        lowerDesc.includes('bonus') || lowerDesc.includes('aumenta') ||
+                        lowerDesc.includes('veleno') || lowerDesc.includes('brucia');
+  const hasDuration = lowerDesc.includes('turni') || lowerDesc.includes('turno') || 
+                      lowerDesc.includes('permanente') || lowerDesc.includes('sempre') ||
+                      hasNumber;
+  
+  if (hasTempEffect && !hasDuration && !hasProtection) {
     questions.push({
       id: 'duration',
       question: 'Per quanto tempo dura l\'effetto?',
       type: 'choice',
-      options: ['Istantaneo (una volta)', '1 turno', '2 turni', '3 turni', 'Permanente']
+      options: ['Istantaneo (una volta)', '1 turno', '2 turni', '3 turni', '5 turni', 'Permanente']
     });
   }
   
-  return questions;
+  // ============ STARS MODIFICATION ============
+  const hasStars = lowerDesc.includes('stelle') || lowerDesc.includes('star');
+  if (hasStars && !hasNumber) {
+    questions.push({
+      id: 'stars_amount',
+      question: 'Quante stelle vengono modificate?',
+      type: 'number',
+      placeholder: 'Es: 1, 2, 3'
+    });
+    questions.push({
+      id: 'stars_action',
+      question: 'Le stelle vengono aggiunte o tolte?',
+      type: 'choice',
+      options: ['Aggiunte', 'Tolte', 'Scambiate con un altro personaggio', 'Raddoppiate', 'Dimezzate']
+    });
+  }
+  
+  // ============ CARD DRAW/DISCARD ============
+  const hasCardAction = lowerDesc.includes('pesca') || lowerDesc.includes('scarta') ||
+                        lowerDesc.includes('mazzo') || lowerDesc.includes('mano');
+  if (hasCardAction) {
+    if (!hasNumber) {
+      questions.push({
+        id: 'card_count',
+        question: 'Quante carte sono coinvolte?',
+        type: 'number',
+        placeholder: 'Es: 1, 2, 3'
+      });
+    }
+    if (lowerDesc.includes('pesca')) {
+      questions.push({
+        id: 'draw_type',
+        question: 'Da quale mazzo si pesca?',
+        type: 'choice',
+        options: ['Personaggi', 'Mosse', 'Bonus', 'Speciali', 'A scelta del giocatore', 'Casuale']
+      });
+    }
+  }
+  
+  // ============ MISSING TARGET (if not already covered) ============
+  if (!hasTarget && !isSwapEffect && questions.length < 3) {
+    questions.push({
+      id: 'target',
+      question: 'Chi è il bersaglio dell\'effetto?',
+      type: 'choice',
+      options: ['Il mio personaggio attivo', 'Un personaggio nemico a scelta', 'Tutti i nemici', 'Tutti i personaggi in campo', 'Un alleato', 'Io stesso (il giocatore)']
+    });
+  }
+  
+  // ============ GENERIC CLARIFICATION ============
+  // If we haven't found any specific patterns, ask for general clarification
+  if (questions.length === 0) {
+    questions.push({
+      id: 'effect_summary',
+      question: 'Puoi descrivere l\'effetto in modo più dettagliato?',
+      type: 'text',
+      placeholder: 'Descrivi passo per passo cosa fa la carta quando viene giocata'
+    });
+    questions.push({
+      id: 'effect_goal',
+      question: 'Qual è lo scopo principale di questo effetto?',
+      type: 'choice',
+      options: ['Danneggiare nemici', 'Curare/potenziare alleati', 'Modificare carte (pesca/scarta)', 'Scambiare/trasferire statistiche', 'Protezione/difesa', 'Controllo (congela/stordisce)', 'Altro']
+    });
+  }
+  
+  // Filter out already answered questions
+  const filteredQuestions = questions.filter(q => !answeredIds.includes(q.id));
+  
+  return filteredQuestions;
 }
 
 // Helper to emit card-played event for last played cards history
@@ -5590,6 +5902,27 @@ ID STANDARD PER LE DOMANDE (usa SOLO questi):
 - "valore": per altri valori numerici (PTI bonus, percentuali, etc)
 - "condizione": per condizioni di attivazione specifiche
 - "effetto_secondario": per chiarire effetti aggiuntivi
+- "swap_what": per effetti di BARATTO/SCAMBIO - cosa viene scambiato
+- "swap_participants": per effetti di BARATTO/SCAMBIO - tra chi avviene lo scambio
+- "swap_condition": per effetti di BARATTO/SCAMBIO - condizioni dello scambio
+- "input_type": per effetti con PANNELLO - che tipo di input richiede
+- "input_purpose": per effetti con PANNELLO - a cosa serve l'input
+- "resurrect_choice": per effetti di RESURREZIONE - come scegliere chi resuscitare
+- "resurrect_pti": per effetti di RESURREZIONE - con quanti PTI torna in vita
+- "death_trigger": per effetti legati alla MORTE - quando si attiva
+- "protection_type": per effetti di PROTEZIONE - da cosa protegge
+- "protection_duration": per effetti di PROTEZIONE - quanto dura
+- "stars_amount": per effetti sulle STELLE - quante stelle
+- "stars_action": per effetti sulle STELLE - aggiunge o toglie
+- "card_count": per effetti sulle CARTE - quante carte coinvolte
+- "draw_type": per effetti di PESCA - da quale mazzo
+- "condition_detail": per effetti CONDIZIONALI - dettagli sulla condizione
+- "condition_else": per effetti CONDIZIONALI - cosa succede se non soddisfatta
+- "effect_summary": per chiarire effetti vaghi - descrizione dettagliata
+- "effect_goal": per chiarire effetti vaghi - scopo principale
+- "swap_pti_amount": per effetti BARATTO - quantità di PTI scambiati
+- "protection_from": per effetti PROTEZIONE - contro cosa protegge
+- "resurrect_stats": per effetti RESURREZIONE - statistiche al ritorno
 
 OPZIONI STANDARD PER TARGET:
 ["Il mio personaggio attivo", "Un personaggio nemico a scelta", "Tutti i nemici", "Tutti i personaggi in campo", "Un personaggio casuale", "Tutti gli alleati"]
@@ -5640,18 +5973,64 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         }
 
         const parsed = JSON.parse(content);
+        let aiQuestions = parsed.questions || [];
+        
+        // Post-process AI questions: filter already answered and add fallback questions if AI returned too few
+        if (previousAnswers && Object.keys(previousAnswers).length > 0) {
+          const answeredIds = Object.keys(previousAnswers);
+          aiQuestions = aiQuestions.filter((q: any) => !answeredIds.includes(q.id));
+        }
+        
+        // If AI returned no new questions, try fallback to add more specific ones
+        if (aiQuestions.length === 0 && !(parsed.understood)) {
+          const combinedDescription = buildCombinedDescription(description, animation, behavior, previousAnswers);
+          const fallbackQuestions = generateFallbackQuestions(combinedDescription, previousAnswers);
+          aiQuestions = fallbackQuestions;
+        }
+        
+        // Always add follow-up questions based on answers (even in primary AI path)
+        if (previousAnswers && Object.keys(previousAnswers).length > 0) {
+          const followUpQuestions = generateFollowUpQuestions(previousAnswers, description);
+          const existingIds = aiQuestions.map((q: any) => q.id);
+          const newFollowUps = followUpQuestions.filter(q => !existingIds.includes(q.id));
+          aiQuestions = [...aiQuestions, ...newFollowUps];
+        }
+        
+        // Generate interpretation if not provided by AI
+        const interpretation = parsed.interpretation || generateInterpretation(description, previousAnswers);
+        
         res.json({ 
           success: true, 
-          questions: parsed.questions || [],
-          understood: parsed.understood ?? false,
-          interpretation: parsed.interpretation || '',
-          needsMoreInfo: parsed.needsMoreInfo ?? (parsed.questions?.length > 0)
+          questions: aiQuestions,
+          understood: parsed.understood ?? (aiQuestions.length === 0),
+          interpretation,
+          needsMoreInfo: aiQuestions.length > 0
         });
       } catch (aiError) {
         console.error('OpenAI analysis error:', aiError);
-        // Fallback: use keyword-based question generation - always ask basic questions
-        const questions = generateFallbackQuestions(description);
-        res.json({ success: true, questions, understood: questions.length === 0, needsMoreInfo: questions.length > 0 });
+        // Fallback: use keyword-based question generation with context from previous answers
+        const combinedDescription = buildCombinedDescription(description, animation, behavior, previousAnswers);
+        let questions = generateFallbackQuestions(combinedDescription, previousAnswers);
+        
+        // Generate follow-up questions based on answers
+        if (previousAnswers && Object.keys(previousAnswers).length > 0) {
+          const followUpQuestions = generateFollowUpQuestions(previousAnswers, description);
+          // Filter out already added IDs
+          const existingIds = questions.map(q => q.id);
+          const newFollowUps = followUpQuestions.filter(q => !existingIds.includes(q.id));
+          questions = [...questions, ...newFollowUps];
+        }
+        
+        // Generate interpretation from previous answers
+        const interpretation = generateInterpretation(description, previousAnswers);
+        
+        res.json({ 
+          success: true, 
+          questions, 
+          understood: questions.length === 0, 
+          needsMoreInfo: questions.length > 0,
+          interpretation
+        });
       }
     } catch (error) {
       console.error('Error analyzing effect:', error);
