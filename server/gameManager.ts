@@ -2135,11 +2135,20 @@ Rispondi SOLO in JSON:`;
       this.trackPlayerEventAsync(gameId, playerName, 'card_played', { cardType: card.type });
       
       // Process custom card effect if present (works for all cards with effects - custom, permanent, or modified)
-      console.log(`📋 Card played: ${card.id} (${card.name || 'unnamed'}), effect: ${card.effect ? `"${card.effect}"` : 'NONE'}`);
+      // Check both effect field AND text field for effect descriptions
+      const effectText = card.effect || '';
+      const textContent = card.text || '';
+      const combinedEffect = effectText || textContent;
+      const hasEffect = this.cardHasCustomEffect(effectText, textContent);
+      
+      console.log(`📋 Card played: ${card.id} (${card.name || 'unnamed'}), effect: ${effectText ? `"${effectText}"` : 'NONE'}, text: ${textContent ? `"${textContent.substring(0, 50)}..."` : 'NONE'}, hasEffect: ${hasEffect}`);
       let customAnimation: string | undefined;
-      if (card.effect) {
-        console.log(`✨ Card has effect - triggering processCustomCardEffect for ${card.id}`);
-        const effectResult = await this.processCustomCardEffect(gameId, card, playerName);
+      if (hasEffect) {
+        // Use effect field if available, otherwise use text field as effect
+        const effectToProcess = effectText || textContent;
+        const cardWithEffect = { ...card, effect: effectToProcess };
+        console.log(`✨ Card has effect - triggering processCustomCardEffect for ${card.id}: "${effectToProcess.substring(0, 100)}..."`);
+        const effectResult = await this.processCustomCardEffect(gameId, cardWithEffect, playerName);
         customAnimation = effectResult.customAnimation;
       }
       
@@ -4583,6 +4592,36 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
     
     return {};
+  }
+
+  // Helper function to check if a card has custom activatable effects
+  private cardHasCustomEffect(effect: string, text: string): boolean {
+    const combined = (effect + ' ' + text).toLowerCase();
+    
+    // Check for formal effect tags
+    if (combined.includes('[comportamento:') || 
+        combined.includes('[dado:') || 
+        combined.includes('[dettagli:') ||
+        combined.includes('[animazione:')) {
+      return true;
+    }
+    
+    // Check for effect field with content
+    if (effect && effect.trim().toLowerCase() !== 'none' && effect.trim() !== '') {
+      return true;
+    }
+    
+    // Check for effect-like keywords in text field (Italian keywords)
+    const effectKeywords = ['quando', 'effetto', 'attiva', 'assorbe', 'aggiunge', 'infligge', 
+                            'protetto', 'immune', 'clona', 'trasforma', 'ruba', 'cura',
+                            'danno', 'nemico', 'alleato'];
+    for (const keyword of effectKeywords) {
+      if (combined.includes(keyword)) {
+        return true;
+      }
+    }
+    
+    return false;
   }
 
   // Helper function to extract card name from URL
