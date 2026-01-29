@@ -2625,26 +2625,29 @@ Rispondi SOLO in JSON:`;
 
     // ============ PANEL INPUT PATTERNS ============
     // Recognize various ways to request PTI input panel
+    // First, remove PTI statistics from text to avoid false positives (e.g. "PTI: 300 | Stelle: 1")
+    const textWithoutStats = text.replace(/pti:\s*\d+/gi, '').replace(/pti originali:\s*\d+/gi, '').replace(/stelle:\s*\d+/gi, '');
+    
     const wantsPtiPanel = (
-      // Direct panel request
-      (text.includes('pannello') && (text.includes('pti') || text.includes('input') || text.includes('inserire'))) ||
+      // Direct panel request - must include action words, not just "pannello pti" from dice control descriptions
+      (textWithoutStats.includes('pannello') && (textWithoutStats.includes('inserire') || textWithoutStats.includes('inserisci') || textWithoutStats.includes('quantità'))) ||
       // Input request variants
-      ((text.includes('inserire') || text.includes('inserisci') || text.includes('digita') || text.includes('scrivi') || text.includes('immetti')) && 
-       (text.includes('pti') || text.includes('quantità') || text.includes('valore') || text.includes('numero') || text.includes('punti'))) ||
+      ((textWithoutStats.includes('inserire') || textWithoutStats.includes('inserisci') || textWithoutStats.includes('digita') || textWithoutStats.includes('scrivi') || textWithoutStats.includes('immetti')) && 
+       (textWithoutStats.includes('pti') || textWithoutStats.includes('quantità') || textWithoutStats.includes('valore') || textWithoutStats.includes('punti'))) ||
       // Choice/selection with amount
-      ((text.includes('scegli') || text.includes('scelta') || text.includes('chiedi')) && 
-       (text.includes('quanti pti') || text.includes('quantità di pti') || text.includes('ammontare'))) ||
-      // Show input variants
-      ((text.includes('mostra') || text.includes('apri') || text.includes('visualizza')) && 
-       (text.includes('input') || text.includes('pannello') || text.includes('finestra')) && text.includes('pti')) ||
-      // Italian common phrases
-      (text.includes('richiedi') && text.includes('pti')) ||
-      (text.includes('domanda') && (text.includes('pti') || text.includes('quantità'))) ||
-      (text.includes('input') && text.includes('pti')) ||
-      (text.includes('campo') && text.includes('inserimento') && text.includes('pti'))
+      ((textWithoutStats.includes('scegli') || textWithoutStats.includes('scelta') || textWithoutStats.includes('chiedi')) && 
+       (textWithoutStats.includes('quanti pti') || textWithoutStats.includes('quantità di pti') || textWithoutStats.includes('ammontare'))) ||
+      // Show input variants - must be about entering PTI, not just showing a panel
+      ((textWithoutStats.includes('mostra') || textWithoutStats.includes('apri') || textWithoutStats.includes('visualizza')) && 
+       textWithoutStats.includes('input') && textWithoutStats.includes('pti')) ||
+      // Italian common phrases - inserimento required
+      (textWithoutStats.includes('campo') && textWithoutStats.includes('inserimento') && textWithoutStats.includes('pti'))
     );
     
-    if (wantsPtiPanel && !actions.some(a => a.type === 'insurance_effect')) {
+    // Don't add PTI panel if this is a dice control effect (pannello for choosing dice, not PTI)
+    const isDiceControlEffect = text.includes('dice_control') || text.includes('dado') && (text.includes('scegli') || text.includes('sceglie') || text.includes('decid'));
+    
+    if (wantsPtiPanel && !actions.some(a => a.type === 'insurance_effect') && !isDiceControlEffect) {
       actions.push({ type: 'show_pti_input_panel', target: 'self', value: 0, description: effectText });
     }
 
