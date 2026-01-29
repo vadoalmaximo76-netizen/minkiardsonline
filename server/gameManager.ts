@@ -2615,9 +2615,18 @@ Rispondi SOLO in JSON:`;
       actions.push({ type: 'clone_self', target: 'self', value: 1, description: 'Si clona sul campo' });
     }
 
+    // ============ INSURANCE/ASSICURAZIONE PATTERN ============
+    // "Assicurazione": Subtract PTI now, restore them when character would die
+    if ((text.includes('assicurazione') || text.includes('assicura')) ||
+        (text.includes('scende a 0') && text.includes('non muore') && text.includes('aggiungendosi')) ||
+        (text.includes('tolti') && text.includes('0 pti') && text.includes('resta in campo'))) {
+      actions.push({ type: 'insurance_effect', target: 'self', value: 0, description: effectText });
+    }
+
     // ============ PANEL INPUT PATTERNS ============
     if ((text.includes('pannello') || text.includes('inserire') || text.includes('inserisci')) && 
-        (text.includes('pti') || text.includes('quantità') || text.includes('valore'))) {
+        (text.includes('pti') || text.includes('quantità') || text.includes('valore')) &&
+        !actions.some(a => a.type === 'insurance_effect')) {
       actions.push({ type: 'show_pti_input_panel', target: 'self', value: 0, description: effectText });
     }
 
@@ -4449,6 +4458,29 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             }
             console.log(`📚 Custom effect: Milled ${millCount} cards from ${pName}'s hand!`);
           }
+        }
+        break;
+
+      case 'insurance_effect':
+        // "Assicurazione" special effect: show PTI input panel, store as insurance
+        if (!game.pendingEffects) {
+          game.pendingEffects = new Map();
+        }
+        game.pendingEffects.set(playerName, {
+          type: 'insurance',
+          cardId: card.id,
+          timestamp: Date.now()
+        });
+        
+        console.log(`🛡️ Insurance effect: Showing PTI input panel for ${playerName}`);
+        const ioIns = (global as any).io;
+        if (ioIns) {
+          ioIns.to(gameId).emit('show-pti-input-panel', {
+            cardId: card.id,
+            cardName: card.name || this.getCardNameFromUrl(card.frontImage),
+            playerName,
+            effectDescription: '🛡️ ASSICURAZIONE: Inserisci la quantità di PTI da "assicurare". Questi PTI verranno sottratti al tuo personaggio ora, ma verranno restituiti quando il personaggio sta per morire (scende a 0 PTI).'
+          });
         }
         break;
 
@@ -6970,9 +7002,41 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
   }
 
-  moveToGraveyard(gameId: string, cardId: string, playerName: string, attacker?: string): { success: boolean, graveyardCount?: number, cardImage?: string, cardType?: string, eliminationCheck?: boolean, sorosActivated?: boolean, sorosImage?: string, sorosActivator?: string, detachedParasites?: string[] } {
+  moveToGraveyard(gameId: string, cardId: string, playerName: string, attacker?: string): { success: boolean, graveyardCount?: number, cardImage?: string, cardType?: string, eliminationCheck?: boolean, sorosActivated?: boolean, sorosImage?: string, sorosActivator?: string, detachedParasites?: string[], insuranceTriggered?: boolean } {
     const game = this.games.get(gameId);
     if (!game) return { success: false };
+
+    // INSURANCE CHECK: Before moving to graveyard, check if the card has insurance
+    const cardToCheck = game.field.find(c => c.id === cardId);
+    if (cardToCheck) {
+      const insurancePti = (cardToCheck as any).insurancePti || 0;
+      if (insurancePti > 0) {
+        // Trigger insurance! Restore PTI instead of dying
+        cardToCheck.pti = insurancePti;
+        (cardToCheck as any).ptiValue = insurancePti;
+        (cardToCheck as any).insurancePti = 0; // Insurance used up
+        
+        const cardName = cardToCheck.name || this.getCardNameFromUrl(cardToCheck.frontImage);
+        console.log(`🛡️ INSURANCE TRIGGERED in moveToGraveyard! ${cardName} restored to ${insurancePti} PTI instead of dying!`);
+        
+        // Update card text
+        const currentStars = cardToCheck.stars || 0;
+        cardToCheck.text = `PTI: ${insurancePti} | Stelle: ${currentStars} | 🛡️ Assicurazione usata!`;
+        
+        // Notify players
+        const io = (global as any).io;
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-insurance-trigger`,
+            playerName: 'Sistema',
+            message: `🛡️ ASSICURAZIONE ATTIVATA! ${cardName} stava per morire ma ha recuperato ${insurancePti} PTI!`,
+            timestamp: Date.now()
+          });
+        }
+        
+        return { success: true, insuranceTriggered: true };
+      }
+    }
 
     // Remove persistent damages if the target character is moved to graveyard
     if (game.persistentDamages) {
@@ -7129,61 +7193,97 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       return { success: false };
     }
 
-    // Search for card in player's field first, then in global field, then graveyard
-    const playerField = (playerData as any).field || [];
-    let card = playerField.find((c: any) => c.id === cardId);
-    if (!card) {
-      card = game.field?.find((c: any) => c.id === cardId);
+    // Check pending effect type
+    const pendingEffect = game.pendingEffects?.get(playerName);
+    const effectType = pendingEffect?.type || 'pti_input';
+    
+    // Clear pending effect
+    if (game.pendingEffects) {
+      game.pendingEffects.delete(playerName);
     }
+
+    // Find player's active character on field
+    const activeChar = game.field.find((c: any) => 
+      c.owner === playerName && 
+      (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+    );
+
+    // Handle INSURANCE effect (Assicurazione)
+    if (effectType === 'insurance') {
+      if (!activeChar) {
+        console.log(`🛡️ Insurance failed: No active character for ${playerName}`);
+        return { success: false, message: 'Nessun personaggio attivo trovato per l\'assicurazione' };
+      }
+
+      const currentPti = activeChar.pti || (activeChar as any).ptiValue || 0;
+      const charName = activeChar.name || this.getCardNameFromUrl(activeChar.frontImage);
+      
+      if (ptiValue > currentPti) {
+        return { success: false, message: `Non puoi assicurare più PTI di quelli che hai (${currentPti} PTI)` };
+      }
+
+      // Subtract PTI from character
+      const newPti = currentPti - ptiValue;
+      activeChar.pti = newPti;
+      (activeChar as any).ptiValue = newPti;
+      
+      // Store insurance amount on the character
+      (activeChar as any).insurancePti = ((activeChar as any).insurancePti || 0) + ptiValue;
+      
+      // Update card text
+      const currentStars = activeChar.stars || 0;
+      activeChar.text = `PTI: ${newPti} | Stelle: ${currentStars} | 🛡️ Assicurazione: ${(activeChar as any).insurancePti} PTI`;
+
+      console.log(`🛡️ Insurance applied: ${charName} lost ${ptiValue} PTI (${currentPti} → ${newPti}), insured: ${(activeChar as any).insurancePti} PTI`);
+      
+      return { 
+        success: true, 
+        message: `🛡️ ASSICURAZIONE ATTIVATA! ${charName} ha assicurato ${ptiValue} PTI. Quando scenderà a 0 PTI, non morirà ma recupererà ${(activeChar as any).insurancePti} PTI!`
+      };
+    }
+
+    // Handle regular PTI input effects
+    const playerField = game.field.filter((c: any) => c.owner === playerName) || [];
+    let card = playerField.find((c: any) => c.id === cardId);
     if (!card) {
       card = game.graveyard?.find((c: any) => c.id === cardId);
     }
     
-    // For BONUS cards, they may have been removed - use effect from card if available
     const effectDescription = (card as any)?.effect || '';
-
-    const cardName = card?.name || this.getCardNameFromUrl(card?.frontImage) || 'Carta';
+    const cardName = card?.name || this.getCardNameFromUrl(card?.frontImage || '') || 'Carta';
     const effectLower = effectDescription.toLowerCase();
 
     let message = '';
 
     if (effectLower.includes('bonus') || effectLower.includes('potenzia') || effectLower.includes('aumenta')) {
-      const targetCard = playerField.find((c: any) => 
-        (c.type === 'personaggi' || c.type === 'personaggi_speciali') && typeof c.ptiValue === 'number'
-      );
-
-      if (targetCard) {
-        const oldPti = targetCard.ptiValue || 0;
-        targetCard.ptiValue = oldPti + ptiValue;
-        const targetName = targetCard.name || this.getCardNameFromUrl(targetCard.frontImage);
-        message = `✨ ${cardName}: ${targetName} ha ricevuto +${ptiValue} PTI (${oldPti} → ${targetCard.ptiValue})!`;
+      if (activeChar) {
+        const oldPti = activeChar.pti || (activeChar as any).ptiValue || 0;
+        activeChar.pti = oldPti + ptiValue;
+        (activeChar as any).ptiValue = oldPti + ptiValue;
+        const targetName = activeChar.name || this.getCardNameFromUrl(activeChar.frontImage);
+        message = `✨ ${cardName}: ${targetName} ha ricevuto +${ptiValue} PTI (${oldPti} → ${activeChar.pti})!`;
       } else {
         message = `📋 ${cardName}: Nessun personaggio trovato per applicare +${ptiValue} PTI`;
       }
     } else if (effectLower.includes('danno') || effectLower.includes('attacca')) {
-      const enemyPlayers = Object.keys(game.players).filter(p => p !== playerName);
-      
-      for (const enemyName of enemyPlayers) {
-        const enemyData = game.players[enemyName];
-        const enemyField = (enemyData as any).field || [];
-        const targetCard = enemyField.find((c: any) => 
-          (c.type === 'personaggi' || c.type === 'personaggi_speciali') && typeof c.ptiValue === 'number'
-        );
+      const enemyCards = game.field.filter((c: any) => 
+        c.owner !== playerName && 
+        (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      );
 
-        if (targetCard) {
-          const oldPti = targetCard.ptiValue || 0;
-          targetCard.ptiValue = Math.max(0, oldPti - ptiValue);
-          const targetName = targetCard.name || this.getCardNameFromUrl(targetCard.frontImage);
-          message = `⚔️ ${cardName}: ${targetName} ha subito ${ptiValue} danni (${oldPti} → ${targetCard.ptiValue} PTI)!`;
+      if (enemyCards.length > 0) {
+        const targetCard = enemyCards[0];
+        const oldPti = targetCard.pti || (targetCard as any).ptiValue || 0;
+        const newPti = Math.max(0, oldPti - ptiValue);
+        targetCard.pti = newPti;
+        (targetCard as any).ptiValue = newPti;
+        const targetName = targetCard.name || this.getCardNameFromUrl(targetCard.frontImage);
+        message = `⚔️ ${cardName}: ${targetName} ha subito ${ptiValue} danni (${oldPti} → ${newPti} PTI)!`;
 
-          if (targetCard.ptiValue <= 0) {
-            this.moveToGraveyard(gameId, targetCard.id, enemyName, 'PTI effect');
-          }
-          break;
+        if (newPti <= 0) {
+          this.triggerInsuranceOrDeath(gameId, targetCard, targetCard.owner);
         }
-      }
-
-      if (!message) {
+      } else {
         message = `📋 ${cardName}: Nessun bersaglio nemico trovato per infliggere ${ptiValue} danni`;
       }
     } else {
@@ -7192,6 +7292,39 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     console.log(`📋 PTI effect result: ${message}`);
     return { success: true, message };
+  }
+
+  // Check if character has insurance before death, and trigger it
+  private triggerInsuranceOrDeath(gameId: string, card: any, ownerName: string): void {
+    const insurancePti = (card as any).insurancePti || 0;
+    
+    if (insurancePti > 0) {
+      // Trigger insurance! Restore PTI instead of dying
+      card.pti = insurancePti;
+      card.ptiValue = insurancePti;
+      (card as any).insurancePti = 0; // Insurance used up
+      
+      const cardName = card.name || this.getCardNameFromUrl(card.frontImage);
+      console.log(`🛡️ INSURANCE TRIGGERED! ${cardName} restored to ${insurancePti} PTI instead of dying!`);
+      
+      // Update card text
+      const currentStars = card.stars || 0;
+      card.text = `PTI: ${insurancePti} | Stelle: ${currentStars} | 🛡️ Assicurazione usata!`;
+      
+      // Notify players
+      const io = (global as any).io;
+      if (io) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-insurance-trigger`,
+          playerName: 'Sistema',
+          message: `🛡️ ASSICURAZIONE ATTIVATA! ${cardName} stava per morire ma ha recuperato ${insurancePti} PTI!`,
+          timestamp: Date.now()
+        });
+      }
+    } else {
+      // No insurance, character dies
+      this.moveToGraveyard(gameId, card.id, ownerName, 'PTI a 0');
+    }
   }
 
   processDeckSelectionEffect(gameId: string, cardId: string, deckType: string, playerName: string): { success: boolean; message?: string } {

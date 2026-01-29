@@ -54,6 +54,24 @@ The OSTAGGIO MOSSE card captures an enemy character for 3 turns. Features includ
 - **Instant Death**: If target has less than 300 PTI when OSTAGGIO is applied, they die immediately
 - **Visual Indicators**: Hostage cards show amber border, turn countdown, and original owner info
 
+## Insurance (Assicurazione) System
+The ASSICURAZIONE BONUS card allows players to protect characters from death:
+- **PTI Input Panel**: When played, shows a panel for the player to enter a PTI amount to "insure"
+- **PTI Subtraction**: The entered PTI amount is subtracted from the character immediately
+- **Insurance Storage**: The insured PTI is stored on the character as `insurancePti`
+- **Death Prevention**: When a character would die (PTI reaches 0), the insurance triggers instead
+- **PTI Restoration**: The character is restored with the insured PTI amount instead of dying
+- **One-Time Use**: Insurance is consumed when triggered and must be re-applied
+- **Universal Integration**: Insurance check is integrated into `moveToGraveyard`, covering all death paths
+
+## Interactive Effect Panels
+Custom card effects can trigger interactive panels for player input:
+- **PTI Input Panel**: Blue panel for entering PTI amounts (triggered by `show_pti_input_panel` action)
+- **Deck Selection Panel**: Amber panel for selecting from PERSONAGGI/MOSSE/BONUS/SPECIALI decks
+- **Graveyard Selection**: Purple panel for choosing cards from the graveyard
+- **Socket Events**: `show-pti-input-panel`, `show-deck-selection`, `show-graveyard-selection`
+- **Confirmation Events**: `pti-input-confirm`, `deck-selection-confirm`, `resurrect-select`
+
 ## Audio System
 A comprehensive sound effect system using Web Audio API provides in-game audio for various events, character actions, and 28 special card animations, with user control for muting.
 
