@@ -10,33 +10,35 @@ import { Checkbox } from "./ui/checkbox";
 // Check if a card has custom activatable effects
 const hasCustomEffect = (card: any): boolean => {
   const effect = card.effect || '';
-  const text = card.text || '';
-  const combined = (effect + ' ' + text).toLowerCase();
+  
+  // Only check the effect field - not the text field which contains PTI/Stelle info
+  if (!effect || effect.trim() === '' || effect.trim().toLowerCase() === 'none') {
+    return false;
+  }
   
   // Check for formal effect tags
-  if (combined.includes('[comportamento:') || 
-      combined.includes('[dado:') || 
-      combined.includes('[dettagli:') ||
-      combined.includes('[animazione:')) {
+  const effectLower = effect.toLowerCase();
+  if (effectLower.includes('[comportamento:') || 
+      effectLower.includes('[dado:') || 
+      effectLower.includes('[dettagli:') ||
+      effectLower.includes('[animazione:') ||
+      effectLower.includes('[bersaglio:')) {
     return true;
   }
   
-  // Check for effect field with content
-  if (effect && effect.trim().toLowerCase() !== 'none' && effect.trim() !== '') {
-    return true;
-  }
-  
-  // Check for effect-like keywords in text field (Italian keywords)
-  const effectKeywords = ['quando', 'effetto', 'attiva', 'assorbe', 'aggiunge', 'infligge', 
+  // Check for effect-like keywords in the effect field only
+  const effectKeywords = ['quando', 'attiva', 'assorbe', 'aggiunge', 'infligge', 
                           'protetto', 'immune', 'clona', 'trasforma', 'ruba', 'cura',
-                          'danno', 'pti', 'stelle', 'nemico', 'alleato', 'campo'];
+                          'danno', 'aumenta', 'diminuisce', 'raddoppia', 'dimezza',
+                          'scommessa', 'fusione', 'guadagna', 'perde'];
   for (const keyword of effectKeywords) {
-    if (combined.includes(keyword)) {
+    if (effectLower.includes(keyword)) {
       return true;
     }
   }
   
-  return false;
+  // If effect field has content and is not "none", consider it an effect
+  return effect.trim().length > 5;
 };
 
 const RoundTableComponent: React.FC = () => {
