@@ -7424,6 +7424,54 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     return { success: false };
   }
 
+  // Process swap/baratto effect - swap all cards between two players
+  processSwapEffect(gameId: string, playerName: string, targetPlayer: string, io: any): { success: boolean; message?: string } {
+    const game = this.games.get(gameId);
+    if (!game) return { success: false };
+
+    console.log(`🔄 Processing BARATTO swap between ${playerName} and ${targetPlayer}`);
+
+    const player1Data = game.players[playerName];
+    const player2Data = game.players[targetPlayer];
+
+    if (!player1Data || !player2Data) {
+      console.log(`🔄 Swap failed: Player data not found`);
+      return { success: false, message: 'Giocatori non trovati' };
+    }
+
+    // Swap hands
+    const tempHand = [...player1Data.hand];
+    player1Data.hand = [...player2Data.hand];
+    player2Data.hand = tempHand;
+
+    // Update card ownership in hands
+    for (const card of player1Data.hand) {
+      card.owner = playerName;
+    }
+    for (const card of player2Data.hand) {
+      card.owner = targetPlayer;
+    }
+
+    // Swap field cards (owned by each player)
+    const player1FieldCards = game.field.filter((c: Card) => c.owner === playerName);
+    const player2FieldCards = game.field.filter((c: Card) => c.owner === targetPlayer);
+
+    // Update ownership of field cards
+    for (const card of player1FieldCards) {
+      card.owner = targetPlayer;
+    }
+    for (const card of player2FieldCards) {
+      card.owner = playerName;
+    }
+
+    console.log(`🔄 BARATTO completed! ${playerName} now has ${player1Data.hand.length} cards in hand, ${targetPlayer} now has ${player2Data.hand.length} cards in hand`);
+
+    return { 
+      success: true, 
+      message: `🔄 BARATTO! ${playerName} e ${targetPlayer} hanno scambiato tutte le loro carte!` 
+    };
+  }
+
   // Apply effect to player-chosen targets (for 'choice' target effects)
   applyEffectToChosenTargets(gameId: string, targetCardIds: string[], playerName: string): { success: boolean; message?: string } {
     const game = this.games.get(gameId);
@@ -8660,6 +8708,26 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       case 'conditional':
         // Conditional effects are just logged, they're passive/triggered
         console.log(`📌 Conditional effect registered: ${action.description.substring(0, 50)}...`);
+        break;
+      
+      case 'swap':
+        // Show swap/baratto panel to select player to swap with
+        console.log(`🔄 Showing swap panel for ${playerName} - Baratto effect`);
+        const otherPlayers = game.turnOrder.filter((p: string) => p !== playerName);
+        io.to(gameId).emit('show-swap-selection', {
+          cardId: sourceCard.id,
+          cardName: sourceCard.name || this.getCardNameFromUrl(sourceCard.frontImage || ''),
+          playerName,
+          otherPlayers,
+          effectDescription: action.description
+        });
+        break;
+      
+      case 'transform':
+        // Transform card into a different random card (for now just boost stats)
+        console.log(`🔮 Transform effect for ${sourceCard.name || 'card'}`);
+        // For now, mark the card as transformed - actual transformation handled by specific card logic
+        (sourceCard as any).isTransformed = true;
         break;
       
       default:

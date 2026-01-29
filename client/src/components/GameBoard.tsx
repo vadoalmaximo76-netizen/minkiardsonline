@@ -161,6 +161,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     cardName: string;
     effectDescription: string;
   }>({ visible: false, cardId: '', cardName: '', effectDescription: '' });
+  const [swapSelectionPanel, setSwapSelectionPanel] = useState<{
+    visible: boolean;
+    cardId: string;
+    cardName: string;
+    otherPlayers: string[];
+    effectDescription: string;
+  }>({ visible: false, cardId: '', cardName: '', otherPlayers: [], effectDescription: '' });
   const [targetSelectionModal, setTargetSelectionModal] = useState<{
     visible: boolean;
     effectType: 'damage' | 'heal';
@@ -759,6 +766,21 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('show-deck-selection', handleShowDeckSelection);
 
+    // SWAP SELECTION: Handle baratto/swap panel for selecting player to swap with
+    const handleShowSwapSelection = (data: { cardId: string; cardName: string; playerName: string; otherPlayers: string[]; effectDescription: string }) => {
+      console.log('🔄 Show swap selection:', data);
+      if (data.playerName === playerName) {
+        setSwapSelectionPanel({
+          visible: true,
+          cardId: data.cardId,
+          cardName: data.cardName,
+          otherPlayers: data.otherPlayers,
+          effectDescription: data.effectDescription
+        });
+      }
+    };
+    socket.on('show-swap-selection', handleShowSwapSelection);
+
     // TARGET SELECTION: Handle interactive target selection for custom effects
     const handleShowTargetSelection = (data: { 
       effectType: 'damage' | 'heal'; 
@@ -1275,6 +1297,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('show-graveyard-selection', handleShowGraveyardSelection);
       socket.off('show-pti-input-panel', handleShowPtiInputPanel);
       socket.off('show-deck-selection', handleShowDeckSelection);
+      socket.off('show-swap-selection', handleShowSwapSelection);
       socket.off('show-target-selection', handleShowTargetSelection);
       socket.off('show-custom-target-selection', handleShowCustomTargetSelection);
       socket.off('show-auto-dice-setup', handleShowAutoDiceSetup);
@@ -1713,6 +1736,51 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             <div className="text-center">
               <Button
                 onClick={() => setDeckSelectionPanel({ visible: false, cardId: '', cardName: '', effectDescription: '' })}
+                className="bg-gray-600 hover:bg-gray-500 text-white px-6 py-2"
+              >
+                Annulla
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SWAP SELECTION PANEL - Baratto effect player selection */}
+      {swapSelectionPanel.visible && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-cyan-900 to-cyan-700 rounded-lg p-6 w-full max-w-md mx-4 border-4 border-cyan-400 shadow-[0_0_30px_rgba(6,182,212,0.5)]">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-white mb-2" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+                🔄 {swapSelectionPanel.cardName}
+              </h2>
+              <p className="text-cyan-100 text-sm mb-4" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                {swapSelectionPanel.effectDescription.length > 150 
+                  ? swapSelectionPanel.effectDescription.substring(0, 150) + '...' 
+                  : swapSelectionPanel.effectDescription}
+              </p>
+              <p className="text-cyan-200 font-bold">Scegli con chi scambiare:</p>
+            </div>
+            <div className="space-y-3 mb-4">
+              {swapSelectionPanel.otherPlayers.map((otherPlayer: string) => (
+                <Button
+                  key={otherPlayer}
+                  onClick={() => {
+                    socket.emit('swap-confirm', {
+                      cardId: swapSelectionPanel.cardId,
+                      targetPlayer: otherPlayer,
+                      playerName
+                    });
+                    setSwapSelectionPanel({ visible: false, cardId: '', cardName: '', otherPlayers: [], effectDescription: '' });
+                  }}
+                  className="w-full bg-cyan-600 hover:bg-cyan-500 text-white py-4 text-lg font-bold"
+                >
+                  🎮 {otherPlayer}
+                </Button>
+              ))}
+            </div>
+            <div className="text-center">
+              <Button
+                onClick={() => setSwapSelectionPanel({ visible: false, cardId: '', cardName: '', otherPlayers: [], effectDescription: '' })}
                 className="bg-gray-600 hover:bg-gray-500 text-white px-6 py-2"
               >
                 Annulla

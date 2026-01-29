@@ -2129,6 +2129,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // Handle swap/baratto selection - swap all cards with selected player
+    socket.on('swap-confirm', ({ cardId, targetPlayer, playerName }: { cardId: string, targetPlayer: string, playerName: string }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        console.log(`🔄 ${playerName} confirmed swap with ${targetPlayer}`);
+        const result = gameManager.processSwapEffect(gameId, playerName, targetPlayer, io);
+        if (result.success) {
+          const gameState = gameManager.getSanitizedGameState(gameId);
+          emitImmediateGameState(io, gameId, gameState);
+          
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-swap`,
+            playerName: 'Sistema',
+            message: result.message || `🔄 BARATTO! ${playerName} ha scambiato tutte le carte con ${targetPlayer}!`,
+            timestamp: Date.now()
+          });
+        }
+      }
+    });
+
     // Handle target selection for custom effects (damage/heal to chosen targets)
     socket.on('target-select', ({ targetCardIds, playerName }: { targetCardIds: string[], playerName: string }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
