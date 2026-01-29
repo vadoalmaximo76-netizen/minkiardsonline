@@ -161,6 +161,7 @@ const TARGET_OPTIONS = [
   { id: 'opponents', label: 'Avversari', description: 'Tutti i giocatori avversari' },
   { id: 'all', label: 'Tutti', description: 'Tutti i giocatori incluso il proprietario' },
   { id: 'random', label: 'Casuale', description: 'Un bersaglio casuale' },
+  { id: 'choice', label: 'Personaggi a scelta', description: 'Scegli i personaggi bersaglio durante la partita' },
 ];
 
 const DURATION_OPTIONS = [
@@ -203,6 +204,7 @@ function generateEffectDescription(wizard: EffectWizardState): string {
       case 'owner': return 'al proprietario';
       case 'enemy_card': return 'a una carta nemica';
       case 'ally_card': return 'a una carta alleata';
+      case 'choice': return 'ai personaggi scelti';
       default: return '';
     }
   };

@@ -3009,7 +3009,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     switch (action.type) {
       case 'damage':
-        if (action.target === 'all' || action.target === 'opponents') {
+        if (action.target === 'choice') {
+          // Store pending effect for target selection
+          if (!game.pendingEffects) game.pendingEffects = new Map();
+          game.pendingEffects.set(playerName, {
+            type: 'target_choice_damage',
+            cardId: card.id,
+            value: action.value || 100,
+            timestamp: Date.now()
+          });
+          console.log(`🎯 Custom effect: Awaiting target selection for ${action.value} damage`);
+        } else if (action.target === 'all' || action.target === 'opponents') {
           // Apply damage to all opponent characters
           for (const fieldCard of game.field) {
             if (fieldCard.owner !== playerName && 
@@ -3026,7 +3036,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         // Find the leftmost (first) character of the player on field - this is the "active" character
         const healTarget = this.getPlayerActiveCharacter(game, playerName);
         
-        if (action.target === 'self' || action.target === 'allies') {
+        if (action.target === 'choice') {
+          // Store pending effect for target selection
+          if (!game.pendingEffects) game.pendingEffects = new Map();
+          game.pendingEffects.set(playerName, {
+            type: 'target_choice_heal',
+            cardId: card.id,
+            value: action.value || 100,
+            timestamp: Date.now()
+          });
+          console.log(`🎯 Custom effect: Awaiting target selection for ${action.value} heal`);
+        } else if (action.target === 'self' || action.target === 'allies') {
           if (healTarget) {
             const oldPti = healTarget.pti || 0;
             healTarget.pti = oldPti + (action.value || 0);
