@@ -10,7 +10,18 @@ import { Checkbox } from "./ui/checkbox";
 // Check if a card has custom activatable effects
 const hasCustomEffect = (card: any): boolean => {
   const effect = card.effect || '';
-  // Show button for ANY card that has a non-empty effect field
+  const text = card.text || '';
+  
+  // Check for formal effect tags in either effect or text field
+  const combined = effect + ' ' + text;
+  if (combined.includes('[COMPORTAMENTO:') || 
+      combined.includes('[DADO:') || 
+      combined.includes('[DETTAGLI:') ||
+      combined.includes('[ANIMAZIONE:')) {
+    return true;
+  }
+  
+  // Also show button for ANY card that has a non-empty effect field
   // (excluding 'none' or empty strings)
   if (effect && effect.trim().toLowerCase() !== 'none' && effect.trim() !== '') {
     return true;
@@ -576,6 +587,10 @@ const RoundTableComponent: React.FC = () => {
                           </div>
                           
                           {/* Activate Effect Button for cards with custom effects */}
+                          {(() => {
+                            console.log(`[DEBUG] Card ${card.id}: effect="${card.effect}", isCurrentPlayer=${isCurrentPlayer}, hasEffect=${hasCustomEffect(card)}`);
+                            return null;
+                          })()}
                           {isCurrentPlayer && hasCustomEffect(card) && (
                             <Button
                               onClick={() => handleActivateEffect(card)}
