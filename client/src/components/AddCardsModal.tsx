@@ -24,7 +24,33 @@ interface EffectWizardState {
   analysisComplete: boolean;
   aiInterpretation: string;
   needsMoreInfo: boolean;
+  // Dice (Dado) system
+  diceEnabled: boolean;
+  diceCorrectEffect: string;
+  diceCorrectCustom: string;
+  diceWrongEffect: string;
+  diceWrongCustom: string;
 }
+
+// Predefined dice consequences
+const DICE_EFFECTS = [
+  { id: 'none', label: 'Nessun effetto', description: 'Non succede nulla' },
+  { id: 'death', label: 'Morte del personaggio', description: 'Il personaggio muore immediatamente' },
+  { id: 'zero_stars', label: 'Va a 0 stelle', description: 'Le stelle del personaggio diventano 0' },
+  { id: 'halve_pti', label: 'Dimezza i PTI', description: 'I PTI del personaggio vengono dimezzati' },
+  { id: 'halve_stars', label: 'Dimezza le stelle', description: 'Le stelle del personaggio vengono dimezzate' },
+  { id: 'double_pti', label: 'Raddoppia i PTI', description: 'I PTI del personaggio raddoppiano' },
+  { id: 'double_stars', label: 'Raddoppia le stelle', description: 'Le stelle del personaggio raddoppiano' },
+  { id: 'double_both', label: 'Raddoppia PTI e stelle', description: 'Sia PTI che stelle raddoppiano' },
+  { id: 'halve_both', label: 'Dimezza PTI e stelle', description: 'Sia PTI che stelle vengono dimezzati' },
+  { id: 'gain_pti', label: 'Guadagna PTI', description: 'Guadagna una certa quantità di PTI' },
+  { id: 'lose_pti', label: 'Perde PTI', description: 'Perde una certa quantità di PTI' },
+  { id: 'gain_stars', label: 'Guadagna stelle', description: 'Guadagna stelle' },
+  { id: 'lose_stars', label: 'Perde stelle', description: 'Perde stelle' },
+  { id: 'skip_turn', label: 'Salta il turno', description: 'Il personaggio salta il prossimo turno' },
+  { id: 'extra_turn', label: 'Turno extra', description: 'Il personaggio ottiene un turno extra' },
+  { id: 'custom', label: 'Personalizzato...', description: 'Descrivi tu l\'effetto' },
+];
 
 interface AIQuestion {
   id: string;
@@ -527,6 +553,17 @@ function generateEffectDescription(wizard: EffectWizardState): string {
     description += ` [DETTAGLI: ${answers}]`;
   }
 
+  // Add dice system info if enabled
+  if (wizard.diceEnabled) {
+    const getDiceEffectLabel = (effectId: string, custom: string) => {
+      if (effectId === 'custom' && custom) return custom;
+      const effect = DICE_EFFECTS.find(e => e.id === effectId);
+      return effect?.label || 'Nessun effetto';
+    };
+    
+    description += ` [DADO: Se indovina: ${getDiceEffectLabel(wizard.diceCorrectEffect, wizard.diceCorrectCustom)}; Se sbaglia: ${getDiceEffectLabel(wizard.diceWrongEffect, wizard.diceWrongCustom)}]`;
+  }
+
   return description;
 }
 
@@ -614,7 +651,12 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     isAnalyzing: false,
     analysisComplete: false,
     aiInterpretation: '',
-    needsMoreInfo: false
+    needsMoreInfo: false,
+    diceEnabled: false,
+    diceCorrectEffect: 'none',
+    diceCorrectCustom: '',
+    diceWrongEffect: 'none',
+    diceWrongCustom: ''
   });
 
   const resetEffectWizard = () => {
@@ -635,7 +677,12 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       isAnalyzing: false,
       analysisComplete: false,
       aiInterpretation: '',
-      needsMoreInfo: false
+      needsMoreInfo: false,
+      diceEnabled: false,
+      diceCorrectEffect: 'none',
+      diceCorrectCustom: '',
+      diceWrongEffect: 'none',
+      diceWrongCustom: ''
     });
   };
 
@@ -2181,6 +2228,76 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                         Conferma e procedi
                       </Button>
                     </div>
+                    
+                    {/* DICE OPTION for Custom Effects */}
+                    <div className="border-t border-gray-600 pt-4 mt-4">
+                      <div className="flex items-center gap-3 mb-3">
+                        <Checkbox
+                          id="dice-enabled-custom"
+                          checked={effectWizard.diceEnabled}
+                          onCheckedChange={(checked) => setEffectWizard(prev => ({ ...prev, diceEnabled: !!checked }))}
+                        />
+                        <label htmlFor="dice-enabled-custom" className="text-white font-medium flex items-center gap-2 cursor-pointer">
+                          🎲 Attiva opzione DADO
+                        </label>
+                      </div>
+                      
+                      {effectWizard.diceEnabled && (
+                        <div className="bg-gray-800 border border-amber-500/30 rounded-lg p-4 space-y-4">
+                          <p className="text-amber-300 text-sm">
+                            I personaggi coinvolti dovranno scegliere un numero (1-6) o Pari/Dispari prima del lancio del dado.
+                          </p>
+                          
+                          <div className="space-y-2">
+                            <label className="text-green-400 text-sm font-medium flex items-center gap-2">
+                              ✅ Se INDOVINA il numero:
+                            </label>
+                            <select
+                              value={effectWizard.diceCorrectEffect}
+                              onChange={(e) => setEffectWizard(prev => ({ ...prev, diceCorrectEffect: e.target.value }))}
+                              className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg p-2 text-sm"
+                            >
+                              {DICE_EFFECTS.map(effect => (
+                                <option key={effect.id} value={effect.id}>{effect.label}</option>
+                              ))}
+                            </select>
+                            {effectWizard.diceCorrectEffect === 'custom' && (
+                              <textarea
+                                value={effectWizard.diceCorrectCustom}
+                                onChange={(e) => setEffectWizard(prev => ({ ...prev, diceCorrectCustom: e.target.value }))}
+                                placeholder="Descrivi l'effetto personalizzato se indovina..."
+                                className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg p-2 text-sm resize-none"
+                                rows={2}
+                              />
+                            )}
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <label className="text-red-400 text-sm font-medium flex items-center gap-2">
+                              ❌ Se SBAGLIA il numero:
+                            </label>
+                            <select
+                              value={effectWizard.diceWrongEffect}
+                              onChange={(e) => setEffectWizard(prev => ({ ...prev, diceWrongEffect: e.target.value }))}
+                              className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg p-2 text-sm"
+                            >
+                              {DICE_EFFECTS.map(effect => (
+                                <option key={effect.id} value={effect.id}>{effect.label}</option>
+                              ))}
+                            </select>
+                            {effectWizard.diceWrongEffect === 'custom' && (
+                              <textarea
+                                value={effectWizard.diceWrongCustom}
+                                onChange={(e) => setEffectWizard(prev => ({ ...prev, diceWrongCustom: e.target.value }))}
+                                placeholder="Descrivi l'effetto personalizzato se sbaglia..."
+                                className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg p-2 text-sm resize-none"
+                                rows={2}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -2198,6 +2315,78 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                   rows={3}
                 />
                 <p className="text-gray-500 text-xs">Lascia vuoto se non ci sono condizioni particolari.</p>
+                
+                {/* DICE OPTION */}
+                <div className="border-t border-gray-600 pt-4 mt-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Checkbox
+                      id="dice-enabled"
+                      checked={effectWizard.diceEnabled}
+                      onCheckedChange={(checked) => setEffectWizard(prev => ({ ...prev, diceEnabled: !!checked }))}
+                    />
+                    <label htmlFor="dice-enabled" className="text-white font-medium flex items-center gap-2 cursor-pointer">
+                      🎲 Attiva opzione DADO
+                    </label>
+                  </div>
+                  
+                  {effectWizard.diceEnabled && (
+                    <div className="bg-gray-800 border border-amber-500/30 rounded-lg p-4 space-y-4">
+                      <p className="text-amber-300 text-sm">
+                        I personaggi coinvolti dovranno scegliere un numero (1-6) o Pari/Dispari prima del lancio del dado.
+                      </p>
+                      
+                      {/* Correct guess consequence */}
+                      <div className="space-y-2">
+                        <label className="text-green-400 text-sm font-medium flex items-center gap-2">
+                          ✅ Se INDOVINA il numero:
+                        </label>
+                        <select
+                          value={effectWizard.diceCorrectEffect}
+                          onChange={(e) => setEffectWizard(prev => ({ ...prev, diceCorrectEffect: e.target.value }))}
+                          className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg p-2 text-sm"
+                        >
+                          {DICE_EFFECTS.map(effect => (
+                            <option key={effect.id} value={effect.id}>{effect.label}</option>
+                          ))}
+                        </select>
+                        {effectWizard.diceCorrectEffect === 'custom' && (
+                          <textarea
+                            value={effectWizard.diceCorrectCustom}
+                            onChange={(e) => setEffectWizard(prev => ({ ...prev, diceCorrectCustom: e.target.value }))}
+                            placeholder="Descrivi l'effetto personalizzato se indovina..."
+                            className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg p-2 text-sm resize-none"
+                            rows={2}
+                          />
+                        )}
+                      </div>
+                      
+                      {/* Wrong guess consequence */}
+                      <div className="space-y-2">
+                        <label className="text-red-400 text-sm font-medium flex items-center gap-2">
+                          ❌ Se SBAGLIA il numero:
+                        </label>
+                        <select
+                          value={effectWizard.diceWrongEffect}
+                          onChange={(e) => setEffectWizard(prev => ({ ...prev, diceWrongEffect: e.target.value }))}
+                          className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg p-2 text-sm"
+                        >
+                          {DICE_EFFECTS.map(effect => (
+                            <option key={effect.id} value={effect.id}>{effect.label}</option>
+                          ))}
+                        </select>
+                        {effectWizard.diceWrongEffect === 'custom' && (
+                          <textarea
+                            value={effectWizard.diceWrongCustom}
+                            onChange={(e) => setEffectWizard(prev => ({ ...prev, diceWrongCustom: e.target.value }))}
+                            placeholder="Descrivi l'effetto personalizzato se sbaglia..."
+                            className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg p-2 text-sm resize-none"
+                            rows={2}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
                 
                 {/* Preview */}
                 <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 mt-4">
