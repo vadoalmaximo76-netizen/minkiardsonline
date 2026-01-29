@@ -29,14 +29,68 @@ export const YouTubeVideoModal: React.FC<YouTubeVideoModalProps> = ({
 }) => {
   const [isVisible, setIsVisible] = useState(false);
   const videoId = extractVideoId(youtubeUrl);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const playerRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setIsVisible(true);
   }, []);
 
+  // Load YouTube IFrame API and create player
+  useEffect(() => {
+    if (!videoId) return;
+
+    // Load YouTube IFrame API if not already loaded
+    if (!(window as any).YT) {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+    }
+
+    const initPlayer = () => {
+      if (containerRef.current && (window as any).YT?.Player) {
+        playerRef.current = new (window as any).YT.Player(containerRef.current, {
+          videoId: videoId,
+          playerVars: {
+            autoplay: 1,
+            rel: 0,
+            modestbranding: 1,
+            loop: 0
+          },
+          events: {
+            onStateChange: (event: any) => {
+              // YT.PlayerState.ENDED = 0
+              if (event.data === 0) {
+                console.log('📺 YouTube video ended, closing modal');
+                handleClose();
+              }
+            }
+          }
+        });
+      }
+    };
+
+    // Check if API is already loaded
+    if ((window as any).YT?.Player) {
+      initPlayer();
+    } else {
+      // Wait for API to load
+      (window as any).onYouTubeIframeAPIReady = initPlayer;
+    }
+
+    return () => {
+      if (playerRef.current?.destroy) {
+        playerRef.current.destroy();
+      }
+    };
+  }, [videoId]);
+
   const handleClose = () => {
     setIsVisible(false);
+    if (playerRef.current?.destroy) {
+      playerRef.current.destroy();
+    }
     setTimeout(onClose, 300);
   };
 
@@ -45,8 +99,6 @@ export const YouTubeVideoModal: React.FC<YouTubeVideoModalProps> = ({
     setTimeout(onClose, 1000);
     return null;
   }
-
-  const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1&rel=0&modestbranding=1`;
 
   return (
     <div 
@@ -83,13 +135,9 @@ export const YouTubeVideoModal: React.FC<YouTubeVideoModalProps> = ({
         </div>
 
         <div className="relative" style={{ paddingBottom: '56.25%' }}>
-          <iframe
-            ref={iframeRef}
-            src={embedUrl}
-            title={`Video di ${cardName}`}
+          <div 
+            ref={containerRef}
             className="absolute inset-0 w-full h-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
           />
         </div>
 
