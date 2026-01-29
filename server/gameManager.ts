@@ -289,6 +289,13 @@ interface GameState {
   weatherTurns?: number; // Turns remaining for weather
   terrainEffect?: string; // Current terrain effect
   counterSpellActive?: string; // Player with counter spell ready
+  delayedDeaths?: Array<{
+    cardId: string;
+    cardName: string;
+    owner: string;
+    turnsRemaining: number;
+    createdAt: number;
+  }>; // Cards that will die after X turns
 }
 
 export class GameManager {
@@ -2904,6 +2911,81 @@ Rispondi SOLO in JSON:`;
           });
         } else {
           console.log('❌ No io instance available for dice character selection event');
+        }
+      }
+      
+      return { customAnimation };
+    }
+
+    // Check for AUTOMATIC DICE (DADO_AUTOMATICO) effect - [DADO_AUTOMATICO: 1: X; 2: Y; ...]
+    const autoDiceMatch = card.effect.match(/\[DADO_AUTOMATICO:\s*([^\]]+)\]/i);
+    if (autoDiceMatch) {
+      const effectsStr = autoDiceMatch[1].trim();
+      console.log(`🎲 AUTOMATIC DICE effect detected! Effects: "${effectsStr}"`);
+      
+      // Parse effects for each number (1: effect; 2: effect; ...)
+      const autoEffects: Record<number, string> = {};
+      const effectPairs = effectsStr.split(';');
+      for (const pair of effectPairs) {
+        const match = pair.match(/(\d):\s*(.+)/);
+        if (match) {
+          const num = parseInt(match[1]);
+          autoEffects[num] = match[2].trim();
+        }
+      }
+      
+      // Get all characters on field that will be affected
+      const involvedCharacters = game.field
+        .filter((c: Card) => c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        .map((c: Card) => ({
+          id: c.id,
+          name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+          owner: c.owner,
+          frontImage: c.frontImage || '',
+          pti: c.pti,
+          stars: c.stars
+        }));
+      
+      if (involvedCharacters.length > 0) {
+        // Roll the dice immediately
+        const diceResult = Math.floor(Math.random() * 6) + 1;
+        const effectToApply = autoEffects[diceResult] || 'Nessun effetto';
+        
+        console.log(`🎲 Auto dice rolled: ${diceResult} -> Effect: "${effectToApply}"`);
+        
+        // Apply the effect to all involved characters
+        const results: Array<{ charId: string; charName: string; effect: string }> = [];
+        
+        for (const char of involvedCharacters) {
+          const fieldCard = game.field.find((c: Card) => c.id === char.id);
+          if (fieldCard) {
+            // Use character ID string and false for isCorrect (auto-dice doesn't have correct/wrong concept)
+            this.applyDiceConsequence(gameId, char.id, effectToApply, false);
+            results.push({
+              charId: char.id,
+              charName: char.name,
+              effect: effectToApply
+            });
+          }
+        }
+        
+        // Emit the result to all players
+        const io = (global as any).io;
+        if (io) {
+          io.to(gameId).emit('auto-dice-result', {
+            cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+            diceResult,
+            effect: effectToApply,
+            affectedCharacters: results,
+            allEffects: autoEffects
+          });
+          
+          // Also emit game message
+          io.to(gameId).emit('game-message', {
+            type: 'dice',
+            message: `🎲 DADO AUTOMATICO: ${diceResult}! Effetto: "${effectToApply}" applicato a ${involvedCharacters.length} personaggi.`,
+            playerName: card.owner
+          });
         }
       }
       
@@ -7280,6 +7362,38 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       return;
     }
 
+    // Handle "muore tra X turni" / "dies in X turns"
+    const dieInTurnsMatch = effectStr.match(/muore tra (\d+) turn/i) || effectStr.match(/dies in (\d+) turn/i);
+    if (dieInTurnsMatch) {
+      const turns = parseInt(dieInTurnsMatch[1]);
+      if (!game.delayedDeaths) game.delayedDeaths = [];
+      
+      // Check if already has a delayed death timer
+      const existingIdx = game.delayedDeaths.findIndex((dd: any) => dd.cardId === characterId);
+      if (existingIdx >= 0) {
+        // Update existing timer if new one is shorter
+        if (turns < game.delayedDeaths[existingIdx].turnsRemaining) {
+          game.delayedDeaths[existingIdx].turnsRemaining = turns;
+          console.log(`🎲💀 ${cardName} delayed death updated to ${turns} turns`);
+        }
+      } else {
+        game.delayedDeaths.push({
+          cardId: characterId,
+          cardName,
+          owner: card.owner,
+          turnsRemaining: turns,
+          createdAt: Date.now()
+        });
+        console.log(`🎲💀 ${cardName} will die in ${turns} turns`);
+      }
+      
+      // Add visual indicator to card text
+      const currentPTI = card.pti || this.extractPTIFromNote(card.text || '');
+      const currentStars = this.extractStarsFromNote(card.text || '');
+      card.text = `PTI: ${currentPTI} | Stelle: ${currentStars} | ☠️ Muore tra ${turns} turni`;
+      return;
+    }
+
     // If effect is "Nessun effetto" or unrecognized
     if (effectLower.includes('nessun effetto') || effectLower === 'none') {
       console.log(`🎲 No effect applied to ${cardName}`);
@@ -8510,6 +8624,46 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
     const gameState = this.games.get(gameId);
     if (!gameState || gameState.turnOrder.length === 0) return null;
+
+    // Process delayed deaths - decrement timers and kill cards when timer reaches 0
+    if (gameState.delayedDeaths && gameState.delayedDeaths.length > 0) {
+      const deathsToProcess: typeof gameState.delayedDeaths = [];
+      
+      for (const dd of gameState.delayedDeaths) {
+        dd.turnsRemaining--;
+        
+        // Update card text with new turn count
+        const card = gameState.field.find(c => c.id === dd.cardId);
+        if (card) {
+          if (dd.turnsRemaining <= 0) {
+            deathsToProcess.push(dd);
+          } else {
+            const currentPTI = card.pti || this.extractPTIFromNote(card.text || '');
+            const currentStars = this.extractStarsFromNote(card.text || '');
+            card.text = `PTI: ${currentPTI} | Stelle: ${currentStars} | ☠️ Muore tra ${dd.turnsRemaining} turni`;
+          }
+        }
+      }
+      
+      // Process deaths
+      for (const dd of deathsToProcess) {
+        console.log(`💀 Delayed death triggered for ${dd.cardName}`);
+        this.moveToGraveyard(gameId, dd.cardId, dd.owner, 'MORTE_RITARDATA');
+        
+        // Emit notification
+        const io = (global as any).io;
+        if (io) {
+          io.to(gameId).emit('game-message', {
+            type: 'death',
+            message: `💀 ${dd.cardName} è morto! (morte ritardata)`,
+            playerName: dd.owner
+          });
+        }
+      }
+      
+      // Remove processed deaths from list
+      gameState.delayedDeaths = gameState.delayedDeaths.filter(dd => dd.turnsRemaining > 0);
+    }
 
     // Verify it's the current player's turn
     const currentPlayer = gameState.turnOrder[gameState.currentTurnIndex];
