@@ -3505,7 +3505,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // Handle dice control selection - player chooses the dice result
-    socket.on('dice-control-select', ({ gameId, selectedNumber, controllingPlayer, rollingPlayer }) => {
+    socket.on('dice-control-select', ({ gameId, selectedNumber, controllingPlayer, rollingPlayer, pendingId }) => {
       const playerGameId = gameManager.getPlayerGameId(socket.id);
       if (playerGameId === gameId) {
         console.log(`🎲 ${controllingPlayer} controlled the dice to show ${selectedNumber}`);
@@ -3513,7 +3513,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Consume the dice control effect
         gameManager.consumeDiceControlEffect(gameId, controllingPlayer);
         
-        // Broadcast the controlled dice result
+        // Broadcast the controlled dice result with animation
         io.to(gameId).emit('dice-rolled', {
           result: selectedNumber,
           playerName: rollingPlayer,
@@ -3528,6 +3528,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: `🎲 ${controllingPlayer} ha controllato il dado! Il risultato è stato cambiato in ${selectedNumber}!`,
           timestamp: Date.now()
         });
+        
+        // If this is from a CPU pending controlled dice, complete the effect
+        if (pendingId) {
+          gameManager.completePendingControlledDice(gameId, pendingId, selectedNumber, io);
+        }
       }
     });
 

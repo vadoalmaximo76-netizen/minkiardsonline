@@ -173,6 +173,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     rollingPlayer: string;
     controllingPlayer: string;
     controllingCardName: string;
+    pendingId?: string;
+    targetCharName?: string;
   }>({ visible: false, rollingPlayer: '', controllingPlayer: '', controllingCardName: '' });
   const [targetSelectionModal, setTargetSelectionModal] = useState<{
     visible: boolean;
@@ -788,14 +790,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('show-swap-selection', handleShowSwapSelection);
 
     // DICE CONTROL: Handle dice control panel for choosing dice result
-    const handleShowDiceControlPanel = (data: { rollingPlayer: string; controllingPlayer: string; controllingCardId: string; controllingCardName: string }) => {
+    const handleShowDiceControlPanel = (data: { rollingPlayer: string; controllingPlayer: string; controllingCardId: string; controllingCardName: string; pendingId?: string; targetCharName?: string }) => {
       console.log('🎲 Show dice control panel:', data);
       if (data.controllingPlayer === playerName) {
         setDiceControlPanel({
           visible: true,
           rollingPlayer: data.rollingPlayer,
           controllingPlayer: data.controllingPlayer,
-          controllingCardName: data.controllingCardName
+          controllingCardName: data.controllingCardName,
+          pendingId: data.pendingId,
+          targetCharName: data.targetCharName
         });
       }
     };
@@ -1820,8 +1824,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 🎲 CONTROLLO DEL DADO
               </h2>
               <p className="text-yellow-100 text-sm mb-2" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                <span className="font-bold">{diceControlPanel.rollingPlayer}</span> sta per lanciare il dado!
+              </p>
+              <p className="text-yellow-100 text-sm mb-2" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
                 La tua carta <span className="font-bold">{diceControlPanel.controllingCardName}</span> ti permette di scegliere il risultato!
               </p>
+              {diceControlPanel.targetCharName && (
+                <p className="text-orange-200 text-sm mb-2" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                  Bersaglio: <span className="font-bold">{diceControlPanel.targetCharName}</span>
+                </p>
+              )}
               <p className="text-yellow-200 font-bold">Scegli il numero del dado:</p>
             </div>
             <div className="grid grid-cols-3 gap-3 mb-4">
@@ -1833,7 +1845,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                       gameId,
                       selectedNumber: num,
                       controllingPlayer: diceControlPanel.controllingPlayer,
-                      rollingPlayer: diceControlPanel.rollingPlayer
+                      rollingPlayer: diceControlPanel.rollingPlayer,
+                      pendingId: diceControlPanel.pendingId
                     });
                     setDiceControlPanel({ visible: false, rollingPlayer: '', controllingPlayer: '', controllingCardName: '' });
                   }}
