@@ -1777,6 +1777,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // Handle PTI input panel confirmation
+    socket.on('pti-input-confirm', ({ cardId, ptiValue, playerName }: { cardId: string, ptiValue: number, playerName: string }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        console.log(`📋 ${playerName} confirmed PTI input: ${ptiValue} for card ${cardId}`);
+        const result = gameManager.processPtiInputEffect(gameId, cardId, ptiValue, playerName);
+        if (result.success) {
+          const gameState = gameManager.getSanitizedGameState(gameId);
+          emitImmediateGameState(io, gameId, gameState);
+          
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-pti-input`,
+            playerName: 'Sistema',
+            message: result.message || `📋 ${playerName} ha inserito ${ptiValue} PTI per l'effetto!`,
+            timestamp: Date.now()
+          });
+        }
+      }
+    });
+
+    // Handle deck selection panel confirmation
+    socket.on('deck-selection-confirm', ({ cardId, deckType, playerName }: { cardId: string, deckType: string, playerName: string }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        console.log(`🎴 ${playerName} selected deck: ${deckType} for card ${cardId}`);
+        const result = gameManager.processDeckSelectionEffect(gameId, cardId, deckType, playerName);
+        if (result.success) {
+          const gameState = gameManager.getSanitizedGameState(gameId);
+          emitImmediateGameState(io, gameId, gameState);
+          
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-deck-select`,
+            playerName: 'Sistema',
+            message: result.message || `🎴 ${playerName} ha selezionato il mazzo ${deckType}!`,
+            timestamp: Date.now()
+          });
+        }
+      }
+    });
+
     // Handle target selection for custom effects (damage/heal to chosen targets)
     socket.on('target-select', ({ targetCardIds, playerName }: { targetCardIds: string[], playerName: string }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);

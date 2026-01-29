@@ -148,6 +148,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     cards: any[];
     message: string;
   }>({ visible: false, reason: '', cards: [], message: '' });
+  const [ptiInputPanel, setPtiInputPanel] = useState<{
+    visible: boolean;
+    cardId: string;
+    cardName: string;
+    effectDescription: string;
+  }>({ visible: false, cardId: '', cardName: '', effectDescription: '' });
+  const [ptiInputValue, setPtiInputValue] = useState<string>('');
+  const [deckSelectionPanel, setDeckSelectionPanel] = useState<{
+    visible: boolean;
+    cardId: string;
+    cardName: string;
+    effectDescription: string;
+  }>({ visible: false, cardId: '', cardName: '', effectDescription: '' });
   const [targetSelectionModal, setTargetSelectionModal] = useState<{
     visible: boolean;
     effectType: 'damage' | 'heal';
@@ -717,6 +730,35 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('show-graveyard-selection', handleShowGraveyardSelection);
 
+    // PTI INPUT PANEL: Handle custom card effect that requires PTI input
+    const handleShowPtiInputPanel = (data: { cardId: string; cardName: string; playerName: string; effectDescription: string }) => {
+      console.log('📋 Show PTI input panel:', data);
+      if (data.playerName === playerName) {
+        setPtiInputPanel({
+          visible: true,
+          cardId: data.cardId,
+          cardName: data.cardName,
+          effectDescription: data.effectDescription
+        });
+        setPtiInputValue('');
+      }
+    };
+    socket.on('show-pti-input-panel', handleShowPtiInputPanel);
+
+    // DECK SELECTION PANEL: Handle custom card effect that requires deck selection
+    const handleShowDeckSelection = (data: { cardId: string; cardName: string; playerName: string; effectDescription: string }) => {
+      console.log('📋 Show deck selection panel:', data);
+      if (data.playerName === playerName) {
+        setDeckSelectionPanel({
+          visible: true,
+          cardId: data.cardId,
+          cardName: data.cardName,
+          effectDescription: data.effectDescription
+        });
+      }
+    };
+    socket.on('show-deck-selection', handleShowDeckSelection);
+
     // TARGET SELECTION: Handle interactive target selection for custom effects
     const handleShowTargetSelection = (data: { 
       effectType: 'damage' | 'heal'; 
@@ -1231,6 +1273,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('voodoo:error', handleVoodooError);
       socket.off('player-choosing-notification', handlePlayerChoosingNotification);
       socket.off('show-graveyard-selection', handleShowGraveyardSelection);
+      socket.off('show-pti-input-panel', handleShowPtiInputPanel);
+      socket.off('show-deck-selection', handleShowDeckSelection);
       socket.off('show-target-selection', handleShowTargetSelection);
       socket.off('show-custom-target-selection', handleShowCustomTargetSelection);
       socket.off('show-auto-dice-setup', handleShowAutoDiceSetup);
@@ -1542,6 +1586,137 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               >
                 Annulla
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PTI INPUT PANEL - For effects that require user to input PTI amount */}
+      {ptiInputPanel.visible && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-blue-900 to-blue-700 rounded-lg p-6 w-full max-w-md mx-4 border-4 border-blue-400 shadow-[0_0_30px_rgba(59,130,246,0.5)]">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-white mb-2" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+                📋 {ptiInputPanel.cardName}
+              </h2>
+              <p className="text-blue-100 text-sm" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                {ptiInputPanel.effectDescription.length > 150 
+                  ? ptiInputPanel.effectDescription.substring(0, 150) + '...' 
+                  : ptiInputPanel.effectDescription}
+              </p>
+            </div>
+            <div className="mb-4">
+              <label className="text-white text-sm font-bold mb-2 block">Inserisci quantità PTI:</label>
+              <Input
+                type="number"
+                value={ptiInputValue}
+                onChange={(e) => setPtiInputValue(e.target.value)}
+                placeholder="Es: 500"
+                className="bg-gray-800 text-white border-blue-400"
+                min="0"
+              />
+            </div>
+            <div className="flex gap-4 justify-center">
+              <Button
+                onClick={() => {
+                  const ptiValue = parseInt(ptiInputValue) || 0;
+                  socket.emit('pti-input-confirm', {
+                    cardId: ptiInputPanel.cardId,
+                    ptiValue,
+                    playerName
+                  });
+                  setPtiInputPanel({ visible: false, cardId: '', cardName: '', effectDescription: '' });
+                }}
+                className="bg-green-600 hover:bg-green-500 text-white px-6 py-2"
+              >
+                Conferma
+              </Button>
+              <Button
+                onClick={() => setPtiInputPanel({ visible: false, cardId: '', cardName: '', effectDescription: '' })}
+                className="bg-gray-600 hover:bg-gray-500 text-white px-6 py-2"
+              >
+                Annulla
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DECK SELECTION PANEL - For effects that require user to select from decks */}
+      {deckSelectionPanel.visible && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-amber-900 to-amber-700 rounded-lg p-6 w-full max-w-md mx-4 border-4 border-amber-400 shadow-[0_0_30px_rgba(217,119,6,0.5)]">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-white mb-2" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+                🎴 {deckSelectionPanel.cardName}
+              </h2>
+              <p className="text-amber-100 text-sm" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                {deckSelectionPanel.effectDescription.length > 150 
+                  ? deckSelectionPanel.effectDescription.substring(0, 150) + '...' 
+                  : deckSelectionPanel.effectDescription}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <Button
+                onClick={() => {
+                  socket.emit('deck-selection-confirm', {
+                    cardId: deckSelectionPanel.cardId,
+                    deckType: 'personaggi',
+                    playerName
+                  });
+                  setDeckSelectionPanel({ visible: false, cardId: '', cardName: '', effectDescription: '' });
+                }}
+                className="bg-red-600 hover:bg-red-500 text-white py-4"
+              >
+                PERSONAGGI
+              </Button>
+              <Button
+                onClick={() => {
+                  socket.emit('deck-selection-confirm', {
+                    cardId: deckSelectionPanel.cardId,
+                    deckType: 'mosse',
+                    playerName
+                  });
+                  setDeckSelectionPanel({ visible: false, cardId: '', cardName: '', effectDescription: '' });
+                }}
+                className="bg-blue-600 hover:bg-blue-500 text-white py-4"
+              >
+                MOSSE
+              </Button>
+              <Button
+                onClick={() => {
+                  socket.emit('deck-selection-confirm', {
+                    cardId: deckSelectionPanel.cardId,
+                    deckType: 'bonus',
+                    playerName
+                  });
+                  setDeckSelectionPanel({ visible: false, cardId: '', cardName: '', effectDescription: '' });
+                }}
+                className="bg-green-600 hover:bg-green-500 text-white py-4"
+              >
+                BONUS
+              </Button>
+              <Button
+                onClick={() => {
+                  socket.emit('deck-selection-confirm', {
+                    cardId: deckSelectionPanel.cardId,
+                    deckType: 'personaggi_speciali',
+                    playerName
+                  });
+                  setDeckSelectionPanel({ visible: false, cardId: '', cardName: '', effectDescription: '' });
+                }}
+                className="bg-purple-600 hover:bg-purple-500 text-white py-4"
+              >
+                SPECIALI
+              </Button>
+            </div>
+            <div className="text-center">
+              <Button
+                onClick={() => setDeckSelectionPanel({ visible: false, cardId: '', cardName: '', effectDescription: '' })}
+                className="bg-gray-600 hover:bg-gray-500 text-white px-6 py-2"
+              >
+                Annulla
+              </Button>
             </div>
           </div>
         </div>

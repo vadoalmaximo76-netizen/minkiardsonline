@@ -2615,9 +2615,28 @@ Rispondi SOLO in JSON:`;
       actions.push({ type: 'clone_self', target: 'self', value: 1, description: 'Si clona sul campo' });
     }
 
+    // ============ PANEL INPUT PATTERNS ============
+    if ((text.includes('pannello') || text.includes('inserire') || text.includes('inserisci')) && 
+        (text.includes('pti') || text.includes('quantità') || text.includes('valore'))) {
+      actions.push({ type: 'show_pti_input_panel', target: 'self', value: 0, description: effectText });
+    }
+
+    // ============ GRAVEYARD SELECTION PATTERNS ============
+    if ((text.includes('cimitero') || text.includes('morto')) && 
+        (text.includes('scegli') || text.includes('scelta') || text.includes('riporta') || text.includes('pannello'))) {
+      actions.push({ type: 'show_graveyard_selection', target: 'self', value: 1, description: 'Scegli una carta dal cimitero' });
+    }
+
+    // ============ DECK SELECTION PATTERNS ============
+    if ((text.includes('mazzo') || text.includes('mazzi')) && 
+        (text.includes('scegli') || text.includes('scelta') || text.includes('pannello') || text.includes('apri'))) {
+      actions.push({ type: 'show_deck_selection', target: 'self', value: 1, description: 'Scegli carte dai mazzi' });
+    }
+
     // ============ CONDITIONAL PATTERNS ============
-    if (text.includes('se ') || text.includes('quando ') || text.includes('ogni volta che')) {
-      // Mark as conditional for special handling
+    if ((text.includes('se ') || text.includes('quando ') || text.includes('ogni volta che')) &&
+        !text.includes('pannello') && !text.includes('inserire')) {
+      // Mark as conditional for special handling (but not if it's a panel effect)
       actions.push({ type: 'conditional', target: 'self', value: 0, description: effectText });
     }
 
@@ -7044,6 +7063,128 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     return { success: true, cardName };
   }
 
+  processPtiInputEffect(gameId: string, cardId: string, ptiValue: number, playerName: string): { success: boolean; message?: string } {
+    const game = this.games.get(gameId);
+    if (!game) return { success: false };
+
+    console.log(`📋 Processing PTI input effect: ${ptiValue} PTI for card ${cardId} by ${playerName}`);
+
+    const playerData = game.players[playerName];
+    if (!playerData) return { success: false };
+
+    const card = playerData.field.find((c: any) => c.id === cardId);
+    if (!card) {
+      console.log(`📋 PTI input effect failed: Card ${cardId} not found on field`);
+      return { success: false };
+    }
+
+    const cardName = card.name || this.getCardNameFromUrl(card.frontImage);
+    const effect = (card as any).effect || '';
+    const effectLower = effect.toLowerCase();
+
+    let message = '';
+
+    if (effectLower.includes('bonus') || effectLower.includes('potenzia') || effectLower.includes('aumenta')) {
+      const targetCard = playerData.field.find((c: any) => 
+        (c.type === 'personaggi' || c.type === 'personaggi_speciali') && typeof c.ptiValue === 'number'
+      );
+
+      if (targetCard) {
+        const oldPti = targetCard.ptiValue || 0;
+        targetCard.ptiValue = oldPti + ptiValue;
+        const targetName = targetCard.name || this.getCardNameFromUrl(targetCard.frontImage);
+        message = `✨ ${cardName}: ${targetName} ha ricevuto +${ptiValue} PTI (${oldPti} → ${targetCard.ptiValue})!`;
+      } else {
+        message = `📋 ${cardName}: Nessun personaggio trovato per applicare +${ptiValue} PTI`;
+      }
+    } else if (effectLower.includes('danno') || effectLower.includes('attacca')) {
+      const enemyPlayers = Object.keys(game.players).filter(p => p !== playerName);
+      
+      for (const enemyName of enemyPlayers) {
+        const enemyData = game.players[enemyName];
+        const targetCard = enemyData.field.find((c: any) => 
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali') && typeof c.ptiValue === 'number'
+        );
+
+        if (targetCard) {
+          const oldPti = targetCard.ptiValue || 0;
+          targetCard.ptiValue = Math.max(0, oldPti - ptiValue);
+          const targetName = targetCard.name || this.getCardNameFromUrl(targetCard.frontImage);
+          message = `⚔️ ${cardName}: ${targetName} ha subito ${ptiValue} danni (${oldPti} → ${targetCard.ptiValue} PTI)!`;
+
+          if (targetCard.ptiValue <= 0) {
+            this.handleCardDeath(game, targetCard, enemyName);
+          }
+          break;
+        }
+      }
+
+      if (!message) {
+        message = `📋 ${cardName}: Nessun bersaglio nemico trovato per infliggere ${ptiValue} danni`;
+      }
+    } else {
+      message = `📋 ${cardName}: Effetto applicato con ${ptiValue} PTI`;
+    }
+
+    console.log(`📋 PTI effect result: ${message}`);
+    return { success: true, message };
+  }
+
+  processDeckSelectionEffect(gameId: string, cardId: string, deckType: string, playerName: string): { success: boolean; message?: string } {
+    const game = this.games.get(gameId);
+    if (!game) return { success: false };
+
+    console.log(`🎴 Processing deck selection effect: ${deckType} for card ${cardId} by ${playerName}`);
+
+    const playerData = game.players[playerName];
+    if (!playerData) return { success: false };
+
+    const card = playerData.field.find((c: any) => c.id === cardId);
+    if (!card) {
+      console.log(`🎴 Deck selection failed: Card ${cardId} not found on field`);
+      return { success: false };
+    }
+
+    const cardName = card.name || this.getCardNameFromUrl(card.frontImage);
+    
+    let targetDeck: any[] | null = null;
+    let deckDisplayName = '';
+
+    switch (deckType) {
+      case 'personaggi':
+        targetDeck = game.decks.personaggi;
+        deckDisplayName = 'PERSONAGGI';
+        break;
+      case 'mosse':
+        targetDeck = game.decks.mosse;
+        deckDisplayName = 'MOSSE';
+        break;
+      case 'bonus':
+        targetDeck = game.decks.bonus;
+        deckDisplayName = 'BONUS';
+        break;
+      case 'personaggi_speciali':
+        targetDeck = game.decks.personaggiSpeciali;
+        deckDisplayName = 'SPECIALI';
+        break;
+    }
+
+    if (!targetDeck || targetDeck.length === 0) {
+      return { success: true, message: `🎴 Il mazzo ${deckDisplayName} è vuoto!` };
+    }
+
+    const drawnCard = targetDeck.shift();
+    if (drawnCard) {
+      drawnCard.owner = playerName;
+      playerData.hand.push(drawnCard);
+      const drawnCardName = drawnCard.name || this.getCardNameFromUrl(drawnCard.frontImage);
+      console.log(`🎴 ${playerName} drew ${drawnCardName} from ${deckDisplayName} deck`);
+      return { success: true, message: `🎴 ${cardName}: ${playerName} ha pescato una carta dal mazzo ${deckDisplayName}!` };
+    }
+
+    return { success: false };
+  }
+
   // Apply effect to player-chosen targets (for 'choice' target effects)
   applyEffectToChosenTargets(gameId: string, targetCardIds: string[], playerName: string): { success: boolean; message?: string } {
     const game = this.games.get(gameId);
@@ -8195,6 +8336,95 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             this.moveToGraveyard(gameId, target.id, target.owner, 'Effetto');
           }
         }
+        break;
+      
+      case 'show_pti_input_panel':
+        // Emit event to show PTI input panel to the player
+        console.log(`📋 Showing PTI input panel for ${playerName}`);
+        io.to(gameId).emit('show-pti-input-panel', {
+          cardId: sourceCard.id,
+          cardName: sourceCard.name || this.getCardNameFromUrl(sourceCard.frontImage || ''),
+          playerName,
+          effectDescription: action.description
+        });
+        break;
+      
+      case 'show_graveyard_selection':
+        // Emit event to show graveyard selection panel
+        console.log(`📋 Showing graveyard selection panel for ${playerName}`);
+        const graveyardCards = game.graveyard.map((c: Card) => ({
+          id: c.id,
+          name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+          frontImage: c.frontImage,
+          owner: c.owner,
+          pti: c.pti,
+          stars: c.stars
+        }));
+        io.to(gameId).emit('show-graveyard-selection', {
+          cardId: sourceCard.id,
+          cardName: sourceCard.name || this.getCardNameFromUrl(sourceCard.frontImage || ''),
+          playerName,
+          graveyardCards
+        });
+        break;
+      
+      case 'show_deck_selection':
+        // Emit event to show deck selection panel
+        console.log(`📋 Showing deck selection panel for ${playerName}`);
+        io.to(gameId).emit('show-deck-selection', {
+          cardId: sourceCard.id,
+          cardName: sourceCard.name || this.getCardNameFromUrl(sourceCard.frontImage || ''),
+          playerName,
+          effectDescription: action.description
+        });
+        break;
+      
+      case 'clone_self':
+        // Clone the source card onto the field
+        const cloneId = `${sourceCard.id}-clone-${Date.now()}`;
+        const clonedCard: Card = {
+          ...sourceCard,
+          id: cloneId
+        };
+        (clonedCard as any).isClone = true;
+        game.field.push(clonedCard);
+        console.log(`🧬 Cloned ${sourceCard.name || 'card'} onto the field`);
+        break;
+      
+      case 'clone':
+        // Same as clone_self
+        const cloneId2 = `${sourceCard.id}-clone2-${Date.now()}`;
+        const clonedCard2: Card = {
+          ...sourceCard,
+          id: cloneId2
+        };
+        (clonedCard2 as any).isClone = true;
+        game.field.push(clonedCard2);
+        console.log(`👯 Created clone of ${sourceCard.name || 'card'}`);
+        break;
+      
+      case 'inherit_from_dead':
+        // Inherit PTI and stars from the last dead character
+        if (game.graveyard.length > 0) {
+          const lastDead = game.graveyard[game.graveyard.length - 1];
+          const deadPTI = lastDead.pti || this.extractPTIFromNote(lastDead.text || '');
+          const deadStars = lastDead.stars || this.extractStarsFromNote(lastDead.text || '');
+          const currentPTI = sourceCard.pti || this.extractPTIFromNote(sourceCard.text || '');
+          const currentStars = sourceCard.stars || this.extractStarsFromNote(sourceCard.text || '');
+          sourceCard.pti = currentPTI + deadPTI;
+          sourceCard.stars = currentStars + deadStars;
+          sourceCard.text = `PTI: ${sourceCard.pti} | Stelle: ${sourceCard.stars}`;
+          console.log(`🦅 ${sourceCard.name || 'Card'} inherited +${deadPTI} PTI, +${deadStars} stars from ${lastDead.name || 'dead character'}`);
+        }
+        break;
+      
+      case 'conditional':
+        // Conditional effects are just logged, they're passive/triggered
+        console.log(`📌 Conditional effect registered: ${action.description.substring(0, 50)}...`);
+        break;
+      
+      default:
+        console.log(`⚡ Unknown effect type: ${action.type}`);
         break;
     }
   }
