@@ -586,12 +586,8 @@ const RoundTableComponent: React.FC = () => {
                             )}
                           </div>
                           
-                          {/* Activate Effect Button for cards with custom effects */}
-                          {(() => {
-                            console.log(`[DEBUG] Card ${card.id}: effect="${card.effect}", isCurrentPlayer=${isCurrentPlayer}, hasEffect=${hasCustomEffect(card)}`);
-                            return null;
-                          })()}
-                          {isCurrentPlayer && hasCustomEffect(card) && (
+                          {/* Activate Effect Button - ALWAYS show for PERSONAGGI cards owned by current player */}
+                          {isCurrentPlayer && (card.type === 'personaggi' || card.type === 'personaggi_speciali') && (
                             <Button
                               onClick={() => handleActivateEffect(card)}
                               className="mt-1 px-2 py-0.5 h-5 text-[9px] bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-1"
