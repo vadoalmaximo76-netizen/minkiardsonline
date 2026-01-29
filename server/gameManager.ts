@@ -4523,6 +4523,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       case 'insurance_effect':
         // "Assicurazione" special effect: show PTI input panel, store as insurance
+        // Check if CPU - auto-apply with random value
+        const ioInsAuto = (global as any).io;
+        if (this.cpuAutoApplyEffect(gameId, playerName, 'insurance', card.id, ioInsAuto)) {
+          break; // CPU handled it
+        }
+        
         if (!game.pendingEffects) {
           game.pendingEffects = new Map();
         }
@@ -4545,6 +4551,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
 
       case 'show_pti_input_panel':
+        // Check if CPU - auto-apply with random value
+        const ioPtiAuto = (global as any).io;
+        if (this.cpuAutoApplyEffect(gameId, playerName, 'pti_input', card.id, ioPtiAuto)) {
+          break; // CPU handled it
+        }
+        
         // Store pending effect info and emit panel event
         if (!game.pendingEffects) {
           game.pendingEffects = new Map();
@@ -4568,6 +4580,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
 
       case 'show_graveyard_selection':
+        // Check if CPU - auto-apply with random selection
+        const ioGraveAuto = (global as any).io;
+        if (this.cpuAutoApplyEffect(gameId, playerName, 'graveyard_selection', card.id, ioGraveAuto)) {
+          break; // CPU handled it
+        }
+        
         console.log(`📋 Showing graveyard selection for ${playerName} (applyEffectToCard)`);
         const ioGrave = (global as any).io;
         if (ioGrave) {
@@ -4586,6 +4604,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
 
       case 'show_deck_selection':
+        // Check if CPU - auto-apply with random deck
+        const ioDeckAuto = (global as any).io;
+        if (this.cpuAutoApplyEffect(gameId, playerName, 'deck_selection', card.id, ioDeckAuto)) {
+          break; // CPU handled it
+        }
+        
         console.log(`📋 Showing deck selection for ${playerName} (applyEffectToCard)`);
         const ioDeck = (global as any).io;
         if (ioDeck) {
@@ -7529,6 +7553,146 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
   }
 
+  // Check if a player is CPU
+  isPlayerCPU(gameId: string, playerName: string): boolean {
+    const game = this.games.get(gameId);
+    if (!game) return false;
+    const player = game.players.get(playerName);
+    return player?.isCPU === true;
+  }
+
+  // CPU automatically applies effect with random value - returns true if handled
+  cpuAutoApplyEffect(gameId: string, playerName: string, effectType: string, cardId: string, io: any): boolean {
+    if (!this.isPlayerCPU(gameId, playerName)) {
+      return false; // Not a CPU player, let frontend handle it
+    }
+
+    const game = this.games.get(gameId);
+    if (!game) return false;
+
+    console.log(`🤖 CPU ${playerName} auto-applying effect: ${effectType}`);
+
+    switch (effectType) {
+      case 'pti_input':
+      case 'insurance': {
+        // Random PTI value between 50 and 500
+        const randomPti = Math.floor(Math.random() * 451) + 50;
+        console.log(`🤖 CPU ${playerName} auto-selected PTI: ${randomPti}`);
+        const result = this.processPtiInputEffect(gameId, cardId, randomPti, playerName);
+        if (result.success && io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-cpu-pti`,
+            playerName: 'Sistema',
+            message: `🤖 CPU ${playerName} ha inserito ${randomPti} PTI per l'effetto!`,
+            timestamp: Date.now()
+          });
+        }
+        return true;
+      }
+
+      case 'deck_selection': {
+        // Random deck type
+        const deckTypes = ['PERSONAGGI', 'MOSSE', 'BONUS', 'PERSONAGGI SPECIALI'];
+        const randomDeck = deckTypes[Math.floor(Math.random() * deckTypes.length)];
+        console.log(`🤖 CPU ${playerName} auto-selected deck: ${randomDeck}`);
+        const result = this.processDeckSelectionEffect(gameId, cardId, randomDeck, playerName);
+        if (result.success && io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-cpu-deck`,
+            playerName: 'Sistema',
+            message: `🤖 CPU ${playerName} ha selezionato il mazzo ${randomDeck}!`,
+            timestamp: Date.now()
+          });
+        }
+        return true;
+      }
+
+      case 'swap': {
+        // Random player to swap with
+        const otherPlayers = game.turnOrder.filter((p: string) => p !== playerName);
+        if (otherPlayers.length > 0) {
+          const randomTarget = otherPlayers[Math.floor(Math.random() * otherPlayers.length)];
+          console.log(`🤖 CPU ${playerName} auto-selected swap target: ${randomTarget}`);
+          const result = this.processSwapEffect(gameId, playerName, randomTarget, io);
+          if (result.success && io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-cpu-swap`,
+              playerName: 'Sistema',
+              message: `🤖 CPU ${playerName} ha scambiato tutte le carte con ${randomTarget}!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        return true;
+      }
+
+      case 'dice_control': {
+        // Random dice number 1-6
+        const randomDice = Math.floor(Math.random() * 6) + 1;
+        console.log(`🤖 CPU ${playerName} auto-selected dice: ${randomDice}`);
+        this.consumeDiceControlEffect(gameId, playerName);
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-cpu-dice`,
+            playerName: 'Sistema',
+            message: `🤖 CPU ${playerName} ha controllato il dado e scelto ${randomDice}!`,
+            timestamp: Date.now()
+          });
+        }
+        return true;
+      }
+
+      case 'graveyard_selection': {
+        // Random card from graveyard
+        if (game.graveyard.length > 0) {
+          const randomCard = game.graveyard[Math.floor(Math.random() * game.graveyard.length)];
+          console.log(`🤖 CPU ${playerName} auto-selected graveyard card: ${randomCard.name || randomCard.id}`);
+          // Resurrect the card
+          const cardIndex = game.graveyard.findIndex((c: Card) => c.id === randomCard.id);
+          if (cardIndex !== -1) {
+            const resurrectedCard = game.graveyard.splice(cardIndex, 1)[0];
+            resurrectedCard.owner = playerName;
+            resurrectedCard.pti = 500; // Random starting PTI
+            this.updateCardTextWithPTI(resurrectedCard);
+            game.field.push(resurrectedCard);
+            if (io) {
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-cpu-resurrect`,
+                playerName: 'Sistema',
+                message: `🤖 CPU ${playerName} ha resuscitato ${resurrectedCard.name || 'una carta'}!`,
+                timestamp: Date.now()
+              });
+            }
+          }
+        }
+        return true;
+      }
+
+      case 'target_selection': {
+        // Random target from field (enemy characters)
+        const enemyCards = game.field.filter((c: Card) => c.owner !== playerName && c.pti !== undefined);
+        if (enemyCards.length > 0) {
+          const randomTarget = enemyCards[Math.floor(Math.random() * enemyCards.length)];
+          console.log(`🤖 CPU ${playerName} auto-selected target: ${randomTarget.name || randomTarget.id}`);
+          const result = this.applyEffectToChosenTargets(gameId, [randomTarget.id], playerName);
+          if (result.success && io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-cpu-target`,
+              playerName: 'Sistema',
+              message: result.message || `🤖 CPU ${playerName} ha applicato l'effetto a ${randomTarget.name || 'un bersaglio'}!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        return true;
+      }
+
+      default:
+        console.log(`🤖 CPU ${playerName}: Unknown effect type ${effectType}, skipping auto-apply`);
+        return false;
+    }
+  }
+
   // Apply effect to player-chosen targets (for 'choice' target effects)
   applyEffectToChosenTargets(gameId: string, targetCardIds: string[], playerName: string): { success: boolean; message?: string } {
     const game = this.games.get(gameId);
@@ -8683,6 +8847,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
       
       case 'show_pti_input_panel':
+        // Check if CPU - auto-apply with random value
+        if (this.cpuAutoApplyEffect(gameId, playerName, 'pti_input', sourceCard.id, io)) {
+          break; // CPU handled it
+        }
         // Emit event to show PTI input panel to the player
         console.log(`📋 Showing PTI input panel for ${playerName}`);
         io.to(gameId).emit('show-pti-input-panel', {
@@ -8694,6 +8862,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
       
       case 'show_graveyard_selection':
+        // Check if CPU - auto-apply with random selection
+        if (this.cpuAutoApplyEffect(gameId, playerName, 'graveyard_selection', sourceCard.id, io)) {
+          break; // CPU handled it
+        }
         // Emit event to show graveyard selection panel
         console.log(`📋 Showing graveyard selection panel for ${playerName}`);
         const graveyardCards = game.graveyard.map((c: Card) => ({
@@ -8713,6 +8885,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
       
       case 'show_deck_selection':
+        // Check if CPU - auto-apply with random deck
+        if (this.cpuAutoApplyEffect(gameId, playerName, 'deck_selection', sourceCard.id, io)) {
+          break; // CPU handled it
+        }
         // Emit event to show deck selection panel
         console.log(`📋 Showing deck selection panel for ${playerName}`);
         io.to(gameId).emit('show-deck-selection', {
@@ -8768,6 +8944,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
       
       case 'swap':
+        // Check if CPU - auto-apply with random target
+        if (this.cpuAutoApplyEffect(gameId, playerName, 'swap', sourceCard.id, io)) {
+          break; // CPU handled it
+        }
         // Show swap/baratto panel to select player to swap with
         console.log(`🔄 Showing swap panel for ${playerName} - Baratto effect`);
         const otherPlayers = game.turnOrder.filter((p: string) => p !== playerName);
