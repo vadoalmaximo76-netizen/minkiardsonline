@@ -6793,6 +6793,54 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     return { success: true, cardName };
   }
 
+  // Apply effect to player-chosen targets (for 'choice' target effects)
+  applyEffectToChosenTargets(gameId: string, targetCardIds: string[], playerName: string): { success: boolean; message?: string } {
+    const game = this.games.get(gameId);
+    if (!game) return { success: false };
+
+    // Get pending effect for this player
+    const pendingEffect = game.pendingEffects?.get(playerName);
+    if (!pendingEffect) {
+      console.log(`🎯 No pending effect found for ${playerName}`);
+      return { success: false, message: 'Nessun effetto in attesa' };
+    }
+
+    const effectType = pendingEffect.type;
+    const value = (pendingEffect as any).value || 100;
+    const affectedCards: string[] = [];
+
+    for (const cardId of targetCardIds) {
+      const card = game.field.find(c => c.id === cardId);
+      if (!card) continue;
+
+      if (effectType === 'target_choice_damage') {
+        // Apply damage
+        if (card.pti != null) {
+          card.pti = Math.max(0, card.pti - value);
+          this.updateCardTextWithPTI(card);
+          affectedCards.push(card.name || cardId);
+          console.log(`🎯 Target choice damage: ${card.name || cardId} took ${value} damage, now at ${card.pti} PTI`);
+        }
+      } else if (effectType === 'target_choice_heal') {
+        // Apply heal
+        if (card.pti != null) {
+          card.pti += value;
+          this.updateCardTextWithPTI(card);
+          affectedCards.push(card.name || cardId);
+          console.log(`🎯 Target choice heal: ${card.name || cardId} healed ${value}, now at ${card.pti} PTI`);
+        }
+      }
+    }
+
+    // Clear pending effect
+    game.pendingEffects?.delete(playerName);
+
+    const actionVerb = effectType === 'target_choice_damage' ? 'inflitto' : 'curato';
+    const message = `🎯 ${playerName} ha ${actionVerb} ${value} ${effectType === 'target_choice_damage' ? 'danni' : 'PTI'} a: ${affectedCards.join(', ')}`;
+    
+    return { success: true, message };
+  }
+
   // CIMICE DEATH EFFECT: When CIMICE dies, removes 500 PTI from ALL other field characters
   async processCimiceDeathEffect(gameId: string, cimiceCardId: string, io: any): Promise<void> {
     const game = this.games.get(gameId);

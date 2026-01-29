@@ -1344,6 +1344,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
+        // Check for target choice effects (damage or heal to chosen targets)
+        if (pendingEffect && (pendingEffect.type === 'target_choice_damage' || pendingEffect.type === 'target_choice_heal')) {
+          // Get all characters on field that can be targeted
+          const gameState = gameManager.getSanitizedGameState(gameId);
+          const targetableCards = gameState?.field?.filter((c: any) => 
+            c.type === 'personaggi' || c.type === 'personaggi_speciali'
+          ) || [];
+          
+          if (targetableCards.length > 0) {
+            socket.emit('show-target-selection', {
+              effectType: pendingEffect.type === 'target_choice_damage' ? 'damage' : 'heal',
+              value: (pendingEffect as any).value || 100,
+              cards: targetableCards,
+              message: pendingEffect.type === 'target_choice_damage' 
+                ? `Scegli i personaggi a cui infliggere ${(pendingEffect as any).value || 100} danni`
+                : `Scegli i personaggi da curare di ${(pendingEffect as any).value || 100} PTI`
+            });
+            console.log(`🎯 Emitted target selection to ${playerName} with ${targetableCards.length} cards`);
+          }
+        }
+        
         // Emit card-played event for last played cards history
         if (result.card) {
           const getCardNameFromUrl = (url: string) => {
@@ -1738,6 +1759,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
             id: `${Date.now()}-resurrect`,
             playerName: 'Sistema',
             message: `👼 ${playerName} ha resuscitato ${result.cardName} dal cimitero!`,
+            timestamp: Date.now()
+          });
+        }
+      }
+    });
+
+    // Handle target selection for custom effects (damage/heal to chosen targets)
+    socket.on('target-select', ({ targetCardIds, playerName }: { targetCardIds: string[], playerName: string }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        const result = gameManager.applyEffectToChosenTargets(gameId, targetCardIds, playerName);
+        if (result.success) {
+          const gameState = gameManager.getSanitizedGameState(gameId);
+          emitImmediateGameState(io, gameId, gameState);
+          
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-target-effect`,
+            playerName: 'Sistema',
+            message: result.message || `🎯 ${playerName} ha applicato l'effetto ai bersagli scelti!`,
             timestamp: Date.now()
           });
         }
