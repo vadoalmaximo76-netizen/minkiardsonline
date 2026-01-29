@@ -7557,7 +7557,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   isPlayerCPU(gameId: string, playerName: string): boolean {
     const game = this.games.get(gameId);
     if (!game) return false;
-    const player = game.players.get(playerName);
+    
+    // Handle both Map and plain object cases
+    let player: any;
+    if (game.players instanceof Map) {
+      player = game.players.get(playerName);
+    } else if (typeof game.players === 'object') {
+      player = (game.players as any)[playerName];
+    }
+    
     return player?.isCPU === true;
   }
 
