@@ -9,13 +9,13 @@ import { Checkbox } from "./ui/checkbox";
 
 // Check if a card has custom activatable effects
 const hasCustomEffect = (card: any): boolean => {
-  const text = card.text || '';
   const effect = card.effect || '';
-  const combined = text + ' ' + effect;
-  return combined.includes('[COMPORTAMENTO:') || 
-         combined.includes('[DADO:') || 
-         combined.includes('[DETTAGLI:') ||
-         combined.includes('[ANIMAZIONE:');
+  // Show button for ANY card that has a non-empty effect field
+  // (excluding 'none' or empty strings)
+  if (effect && effect.trim().toLowerCase() !== 'none' && effect.trim() !== '') {
+    return true;
+  }
+  return false;
 };
 
 const RoundTableComponent: React.FC = () => {
