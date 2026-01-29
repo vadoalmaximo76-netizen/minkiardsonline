@@ -1822,6 +1822,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // TARGET SELECTION: Handle player's target selection for custom effects
+    socket.on('target-selection-confirm', async ({ selectionId, selectedTargetIds, playerName }: {
+      selectionId: string;
+      selectedTargetIds: string[];
+      playerName: string;
+    }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        console.log(`🎯 ${playerName} confirmed target selection: ${selectedTargetIds.length} targets`);
+        await gameManager.processTargetSelection(gameId, selectionId, selectedTargetIds, playerName, io);
+      }
+    });
+
     // CUSTOM EFFECT: Handle manual activation of custom card effects
     socket.on('activate-custom-effect', async ({ cardId, playerName }: { cardId: string; playerName: string }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);

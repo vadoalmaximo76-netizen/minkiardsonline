@@ -578,6 +578,11 @@ function generateEffectDescription(wizard: EffectWizardState): string {
     description += ` [DETTAGLI: ${answers}]`;
   }
 
+  // Add target info when "Personaggi a scelta" is selected
+  if (wizard.target === 'choice') {
+    description += ` [BERSAGLIO: scelta]`;
+  }
+
   // Add dice system info if enabled
   if (wizard.diceEnabled) {
     const getDiceEffectLabel = (effectId: string, custom: string) => {

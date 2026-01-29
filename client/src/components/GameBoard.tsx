@@ -218,6 +218,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     isAnimating: boolean;
     animationPhase: 'rolling' | 'result' | 'effects';
   }>({ visible: false, cardName: '', diceResult: 0, effect: '', affectedCharacters: [], isAnimating: false, animationPhase: 'rolling' });
+  // CUSTOM TARGET SELECTION: Modal for choosing targets for custom effects with [BERSAGLIO: scelta]
+  const [customTargetModal, setCustomTargetModal] = useState<{
+    visible: boolean;
+    selectionId: string;
+    cardId: string;
+    cardName: string;
+    owner: string;
+    availableTargets: Array<{ id: string; name: string; owner: string; frontImage: string; pti: number | null; stars: number | null }>;
+  }>({ visible: false, selectionId: '', cardId: '', cardName: '', owner: '', availableTargets: [] });
+  const [customSelectedTargets, setCustomSelectedTargets] = useState<string[]>([]);
   const [lastPlayedCards, setLastPlayedCards] = useState<Array<{
     id: string;
     frontImage: string;
@@ -831,6 +841,30 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('auto-dice-result', handleAutoDiceResult);
 
+    // CUSTOM TARGET SELECTION: Handler for showing custom target selection modal for [BERSAGLIO: scelta]
+    const handleShowCustomTargetSelection = (data: {
+      selectionId: string;
+      cardId: string;
+      cardName: string;
+      owner: string;
+      availableTargets: Array<{ id: string; name: string; owner: string; frontImage: string; pti: number | null; stars: number | null }>;
+    }) => {
+      console.log('🎯 Show custom target selection:', data);
+      // Only show to the card owner
+      if (data.owner === playerName) {
+        setCustomSelectedTargets([]);
+        setCustomTargetModal({
+          visible: true,
+          selectionId: data.selectionId,
+          cardId: data.cardId,
+          cardName: data.cardName,
+          owner: data.owner,
+          availableTargets: data.availableTargets
+        });
+      }
+    };
+    socket.on('show-custom-target-selection', handleShowCustomTargetSelection);
+
     // PARASITIC CARDS: Handler for target selection
     const handleParasiticTargetSelect = ({ parasiticCardId, parasiticType, ownerPlayer, targets }: {
       parasiticCardId: string;
@@ -1156,6 +1190,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('player-choosing-notification', handlePlayerChoosingNotification);
       socket.off('show-graveyard-selection', handleShowGraveyardSelection);
       socket.off('show-target-selection', handleShowTargetSelection);
+      socket.off('show-custom-target-selection', handleShowCustomTargetSelection);
       socket.off('show-dice-character-select', handleShowDiceCharacterSelect);
       socket.off('show-dice-selection', handleShowDiceSelection);
       socket.off('dice-roll-result', handleDiceRollResult);
@@ -1804,6 +1839,92 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CUSTOM TARGET SELECTION MODAL - Choose targets for custom effects with [BERSAGLIO: scelta] */}
+      {customTargetModal.visible && (
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/80">
+          <div className="bg-gradient-to-br from-cyan-900 via-teal-800 to-cyan-700 rounded-2xl p-6 border-4 border-cyan-400 shadow-[0_0_60px_rgba(34,211,238,0.6)] max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="text-center mb-4">
+              <h2 className="text-2xl font-bold text-white mb-2" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+                🎯 SCEGLI I BERSAGLI
+              </h2>
+              <p className="text-cyan-200">Effetto di <span className="font-bold text-white">{customTargetModal.cardName}</span></p>
+              <p className="text-cyan-300 text-sm mt-1">Clicca sui personaggi da selezionare</p>
+            </div>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+              {customTargetModal.availableTargets.map(target => {
+                const isSelected = customSelectedTargets.includes(target.id);
+                return (
+                  <div
+                    key={target.id}
+                    onClick={() => {
+                      if (isSelected) {
+                        setCustomSelectedTargets(prev => prev.filter(id => id !== target.id));
+                      } else {
+                        setCustomSelectedTargets(prev => [...prev, target.id]);
+                      }
+                    }}
+                    className={`cursor-pointer rounded-lg p-2 border-2 transition-all transform hover:scale-105 relative ${
+                      isSelected 
+                        ? 'border-cyan-300 bg-cyan-600/50 shadow-[0_0_20px_rgba(34,211,238,0.6)]' 
+                        : 'border-gray-600 bg-gray-800/50 hover:border-cyan-500'
+                    }`}
+                  >
+                    <img 
+                      src={target.frontImage} 
+                      alt={target.name}
+                      className="w-full h-24 object-contain rounded mb-1"
+                    />
+                    <p className="text-white text-xs font-medium text-center truncate">{target.name}</p>
+                    <p className="text-cyan-300 text-xs text-center">
+                      {target.pti !== null ? `${target.pti} PTI` : ''} 
+                      {target.stars !== null ? ` ★${target.stars}` : ''}
+                    </p>
+                    <p className="text-gray-400 text-xs text-center">{target.owner}</p>
+                    {isSelected && (
+                      <div className="absolute top-1 right-1 text-lg">✅</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            
+            <div className="flex justify-center gap-4">
+              <button
+                onClick={() => {
+                  setCustomTargetModal({ visible: false, selectionId: '', cardId: '', cardName: '', owner: '', availableTargets: [] });
+                  setCustomSelectedTargets([]);
+                }}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-all"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={() => {
+                  if (customSelectedTargets.length > 0) {
+                    socket.emit('target-selection-confirm', {
+                      selectionId: customTargetModal.selectionId,
+                      selectedTargetIds: customSelectedTargets,
+                      playerName
+                    });
+                    setCustomTargetModal({ visible: false, selectionId: '', cardId: '', cardName: '', owner: '', availableTargets: [] });
+                    setCustomSelectedTargets([]);
+                  }
+                }}
+                disabled={customSelectedTargets.length === 0}
+                className={`px-6 py-3 rounded-lg font-bold text-lg transition-all ${
+                  customSelectedTargets.length > 0
+                    ? 'bg-cyan-500 hover:bg-cyan-400 text-black shadow-[0_0_20px_rgba(34,211,238,0.6)]'
+                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                🎯 Conferma ({customSelectedTargets.length} selezionati)
+              </button>
             </div>
           </div>
         </div>

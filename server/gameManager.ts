@@ -296,6 +296,13 @@ interface GameState {
     turnsRemaining: number;
     createdAt: number;
   }>; // Cards that will die after X turns
+  pendingTargetSelections?: Map<string, {
+    cardId: string;
+    cardName: string;
+    effectText: string;
+    owner: string;
+    timestamp: number;
+  }>; // Pending target selection for custom effects with [BERSAGLIO: scelta]
 }
 
 export class GameManager {
@@ -7117,6 +7124,117 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     return { success: true };
   }
 
+  // TARGET SELECTION: Process player's target selection for custom effects
+  async processTargetSelection(gameId: string, selectionId: string, selectedTargetIds: string[], playerName: string, io: any): Promise<{ success: boolean; message?: string }> {
+    const game = this.games.get(gameId);
+    if (!game || !game.pendingTargetSelections) {
+      return { success: false, message: 'Selezione non trovata' };
+    }
+
+    const selection = game.pendingTargetSelections.get(selectionId);
+    if (!selection) {
+      return { success: false, message: 'Selezione scaduta o non valida' };
+    }
+
+    // Verify owner
+    if (selection.owner !== playerName) {
+      return { success: false, message: 'Solo il proprietario può selezionare i bersagli' };
+    }
+
+    // Find source card
+    const sourceCard = game.field.find((c: Card) => c.id === selection.cardId);
+    if (!sourceCard) {
+      game.pendingTargetSelections.delete(selectionId);
+      return { success: false, message: 'Carta sorgente non trovata' };
+    }
+
+    // Find target cards
+    const targetCards = selectedTargetIds.map(id => game.field.find((c: Card) => c.id === id)).filter(Boolean) as Card[];
+    if (targetCards.length === 0) {
+      return { success: false, message: 'Nessun bersaglio valido selezionato' };
+    }
+
+    const targetNames = targetCards.map(c => c.name || this.getCardNameFromUrl(c.frontImage || '')).join(', ');
+    console.log(`🎯 ${playerName} selected targets: ${targetNames}`);
+
+    // Parse and apply effects to selected targets
+    const actions = this.parseEffectKeywords(selection.effectText);
+    
+    if (actions.length > 0) {
+      for (const action of actions) {
+        // Override target to apply to selected cards
+        for (const target of targetCards) {
+          await this.applyEffectToCard(gameId, action, sourceCard, target, io);
+        }
+      }
+      
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-target-effect`,
+        playerName: 'Sistema',
+        message: `🎯 ${playerName} ha attivato l'effetto di ${selection.cardName} su: ${targetNames}`,
+        timestamp: Date.now()
+      });
+    } else {
+      // Fallback: just notify about target selection
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-target-selected`,
+        playerName: 'Sistema',
+        message: `🎯 ${playerName} ha scelto i bersagli per ${selection.cardName}: ${targetNames}`,
+        timestamp: Date.now()
+      });
+    }
+
+    // Clear pending selection
+    game.pendingTargetSelections.delete(selectionId);
+
+    // Broadcast updated state
+    const gameState = this.getSanitizedGameState(gameId);
+    io.to(gameId).emit('game-state-update', gameState);
+
+    return { success: true, message: `Effetto applicato a: ${targetNames}` };
+  }
+
+  // Apply effect to a single card
+  private async applyEffectToCard(gameId: string, action: { type: string; target: string; value: number; description: string }, sourceCard: Card, targetCard: Card, io: any): Promise<void> {
+    const game = this.games.get(gameId);
+    if (!game) return;
+
+    const targetName = targetCard.name || this.getCardNameFromUrl(targetCard.frontImage || '');
+
+    switch (action.type) {
+      case 'damage':
+        const oldPTI = targetCard.pti || this.extractPTIFromNote(targetCard.text || '');
+        const newPTI = Math.max(0, oldPTI - action.value);
+        targetCard.pti = newPTI;
+        this.updateCardTextWithPTI(targetCard);
+        console.log(`🎯 Dealt ${action.value} damage to ${targetName}: ${oldPTI} → ${newPTI}`);
+        if (newPTI <= 0) {
+          this.moveToGraveyard(gameId, targetCard.id, targetCard.owner, 'Effetto');
+        }
+        break;
+
+      case 'heal':
+        const prevPTI = targetCard.pti || this.extractPTIFromNote(targetCard.text || '');
+        const healedPTI = prevPTI + action.value;
+        targetCard.pti = healedPTI;
+        this.updateCardTextWithPTI(targetCard);
+        console.log(`🎯 Healed ${action.value} to ${targetName}: ${prevPTI} → ${healedPTI}`);
+        break;
+
+      case 'modify_stars':
+        const oldStars = targetCard.stars || 0;
+        const newStars = Math.max(0, oldStars + action.value);
+        targetCard.stars = newStars;
+        console.log(`🎯 Modified stars of ${targetName}: ${oldStars} → ${newStars}`);
+        break;
+
+      case 'kill':
+        console.log(`🎯 Killed ${targetName}`);
+        this.moveToGraveyard(gameId, targetCard.id, targetCard.owner, 'Effetto');
+        break;
+    }
+  }
+
   // DICE SYSTEM: Check if all dice choices are complete and roll if so
   checkDiceChoicesComplete(gameId: string, diceEffectId: string): void {
     const game = this.games.get(gameId);
@@ -7426,6 +7544,58 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const combinedText = cardText + ' ' + cardEffect;
     const cardName = card.name || this.getCardNameFromUrl(card.frontImage || '');
     console.log(`⚡ Activating custom effect for ${cardName}: text="${cardText}", effect="${cardEffect}"`);
+
+    // Check for BERSAGLIO: scelta (target choice) - must select targets first
+    const bersaglioMatch = combinedText.match(/\[BERSAGLIO:\s*scelta\]/i);
+    if (bersaglioMatch) {
+      console.log(`🎯 Card has BERSAGLIO: scelta - requesting target selection`);
+      
+      // Get all characters on field for target selection
+      const allFieldChars = game.field.filter((c: Card) => 
+        c.type === 'personaggi' || c.type === 'personaggi_speciali'
+      );
+      
+      if (allFieldChars.length === 0) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-target-no-chars`,
+          playerName: 'Sistema',
+          message: `🎯 Non ci sono personaggi in campo da selezionare!`,
+          timestamp: Date.now()
+        });
+        return;
+      }
+      
+      // Store pending target selection
+      if (!game.pendingTargetSelections) {
+        game.pendingTargetSelections = new Map();
+      }
+      
+      const selectionId = `target-${Date.now()}`;
+      game.pendingTargetSelections.set(selectionId, {
+        cardId,
+        cardName,
+        effectText: combinedText.replace(/\[BERSAGLIO:\s*scelta\]/i, '').trim(),
+        owner: playerName,
+        timestamp: Date.now()
+      });
+      
+      // Emit event for custom target selection UI
+      io.to(gameId).emit('show-custom-target-selection', {
+        selectionId,
+        cardId,
+        cardName,
+        owner: playerName,
+        availableTargets: allFieldChars.map((c: Card) => ({
+          id: c.id,
+          name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+          owner: c.owner,
+          frontImage: c.frontImage || '',
+          pti: c.pti,
+          stars: c.stars
+        }))
+      });
+      return;
+    }
 
     // Check for DADO (dice) effect
     const dadoMatch = combinedText.match(/\[DADO:\s*([^\]]*)\]/i);
