@@ -3077,11 +3077,26 @@ Rispondi SOLO in JSON:`;
           // CPU auto-handles dice effect: select random character and roll dice
           console.log(`🤖 CPU ${cardOwner} auto-handling dice effect`);
           
-          // Select a random character (prefer enemy character)
-          const enemyChars = involvedCharacters.filter((c: any) => c.owner !== cardOwner);
-          const selectedChar = enemyChars.length > 0 
-            ? enemyChars[Math.floor(Math.random() * enemyChars.length)]
-            : involvedCharacters[Math.floor(Math.random() * involvedCharacters.length)];
+          // Check if card has [BERSAGLIO: scelta] - if so, target enemy; otherwise target own character
+          const hasTargetChoice = card.effect.toLowerCase().includes('[bersaglio:') || 
+                                  card.effect.toLowerCase().includes('bersaglio:');
+          
+          let selectedChar;
+          if (hasTargetChoice) {
+            // Card targets an enemy character (like attacks)
+            const enemyChars = involvedCharacters.filter((c: any) => c.owner !== cardOwner);
+            selectedChar = enemyChars.length > 0 
+              ? enemyChars[Math.floor(Math.random() * enemyChars.length)]
+              : involvedCharacters[Math.floor(Math.random() * involvedCharacters.length)];
+            console.log(`🎲 DADO with target choice - targeting enemy: ${selectedChar.name}`);
+          } else {
+            // Card affects own character (like gambles/scommesse)
+            const ownChars = involvedCharacters.filter((c: any) => c.owner === cardOwner);
+            selectedChar = ownChars.length > 0 
+              ? ownChars[Math.floor(Math.random() * ownChars.length)]
+              : involvedCharacters[Math.floor(Math.random() * involvedCharacters.length)];
+            console.log(`🎲 DADO without target - affecting own character: ${selectedChar.name}`);
+          }
           
           // CHECK FOR DICE CONTROL: Does any player have a card that controls the dice?
           const diceControl = this.checkDiceControlEffect(gameId, cardOwner);
@@ -3244,11 +3259,26 @@ Rispondi SOLO in JSON:`;
           // CPU auto-handles automatic dice: select target and roll
           console.log(`🤖 CPU ${cardOwner} auto-handling automatic dice effect`);
           
-          // Select a random target (prefer enemy)
-          const enemyChars = availableCharacters.filter((c: any) => c.owner !== cardOwner);
-          const selectedChar = enemyChars.length > 0 
-            ? enemyChars[Math.floor(Math.random() * enemyChars.length)]
-            : availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
+          // Check if card has [BERSAGLIO: scelta] - if so, target enemy; otherwise target own character
+          const hasTargetChoice = card.effect.toLowerCase().includes('[bersaglio:') || 
+                                  card.effect.toLowerCase().includes('bersaglio:');
+          
+          let selectedChar;
+          if (hasTargetChoice) {
+            // Card targets an enemy character (like attacks)
+            const enemyChars = availableCharacters.filter((c: any) => c.owner !== cardOwner);
+            selectedChar = enemyChars.length > 0 
+              ? enemyChars[Math.floor(Math.random() * enemyChars.length)]
+              : availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
+            console.log(`🎲 AUTO DADO with target choice - targeting enemy: ${selectedChar.name}`);
+          } else {
+            // Card affects own character (like gambles/scommesse)
+            const ownChars = availableCharacters.filter((c: any) => c.owner === cardOwner);
+            selectedChar = ownChars.length > 0 
+              ? ownChars[Math.floor(Math.random() * ownChars.length)]
+              : availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
+            console.log(`🎲 AUTO DADO without target - affecting own character: ${selectedChar.name}`);
+          }
           
           // CHECK FOR DICE CONTROL: Does any player have a card that controls the dice?
           const diceControl = this.checkDiceControlEffect(gameId, cardOwner);
