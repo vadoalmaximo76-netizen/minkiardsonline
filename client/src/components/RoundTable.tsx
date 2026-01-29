@@ -3,9 +3,17 @@ import { Card } from "./Card";
 import { Deck } from "./Deck";
 import { useGameState } from "../lib/stores/useGameState";
 import { Button } from "./ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Zap } from "lucide-react";
 import { socket } from "../lib/socket";
 import { Checkbox } from "./ui/checkbox";
+
+// Check if a card has custom activatable effects
+const hasCustomEffect = (card: any): boolean => {
+  const text = card.text || '';
+  return text.includes('[COMPORTAMENTO:') || 
+         text.includes('[DADO:') || 
+         text.includes('[DETTAGLI:');
+};
 
 const RoundTableComponent: React.FC = () => {
   const { gameState, playerName, gameId, showBrowser } = useGameState();
@@ -74,6 +82,16 @@ const RoundTableComponent: React.FC = () => {
       direction, 
       playerName,
       gameId 
+    });
+  };
+
+  // Activate custom effect on a card
+  const handleActivateEffect = (card: any) => {
+    console.log(`⚡ Activating custom effect for card: ${card.name || card.id}`);
+    socket.emit('activate-custom-effect', {
+      cardId: card.id,
+      playerName,
+      gameId
     });
   };
 
@@ -549,6 +567,18 @@ const RoundTableComponent: React.FC = () => {
                               </Button>
                             )}
                           </div>
+                          
+                          {/* Activate Effect Button for cards with custom effects */}
+                          {isCurrentPlayer && hasCustomEffect(card) && (
+                            <Button
+                              onClick={() => handleActivateEffect(card)}
+                              className="mt-1 px-2 py-0.5 h-5 text-[9px] bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-1"
+                              size="sm"
+                            >
+                              <Zap size={10} />
+                              Attiva Effetto
+                            </Button>
+                          )}
                         </div>
                       );
                       })

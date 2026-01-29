@@ -1806,6 +1806,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // CUSTOM EFFECT: Handle manual activation of custom card effects
+    socket.on('activate-custom-effect', async ({ cardId, playerName }: { cardId: string; playerName: string }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        console.log(`⚡ ${playerName} activating custom effect for card ${cardId}`);
+        await gameManager.activateCustomEffect(gameId, cardId, playerName, io);
+      }
+    });
+
     socket.on('move-to-graveyard', ({ cardId, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {

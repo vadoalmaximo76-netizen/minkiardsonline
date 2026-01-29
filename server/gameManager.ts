@@ -7193,6 +7193,236 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     console.log(`🎲 Custom/unknown dice effect for ${cardName}: "${effectStr}" - no automatic parsing`);
   }
 
+  // CUSTOM EFFECT: Manually activate a custom effect on a field card
+  async activateCustomEffect(gameId: string, cardId: string, playerName: string, io: any): Promise<void> {
+    const game = this.games.get(gameId);
+    if (!game) return;
+
+    // Find the card on field
+    const card = game.field.find((c: Card) => c.id === cardId);
+    if (!card) {
+      console.log(`⚡ Card ${cardId} not found on field`);
+      return;
+    }
+
+    // Verify ownership
+    if (card.owner !== playerName) {
+      console.log(`⚡ ${playerName} cannot activate effect on card owned by ${card.owner}`);
+      return;
+    }
+
+    const cardText = card.text || '';
+    const cardName = card.name || this.getCardNameFromUrl(card.frontImage || '');
+    console.log(`⚡ Activating custom effect for ${cardName}: "${cardText}"`);
+
+    // Check for DADO (dice) effect
+    const dadoMatch = cardText.match(/\[DADO:\s*([^\]]*)\]/i);
+    if (dadoMatch) {
+      const dadoDetails = dadoMatch[1];
+      console.log(`🎲 Card has DADO effect: ${dadoDetails}`);
+      
+      // Parse correct/wrong effects
+      let correctEffect = 'Nessun effetto';
+      let wrongEffect = 'Nessun effetto';
+      
+      const correctMatch = dadoDetails.match(/Se indovina:\s*([^;]+)/i);
+      const wrongMatch = dadoDetails.match(/Se sbaglia:\s*([^;\]]+)/i);
+      
+      if (correctMatch) correctEffect = correctMatch[1].trim();
+      if (wrongMatch) wrongEffect = wrongMatch[1].trim();
+      
+      // Get all characters on field for dice selection
+      const allFieldChars = game.field.filter((c: Card) => 
+        c.type === 'personaggi' || c.type === 'personaggi_speciali'
+      );
+      
+      if (allFieldChars.length === 0) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-dice-no-chars`,
+          playerName: 'Sistema',
+          message: `🎲 Non ci sono personaggi in campo per l'effetto dado!`,
+          timestamp: Date.now()
+        });
+        return;
+      }
+      
+      // Create dice effect entry
+      const diceEffectId = `dice-${Date.now()}`;
+      if (!game.pendingDiceEffects) {
+        game.pendingDiceEffects = new Map();
+      }
+      
+      game.pendingDiceEffects.set(diceEffectId, {
+        cardId,
+        cardName,
+        correctEffect,
+        wrongEffect,
+        involvedCharacters: allFieldChars.map((c: Card) => ({
+          id: c.id,
+          name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+          owner: c.owner,
+          frontImage: c.frontImage || ''
+        })),
+        choices: new Map<string, string>(),
+        timestamp: Date.now()
+      });
+      
+      // Auto-fill CPU choices
+      for (const char of allFieldChars) {
+        if (char.owner.startsWith('CPU')) {
+          const options = ['1', '2', '3', '4', '5', '6', 'Pari', 'Dispari'];
+          const cpuChoice = options[Math.floor(Math.random() * options.length)];
+          game.pendingDiceEffects.get(diceEffectId)!.choices.set(char.id, cpuChoice);
+          console.log(`🎲 CPU character ${char.name || char.id} auto-chose: ${cpuChoice}`);
+        }
+      }
+      
+      // Emit dice selection request to players
+      io.to(gameId).emit('show-dice-selection', {
+        diceEffectId,
+        cardName,
+        correctEffect,
+        wrongEffect,
+        characters: allFieldChars.map((c: Card) => ({
+          id: c.id,
+          name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+          owner: c.owner,
+          isCPU: c.owner.startsWith('CPU')
+        }))
+      });
+      
+      // Check if all choices are already complete (all CPUs)
+      this.checkDiceChoicesComplete(gameId, diceEffectId);
+      return;
+    }
+
+    // Check for COMPORTAMENTO (behavior) effect
+    const comportamentoMatch = cardText.match(/\[COMPORTAMENTO:\s*([^\]]*)\]/i);
+    if (comportamentoMatch) {
+      const behavior = comportamentoMatch[1].trim();
+      console.log(`⚡ Card has COMPORTAMENTO effect: ${behavior}`);
+      
+      // Parse and apply effect using keyword parser
+      const actions = this.parseEffectKeywords(behavior);
+      
+      if (actions.length > 0) {
+        for (const action of actions) {
+          await this.applyParsedEffect(gameId, action, card, playerName, io);
+        }
+        
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-effect-activated`,
+          playerName: 'Sistema',
+          message: `⚡ ${playerName} ha attivato l'effetto di ${cardName}: ${behavior}`,
+          timestamp: Date.now()
+        });
+      } else {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-effect-unknown`,
+          playerName: 'Sistema',
+          message: `⚡ Effetto "${behavior}" non riconosciuto automaticamente per ${cardName}`,
+          timestamp: Date.now()
+        });
+      }
+      
+      // Broadcast updated game state
+      const gameState = this.getSanitizedGameState(gameId);
+      io.to(gameId).emit('game-state-update', gameState);
+      return;
+    }
+
+    // Check for DETTAGLI effect
+    const dettagliMatch = cardText.match(/\[DETTAGLI:\s*([^\]]*)\]/i);
+    if (dettagliMatch) {
+      const details = dettagliMatch[1].trim();
+      console.log(`⚡ Card has DETTAGLI effect: ${details}`);
+      
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-effect-details`,
+        playerName: 'Sistema',
+        message: `⚡ ${cardName} - Dettagli effetto: ${details}`,
+        timestamp: Date.now()
+      });
+      return;
+    }
+
+    console.log(`⚡ No recognizable custom effect found in card text`);
+  }
+
+  // Apply a parsed effect action
+  private async applyParsedEffect(gameId: string, action: { type: string; target: string; value: number; description: string }, sourceCard: Card, playerName: string, io: any): Promise<void> {
+    const game = this.games.get(gameId);
+    if (!game) return;
+
+    console.log(`⚡ Applying parsed effect: ${action.type} to ${action.target} with value ${action.value}`);
+
+    const getTargetCards = (): Card[] => {
+      switch (action.target) {
+        case 'all_enemies':
+          return game.field.filter((c: Card) => 
+            c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          );
+        case 'all_allies':
+          return game.field.filter((c: Card) => 
+            c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          );
+        case 'all':
+          return game.field.filter((c: Card) => 
+            c.type === 'personaggi' || c.type === 'personaggi_speciali'
+          );
+        case 'self':
+          return [sourceCard];
+        default:
+          return [];
+      }
+    };
+
+    const targets = getTargetCards();
+
+    switch (action.type) {
+      case 'damage':
+        for (const target of targets) {
+          const oldPTI = target.pti || this.extractPTIFromNote(target.text || '');
+          const newPTI = Math.max(0, oldPTI - action.value);
+          target.pti = newPTI;
+          this.updateCardTextWithPTI(target);
+          console.log(`⚡ Dealt ${action.value} damage to ${target.name}: ${oldPTI} → ${newPTI}`);
+          if (newPTI <= 0) {
+            this.moveToGraveyard(gameId, target.id, target.owner, 'Effetto');
+          }
+        }
+        break;
+      case 'heal':
+        for (const target of targets) {
+          const oldPTI = target.pti || this.extractPTIFromNote(target.text || '');
+          const newPTI = oldPTI + action.value;
+          target.pti = newPTI;
+          this.updateCardTextWithPTI(target);
+          console.log(`⚡ Healed ${action.value} PTI to ${target.name}: ${oldPTI} → ${newPTI}`);
+        }
+        break;
+      case 'boost_pti':
+        for (const target of targets) {
+          const oldPTI = target.pti || this.extractPTIFromNote(target.text || '');
+          const newPTI = oldPTI + action.value;
+          target.pti = newPTI;
+          this.updateCardTextWithPTI(target);
+        }
+        break;
+      case 'reduce_pti':
+        for (const target of targets) {
+          const oldPTI = target.pti || this.extractPTIFromNote(target.text || '');
+          const newPTI = Math.max(0, oldPTI - action.value);
+          target.pti = newPTI;
+          this.updateCardTextWithPTI(target);
+          if (newPTI <= 0) {
+            this.moveToGraveyard(gameId, target.id, target.owner, 'Effetto');
+          }
+        }
+        break;
+    }
+  }
+
   // CIMICE DEATH EFFECT: When CIMICE dies, removes 500 PTI from ALL other field characters
   async processCimiceDeathEffect(gameId: string, cimiceCardId: string, io: any): Promise<void> {
     const game = this.games.get(gameId);
