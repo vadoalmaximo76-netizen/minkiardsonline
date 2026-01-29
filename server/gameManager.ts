@@ -12161,6 +12161,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       });
       this.returnToDeck(gameId, mosseCardId, attacker);
 
+      // CRITICAL: Reset CPU's waitingForAttackResolution flag when defense succeeds
+      if (attacker.startsWith('CPU-')) {
+        const cpuInstance = game?.players[attacker]?.cpuInstance;
+        if (cpuInstance) {
+          cpuInstance.resolveAttack();
+          console.log(`🎯 CPU ${attacker}: Attack blocked by defense - CPU attack resolved`);
+        }
+      }
+
       // DUELLO: Special turn handling during duel
       if (game.activeDuel && game.activeDuel.active) {
         console.log(`⚔️ DUELLO: Defender ${defender} blocked attack - granting 2 consecutive turns`);
@@ -13279,6 +13288,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     // PRESERVE: Mark action as completed for CPU turn flow
     if (attackerName.startsWith('CPU-')) {
       console.log(`MOSSE action completed for CPU ${attackerName}`);
+      // CRITICAL: Reset the CPU's waitingForAttackResolution flag so it can take its next turn
+      const cpuInstance = game?.players[attackerName]?.cpuInstance;
+      if (cpuInstance) {
+        cpuInstance.resolveAttack();
+        console.log(`🎯 CPU ${attackerName}: Attack resolved - CPU can now end turn or continue`);
+      }
     }
     
     // PRESERVE: Broadcast the damage result
