@@ -11,21 +11,31 @@ import { Checkbox } from "./ui/checkbox";
 const hasCustomEffect = (card: any): boolean => {
   const effect = card.effect || '';
   const text = card.text || '';
+  const combined = (effect + ' ' + text).toLowerCase();
   
-  // Check for formal effect tags in either effect or text field
-  const combined = effect + ' ' + text;
-  if (combined.includes('[COMPORTAMENTO:') || 
-      combined.includes('[DADO:') || 
-      combined.includes('[DETTAGLI:') ||
-      combined.includes('[ANIMAZIONE:')) {
+  // Check for formal effect tags
+  if (combined.includes('[comportamento:') || 
+      combined.includes('[dado:') || 
+      combined.includes('[dettagli:') ||
+      combined.includes('[animazione:')) {
     return true;
   }
   
-  // Also show button for ANY card that has a non-empty effect field
-  // (excluding 'none' or empty strings)
+  // Check for effect field with content
   if (effect && effect.trim().toLowerCase() !== 'none' && effect.trim() !== '') {
     return true;
   }
+  
+  // Check for effect-like keywords in text field (Italian keywords)
+  const effectKeywords = ['quando', 'effetto', 'attiva', 'assorbe', 'aggiunge', 'infligge', 
+                          'protetto', 'immune', 'clona', 'trasforma', 'ruba', 'cura',
+                          'danno', 'pti', 'stelle', 'nemico', 'alleato', 'campo'];
+  for (const keyword of effectKeywords) {
+    if (combined.includes(keyword)) {
+      return true;
+    }
+  }
+  
   return false;
 };
 
@@ -586,8 +596,8 @@ const RoundTableComponent: React.FC = () => {
                             )}
                           </div>
                           
-                          {/* Activate Effect Button - ALWAYS show for PERSONAGGI cards owned by current player */}
-                          {isCurrentPlayer && (card.type === 'personaggi' || card.type === 'personaggi_speciali') && (
+                          {/* Activate Effect Button - show for cards with custom effects */}
+                          {isCurrentPlayer && hasCustomEffect(card) && (
                             <Button
                               onClick={() => handleActivateEffect(card)}
                               className="mt-1 px-2 py-0.5 h-5 text-[9px] bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-1"
