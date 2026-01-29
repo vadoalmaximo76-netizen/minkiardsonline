@@ -270,7 +270,16 @@ interface GameState {
   skipTurnPlayers?: string[]; // Players who skip their next turn
   nullifyNextEffect?: string; // Player whose next enemy effect is nullified
   doubleNextEffect?: string; // Player whose next effect is doubled
-  pendingEffects?: Map<string, { type: string; cardId: string; timestamp: number }>; // Pending interactive effects
+  pendingEffects?: Map<string, { type: string; cardId: string; timestamp: number; value?: number; maxTargets?: number }>; // Pending interactive effects
+  pendingDiceEffects?: Map<string, {
+    cardId: string;
+    cardName: string;
+    correctEffect: string;
+    wrongEffect: string;
+    involvedCharacters: Array<{ id: string; name: string; owner: string; frontImage: string }>;
+    choices: Map<string, string>; // characterId -> choice (1-6, Pari, Dispari)
+    timestamp: number;
+  }>; // Pending dice roll effects
   // New advanced game state properties
   tripleNextEffect?: string; // Player whose next effect is tripled
   banishedCards?: Card[]; // Cards removed from game temporarily
@@ -2038,7 +2047,7 @@ Rispondi SOLO in JSON:`;
     return true;
   }
 
-  async playCard(gameId: string, cardId: string, playerName: string): Promise<{ card?: any, isPersonaggio?: boolean, duelAutoAttack?: boolean }> {
+  async playCard(gameId: string, cardId: string, playerName: string): Promise<{ card?: any, isPersonaggio?: boolean, duelAutoAttack?: boolean, customAnimation?: string }> {
     const game = this.games.get(gameId);
     if (!game || !game.players[playerName]) return {};
 
@@ -2833,6 +2842,68 @@ Rispondi SOLO in JSON:`;
     const customAnimation = animationMatch ? animationMatch[1].trim() : undefined;
     if (customAnimation) {
       console.log(`🎬 Custom animation found: "${customAnimation}"`);
+    }
+
+    // Check for DICE (DADO) effect - [DADO: Se indovina: X; Se sbaglia: Y]
+    const diceMatch = card.effect.match(/\[DADO:\s*Se indovina:\s*([^;]+);\s*Se sbaglia:\s*([^\]]+)\]/i);
+    if (diceMatch) {
+      const correctEffect = diceMatch[1].trim();
+      const wrongEffect = diceMatch[2].trim();
+      console.log(`🎲 DICE effect detected! Correct: "${correctEffect}", Wrong: "${wrongEffect}"`);
+      
+      // Create dice effect and store it
+      const diceEffectId = `dice-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Get all characters on field that will be involved in the dice roll
+      const involvedCharacters = game.field
+        .filter((c: Card) => c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        .map((c: Card) => ({
+          id: c.id,
+          name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+          owner: c.owner,
+          frontImage: c.frontImage || ''
+        }));
+      
+      if (involvedCharacters.length > 0) {
+        // Store pending dice effect
+        if (!game.pendingDiceEffects) game.pendingDiceEffects = new Map();
+        game.pendingDiceEffects.set(diceEffectId, {
+          cardId: card.id,
+          cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+          correctEffect,
+          wrongEffect,
+          involvedCharacters,
+          choices: new Map<string, string>(), // characterId -> choice
+          timestamp: Date.now()
+        });
+        
+        // CPU characters automatically choose
+        for (const char of involvedCharacters) {
+          if (char.owner.startsWith('CPU')) {
+            const randomChoices = ['1', '2', '3', '4', '5', '6', 'Pari', 'Dispari'];
+            const cpuChoice = randomChoices[Math.floor(Math.random() * randomChoices.length)];
+            game.pendingDiceEffects.get(diceEffectId)?.choices.set(char.id, cpuChoice);
+            console.log(`🎲 CPU ${char.owner}'s character ${char.name} chose: ${cpuChoice}`);
+          }
+        }
+        
+        // Emit dice selection event to all players
+        const io = (global as any).io;
+        if (io) {
+          io.to(gameId).emit('show-dice-selection', {
+            diceEffectId,
+            cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+            correctEffect,
+            wrongEffect,
+            involvedCharacters
+          });
+        }
+        
+        // Check if all choices are made (only CPUs playing)
+        this.checkDiceChoicesComplete(gameId, diceEffectId);
+      }
+      
+      return { customAnimation };
     }
 
     try {
@@ -6841,6 +6912,285 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const message = `🎯 ${playerName} ha ${actionVerb} ${value} ${effectType === 'target_choice_damage' ? 'danni' : 'PTI'} a: ${affectedCards.join(', ')}`;
     
     return { success: true, message };
+  }
+
+  // DICE SYSTEM: Submit player choices for dice roll
+  submitDiceChoices(gameId: string, diceEffectId: string, choices: Record<string, string>, playerName: string): { success: boolean } {
+    const game = this.games.get(gameId);
+    if (!game || !game.pendingDiceEffects) return { success: false };
+
+    const diceEffect = game.pendingDiceEffects.get(diceEffectId);
+    if (!diceEffect) {
+      console.log(`🎲 Dice effect ${diceEffectId} not found`);
+      return { success: false };
+    }
+
+    // Record player's choices for their characters
+    for (const [charId, choice] of Object.entries(choices)) {
+      const char = diceEffect.involvedCharacters.find(c => c.id === charId);
+      if (char && char.owner === playerName) {
+        diceEffect.choices.set(charId, choice);
+        console.log(`🎲 ${playerName}'s character ${char.name} chose: ${choice}`);
+      }
+    }
+
+    // Check if all choices are complete
+    this.checkDiceChoicesComplete(gameId, diceEffectId);
+    
+    return { success: true };
+  }
+
+  // DICE SYSTEM: Check if all dice choices are complete and roll if so
+  checkDiceChoicesComplete(gameId: string, diceEffectId: string): void {
+    const game = this.games.get(gameId);
+    if (!game || !game.pendingDiceEffects) return;
+
+    const diceEffect = game.pendingDiceEffects.get(diceEffectId);
+    if (!diceEffect) return;
+
+    // Check if all characters have made their choice
+    const allChosen = diceEffect.involvedCharacters.every(char => diceEffect.choices.has(char.id));
+    
+    if (!allChosen) {
+      const remaining = diceEffect.involvedCharacters.filter(c => !diceEffect.choices.has(c.id)).length;
+      console.log(`🎲 Waiting for ${remaining} more character choices`);
+      return;
+    }
+
+    console.log(`🎲 All choices made! Rolling the dice...`);
+    
+    // Roll the dice (1-6)
+    const diceResult = Math.floor(Math.random() * 6) + 1;
+    console.log(`🎲 DICE RESULT: ${diceResult} (${diceResult % 2 === 0 ? 'PARI' : 'DISPARI'})`);
+
+    // Determine winners and losers
+    const winners: Array<{ name: string; effect: string; characterId: string }> = [];
+    const losers: Array<{ name: string; effect: string; characterId: string }> = [];
+
+    for (const char of diceEffect.involvedCharacters) {
+      const choice = diceEffect.choices.get(char.id);
+      if (!choice) continue;
+
+      let isCorrect = false;
+      if (choice === 'Pari') {
+        isCorrect = diceResult % 2 === 0;
+      } else if (choice === 'Dispari') {
+        isCorrect = diceResult % 2 !== 0;
+      } else {
+        isCorrect = parseInt(choice) === diceResult;
+      }
+
+      if (isCorrect) {
+        winners.push({ name: char.name, effect: diceEffect.correctEffect, characterId: char.id });
+      } else {
+        losers.push({ name: char.name, effect: diceEffect.wrongEffect, characterId: char.id });
+      }
+    }
+
+    // Apply effects
+    for (const winner of winners) {
+      this.applyDiceConsequence(gameId, winner.characterId, diceEffect.correctEffect, true);
+    }
+    for (const loser of losers) {
+      this.applyDiceConsequence(gameId, loser.characterId, diceEffect.wrongEffect, false);
+    }
+
+    // Emit result to all players
+    const io = (global as any).io;
+    if (io) {
+      io.to(gameId).emit('dice-roll-result', {
+        result: diceResult,
+        winners: winners.map(w => ({ name: w.name, effect: w.effect })),
+        losers: losers.map(l => ({ name: l.name, effect: l.effect }))
+      });
+      
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-dice-result`,
+        playerName: 'Sistema',
+        message: `🎲 DADO: ${diceResult} (${diceResult % 2 === 0 ? 'Pari' : 'Dispari'})! Vincitori: ${winners.map(w => w.name).join(', ') || 'Nessuno'}. Perdenti: ${losers.map(l => l.name).join(', ') || 'Nessuno'}.`,
+        timestamp: Date.now()
+      });
+    }
+
+    // Clean up
+    game.pendingDiceEffects.delete(diceEffectId);
+    
+    // Broadcast updated game state
+    const gameState = this.getSanitizedGameState(gameId);
+    if (io) {
+      io.to(gameId).emit('game-state-update', gameState);
+    }
+  }
+
+  // DICE SYSTEM: Apply consequence based on effect string
+  private applyDiceConsequence(gameId: string, characterId: string, effectStr: string, isCorrect: boolean): void {
+    const game = this.games.get(gameId);
+    if (!game) return;
+
+    const card = game.field.find(c => c.id === characterId);
+    if (!card) return;
+
+    const cardName = card.name || this.getCardNameFromUrl(card.frontImage || '');
+    console.log(`🎲 Applying ${isCorrect ? 'CORRECT' : 'WRONG'} consequence to ${cardName}: "${effectStr}"`);
+
+    // Parse known effects
+    const effectLower = effectStr.toLowerCase();
+
+    if (effectLower.includes('morte') || effectLower.includes('death')) {
+      // Death
+      console.log(`🎲💀 ${cardName} dies from dice effect`);
+      this.moveToGraveyard(gameId, characterId, card.owner, 'DADO');
+      return;
+    }
+
+    if (effectLower.includes('0 stelle') || effectLower.includes('zero stelle')) {
+      // Zero stars
+      const oldStars = this.extractStarsFromNote(card.text || '');
+      const currentPTI = card.pti || this.extractPTIFromNote(card.text || '');
+      card.text = `PTI: ${currentPTI} | Stelle: 0`;
+      console.log(`🎲⭐ ${cardName} stars ${oldStars} → 0`);
+      return;
+    }
+
+    if (effectLower.includes('dimezza') && effectLower.includes('pti') && effectLower.includes('stelle')) {
+      // Halve both
+      const currentPTI = card.pti || this.extractPTIFromNote(card.text || '');
+      const currentStars = this.extractStarsFromNote(card.text || '');
+      const newPTI = Math.floor(currentPTI / 2);
+      const newStars = Math.floor(currentStars / 2);
+      card.pti = newPTI;
+      card.text = `PTI: ${newPTI} | Stelle: ${newStars}`;
+      console.log(`🎲 ${cardName} halved: PTI ${currentPTI}→${newPTI}, Stars ${currentStars}→${newStars}`);
+      return;
+    }
+
+    if (effectLower.includes('dimezza') && effectLower.includes('pti')) {
+      // Halve PTI
+      const currentPTI = card.pti || this.extractPTIFromNote(card.text || '');
+      const newPTI = Math.floor(currentPTI / 2);
+      card.pti = newPTI;
+      this.updateCardTextWithPTI(card);
+      console.log(`🎲 ${cardName} PTI halved: ${currentPTI} → ${newPTI}`);
+      return;
+    }
+
+    if (effectLower.includes('dimezza') && effectLower.includes('stelle')) {
+      // Halve stars
+      const currentStars = this.extractStarsFromNote(card.text || '');
+      const currentPTI = card.pti || this.extractPTIFromNote(card.text || '');
+      const newStars = Math.floor(currentStars / 2);
+      card.text = `PTI: ${currentPTI} | Stelle: ${newStars}`;
+      console.log(`🎲 ${cardName} stars halved: ${currentStars} → ${newStars}`);
+      return;
+    }
+
+    if (effectLower.includes('raddoppia') && effectLower.includes('pti') && effectLower.includes('stelle')) {
+      // Double both
+      const currentPTI = card.pti || this.extractPTIFromNote(card.text || '');
+      const currentStars = this.extractStarsFromNote(card.text || '');
+      const newPTI = currentPTI * 2;
+      const newStars = currentStars * 2;
+      card.pti = newPTI;
+      card.text = `PTI: ${newPTI} | Stelle: ${newStars}`;
+      console.log(`🎲 ${cardName} doubled: PTI ${currentPTI}→${newPTI}, Stars ${currentStars}→${newStars}`);
+      return;
+    }
+
+    if (effectLower.includes('raddoppia') && effectLower.includes('pti')) {
+      // Double PTI
+      const currentPTI = card.pti || this.extractPTIFromNote(card.text || '');
+      const newPTI = currentPTI * 2;
+      card.pti = newPTI;
+      this.updateCardTextWithPTI(card);
+      console.log(`🎲 ${cardName} PTI doubled: ${currentPTI} → ${newPTI}`);
+      return;
+    }
+
+    if (effectLower.includes('raddoppia') && effectLower.includes('stelle')) {
+      // Double stars
+      const currentStars = this.extractStarsFromNote(card.text || '');
+      const currentPTI = card.pti || this.extractPTIFromNote(card.text || '');
+      const newStars = currentStars * 2;
+      card.text = `PTI: ${currentPTI} | Stelle: ${newStars}`;
+      console.log(`🎲 ${cardName} stars doubled: ${currentStars} → ${newStars}`);
+      return;
+    }
+
+    if (effectLower.includes('guadagna') && effectLower.includes('pti')) {
+      // Gain PTI - try to extract number
+      const match = effectStr.match(/(\d+)/);
+      const amount = match ? parseInt(match[1]) : 100;
+      const currentPTI = card.pti || this.extractPTIFromNote(card.text || '');
+      const newPTI = currentPTI + amount;
+      card.pti = newPTI;
+      this.updateCardTextWithPTI(card);
+      console.log(`🎲 ${cardName} gained ${amount} PTI: ${currentPTI} → ${newPTI}`);
+      return;
+    }
+
+    if (effectLower.includes('perde') && effectLower.includes('pti')) {
+      // Lose PTI
+      const match = effectStr.match(/(\d+)/);
+      const amount = match ? parseInt(match[1]) : 100;
+      const currentPTI = card.pti || this.extractPTIFromNote(card.text || '');
+      const newPTI = Math.max(0, currentPTI - amount);
+      card.pti = newPTI;
+      this.updateCardTextWithPTI(card);
+      console.log(`🎲 ${cardName} lost ${amount} PTI: ${currentPTI} → ${newPTI}`);
+      if (newPTI <= 0) {
+        this.moveToGraveyard(gameId, characterId, card.owner, 'DADO');
+      }
+      return;
+    }
+
+    if (effectLower.includes('guadagna') && effectLower.includes('stell')) {
+      // Gain stars
+      const match = effectStr.match(/(\d+)/);
+      const amount = match ? parseInt(match[1]) : 1;
+      const currentStars = this.extractStarsFromNote(card.text || '');
+      const currentPTI = card.pti || this.extractPTIFromNote(card.text || '');
+      const newStars = currentStars + amount;
+      card.text = `PTI: ${currentPTI} | Stelle: ${newStars}`;
+      console.log(`🎲 ${cardName} gained ${amount} stars: ${currentStars} → ${newStars}`);
+      return;
+    }
+
+    if (effectLower.includes('perde') && effectLower.includes('stell')) {
+      // Lose stars
+      const match = effectStr.match(/(\d+)/);
+      const amount = match ? parseInt(match[1]) : 1;
+      const currentStars = this.extractStarsFromNote(card.text || '');
+      const currentPTI = card.pti || this.extractPTIFromNote(card.text || '');
+      const newStars = Math.max(0, currentStars - amount);
+      card.text = `PTI: ${currentPTI} | Stelle: ${newStars}`;
+      console.log(`🎲 ${cardName} lost ${amount} stars: ${currentStars} → ${newStars}`);
+      return;
+    }
+
+    if (effectLower.includes('salta') && effectLower.includes('turno')) {
+      // Skip turn
+      if (!game.skipTurnPlayers) game.skipTurnPlayers = [];
+      if (!game.skipTurnPlayers.includes(card.owner)) {
+        game.skipTurnPlayers.push(card.owner);
+      }
+      console.log(`🎲 ${card.owner} will skip next turn (${cardName})`);
+      return;
+    }
+
+    if (effectLower.includes('turno extra') || effectLower.includes('extra turn')) {
+      // Extra turn
+      game.extraTurnPlayer = card.owner;
+      console.log(`🎲 ${card.owner} gets extra turn (${cardName})`);
+      return;
+    }
+
+    // If effect is "Nessun effetto" or unrecognized
+    if (effectLower.includes('nessun effetto') || effectLower === 'none') {
+      console.log(`🎲 No effect applied to ${cardName}`);
+      return;
+    }
+
+    console.log(`🎲 Custom/unknown dice effect for ${cardName}: "${effectStr}" - no automatic parsing`);
   }
 
   // CIMICE DEATH EFFECT: When CIMICE dies, removes 500 PTI from ALL other field characters

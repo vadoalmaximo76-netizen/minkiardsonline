@@ -179,6 +179,24 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     damageValue: number;
     duration: number;
   } | null>(null);
+  
+  // DICE SYSTEM - Selection modal for dice effect cards
+  const [diceSelectionModal, setDiceSelectionModal] = useState<{
+    visible: boolean;
+    diceEffectId: string;
+    cardName: string;
+    correctEffect: string;
+    wrongEffect: string;
+    involvedCharacters: Array<{ id: string; name: string; owner: string; frontImage: string }>;
+    myCharacterIds: string[];
+  }>({ visible: false, diceEffectId: '', cardName: '', correctEffect: '', wrongEffect: '', involvedCharacters: [], myCharacterIds: [] });
+  const [diceChoices, setDiceChoices] = useState<Record<string, string>>({});
+  const [diceRollResult, setDiceRollResult] = useState<{
+    visible: boolean;
+    result: number;
+    winners: Array<{ name: string; effect: string }>;
+    losers: Array<{ name: string; effect: string }>;
+  } | null>(null);
   const [lastPlayedCards, setLastPlayedCards] = useState<Array<{
     id: string;
     frontImage: string;
@@ -678,6 +696,54 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('show-target-selection', handleShowTargetSelection);
 
+    // DICE SYSTEM: Handle dice selection modal
+    const handleShowDiceSelection = (data: {
+      diceEffectId: string;
+      cardName: string;
+      correctEffect: string;
+      wrongEffect: string;
+      involvedCharacters: Array<{ id: string; name: string; owner: string; frontImage: string }>;
+    }) => {
+      console.log('🎲 Show dice selection:', data);
+      const myCharacterIds = data.involvedCharacters
+        .filter(c => c.owner === playerName)
+        .map(c => c.id);
+      
+      if (myCharacterIds.length > 0) {
+        setDiceChoices({});
+        setDiceSelectionModal({
+          visible: true,
+          diceEffectId: data.diceEffectId,
+          cardName: data.cardName,
+          correctEffect: data.correctEffect,
+          wrongEffect: data.wrongEffect,
+          involvedCharacters: data.involvedCharacters,
+          myCharacterIds
+        });
+      }
+    };
+    socket.on('show-dice-selection', handleShowDiceSelection);
+
+    // DICE SYSTEM: Handle dice roll result
+    const handleDiceRollResult = (data: {
+      result: number;
+      winners: Array<{ name: string; effect: string }>;
+      losers: Array<{ name: string; effect: string }>;
+    }) => {
+      console.log('🎲 Dice roll result:', data);
+      setDiceRollResult({
+        visible: true,
+        result: data.result,
+        winners: data.winners,
+        losers: data.losers
+      });
+      // Auto-hide after 6 seconds
+      setTimeout(() => {
+        setDiceRollResult(null);
+      }, 6000);
+    };
+    socket.on('dice-roll-result', handleDiceRollResult);
+
     // PARASITIC CARDS: Handler for target selection
     const handleParasiticTargetSelect = ({ parasiticCardId, parasiticType, ownerPlayer, targets }: {
       parasiticCardId: string;
@@ -1003,6 +1069,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('player-choosing-notification', handlePlayerChoosingNotification);
       socket.off('show-graveyard-selection', handleShowGraveyardSelection);
       socket.off('show-target-selection', handleShowTargetSelection);
+      socket.off('show-dice-selection', handleShowDiceSelection);
+      socket.off('dice-roll-result', handleDiceRollResult);
       socket.off('parasitic-target-select', handleParasiticTargetSelect);
       socket.off('parasitic-attached', handleParasiticAttached);
       socket.off('saibaim-explosion', handleSaibaImExplosion);
@@ -1404,6 +1472,117 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               >
                 {targetSelectionModal.effectType === 'damage' ? '⚔️ Attacca' : '💚 Cura'} ({selectedTargetIds.length})
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DICE SELECTION MODAL - Choose number before dice roll */}
+      {diceSelectionModal.visible && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-amber-900 to-amber-700 rounded-lg p-6 w-full max-w-2xl mx-4 border-4 border-amber-400 shadow-[0_0_30px_rgba(251,191,36,0.5)]">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-white mb-2" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+                🎲 LANCIO DEL DADO - {diceSelectionModal.cardName}
+              </h2>
+              <div className="text-amber-100 text-sm space-y-1">
+                <p>✅ Se indovini: <span className="text-green-300 font-bold">{diceSelectionModal.correctEffect}</span></p>
+                <p>❌ Se sbagli: <span className="text-red-300 font-bold">{diceSelectionModal.wrongEffect}</span></p>
+              </div>
+            </div>
+            
+            <p className="text-white text-center mb-4">Scegli un numero per ogni tuo personaggio coinvolto:</p>
+            
+            <div className="space-y-4 max-h-80 overflow-y-auto">
+              {diceSelectionModal.myCharacterIds.map(charId => {
+                const char = diceSelectionModal.involvedCharacters.find(c => c.id === charId);
+                if (!char) return null;
+                return (
+                  <div key={charId} className="bg-gray-800/80 rounded-lg p-4 border border-amber-500/50">
+                    <div className="flex items-center gap-3 mb-3">
+                      {char.frontImage && (
+                        <img src={char.frontImage} alt={char.name} className="w-12 h-16 object-cover rounded" />
+                      )}
+                      <span className="text-white font-bold">{char.name}</span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {['1', '2', '3', '4', '5', '6', 'Pari', 'Dispari'].map(choice => (
+                        <button
+                          key={choice}
+                          onClick={() => setDiceChoices(prev => ({ ...prev, [charId]: choice }))}
+                          className={`p-2 rounded font-bold transition-all ${
+                            diceChoices[charId] === choice
+                              ? 'bg-amber-500 text-black shadow-[0_0_15px_rgba(251,191,36,0.8)]'
+                              : 'bg-gray-700 text-white hover:bg-gray-600'
+                          }`}
+                        >
+                          {choice}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            <div className="mt-6 flex justify-center gap-4">
+              <button
+                onClick={() => {
+                  const allChosen = diceSelectionModal.myCharacterIds.every(id => diceChoices[id]);
+                  if (allChosen) {
+                    socket.emit('dice-choice-submit', {
+                      diceEffectId: diceSelectionModal.diceEffectId,
+                      choices: diceChoices,
+                      playerName
+                    });
+                    setDiceSelectionModal({ visible: false, diceEffectId: '', cardName: '', correctEffect: '', wrongEffect: '', involvedCharacters: [], myCharacterIds: [] });
+                  }
+                }}
+                disabled={!diceSelectionModal.myCharacterIds.every(id => diceChoices[id])}
+                className={`px-6 py-3 rounded-lg font-bold text-lg transition-all ${
+                  diceSelectionModal.myCharacterIds.every(id => diceChoices[id])
+                    ? 'bg-amber-500 hover:bg-amber-400 text-black shadow-[0_0_20px_rgba(251,191,36,0.6)]'
+                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                🎲 Conferma Scelte
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DICE ROLL RESULT - Animated result display */}
+      {diceRollResult?.visible && (
+        <div className="fixed inset-0 z-[9999] pointer-events-none flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/70" />
+          <div className="relative bg-gradient-to-br from-amber-900 to-amber-600 rounded-xl p-8 border-4 border-amber-300 shadow-[0_0_50px_rgba(251,191,36,0.8)] animate-bounce-once">
+            <div className="text-center">
+              <div className="text-8xl mb-4 animate-spin-slow">🎲</div>
+              <h2 className="text-4xl font-bold text-white mb-2" style={{textShadow: '3px 3px 6px rgba(0,0,0,0.8)'}}>
+                RISULTATO: {diceRollResult.result}
+              </h2>
+              <p className="text-amber-200 text-lg">
+                {diceRollResult.result % 2 === 0 ? 'PARI' : 'DISPARI'}
+              </p>
+              
+              {diceRollResult.winners.length > 0 && (
+                <div className="mt-4 bg-green-600/30 border border-green-400 rounded-lg p-3">
+                  <p className="text-green-300 font-bold mb-2">✅ HANNO INDOVINATO:</p>
+                  {diceRollResult.winners.map((w, i) => (
+                    <p key={i} className="text-white">{w.name} → {w.effect}</p>
+                  ))}
+                </div>
+              )}
+              
+              {diceRollResult.losers.length > 0 && (
+                <div className="mt-4 bg-red-600/30 border border-red-400 rounded-lg p-3">
+                  <p className="text-red-300 font-bold mb-2">❌ HANNO SBAGLIATO:</p>
+                  {diceRollResult.losers.map((l, i) => (
+                    <p key={i} className="text-white">{l.name} → {l.effect}</p>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

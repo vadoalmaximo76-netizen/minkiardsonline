@@ -1793,6 +1793,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // DICE SYSTEM: Handle player dice choice submission
+    socket.on('dice-choice-submit', ({ diceEffectId, choices, playerName }: { 
+      diceEffectId: string; 
+      choices: Record<string, string>; 
+      playerName: string 
+    }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        console.log(`🎲 Received dice choices from ${playerName}:`, choices);
+        gameManager.submitDiceChoices(gameId, diceEffectId, choices, playerName);
+      }
+    });
+
     socket.on('move-to-graveyard', ({ cardId, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
