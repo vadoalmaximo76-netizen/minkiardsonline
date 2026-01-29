@@ -3049,34 +3049,91 @@ Rispondi SOLO in JSON:`;
         }));
       
       if (involvedCharacters.length > 0) {
-        // Store pending dice effect (will be updated when player confirms characters)
-        if (!game.pendingDiceEffects) game.pendingDiceEffects = new Map();
-        game.pendingDiceEffects.set(diceEffectId, {
-          cardId: card.id,
-          cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
-          correctEffect,
-          wrongEffect,
-          involvedCharacters, // All available characters
-          selectedCharacters: [], // Will be set when player confirms
-          choices: new Map<string, string>(), // characterId -> choice
-          initiatorPlayer: card.owner,
-          timestamp: Date.now()
-        });
-        
-        // Emit character selection event to the initiator player
         const io = (global as any).io;
-        if (io) {
-          console.log(`🎲 EMITTING show-dice-character-select to room ${gameId} with ${involvedCharacters.length} available characters`);
-          io.to(gameId).emit('show-dice-character-select', {
-            diceEffectId,
+        const cardOwner = card.owner || playerName;
+        const isCPU = this.isPlayerCPU(gameId, cardOwner);
+        
+        if (isCPU) {
+          // CPU auto-handles dice effect: select random character and roll dice
+          console.log(`🤖 CPU ${cardOwner} auto-handling dice effect`);
+          
+          // Select a random character (prefer enemy character)
+          const enemyChars = involvedCharacters.filter((c: any) => c.owner !== cardOwner);
+          const selectedChar = enemyChars.length > 0 
+            ? enemyChars[Math.floor(Math.random() * enemyChars.length)]
+            : involvedCharacters[Math.floor(Math.random() * involvedCharacters.length)];
+          
+          // Roll dice (random 1-6)
+          const diceRoll = Math.floor(Math.random() * 6) + 1;
+          const cpuGuess = Math.floor(Math.random() * 6) + 1;
+          const isCorrect = diceRoll === cpuGuess;
+          const effectToApply = isCorrect ? correctEffect : wrongEffect;
+          
+          console.log(`🎲 CPU ${cardOwner}: Rolled ${diceRoll}, guessed ${cpuGuess}, ${isCorrect ? 'CORRECT!' : 'WRONG!'} → "${effectToApply}"`);
+          
+          // Apply effect to selected character
+          const targetCard = game.field.find((c: Card) => c.id === selectedChar.id);
+          if (targetCard) {
+            // Parse and apply dice effect
+            const effectLower = effectToApply.toLowerCase();
+            if (effectLower.includes('raddoppia')) {
+              if (effectLower.includes('pti')) targetCard.pti = (targetCard.pti || 0) * 2;
+              if (effectLower.includes('stelle')) targetCard.stars = (targetCard.stars || 0) * 2;
+              console.log(`🎲 Applied: ${selectedChar.name} doubled stats to ${targetCard.pti} PTI, ${targetCard.stars} stars`);
+            } else if (effectLower.includes('dimezza')) {
+              if (effectLower.includes('pti')) targetCard.pti = Math.floor((targetCard.pti || 0) / 2);
+              if (effectLower.includes('stelle')) targetCard.stars = Math.floor((targetCard.stars || 0) / 2);
+              console.log(`🎲 Applied: ${selectedChar.name} halved stats to ${targetCard.pti} PTI, ${targetCard.stars} stars`);
+            } else if (effectLower.includes('morte')) {
+              targetCard.pti = 0;
+              this.moveToGraveyard(gameId, targetCard.id, targetCard.owner || '', cardOwner);
+              console.log(`🎲 Applied: ${selectedChar.name} died from dice effect`);
+            }
+            this.updateCardTextWithPTI(targetCard);
+          }
+          
+          // Send chat message about CPU action
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-cpu-dice`,
+              playerName: 'Sistema',
+              message: `🎲 CPU ${cardOwner} ha lanciato il dado! Risultato: ${diceRoll}, ha scelto ${cpuGuess} - ${isCorrect ? '✅ Indovinato!' : '❌ Sbagliato!'} Effetto: "${effectToApply}" applicato a ${selectedChar.name}`,
+              timestamp: Date.now()
+            });
+          }
+          
+          // Return card to bottom of deck
+          this.returnToDeck(gameId, card.id, cardOwner);
+        } else {
+          // Human player: show character selection panel
+          // Store pending dice effect (will be updated when player confirms characters)
+          if (!game.pendingDiceEffects) game.pendingDiceEffects = new Map();
+          game.pendingDiceEffects.set(diceEffectId, {
+            cardId: card.id,
             cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
             correctEffect,
             wrongEffect,
-            availableCharacters: involvedCharacters,
-            initiatorPlayer: card.owner
+            involvedCharacters, // All available characters
+            selectedCharacters: [], // Will be set when player confirms
+            choices: new Map<string, string>(), // characterId -> choice
+            initiatorPlayer: cardOwner,
+            timestamp: Date.now()
           });
-        } else {
-          console.log('❌ No io instance available for dice character selection event');
+          
+          // Emit character selection event to the initiator player
+          if (io) {
+            console.log(`🎲 EMITTING show-dice-character-select to room ${gameId} with ${involvedCharacters.length} available characters`);
+            io.to(gameId).emit('show-dice-character-select', {
+              diceEffectId,
+              cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+              correctEffect,
+              wrongEffect,
+              availableCharacters: involvedCharacters,
+              initiatorPlayer: cardOwner
+            });
+          } else {
+            console.log('❌ No io instance available for dice character selection event');
+          }
         }
       }
       
@@ -3114,8 +3171,64 @@ Rispondi SOLO in JSON:`;
       
       if (availableCharacters.length > 0) {
         const io = (global as any).io;
-        if (io) {
-          // Store pending auto dice setup
+        const cardOwner = card.owner || playerName;
+        const isCPU = this.isPlayerCPU(gameId, cardOwner);
+        
+        if (isCPU) {
+          // CPU auto-handles automatic dice: select target and roll
+          console.log(`🤖 CPU ${cardOwner} auto-handling automatic dice effect`);
+          
+          // Select a random target (prefer enemy)
+          const enemyChars = availableCharacters.filter((c: any) => c.owner !== cardOwner);
+          const selectedChar = enemyChars.length > 0 
+            ? enemyChars[Math.floor(Math.random() * enemyChars.length)]
+            : availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
+          
+          // Roll dice
+          const diceRoll = Math.floor(Math.random() * 6) + 1;
+          const effectToApply = autoEffects[diceRoll] || 'Nessun effetto';
+          
+          console.log(`🎲 CPU ${cardOwner}: Auto dice rolled ${diceRoll} → "${effectToApply}"`);
+          
+          // Apply effect
+          const targetCard = game.field.find((c: Card) => c.id === selectedChar.id);
+          if (targetCard) {
+            const effectLower = effectToApply.toLowerCase();
+            if (effectLower.includes('morte') || effectLower.includes('muore')) {
+              const turnsMatch = effectToApply.match(/(\d+)\s*turn/i);
+              if (turnsMatch) {
+                const turns = parseInt(turnsMatch[1]);
+                (targetCard as any).deathCountdown = turns;
+                console.log(`🎲 Applied: ${selectedChar.name} will die in ${turns} turns`);
+              } else {
+                targetCard.pti = 0;
+                this.moveToGraveyard(gameId, targetCard.id, targetCard.owner || '', cardOwner);
+                console.log(`🎲 Applied: ${selectedChar.name} died from auto dice effect`);
+              }
+            } else if (effectLower.includes('dimezza')) {
+              if (effectLower.includes('pti')) targetCard.pti = Math.floor((targetCard.pti || 0) / 2);
+              if (effectLower.includes('stelle')) targetCard.stars = Math.floor((targetCard.stars || 0) / 2);
+            } else if (effectLower.includes('perde')) {
+              const ptiMatch = effectToApply.match(/(\d+)\s*pti/i);
+              const starMatch = effectToApply.match(/(\d+)\s*stell/i);
+              if (ptiMatch) targetCard.pti = Math.max(0, (targetCard.pti || 0) - parseInt(ptiMatch[1]));
+              if (starMatch) targetCard.stars = Math.max(0, (targetCard.stars || 0) - parseInt(starMatch[1]));
+            }
+            this.updateCardTextWithPTI(targetCard);
+          }
+          
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-cpu-auto-dice`,
+              playerName: 'Sistema',
+              message: `🎲 CPU ${cardOwner} ha lanciato il dado automatico! Risultato: ${diceRoll} → "${effectToApply}" applicato a ${selectedChar.name}`,
+              timestamp: Date.now()
+            });
+          }
+          
+          this.returnToDeck(gameId, card.id, cardOwner);
+        } else if (io) {
+          // Human player: show auto dice setup panel
           if (!game.pendingAutoDice) {
             game.pendingAutoDice = new Map();
           }
@@ -3125,7 +3238,7 @@ Rispondi SOLO in JSON:`;
             cardId: card.id,
             cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
             defaultEffects: autoEffects,
-            initiatorPlayer: card.owner,
+            initiatorPlayer: cardOwner,
             allowedCharacterIds: availableCharacters.map(c => c.id),
             timestamp: Date.now()
           });
@@ -3137,7 +3250,7 @@ Rispondi SOLO in JSON:`;
             cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
             defaultEffects: autoEffects,
             availableCharacters,
-            initiatorPlayer: card.owner
+            initiatorPlayer: cardOwner
           });
         }
       }
