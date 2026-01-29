@@ -106,6 +106,11 @@ export class CPUPlayer {
     console.log(`🎯 CPU ${this.playerName}: Attack resolved - continuing turn to play more cards`);
   }
 
+  // PUBLIC GETTER: Check if CPU is waiting for attack resolution
+  isWaitingForAttack(): boolean {
+    return this.waitingForAttackResolution;
+  }
+
   // NEW: Turn state management methods
   resetTurnState() {
     this.turnState = {

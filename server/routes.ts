@@ -5413,6 +5413,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       }, 1500);
                   }
                 } else {
+                  // CPU returned null - check if waiting for attack resolution
+                  const currentGameForWait = gameManager.getGameState(gameId);
+                  const cpuInstanceForWait = currentGameForWait?.players[nextPlayer]?.cpuInstance;
+                  
+                  if (cpuInstanceForWait?.isWaitingForAttack()) {
+                    // CPU is waiting for MOSSE attack to be resolved - DO NOT end turn
+                    console.log(`🎯 CPU ${nextPlayer} returned null but is waiting for attack resolution - NOT ending turn`);
+                    return; // Exit without ending turn - attack resolution will continue the turn
+                  }
+                  
                   // CPU had no valid actions, just end turn
                   // Process delayed damages before ending turn
                   gameManager.processDelayedDamages(gameId, nextPlayer, io);
