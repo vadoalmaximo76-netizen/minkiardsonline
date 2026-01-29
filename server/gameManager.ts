@@ -3087,7 +3087,49 @@ Rispondi SOLO in JSON:`;
         timestamp: Date.now()
       });
       
-      // Emit event for custom target selection UI
+      // CPU AUTONOMOUS HANDLING: If the player is CPU, auto-select targets immediately
+      if (this.isPlayerCPU(gameId, playerName)) {
+        console.log(`🤖 CPU ${playerName} auto-selecting targets for BERSAGLIO effect`);
+        
+        // CPU selects 1-2 random targets (prefer enemies if available)
+        const ownChars = allFieldChars.filter((c: Card) => c.owner === playerName);
+        const enemyChars = allFieldChars.filter((c: Card) => c.owner !== playerName);
+        
+        let selectedTargets: Card[] = [];
+        
+        // Prefer selecting both own and enemy character for "gamble" style effects
+        if (ownChars.length > 0 && enemyChars.length > 0) {
+          const ownTarget = ownChars[Math.floor(Math.random() * ownChars.length)];
+          const enemyTarget = enemyChars[Math.floor(Math.random() * enemyChars.length)];
+          selectedTargets = [ownTarget, enemyTarget];
+        } else if (enemyChars.length >= 2) {
+          // Select 2 random enemies
+          const shuffled = [...enemyChars].sort(() => Math.random() - 0.5);
+          selectedTargets = shuffled.slice(0, 2);
+        } else if (allFieldChars.length >= 2) {
+          // Select 2 random from all
+          const shuffled = [...allFieldChars].sort(() => Math.random() - 0.5);
+          selectedTargets = shuffled.slice(0, 2);
+        } else {
+          // Just pick 1
+          selectedTargets = [allFieldChars[Math.floor(Math.random() * allFieldChars.length)]];
+        }
+        
+        const selectedTargetIds = selectedTargets.map(c => c.id);
+        const selectedTargetNames = selectedTargets.map(c => c.name || this.getCardNameFromUrl(c.frontImage || ''));
+        
+        console.log(`🎯 CPU ${playerName} confirmed target selection: ${selectedTargetIds.length} targets`);
+        console.log(`🎯 CPU selected targets: ${selectedTargetNames.join(', ')}`);
+        
+        // Process the target selection immediately
+        setTimeout(async () => {
+          await this.processTargetSelection(gameId, selectionId, selectedTargetIds, playerName, io);
+        }, 500);
+        
+        return {};
+      }
+      
+      // Human player: Emit event for custom target selection UI
       io.to(gameId).emit('show-custom-target-selection', {
         selectionId,
         cardId: card.id,
@@ -8348,14 +8390,19 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       });
     }
     
-    // Return the dice card to bottom of deck (only if cardId exists)
-    if (cardId) {
-      this.returnToDeck(gameId, cardId, rollingPlayer);
-    }
+    // IMPORTANT: Do NOT return the dice control card to deck - it stays in field!
+    // The cardId here is the dice control card (e.g., Mazzamauriegl), not the BONUS card
+    // The BONUS card (e.g., Gioco d'azzardo) was already handled when the effect was triggered
+    // and should be returned to deck by the calling code, not here
     
     // Clean up pending data
     game.pendingControlledAutoDice.delete(pendingId);
     if ((game as any).pendingAutoDiceFullData) {
+      // Get the autoDiceId to clean up the pending auto dice
+      const autoDiceId = fullData?.autoDiceId;
+      if (autoDiceId && game.pendingAutoDice) {
+        game.pendingAutoDice.delete(autoDiceId);
+      }
       (game as any).pendingAutoDiceFullData.delete(pendingId);
     }
     
@@ -8711,7 +8758,23 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         timestamp: Date.now()
       });
       
-      // Emit setup event with pre-selected characters
+      // Clear pending target selection first
+      game.pendingTargetSelections.delete(selectionId);
+      
+      // CPU AUTONOMOUS HANDLING: If CPU, automatically confirm the auto dice
+      if (this.isPlayerCPU(gameId, playerName)) {
+        console.log(`🤖 CPU ${playerName} auto-confirming DADO_AUTOMATICO with ${selectedTargetIds.length} characters`);
+        
+        // CPU confirms auto dice immediately
+        setTimeout(async () => {
+          const result = await this.processAutoDiceConfirm(gameId, autoDiceId, selectedTargetIds, null, playerName, io);
+          console.log(`🎲 CPU auto dice confirmation result: ${result?.message || 'completed'}`);
+        }, 800);
+        
+        return { success: true, message: `CPU conferma dado automatico con ${targetCards.length} personaggi` };
+      }
+      
+      // Human player: Emit setup event with pre-selected characters
       io.to(gameId).emit('show-auto-dice-setup', {
         autoDiceId,
         cardName: selection.cardName,
@@ -8727,9 +8790,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         initiatorPlayer: selection.owner,
         preSelected: true // Flag to indicate characters are pre-selected
       });
-      
-      // Clear pending target selection
-      game.pendingTargetSelections.delete(selectionId);
       
       return { success: true, message: `Selezionati ${targetCards.length} personaggi per il dado` };
     }
@@ -9488,7 +9548,46 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         timestamp: Date.now()
       });
       
-      // Emit event for custom target selection UI
+      // CPU AUTONOMOUS HANDLING: If the player is CPU, auto-select targets immediately
+      if (this.isPlayerCPU(gameId, playerName)) {
+        console.log(`🤖 CPU ${playerName} auto-selecting targets for BERSAGLIO effect (activateCustomEffect)`);
+        
+        // CPU selects 1-2 random targets (prefer enemies if available)
+        const ownChars = allFieldChars.filter((c: Card) => c.owner === playerName);
+        const enemyChars = allFieldChars.filter((c: Card) => c.owner !== playerName);
+        
+        let selectedTargets: Card[] = [];
+        
+        // Prefer selecting both own and enemy character for "gamble" style effects
+        if (ownChars.length > 0 && enemyChars.length > 0) {
+          const ownTarget = ownChars[Math.floor(Math.random() * ownChars.length)];
+          const enemyTarget = enemyChars[Math.floor(Math.random() * enemyChars.length)];
+          selectedTargets = [ownTarget, enemyTarget];
+        } else if (enemyChars.length >= 2) {
+          const shuffled = [...enemyChars].sort(() => Math.random() - 0.5);
+          selectedTargets = shuffled.slice(0, 2);
+        } else if (allFieldChars.length >= 2) {
+          const shuffled = [...allFieldChars].sort(() => Math.random() - 0.5);
+          selectedTargets = shuffled.slice(0, 2);
+        } else {
+          selectedTargets = [allFieldChars[Math.floor(Math.random() * allFieldChars.length)]];
+        }
+        
+        const selectedTargetIds = selectedTargets.map(c => c.id);
+        const selectedTargetNames = selectedTargets.map(c => c.name || this.getCardNameFromUrl(c.frontImage || ''));
+        
+        console.log(`🎯 CPU ${playerName} confirmed target selection: ${selectedTargetIds.length} targets`);
+        console.log(`🎯 CPU selected targets: ${selectedTargetNames.join(', ')}`);
+        
+        // Process the target selection immediately
+        setTimeout(async () => {
+          await this.processTargetSelection(gameId, selectionId, selectedTargetIds, playerName, io);
+        }, 500);
+        
+        return;
+      }
+      
+      // Human player: Emit event for custom target selection UI
       io.to(gameId).emit('show-custom-target-selection', {
         selectionId,
         cardId,
