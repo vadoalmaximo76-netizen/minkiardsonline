@@ -2899,6 +2899,7 @@ Rispondi SOLO in JSON:`;
         // Emit dice selection event to all players
         const io = (global as any).io;
         if (io) {
+          console.log(`🎲 EMITTING show-dice-selection to room ${gameId} with ${involvedCharacters.length} characters`);
           io.to(gameId).emit('show-dice-selection', {
             diceEffectId,
             cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
@@ -2906,6 +2907,8 @@ Rispondi SOLO in JSON:`;
             wrongEffect,
             involvedCharacters
           });
+        } else {
+          console.log('❌ No io instance available for dice selection event');
         }
         
         // Check if all choices are made (only CPUs playing)
