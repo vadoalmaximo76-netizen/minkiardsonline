@@ -16,6 +16,7 @@ interface EffectWizardState {
   condition: string;
   customDescription: string;
   categoryFilter: string;
+  effectSearchQuery: string;
   animationDescription: string;
   behaviorDescription: string;
   aiQuestions: AIQuestion[];
@@ -684,6 +685,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     condition: '',
     customDescription: '',
     categoryFilter: 'all',
+    effectSearchQuery: '',
     animationDescription: '',
     behaviorDescription: '',
     aiQuestions: [],
@@ -712,6 +714,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       condition: '',
       customDescription: '',
       categoryFilter: 'all',
+      effectSearchQuery: '',
       animationDescription: '',
       behaviorDescription: '',
       aiQuestions: [],
@@ -1950,6 +1953,18 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
               <div className="space-y-3">
                 <p className="text-gray-300 text-sm mb-2">Che tipo di effetto vuoi creare?</p>
                 
+                {/* Search Field */}
+                <div className="relative mb-2">
+                  <Search size={16} className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Cerca effetto..."
+                    value={effectWizard.effectSearchQuery}
+                    onChange={(e) => setEffectWizard(prev => ({ ...prev, effectSearchQuery: e.target.value }))}
+                    className="w-full pl-8 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm placeholder-gray-400 focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+                
                 {/* Category Filter */}
                 <div className="flex flex-wrap gap-1 mb-3">
                   {EFFECT_CATEGORIES.map(cat => (
@@ -1968,7 +1983,15 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                 </div>
                 
                 <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
-                  {EFFECT_TYPES.filter(e => effectWizard.categoryFilter === 'all' || e.category === effectWizard.categoryFilter).map(effect => (
+                  {EFFECT_TYPES.filter(e => {
+                    const matchesCategory = effectWizard.categoryFilter === 'all' || e.category === effectWizard.categoryFilter;
+                    const searchTerm = effectWizard.effectSearchQuery.toLowerCase().trim();
+                    const matchesSearch = !searchTerm || 
+                      e.label.toLowerCase().includes(searchTerm) || 
+                      e.description.toLowerCase().includes(searchTerm) ||
+                      e.id.toLowerCase().includes(searchTerm);
+                    return matchesCategory && matchesSearch;
+                  }).map(effect => (
                     <button
                       key={effect.id}
                       onClick={() => setEffectWizard(prev => ({ ...prev, effectType: effect.id }))}
