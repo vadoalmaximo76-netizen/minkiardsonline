@@ -62,9 +62,10 @@ interface CardProps {
   };
   location: 'hand' | 'field' | 'graveyard';
   showBack?: boolean;
+  onCardPlayed?: () => void;
 }
 
-const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false }) => {
+const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, onCardPlayed }) => {
   const [cardText, setCardText] = useState(card.text || "");
   const [showActions, setShowActions] = useState(false);
   const [showPlayerSelect, setShowPlayerSelect] = useState(false);
@@ -317,10 +318,16 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false }
 
   const handlePlay = () => {
     socket.emit('play-card', { cardId: card.id, playerName: effectivePlayerName });
+    if (onCardPlayed) {
+      onCardPlayed();
+    }
   };
 
   const handlePlayFaceDown = () => {
     socket.emit('play-card-face-down', { cardId: card.id, playerName: effectivePlayerName });
+    if (onCardPlayed) {
+      onCardPlayed();
+    }
   };
 
   const handleReveal = () => {

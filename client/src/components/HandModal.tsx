@@ -81,6 +81,7 @@ export const HandModal: React.FC<HandModalProps> = ({ onClose }) => {
               key={card.id}
               card={card}
               location="hand"
+              onCardPlayed={onClose}
             />
           ))}
           {playerCards.length === 0 && (
