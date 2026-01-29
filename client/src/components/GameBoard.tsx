@@ -28,6 +28,7 @@ import { RecursiveDamagePanel } from "./RecursiveDamagePanel";
 import { HandModal } from "./HandModal";
 import { MusicPlayer } from "./MusicPlayer";
 import { VoiceChat } from "./VoiceChat";
+import { YouTubeVideoModal } from "./YouTubeVideoModal";
 import { PickedCardModal } from "./PickedCardModal";
 import { SorosActivation } from "./SorosActivation";
 import { CharacterEffects } from "./CharacterEffects";
@@ -206,6 +207,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     defender: string;
     damageValue: number;
     duration: number;
+  } | null>(null);
+  
+  // YouTube Video Modal
+  const [youtubeVideoData, setYoutubeVideoData] = useState<{
+    visible: boolean;
+    youtubeUrl: string;
+    cardName: string;
+    playerName: string;
   } | null>(null);
   
   // DICE SYSTEM - Character selection modal (choose which characters to involve)
@@ -1162,6 +1171,23 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('card-audio-play', handleCardAudioPlay);
 
+    // YOUTUBE VIDEO: Show YouTube video when a card with youtubeUrl is played
+    const handleShowYoutubeVideo = ({ cardId, playerName: videoPlayerName, youtubeUrl, cardName }: {
+      cardId: string;
+      playerName: string;
+      youtubeUrl: string;
+      cardName: string;
+    }) => {
+      console.log(`📺 YouTube video requested for card ${cardName}: ${youtubeUrl}`);
+      setYoutubeVideoData({
+        visible: true,
+        youtubeUrl,
+        cardName,
+        playerName: videoPlayerName
+      });
+    };
+    socket.on('show-youtube-video', handleShowYoutubeVideo);
+
     // CIMICE effect (attack or death)
     const handleCimiceEffect = (data: {
       type: 'attack' | 'death';
@@ -1339,6 +1365,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('hostage-released', handleHostageReleased);
       socket.off('hostage-died', handleHostageDied);
       socket.off('card-audio-play', handleCardAudioPlay);
+      socket.off('show-youtube-video', handleShowYoutubeVideo);
       socket.off('clash-battle-start', handleClashBattleStart);
       socket.off('clash-battle-end', handleClashBattleEnd);
       socket.off('attack-error', handleAttackError);
@@ -3132,6 +3159,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             defender={clashBattleData.defender}
             damageValue={clashBattleData.damageValue}
             duration={clashBattleData.duration}
+          />
+        )}
+        
+        {/* YouTube Video Modal */}
+        {youtubeVideoData?.visible && (
+          <YouTubeVideoModal
+            youtubeUrl={youtubeVideoData.youtubeUrl}
+            cardName={youtubeVideoData.cardName}
+            playerName={youtubeVideoData.playerName}
+            onClose={() => setYoutubeVideoData(null)}
           />
         )}
         

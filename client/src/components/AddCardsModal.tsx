@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "./ui/button";
-import { X, Upload, Plus, Pencil, Trash2, Save, Shield, Sparkles, Search, RotateCcw, Volume2, Wand2, ChevronRight, ChevronLeft } from "lucide-react";
+import { X, Upload, Plus, Pencil, Trash2, Save, Shield, Sparkles, Search, RotateCcw, Volume2, Wand2, ChevronRight, ChevronLeft, Video } from "lucide-react";
 import { socket } from "../lib/socket";
 import { useGameState } from "../lib/stores/useGameState";
 import { Input } from "./ui/input";
@@ -701,6 +701,7 @@ interface UploadedCardData {
   stars: number | null;
   effect: string;
   audioUrl: string;
+  youtubeUrl: string;
   isPermanent: boolean;
 }
 
@@ -713,6 +714,7 @@ interface PermanentCard {
   stars: number | null;
   effect: string | null;
   audioUrl: string | null;
+  youtubeUrl: string | null;
   createdBy: string | null;
   createdAt: string;
 }
@@ -728,6 +730,7 @@ interface ExistingCard {
   stars: number | null;
   effect: string | null;
   audioUrl: string | null;
+  youtubeUrl: string | null;
   isDeleted: boolean;
   isModified: boolean;
 }
@@ -739,7 +742,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   const [permanentCards, setPermanentCards] = useState<PermanentCard[]>([]);
   const [loadingPermanent, setLoadingPermanent] = useState(false);
   const [editingCard, setEditingCard] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', pti: '', stars: '', effect: '', audioUrl: '' });
+  const [editForm, setEditForm] = useState({ name: '', pti: '', stars: '', effect: '', audioUrl: '', youtubeUrl: '' });
   const [activeTab, setActiveTab] = useState<'add' | 'manage' | 'existing'>('add');
   const { gameId, playerName } = useGameState();
   
@@ -747,7 +750,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   const [existingCards, setExistingCards] = useState<ExistingCard[]>([]);
   const [loadingExisting, setLoadingExisting] = useState(false);
   const [editingExistingCard, setEditingExistingCard] = useState<string | null>(null);
-  const [existingEditForm, setExistingEditForm] = useState({ name: '', imageUrl: '', pti: '', stars: '', effect: '', audioUrl: '' });
+  const [existingEditForm, setExistingEditForm] = useState({ name: '', imageUrl: '', pti: '', stars: '', effect: '', audioUrl: '', youtubeUrl: '' });
   const [searchQuery, setSearchQuery] = useState('');
   
   // Effect Wizard state
@@ -1108,6 +1111,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       stars: null,
       effect: '',
       audioUrl: '',
+      youtubeUrl: '',
       isPermanent: false
     }));
     
@@ -1163,6 +1167,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
             stars: isCharacterDeck ? card.stars : null,
             effect: card.effect.trim() || null,
             audioUrl: card.audioUrl.trim() || null,
+            youtubeUrl: card.youtubeUrl.trim() || null,
             isPermanent: card.isPermanent
           };
         })
@@ -1192,7 +1197,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       pti: card.pti?.toString() || '',
       stars: card.stars?.toString() || '',
       effect: card.effect || '',
-      audioUrl: card.audioUrl || ''
+      audioUrl: card.audioUrl || '',
+      youtubeUrl: card.youtubeUrl || ''
     });
   };
 
@@ -1206,7 +1212,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
           pti: editForm.pti ? parseInt(editForm.pti) : null,
           stars: editForm.stars ? parseInt(editForm.stars) : null,
           effect: editForm.effect || null,
-          audioUrl: editForm.audioUrl || null
+          audioUrl: editForm.audioUrl || null,
+          youtubeUrl: editForm.youtubeUrl || null
         })
       });
       
@@ -1253,7 +1260,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       pti: card.pti?.toString() || '',
       stars: card.stars?.toString() || '',
       effect: card.effect || '',
-      audioUrl: card.audioUrl || ''
+      audioUrl: card.audioUrl || '',
+      youtubeUrl: card.youtubeUrl || ''
     });
   };
 
@@ -1270,7 +1278,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
           pti: existingEditForm.pti || null,
           stars: existingEditForm.stars || null,
           effect: existingEditForm.effect || null,
-          audioUrl: existingEditForm.audioUrl || null
+          audioUrl: existingEditForm.audioUrl || null,
+          youtubeUrl: existingEditForm.youtubeUrl || null
         })
       });
       
@@ -1547,6 +1556,20 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                             />
                           </div>
                           
+                          <div>
+                            <label className="text-white text-sm mb-1 flex items-center gap-1">
+                              <Video size={14} className="text-red-500" />
+                              Video YouTube (URL)
+                            </label>
+                            <Input
+                              type="text"
+                              value={card.youtubeUrl}
+                              onChange={(e) => updateCardData(index, 'youtubeUrl', e.target.value)}
+                              placeholder="https://www.youtube.com/watch?v=... o https://youtu.be/..."
+                              className="bg-gray-600 text-white border-gray-500"
+                            />
+                          </div>
+                          
                           <div className="flex items-center gap-3">
                             <div 
                               className={`flex items-center gap-2 px-3 py-2 rounded cursor-pointer transition-colors ${
@@ -1688,6 +1711,20 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                                 value={editForm.audioUrl}
                                 onChange={(e) => setEditForm(prev => ({ ...prev, audioUrl: e.target.value }))}
                                 placeholder="https://... link audio"
+                                className="bg-gray-600 text-white border-gray-500"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="text-white text-sm mb-1 flex items-center gap-1">
+                                <Video size={14} className="text-red-500" />
+                                Video YouTube URL
+                              </label>
+                              <Input
+                                type="text"
+                                value={editForm.youtubeUrl}
+                                onChange={(e) => setEditForm(prev => ({ ...prev, youtubeUrl: e.target.value }))}
+                                placeholder="https://www.youtube.com/watch?v=..."
                                 className="bg-gray-600 text-white border-gray-500"
                               />
                             </div>
@@ -1905,6 +1942,20 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                                 value={existingEditForm.audioUrl}
                                 onChange={(e) => setExistingEditForm(prev => ({ ...prev, audioUrl: e.target.value }))}
                                 placeholder="https://... link audio da riprodurre quando la carta viene giocata"
+                                className="bg-gray-600 text-white border-gray-500"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="text-white text-sm mb-1 flex items-center gap-1">
+                                <Video size={14} className="text-red-500" />
+                                Video YouTube URL
+                              </label>
+                              <Input
+                                type="text"
+                                value={existingEditForm.youtubeUrl}
+                                onChange={(e) => setExistingEditForm(prev => ({ ...prev, youtubeUrl: e.target.value }))}
+                                placeholder="https://www.youtube.com/watch?v=..."
                                 className="bg-gray-600 text-white border-gray-500"
                               />
                             </div>

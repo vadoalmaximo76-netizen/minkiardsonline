@@ -38,6 +38,7 @@ interface Card {
   usedBy?: string; // Player who used this MOSSE card
   // Audio for custom cards
   audioUrl?: string; // URL to audio file to play when card is placed on field
+  youtubeUrl?: string; // URL to YouTube video to show when card is played
   // POTERI system - copied powers
   copiedPower?: string; // Name of character whose power was copied (e.g., 'CIMICE', 'PARASSITA')
   // RIFUGIO shelter protection system
@@ -10697,7 +10698,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   async addCustomCards(
     gameId: string, 
     deckType: string, 
-    cards: Array<{ name: string, data: string, pti: number | null, stars: number | null, effect?: string | null, audioUrl?: string | null, isPermanent: boolean }>,
+    cards: Array<{ name: string, data: string, pti: number | null, stars: number | null, effect?: string | null, audioUrl?: string | null, youtubeUrl?: string | null, isPermanent: boolean }>,
     playerName: string
   ): Promise<{ success: boolean }> {
     const game = this.games.get(gameId);
@@ -10728,7 +10729,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           pti: isCharacterDeck ? cardData.pti : null,
           stars: isCharacterDeck ? cardData.stars : null,
           effect: cardData.effect || undefined,
-          audioUrl: cardData.audioUrl || undefined
+          audioUrl: cardData.audioUrl || undefined,
+          youtubeUrl: cardData.youtubeUrl || undefined
         };
         
         if (deckType === 'personaggi') {
@@ -10751,10 +10753,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               stars: cardData.stars,
               effect: cardData.effect || null,
               audioUrl: cardData.audioUrl || null,
+              youtubeUrl: cardData.youtubeUrl || null,
               createdBy: playerName
             };
             await db.insert(customCards).values(customCardRecord);
-            console.log(`Permanent card "${cardData.name}" saved to database with audioUrl: ${cardData.audioUrl}`);
+            console.log(`Permanent card "${cardData.name}" saved to database with audioUrl: ${cardData.audioUrl}, youtubeUrl: ${cardData.youtubeUrl}`);
           } catch (dbError) {
             console.error('Error saving permanent card to database:', dbError);
           }

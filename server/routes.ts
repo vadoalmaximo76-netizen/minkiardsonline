@@ -1809,6 +1809,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
         
+        // Check for youtubeUrl - on card directly first (instant), then database if needed
+        let youtubeUrl = result.card?.youtubeUrl;
+        console.log(`[YOUTUBE DEBUG] Card ${cardId} played. Card youtubeUrl from memory: ${youtubeUrl || 'NOT SET'}`);
+        
+        // Only do database lookup if no youtubeUrl in memory and card exists
+        if (!youtubeUrl && result.card) {
+          try {
+            const cardIdStr = result.card.id;
+            
+            // Check if it's a custom card (permanent custom cards from database)
+            if (cardIdStr.startsWith('custom-')) {
+              const customCardResults = await db.select().from(customCards)
+                .where(eq(customCards.name, result.card.name || ''))
+                .limit(1);
+              if (customCardResults.length > 0 && customCardResults[0].youtubeUrl) {
+                youtubeUrl = customCardResults[0].youtubeUrl;
+                console.log(`Found youtubeUrl from customCards table for card ${cardId}: ${youtubeUrl}`);
+              }
+            } else {
+              // Look up in card modifications table for base cards
+              const mod = await db.select().from(cardModifications)
+                .where(and(
+                  eq(cardModifications.originalCardId, cardIdStr),
+                  eq(cardModifications.isDeleted, false)
+                ))
+                .orderBy(desc(cardModifications.modifiedAt))
+                .limit(1);
+              if (mod.length > 0 && mod[0].youtubeUrl) {
+                youtubeUrl = mod[0].youtubeUrl;
+                console.log(`Found youtubeUrl from cardModifications table for card ${cardId}: ${youtubeUrl}`);
+              }
+            }
+          } catch (dbError) {
+            console.error('Error checking card modifications for youtubeUrl:', dbError);
+          }
+        }
+        
+        // If the card has a youtubeUrl, emit YouTube video event to all players
+        if (youtubeUrl) {
+          const getCardNameFromUrl = (url: string) => {
+            const parts = url.split('/');
+            const filename = parts[parts.length - 1];
+            return filename
+              .toLowerCase()
+              .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+              .replace(/[-_]/g, ' ')
+              .split(' ')
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(' ');
+          };
+          console.log(`Card ${cardId} has youtubeUrl, emitting show-youtube-video event: ${youtubeUrl}`);
+          io.to(gameId).emit('show-youtube-video', {
+            cardId: result.card?.id || cardId,
+            playerName,
+            youtubeUrl: youtubeUrl,
+            cardName: result.card?.name || getCardNameFromUrl(result.card?.frontImage || '')
+          });
+        }
+        
         // If a PERSONAGGI card was played, emit special notification
         if (result.isPersonaggio && result.card) {
           const getCardNameFromUrl = (url: string) => {
