@@ -8265,25 +8265,61 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     
     const { rollingPlayer, selectedCharId, selectedCharName, autoEffects, cardId } = pendingData;
     
+    // Check for full multi-target data (stored by confirmAutoDiceSelection)
+    const fullData = (game as any).pendingAutoDiceFullData?.get(pendingId);
+    const allSelectedCharIds: string[] = fullData?.selectedCharacterIds || [selectedCharId];
+    
     // Get the effect for the selected number
     const effectToApply = autoEffects[selectedNumber] || 'Nessun effetto';
     
-    console.log(`🎲 Completing controlled auto dice: Result ${selectedNumber} → "${effectToApply}"`);
+    console.log(`🎲 Completing controlled auto dice: Result ${selectedNumber} → "${effectToApply}" for ${allSelectedCharIds.length} targets`);
     
-    // Apply effect to selected character
-    const targetCard = game.field.find((c: Card) => c.id === selectedCharId);
-    if (targetCard) {
-      const effectLower = effectToApply.toLowerCase();
+    // Get all selected characters
+    const selectedCharacters = allSelectedCharIds
+      .map(id => game.field.find((c: Card) => c.id === id))
+      .filter(Boolean) as Card[];
+    
+    // Separate characters by owner for effect targeting
+    const playerChars = selectedCharacters.filter(c => c.owner === rollingPlayer);
+    const enemyChars = selectedCharacters.filter(c => c.owner !== rollingPlayer);
+    
+    // Determine which characters to affect based on effect text
+    const effectLower = effectToApply.toLowerCase();
+    let charsToAffect: Card[] = [];
+    
+    if (effectLower.includes('personaggio che usa questa carta') || 
+        effectLower.includes('chi usa questa carta') ||
+        effectLower.includes('personaggio proprio') ||
+        effectLower.includes('tuo personaggio')) {
+      charsToAffect = playerChars;
+    } else if (effectLower.includes('personaggio avversario') || 
+               effectLower.includes('personaggi avversari') ||
+               effectLower.includes('nemico') ||
+               effectLower.includes('nemici')) {
+      charsToAffect = enemyChars;
+    } else if (effectLower.includes('personaggi coinvolti') || 
+               effectLower.includes('tutti i personaggi') ||
+               effectLower.includes('entrambi')) {
+      charsToAffect = selectedCharacters;
+    } else {
+      charsToAffect = selectedCharacters;
+    }
+    
+    // Apply effect to all affected characters
+    const affectedNames: string[] = [];
+    for (const targetCard of charsToAffect) {
+      const charName = targetCard.name || this.getCardNameFromUrl(targetCard.frontImage || '');
+      affectedNames.push(charName);
+      
       if (effectLower.includes('morte') || effectLower.includes('muore')) {
         const turnsMatch = effectToApply.match(/(\d+)\s*turn/i);
         if (turnsMatch) {
           const turns = parseInt(turnsMatch[1]);
           (targetCard as any).deathCountdown = turns;
-          console.log(`🎲 Applied: ${selectedCharName} will die in ${turns} turns`);
+          console.log(`🎲 Applied: ${charName} will die in ${turns} turns`);
         } else {
-          targetCard.pti = 0;
+          console.log(`🎲💀 ${charName} dies from controlled dice effect`);
           this.moveToGraveyard(gameId, targetCard.id, targetCard.owner || '', rollingPlayer);
-          console.log(`🎲 Applied: ${selectedCharName} died from auto dice effect`);
         }
       } else if (effectLower.includes('dimezza')) {
         if (effectLower.includes('pti')) targetCard.pti = Math.floor((targetCard.pti || 0) / 2);
@@ -8297,21 +8333,31 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       this.updateCardTextWithPTI(targetCard);
     }
     
+    // Emit dice animation to all players
+    if (io) {
+      io.to(gameId).emit('dice-rolled', { result: selectedNumber, playerName: rollingPlayer, wasControlled: true });
+    }
+    
     // Send chat message about completed action
     if (io) {
       io.to(gameId).emit('chat-message', {
         id: `${Date.now()}-cpu-auto-dice-complete`,
         playerName: 'Sistema',
-        message: `🎲 Dado automatico: Risultato ${selectedNumber} → "${effectToApply}" applicato a ${selectedCharName}`,
+        message: `🎲 Dado controllato: Risultato ${selectedNumber} → "${effectToApply}" applicato a ${affectedNames.join(', ')}`,
         timestamp: Date.now()
       });
     }
     
-    // Return the dice card to bottom of deck
-    this.returnToDeck(gameId, cardId, rollingPlayer);
+    // Return the dice card to bottom of deck (only if cardId exists)
+    if (cardId) {
+      this.returnToDeck(gameId, cardId, rollingPlayer);
+    }
     
     // Clean up pending data
     game.pendingControlledAutoDice.delete(pendingId);
+    if ((game as any).pendingAutoDiceFullData) {
+      (game as any).pendingAutoDiceFullData.delete(pendingId);
+    }
     
     // Broadcast updated state
     io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
@@ -8937,6 +8983,59 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     // Use custom effects if provided, otherwise use default
     const effectsToUse = customEffects || autoDice.defaultEffects;
+
+    // CRITICAL: Check if player has dice control effect active
+    const diceControl = this.checkDiceControlEffect(gameId, playerName);
+    
+    if (diceControl.hasDiceControl && diceControl.controllingPlayer === playerName) {
+      // Player controls their own dice - show control panel
+      console.log(`🎲 DICE CONTROL ACTIVE for AUTO DICE: ${diceControl.controllingPlayer} controls via ${diceControl.cardName}`);
+      
+      // Store pending auto dice control for this player
+      const pendingId = `auto-dice-control-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      if (!game.pendingControlledAutoDice) {
+        game.pendingControlledAutoDice = new Map();
+      }
+      // Store all selected characters for later processing
+      game.pendingControlledAutoDice.set(pendingId, {
+        rollingPlayer: playerName,
+        controllingPlayer: diceControl.controllingPlayer!,
+        cardId: diceControl.cardId || '',
+        selectedCharId: validSelectedIds[0], // Primary target
+        selectedCharName: selectedCharacters[0]?.name || 'Personaggio',
+        autoEffects: effectsToUse,
+        timestamp: Date.now()
+      });
+      // Also store full data for multi-target support
+      (game as any).pendingAutoDiceFullData = (game as any).pendingAutoDiceFullData || new Map();
+      (game as any).pendingAutoDiceFullData.set(pendingId, {
+        autoDiceId,
+        selectedCharacterIds: validSelectedIds,
+        effectsToUse
+      });
+      
+      if (io) {
+        io.to(gameId).emit('show-dice-control-panel', {
+          pendingId,
+          rollingPlayer: playerName,
+          controllingPlayer: diceControl.controllingPlayer,
+          controllingCardId: diceControl.cardId,
+          controllingCardName: diceControl.cardName,
+          targetCharNames: selectedCharacters.map(c => c.name || 'Personaggio'),
+          isAutoDice: true,
+          autoDiceId
+        });
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-dice-control-auto-self`,
+          playerName: 'Sistema',
+          message: `🎲 ${playerName} può controllare il dado grazie a ${diceControl.cardName}! Scegli il risultato.`,
+          timestamp: Date.now()
+        });
+      }
+      
+      // Return success - the actual dice effect will be applied when player chooses
+      return { success: true, message: 'Attendi scelta del numero del dado' };
+    }
 
     // Roll the dice
     const diceResult = Math.floor(Math.random() * 6) + 1;
