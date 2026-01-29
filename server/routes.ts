@@ -1796,7 +1796,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    // DICE SYSTEM: Handle player dice choice submission
+    // DICE SYSTEM: Handle character selection confirmation (Step 1)
+    socket.on('dice-characters-confirmed', ({ diceEffectId, selectedCharacterIds, playerName }: {
+      diceEffectId: string;
+      selectedCharacterIds: string[];
+      playerName: string;
+    }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        console.log(`🎲 ${playerName} confirmed dice characters:`, selectedCharacterIds);
+        gameManager.confirmDiceCharacters(gameId, diceEffectId, selectedCharacterIds, playerName, io);
+      }
+    });
+
+    // DICE SYSTEM: Handle player dice choice submission (Step 2)
     socket.on('dice-choice-submit', ({ diceEffectId, choices, playerName }: { 
       diceEffectId: string; 
       choices: Record<string, string>; 

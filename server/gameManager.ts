@@ -277,7 +277,9 @@ interface GameState {
     correctEffect: string;
     wrongEffect: string;
     involvedCharacters: Array<{ id: string; name: string; owner: string; frontImage: string }>;
+    selectedCharacters?: Array<{ id: string; name: string; owner: string; frontImage: string }>; // Characters confirmed by player
     choices: Map<string, string>; // characterId -> choice (1-6, Pari, Dispari)
+    initiatorPlayer?: string; // Player who initiated the dice effect
     timestamp: number;
   }>; // Pending dice roll effects
   // New advanced game state properties
@@ -2874,45 +2876,35 @@ Rispondi SOLO in JSON:`;
         }));
       
       if (involvedCharacters.length > 0) {
-        // Store pending dice effect
+        // Store pending dice effect (will be updated when player confirms characters)
         if (!game.pendingDiceEffects) game.pendingDiceEffects = new Map();
         game.pendingDiceEffects.set(diceEffectId, {
           cardId: card.id,
           cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
           correctEffect,
           wrongEffect,
-          involvedCharacters,
+          involvedCharacters, // All available characters
+          selectedCharacters: [], // Will be set when player confirms
           choices: new Map<string, string>(), // characterId -> choice
+          initiatorPlayer: card.owner,
           timestamp: Date.now()
         });
         
-        // CPU characters automatically choose
-        for (const char of involvedCharacters) {
-          if (char.owner.startsWith('CPU')) {
-            const randomChoices = ['1', '2', '3', '4', '5', '6', 'Pari', 'Dispari'];
-            const cpuChoice = randomChoices[Math.floor(Math.random() * randomChoices.length)];
-            game.pendingDiceEffects.get(diceEffectId)?.choices.set(char.id, cpuChoice);
-            console.log(`🎲 CPU ${char.owner}'s character ${char.name} chose: ${cpuChoice}`);
-          }
-        }
-        
-        // Emit dice selection event to all players
+        // Emit character selection event to the initiator player
         const io = (global as any).io;
         if (io) {
-          console.log(`🎲 EMITTING show-dice-selection to room ${gameId} with ${involvedCharacters.length} characters`);
-          io.to(gameId).emit('show-dice-selection', {
+          console.log(`🎲 EMITTING show-dice-character-select to room ${gameId} with ${involvedCharacters.length} available characters`);
+          io.to(gameId).emit('show-dice-character-select', {
             diceEffectId,
             cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
             correctEffect,
             wrongEffect,
-            involvedCharacters
+            availableCharacters: involvedCharacters,
+            initiatorPlayer: card.owner
           });
         } else {
-          console.log('❌ No io instance available for dice selection event');
+          console.log('❌ No io instance available for dice character selection event');
         }
-        
-        // Check if all choices are made (only CPUs playing)
-        this.checkDiceChoicesComplete(gameId, diceEffectId);
       }
       
       return { customAnimation };
@@ -6956,7 +6948,67 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     return { success: true, message };
   }
 
-  // DICE SYSTEM: Submit player choices for dice roll
+  // DICE SYSTEM: Confirm which characters are involved in dice effect (Step 1)
+  confirmDiceCharacters(gameId: string, diceEffectId: string, selectedCharacterIds: string[], playerName: string, io: any): void {
+    const game = this.games.get(gameId);
+    if (!game || !game.pendingDiceEffects) {
+      console.log(`🎲 Game or pendingDiceEffects not found for ${gameId}`);
+      return;
+    }
+
+    const diceEffect = game.pendingDiceEffects.get(diceEffectId);
+    if (!diceEffect) {
+      console.log(`🎲 Dice effect ${diceEffectId} not found`);
+      return;
+    }
+
+    // Verify player is the initiator
+    if (diceEffect.initiatorPlayer !== playerName) {
+      console.log(`🎲 Player ${playerName} is not the initiator (${diceEffect.initiatorPlayer})`);
+      return;
+    }
+
+    // Filter selected characters from available ones
+    const selectedCharacters = diceEffect.involvedCharacters.filter(c => 
+      selectedCharacterIds.includes(c.id)
+    );
+    
+    if (selectedCharacters.length === 0) {
+      console.log(`🎲 No valid characters selected`);
+      return;
+    }
+
+    // Update the dice effect with selected characters
+    diceEffect.selectedCharacters = selectedCharacters;
+    console.log(`🎲 ${playerName} confirmed ${selectedCharacters.length} characters for dice effect`);
+
+    // CPU characters automatically choose
+    for (const char of selectedCharacters) {
+      if (char.owner.startsWith('CPU')) {
+        const randomChoices = ['1', '2', '3', '4', '5', '6', 'Pari', 'Dispari'];
+        const cpuChoice = randomChoices[Math.floor(Math.random() * randomChoices.length)];
+        diceEffect.choices.set(char.id, cpuChoice);
+        console.log(`🎲 CPU ${char.owner}'s character ${char.name} chose: ${cpuChoice}`);
+      }
+    }
+
+    // Emit dice number selection to all players (Step 2)
+    if (io) {
+      console.log(`🎲 EMITTING show-dice-selection to room ${gameId} with ${selectedCharacters.length} selected characters`);
+      io.to(gameId).emit('show-dice-selection', {
+        diceEffectId,
+        cardName: diceEffect.cardName,
+        correctEffect: diceEffect.correctEffect,
+        wrongEffect: diceEffect.wrongEffect,
+        involvedCharacters: selectedCharacters
+      });
+    }
+
+    // Check if all choices are made (all CPUs)
+    this.checkDiceChoicesComplete(gameId, diceEffectId);
+  }
+
+  // DICE SYSTEM: Submit player choices for dice roll (Step 2)
   submitDiceChoices(gameId: string, diceEffectId: string, choices: Record<string, string>, playerName: string): { success: boolean } {
     const game = this.games.get(gameId);
     if (!game || !game.pendingDiceEffects) return { success: false };
@@ -6967,9 +7019,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       return { success: false };
     }
 
-    // Record player's choices for their characters
+    // Record player's choices for their characters (use selectedCharacters if available)
+    const charactersToCheck = diceEffect.selectedCharacters || diceEffect.involvedCharacters;
     for (const [charId, choice] of Object.entries(choices)) {
-      const char = diceEffect.involvedCharacters.find(c => c.id === charId);
+      const char = charactersToCheck.find(c => c.id === charId);
       if (char && char.owner === playerName) {
         diceEffect.choices.set(charId, choice);
         console.log(`🎲 ${playerName}'s character ${char.name} chose: ${choice}`);
@@ -6990,11 +7043,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const diceEffect = game.pendingDiceEffects.get(diceEffectId);
     if (!diceEffect) return;
 
-    // Check if all characters have made their choice
-    const allChosen = diceEffect.involvedCharacters.every(char => diceEffect.choices.has(char.id));
+    // Check if all selected characters have made their choice (use selectedCharacters if available)
+    const charactersToCheck = diceEffect.selectedCharacters || diceEffect.involvedCharacters;
+    const allChosen = charactersToCheck.every(char => diceEffect.choices.has(char.id));
     
     if (!allChosen) {
-      const remaining = diceEffect.involvedCharacters.filter(c => !diceEffect.choices.has(c.id)).length;
+      const remaining = charactersToCheck.filter(c => !diceEffect.choices.has(c.id)).length;
       console.log(`🎲 Waiting for ${remaining} more character choices`);
       return;
     }
