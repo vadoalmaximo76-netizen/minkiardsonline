@@ -7324,11 +7324,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         cardName,
         correctEffect,
         wrongEffect,
-        characters: allFieldChars.map((c: Card) => ({
+        involvedCharacters: allFieldChars.map((c: Card) => ({
           id: c.id,
           name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
           owner: c.owner,
-          isCPU: c.owner.startsWith('CPU')
+          frontImage: c.frontImage || ''
         }))
       });
       
