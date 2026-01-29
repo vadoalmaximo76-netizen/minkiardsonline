@@ -2646,6 +2646,60 @@ Rispondi SOLO in JSON:`;
       actions.push({ type: 'clone_self', target: 'self', value: 1, description: 'Si clona sul campo' });
     }
 
+    // ============ HALVE/DOUBLE PATTERNS ============
+    if (text.includes('dimezza') && text.includes('pti')) {
+      const target = text.includes('avversario') || text.includes('nemico') || text.includes('bersaglio') ? 'enemy_card' : 'self';
+      actions.push({ type: 'halve_pti', target, value: 50, description: 'Dimezza i PTI' });
+    }
+    if (text.includes('dimezza') && text.includes('stelle')) {
+      const target = text.includes('avversario') || text.includes('nemico') || text.includes('bersaglio') ? 'enemy_card' : 'self';
+      actions.push({ type: 'halve_stars', target, value: 50, description: 'Dimezza le stelle' });
+    }
+    if (text.includes('raddoppia') && text.includes('pti')) {
+      const target = text.includes('avversario') || text.includes('nemico') || text.includes('bersaglio') ? 'enemy_card' : 'self';
+      actions.push({ type: 'double_pti', target, value: 200, description: 'Raddoppia i PTI' });
+    }
+    if (text.includes('raddoppia') && text.includes('stelle')) {
+      const target = text.includes('avversario') || text.includes('nemico') || text.includes('bersaglio') ? 'enemy_card' : 'self';
+      actions.push({ type: 'double_stars', target, value: 200, description: 'Raddoppia le stelle' });
+    }
+    if ((text.includes('aggiunge') || text.includes('aggiungi')) && text.includes('metà') && text.includes('pti')) {
+      actions.push({ type: 'add_half_pti', target: 'self', value: 50, description: 'Aggiunge la metà dei PTI attuali' });
+    }
+    if ((text.includes('aggiunge') || text.includes('aggiungi')) && text.includes('metà') && text.includes('stelle')) {
+      actions.push({ type: 'add_half_stars', target: 'self', value: 50, description: 'Aggiunge la metà delle stelle attuali' });
+    }
+    if ((text.includes('0 stelle') || text.includes('zero stelle') || text.includes('azzera stelle') || text.includes('porta le stelle a 0'))) {
+      const target = text.includes('avversario') || text.includes('nemico') || text.includes('bersaglio') ? 'enemy_card' : 'self';
+      actions.push({ type: 'zero_stars', target, value: 0, description: 'Porta le stelle a 0' });
+    }
+
+    // ============ ABSORB PTI PATTERNS ============
+    if ((text.includes('assorbe') || text.includes('assorbi') || text.includes('ruba')) && 
+        text.includes('pti') && (text.includes('avversario') || text.includes('nemico') || text.includes('aggiunge a te'))) {
+      const value = extractNumber(text, 100);
+      actions.push({ type: 'absorb_pti', target: 'enemy_card', value, description: `Assorbe ${value} PTI da un avversario` });
+    }
+
+    // ============ CONTROL TURN PATTERNS ============
+    if ((text.includes('controlla') || text.includes('controlli')) && 
+        (text.includes('turno') || text.includes('avversario'))) {
+      actions.push({ type: 'control_turn', target: 'opponent', value: 1, description: 'Controlla un avversario al suo turno' });
+    }
+
+    // ============ SEND TO DECK PATTERNS ============
+    if ((text.includes('manda') || text.includes('rimanda') || text.includes('rispedisci')) && 
+        (text.includes('mazzo') || text.includes('deck'))) {
+      const target = text.includes('nemica') || text.includes('nemico') || text.includes('avversario') ? 'enemy_card' : 'ally_card';
+      actions.push({ type: 'send_to_deck', target, value: 1, description: 'Manda una carta nel mazzo' });
+    }
+
+    // ============ REFLECT ATTACK PATTERNS ============
+    if ((text.includes('respingi') || text.includes('respinge') || text.includes('rifletti') || text.includes('rimanda')) && 
+        (text.includes('attacco') || text.includes('danno') || text.includes('mittente'))) {
+      actions.push({ type: 'reflect_attack', target: 'attacker', value: 100, description: 'Respinge l\'attacco al mittente' });
+    }
+
     // ============ INSURANCE/ASSICURAZIONE PATTERN ============
     // "Assicurazione": Subtract PTI now, restore them when character would die
     if ((text.includes('assicurazione') || text.includes('assicura')) ||
@@ -4294,6 +4348,157 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           console.log(`🧬 CLONE SELF: Created clone of ${cloneSelfSource.name} on the field!`);
         } else {
           console.log(`🧬 CLONE SELF: Source card not found on field`);
+        }
+        break;
+
+      // ============ NEW CUSTOM EFFECTS ============
+      
+      case 'halve_pti':
+        // Halve PTI of target
+        const halvePtiTargets = action.target === 'enemy_card' 
+          ? game.field.filter(c => c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'))
+          : game.field.filter(c => c.id === card.id || (c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')));
+        for (const target of halvePtiTargets) {
+          if (target.pti != null) {
+            const oldPti = target.pti;
+            target.pti = Math.floor(target.pti / 2);
+            this.updateCardTextWithPTI(target);
+            console.log(`➗ HALVE PTI: ${target.name} ${oldPti} → ${target.pti}`);
+          }
+        }
+        break;
+
+      case 'halve_stars':
+        // Halve stars of target
+        const halveStarsTargets = action.target === 'enemy_card' 
+          ? game.field.filter(c => c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'))
+          : game.field.filter(c => c.id === card.id || (c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')));
+        for (const target of halveStarsTargets) {
+          const oldStars = this.extractStarsFromNote(target.text || '');
+          const newStars = Math.floor(oldStars / 2);
+          const currentPti = target.pti || this.extractPTIFromNote(target.text || '');
+          target.text = `PTI: ${currentPti} | Stelle: ${newStars}`;
+          console.log(`⭐➗ HALVE STARS: ${target.name} ${oldStars} → ${newStars}`);
+        }
+        break;
+
+      case 'double_pti':
+        // Double PTI of target
+        const doublePtiTargets = action.target === 'enemy_card' 
+          ? game.field.filter(c => c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'))
+          : game.field.filter(c => c.id === card.id || (c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')));
+        for (const target of doublePtiTargets) {
+          if (target.pti != null) {
+            const oldPti = target.pti;
+            target.pti = target.pti * 2;
+            this.updateCardTextWithPTI(target);
+            console.log(`💪✖️ DOUBLE PTI: ${target.name} ${oldPti} → ${target.pti}`);
+          }
+        }
+        break;
+
+      case 'double_stars':
+        // Double stars of target
+        const doubleStarsTargets = action.target === 'enemy_card' 
+          ? game.field.filter(c => c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'))
+          : game.field.filter(c => c.id === card.id || (c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')));
+        for (const target of doubleStarsTargets) {
+          const oldStars = this.extractStarsFromNote(target.text || '');
+          const newStars = oldStars * 2;
+          const currentPti = target.pti || this.extractPTIFromNote(target.text || '');
+          target.text = `PTI: ${currentPti} | Stelle: ${newStars}`;
+          console.log(`⭐✖️ DOUBLE STARS: ${target.name} ${oldStars} → ${newStars}`);
+        }
+        break;
+
+      case 'add_half_pti':
+        // Add half of current PTI
+        const addHalfPtiChar = this.getPlayerActiveCharacter(game, playerName);
+        if (addHalfPtiChar && addHalfPtiChar.pti != null) {
+          const halfPti = Math.floor(addHalfPtiChar.pti / 2);
+          addHalfPtiChar.pti += halfPti;
+          this.updateCardTextWithPTI(addHalfPtiChar);
+          console.log(`💪➕ ADD HALF PTI: ${addHalfPtiChar.name} +${halfPti} → ${addHalfPtiChar.pti}`);
+        }
+        break;
+
+      case 'add_half_stars':
+        // Add half of current stars
+        const addHalfStarsChar = this.getPlayerActiveCharacter(game, playerName);
+        if (addHalfStarsChar) {
+          const currentStars = this.extractStarsFromNote(addHalfStarsChar.text || '');
+          const halfStars = Math.floor(currentStars / 2);
+          const newStars = currentStars + halfStars;
+          const currentPti = addHalfStarsChar.pti || this.extractPTIFromNote(addHalfStarsChar.text || '');
+          addHalfStarsChar.text = `PTI: ${currentPti} | Stelle: ${newStars}`;
+          console.log(`⭐➕ ADD HALF STARS: ${addHalfStarsChar.name} ${currentStars} + ${halfStars} = ${newStars}`);
+        }
+        break;
+
+      case 'zero_stars':
+        // Set stars to 0
+        const zeroStarsTargets = action.target === 'enemy_card' 
+          ? game.field.filter(c => c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'))
+          : game.field.filter(c => c.id === card.id || (c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')));
+        for (const target of zeroStarsTargets) {
+          const oldStars = this.extractStarsFromNote(target.text || '');
+          const currentPti = target.pti || this.extractPTIFromNote(target.text || '');
+          target.text = `PTI: ${currentPti} | Stelle: 0`;
+          console.log(`⭐0️⃣ ZERO STARS: ${target.name} ${oldStars} → 0`);
+        }
+        break;
+
+      case 'absorb_pti':
+        // Absorb PTI from enemy and add to self
+        const absorbAmount = action.value || 100;
+        const enemyCharsAbsorb = game.field.filter(c => 
+          c.owner !== playerName && 
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+          c.pti != null && c.pti > 0
+        );
+        const absorbChar = this.getPlayerActiveCharacter(game, playerName);
+        if (enemyCharsAbsorb.length > 0 && absorbChar) {
+          const enemyTarget = enemyCharsAbsorb[0];
+          const actualAbsorb = Math.min(enemyTarget.pti || 0, absorbAmount);
+          enemyTarget.pti = (enemyTarget.pti || 0) - actualAbsorb;
+          this.updateCardTextWithPTI(enemyTarget);
+          absorbChar.pti = (absorbChar.pti || 0) + actualAbsorb;
+          this.updateCardTextWithPTI(absorbChar);
+          console.log(`🧲 ABSORB PTI: ${absorbChar.name} stole ${actualAbsorb} PTI from ${enemyTarget.name}!`);
+        }
+        break;
+
+      case 'control_turn':
+        // Mark opponent for turn control
+        const controlOpponents = Object.keys(game.players).filter(p => p !== playerName);
+        if (controlOpponents.length > 0) {
+          const targetOpponent = controlOpponents[Math.floor(Math.random() * controlOpponents.length)];
+          (game as any).controlledPlayer = targetOpponent;
+          (game as any).controllingPlayer = playerName;
+          console.log(`🎮👤 CONTROL TURN: ${playerName} will control ${targetOpponent}'s next turn!`);
+        }
+        break;
+
+      case 'send_to_deck':
+        // Send a card back to deck
+        const sendTargets = action.target === 'enemy_card'
+          ? game.field.filter(c => c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'))
+          : game.field.filter(c => c.owner === playerName && c.id !== card.id && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+        if (sendTargets.length > 0) {
+          const sendTargetCard = sendTargets[0];
+          const sendDeckType = sendTargetCard.type as 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali';
+          game.field = game.field.filter(c => c.id !== sendTargetCard.id);
+          game.decks[sendDeckType].push(sendTargetCard);
+          console.log(`📥 SEND TO DECK: ${sendTargetCard.name} returned to ${sendDeckType} deck!`);
+        }
+        break;
+
+      case 'reflect_attack':
+        // Set up attack reflection for the character
+        const reflectAttackChar = this.getPlayerActiveCharacter(game, playerName);
+        if (reflectAttackChar) {
+          (reflectAttackChar as any).reflectsAttack = true;
+          console.log(`🔄⚔️ REFLECT ATTACK: ${reflectAttackChar.name} will reflect the next attack!`);
         }
         break;
 
@@ -8990,6 +9195,30 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const newStars = currentStars * 2;
       card.text = `PTI: ${currentPTI} | Stelle: ${newStars}`;
       console.log(`🎲 ${cardName} stars doubled: ${currentStars} → ${newStars}`);
+      return;
+    }
+
+    // Add half of current PTI
+    if ((effectLower.includes('aggiunge') || effectLower.includes('aggiungi')) && 
+        effectLower.includes('metà') && effectLower.includes('pti')) {
+      const currentPTI = card.pti || this.extractPTIFromNote(card.text || '');
+      const halfPTI = Math.floor(currentPTI / 2);
+      const newPTI = currentPTI + halfPTI;
+      card.pti = newPTI;
+      this.updateCardTextWithPTI(card);
+      console.log(`🎲 ${cardName} added half PTI: ${currentPTI} + ${halfPTI} = ${newPTI}`);
+      return;
+    }
+
+    // Add half of current stars
+    if ((effectLower.includes('aggiunge') || effectLower.includes('aggiungi')) && 
+        effectLower.includes('metà') && effectLower.includes('stelle')) {
+      const currentStars = this.extractStarsFromNote(card.text || '');
+      const currentPTI = card.pti || this.extractPTIFromNote(card.text || '');
+      const halfStars = Math.floor(currentStars / 2);
+      const newStars = currentStars + halfStars;
+      card.text = `PTI: ${currentPTI} | Stelle: ${newStars}`;
+      console.log(`🎲 ${cardName} added half stars: ${currentStars} + ${halfStars} = ${newStars}`);
       return;
     }
 
