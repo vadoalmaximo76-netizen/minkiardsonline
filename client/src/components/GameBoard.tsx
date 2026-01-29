@@ -228,6 +228,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     availableTargets: Array<{ id: string; name: string; owner: string; frontImage: string; pti: number | null; stars: number | null }>;
   }>({ visible: false, selectionId: '', cardId: '', cardName: '', owner: '', availableTargets: [] });
   const [customSelectedTargets, setCustomSelectedTargets] = useState<string[]>([]);
+  // AUTO DICE SETUP: Modal for configuring automatic dice before rolling
+  const [autoDiceSetupModal, setAutoDiceSetupModal] = useState<{
+    visible: boolean;
+    autoDiceId: string;
+    cardName: string;
+    defaultEffects: Record<number, string>;
+    availableCharacters: Array<{ id: string; name: string; owner: string; frontImage: string; pti: number | null; stars: number | null }>;
+    initiatorPlayer: string;
+  }>({ visible: false, autoDiceId: '', cardName: '', defaultEffects: {}, availableCharacters: [], initiatorPlayer: '' });
+  const [autoDiceSelectedChars, setAutoDiceSelectedChars] = useState<string[]>([]);
+  const [autoDiceCustomEffects, setAutoDiceCustomEffects] = useState<Record<number, string>>({});
   const [lastPlayedCards, setLastPlayedCards] = useState<Array<{
     id: string;
     frontImage: string;
@@ -865,6 +876,31 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('show-custom-target-selection', handleShowCustomTargetSelection);
 
+    // AUTO DICE SETUP: Handler for automatic dice configuration
+    const handleShowAutoDiceSetup = (data: {
+      autoDiceId: string;
+      cardName: string;
+      defaultEffects: Record<number, string>;
+      availableCharacters: Array<{ id: string; name: string; owner: string; frontImage: string; pti: number | null; stars: number | null }>;
+      initiatorPlayer: string;
+    }) => {
+      console.log('🎲 Show auto dice setup:', data);
+      // Only show to the initiator player
+      if (data.initiatorPlayer === playerName) {
+        setAutoDiceSelectedChars([]);
+        setAutoDiceCustomEffects({ ...data.defaultEffects });
+        setAutoDiceSetupModal({
+          visible: true,
+          autoDiceId: data.autoDiceId,
+          cardName: data.cardName,
+          defaultEffects: data.defaultEffects,
+          availableCharacters: data.availableCharacters,
+          initiatorPlayer: data.initiatorPlayer
+        });
+      }
+    };
+    socket.on('show-auto-dice-setup', handleShowAutoDiceSetup);
+
     // PARASITIC CARDS: Handler for target selection
     const handleParasiticTargetSelect = ({ parasiticCardId, parasiticType, ownerPlayer, targets }: {
       parasiticCardId: string;
@@ -1191,6 +1227,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('show-graveyard-selection', handleShowGraveyardSelection);
       socket.off('show-target-selection', handleShowTargetSelection);
       socket.off('show-custom-target-selection', handleShowCustomTargetSelection);
+      socket.off('show-auto-dice-setup', handleShowAutoDiceSetup);
       socket.off('show-dice-character-select', handleShowDiceCharacterSelect);
       socket.off('show-dice-selection', handleShowDiceSelection);
       socket.off('dice-roll-result', handleDiceRollResult);
@@ -1924,6 +1961,120 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 }`}
               >
                 🎯 Conferma ({customSelectedTargets.length} selezionati)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AUTO DICE SETUP MODAL - Configure automatic dice before rolling */}
+      {autoDiceSetupModal.visible && (
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/80">
+          <div className="bg-gradient-to-br from-purple-900 via-indigo-800 to-purple-700 rounded-2xl p-6 border-4 border-purple-400 shadow-[0_0_60px_rgba(168,85,247,0.6)] max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="text-center mb-4">
+              <h2 className="text-2xl font-bold text-white mb-2" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+                🎲 DADO AUTOMATICO
+              </h2>
+              <p className="text-purple-200">Carta: <span className="font-bold text-white">{autoDiceSetupModal.cardName}</span></p>
+              <p className="text-purple-300 text-sm mt-1">Seleziona i personaggi coinvolti e personalizza le conseguenze</p>
+            </div>
+            
+            {/* Character Selection */}
+            <div className="mb-6">
+              <h3 className="text-lg font-bold text-white mb-2">📍 Personaggi Coinvolti</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {autoDiceSetupModal.availableCharacters.map(char => {
+                  const isSelected = autoDiceSelectedChars.includes(char.id);
+                  return (
+                    <div
+                      key={char.id}
+                      onClick={() => {
+                        if (isSelected) {
+                          setAutoDiceSelectedChars(prev => prev.filter(id => id !== char.id));
+                        } else {
+                          setAutoDiceSelectedChars(prev => [...prev, char.id]);
+                        }
+                      }}
+                      className={`cursor-pointer rounded-lg p-2 border-2 transition-all transform hover:scale-105 relative ${
+                        isSelected 
+                          ? 'border-purple-300 bg-purple-600/50 shadow-[0_0_20px_rgba(168,85,247,0.6)]' 
+                          : 'border-gray-600 bg-gray-800/50 hover:border-purple-500'
+                      }`}
+                    >
+                      <img 
+                        src={char.frontImage} 
+                        alt={char.name}
+                        className="w-full h-20 object-contain rounded mb-1"
+                      />
+                      <p className="text-white text-xs font-medium text-center truncate">{char.name}</p>
+                      <p className="text-purple-300 text-xs text-center">
+                        {char.pti !== null ? `${char.pti} PTI` : ''} 
+                        {char.stars !== null ? ` ★${char.stars}` : ''}
+                      </p>
+                      <p className="text-gray-400 text-xs text-center">{char.owner}</p>
+                      {isSelected && (
+                        <div className="absolute top-1 right-1 text-lg">✅</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            
+            {/* Effects Configuration */}
+            <div className="mb-6">
+              <h3 className="text-lg font-bold text-white mb-2">🎯 Conseguenze per Numero</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {[1, 2, 3, 4, 5, 6].map(num => (
+                  <div key={num} className="flex items-center gap-2 bg-black/30 rounded-lg p-2">
+                    <div className="w-10 h-10 flex items-center justify-center bg-purple-600 rounded-lg text-white font-bold text-xl">
+                      {num}
+                    </div>
+                    <input
+                      type="text"
+                      value={autoDiceCustomEffects[num] || ''}
+                      onChange={(e) => setAutoDiceCustomEffects(prev => ({ ...prev, [num]: e.target.value }))}
+                      placeholder={`Effetto per ${num}...`}
+                      className="flex-1 bg-gray-700/50 text-white px-3 py-2 rounded-lg border border-purple-500/50 focus:border-purple-400 focus:outline-none text-sm"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="flex justify-center gap-4">
+              <button
+                onClick={() => {
+                  setAutoDiceSetupModal({ visible: false, autoDiceId: '', cardName: '', defaultEffects: {}, availableCharacters: [], initiatorPlayer: '' });
+                  setAutoDiceSelectedChars([]);
+                  setAutoDiceCustomEffects({});
+                }}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-all"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={() => {
+                  if (autoDiceSelectedChars.length > 0) {
+                    socket.emit('auto-dice-confirm', {
+                      autoDiceId: autoDiceSetupModal.autoDiceId,
+                      selectedCharacterIds: autoDiceSelectedChars,
+                      customEffects: autoDiceCustomEffects,
+                      playerName
+                    });
+                    setAutoDiceSetupModal({ visible: false, autoDiceId: '', cardName: '', defaultEffects: {}, availableCharacters: [], initiatorPlayer: '' });
+                    setAutoDiceSelectedChars([]);
+                    setAutoDiceCustomEffects({});
+                  }
+                }}
+                disabled={autoDiceSelectedChars.length === 0}
+                className={`px-6 py-3 rounded-lg font-bold text-lg transition-all ${
+                  autoDiceSelectedChars.length > 0
+                    ? 'bg-purple-500 hover:bg-purple-400 text-white shadow-[0_0_20px_rgba(168,85,247,0.6)]'
+                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                🎲 LANCIA IL DADO ({autoDiceSelectedChars.length} personaggi)
               </button>
             </div>
           </div>

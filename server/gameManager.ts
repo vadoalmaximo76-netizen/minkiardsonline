@@ -303,6 +303,13 @@ interface GameState {
     owner: string;
     timestamp: number;
   }>; // Pending target selection for custom effects with [BERSAGLIO: scelta]
+  pendingAutoDice?: Map<string, {
+    cardId: string;
+    cardName: string;
+    defaultEffects: Record<number, string>;
+    initiatorPlayer: string;
+    timestamp: number;
+  }>; // Pending automatic dice setups
 }
 
 export class GameManager {
@@ -3001,8 +3008,8 @@ Rispondi SOLO in JSON:`;
         }
       }
       
-      // Get all characters on field that will be affected
-      const involvedCharacters = game.field
+      // Get all characters on field that can be selected
+      const availableCharacters = game.field
         .filter((c: Card) => c.type === 'personaggi' || c.type === 'personaggi_speciali')
         .map((c: Card) => ({
           id: c.id,
@@ -3013,45 +3020,31 @@ Rispondi SOLO in JSON:`;
           stars: c.stars
         }));
       
-      if (involvedCharacters.length > 0) {
-        // Roll the dice immediately
-        const diceResult = Math.floor(Math.random() * 6) + 1;
-        const effectToApply = autoEffects[diceResult] || 'Nessun effetto';
-        
-        console.log(`🎲 Auto dice rolled: ${diceResult} -> Effect: "${effectToApply}"`);
-        
-        // Apply the effect to all involved characters
-        const results: Array<{ charId: string; charName: string; effect: string }> = [];
-        
-        for (const char of involvedCharacters) {
-          const fieldCard = game.field.find((c: Card) => c.id === char.id);
-          if (fieldCard) {
-            // Use character ID string and false for isCorrect (auto-dice doesn't have correct/wrong concept)
-            this.applyDiceConsequence(gameId, char.id, effectToApply, false);
-            results.push({
-              charId: char.id,
-              charName: char.name,
-              effect: effectToApply
-            });
-          }
-        }
-        
-        // Emit the result to all players
+      if (availableCharacters.length > 0) {
         const io = (global as any).io;
         if (io) {
-          io.to(gameId).emit('auto-dice-result', {
+          // Store pending auto dice setup
+          if (!game.pendingAutoDice) {
+            game.pendingAutoDice = new Map();
+          }
+          
+          const autoDiceId = `auto-dice-${Date.now()}`;
+          game.pendingAutoDice.set(autoDiceId, {
+            cardId: card.id,
             cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
-            diceResult,
-            effect: effectToApply,
-            affectedCharacters: results,
-            allEffects: autoEffects
+            defaultEffects: autoEffects,
+            initiatorPlayer: card.owner,
+            timestamp: Date.now()
           });
           
-          // Also emit game message
-          io.to(gameId).emit('game-message', {
-            type: 'dice',
-            message: `🎲 DADO AUTOMATICO: ${diceResult}! Effetto: "${effectToApply}" applicato a ${involvedCharacters.length} personaggi.`,
-            playerName: card.owner
+          // Emit setup event - player will select characters and optionally customize effects
+          console.log(`🎲 Emitting show-auto-dice-setup for ${autoDiceId}`);
+          io.to(gameId).emit('show-auto-dice-setup', {
+            autoDiceId,
+            cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+            defaultEffects: autoEffects,
+            availableCharacters,
+            initiatorPlayer: card.owner
           });
         }
       }
@@ -7293,6 +7286,88 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         this.moveToGraveyard(gameId, targetCard.id, targetCard.owner, 'Effetto');
         break;
     }
+  }
+
+  // AUTO DICE: Process auto dice confirmation with selected characters and custom effects
+  async processAutoDiceConfirm(
+    gameId: string, 
+    autoDiceId: string, 
+    selectedCharacterIds: string[], 
+    customEffects: Record<number, string> | null,
+    playerName: string, 
+    io: any
+  ): Promise<{ success: boolean; message?: string }> {
+    const game = this.games.get(gameId);
+    if (!game || !game.pendingAutoDice) {
+      return { success: false, message: 'Dado automatico non trovato' };
+    }
+
+    const autoDice = game.pendingAutoDice.get(autoDiceId);
+    if (!autoDice) {
+      return { success: false, message: 'Configurazione dado scaduta o non valida' };
+    }
+
+    // Verify owner
+    if (autoDice.initiatorPlayer !== playerName) {
+      return { success: false, message: 'Solo chi ha attivato la carta può confermare' };
+    }
+
+    // Get selected characters from field
+    const selectedCharacters = selectedCharacterIds
+      .map(id => game.field.find((c: Card) => c.id === id))
+      .filter(Boolean) as Card[];
+
+    if (selectedCharacters.length === 0) {
+      return { success: false, message: 'Nessun personaggio selezionato' };
+    }
+
+    // Use custom effects if provided, otherwise use default
+    const effectsToUse = customEffects || autoDice.defaultEffects;
+
+    // Roll the dice
+    const diceResult = Math.floor(Math.random() * 6) + 1;
+    const effectToApply = effectsToUse[diceResult] || 'Nessun effetto';
+
+    console.log(`🎲 Auto dice rolled: ${diceResult} -> Effect: "${effectToApply}"`);
+
+    // Apply the effect to selected characters
+    const results: Array<{ charId: string; charName: string; effect: string }> = [];
+
+    for (const char of selectedCharacters) {
+      const charName = char.name || this.getCardNameFromUrl(char.frontImage || '');
+      // Apply consequence
+      this.applyDiceConsequence(gameId, char.id, effectToApply, false);
+      results.push({
+        charId: char.id,
+        charName,
+        effect: effectToApply
+      });
+    }
+
+    // Emit the result to all players
+    io.to(gameId).emit('auto-dice-result', {
+      cardName: autoDice.cardName,
+      diceResult,
+      effect: effectToApply,
+      affectedCharacters: results,
+      allEffects: effectsToUse
+    });
+
+    // Also emit game message
+    io.to(gameId).emit('game-message', {
+      type: 'dice',
+      message: `🎲 DADO AUTOMATICO: ${diceResult}! Effetto: "${effectToApply}" applicato a ${selectedCharacters.length} personaggi.`,
+      playerName: autoDice.initiatorPlayer
+    });
+
+    // Clear pending auto dice
+    game.pendingAutoDice.delete(autoDiceId);
+
+    // Broadcast updated state
+    const gameState = this.getSanitizedGameState(gameId);
+    io.to(gameId).emit('game-state-update', gameState);
+
+    return { success: true, message: `Dado: ${diceResult} - ${effectToApply}` };
   }
 
   // DICE SYSTEM: Check if all dice choices are complete and roll if so

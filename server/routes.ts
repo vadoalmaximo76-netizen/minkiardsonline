@@ -1835,6 +1835,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // AUTO DICE: Handle auto dice setup confirmation
+    socket.on('auto-dice-confirm', async ({ autoDiceId, selectedCharacterIds, customEffects, playerName }: {
+      autoDiceId: string;
+      selectedCharacterIds: string[];
+      customEffects: Record<number, string> | null;
+      playerName: string;
+    }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        console.log(`🎲 ${playerName} confirmed auto dice with ${selectedCharacterIds.length} characters`);
+        await gameManager.processAutoDiceConfirm(gameId, autoDiceId, selectedCharacterIds, customEffects, playerName, io);
+      }
+    });
+
     // CUSTOM EFFECT: Handle manual activation of custom card effects
     socket.on('activate-custom-effect', async ({ cardId, playerName }: { cardId: string; playerName: string }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
