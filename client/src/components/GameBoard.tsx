@@ -148,6 +148,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     cards: any[];
     message: string;
   }>({ visible: false, reason: '', cards: [], message: '' });
+  const [targetSelectionModal, setTargetSelectionModal] = useState<{
+    visible: boolean;
+    effectType: 'damage' | 'heal';
+    value: number;
+    maxTargets: number;
+    targets: Array<{ id: string; frontImage: string; owner: string; text?: string; name?: string }>;
+    message: string;
+  }>({ visible: false, effectType: 'damage', value: 0, maxTargets: 1, targets: [], message: '' });
+  const [selectedTargetIds, setSelectedTargetIds] = useState<string[]>([]);
   const [parasiticTargetSelect, setParasiticTargetSelect] = useState<{
     visible: boolean;
     parasiticCardId: string;
@@ -648,6 +657,27 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('show-graveyard-selection', handleShowGraveyardSelection);
 
+    // TARGET SELECTION: Handle interactive target selection for custom effects
+    const handleShowTargetSelection = (data: { 
+      effectType: 'damage' | 'heal'; 
+      value: number; 
+      maxTargets: number;
+      targets: Array<{ id: string; frontImage: string; owner: string; text?: string; name?: string }>;
+      message: string;
+    }) => {
+      console.log('🎯 Show target selection:', data);
+      setSelectedTargetIds([]);
+      setTargetSelectionModal({
+        visible: true,
+        effectType: data.effectType,
+        value: data.value,
+        maxTargets: data.maxTargets || 1,
+        targets: data.targets,
+        message: data.message
+      });
+    };
+    socket.on('show-target-selection', handleShowTargetSelection);
+
     // PARASITIC CARDS: Handler for target selection
     const handleParasiticTargetSelect = ({ parasiticCardId, parasiticType, ownerPlayer, targets }: {
       parasiticCardId: string;
@@ -972,6 +1002,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('voodoo:error', handleVoodooError);
       socket.off('player-choosing-notification', handlePlayerChoosingNotification);
       socket.off('show-graveyard-selection', handleShowGraveyardSelection);
+      socket.off('show-target-selection', handleShowTargetSelection);
       socket.off('parasitic-target-select', handleParasiticTargetSelect);
       socket.off('parasitic-attached', handleParasiticAttached);
       socket.off('saibaim-explosion', handleSaibaImExplosion);
@@ -1275,6 +1306,103 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded"
               >
                 Annulla
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TARGET SELECTION MODAL - Interactive target selection for custom effects */}
+      {targetSelectionModal.visible && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className={`bg-gradient-to-br ${targetSelectionModal.effectType === 'damage' ? 'from-red-900 to-red-700 border-red-400' : 'from-green-900 to-green-700 border-green-400'} rounded-lg p-6 w-full max-w-3xl mx-4 border-4 shadow-[0_0_30px_rgba(220,38,38,0.5)]`}>
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-white mb-2" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+                🎯 SCEGLI BERSAGLI ({selectedTargetIds.length}/{targetSelectionModal.maxTargets})
+              </h2>
+              <p className="text-white/90" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                {targetSelectionModal.message || `Seleziona fino a ${targetSelectionModal.maxTargets} personaggi`}
+              </p>
+              <p className="text-lg font-bold mt-2" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                {targetSelectionModal.effectType === 'damage' 
+                  ? `⚔️ Danno: ${targetSelectionModal.value} PTI` 
+                  : `💚 Cura: ${targetSelectionModal.value} PTI`}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-h-96 overflow-y-auto">
+              {targetSelectionModal.targets.map((card) => {
+                const isSelected = selectedTargetIds.includes(card.id);
+                return (
+                  <button
+                    key={card.id}
+                    onClick={() => {
+                      if (isSelected) {
+                        setSelectedTargetIds(prev => prev.filter(id => id !== card.id));
+                      } else if (selectedTargetIds.length < targetSelectionModal.maxTargets) {
+                        setSelectedTargetIds(prev => [...prev, card.id]);
+                      }
+                    }}
+                    className={`transition-all duration-200 rounded-lg p-3 border-2 ${
+                      isSelected 
+                        ? (targetSelectionModal.effectType === 'damage' 
+                            ? 'bg-red-600 border-red-300 shadow-[0_0_20px_rgba(220,38,38,0.8)]' 
+                            : 'bg-green-600 border-green-300 shadow-[0_0_20px_rgba(34,197,94,0.8)]')
+                        : 'bg-gray-800/80 hover:bg-gray-700 border-gray-500 hover:border-gray-400'
+                    }`}
+                  >
+                    {card.frontImage ? (
+                      <img 
+                        src={card.frontImage} 
+                        alt="Target Card" 
+                        className="w-full h-32 object-cover rounded mb-2"
+                      />
+                    ) : (
+                      <div className="w-full h-32 bg-gray-700 rounded mb-2 flex items-center justify-center">
+                        <span className="text-white text-xs">Carta</span>
+                      </div>
+                    )}
+                    <p className="text-white text-sm font-bold truncate" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                      {card.name || card.id}
+                    </p>
+                    <p className="text-xs text-gray-300">{card.owner}</p>
+                    {isSelected && (
+                      <div className="mt-1 text-xl">✓</div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-4 flex justify-center gap-4">
+              <button
+                onClick={() => {
+                  setTargetSelectionModal({ visible: false, effectType: 'damage', value: 0, maxTargets: 1, targets: [], message: '' });
+                  setSelectedTargetIds([]);
+                }}
+                className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={() => {
+                  if (selectedTargetIds.length > 0) {
+                    socket.emit('target-select', {
+                      targetCardIds: selectedTargetIds,
+                      playerName
+                    });
+                    setTargetSelectionModal({ visible: false, effectType: 'damage', value: 0, maxTargets: 1, targets: [], message: '' });
+                    setSelectedTargetIds([]);
+                  }
+                }}
+                disabled={selectedTargetIds.length === 0}
+                className={`px-4 py-2 rounded font-bold ${
+                  selectedTargetIds.length > 0
+                    ? (targetSelectionModal.effectType === 'damage' 
+                        ? 'bg-red-600 hover:bg-red-500 text-white' 
+                        : 'bg-green-600 hover:bg-green-500 text-white')
+                    : 'bg-gray-500 text-gray-300 cursor-not-allowed'
+                }`}
+              >
+                {targetSelectionModal.effectType === 'damage' ? '⚔️ Attacca' : '💚 Cura'} ({selectedTargetIds.length})
               </button>
             </div>
           </div>

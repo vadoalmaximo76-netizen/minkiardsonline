@@ -3016,9 +3016,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             type: 'target_choice_damage',
             cardId: card.id,
             value: action.value || 100,
+            maxTargets: action.maxTargets || 3,
             timestamp: Date.now()
           });
-          console.log(`🎯 Custom effect: Awaiting target selection for ${action.value} damage`);
+          console.log(`🎯 Custom effect: Awaiting target selection for ${action.value} damage (max ${action.maxTargets || 3} targets)`);
         } else if (action.target === 'all' || action.target === 'opponents') {
           // Apply damage to all opponent characters
           for (const fieldCard of game.field) {
@@ -3043,6 +3044,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             type: 'target_choice_heal',
             cardId: card.id,
             value: action.value || 100,
+            maxTargets: action.maxTargets || 3,
             timestamp: Date.now()
           });
           console.log(`🎯 Custom effect: Awaiting target selection for ${action.value} heal`);

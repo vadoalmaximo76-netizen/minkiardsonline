@@ -1353,15 +1353,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ) || [];
           
           if (targetableCards.length > 0) {
+            const effectValue = (pendingEffect as any).value || 100;
+            const maxTargets = (pendingEffect as any).maxTargets || targetableCards.length;
             socket.emit('show-target-selection', {
               effectType: pendingEffect.type === 'target_choice_damage' ? 'damage' : 'heal',
-              value: (pendingEffect as any).value || 100,
-              cards: targetableCards,
+              value: effectValue,
+              maxTargets: maxTargets,
+              targets: targetableCards.map((c: any) => ({
+                id: c.id,
+                frontImage: c.frontImage,
+                owner: c.owner,
+                text: c.text,
+                name: c.name
+              })),
               message: pendingEffect.type === 'target_choice_damage' 
-                ? `Scegli i personaggi a cui infliggere ${(pendingEffect as any).value || 100} danni`
-                : `Scegli i personaggi da curare di ${(pendingEffect as any).value || 100} PTI`
+                ? `Scegli fino a ${maxTargets} personaggi a cui infliggere ${effectValue} danni`
+                : `Scegli fino a ${maxTargets} personaggi da curare di ${effectValue} PTI`
             });
-            console.log(`🎯 Emitted target selection to ${playerName} with ${targetableCards.length} cards`);
+            console.log(`🎯 Emitted target selection to ${playerName} with ${targetableCards.length} targets, max ${maxTargets}`);
           }
         }
         
