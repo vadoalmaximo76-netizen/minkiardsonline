@@ -2624,21 +2624,62 @@ Rispondi SOLO in JSON:`;
     }
 
     // ============ PANEL INPUT PATTERNS ============
-    if ((text.includes('pannello') || text.includes('inserire') || text.includes('inserisci')) && 
-        (text.includes('pti') || text.includes('quantità') || text.includes('valore')) &&
-        !actions.some(a => a.type === 'insurance_effect')) {
+    // Recognize various ways to request PTI input panel
+    const wantsPtiPanel = (
+      // Direct panel request
+      (text.includes('pannello') && (text.includes('pti') || text.includes('input') || text.includes('inserire'))) ||
+      // Input request variants
+      ((text.includes('inserire') || text.includes('inserisci') || text.includes('digita') || text.includes('scrivi') || text.includes('immetti')) && 
+       (text.includes('pti') || text.includes('quantità') || text.includes('valore') || text.includes('numero') || text.includes('punti'))) ||
+      // Choice/selection with amount
+      ((text.includes('scegli') || text.includes('scelta') || text.includes('chiedi')) && 
+       (text.includes('quanti pti') || text.includes('quantità di pti') || text.includes('ammontare'))) ||
+      // Show input variants
+      ((text.includes('mostra') || text.includes('apri') || text.includes('visualizza')) && 
+       (text.includes('input') || text.includes('pannello') || text.includes('finestra')) && text.includes('pti')) ||
+      // Italian common phrases
+      (text.includes('richiedi') && text.includes('pti')) ||
+      (text.includes('domanda') && (text.includes('pti') || text.includes('quantità'))) ||
+      (text.includes('input') && text.includes('pti')) ||
+      (text.includes('campo') && text.includes('inserimento') && text.includes('pti'))
+    );
+    
+    if (wantsPtiPanel && !actions.some(a => a.type === 'insurance_effect')) {
       actions.push({ type: 'show_pti_input_panel', target: 'self', value: 0, description: effectText });
     }
 
     // ============ GRAVEYARD SELECTION PATTERNS ============
-    if ((text.includes('cimitero') || text.includes('morto')) && 
-        (text.includes('scegli') || text.includes('scelta') || text.includes('riporta') || text.includes('pannello'))) {
+    const wantsGraveyardPanel = (
+      // Direct graveyard selection
+      ((text.includes('cimitero') || text.includes('morto') || text.includes('morti') || text.includes('graveyard')) && 
+       (text.includes('scegli') || text.includes('scelta') || text.includes('riporta') || text.includes('pannello') || 
+        text.includes('seleziona') || text.includes('pesca') || text.includes('recupera') || text.includes('resurrezione'))) ||
+      // Revival/resurrection requests
+      ((text.includes('risorgi') || text.includes('resurrezione') || text.includes('riporta in vita') || text.includes('rivivi')) && 
+       (text.includes('carta') || text.includes('personaggio'))) ||
+      // Show graveyard for selection
+      ((text.includes('mostra') || text.includes('apri') || text.includes('visualizza')) && text.includes('cimitero'))
+    );
+    
+    if (wantsGraveyardPanel) {
       actions.push({ type: 'show_graveyard_selection', target: 'self', value: 1, description: 'Scegli una carta dal cimitero' });
     }
 
     // ============ DECK SELECTION PATTERNS ============
-    if ((text.includes('mazzo') || text.includes('mazzi')) && 
-        (text.includes('scegli') || text.includes('scelta') || text.includes('pannello') || text.includes('apri'))) {
+    const wantsDeckPanel = (
+      // Direct deck selection
+      ((text.includes('mazzo') || text.includes('mazzi') || text.includes('deck')) && 
+       (text.includes('scegli') || text.includes('scelta') || text.includes('pannello') || text.includes('apri') ||
+        text.includes('seleziona') || text.includes('pesca') || text.includes('prendi'))) ||
+      // Type-specific deck access
+      ((text.includes('personaggi') || text.includes('mosse') || text.includes('bonus') || text.includes('speciali')) && 
+       text.includes('mazzo') && (text.includes('scegli') || text.includes('pesca') || text.includes('prendi'))) ||
+      // Show deck for selection
+      ((text.includes('mostra') || text.includes('apri') || text.includes('visualizza')) && 
+       (text.includes('mazzo') || text.includes('mazzi')))
+    );
+    
+    if (wantsDeckPanel) {
       actions.push({ type: 'show_deck_selection', target: 'self', value: 1, description: 'Scegli carte dai mazzi' });
     }
 
