@@ -4452,6 +4452,60 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         break;
 
+      case 'show_pti_input_panel':
+        // Store pending effect info and emit panel event
+        if (!game.pendingEffects) {
+          game.pendingEffects = new Map();
+        }
+        game.pendingEffects.set(playerName, {
+          type: 'pti_input',
+          cardId: card.id,
+          timestamp: Date.now()
+        });
+        
+        console.log(`📋 Showing PTI input panel for ${playerName} (applyEffectToCard)`);
+        const ioPti = (global as any).io;
+        if (ioPti) {
+          ioPti.to(gameId).emit('show-pti-input-panel', {
+            cardId: card.id,
+            cardName: card.name || this.getCardNameFromUrl(card.frontImage),
+            playerName,
+            effectDescription: action.description
+          });
+        }
+        break;
+
+      case 'show_graveyard_selection':
+        console.log(`📋 Showing graveyard selection for ${playerName} (applyEffectToCard)`);
+        const ioGrave = (global as any).io;
+        if (ioGrave) {
+          const graveyardCardsForSelect = game.graveyard.map((c: Card) => ({
+            id: c.id,
+            name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+            frontImage: c.frontImage,
+            owner: c.owner
+          }));
+          ioGrave.to(gameId).emit('show-graveyard-selection', {
+            reason: 'effect',
+            cards: graveyardCardsForSelect,
+            message: action.description || 'Scegli una carta dal cimitero'
+          });
+        }
+        break;
+
+      case 'show_deck_selection':
+        console.log(`📋 Showing deck selection for ${playerName} (applyEffectToCard)`);
+        const ioDeck = (global as any).io;
+        if (ioDeck) {
+          ioDeck.to(gameId).emit('show-deck-selection', {
+            cardId: card.id,
+            cardName: card.name || this.getCardNameFromUrl(card.frontImage),
+            playerName,
+            effectDescription: action.description
+          });
+        }
+        break;
+
       default:
         console.log(`❓ Unknown custom effect type: ${action.type}`);
     }
@@ -7070,22 +7124,31 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     console.log(`📋 Processing PTI input effect: ${ptiValue} PTI for card ${cardId} by ${playerName}`);
 
     const playerData = game.players[playerName];
-    if (!playerData) return { success: false };
-
-    const card = playerData.field.find((c: any) => c.id === cardId);
-    if (!card) {
-      console.log(`📋 PTI input effect failed: Card ${cardId} not found on field`);
+    if (!playerData) {
+      console.log(`📋 PTI input effect failed: Player ${playerName} not found`);
       return { success: false };
     }
 
-    const cardName = card.name || this.getCardNameFromUrl(card.frontImage);
-    const effect = (card as any).effect || '';
-    const effectLower = effect.toLowerCase();
+    // Search for card in player's field first, then in global field, then graveyard
+    const playerField = (playerData as any).field || [];
+    let card = playerField.find((c: any) => c.id === cardId);
+    if (!card) {
+      card = game.field?.find((c: any) => c.id === cardId);
+    }
+    if (!card) {
+      card = game.graveyard?.find((c: any) => c.id === cardId);
+    }
+    
+    // For BONUS cards, they may have been removed - use effect from card if available
+    const effectDescription = (card as any)?.effect || '';
+
+    const cardName = card?.name || this.getCardNameFromUrl(card?.frontImage) || 'Carta';
+    const effectLower = effectDescription.toLowerCase();
 
     let message = '';
 
     if (effectLower.includes('bonus') || effectLower.includes('potenzia') || effectLower.includes('aumenta')) {
-      const targetCard = playerData.field.find((c: any) => 
+      const targetCard = playerField.find((c: any) => 
         (c.type === 'personaggi' || c.type === 'personaggi_speciali') && typeof c.ptiValue === 'number'
       );
 
@@ -7102,7 +7165,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       
       for (const enemyName of enemyPlayers) {
         const enemyData = game.players[enemyName];
-        const targetCard = enemyData.field.find((c: any) => 
+        const enemyField = (enemyData as any).field || [];
+        const targetCard = enemyField.find((c: any) => 
           (c.type === 'personaggi' || c.type === 'personaggi_speciali') && typeof c.ptiValue === 'number'
         );
 
@@ -7113,7 +7177,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           message = `⚔️ ${cardName}: ${targetName} ha subito ${ptiValue} danni (${oldPti} → ${targetCard.ptiValue} PTI)!`;
 
           if (targetCard.ptiValue <= 0) {
-            this.handleCardDeath(game, targetCard, enemyName);
+            this.moveToGraveyard(gameId, targetCard.id, enemyName, 'PTI effect');
           }
           break;
         }
@@ -7139,7 +7203,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const playerData = game.players[playerName];
     if (!playerData) return { success: false };
 
-    const card = playerData.field.find((c: any) => c.id === cardId);
+    const playerFieldDeck = (playerData as any).field || [];
+    const card = playerFieldDeck.find((c: any) => c.id === cardId) || game.field?.find((c: any) => c.id === cardId);
     if (!card) {
       console.log(`🎴 Deck selection failed: Card ${cardId} not found on field`);
       return { success: false };
@@ -7164,7 +7229,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         deckDisplayName = 'BONUS';
         break;
       case 'personaggi_speciali':
-        targetDeck = game.decks.personaggiSpeciali;
+        targetDeck = game.decks.personaggi_speciali;
         deckDisplayName = 'SPECIALI';
         break;
     }
