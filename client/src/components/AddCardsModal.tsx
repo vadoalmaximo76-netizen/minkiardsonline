@@ -673,6 +673,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   const [showEffectWizard, setShowEffectWizard] = useState(false);
   const [effectWizardTarget, setEffectWizardTarget] = useState<'new' | 'permanent' | 'existing'>('new');
   const [effectWizardCardIndex, setEffectWizardCardIndex] = useState<number | null>(null);
+  const [savedEffects, setSavedEffects] = useState<string[]>([]); // Array di effetti già aggiunti
   const [effectWizard, setEffectWizard] = useState<EffectWizardState>({
     step: 1,
     effectType: '',
@@ -731,20 +732,43 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
 
   const openEffectWizard = (target: 'new' | 'permanent' | 'existing', cardIndex: number | null) => {
     resetEffectWizard();
+    setSavedEffects([]); // Reset saved effects when opening wizard
     setEffectWizardTarget(target);
     setEffectWizardCardIndex(cardIndex);
     setShowEffectWizard(true);
   };
 
-  const applyEffectFromWizard = () => {
+  // Add current effect to the list and reset wizard for next effect
+  const addEffectToList = () => {
     const effectDescription = generateEffectDescription(effectWizard);
+    if (effectDescription.trim()) {
+      setSavedEffects(prev => [...prev, effectDescription]);
+    }
+    resetEffectWizard();
+  };
+
+  // Remove an effect from the list
+  const removeEffectFromList = (index: number) => {
+    setSavedEffects(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Apply all saved effects (combined) to the card
+  const applyEffectFromWizard = () => {
+    // If there's a current effect being edited, add it first
+    const currentEffect = generateEffectDescription(effectWizard);
+    const allEffects = currentEffect.trim() 
+      ? [...savedEffects, currentEffect]
+      : savedEffects;
+    
+    // Combine all effects with " | " separator
+    const combinedEffect = allEffects.join(' | ');
     
     if (effectWizardTarget === 'new' && effectWizardCardIndex !== null) {
-      updateCardData(effectWizardCardIndex, 'effect', effectDescription);
+      updateCardData(effectWizardCardIndex, 'effect', combinedEffect);
     } else if (effectWizardTarget === 'permanent') {
-      setEditForm(prev => ({ ...prev, effect: effectDescription }));
+      setEditForm(prev => ({ ...prev, effect: combinedEffect }));
     } else if (effectWizardTarget === 'existing') {
-      setExistingEditForm(prev => ({ ...prev, effect: effectDescription }));
+      setExistingEditForm(prev => ({ ...prev, effect: combinedEffect }));
     }
     
     setShowEffectWizard(false);
@@ -2589,6 +2613,26 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
               </div>
             )}
 
+            {/* Saved effects list */}
+            {savedEffects.length > 0 && (
+              <div className="bg-gray-700/50 rounded-lg p-3 mb-4 border border-gray-600">
+                <p className="text-gray-300 text-xs mb-2 font-medium">Effetti aggiunti ({savedEffects.length}):</p>
+                <div className="space-y-1 max-h-24 overflow-y-auto">
+                  {savedEffects.map((effect, index) => (
+                    <div key={index} className="flex items-center gap-2 bg-gray-800 rounded px-2 py-1">
+                      <span className="text-green-400 text-xs flex-1 truncate">{effect.substring(0, 50)}...</span>
+                      <button
+                        onClick={() => removeEffectFromList(index)}
+                        className="text-red-400 hover:text-red-300 text-xs"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Navigation buttons */}
             <div className="flex justify-between mt-6">
               <Button
@@ -2610,13 +2654,23 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                   <ChevronRight size={16} className="ml-1" />
                 </Button>
               ) : (
-                <Button
-                  onClick={applyEffectFromWizard}
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                >
-                  <Sparkles size={16} className="mr-1" />
-                  Applica Effetto
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={addEffectToList}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    title="Aggiungi questo effetto e creane un altro"
+                  >
+                    <Plus size={16} className="mr-1" />
+                    Aggiungi +
+                  </Button>
+                  <Button
+                    onClick={applyEffectFromWizard}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <Sparkles size={16} className="mr-1" />
+                    {savedEffects.length > 0 ? `Applica ${savedEffects.length + 1} Effetti` : 'Applica Effetto'}
+                  </Button>
+                </div>
               )}
             </div>
           </div>

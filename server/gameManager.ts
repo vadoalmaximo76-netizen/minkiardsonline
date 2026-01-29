@@ -2221,6 +2221,17 @@ Rispondi SOLO in JSON:`;
   private parseEffectKeywords(effectText: string): Array<{ type: string; target: string; value: number; description: string }> {
     const actions: Array<{ type: string; target: string; value: number; description: string }> = [];
     
+    // SUPPORT FOR MULTIPLE EFFECTS: Split by " | " separator and process each effect
+    if (effectText.includes(' | ')) {
+      const multipleEffects = effectText.split(' | ');
+      console.log(`🎴 Multiple effects detected (${multipleEffects.length}): processing each separately`);
+      for (const singleEffect of multipleEffects) {
+        const singleActions = this.parseEffectKeywords(singleEffect.trim());
+        actions.push(...singleActions);
+      }
+      return actions;
+    }
+    
     // Extract and parse structured sections from wizard [ANIMAZIONE: ...] [COMPORTAMENTO: ...] [DETTAGLI: ...]
     let cleanText = effectText;
     let detailsData: Record<string, string> = {};
