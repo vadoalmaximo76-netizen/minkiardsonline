@@ -8090,10 +8090,39 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         message: `⚡ ${cardName} - Dettagli effetto: ${details}`,
         timestamp: Date.now()
       });
-      return;
     }
 
-    console.log(`⚡ No recognizable custom effect found in card text`);
+    // Fallback: Use keyword parser for all other effects
+    console.log(`⚡ Using keyword parser for effect: "${combinedText.substring(0, 100)}..."`);
+    const actions = this.parseEffectKeywords(combinedText);
+    
+    if (actions.length > 0) {
+      console.log(`⚡ Parsed ${actions.length} actions from effect text`);
+      for (const action of actions) {
+        await this.applyParsedEffect(gameId, action, card, playerName, io);
+      }
+      
+      // Notify about effect activation
+      const actionDescriptions = actions.map(a => a.description).join(', ');
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-effect-activated`,
+        playerName: 'Sistema',
+        message: `⚡ ${cardName} - Effetto attivato: ${actionDescriptions}`,
+        timestamp: Date.now()
+      });
+      
+      // Broadcast updated state
+      const gameState = this.getSanitizedGameState(gameId);
+      io.to(gameId).emit('game-state-update', gameState);
+    } else {
+      console.log(`⚡ No actions parsed from effect text`);
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-effect-no-action`,
+        playerName: 'Sistema',
+        message: `⚡ ${cardName} - Effetto riconosciuto ma nessuna azione automatica disponibile`,
+        timestamp: Date.now()
+      });
+    }
   }
 
   // Apply a parsed effect action
