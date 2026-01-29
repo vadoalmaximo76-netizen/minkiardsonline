@@ -208,6 +208,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     winners: Array<{ name: string; effect: string }>;
     losers: Array<{ name: string; effect: string }>;
   } | null>(null);
+  // AUTO DICE: Result modal for automatic dice rolls
+  const [autoDiceResult, setAutoDiceResult] = useState<{
+    visible: boolean;
+    cardName: string;
+    diceResult: number;
+    effect: string;
+    affectedCharacters: Array<{ charId: string; charName: string; effect: string }>;
+    isAnimating: boolean;
+    animationPhase: 'rolling' | 'result' | 'effects';
+  }>({ visible: false, cardName: '', diceResult: 0, effect: '', affectedCharacters: [], isAnimating: false, animationPhase: 'rolling' });
   const [lastPlayedCards, setLastPlayedCards] = useState<Array<{
     id: string;
     frontImage: string;
@@ -781,6 +791,46 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('dice-roll-result', handleDiceRollResult);
 
+    // AUTO DICE: Handle automatic dice roll result
+    const handleAutoDiceResult = (data: {
+      cardName: string;
+      diceResult: number;
+      effect: string;
+      affectedCharacters: Array<{ charId: string; charName: string; effect: string }>;
+    }) => {
+      console.log('🎲 Auto dice result:', data);
+      
+      // Start animation sequence
+      setAutoDiceResult({
+        visible: true,
+        cardName: data.cardName,
+        diceResult: data.diceResult,
+        effect: data.effect,
+        affectedCharacters: data.affectedCharacters,
+        isAnimating: true,
+        animationPhase: 'rolling'
+      });
+      
+      // Play dice sound
+      playDiceRoll();
+      
+      // Phase 1: Rolling animation (1.5s)
+      setTimeout(() => {
+        setAutoDiceResult(prev => ({ ...prev, animationPhase: 'result' }));
+      }, 1500);
+      
+      // Phase 2: Show result (after 1.5s)
+      setTimeout(() => {
+        setAutoDiceResult(prev => ({ ...prev, animationPhase: 'effects' }));
+      }, 3000);
+      
+      // Phase 3: Hide after showing effects (8s total)
+      setTimeout(() => {
+        setAutoDiceResult(prev => ({ ...prev, visible: false, isAnimating: false }));
+      }, 8000);
+    };
+    socket.on('auto-dice-result', handleAutoDiceResult);
+
     // PARASITIC CARDS: Handler for target selection
     const handleParasiticTargetSelect = ({ parasiticCardId, parasiticType, ownerPlayer, targets }: {
       parasiticCardId: string;
@@ -1109,6 +1159,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('show-dice-character-select', handleShowDiceCharacterSelect);
       socket.off('show-dice-selection', handleShowDiceSelection);
       socket.off('dice-roll-result', handleDiceRollResult);
+      socket.off('auto-dice-result', handleAutoDiceResult);
       socket.off('parasitic-target-select', handleParasiticTargetSelect);
       socket.off('parasitic-attached', handleParasiticAttached);
       socket.off('saibaim-explosion', handleSaibaImExplosion);
@@ -1698,6 +1749,59 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   {diceRollResult.losers.map((l, i) => (
                     <p key={i} className="text-white">{l.name} → {l.effect}</p>
                   ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AUTO DICE RESULT - Animated automatic dice roll display */}
+      {autoDiceResult.visible && (
+        <div className="fixed inset-0 z-[9999] pointer-events-none flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/80" />
+          <div className="relative bg-gradient-to-br from-purple-900 via-indigo-800 to-purple-700 rounded-2xl p-8 border-4 border-purple-400 shadow-[0_0_80px_rgba(168,85,247,0.8)] max-w-lg w-full mx-4">
+            <div className="text-center">
+              {/* Card name header */}
+              <h3 className="text-xl font-bold text-purple-200 mb-4">
+                {autoDiceResult.cardName}
+              </h3>
+              
+              {/* Rolling animation phase */}
+              {autoDiceResult.animationPhase === 'rolling' && (
+                <div className="animate-pulse">
+                  <div className="text-8xl mb-4 animate-spin">🎲</div>
+                  <p className="text-2xl text-purple-300 font-bold">Lancio del dado...</p>
+                </div>
+              )}
+              
+              {/* Result phase */}
+              {(autoDiceResult.animationPhase === 'result' || autoDiceResult.animationPhase === 'effects') && (
+                <>
+                  <div className="text-8xl mb-4 animate-bounce">🎲</div>
+                  <h2 className="text-6xl font-bold text-white mb-4 animate-pulse" style={{textShadow: '4px 4px 8px rgba(0,0,0,0.8)'}}>
+                    {autoDiceResult.diceResult}
+                  </h2>
+                  <div className="bg-purple-800/50 border border-purple-400/50 rounded-lg p-4 mb-4">
+                    <p className="text-xl text-white font-semibold">
+                      {autoDiceResult.effect}
+                    </p>
+                  </div>
+                </>
+              )}
+              
+              {/* Effects phase - show affected characters */}
+              {autoDiceResult.animationPhase === 'effects' && autoDiceResult.affectedCharacters.length > 0 && (
+                <div className="mt-4 bg-indigo-900/50 border border-indigo-400/50 rounded-lg p-4 animate-fade-in">
+                  <p className="text-indigo-300 font-bold mb-3">⚡ PERSONAGGI COLPITI:</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {autoDiceResult.affectedCharacters.map((char, i) => (
+                      <div key={i} className="bg-indigo-800/50 rounded p-2 text-center">
+                        <p className="text-white font-medium text-sm">{char.charName}</p>
+                        <p className="text-indigo-300 text-xs">{char.effect}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
