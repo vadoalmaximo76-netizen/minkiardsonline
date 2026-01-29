@@ -28,13 +28,34 @@ export const YouTubeVideoModal: React.FC<YouTubeVideoModalProps> = ({
   onClose
 }) => {
   const [isVisible, setIsVisible] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const videoId = extractVideoId(youtubeUrl);
   const playerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setIsVisible(true);
   }, []);
+
+  // Handle fullscreen change events
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isNowFullscreen = !!document.fullscreenElement;
+      setIsFullscreen(isNowFullscreen);
+      
+      // If exiting fullscreen, close the modal
+      if (!isNowFullscreen && isVisible) {
+        console.log('📺 Exited fullscreen, closing modal');
+        handleClose();
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, [isVisible]);
 
   // Load YouTube IFrame API and create player
   useEffect(() => {
@@ -56,13 +77,33 @@ export const YouTubeVideoModal: React.FC<YouTubeVideoModalProps> = ({
             autoplay: 1,
             rel: 0,
             modestbranding: 1,
-            loop: 0
+            loop: 0,
+            fs: 1
           },
           events: {
+            onReady: (event: any) => {
+              console.log('📺 YouTube player ready, requesting fullscreen');
+              // Request fullscreen on the wrapper div
+              if (wrapperRef.current) {
+                try {
+                  wrapperRef.current.requestFullscreen?.() ||
+                  (wrapperRef.current as any).webkitRequestFullscreen?.() ||
+                  (wrapperRef.current as any).mozRequestFullScreen?.() ||
+                  (wrapperRef.current as any).msRequestFullscreen?.();
+                  setIsFullscreen(true);
+                } catch (err) {
+                  console.log('📺 Fullscreen not available, playing in modal');
+                }
+              }
+            },
             onStateChange: (event: any) => {
               // YT.PlayerState.ENDED = 0
               if (event.data === 0) {
                 console.log('📺 YouTube video ended, closing modal');
+                // Exit fullscreen first if active
+                if (document.fullscreenElement) {
+                  document.exitFullscreen?.();
+                }
                 handleClose();
               }
             }
@@ -80,6 +121,10 @@ export const YouTubeVideoModal: React.FC<YouTubeVideoModalProps> = ({
     }
 
     return () => {
+      // Exit fullscreen on cleanup
+      if (document.fullscreenElement) {
+        document.exitFullscreen?.();
+      }
       if (playerRef.current?.destroy) {
         playerRef.current.destroy();
       }
@@ -88,6 +133,10 @@ export const YouTubeVideoModal: React.FC<YouTubeVideoModalProps> = ({
 
   const handleClose = () => {
     setIsVisible(false);
+    // Exit fullscreen if active
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.();
+    }
     if (playerRef.current?.destroy) {
       playerRef.current.destroy();
     }
@@ -105,51 +154,76 @@ export const YouTubeVideoModal: React.FC<YouTubeVideoModalProps> = ({
       className={`fixed inset-0 z-[9999] flex items-center justify-center transition-all duration-300 ${
         isVisible ? 'opacity-100' : 'opacity-0'
       }`}
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.85)' }}
+      style={{ backgroundColor: 'rgba(0, 0, 0, 0.95)' }}
     >
       <div 
-        className={`relative bg-gray-900 rounded-2xl shadow-2xl border-4 border-red-600 overflow-hidden transition-transform duration-300 ${
+        ref={wrapperRef}
+        className={`relative bg-black overflow-hidden transition-transform duration-300 ${
           isVisible ? 'scale-100' : 'scale-75'
-        }`}
+        } ${isFullscreen ? '' : 'rounded-2xl border-4 border-red-600'}`}
         style={{ 
-          width: 'min(90vw, 960px)', 
-          maxHeight: '90vh'
+          width: isFullscreen ? '100vw' : 'min(95vw, 1280px)',
+          height: isFullscreen ? '100vh' : 'auto',
+          maxHeight: '95vh'
         }}
       >
-        <div className="bg-gradient-to-r from-red-700 via-red-600 to-red-700 px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 bg-white rounded-full animate-pulse" />
-            <span className="text-white font-bold text-lg">
-              {cardName}
-            </span>
-            <span className="text-red-200 text-sm">
-              - giocata da {playerName}
-            </span>
+        {/* Header - only show when not fullscreen */}
+        {!isFullscreen && (
+          <div className="bg-gradient-to-r from-red-700 via-red-600 to-red-700 px-6 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-3 h-3 bg-white rounded-full animate-pulse" />
+              <span className="text-white font-bold text-lg">
+                {cardName}
+              </span>
+              <span className="text-red-200 text-sm">
+                - giocata da {playerName}
+              </span>
+            </div>
+            <button
+              onClick={handleClose}
+              className="p-2 bg-red-800 hover:bg-red-900 rounded-full transition-colors"
+            >
+              <X size={24} className="text-white" />
+            </button>
           </div>
-          <button
-            onClick={handleClose}
-            className="p-2 bg-red-800 hover:bg-red-900 rounded-full transition-colors"
-          >
-            <X size={24} className="text-white" />
-          </button>
-        </div>
+        )}
 
-        <div className="relative" style={{ paddingBottom: '56.25%' }}>
+        {/* Video container */}
+        <div 
+          className="relative w-full" 
+          style={{ 
+            paddingBottom: isFullscreen ? '0' : '56.25%',
+            height: isFullscreen ? '100%' : 'auto'
+          }}
+        >
           <div 
             ref={containerRef}
             className="absolute inset-0 w-full h-full"
           />
         </div>
 
-        <div className="bg-gray-800 px-6 py-3 flex justify-center">
+        {/* Footer - only show when not fullscreen */}
+        {!isFullscreen && (
+          <div className="bg-gray-900 px-6 py-3 flex justify-center">
+            <button
+              onClick={handleClose}
+              className="px-8 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors flex items-center gap-2"
+            >
+              <X size={18} />
+              CHIUDI VIDEO
+            </button>
+          </div>
+        )}
+
+        {/* Fullscreen close button */}
+        {isFullscreen && (
           <button
             onClick={handleClose}
-            className="px-8 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors flex items-center gap-2"
+            className="absolute top-4 right-4 z-50 p-3 bg-red-600/80 hover:bg-red-700 rounded-full transition-colors"
           >
-            <X size={18} />
-            CHIUDI VIDEO
+            <X size={28} className="text-white" />
           </button>
-        </div>
+        )}
       </div>
     </div>
   );
