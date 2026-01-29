@@ -452,6 +452,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Make io globally available for GameManager effect processing
+  (global as any).io = io;
+
   const gameManager = new GameManager();
 
   // Load active games from database on server startup
