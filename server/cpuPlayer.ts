@@ -1437,7 +1437,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
             case 'play-character':
               return this.executePlayCharacter(gameState);
             case 'pick-replacement':
-              return this.executePickReplacement(gameState);
+              return await this.executePickReplacement(gameState);
             default:
               this.openingSequenceState.phase = 'completed';
           }
@@ -2575,7 +2575,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
   }
 
   // Phase 3: Pick replacement PERSONAGGI card
-  executePickReplacement(gameState: any): any {
+  async executePickReplacement(gameState: any): Promise<any> {
     // Check if CPU already has a PERSONAGGI card in hand
     const cpuPlayer = gameState.players[this.playerName];
     const hasPersonaggioInHand = cpuPlayer.hand?.some((card: any) => 
@@ -2598,19 +2598,9 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       // IMPORTANT: If handleDrawPhase returns null, we need to proceed to play phase
       if (drawAction === null) {
         console.log(`CPU ${this.playerName}: No draw needed, forcing play phase immediately`);
-        // Force CPU to play a card - prioritize playing a character if none on field
-        const cardToPlay = this.selectCardToPlay(cpuPlayer, gameState);
-        if (cardToPlay) {
-          const cardName = this.getCardNameFromUrl(cardToPlay.frontImage);
-          this.sendChatMessage(`Gioco ${cardName}!`);
-          return {
-            type: 'play-card',
-            data: {
-              cardId: cardToPlay.id,
-              playerName: this.playerName
-            }
-          };
-        }
+        // CRITICAL FIX: Use handlePlayPhase instead of selectCardToPlay
+        // handlePlayPhase handles MOSSE attacks atomically with proper target selection
+        return await this.handlePlayPhase(cpuPlayer, gameState);
       }
       
       return drawAction;
