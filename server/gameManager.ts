@@ -4625,6 +4625,173 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         break;
 
+      // ============ INTERACTIVE EFFECTS THAT REQUIRE PANEL OR AUTO-APPLY FOR CPU ============
+      
+      case 'dice_control': {
+        // Register dice control effect for the card owner
+        const io = (global as any).io;
+        const isCPU = this.isPlayerCPU(gameId, playerName);
+        if (isCPU) {
+          // CPU auto-chooses a random dice number (passive effect - just register it)
+          console.log(`🤖 CPU ${playerName} dice control registered (passive effect)`);
+        }
+        // Mark card as having dice control
+        const diceControlCard = game.field.find(c => c.id === card.id);
+        if (diceControlCard) {
+          (diceControlCard as any).hasDiceControl = true;
+          (diceControlCard as any).diceControlOwner = playerName;
+        }
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-dice-control-active`,
+            playerName: 'Sistema',
+            message: `🎲 ${card.name || 'Carta'} ha attivato il controllo del dado! ${playerName} potrà scegliere il risultato del prossimo lancio.`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      }
+      
+      case 'show_pti_input_panel': {
+        const io = (global as any).io;
+        if (this.cpuAutoApplyEffect(gameId, playerName, 'pti_input', card.id, io)) {
+          break; // CPU handled it
+        }
+        // Store pending effect info and emit panel event
+        if (!game.pendingEffects) {
+          game.pendingEffects = new Map();
+        }
+        game.pendingEffects.set(playerName, {
+          type: 'pti_input',
+          cardId: card.id,
+          timestamp: Date.now()
+        });
+        console.log(`📋 Showing PTI input panel for ${playerName}`);
+        if (io) {
+          io.to(gameId).emit('show-pti-input-panel', {
+            cardId: card.id,
+            cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+            playerName,
+            effectDescription: action.description
+          });
+        }
+        break;
+      }
+      
+      case 'insurance_effect': {
+        const io = (global as any).io;
+        if (this.cpuAutoApplyEffect(gameId, playerName, 'insurance', card.id, io)) {
+          break; // CPU handled it
+        }
+        if (!game.pendingEffects) {
+          game.pendingEffects = new Map();
+        }
+        game.pendingEffects.set(playerName, {
+          type: 'insurance',
+          cardId: card.id,
+          timestamp: Date.now()
+        });
+        console.log(`🛡️ Insurance effect: Showing PTI input panel for ${playerName}`);
+        if (io) {
+          io.to(gameId).emit('show-pti-input-panel', {
+            cardId: card.id,
+            cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+            playerName,
+            effectDescription: '🛡️ ASSICURAZIONE: Inserisci la quantità di PTI da "assicurare".'
+          });
+        }
+        break;
+      }
+      
+      case 'show_graveyard_selection': {
+        const io = (global as any).io;
+        if (this.cpuAutoApplyEffect(gameId, playerName, 'graveyard_selection', card.id, io)) {
+          break; // CPU handled it
+        }
+        console.log(`📋 Showing graveyard selection for ${playerName}`);
+        if (io) {
+          const graveyardCardsForSelect = game.graveyard.map((c: Card) => ({
+            id: c.id,
+            name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+            frontImage: c.frontImage,
+            owner: c.owner
+          }));
+          io.to(gameId).emit('show-graveyard-selection', {
+            reason: 'effect',
+            cards: graveyardCardsForSelect,
+            message: action.description || 'Scegli una carta dal cimitero'
+          });
+        }
+        break;
+      }
+      
+      case 'show_deck_selection': {
+        const io = (global as any).io;
+        if (this.cpuAutoApplyEffect(gameId, playerName, 'deck_selection', card.id, io)) {
+          break; // CPU handled it
+        }
+        console.log(`📋 Showing deck selection for ${playerName}`);
+        if (io) {
+          io.to(gameId).emit('show-deck-selection', {
+            cardId: card.id,
+            cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+            playerName,
+            effectDescription: action.description
+          });
+        }
+        break;
+      }
+      
+      case 'swap': {
+        const io = (global as any).io;
+        if (this.cpuAutoApplyEffect(gameId, playerName, 'swap', card.id, io)) {
+          break; // CPU handled it
+        }
+        console.log(`🔄 Showing swap panel for ${playerName} - Baratto effect`);
+        const otherPlayers = game.turnOrder.filter((p: string) => p !== playerName);
+        if (io) {
+          io.to(gameId).emit('show-swap-selection', {
+            cardId: card.id,
+            cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+            playerName,
+            otherPlayers,
+            effectDescription: action.description
+          });
+        }
+        break;
+      }
+      
+      case 'cycle_cards': {
+        // Ciclone effect: Each player passes their field cards to the next player
+        const io = (global as any).io;
+        console.log(`🌀 CICLONE: Rotating field cards between all players`);
+        const turnOrderCycle = game.turnOrder.filter((p: string) => game.players[p]);
+        if (turnOrderCycle.length >= 2) {
+          const playerFieldCards: { [key: string]: Card[] } = {};
+          for (const pName of turnOrderCycle) {
+            playerFieldCards[pName] = game.field.filter((c: Card) => c.owner === pName);
+          }
+          for (let i = 0; i < turnOrderCycle.length; i++) {
+            const currentPlayer = turnOrderCycle[i];
+            const previousPlayer = turnOrderCycle[(i - 1 + turnOrderCycle.length) % turnOrderCycle.length];
+            const cardsToReceive = playerFieldCards[previousPlayer];
+            for (const fieldCard of cardsToReceive) {
+              fieldCard.owner = currentPlayer;
+              console.log(`🌀 ${fieldCard.name || fieldCard.id} transferred from ${previousPlayer} to ${currentPlayer}`);
+            }
+          }
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-ciclone`,
+              playerName: 'Sistema',
+              message: `🌀 CICLONE! Tutti i giocatori hanno passato le loro carte in campo al giocatore successivo!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        break;
+      }
+
       default:
         console.log(`❓ Unknown custom effect type: ${action.type}`);
     }
