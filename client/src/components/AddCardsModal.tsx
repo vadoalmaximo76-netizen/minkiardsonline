@@ -192,6 +192,21 @@ const EFFECT_TYPES = [
   { id: 'teleport', label: 'Teletrasporto', description: 'Sposta una carta in una posizione diversa', icon: '🌀', category: 'speciale' },
   { id: 'time_travel', label: 'Viaggio nel Tempo', description: 'Riporta il gioco a uno stato precedente', icon: '⏰', category: 'speciale' },
   
+  // === MODIFICHE STATISTICHE ===
+  { id: 'halve_pti', label: 'Dimezza PTI', description: 'Dimezza i PTI del bersaglio', icon: '➗', category: 'risorse' },
+  { id: 'halve_stars', label: 'Dimezza Stelle', description: 'Dimezza le stelle del bersaglio', icon: '⭐➗', category: 'risorse' },
+  { id: 'double_pti', label: 'Raddoppia PTI', description: 'Raddoppia i PTI del bersaglio', icon: '💪✖️', category: 'risorse' },
+  { id: 'double_stars', label: 'Raddoppia Stelle', description: 'Raddoppia le stelle del bersaglio', icon: '⭐✖️', category: 'risorse' },
+  { id: 'add_half_pti', label: 'Aggiungi Metà PTI', description: 'Aggiunge la metà dei PTI attuali', icon: '💪➕', category: 'risorse' },
+  { id: 'add_half_stars', label: 'Aggiungi Metà Stelle', description: 'Aggiunge la metà delle stelle attuali', icon: '⭐➕', category: 'risorse' },
+  { id: 'zero_stars', label: 'Azzera Stelle', description: 'Porta le stelle a 0', icon: '⭐0️⃣', category: 'risorse' },
+  { id: 'absorb_pti', label: 'Assorbi PTI', description: 'Assorbe PTI da un avversario e li aggiunge a te', icon: '🧲', category: 'attacco' },
+  
+  // === CONTROLLO AVANZATO ===
+  { id: 'control_turn', label: 'Controlla Turno', description: 'Controlla un avversario al suo prossimo turno', icon: '🎮👤', category: 'controllo' },
+  { id: 'send_to_deck', label: 'Manda nel Mazzo', description: 'Rimanda una carta nel mazzo', icon: '📥', category: 'carte' },
+  { id: 'reflect_attack', label: 'Respingi Attacco', description: 'Respinge un attacco al mittente', icon: '🔄⚔️', category: 'difesa' },
+  
   // === ALTRO ===
   { id: 'weather', label: 'Meteo', description: 'Cambia le condizioni del campo', icon: '🌦️', category: 'altro' },
   { id: 'terrain', label: 'Terreno', description: 'Modifica il terreno di gioco', icon: '🏔️', category: 'altro' },
@@ -544,6 +559,43 @@ function generateEffectDescription(wizard: EffectWizardState): string {
       break;
     case 'time_travel':
       description = `Viaggio nel Tempo: riporta il gioco a ${value || 1} turni fa`;
+      break;
+    
+    // === MODIFICHE STATISTICHE ===
+    case 'halve_pti':
+      description = `Dimezza i PTI ${getTargetText(wizard.target)}`.trim();
+      break;
+    case 'halve_stars':
+      description = `Dimezza le stelle ${getTargetText(wizard.target)}`.trim();
+      break;
+    case 'double_pti':
+      description = `Raddoppia i PTI ${getTargetText(wizard.target)}`.trim();
+      break;
+    case 'double_stars':
+      description = `Raddoppia le stelle ${getTargetText(wizard.target)}`.trim();
+      break;
+    case 'add_half_pti':
+      description = `Aggiunge la metà dei PTI attuali ${getTargetText(wizard.target)}`.trim();
+      break;
+    case 'add_half_stars':
+      description = `Aggiunge la metà delle stelle attuali ${getTargetText(wizard.target)}`.trim();
+      break;
+    case 'zero_stars':
+      description = `Porta le stelle a 0 ${getTargetText(wizard.target)}`.trim();
+      break;
+    case 'absorb_pti':
+      description = `Assorbe ${value || 100} PTI da un avversario e li aggiunge a te`;
+      break;
+    
+    // === CONTROLLO AVANZATO ===
+    case 'control_turn':
+      description = `Controlla un avversario quando sarà il suo turno`;
+      break;
+    case 'send_to_deck':
+      description = `Manda una carta ${wizard.target === 'enemy_card' ? 'nemica' : 'alleata'} nel mazzo`;
+      break;
+    case 'reflect_attack':
+      description = `Respinge l'attacco ricevuto al mittente`;
       break;
     
     // === ALTRO ===
