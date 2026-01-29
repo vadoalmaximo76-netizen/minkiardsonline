@@ -5797,6 +5797,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             pti: mod?.pti || null,
             stars: mod?.stars || null,
             effect: mod?.effect || null,
+            audioUrl: mod?.audioUrl || null,
+            youtubeUrl: mod?.youtubeUrl || null,
             isDeleted: mod?.isDeleted || false,
             isModified: !!mod
           });
@@ -5818,7 +5820,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ success: false, error: 'Unauthorized' });
       }
 
-      const { originalCardId, deckType, name, imageUrl, pti, stars, effect, audioUrl } = req.body;
+      const { originalCardId, deckType, name, imageUrl, pti, stars, effect, audioUrl, youtubeUrl } = req.body;
 
       // Helper to safely parse integer values (handles NaN, empty strings, undefined)
       const safeParseInt = (value: any): number | null => {
@@ -5842,6 +5844,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             stars: safeParseInt(stars),
             effect: effect || null,
             audioUrl: audioUrl || null,
+            youtubeUrl: youtubeUrl || null,
             modifiedBy: userEmail,
             modifiedAt: new Date()
           })
@@ -5860,6 +5863,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             stars: safeParseInt(stars),
             effect: effect || null,
             audioUrl: audioUrl || null,
+            youtubeUrl: youtubeUrl || null,
             modifiedBy: userEmail
           })
           .returning();
