@@ -7310,37 +7310,164 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     if (!game) return;
 
     const targetName = targetCard.name || this.getCardNameFromUrl(targetCard.frontImage || '');
+    const currentPTI = targetCard.pti || this.extractPTIFromNote(targetCard.text || '');
+    const currentStars = targetCard.stars || this.extractStarsFromNote(targetCard.text || '');
 
     switch (action.type) {
       case 'damage':
-        const oldPTI = targetCard.pti || this.extractPTIFromNote(targetCard.text || '');
-        const newPTI = Math.max(0, oldPTI - action.value);
+      case 'damage_all':
+      case 'damage_random':
+      case 'pierce':
+      case 'explosion':
+        const newPTI = Math.max(0, currentPTI - action.value);
         targetCard.pti = newPTI;
         this.updateCardTextWithPTI(targetCard);
-        console.log(`🎯 Dealt ${action.value} damage to ${targetName}: ${oldPTI} → ${newPTI}`);
+        console.log(`🎯 Dealt ${action.value} damage to ${targetName}: ${currentPTI} → ${newPTI}`);
         if (newPTI <= 0) {
           this.moveToGraveyard(gameId, targetCard.id, targetCard.owner, 'Effetto');
         }
         break;
 
       case 'heal':
-        const prevPTI = targetCard.pti || this.extractPTIFromNote(targetCard.text || '');
-        const healedPTI = prevPTI + action.value;
+      case 'heal_all':
+      case 'buff':
+      case 'powerup':
+      case 'bless':
+      case 'inspire':
+        const healedPTI = currentPTI + action.value;
         targetCard.pti = healedPTI;
         this.updateCardTextWithPTI(targetCard);
-        console.log(`🎯 Healed ${action.value} to ${targetName}: ${prevPTI} → ${healedPTI}`);
+        console.log(`🎯 Healed/Buffed ${action.value} to ${targetName}: ${currentPTI} → ${healedPTI}`);
         break;
 
       case 'modify_stars':
-        const oldStars = targetCard.stars || 0;
-        const newStars = Math.max(0, oldStars + action.value);
+        const newStars = Math.max(0, currentStars + action.value);
         targetCard.stars = newStars;
-        console.log(`🎯 Modified stars of ${targetName}: ${oldStars} → ${newStars}`);
+        targetCard.text = `PTI: ${currentPTI} | Stelle: ${newStars}`;
+        console.log(`🎯 Modified stars of ${targetName}: ${currentStars} → ${newStars}`);
         break;
 
       case 'kill':
+      case 'execute':
+        if (action.type === 'execute' && currentPTI >= action.value) {
+          console.log(`🎯 Execute failed - ${targetName} PTI ${currentPTI} >= threshold ${action.value}`);
+          break;
+        }
         console.log(`🎯 Killed ${targetName}`);
         this.moveToGraveyard(gameId, targetCard.id, targetCard.owner, 'Effetto');
+        break;
+
+      case 'weaken':
+        const weakenedPTI = Math.max(0, currentPTI - action.value);
+        targetCard.pti = weakenedPTI;
+        this.updateCardTextWithPTI(targetCard);
+        console.log(`🎯 Weakened ${targetName}: ${currentPTI} → ${weakenedPTI}`);
+        break;
+
+      case 'drain':
+      case 'lifesteal':
+        const drainedPTI = Math.max(0, currentPTI - action.value);
+        targetCard.pti = drainedPTI;
+        this.updateCardTextWithPTI(targetCard);
+        const sourcePTI = sourceCard.pti || this.extractPTIFromNote(sourceCard.text || '');
+        sourceCard.pti = sourcePTI + action.value;
+        this.updateCardTextWithPTI(sourceCard);
+        console.log(`🎯 Drained ${action.value} from ${targetName} to ${sourceCard.name || 'source'}`);
+        break;
+
+      case 'double':
+        const doubledPTI = currentPTI * 2;
+        const doubledStars = currentStars * 2;
+        targetCard.pti = doubledPTI;
+        targetCard.stars = doubledStars;
+        targetCard.text = `PTI: ${doubledPTI} | Stelle: ${doubledStars}`;
+        console.log(`🎯 Doubled ${targetName}: PTI ${currentPTI}→${doubledPTI}, Stars ${currentStars}→${doubledStars}`);
+        break;
+
+      case 'halve':
+        const halvedPTI = Math.floor(currentPTI / 2);
+        const halvedStars = Math.floor(currentStars / 2);
+        targetCard.pti = halvedPTI;
+        targetCard.stars = halvedStars;
+        targetCard.text = `PTI: ${halvedPTI} | Stelle: ${halvedStars}`;
+        console.log(`🎯 Halved ${targetName}: PTI ${currentPTI}→${halvedPTI}, Stars ${currentStars}→${halvedStars}`);
+        break;
+
+      case 'protection':
+      case 'immunity':
+      case 'shield':
+      case 'barrier':
+      case 'stealth':
+        (targetCard as any).activeEffects = (targetCard as any).activeEffects || [];
+        (targetCard as any).activeEffects.push({ type: action.type, value: action.value, turnsRemaining: action.value });
+        console.log(`🎯 Applied ${action.type} to ${targetName} for ${action.value} turns`);
+        break;
+
+      case 'poison':
+      case 'burn':
+      case 'bleed':
+      case 'curse':
+        (targetCard as any).activeEffects = (targetCard as any).activeEffects || [];
+        (targetCard as any).activeEffects.push({ type: action.type, value: action.value, damagePerTurn: action.value });
+        console.log(`🎯 Applied ${action.type} to ${targetName}: ${action.value} damage/turn`);
+        break;
+
+      case 'freeze':
+      case 'stun':
+      case 'silence':
+      case 'sleep':
+      case 'fear':
+      case 'confuse':
+        (targetCard as any).activeEffects = (targetCard as any).activeEffects || [];
+        (targetCard as any).activeEffects.push({ type: action.type, turnsRemaining: action.value });
+        console.log(`🎯 Applied ${action.type} to ${targetName} for ${action.value} turns`);
+        break;
+
+      case 'counter':
+      case 'reflect':
+      case 'taunt':
+      case 'dodge':
+      case 'armor':
+      case 'regeneration':
+        (targetCard as any).activeEffects = (targetCard as any).activeEffects || [];
+        (targetCard as any).activeEffects.push({ type: action.type, value: action.value });
+        console.log(`🎯 Applied ${action.type} to ${targetName}: ${action.value}`);
+        break;
+
+      case 'aura':
+        const allies = game.field.filter((c: Card) => c.owner === targetCard.owner && c.id !== targetCard.id && c.id.startsWith('personaggi'));
+        for (const ally of allies) {
+          const allyPTI = ally.pti || this.extractPTIFromNote(ally.text || '');
+          ally.pti = allyPTI + action.value;
+          this.updateCardTextWithPTI(ally);
+          console.log(`🎯 Aura buffed ${ally.name || 'ally'}: +${action.value} PTI`);
+        }
+        break;
+
+      case 'clone_self':
+        const clone: Card = {
+          ...targetCard,
+          id: `${targetCard.id}-clone-${Date.now()}`
+        };
+        (clone as any).isClone = true;
+        game.field.push(clone);
+        console.log(`🎯 Cloned ${targetName}`);
+        break;
+
+      case 'inherit_from_dead':
+        if (game.graveyard.length > 0) {
+          const lastDead = game.graveyard[game.graveyard.length - 1];
+          const deadPTI = lastDead.pti || this.extractPTIFromNote(lastDead.text || '');
+          const deadStars = lastDead.stars || this.extractStarsFromNote(lastDead.text || '');
+          targetCard.pti = currentPTI + deadPTI;
+          targetCard.stars = currentStars + deadStars;
+          targetCard.text = `PTI: ${targetCard.pti} | Stelle: ${targetCard.stars}`;
+          console.log(`🎯 ${targetName} inherited from dead: +${deadPTI} PTI, +${deadStars} stars`);
+        }
+        break;
+
+      default:
+        console.log(`🎯 Effect type '${action.type}' recognized but no specific handler - applying as description: ${action.description}`);
         break;
     }
   }
