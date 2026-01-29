@@ -7212,11 +7212,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
 
     const cardText = card.text || '';
+    const cardEffect = card.effect || '';
+    const combinedText = cardText + ' ' + cardEffect;
     const cardName = card.name || this.getCardNameFromUrl(card.frontImage || '');
-    console.log(`⚡ Activating custom effect for ${cardName}: "${cardText}"`);
+    console.log(`⚡ Activating custom effect for ${cardName}: text="${cardText}", effect="${cardEffect}"`);
 
     // Check for DADO (dice) effect
-    const dadoMatch = cardText.match(/\[DADO:\s*([^\]]*)\]/i);
+    const dadoMatch = combinedText.match(/\[DADO:\s*([^\]]*)\]/i);
     if (dadoMatch) {
       const dadoDetails = dadoMatch[1];
       console.log(`🎲 Card has DADO effect: ${dadoDetails}`);
@@ -7297,7 +7299,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
 
     // Check for COMPORTAMENTO (behavior) effect
-    const comportamentoMatch = cardText.match(/\[COMPORTAMENTO:\s*([^\]]*)\]/i);
+    const comportamentoMatch = combinedText.match(/\[COMPORTAMENTO:\s*([^\]]*)\]/i);
     if (comportamentoMatch) {
       const behavior = comportamentoMatch[1].trim();
       console.log(`⚡ Card has COMPORTAMENTO effect: ${behavior}`);
@@ -7332,7 +7334,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
 
     // Check for DETTAGLI effect
-    const dettagliMatch = cardText.match(/\[DETTAGLI:\s*([^\]]*)\]/i);
+    const dettagliMatch = combinedText.match(/\[DETTAGLI:\s*([^\]]*)\]/i);
     if (dettagliMatch) {
       const details = dettagliMatch[1].trim();
       console.log(`⚡ Card has DETTAGLI effect: ${details}`);

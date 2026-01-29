@@ -10,9 +10,12 @@ import { Checkbox } from "./ui/checkbox";
 // Check if a card has custom activatable effects
 const hasCustomEffect = (card: any): boolean => {
   const text = card.text || '';
-  return text.includes('[COMPORTAMENTO:') || 
-         text.includes('[DADO:') || 
-         text.includes('[DETTAGLI:');
+  const effect = card.effect || '';
+  const combined = text + ' ' + effect;
+  return combined.includes('[COMPORTAMENTO:') || 
+         combined.includes('[DADO:') || 
+         combined.includes('[DETTAGLI:') ||
+         combined.includes('[ANIMAZIONE:');
 };
 
 const RoundTableComponent: React.FC = () => {
