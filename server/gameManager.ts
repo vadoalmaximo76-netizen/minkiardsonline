@@ -7212,7 +7212,62 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const targetNames = targetCards.map(c => c.name || this.getCardNameFromUrl(c.frontImage || '')).join(', ');
     console.log(`🎯 ${playerName} selected targets: ${targetNames}`);
 
-    // Parse and apply effects to selected targets
+    // Check if effect contains DADO_AUTOMATICO - if so, trigger auto dice with pre-selected targets
+    const autoDiceMatch = selection.effectText.match(/\[DADO_AUTOMATICO:\s*([^\]]+)\]/i);
+    if (autoDiceMatch) {
+      console.log(`🎲 Effect contains DADO_AUTOMATICO - triggering auto dice setup with selected targets`);
+      
+      // Parse effects for each number
+      const effectsStr = autoDiceMatch[1].trim();
+      const autoEffects: Record<number, string> = {};
+      const effectPairs = effectsStr.split(';');
+      for (const pair of effectPairs) {
+        const match = pair.match(/(\d):\s*(.+)/);
+        if (match) {
+          const num = parseInt(match[1]);
+          autoEffects[num] = match[2].trim();
+        }
+      }
+      
+      // Store pending auto dice with pre-selected characters
+      if (!game.pendingAutoDice) {
+        game.pendingAutoDice = new Map();
+      }
+      
+      const autoDiceId = `auto-dice-${Date.now()}`;
+      game.pendingAutoDice.set(autoDiceId, {
+        cardId: selection.cardId,
+        cardName: selection.cardName,
+        defaultEffects: autoEffects,
+        initiatorPlayer: selection.owner,
+        allowedCharacterIds: selectedTargetIds,
+        timestamp: Date.now()
+      });
+      
+      // Emit setup event with pre-selected characters
+      io.to(gameId).emit('show-auto-dice-setup', {
+        autoDiceId,
+        cardName: selection.cardName,
+        defaultEffects: autoEffects,
+        availableCharacters: targetCards.map((c: Card) => ({
+          id: c.id,
+          name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+          owner: c.owner,
+          frontImage: c.frontImage || '',
+          pti: c.pti,
+          stars: c.stars
+        })),
+        initiatorPlayer: selection.owner,
+        preSelected: true // Flag to indicate characters are pre-selected
+      });
+      
+      // Clear pending target selection
+      game.pendingTargetSelections.delete(selectionId);
+      
+      return { success: true, message: `Selezionati ${targetCards.length} personaggi per il dado` };
+    }
+
+    // Parse and apply effects to selected targets (non-dice effects)
     const actions = this.parseEffectKeywords(selection.effectText);
     
     if (actions.length > 0) {

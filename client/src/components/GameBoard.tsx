@@ -883,11 +883,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       defaultEffects: Record<number, string>;
       availableCharacters: Array<{ id: string; name: string; owner: string; frontImage: string; pti: number | null; stars: number | null }>;
       initiatorPlayer: string;
+      preSelected?: boolean;
     }) => {
       console.log('🎲 Show auto dice setup:', data);
       // Only show to the initiator player
       if (data.initiatorPlayer === playerName) {
-        setAutoDiceSelectedChars([]);
+        // If preSelected flag is true, auto-select all available characters
+        if (data.preSelected) {
+          setAutoDiceSelectedChars(data.availableCharacters.map(c => c.id));
+        } else {
+          setAutoDiceSelectedChars([]);
+        }
         setAutoDiceCustomEffects({ ...data.defaultEffects });
         setAutoDiceSetupModal({
           visible: true,
