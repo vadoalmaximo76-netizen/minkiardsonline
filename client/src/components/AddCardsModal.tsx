@@ -26,10 +26,20 @@ interface EffectWizardState {
   needsMoreInfo: boolean;
   // Dice (Dado) system
   diceEnabled: boolean;
+  diceMode: 'choice' | 'auto'; // 'choice' = players choose numbers, 'auto' = automatic roll with preset consequences
   diceCorrectEffect: string;
   diceCorrectCustom: string;
   diceWrongEffect: string;
   diceWrongCustom: string;
+  // Auto dice: consequences for each number (1-6)
+  diceAutoEffects: {
+    1: { effect: string; custom: string };
+    2: { effect: string; custom: string };
+    3: { effect: string; custom: string };
+    4: { effect: string; custom: string };
+    5: { effect: string; custom: string };
+    6: { effect: string; custom: string };
+  };
 }
 
 // Predefined dice consequences
@@ -49,8 +59,23 @@ const DICE_EFFECTS = [
   { id: 'lose_stars', label: 'Perde stelle', description: 'Perde stelle' },
   { id: 'skip_turn', label: 'Salta il turno', description: 'Il personaggio salta il prossimo turno' },
   { id: 'extra_turn', label: 'Turno extra', description: 'Il personaggio ottiene un turno extra' },
+  { id: 'dies_in_1', label: 'Muore tra 1 turno', description: 'Il personaggio morirà tra 1 turno' },
+  { id: 'dies_in_2', label: 'Muore tra 2 turni', description: 'Il personaggio morirà tra 2 turni' },
+  { id: 'dies_in_3', label: 'Muore tra 3 turni', description: 'Il personaggio morirà tra 3 turni' },
+  { id: 'dies_in_4', label: 'Muore tra 4 turni', description: 'Il personaggio morirà tra 4 turni' },
+  { id: 'dies_in_5', label: 'Muore tra 5 turni', description: 'Il personaggio morirà tra 5 turni' },
+  { id: 'dies_in_6', label: 'Muore tra 6 turni', description: 'Il personaggio morirà tra 6 turni' },
   { id: 'custom', label: 'Personalizzato...', description: 'Descrivi tu l\'effetto' },
 ];
+
+const DEFAULT_DICE_AUTO_EFFECTS = {
+  1: { effect: 'none', custom: '' },
+  2: { effect: 'none', custom: '' },
+  3: { effect: 'none', custom: '' },
+  4: { effect: 'none', custom: '' },
+  5: { effect: 'none', custom: '' },
+  6: { effect: 'none', custom: '' },
+};
 
 interface AIQuestion {
   id: string;
@@ -561,7 +586,16 @@ function generateEffectDescription(wizard: EffectWizardState): string {
       return effect?.label || 'Nessun effetto';
     };
     
-    description += ` [DADO: Se indovina: ${getDiceEffectLabel(wizard.diceCorrectEffect, wizard.diceCorrectCustom)}; Se sbaglia: ${getDiceEffectLabel(wizard.diceWrongEffect, wizard.diceWrongCustom)}]`;
+    if (wizard.diceMode === 'auto') {
+      // Automatic dice - describe consequences for each number
+      const autoEffects = [1, 2, 3, 4, 5, 6]
+        .map(num => `${num}: ${getDiceEffectLabel(wizard.diceAutoEffects[num as 1|2|3|4|5|6].effect, wizard.diceAutoEffects[num as 1|2|3|4|5|6].custom)}`)
+        .join('; ');
+      description += ` [DADO_AUTOMATICO: ${autoEffects}]`;
+    } else {
+      // Choice-based dice
+      description += ` [DADO: Se indovina: ${getDiceEffectLabel(wizard.diceCorrectEffect, wizard.diceCorrectCustom)}; Se sbaglia: ${getDiceEffectLabel(wizard.diceWrongEffect, wizard.diceWrongCustom)}]`;
+    }
   }
 
   return description;
@@ -653,10 +687,12 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     aiInterpretation: '',
     needsMoreInfo: false,
     diceEnabled: false,
+    diceMode: 'choice',
     diceCorrectEffect: 'none',
     diceCorrectCustom: '',
     diceWrongEffect: 'none',
-    diceWrongCustom: ''
+    diceWrongCustom: '',
+    diceAutoEffects: { ...DEFAULT_DICE_AUTO_EFFECTS }
   });
 
   const resetEffectWizard = () => {
@@ -679,10 +715,12 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       aiInterpretation: '',
       needsMoreInfo: false,
       diceEnabled: false,
+      diceMode: 'choice',
       diceCorrectEffect: 'none',
       diceCorrectCustom: '',
       diceWrongEffect: 'none',
-      diceWrongCustom: ''
+      diceWrongCustom: '',
+      diceAutoEffects: { ...DEFAULT_DICE_AUTO_EFFECTS }
     });
   };
 
@@ -2244,6 +2282,195 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                       
                       {effectWizard.diceEnabled && (
                         <div className="bg-gray-800 border border-amber-500/30 rounded-lg p-4 space-y-4">
+                          {/* Dice Mode Selection */}
+                          <div className="flex gap-4 mb-4">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="diceMode-custom"
+                                checked={effectWizard.diceMode === 'choice'}
+                                onChange={() => setEffectWizard(prev => ({ ...prev, diceMode: 'choice' }))}
+                                className="accent-amber-500"
+                              />
+                              <span className="text-amber-300 text-sm">🎯 Dado CON scelta</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="diceMode-custom"
+                                checked={effectWizard.diceMode === 'auto'}
+                                onChange={() => setEffectWizard(prev => ({ ...prev, diceMode: 'auto' }))}
+                                className="accent-purple-500"
+                              />
+                              <span className="text-purple-300 text-sm">🎲 Dado SENZA scelta</span>
+                            </label>
+                          </div>
+
+                          {effectWizard.diceMode === 'choice' && (
+                            <>
+                              <p className="text-amber-300 text-sm">
+                                I personaggi coinvolti dovranno scegliere un numero (1-6) o Pari/Dispari prima del lancio del dado.
+                              </p>
+                              
+                              <div className="space-y-2">
+                                <label className="text-green-400 text-sm font-medium flex items-center gap-2">
+                                  ✅ Se INDOVINA il numero:
+                                </label>
+                                <select
+                                  value={effectWizard.diceCorrectEffect}
+                                  onChange={(e) => setEffectWizard(prev => ({ ...prev, diceCorrectEffect: e.target.value }))}
+                                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg p-2 text-sm"
+                                >
+                                  {DICE_EFFECTS.map(effect => (
+                                    <option key={effect.id} value={effect.id}>{effect.label}</option>
+                                  ))}
+                                </select>
+                                {effectWizard.diceCorrectEffect === 'custom' && (
+                                  <textarea
+                                    value={effectWizard.diceCorrectCustom}
+                                    onChange={(e) => setEffectWizard(prev => ({ ...prev, diceCorrectCustom: e.target.value }))}
+                                    placeholder="Descrivi l'effetto personalizzato se indovina..."
+                                    className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg p-2 text-sm resize-none"
+                                    rows={2}
+                                  />
+                                )}
+                              </div>
+                              
+                              <div className="space-y-2">
+                                <label className="text-red-400 text-sm font-medium flex items-center gap-2">
+                                  ❌ Se SBAGLIA il numero:
+                                </label>
+                                <select
+                                  value={effectWizard.diceWrongEffect}
+                                  onChange={(e) => setEffectWizard(prev => ({ ...prev, diceWrongEffect: e.target.value }))}
+                                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg p-2 text-sm"
+                                >
+                                  {DICE_EFFECTS.map(effect => (
+                                    <option key={effect.id} value={effect.id}>{effect.label}</option>
+                                  ))}
+                                </select>
+                                {effectWizard.diceWrongEffect === 'custom' && (
+                                  <textarea
+                                    value={effectWizard.diceWrongCustom}
+                                    onChange={(e) => setEffectWizard(prev => ({ ...prev, diceWrongCustom: e.target.value }))}
+                                    placeholder="Descrivi l'effetto personalizzato se sbaglia..."
+                                    className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg p-2 text-sm resize-none"
+                                    rows={2}
+                                  />
+                                )}
+                              </div>
+                            </>
+                          )}
+
+                          {effectWizard.diceMode === 'auto' && (
+                            <>
+                              <p className="text-purple-300 text-sm">
+                                Il dado viene lanciato automaticamente e ogni personaggio riceve la conseguenza del numero uscito.
+                              </p>
+                              
+                              <div className="space-y-3 max-h-64 overflow-y-auto">
+                                {([1, 2, 3, 4, 5, 6] as const).map(num => (
+                                  <div key={num} className="bg-gray-700/50 rounded-lg p-3 border border-gray-600">
+                                    <label className="text-white text-sm font-medium flex items-center gap-2 mb-2">
+                                      🎲 Se esce {num}:
+                                    </label>
+                                    <select
+                                      value={effectWizard.diceAutoEffects[num].effect}
+                                      onChange={(e) => setEffectWizard(prev => ({
+                                        ...prev,
+                                        diceAutoEffects: {
+                                          ...prev.diceAutoEffects,
+                                          [num]: { ...prev.diceAutoEffects[num], effect: e.target.value }
+                                        }
+                                      }))}
+                                      className="w-full bg-gray-600 text-white border border-gray-500 rounded-lg p-2 text-sm"
+                                    >
+                                      {DICE_EFFECTS.map(effect => (
+                                        <option key={effect.id} value={effect.id}>{effect.label}</option>
+                                      ))}
+                                    </select>
+                                    {effectWizard.diceAutoEffects[num].effect === 'custom' && (
+                                      <textarea
+                                        value={effectWizard.diceAutoEffects[num].custom}
+                                        onChange={(e) => setEffectWizard(prev => ({
+                                          ...prev,
+                                          diceAutoEffects: {
+                                            ...prev.diceAutoEffects,
+                                            [num]: { ...prev.diceAutoEffects[num], custom: e.target.value }
+                                          }
+                                        }))}
+                                        placeholder={`Descrivi cosa succede se esce ${num}...`}
+                                        className="w-full bg-gray-600 text-white border border-gray-500 rounded-lg p-2 text-sm resize-none mt-2"
+                                        rows={2}
+                                      />
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Final Step: Condition (optional) */}
+            {effectWizard.step === getStepCount() && effectWizard.effectType !== 'custom' && (
+              <div className="space-y-3">
+                <p className="text-gray-300 text-sm mb-4">Vuoi aggiungere una condizione? (opzionale)</p>
+                <textarea
+                  value={effectWizard.condition}
+                  onChange={(e) => setEffectWizard(prev => ({ ...prev, condition: e.target.value }))}
+                  placeholder="Es: Solo se il giocatore ha meno di 500 PTI..."
+                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg p-3 text-sm resize-none"
+                  rows={3}
+                />
+                <p className="text-gray-500 text-xs">Lascia vuoto se non ci sono condizioni particolari.</p>
+                
+                {/* DICE OPTION */}
+                <div className="border-t border-gray-600 pt-4 mt-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Checkbox
+                      id="dice-enabled"
+                      checked={effectWizard.diceEnabled}
+                      onCheckedChange={(checked) => setEffectWizard(prev => ({ ...prev, diceEnabled: !!checked }))}
+                    />
+                    <label htmlFor="dice-enabled" className="text-white font-medium flex items-center gap-2 cursor-pointer">
+                      🎲 Attiva opzione DADO
+                    </label>
+                  </div>
+                  
+                  {effectWizard.diceEnabled && (
+                    <div className="bg-gray-800 border border-amber-500/30 rounded-lg p-4 space-y-4">
+                      {/* Dice Mode Selection */}
+                      <div className="flex gap-4 mb-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="diceMode"
+                            checked={effectWizard.diceMode === 'choice'}
+                            onChange={() => setEffectWizard(prev => ({ ...prev, diceMode: 'choice' }))}
+                            className="accent-amber-500"
+                          />
+                          <span className="text-amber-300 text-sm">🎯 Dado CON scelta</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="diceMode"
+                            checked={effectWizard.diceMode === 'auto'}
+                            onChange={() => setEffectWizard(prev => ({ ...prev, diceMode: 'auto' }))}
+                            className="accent-purple-500"
+                          />
+                          <span className="text-purple-300 text-sm">🎲 Dado SENZA scelta</span>
+                        </label>
+                      </div>
+
+                      {effectWizard.diceMode === 'choice' && (
+                        <>
                           <p className="text-amber-300 text-sm">
                             I personaggi coinvolti dovranno scegliere un numero (1-6) o Pari/Dispari prima del lancio del dado.
                           </p>
@@ -2295,95 +2522,56 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                               />
                             )}
                           </div>
-                        </div>
+                        </>
                       )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
 
-            {/* Final Step: Condition (optional) */}
-            {effectWizard.step === getStepCount() && effectWizard.effectType !== 'custom' && (
-              <div className="space-y-3">
-                <p className="text-gray-300 text-sm mb-4">Vuoi aggiungere una condizione? (opzionale)</p>
-                <textarea
-                  value={effectWizard.condition}
-                  onChange={(e) => setEffectWizard(prev => ({ ...prev, condition: e.target.value }))}
-                  placeholder="Es: Solo se il giocatore ha meno di 500 PTI..."
-                  className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg p-3 text-sm resize-none"
-                  rows={3}
-                />
-                <p className="text-gray-500 text-xs">Lascia vuoto se non ci sono condizioni particolari.</p>
-                
-                {/* DICE OPTION */}
-                <div className="border-t border-gray-600 pt-4 mt-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <Checkbox
-                      id="dice-enabled"
-                      checked={effectWizard.diceEnabled}
-                      onCheckedChange={(checked) => setEffectWizard(prev => ({ ...prev, diceEnabled: !!checked }))}
-                    />
-                    <label htmlFor="dice-enabled" className="text-white font-medium flex items-center gap-2 cursor-pointer">
-                      🎲 Attiva opzione DADO
-                    </label>
-                  </div>
-                  
-                  {effectWizard.diceEnabled && (
-                    <div className="bg-gray-800 border border-amber-500/30 rounded-lg p-4 space-y-4">
-                      <p className="text-amber-300 text-sm">
-                        I personaggi coinvolti dovranno scegliere un numero (1-6) o Pari/Dispari prima del lancio del dado.
-                      </p>
-                      
-                      {/* Correct guess consequence */}
-                      <div className="space-y-2">
-                        <label className="text-green-400 text-sm font-medium flex items-center gap-2">
-                          ✅ Se INDOVINA il numero:
-                        </label>
-                        <select
-                          value={effectWizard.diceCorrectEffect}
-                          onChange={(e) => setEffectWizard(prev => ({ ...prev, diceCorrectEffect: e.target.value }))}
-                          className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg p-2 text-sm"
-                        >
-                          {DICE_EFFECTS.map(effect => (
-                            <option key={effect.id} value={effect.id}>{effect.label}</option>
-                          ))}
-                        </select>
-                        {effectWizard.diceCorrectEffect === 'custom' && (
-                          <textarea
-                            value={effectWizard.diceCorrectCustom}
-                            onChange={(e) => setEffectWizard(prev => ({ ...prev, diceCorrectCustom: e.target.value }))}
-                            placeholder="Descrivi l'effetto personalizzato se indovina..."
-                            className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg p-2 text-sm resize-none"
-                            rows={2}
-                          />
-                        )}
-                      </div>
-                      
-                      {/* Wrong guess consequence */}
-                      <div className="space-y-2">
-                        <label className="text-red-400 text-sm font-medium flex items-center gap-2">
-                          ❌ Se SBAGLIA il numero:
-                        </label>
-                        <select
-                          value={effectWizard.diceWrongEffect}
-                          onChange={(e) => setEffectWizard(prev => ({ ...prev, diceWrongEffect: e.target.value }))}
-                          className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg p-2 text-sm"
-                        >
-                          {DICE_EFFECTS.map(effect => (
-                            <option key={effect.id} value={effect.id}>{effect.label}</option>
-                          ))}
-                        </select>
-                        {effectWizard.diceWrongEffect === 'custom' && (
-                          <textarea
-                            value={effectWizard.diceWrongCustom}
-                            onChange={(e) => setEffectWizard(prev => ({ ...prev, diceWrongCustom: e.target.value }))}
-                            placeholder="Descrivi l'effetto personalizzato se sbaglia..."
-                            className="w-full bg-gray-700 text-white border border-gray-600 rounded-lg p-2 text-sm resize-none"
-                            rows={2}
-                          />
-                        )}
-                      </div>
+                      {effectWizard.diceMode === 'auto' && (
+                        <>
+                          <p className="text-purple-300 text-sm">
+                            Il dado viene lanciato automaticamente e ogni personaggio riceve la conseguenza del numero uscito.
+                          </p>
+                          
+                          <div className="space-y-3 max-h-64 overflow-y-auto">
+                            {([1, 2, 3, 4, 5, 6] as const).map(num => (
+                              <div key={num} className="bg-gray-700/50 rounded-lg p-3 border border-gray-600">
+                                <label className="text-white text-sm font-medium flex items-center gap-2 mb-2">
+                                  🎲 Se esce {num}:
+                                </label>
+                                <select
+                                  value={effectWizard.diceAutoEffects[num].effect}
+                                  onChange={(e) => setEffectWizard(prev => ({
+                                    ...prev,
+                                    diceAutoEffects: {
+                                      ...prev.diceAutoEffects,
+                                      [num]: { ...prev.diceAutoEffects[num], effect: e.target.value }
+                                    }
+                                  }))}
+                                  className="w-full bg-gray-600 text-white border border-gray-500 rounded-lg p-2 text-sm"
+                                >
+                                  {DICE_EFFECTS.map(effect => (
+                                    <option key={effect.id} value={effect.id}>{effect.label}</option>
+                                  ))}
+                                </select>
+                                {effectWizard.diceAutoEffects[num].effect === 'custom' && (
+                                  <textarea
+                                    value={effectWizard.diceAutoEffects[num].custom}
+                                    onChange={(e) => setEffectWizard(prev => ({
+                                      ...prev,
+                                      diceAutoEffects: {
+                                        ...prev.diceAutoEffects,
+                                        [num]: { ...prev.diceAutoEffects[num], custom: e.target.value }
+                                      }
+                                    }))}
+                                    placeholder={`Descrivi cosa succede se esce ${num}...`}
+                                    className="w-full bg-gray-600 text-white border border-gray-500 rounded-lg p-2 text-sm resize-none mt-2"
+                                    rows={2}
+                                  />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
