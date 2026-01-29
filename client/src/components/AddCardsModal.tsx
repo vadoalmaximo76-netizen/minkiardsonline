@@ -41,6 +41,13 @@ interface EffectWizardState {
     5: { effect: string; custom: string };
     6: { effect: string; custom: string };
   };
+  // Conditional usage settings
+  requiresCharacter: boolean;
+  requiredCharacterName: string;
+  targetRestriction: 'none' | 'only' | 'except';
+  targetCharacterName: string;
+  fieldCondition: 'none' | 'requires' | 'blocked';
+  fieldCardName: string;
 }
 
 // Predefined dice consequences
@@ -604,6 +611,27 @@ function generateEffectDescription(wizard: EffectWizardState): string {
     }
   }
 
+  // Add conditional usage rules
+  if (wizard.requiresCharacter && wizard.requiredCharacterName.trim()) {
+    description += ` [RICHIEDE_PERSONAGGIO: ${wizard.requiredCharacterName.trim()}]`;
+  }
+  
+  if (wizard.targetRestriction !== 'none' && wizard.targetCharacterName.trim()) {
+    if (wizard.targetRestriction === 'only') {
+      description += ` [SOLO_SU: ${wizard.targetCharacterName.trim()}]`;
+    } else if (wizard.targetRestriction === 'except') {
+      description += ` [NON_SU: ${wizard.targetCharacterName.trim()}]`;
+    }
+  }
+  
+  if (wizard.fieldCondition !== 'none' && wizard.fieldCardName.trim()) {
+    if (wizard.fieldCondition === 'requires') {
+      description += ` [RICHIEDE_IN_CAMPO: ${wizard.fieldCardName.trim()}]`;
+    } else if (wizard.fieldCondition === 'blocked') {
+      description += ` [BLOCCATA_SE_IN_CAMPO: ${wizard.fieldCardName.trim()}]`;
+    }
+  }
+
   return description;
 }
 
@@ -700,7 +728,13 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     diceCorrectCustom: '',
     diceWrongEffect: 'none',
     diceWrongCustom: '',
-    diceAutoEffects: { ...DEFAULT_DICE_AUTO_EFFECTS }
+    diceAutoEffects: { ...DEFAULT_DICE_AUTO_EFFECTS },
+    requiresCharacter: false,
+    requiredCharacterName: '',
+    targetRestriction: 'none',
+    targetCharacterName: '',
+    fieldCondition: 'none',
+    fieldCardName: ''
   });
 
   const resetEffectWizard = () => {
@@ -729,7 +763,13 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       diceCorrectCustom: '',
       diceWrongEffect: 'none',
       diceWrongCustom: '',
-      diceAutoEffects: { ...DEFAULT_DICE_AUTO_EFFECTS }
+      diceAutoEffects: { ...DEFAULT_DICE_AUTO_EFFECTS },
+      requiresCharacter: false,
+      requiredCharacterName: '',
+      targetRestriction: 'none',
+      targetCharacterName: '',
+      fieldCondition: 'none',
+      fieldCardName: ''
     });
   };
 
@@ -2628,10 +2668,83 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                   )}
                 </div>
                 
+                {/* Conditional Usage Options */}
+                <div className="bg-gray-800/50 rounded-lg p-3 mt-4 border border-gray-600">
+                  <p className="text-orange-400 text-xs font-medium mb-3">⚙️ Condizioni d'uso (opzionale)</p>
+                  
+                  {/* Requires specific character to use */}
+                  <div className="mb-3">
+                    <label className="flex items-center gap-2 text-gray-300 text-xs mb-1">
+                      <input
+                        type="checkbox"
+                        checked={effectWizard.requiresCharacter}
+                        onChange={(e) => setEffectWizard(prev => ({ ...prev, requiresCharacter: e.target.checked }))}
+                        className="rounded bg-gray-700 border-gray-500"
+                      />
+                      Effetto attivo solo se usata con un personaggio specifico
+                    </label>
+                    {effectWizard.requiresCharacter && (
+                      <input
+                        type="text"
+                        value={effectWizard.requiredCharacterName}
+                        onChange={(e) => setEffectWizard(prev => ({ ...prev, requiredCharacterName: e.target.value }))}
+                        placeholder="Nome del personaggio richiesto..."
+                        className="w-full bg-gray-700 text-white border border-gray-500 rounded-lg p-2 text-xs mt-1"
+                      />
+                    )}
+                  </div>
+                  
+                  {/* Target restriction */}
+                  <div className="mb-3">
+                    <label className="text-gray-300 text-xs mb-1 block">Restrizione bersaglio:</label>
+                    <select
+                      value={effectWizard.targetRestriction}
+                      onChange={(e) => setEffectWizard(prev => ({ ...prev, targetRestriction: e.target.value as 'none' | 'only' | 'except' }))}
+                      className="w-full bg-gray-700 text-white border border-gray-500 rounded-lg p-2 text-xs"
+                    >
+                      <option value="none">Nessuna restrizione</option>
+                      <option value="only">Può essere usata SOLO su...</option>
+                      <option value="except">NON può essere usata su...</option>
+                    </select>
+                    {effectWizard.targetRestriction !== 'none' && (
+                      <input
+                        type="text"
+                        value={effectWizard.targetCharacterName}
+                        onChange={(e) => setEffectWizard(prev => ({ ...prev, targetCharacterName: e.target.value }))}
+                        placeholder="Nome del personaggio..."
+                        className="w-full bg-gray-700 text-white border border-gray-500 rounded-lg p-2 text-xs mt-1"
+                      />
+                    )}
+                  </div>
+                  
+                  {/* Field condition */}
+                  <div>
+                    <label className="text-gray-300 text-xs mb-1 block">Condizione campo:</label>
+                    <select
+                      value={effectWizard.fieldCondition}
+                      onChange={(e) => setEffectWizard(prev => ({ ...prev, fieldCondition: e.target.value as 'none' | 'requires' | 'blocked' }))}
+                      className="w-full bg-gray-700 text-white border border-gray-500 rounded-lg p-2 text-xs"
+                    >
+                      <option value="none">Nessuna condizione</option>
+                      <option value="requires">Può essere usata SOLO SE in campo c'è...</option>
+                      <option value="blocked">NON può essere usata se in campo c'è...</option>
+                    </select>
+                    {effectWizard.fieldCondition !== 'none' && (
+                      <input
+                        type="text"
+                        value={effectWizard.fieldCardName}
+                        onChange={(e) => setEffectWizard(prev => ({ ...prev, fieldCardName: e.target.value }))}
+                        placeholder="Nome della carta..."
+                        className="w-full bg-gray-700 text-white border border-gray-500 rounded-lg p-2 text-xs mt-1"
+                      />
+                    )}
+                  </div>
+                </div>
+                
                 {/* Preview */}
                 <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 mt-4">
                   <p className="text-gray-400 text-xs mb-2">Anteprima effetto:</p>
-                  <p className="text-white font-medium">{generateEffectDescription(effectWizard)}</p>
+                  <p className="text-white font-medium text-sm">{generateEffectDescription(effectWizard)}</p>
                 </div>
               </div>
             )}
