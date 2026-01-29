@@ -2693,6 +2693,14 @@ Rispondi SOLO in JSON:`;
       actions.push({ type: 'cycle_cards', target: 'all', value: 1, description: 'Rotazione carte tra tutti i giocatori' });
     }
 
+    // ============ DICE CONTROL PATTERNS (Modifica dado) ============
+    if ((text.includes('dado') || text.includes('dice') || text.includes('lancio')) &&
+        (text.includes('modifica') || text.includes('scegli') || text.includes('sceglie') ||
+         text.includes('controlla') || text.includes('manipola') || text.includes('decide') ||
+         text.includes('annulla') || text.includes('rilancia') || text.includes('cambiar'))) {
+      actions.push({ type: 'dice_control', target: 'self', value: 1, description: 'Controllo del dado: il giocatore può scegliere il risultato' });
+    }
+
     // ============ CONDITIONAL PATTERNS ============
     if ((text.includes('se ') || text.includes('quando ') || text.includes('ogni volta che')) &&
         !text.includes('pannello') && !text.includes('inserire') &&
@@ -7483,6 +7491,44 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     };
   }
 
+  // Check if any player has a dice control effect active
+  checkDiceControlEffect(gameId: string, rollingPlayer: string): { hasDiceControl: boolean; controllingPlayer?: string; cardId?: string; cardName?: string } {
+    const game = this.games.get(gameId);
+    if (!game) return { hasDiceControl: false };
+
+    // Check all field cards for dice control effect
+    for (const card of game.field) {
+      if ((card as any).hasDiceControl && (card as any).diceControlOwner) {
+        const controllingPlayer = (card as any).diceControlOwner;
+        console.log(`🎲 Found dice control on ${card.name || card.id} owned by ${controllingPlayer}`);
+        return {
+          hasDiceControl: true,
+          controllingPlayer,
+          cardId: card.id,
+          cardName: card.name || this.getCardNameFromUrl(card.frontImage || '')
+        };
+      }
+    }
+
+    return { hasDiceControl: false };
+  }
+
+  // Consume the dice control effect after it's used
+  consumeDiceControlEffect(gameId: string, controllingPlayer: string): void {
+    const game = this.games.get(gameId);
+    if (!game) return;
+
+    // Find and remove the dice control from the card
+    for (const card of game.field) {
+      if ((card as any).hasDiceControl && (card as any).diceControlOwner === controllingPlayer) {
+        console.log(`🎲 Consuming dice control effect from ${card.name || card.id}`);
+        delete (card as any).hasDiceControl;
+        delete (card as any).diceControlOwner;
+        break;
+      }
+    }
+  }
+
   // Apply effect to player-chosen targets (for 'choice' target effects)
   applyEffectToChosenTargets(gameId: string, targetCardIds: string[], playerName: string): { success: boolean; message?: string } {
     const game = this.games.get(gameId);
@@ -8741,6 +8787,19 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         (sourceCard as any).isTransformed = true;
         break;
       
+      case 'dice_control':
+        // Register this card as having dice control ability
+        console.log(`🎲 DICE CONTROL: Registering dice control effect for ${playerName}`);
+        (sourceCard as any).hasDiceControl = true;
+        (sourceCard as any).diceControlOwner = playerName;
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-dice-control-active`,
+          playerName: 'Sistema',
+          message: `🎲 ${sourceCard.name || 'Carta'} ha attivato il controllo del dado! ${playerName} potrà scegliere il risultato del prossimo lancio.`,
+          timestamp: Date.now()
+        });
+        break;
+
       case 'cycle_cards':
         // Ciclone effect: Each player passes their field cards to the next player
         console.log(`🌀 CICLONE: Rotating field cards between all players`);

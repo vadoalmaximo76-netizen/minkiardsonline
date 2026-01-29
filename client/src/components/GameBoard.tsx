@@ -168,6 +168,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     otherPlayers: string[];
     effectDescription: string;
   }>({ visible: false, cardId: '', cardName: '', otherPlayers: [], effectDescription: '' });
+  const [diceControlPanel, setDiceControlPanel] = useState<{
+    visible: boolean;
+    rollingPlayer: string;
+    controllingPlayer: string;
+    controllingCardName: string;
+  }>({ visible: false, rollingPlayer: '', controllingPlayer: '', controllingCardName: '' });
   const [targetSelectionModal, setTargetSelectionModal] = useState<{
     visible: boolean;
     effectType: 'damage' | 'heal';
@@ -781,6 +787,20 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('show-swap-selection', handleShowSwapSelection);
 
+    // DICE CONTROL: Handle dice control panel for choosing dice result
+    const handleShowDiceControlPanel = (data: { rollingPlayer: string; controllingPlayer: string; controllingCardId: string; controllingCardName: string }) => {
+      console.log('🎲 Show dice control panel:', data);
+      if (data.controllingPlayer === playerName) {
+        setDiceControlPanel({
+          visible: true,
+          rollingPlayer: data.rollingPlayer,
+          controllingPlayer: data.controllingPlayer,
+          controllingCardName: data.controllingCardName
+        });
+      }
+    };
+    socket.on('show-dice-control-panel', handleShowDiceControlPanel);
+
     // TARGET SELECTION: Handle interactive target selection for custom effects
     const handleShowTargetSelection = (data: { 
       effectType: 'damage' | 'heal'; 
@@ -1298,6 +1318,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('show-pti-input-panel', handleShowPtiInputPanel);
       socket.off('show-deck-selection', handleShowDeckSelection);
       socket.off('show-swap-selection', handleShowSwapSelection);
+      socket.off('show-dice-control-panel', handleShowDiceControlPanel);
       socket.off('show-target-selection', handleShowTargetSelection);
       socket.off('show-custom-target-selection', handleShowCustomTargetSelection);
       socket.off('show-auto-dice-setup', handleShowAutoDiceSetup);
@@ -1785,6 +1806,42 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               >
                 Annulla
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DICE CONTROL PANEL - Choose dice result */}
+      {diceControlPanel.visible && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-yellow-900 to-orange-700 rounded-lg p-6 w-full max-w-md mx-4 border-4 border-yellow-400 shadow-[0_0_30px_rgba(234,179,8,0.5)]">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-white mb-2" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+                🎲 CONTROLLO DEL DADO
+              </h2>
+              <p className="text-yellow-100 text-sm mb-2" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                La tua carta <span className="font-bold">{diceControlPanel.controllingCardName}</span> ti permette di scegliere il risultato!
+              </p>
+              <p className="text-yellow-200 font-bold">Scegli il numero del dado:</p>
+            </div>
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              {[1, 2, 3, 4, 5, 6].map((num) => (
+                <Button
+                  key={num}
+                  onClick={() => {
+                    socket.emit('dice-control-select', {
+                      gameId,
+                      selectedNumber: num,
+                      controllingPlayer: diceControlPanel.controllingPlayer,
+                      rollingPlayer: diceControlPanel.rollingPlayer
+                    });
+                    setDiceControlPanel({ visible: false, rollingPlayer: '', controllingPlayer: '', controllingCardName: '' });
+                  }}
+                  className="bg-yellow-600 hover:bg-yellow-500 text-white py-6 text-3xl font-bold"
+                >
+                  {num}
+                </Button>
+              ))}
             </div>
           </div>
         </div>

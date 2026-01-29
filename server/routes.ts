@@ -416,6 +416,54 @@ function generateFallbackQuestions(description: string, previousAnswers?: Record
     }
   }
   
+  // ============ DICE MODIFICATION EFFECTS ============
+  const hasDiceEffect = lowerDesc.includes('dado') || lowerDesc.includes('dice') ||
+                        lowerDesc.includes('lancio') || lowerDesc.includes('tiro') ||
+                        lowerDesc.includes('modifica il numero') || lowerDesc.includes('scegli il numero') ||
+                        lowerDesc.includes('controlla il dado') || lowerDesc.includes('manipola');
+  
+  if (hasDiceEffect) {
+    questions.push({
+      id: 'dice_control_type',
+      question: 'Come viene controllato/modificato il dado?',
+      type: 'choice',
+      options: [
+        'Il giocatore sceglie il numero del dado (1-6)',
+        'Il dado viene rilanciato una volta',
+        'Il risultato viene aumentato di un valore',
+        'Il risultato viene diminuito di un valore',
+        'Il dado mostra sempre il numero massimo (6)',
+        'Il dado mostra sempre il numero minimo (1)',
+        'Altro (specifica)'
+      ]
+    });
+    questions.push({
+      id: 'dice_control_trigger',
+      question: 'Quando si attiva questo effetto sul dado?',
+      type: 'choice',
+      options: [
+        'Ogni volta che viene lanciato un dado',
+        'Solo quando il proprietario della carta lancia un dado',
+        'Solo quando un avversario lancia un dado',
+        'Una volta sola per partita',
+        'Una volta per turno'
+      ]
+    });
+    questions.push({
+      id: 'dice_control_duration',
+      question: 'Per quanto tempo dura questo effetto?',
+      type: 'choice',
+      options: [
+        'Solo per il prossimo lancio',
+        'Per tutto il turno',
+        'Per 2 turni',
+        'Per 3 turni',
+        'Finché la carta è in campo',
+        'Permanente'
+      ]
+    });
+  }
+  
   // ============ MISSING TARGET (if not already covered) ============
   if (!hasTarget && !isSwapEffect && questions.length < 3) {
     questions.push({
@@ -3430,13 +3478,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('roll-dice', ({ gameId, playerName }) => {
       const playerGameId = gameManager.getPlayerGameId(socket.id);
       if (playerGameId === gameId) {
-        // Generate random number between 1 and 6
-        const result = Math.floor(Math.random() * 6) + 1;
+        // Check if any player has a dice control effect active
+        const diceControlResult = gameManager.checkDiceControlEffect(gameId, playerName);
         
-        // Broadcast dice result to all players in the game
+        if (diceControlResult.hasDiceControl) {
+          // Show dice control panel to the player who has the effect
+          console.log(`🎲 Dice control active for ${diceControlResult.controllingPlayer}`);
+          io.to(gameId).emit('show-dice-control-panel', {
+            rollingPlayer: playerName,
+            controllingPlayer: diceControlResult.controllingPlayer,
+            controllingCardId: diceControlResult.cardId,
+            controllingCardName: diceControlResult.cardName
+          });
+        } else {
+          // Generate random number between 1 and 6 normally
+          const result = Math.floor(Math.random() * 6) + 1;
+          
+          // Broadcast dice result to all players in the game
+          io.to(gameId).emit('dice-rolled', {
+            result,
+            playerName,
+            timestamp: Date.now()
+          });
+        }
+      }
+    });
+
+    // Handle dice control selection - player chooses the dice result
+    socket.on('dice-control-select', ({ gameId, selectedNumber, controllingPlayer, rollingPlayer }) => {
+      const playerGameId = gameManager.getPlayerGameId(socket.id);
+      if (playerGameId === gameId) {
+        console.log(`🎲 ${controllingPlayer} controlled the dice to show ${selectedNumber}`);
+        
+        // Consume the dice control effect
+        gameManager.consumeDiceControlEffect(gameId, controllingPlayer);
+        
+        // Broadcast the controlled dice result
         io.to(gameId).emit('dice-rolled', {
-          result,
-          playerName,
+          result: selectedNumber,
+          playerName: rollingPlayer,
+          wasControlled: true,
+          controlledBy: controllingPlayer,
+          timestamp: Date.now()
+        });
+        
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-dice-controlled`,
+          playerName: 'Sistema',
+          message: `🎲 ${controllingPlayer} ha controllato il dado! Il risultato è stato cambiato in ${selectedNumber}!`,
           timestamp: Date.now()
         });
       }
@@ -5943,6 +6032,9 @@ ID STANDARD PER LE DOMANDE (usa SOLO questi):
 - "swap_pti_amount": per effetti BARATTO - quantità di PTI scambiati
 - "protection_from": per effetti PROTEZIONE - contro cosa protegge
 - "resurrect_stats": per effetti RESURREZIONE - statistiche al ritorno
+- "dice_control_type": per effetti DADO - come viene controllato/modificato il dado
+- "dice_control_trigger": per effetti DADO - quando si attiva l'effetto
+- "dice_control_duration": per effetti DADO - per quanto tempo dura
 
 OPZIONI STANDARD PER TARGET:
 ["Il mio personaggio attivo", "Un personaggio nemico a scelta", "Tutti i nemici", "Tutti i personaggi in campo", "Un personaggio casuale", "Tutti gli alleati"]
