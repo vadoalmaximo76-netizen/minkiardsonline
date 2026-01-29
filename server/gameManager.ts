@@ -311,6 +311,26 @@ interface GameState {
     allowedCharacterIds: string[];
     timestamp: number;
   }>; // Pending automatic dice setups
+  pendingControlledDice?: Map<string, {
+    rollingPlayer: string;
+    controllingPlayer: string;
+    cardId: string;
+    selectedCharId: string;
+    selectedCharName: string;
+    correctEffect: string;
+    wrongEffect: string;
+    cpuGuess: number;
+    timestamp: number;
+  }>; // Pending dice rolls controlled by dice_control effect
+  pendingControlledAutoDice?: Map<string, {
+    rollingPlayer: string;
+    controllingPlayer: string;
+    cardId: string;
+    selectedCharId: string;
+    selectedCharName: string;
+    autoEffects: Record<number, string>;
+    timestamp: number;
+  }>; // Pending auto dice rolls controlled by dice_control effect
 }
 
 export class GameManager {
@@ -3075,7 +3095,7 @@ Rispondi SOLO in JSON:`;
             const pendingId = `controlled-dice-${Date.now()}`;
             game.pendingControlledDice.set(pendingId, {
               rollingPlayer: cardOwner,
-              controllingPlayer: diceControl.controllingPlayer,
+              controllingPlayer: diceControl.controllingPlayer!,
               cardId: card.id,
               selectedCharId: selectedChar.id,
               selectedCharName: selectedChar.name,
@@ -3230,49 +3250,94 @@ Rispondi SOLO in JSON:`;
             ? enemyChars[Math.floor(Math.random() * enemyChars.length)]
             : availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
           
-          // Roll dice
-          const diceRoll = Math.floor(Math.random() * 6) + 1;
-          const effectToApply = autoEffects[diceRoll] || 'Nessun effetto';
+          // CHECK FOR DICE CONTROL: Does any player have a card that controls the dice?
+          const diceControl = this.checkDiceControlEffect(gameId, cardOwner);
           
-          console.log(`🎲 CPU ${cardOwner}: Auto dice rolled ${diceRoll} → "${effectToApply}"`);
-          
-          // Apply effect
-          const targetCard = game.field.find((c: Card) => c.id === selectedChar.id);
-          if (targetCard) {
-            const effectLower = effectToApply.toLowerCase();
-            if (effectLower.includes('morte') || effectLower.includes('muore')) {
-              const turnsMatch = effectToApply.match(/(\d+)\s*turn/i);
-              if (turnsMatch) {
-                const turns = parseInt(turnsMatch[1]);
-                (targetCard as any).deathCountdown = turns;
-                console.log(`🎲 Applied: ${selectedChar.name} will die in ${turns} turns`);
-              } else {
-                targetCard.pti = 0;
-                this.moveToGraveyard(gameId, targetCard.id, targetCard.owner || '', cardOwner);
-                console.log(`🎲 Applied: ${selectedChar.name} died from auto dice effect`);
-              }
-            } else if (effectLower.includes('dimezza')) {
-              if (effectLower.includes('pti')) targetCard.pti = Math.floor((targetCard.pti || 0) / 2);
-              if (effectLower.includes('stelle')) targetCard.stars = Math.floor((targetCard.stars || 0) / 2);
-            } else if (effectLower.includes('perde')) {
-              const ptiMatch = effectToApply.match(/(\d+)\s*pti/i);
-              const starMatch = effectToApply.match(/(\d+)\s*stell/i);
-              if (ptiMatch) targetCard.pti = Math.max(0, (targetCard.pti || 0) - parseInt(ptiMatch[1]));
-              if (starMatch) targetCard.stars = Math.max(0, (targetCard.stars || 0) - parseInt(starMatch[1]));
-            }
-            this.updateCardTextWithPTI(targetCard);
-          }
-          
-          if (io) {
-            io.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-cpu-auto-dice`,
-              playerName: 'Sistema',
-              message: `🎲 CPU ${cardOwner} ha lanciato il dado automatico! Risultato: ${diceRoll} → "${effectToApply}" applicato a ${selectedChar.name}`,
+          if (diceControl.hasDiceControl && diceControl.controllingPlayer !== cardOwner) {
+            // Someone else controls the dice! Show panel to them and wait
+            console.log(`🎲 DICE CONTROL ACTIVE for AUTO DICE: ${diceControl.controllingPlayer} controls via ${diceControl.cardName}`);
+            
+            // Store pending auto dice roll for when controller chooses
+            if (!game.pendingControlledAutoDice) game.pendingControlledAutoDice = new Map();
+            const pendingId = `controlled-auto-dice-${Date.now()}`;
+            game.pendingControlledAutoDice.set(pendingId, {
+              rollingPlayer: cardOwner,
+              controllingPlayer: diceControl.controllingPlayer!,
+              cardId: card.id,
+              selectedCharId: selectedChar.id,
+              selectedCharName: selectedChar.name,
+              autoEffects,
               timestamp: Date.now()
             });
+            
+            if (io) {
+              io.to(gameId).emit('show-dice-control-panel', {
+                pendingId,
+                rollingPlayer: cardOwner,
+                controllingPlayer: diceControl.controllingPlayer,
+                controllingCardId: diceControl.cardId,
+                controllingCardName: diceControl.cardName,
+                targetCharName: selectedChar.name,
+                isAutoDice: true
+              });
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-dice-control-auto`,
+                playerName: 'Sistema',
+                message: `🎲 ${cardOwner} sta per lanciare il dado automatico, ma ${diceControl.controllingPlayer} (con ${diceControl.cardName}) può controllare il risultato!`,
+                timestamp: Date.now()
+              });
+            }
+            // Don't return card yet - wait for dice control response
+          } else {
+            // No dice control - proceed normally
+            const diceRoll = Math.floor(Math.random() * 6) + 1;
+            const effectToApply = autoEffects[diceRoll] || 'Nessun effetto';
+            
+            console.log(`🎲 CPU ${cardOwner}: Auto dice rolled ${diceRoll} → "${effectToApply}"`);
+            
+            // EMIT DICE ANIMATION to all players
+            if (io) {
+              io.to(gameId).emit('dice-rolled', { result: diceRoll, playerName: cardOwner });
+            }
+            
+            // Apply effect
+            const targetCard = game.field.find((c: Card) => c.id === selectedChar.id);
+            if (targetCard) {
+              const effectLower = effectToApply.toLowerCase();
+              if (effectLower.includes('morte') || effectLower.includes('muore')) {
+                const turnsMatch = effectToApply.match(/(\d+)\s*turn/i);
+                if (turnsMatch) {
+                  const turns = parseInt(turnsMatch[1]);
+                  (targetCard as any).deathCountdown = turns;
+                  console.log(`🎲 Applied: ${selectedChar.name} will die in ${turns} turns`);
+                } else {
+                  targetCard.pti = 0;
+                  this.moveToGraveyard(gameId, targetCard.id, targetCard.owner || '', cardOwner);
+                  console.log(`🎲 Applied: ${selectedChar.name} died from auto dice effect`);
+                }
+              } else if (effectLower.includes('dimezza')) {
+                if (effectLower.includes('pti')) targetCard.pti = Math.floor((targetCard.pti || 0) / 2);
+                if (effectLower.includes('stelle')) targetCard.stars = Math.floor((targetCard.stars || 0) / 2);
+              } else if (effectLower.includes('perde')) {
+                const ptiMatch = effectToApply.match(/(\d+)\s*pti/i);
+                const starMatch = effectToApply.match(/(\d+)\s*stell/i);
+                if (ptiMatch) targetCard.pti = Math.max(0, (targetCard.pti || 0) - parseInt(ptiMatch[1]));
+                if (starMatch) targetCard.stars = Math.max(0, (targetCard.stars || 0) - parseInt(starMatch[1]));
+              }
+              this.updateCardTextWithPTI(targetCard);
+            }
+            
+            if (io) {
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-cpu-auto-dice`,
+                playerName: 'Sistema',
+                message: `🎲 CPU ${cardOwner} ha lanciato il dado automatico! Risultato: ${diceRoll} → "${effectToApply}" applicato a ${selectedChar.name}`,
+                timestamp: Date.now()
+              });
+            }
+            
+            this.returnToDeck(gameId, card.id, cardOwner);
           }
-          
-          this.returnToDeck(gameId, card.id, cardOwner);
         } else if (io) {
           // Human player: show auto dice setup panel
           if (!game.pendingAutoDice) {
@@ -7938,7 +8003,72 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     game.pendingControlledDice.delete(pendingId);
     
     // Broadcast updated state
-    this.broadcastGameState(gameId, io);
+    io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+  }
+
+  // Complete a pending controlled auto dice roll (DADO_AUTOMATICO)
+  completePendingControlledAutoDice(gameId: string, pendingId: string, selectedNumber: number, io: any): void {
+    const game = this.games.get(gameId);
+    if (!game || !game.pendingControlledAutoDice) return;
+    
+    const pendingData = game.pendingControlledAutoDice.get(pendingId);
+    if (!pendingData) {
+      console.log(`⚠️ No pending controlled auto dice found for ${pendingId}`);
+      return;
+    }
+    
+    const { rollingPlayer, selectedCharId, selectedCharName, autoEffects, cardId } = pendingData;
+    
+    // Get the effect for the selected number
+    const effectToApply = autoEffects[selectedNumber] || 'Nessun effetto';
+    
+    console.log(`🎲 Completing controlled auto dice: Result ${selectedNumber} → "${effectToApply}"`);
+    
+    // Apply effect to selected character
+    const targetCard = game.field.find((c: Card) => c.id === selectedCharId);
+    if (targetCard) {
+      const effectLower = effectToApply.toLowerCase();
+      if (effectLower.includes('morte') || effectLower.includes('muore')) {
+        const turnsMatch = effectToApply.match(/(\d+)\s*turn/i);
+        if (turnsMatch) {
+          const turns = parseInt(turnsMatch[1]);
+          (targetCard as any).deathCountdown = turns;
+          console.log(`🎲 Applied: ${selectedCharName} will die in ${turns} turns`);
+        } else {
+          targetCard.pti = 0;
+          this.moveToGraveyard(gameId, targetCard.id, targetCard.owner || '', rollingPlayer);
+          console.log(`🎲 Applied: ${selectedCharName} died from auto dice effect`);
+        }
+      } else if (effectLower.includes('dimezza')) {
+        if (effectLower.includes('pti')) targetCard.pti = Math.floor((targetCard.pti || 0) / 2);
+        if (effectLower.includes('stelle')) targetCard.stars = Math.floor((targetCard.stars || 0) / 2);
+      } else if (effectLower.includes('perde')) {
+        const ptiMatch = effectToApply.match(/(\d+)\s*pti/i);
+        const starMatch = effectToApply.match(/(\d+)\s*stell/i);
+        if (ptiMatch) targetCard.pti = Math.max(0, (targetCard.pti || 0) - parseInt(ptiMatch[1]));
+        if (starMatch) targetCard.stars = Math.max(0, (targetCard.stars || 0) - parseInt(starMatch[1]));
+      }
+      this.updateCardTextWithPTI(targetCard);
+    }
+    
+    // Send chat message about completed action
+    if (io) {
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-cpu-auto-dice-complete`,
+        playerName: 'Sistema',
+        message: `🎲 Dado automatico: Risultato ${selectedNumber} → "${effectToApply}" applicato a ${selectedCharName}`,
+        timestamp: Date.now()
+      });
+    }
+    
+    // Return the dice card to bottom of deck
+    this.returnToDeck(gameId, cardId, rollingPlayer);
+    
+    // Clean up pending data
+    game.pendingControlledAutoDice.delete(pendingId);
+    
+    // Broadcast updated state
+    io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
   }
 
   // Check if a player is CPU

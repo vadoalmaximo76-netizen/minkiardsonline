@@ -3531,7 +3531,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // If this is from a CPU pending controlled dice, complete the effect
         if (pendingId) {
-          gameManager.completePendingControlledDice(gameId, pendingId, selectedNumber, io);
+          if (pendingId.startsWith('controlled-auto-dice-')) {
+            gameManager.completePendingControlledAutoDice(gameId, pendingId, selectedNumber, io);
+          } else {
+            gameManager.completePendingControlledDice(gameId, pendingId, selectedNumber, io);
+          }
         }
       }
     });
