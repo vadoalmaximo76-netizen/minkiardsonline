@@ -3444,6 +3444,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     const nextAfterCPU = gameManager.endTurn(gameId, currentPlayer);
                     if (nextAfterCPU) {
                       io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                      
+                      // CRITICAL FIX: Trigger next CPU turn if next player is also CPU
+                      const freshGameState = gameManager.getGameState(gameId);
+                      if (freshGameState && freshGameState.players[nextAfterCPU]?.isCPU) {
+                        setTimeout(() => {
+                          gameManager.processCPUTurn(gameId, nextAfterCPU, io);
+                        }, 2000);
+                      }
                     }
                   }, 1500);
                 }
@@ -4780,6 +4788,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       if (nextAfterCPU) {
                         io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
                         console.log(`Turn ended for ${nextPlayer} after play-and-draw, next: ${nextAfterCPU}`);
+                        
+                        // CRITICAL FIX: Trigger next CPU turn if next player is also CPU
+                        const freshGameState = gameManager.getGameState(gameId);
+                        if (freshGameState && freshGameState.players[nextAfterCPU]?.isCPU) {
+                          setTimeout(() => {
+                            gameManager.processCPUTurn(gameId, nextAfterCPU, io);
+                          }, 2000);
+                        }
                       }
                     }, 1500);
                     return; // Return early to prevent generic end-turn
@@ -5045,6 +5061,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
                     if (nextAfterCPU) {
                       io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                      
+                      // CRITICAL FIX: Trigger next CPU turn if next player is also CPU
+                      const freshGameState = gameManager.getGameState(gameId);
+                      if (freshGameState && freshGameState.players[nextAfterCPU]?.isCPU) {
+                        setTimeout(() => {
+                          gameManager.processCPUTurn(gameId, nextAfterCPU, io);
+                        }, 2000);
+                      }
                     }
                     return;
                   }
@@ -5061,6 +5085,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
                       if (nextAfterCPU) {
                         io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                        
+                        // CRITICAL FIX: Trigger next CPU turn if next player is also CPU
+                        const freshGameState = gameManager.getGameState(gameId);
+                        if (freshGameState && freshGameState.players[nextAfterCPU]?.isCPU) {
+                          setTimeout(() => {
+                            gameManager.processCPUTurn(gameId, nextAfterCPU, io);
+                          }, 2000);
+                        }
                       }
                     }
                   }, 1000);
@@ -5073,6 +5105,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
                 if (nextAfterCPU) {
                   io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                  
+                  // CRITICAL FIX: Trigger next CPU turn if next player is also CPU
+                  const freshGameState = gameManager.getGameState(gameId);
+                  if (freshGameState && freshGameState.players[nextAfterCPU]?.isCPU) {
+                    setTimeout(() => {
+                      gameManager.processCPUTurn(gameId, nextAfterCPU, io);
+                    }, 2000);
+                  }
                 }
               }
             } catch (error) {
@@ -5081,6 +5121,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
               if (nextAfterCPU) {
                 io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                
+                // CRITICAL FIX: Trigger next CPU turn if next player is also CPU
+                const freshGameState = gameManager.getGameState(gameId);
+                if (freshGameState && freshGameState.players[nextAfterCPU]?.isCPU) {
+                  setTimeout(() => {
+                    gameManager.processCPUTurn(gameId, nextAfterCPU, io);
+                  }, 2000);
+                }
               }
             }
           }, 3000); // 3 second delay to show "TOCCA A TE" message for CPU
@@ -5330,6 +5378,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
                         if (nextAfterCPU) {
                           io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                          
+                          // CRITICAL FIX: Trigger next CPU turn if next player is also CPU
+                          const freshGameState = gameManager.getGameState(gameId);
+                          if (freshGameState && freshGameState.players[nextAfterCPU]?.isCPU) {
+                            setTimeout(() => {
+                              gameManager.processCPUTurn(gameId, nextAfterCPU, io);
+                            }, 2000);
+                          }
                         }
                       }, 1500);
                       break;
@@ -5375,6 +5431,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                             const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
                             if (nextAfterCPU) {
                               io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                              
+                              // CRITICAL FIX: Trigger next CPU turn if next player is also CPU
+                              const freshGameState = gameManager.getGameState(gameId);
+                              if (freshGameState && freshGameState.players[nextAfterCPU]?.isCPU) {
+                                setTimeout(() => {
+                                  gameManager.processCPUTurn(gameId, nextAfterCPU, io);
+                                }, 2000);
+                              }
                             }
                           }, 1500);
                           break;
@@ -5435,6 +5499,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
                           if (nextAfterCPU) {
                             io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                            
+                            // CRITICAL FIX: Trigger next CPU turn if next player is also CPU
+                            const freshGameState = gameManager.getGameState(gameId);
+                            if (freshGameState && freshGameState.players[nextAfterCPU]?.isCPU) {
+                              setTimeout(() => {
+                                gameManager.processCPUTurn(gameId, nextAfterCPU, io);
+                              }, 2000);
+                            }
                           }
                         }, 1000);
                       }, 2000);
@@ -5456,6 +5528,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
                         if (nextAfterCPU) {
                           io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                          
+                          // CRITICAL FIX: Trigger next CPU turn if next player is also CPU
+                          const freshGameState = gameManager.getGameState(gameId);
+                          if (freshGameState && freshGameState.players[nextAfterCPU]?.isCPU) {
+                            setTimeout(() => {
+                              gameManager.processCPUTurn(gameId, nextAfterCPU, io);
+                            }, 2000);
+                          }
                         }
                       }, 1500);
                       break;
@@ -5469,6 +5549,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
                         if (nextAfterCPU) {
                           io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                          
+                          // CRITICAL FIX: Trigger next CPU turn if next player is also CPU
+                          const freshGameState = gameManager.getGameState(gameId);
+                          if (freshGameState && freshGameState.players[nextAfterCPU]?.isCPU) {
+                            setTimeout(() => {
+                              gameManager.processCPUTurn(gameId, nextAfterCPU, io);
+                            }, 2000);
+                          }
                         }
                       }, 1500);
                   }
@@ -5490,6 +5578,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
                   if (nextAfterCPU) {
                     io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                    
+                    // CRITICAL FIX: Trigger next CPU turn if next player is also CPU
+                    const freshGameState = gameManager.getGameState(gameId);
+                    if (freshGameState && freshGameState.players[nextAfterCPU]?.isCPU) {
+                      setTimeout(() => {
+                        gameManager.processCPUTurn(gameId, nextAfterCPU, io);
+                      }, 2000);
+                    }
                   }
                 }
               } catch (error) {
@@ -5501,6 +5597,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
                 if (nextAfterCPU) {
                   io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                  
+                  // CRITICAL FIX: Trigger next CPU turn if next player is also CPU
+                  const freshGameState = gameManager.getGameState(gameId);
+                  if (freshGameState && freshGameState.players[nextAfterCPU]?.isCPU) {
+                    setTimeout(() => {
+                      gameManager.processCPUTurn(gameId, nextAfterCPU, io);
+                    }, 2000);
+                  }
                 }
               }
             }, 3000); // 3 second delay to show "TOCCA A TE" message for CPU
