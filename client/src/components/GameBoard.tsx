@@ -129,7 +129,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     visible: boolean;
     player: string;
   }>({ visible: false, player: '' });
-  const [handModalOpen, setHandModalOpen] = useState(false);
+  const { handModalOpen, setHandModalOpen } = useGameState();
   const [cardAnimationVisible, setCardAnimationVisible] = useState(false);
   const [cardAnimationName, setCardAnimationName] = useState<string>("");
   const [customAnimationVisible, setCustomAnimationVisible] = useState(false);

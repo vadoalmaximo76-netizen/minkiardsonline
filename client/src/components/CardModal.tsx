@@ -20,7 +20,7 @@ export const CardModal: React.FC = () => {
   const [showAddPRPanel, setShowAddPRPanel] = useState(false);
   const [prToAdd, setPrToAdd] = useState('');
   const [showPowerSelect, setShowPowerSelect] = useState(false);
-  const { selectedCard, setSelectedCard, playerName, gameState, gameId, setSelectedMosseCard, userRankiardPoints, prSpentThisGame, addPRSpent } = useGameState();
+  const { selectedCard, setSelectedCard, playerName, gameState, gameId, setSelectedMosseCard, userRankiardPoints, prSpentThisGame, addPRSpent, setHandModalOpen } = useGameState();
   
   // Calculate available Rankiard points (total from authenticated user minus spent this game)
   const availableRankiardPoints = userRankiardPoints - prSpentThisGame;
@@ -142,11 +142,13 @@ export const CardModal: React.FC = () => {
   const handlePlay = () => {
     socket.emit('play-card', { cardId: selectedCard.id, playerName: effectivePlayerName });
     setSelectedCard(null);
+    setHandModalOpen(false);
   };
 
   const handlePlayFaceDown = () => {
     socket.emit('play-card-face-down', { cardId: selectedCard.id, playerName: effectivePlayerName });
     setSelectedCard(null);
+    setHandModalOpen(false);
   };
 
   const handleShowCardToPlayers = () => {
