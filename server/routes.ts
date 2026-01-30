@@ -1864,7 +1864,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             cardId: result.card?.id || cardId,
             playerName,
             youtubeUrl: youtubeUrl,
-            cardName: result.card?.name || getCardNameFromUrl(result.card?.frontImage || '')
+            cardName: result.card?.name || getCardNameFromUrl(result.card?.frontImage || ''),
+            cardType: result.card?.type
           });
         }
         

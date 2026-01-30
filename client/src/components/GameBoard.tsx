@@ -215,6 +215,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     youtubeUrl: string;
     cardName: string;
     playerName: string;
+    cardType?: string;
   } | null>(null);
   
   // DICE SYSTEM - Character selection modal (choose which characters to involve)
@@ -1172,18 +1173,20 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('card-audio-play', handleCardAudioPlay);
 
     // YOUTUBE VIDEO: Show YouTube video when a card with youtubeUrl is played
-    const handleShowYoutubeVideo = ({ cardId, playerName: videoPlayerName, youtubeUrl, cardName }: {
+    const handleShowYoutubeVideo = ({ cardId, playerName: videoPlayerName, youtubeUrl, cardName, cardType }: {
       cardId: string;
       playerName: string;
       youtubeUrl: string;
       cardName: string;
+      cardType?: string;
     }) => {
       console.log(`📺 YouTube video requested for card ${cardName}: ${youtubeUrl}`);
       setYoutubeVideoData({
         visible: true,
         youtubeUrl,
         cardName,
-        playerName: videoPlayerName
+        playerName: videoPlayerName,
+        cardType
       });
     };
     socket.on('show-youtube-video', handleShowYoutubeVideo);
@@ -3168,6 +3171,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             youtubeUrl={youtubeVideoData.youtubeUrl}
             cardName={youtubeVideoData.cardName}
             playerName={youtubeVideoData.playerName}
+            cardType={youtubeVideoData.cardType}
             onClose={() => setYoutubeVideoData(null)}
           />
         )}

@@ -5,6 +5,7 @@ interface YouTubeVideoModalProps {
   youtubeUrl: string;
   cardName: string;
   playerName: string;
+  cardType?: string;
   onClose: () => void;
 }
 
@@ -25,14 +26,27 @@ export const YouTubeVideoModal: React.FC<YouTubeVideoModalProps> = ({
   youtubeUrl,
   cardName,
   playerName,
+  cardType,
   onClose
 }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(true);
   const videoId = extractVideoId(youtubeUrl);
   const playerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const isPersonaggio = cardType === 'PERSONAGGI' || cardType === 'PERSONAGGI SPECIALI';
+
+  useEffect(() => {
+    if (showOverlay) {
+      const timer = setTimeout(() => {
+        setShowOverlay(false);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [showOverlay]);
 
   useEffect(() => {
     setIsVisible(true);
@@ -224,6 +238,85 @@ export const YouTubeVideoModal: React.FC<YouTubeVideoModalProps> = ({
             <X size={28} className="text-white" />
           </button>
         )}
+
+        {/* Character entrance overlay */}
+        {showOverlay && isPersonaggio && (
+          <div 
+            className="absolute inset-0 z-[60] flex items-center justify-center pointer-events-none"
+            style={{
+              background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 50%, transparent 100%)'
+            }}
+          >
+            <div className="text-center animate-entrance-text">
+              <div 
+                className="text-6xl md:text-8xl font-black uppercase tracking-wider"
+                style={{
+                  color: '#FFD700',
+                  textShadow: `
+                    0 0 10px #FF6B00,
+                    0 0 20px #FF6B00,
+                    0 0 40px #FF6B00,
+                    0 0 80px #FF4500,
+                    2px 2px 0 #000,
+                    -2px -2px 0 #000,
+                    2px -2px 0 #000,
+                    -2px 2px 0 #000
+                  `,
+                  animation: 'pulse-glow 0.5s ease-in-out infinite alternate'
+                }}
+              >
+                {cardName}
+              </div>
+              <div 
+                className="text-3xl md:text-5xl font-bold mt-4 text-white"
+                style={{
+                  textShadow: `
+                    0 0 10px #FF0000,
+                    0 0 20px #FF0000,
+                    2px 2px 0 #000,
+                    -2px -2px 0 #000
+                  `
+                }}
+              >
+                ENTRA IN CAMPO!
+              </div>
+            </div>
+          </div>
+        )}
+
+        <style>{`
+          @keyframes pulse-glow {
+            from {
+              transform: scale(1);
+              filter: brightness(1);
+            }
+            to {
+              transform: scale(1.02);
+              filter: brightness(1.2);
+            }
+          }
+          
+          .animate-entrance-text {
+            animation: entrance-zoom 0.5s ease-out forwards, entrance-fade 4s ease-in-out forwards;
+          }
+          
+          @keyframes entrance-zoom {
+            from {
+              transform: scale(0.5);
+              opacity: 0;
+            }
+            to {
+              transform: scale(1);
+              opacity: 1;
+            }
+          }
+          
+          @keyframes entrance-fade {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; }
+          }
+        `}</style>
       </div>
     </div>
   );
