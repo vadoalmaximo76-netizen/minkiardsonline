@@ -72,6 +72,25 @@ Custom card effects can trigger interactive panels for player input:
 - **Socket Events**: `show-pti-input-panel`, `show-deck-selection`, `show-graveyard-selection`
 - **Confirmation Events**: `pti-input-confirm`, `deck-selection-confirm`, `resurrect-select`
 
+## Custom Card Effect System
+The Wizard panel allows creating cards with custom effects via `[COMPORTAMENTO: ...]` tags. Effects are actively processed and integrated into gameplay:
+
+### Status Effects (processed at end of turn)
+- **Poison**: Deals damage each turn, decrements turns remaining, removed when expired
+- **Burn**: Deals continuous damage each turn
+- **Freeze**: Prevents actions, decrements countdown, removed when expired
+- **Stun**: Prevents actions for one turn, automatically removed
+- **Protection**: Prevents attacks on character, decrements countdown, removed when expired
+
+### Combat Effects (processed during attack resolution)
+- **Shield**: Absorbs incoming damage up to shield amount, removed when depleted
+- **Reflect**: Reflects percentage of damage back to attacker
+- **Counter**: Deals counter damage to attacker when hit
+- **Lifesteal**: Heals attacker for percentage of damage dealt
+
+### Other Effect Types
+Protection, counter-attack, revenge, powerup, weaken, aura, draw, discard, modify stars, extra turn, skip turn, nullify, resurrect, steal, execute, silence, taunt, halve/double PTI/stars, and more are supported via `parseEffectKeywords` and `applyParsedEffect` functions
+
 ## Audio System
 A comprehensive sound effect system using Web Audio API provides in-game audio for various events, character actions, and 28 special card animations, with user control for muting.
 

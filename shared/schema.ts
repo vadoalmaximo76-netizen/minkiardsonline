@@ -111,6 +111,7 @@ export const insertCustomCardSchema = createInsertSchema(customCards).pick({
   stars: true,
   effect: true,
   audioUrl: true,
+  youtubeUrl: true,
   createdBy: true,
 });
 

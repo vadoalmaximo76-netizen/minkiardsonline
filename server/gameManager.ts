@@ -3507,6 +3507,73 @@ Rispondi SOLO in JSON:`;
       return { customAnimation };
     }
 
+    // Check for COMPORTAMENTO (behavior) effect from Wizard
+    const comportamentoMatch = card.effect.match(/\[COMPORTAMENTO:\s*([^\]]*)\]/i);
+    if (comportamentoMatch) {
+      const behavior = comportamentoMatch[1].trim();
+      console.log(`⚡ COMPORTAMENTO effect detected: "${behavior}"`);
+      
+      const io = (global as any).io;
+      
+      // Parse and apply effect using keyword parser
+      const actions = this.parseEffectKeywords(behavior);
+      console.log(`⚡ Parsed ${actions.length} actions from COMPORTAMENTO`);
+      
+      if (actions.length > 0) {
+        for (const action of actions) {
+          await this.applyParsedEffect(gameId, action, card, playerName, io);
+        }
+        
+        const cardName = card.name || this.getCardNameFromUrl(card.frontImage || '');
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-comportamento-activated`,
+            playerName: 'Sistema',
+            message: `⚡ ${cardName} - Effetto attivato: ${actions.map(a => a.description).join(', ')}`,
+            timestamp: Date.now()
+          });
+          
+          // Broadcast updated state
+          const gameState = this.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', gameState);
+        }
+        
+        // Record the effect execution
+        await this.recordEvent(gameId, 'custom-card-effect', {
+          cardId: card.id,
+          cardName: card.name,
+          effect: card.effect,
+          result: { actions, message: `COMPORTAMENTO effetto attivato: ${actions.map(a => a.description).join(', ')}` }
+        }, playerName);
+      } else {
+        console.log(`⚠️ No actions parsed from COMPORTAMENTO: "${behavior}" - will try AI processing`);
+        // Don't return here - let the AI processing handle it below
+      }
+      
+      // Only return early if we successfully processed actions
+      if (actions.length > 0) {
+        return { customAnimation };
+      }
+      // Otherwise, continue to AI processing below
+    }
+
+    // Check for DETTAGLI (details) effect and process it
+    const dettagliMatch = card.effect.match(/\[DETTAGLI:\s*([^\]]*)\]/i);
+    if (dettagliMatch) {
+      const details = dettagliMatch[1].trim();
+      console.log(`⚡ DETTAGLI effect detected: "${details}"`);
+      
+      // Parse details for structured data and apply
+      const io = (global as any).io;
+      const actions = this.parseEffectKeywords(details);
+      
+      if (actions.length > 0) {
+        for (const action of actions) {
+          await this.applyParsedEffect(gameId, action, card, playerName, io);
+        }
+      }
+    }
+
     try {
       // Use Replit's native AI integration key first, fallback to user's key
       const replitKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
@@ -10008,6 +10075,598 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         break;
       
+      case 'protection':
+        // Mark player's active character as protected
+        const protectedChar = this.getPlayerActiveCharacter(game, playerName);
+        if (protectedChar) {
+          (protectedChar as any).isProtected = true;
+          (protectedChar as any).protectionTurns = action.value || 1;
+          console.log(`🛡️ ${protectedChar.name} is now PROTECTED for ${action.value || 1} turns`);
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-protection`,
+            playerName: 'Sistema',
+            message: `🛡️ ${protectedChar.name} è ora PROTETTO e non può essere attaccato!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      
+      case 'counter':
+        // Mark player's active character as having counter-attack
+        const counterChar = this.getPlayerActiveCharacter(game, playerName);
+        if (counterChar) {
+          (counterChar as any).counterDamage = action.value || 50;
+          console.log(`↩️ ${counterChar.name} now has COUNTER-ATTACK (${action.value} damage)`);
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-counter`,
+            playerName: 'Sistema',
+            message: `↩️ ${counterChar.name} ha attivato il CONTRATTACCO: infliggerà ${action.value} danni a chi lo attacca!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      
+      case 'reflect':
+        // Mark player's active character as reflecting damage
+        const reflectChar = this.getPlayerActiveCharacter(game, playerName);
+        if (reflectChar) {
+          (reflectChar as any).reflectPercent = action.value || 50;
+          console.log(`🪞 ${reflectChar.name} now REFLECTS ${action.value}% damage`);
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-reflect`,
+            playerName: 'Sistema',
+            message: `🪞 ${reflectChar.name} riflette il ${action.value}% dei danni ricevuti!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      
+      case 'shield':
+        // Apply shield to player's active character
+        const shieldChar = this.getPlayerActiveCharacter(game, playerName);
+        if (shieldChar) {
+          (shieldChar as any).shieldAmount = ((shieldChar as any).shieldAmount || 0) + (action.value || 200);
+          console.log(`🔰 ${shieldChar.name} now has SHIELD (${(shieldChar as any).shieldAmount} absorption)`);
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-shield`,
+            playerName: 'Sistema',
+            message: `🔰 ${shieldChar.name} ha attivato uno SCUDO che assorbe ${action.value} danni!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      
+      case 'freeze':
+        // Freeze opponent characters
+        const freezeTargets = game.field.filter((c: Card) => 
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        for (const target of freezeTargets) {
+          (target as any).frozenTurns = action.value || 2;
+          console.log(`❄️ ${target.name} is FROZEN for ${action.value} turns`);
+        }
+        if (freezeTargets.length > 0) {
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-freeze`,
+            playerName: 'Sistema',
+            message: `❄️ ${freezeTargets.map(c => c.name).join(', ')} ${freezeTargets.length > 1 ? 'sono CONGELATI' : 'è CONGELATO'} per ${action.value || 2} turni!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      
+      case 'stun':
+        // Stun opponent characters
+        const stunTargets = game.field.filter((c: Card) => 
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        for (const target of stunTargets) {
+          (target as any).isStunned = true;
+          console.log(`💫 ${target.name} is STUNNED`);
+        }
+        if (stunTargets.length > 0) {
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-stun`,
+            playerName: 'Sistema',
+            message: `💫 ${stunTargets.map(c => c.name).join(', ')} ${stunTargets.length > 1 ? 'sono STORDITI' : 'è STORDITO'}!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      
+      case 'poison':
+        // Apply poison to opponent characters
+        const poisonTargets = game.field.filter((c: Card) => 
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        for (const target of poisonTargets) {
+          (target as any).poisonDamage = action.value || 50;
+          (target as any).poisonTurns = 3;
+          console.log(`☠️ ${target.name} is POISONED (${action.value}/turn)`);
+        }
+        if (poisonTargets.length > 0) {
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-poison`,
+            playerName: 'Sistema',
+            message: `☠️ ${poisonTargets.map(c => c.name).join(', ')} ${poisonTargets.length > 1 ? 'sono AVVELENATI' : 'è AVVELENATO'} (${action.value} danni/turno)!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      
+      case 'burn':
+        // Apply burn to opponent characters
+        const burnTargets = game.field.filter((c: Card) => 
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        for (const target of burnTargets) {
+          (target as any).burnDamage = action.value || 30;
+          console.log(`🔥 ${target.name} is BURNING (${action.value}/turn)`);
+        }
+        if (burnTargets.length > 0) {
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-burn`,
+            playerName: 'Sistema',
+            message: `🔥 ${burnTargets.map(c => c.name).join(', ')} ${burnTargets.length > 1 ? 'stanno BRUCIANDO' : 'sta BRUCIANDO'} (${action.value} danni/turno)!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      
+      case 'lifesteal':
+        // Mark player's active character as having lifesteal
+        const lifestealChar = this.getPlayerActiveCharacter(game, playerName);
+        if (lifestealChar) {
+          (lifestealChar as any).hasLifesteal = true;
+          (lifestealChar as any).lifestealAmount = action.value || 100;
+          console.log(`🧛 ${lifestealChar.name} now has LIFESTEAL`);
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-lifesteal`,
+            playerName: 'Sistema',
+            message: `🧛 ${lifestealChar.name} ha attivato il FURTO VITA: curerà ${action.value} PTI quando attacca!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      
+      case 'revenge':
+        // Mark player's active character as having revenge ability
+        const revengeChar = this.getPlayerActiveCharacter(game, playerName);
+        if (revengeChar) {
+          (revengeChar as any).hasRevenge = true;
+          (revengeChar as any).revengeDamage = action.value || 200;
+          console.log(`💀 ${revengeChar.name} now has REVENGE (${action.value} on death)`);
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-revenge`,
+            playerName: 'Sistema',
+            message: `💀 ${revengeChar.name} ha attivato la VENDETTA: infliggerà ${action.value} danni quando muore!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      
+      case 'powerup':
+        // Boost player's active character PTI
+        const powerupChar = this.getPlayerActiveCharacter(game, playerName);
+        if (powerupChar) {
+          const oldPTI = powerupChar.pti || this.extractPTIFromNote(powerupChar.text || '');
+          const newPTI = oldPTI + action.value;
+          powerupChar.pti = newPTI;
+          this.updateCardTextWithPTI(powerupChar);
+          console.log(`💪 ${powerupChar.name} powered up: ${oldPTI} → ${newPTI} PTI`);
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-powerup`,
+            playerName: 'Sistema',
+            message: `💪 ${powerupChar.name} ha guadagnato +${action.value} PTI! (${oldPTI} → ${newPTI})`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      
+      case 'weaken':
+        // Reduce opponent characters' PTI
+        const weakenTargets = game.field.filter((c: Card) => 
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        for (const target of weakenTargets) {
+          const oldPTI = target.pti || this.extractPTIFromNote(target.text || '');
+          const newPTI = Math.max(0, oldPTI - action.value);
+          target.pti = newPTI;
+          this.updateCardTextWithPTI(target);
+          console.log(`📉 ${target.name} weakened: ${oldPTI} → ${newPTI} PTI`);
+        }
+        if (weakenTargets.length > 0) {
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-weaken`,
+            playerName: 'Sistema',
+            message: `📉 ${weakenTargets.map(c => c.name).join(', ')} ${weakenTargets.length > 1 ? 'hanno perso' : 'ha perso'} ${action.value} PTI!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      
+      case 'aura':
+        // Boost all allied characters
+        const auraTargets = game.field.filter((c: Card) => 
+          c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        for (const target of auraTargets) {
+          const oldPTI = target.pti || this.extractPTIFromNote(target.text || '');
+          const newPTI = oldPTI + action.value;
+          target.pti = newPTI;
+          this.updateCardTextWithPTI(target);
+          console.log(`✨ ${target.name} boosted by aura: ${oldPTI} → ${newPTI} PTI`);
+        }
+        if (auraTargets.length > 0) {
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-aura`,
+            playerName: 'Sistema',
+            message: `✨ AURA! Tutti gli alleati hanno guadagnato +${action.value} PTI!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      
+      case 'draw':
+        // Make player draw cards
+        const player = game.players[playerName];
+        if (player) {
+          const deckTypes = ['personaggi', 'mosse', 'bonus', 'personaggi_speciali'] as const;
+          const availableDecks = deckTypes.filter(d => game.decks[d]?.length > 0);
+          for (let i = 0; i < (action.value || 1); i++) {
+            if (availableDecks.length > 0) {
+              const randomDeck = availableDecks[Math.floor(Math.random() * availableDecks.length)];
+              this.pickCard(gameId, randomDeck, playerName);
+            }
+          }
+          console.log(`🎴 ${playerName} drew ${action.value || 1} cards`);
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-draw`,
+            playerName: 'Sistema',
+            message: `🎴 ${playerName} ha pescato ${action.value || 1} carte!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      
+      case 'discard':
+        // Discard cards from opponents' hands
+        for (const [opponentName, opponent] of Object.entries(game.players)) {
+          if (opponentName === playerName) continue;
+          const discardCount = Math.min(action.value || 1, (opponent as any).hand.length);
+          for (let i = 0; i < discardCount; i++) {
+            if ((opponent as any).hand.length > 0) {
+              const randomIndex = Math.floor(Math.random() * (opponent as any).hand.length);
+              const discardedCard = (opponent as any).hand.splice(randomIndex, 1)[0];
+              game.graveyard.push(discardedCard);
+              console.log(`🗑️ ${opponentName} discarded ${discardedCard.name || discardedCard.id}`);
+            }
+          }
+        }
+        io?.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-discard`,
+          playerName: 'Sistema',
+          message: `🗑️ Gli avversari hanno scartato ${action.value || 1} carte!`,
+          timestamp: Date.now()
+        });
+        break;
+      
+      case 'modify_stars':
+        // Modify stars on target
+        if (action.target === 'self') {
+          const starChar = this.getPlayerActiveCharacter(game, playerName);
+          if (starChar) {
+            const oldStars = starChar.stars || 0;
+            starChar.stars = Math.max(0, oldStars + action.value);
+            this.updateCardTextWithPTI(starChar);
+            console.log(`⭐ ${starChar.name} stars: ${oldStars} → ${starChar.stars}`);
+            io?.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-stars`,
+              playerName: 'Sistema',
+              message: `⭐ ${starChar.name} ora ha ${starChar.stars} stelle!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        break;
+      
+      case 'extra_turn':
+        // Grant player an extra turn
+        (game as any).extraTurnPlayer = playerName;
+        console.log(`🔄 ${playerName} granted an EXTRA TURN`);
+        io?.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-extra-turn`,
+          playerName: 'Sistema',
+          message: `🔄 ${playerName} ha guadagnato un TURNO EXTRA!`,
+          timestamp: Date.now()
+        });
+        break;
+      
+      case 'skip_turn':
+        // Make opponents skip their next turn
+        for (const opponentName of Object.keys(game.players)) {
+          if (opponentName !== playerName) {
+            (game.players[opponentName] as any).skipNextTurn = true;
+            console.log(`⏭️ ${opponentName} will skip next turn`);
+          }
+        }
+        io?.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-skip-turn`,
+          playerName: 'Sistema',
+          message: `⏭️ Gli avversari salteranno il prossimo turno!`,
+          timestamp: Date.now()
+        });
+        break;
+      
+      case 'nullify':
+        // Remove all effects from opponent characters
+        const nullifyTargets = game.field.filter((c: Card) => 
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        for (const target of nullifyTargets) {
+          delete (target as any).isProtected;
+          delete (target as any).counterDamage;
+          delete (target as any).reflectPercent;
+          delete (target as any).shieldAmount;
+          delete (target as any).frozenTurns;
+          delete (target as any).isStunned;
+          delete (target as any).poisonDamage;
+          delete (target as any).burnDamage;
+          console.log(`🚫 All effects removed from ${target.name}`);
+        }
+        if (nullifyTargets.length > 0) {
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-nullify`,
+            playerName: 'Sistema',
+            message: `🚫 Tutti gli effetti nemici sono stati NULLIFICATI!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      
+      case 'resurrect':
+      case 'resurrect_choice':
+        // Resurrect a card from graveyard
+        if (game.graveyard.length > 0) {
+          const charCards = game.graveyard.filter((c: Card) => 
+            c.type === 'personaggi' || c.type === 'personaggi_speciali'
+          );
+          if (charCards.length > 0) {
+            const resurrectedCard = charCards[charCards.length - 1];
+            const index = game.graveyard.findIndex((c: Card) => c.id === resurrectedCard.id);
+            if (index !== -1) {
+              game.graveyard.splice(index, 1);
+              resurrectedCard.owner = playerName;
+              resurrectedCard.pti = 500; // Resurrect with 500 PTI
+              game.field.push(resurrectedCard);
+              this.updateCardTextWithPTI(resurrectedCard);
+              console.log(`⚰️ ${resurrectedCard.name} resurrected with 500 PTI`);
+              io?.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-resurrect`,
+                playerName: 'Sistema',
+                message: `⚰️ ${resurrectedCard.name} è stato RESUSCITATO con 500 PTI!`,
+                timestamp: Date.now()
+              });
+            }
+          }
+        }
+        break;
+      
+      case 'steal':
+        // Steal a random card from opponent's hand
+        for (const [opponentName, opponent] of Object.entries(game.players)) {
+          if (opponentName === playerName) continue;
+          if ((opponent as any).hand.length > 0) {
+            const randomIndex = Math.floor(Math.random() * (opponent as any).hand.length);
+            const stolenCard = (opponent as any).hand.splice(randomIndex, 1)[0];
+            stolenCard.owner = playerName;
+            game.players[playerName].hand.push(stolenCard);
+            console.log(`🕵️ ${playerName} stole ${stolenCard.name} from ${opponentName}`);
+            io?.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-steal`,
+              playerName: 'Sistema',
+              message: `🕵️ ${playerName} ha rubato una carta da ${opponentName}!`,
+              timestamp: Date.now()
+            });
+            break; // Only steal from one opponent
+          }
+        }
+        break;
+      
+      case 'double':
+        // Double the effect of the next action (mark flag)
+        (game as any).doubleNextEffect = true;
+        console.log(`✖️2️⃣ Next effect will be DOUBLED`);
+        break;
+      
+      case 'drain':
+        // Drain PTI from opponents and heal self
+        const drainTargets = game.field.filter((c: Card) => 
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        let totalDrained = 0;
+        for (const target of drainTargets) {
+          const oldPTI = target.pti || this.extractPTIFromNote(target.text || '');
+          const drainAmount = Math.min(action.value, oldPTI);
+          target.pti = Math.max(0, oldPTI - drainAmount);
+          this.updateCardTextWithPTI(target);
+          totalDrained += drainAmount;
+          if (target.pti <= 0) {
+            this.moveToGraveyard(gameId, target.id, target.owner, 'Drain');
+          }
+        }
+        // Heal player's active character
+        const drainHealChar = this.getPlayerActiveCharacter(game, playerName);
+        if (drainHealChar && totalDrained > 0) {
+          const oldPTI = drainHealChar.pti || this.extractPTIFromNote(drainHealChar.text || '');
+          drainHealChar.pti = oldPTI + totalDrained;
+          this.updateCardTextWithPTI(drainHealChar);
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-drain`,
+            playerName: 'Sistema',
+            message: `🩸 ${drainHealChar.name} ha assorbito ${totalDrained} PTI dai nemici!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      
+      case 'halve_pti':
+        // Halve PTI of target
+        if (action.target === 'self') {
+          const targetChar = this.getPlayerActiveCharacter(game, playerName);
+          if (targetChar) {
+            const oldPTI = targetChar.pti || this.extractPTIFromNote(targetChar.text || '');
+            targetChar.pti = Math.floor(oldPTI / 2);
+            this.updateCardTextWithPTI(targetChar);
+            io?.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-halve-pti`,
+              playerName: 'Sistema',
+              message: `📉 ${targetChar.name} PTI dimezzati: ${oldPTI} → ${targetChar.pti}`,
+              timestamp: Date.now()
+            });
+          }
+        } else {
+          const targetChars = game.field.filter((c: Card) => 
+            c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          );
+          for (const target of targetChars) {
+            const oldPTI = target.pti || this.extractPTIFromNote(target.text || '');
+            target.pti = Math.floor(oldPTI / 2);
+            this.updateCardTextWithPTI(target);
+          }
+          if (targetChars.length > 0) {
+            io?.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-halve-pti`,
+              playerName: 'Sistema',
+              message: `📉 PTI nemici dimezzati!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        break;
+      
+      case 'double_pti':
+        // Double PTI of target
+        if (action.target === 'self' || action.target === 'allies') {
+          const targetChar = this.getPlayerActiveCharacter(game, playerName);
+          if (targetChar) {
+            const oldPTI = targetChar.pti || this.extractPTIFromNote(targetChar.text || '');
+            targetChar.pti = oldPTI * 2;
+            this.updateCardTextWithPTI(targetChar);
+            io?.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-double-pti`,
+              playerName: 'Sistema',
+              message: `📈 ${targetChar.name} PTI raddoppiati: ${oldPTI} → ${targetChar.pti}`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        break;
+      
+      case 'halve_stars':
+        // Halve stars of target
+        const starHalveChar = this.getPlayerActiveCharacter(game, playerName);
+        if (starHalveChar && starHalveChar.stars) {
+          const oldStars = starHalveChar.stars;
+          starHalveChar.stars = Math.floor(oldStars / 2);
+          this.updateCardTextWithPTI(starHalveChar);
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-halve-stars`,
+            playerName: 'Sistema',
+            message: `⭐ ${starHalveChar.name} stelle dimezzate: ${oldStars} → ${starHalveChar.stars}`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      
+      case 'double_stars':
+        // Double stars of target
+        const starDoubleChar = this.getPlayerActiveCharacter(game, playerName);
+        if (starDoubleChar && starDoubleChar.stars) {
+          const oldStars = starDoubleChar.stars;
+          starDoubleChar.stars = oldStars * 2;
+          this.updateCardTextWithPTI(starDoubleChar);
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-double-stars`,
+            playerName: 'Sistema',
+            message: `⭐ ${starDoubleChar.name} stelle raddoppiate: ${oldStars} → ${starDoubleChar.stars}`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      
+      case 'add_half_pti':
+        // Add half of current PTI
+        const halfAddChar = this.getPlayerActiveCharacter(game, playerName);
+        if (halfAddChar) {
+          const oldPTI = halfAddChar.pti || this.extractPTIFromNote(halfAddChar.text || '');
+          const bonus = Math.floor(oldPTI / 2);
+          halfAddChar.pti = oldPTI + bonus;
+          this.updateCardTextWithPTI(halfAddChar);
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-add-half`,
+            playerName: 'Sistema',
+            message: `💪 ${halfAddChar.name} guadagna +${bonus} PTI (metà di ${oldPTI})!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      
+      case 'execute':
+        // Execute characters with low PTI
+        const executeTargets = game.field.filter((c: Card) => 
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        for (const target of executeTargets) {
+          const targetPTI = target.pti || this.extractPTIFromNote(target.text || '');
+          if (targetPTI < action.value) {
+            this.moveToGraveyard(gameId, target.id, target.owner || '', 'Esecuzione');
+            io?.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-execute`,
+              playerName: 'Sistema',
+              message: `💀 ${target.name} ESEGUITO! (aveva solo ${targetPTI} PTI)`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        break;
+      
+      case 'silence':
+        // Remove all abilities from opponent characters
+        const silenceTargets = game.field.filter((c: Card) => 
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        for (const target of silenceTargets) {
+          (target as any).isSilenced = true;
+          delete (target as any).counterDamage;
+          delete (target as any).reflectPercent;
+          delete (target as any).hasLifesteal;
+          delete (target as any).hasRevenge;
+        }
+        if (silenceTargets.length > 0) {
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-silence`,
+            playerName: 'Sistema',
+            message: `🤫 Personaggi nemici SILENZIATI - tutte le abilità disattivate!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      
+      case 'taunt':
+        // Mark character as taunt - must be attacked first
+        const tauntChar = this.getPlayerActiveCharacter(game, playerName);
+        if (tauntChar) {
+          (tauntChar as any).hasTaunt = true;
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-taunt`,
+            playerName: 'Sistema',
+            message: `🎯 ${tauntChar.name} ha PROVOCAZIONE - deve essere attaccato per primo!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      
       default:
         console.log(`⚡ Unknown effect type: ${action.type}`);
         break;
@@ -11061,6 +11720,120 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     if (gameState.players[playerName]) {
       gameState.players[playerName].usedCardsThisTurn = [];
       gameState.players[playerName].usedMosseOnBarrieraThisTurn = false;
+    }
+
+    // PROCESS STATUS EFFECTS: poison, burn, frozen, stun for this player's characters
+    const io = (global as any).io;
+    const playerCards = gameState.field.filter((c: Card) => 
+      c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+    );
+    
+    for (const card of playerCards) {
+      // Process POISON tick
+      if ((card as any).poisonDamage && (card as any).poisonTurns > 0) {
+        const poisonDmg = (card as any).poisonDamage;
+        const oldPTI = card.pti || this.extractPTIFromNote(card.text || '');
+        const newPTI = Math.max(0, oldPTI - poisonDmg);
+        card.pti = newPTI;
+        this.updateCardTextWithPTI(card);
+        (card as any).poisonTurns--;
+        
+        console.log(`☠️ POISON TICK: ${card.name} took ${poisonDmg} poison damage, ${(card as any).poisonTurns} turns remaining`);
+        
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-poison-tick`,
+            playerName: 'Sistema',
+            message: `☠️ ${card.name} subisce ${poisonDmg} danni da veleno! (PTI: ${oldPTI} → ${newPTI})`,
+            timestamp: Date.now()
+          });
+        }
+        
+        // Remove poison if turns expired
+        if ((card as any).poisonTurns <= 0) {
+          delete (card as any).poisonDamage;
+          delete (card as any).poisonTurns;
+        }
+        
+        // Check death
+        if (newPTI <= 0) {
+          this.moveToGraveyard(gameId, card.id, playerName, 'VELENO');
+        }
+      }
+      
+      // Process BURN tick
+      if ((card as any).burnDamage) {
+        const burnDmg = (card as any).burnDamage;
+        const oldPTI = card.pti || this.extractPTIFromNote(card.text || '');
+        const newPTI = Math.max(0, oldPTI - burnDmg);
+        card.pti = newPTI;
+        this.updateCardTextWithPTI(card);
+        
+        console.log(`🔥 BURN TICK: ${card.name} took ${burnDmg} burn damage`);
+        
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-burn-tick`,
+            playerName: 'Sistema',
+            message: `🔥 ${card.name} subisce ${burnDmg} danni da bruciatura! (PTI: ${oldPTI} → ${newPTI})`,
+            timestamp: Date.now()
+          });
+        }
+        
+        // Check death
+        if (newPTI <= 0) {
+          this.moveToGraveyard(gameId, card.id, playerName, 'BRUCIATURA');
+        }
+      }
+      
+      // Process FROZEN countdown
+      if ((card as any).frozenTurns && (card as any).frozenTurns > 0) {
+        (card as any).frozenTurns--;
+        console.log(`❄️ FREEZE: ${card.name} thawing, ${(card as any).frozenTurns} turns remaining`);
+        
+        if ((card as any).frozenTurns <= 0) {
+          delete (card as any).frozenTurns;
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-freeze-ended`,
+              playerName: 'Sistema',
+              message: `❄️ ${card.name} non è più congelato!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+      }
+      
+      // Process STUN (remove after turn)
+      if ((card as any).isStunned) {
+        delete (card as any).isStunned;
+        console.log(`💫 STUN: ${card.name} is no longer stunned`);
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-stun-ended`,
+            playerName: 'Sistema',
+            message: `💫 ${card.name} non è più stordito!`,
+            timestamp: Date.now()
+          });
+        }
+      }
+      
+      // Process PROTECTION countdown
+      if ((card as any).isProtected && (card as any).protectionTurns) {
+        (card as any).protectionTurns--;
+        if ((card as any).protectionTurns <= 0) {
+          delete (card as any).isProtected;
+          delete (card as any).protectionTurns;
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-protection-ended`,
+              playerName: 'Sistema',
+              message: `🛡️ ${card.name} non è più protetto!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+      }
     }
 
     // Check if there's an active duel
@@ -12788,8 +13561,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
       }
     } else {
-      // Regular attack: target is on field
-      targetCard = gameState?.field?.find((c: any) => c.id === targetCardId);
+      // Regular attack: target is on field - use real game.field reference for mutations
+      targetCard = game?.field?.find((c: any) => c.id === targetCardId);
       targetOwner = targetCard?.owner || '';
     }
     
@@ -13430,11 +14203,123 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       });
     }
 
-    // PRESERVE: Calculate new PTI after damage
-    const newPTI = Math.max(0, currentPTI - damageValue);
+    // ========== CUSTOM EFFECT INTEGRATION: SHIELD, REFLECT, COUNTER, LIFESTEAL ==========
+    let effectiveDamage = damageValue;
+    
+    // SHIELD EFFECT: Absorb damage up to shield amount
+    if ((targetCard as any).shieldAmount && (targetCard as any).shieldAmount > 0) {
+      const shield = (targetCard as any).shieldAmount;
+      const absorbed = Math.min(shield, effectiveDamage);
+      (targetCard as any).shieldAmount = shield - absorbed;
+      effectiveDamage -= absorbed;
+      
+      console.log(`🛡️ SHIELD EFFECT: ${targetCard.name} absorbed ${absorbed} damage, ${(targetCard as any).shieldAmount} shield remaining`);
+      
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-shield-absorb`,
+        playerName: 'Sistema',
+        message: `🛡️ ${targetCard.name || 'Personaggio'} assorbe ${absorbed} danni con lo scudo! (Scudo rimasto: ${(targetCard as any).shieldAmount})`,
+        timestamp: Date.now()
+      });
+      
+      // Remove shield if depleted
+      if ((targetCard as any).shieldAmount <= 0) {
+        delete (targetCard as any).shieldAmount;
+      }
+    }
+    
+    // REFLECT EFFECT: Reflect percentage of damage back to attacker
+    if ((targetCard as any).reflectPercent && (targetCard as any).reflectPercent > 0 && !isVoodooReflection) {
+      const reflectAmount = Math.floor(effectiveDamage * ((targetCard as any).reflectPercent / 100));
+      
+      if (reflectAmount > 0) {
+        // Find attacker's character
+        const attackerChar = game?.field.find((c: Card) => c.owner === attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+        
+        if (attackerChar) {
+          const attackerPTI = this.extractPTIFromNote(attackerChar.text || '');
+          const newAttackerPTI = Math.max(0, attackerPTI - reflectAmount);
+          attackerChar.pti = newAttackerPTI;
+          this.updateCardTextWithPTI(attackerChar);
+          
+          console.log(`🪞 REFLECT EFFECT: ${targetCard.name} reflected ${reflectAmount} damage to ${attackerChar.name}`);
+          
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-reflect-damage`,
+            playerName: 'Sistema',
+            message: `🪞 ${targetCard.name || 'Personaggio'} riflette ${reflectAmount} danni a ${attackerChar.name || 'Attaccante'}! (PTI: ${attackerPTI} → ${newAttackerPTI})`,
+            timestamp: Date.now()
+          });
+          
+          // Check if attacker died from reflected damage
+          if (newAttackerPTI <= 0) {
+            this.moveToGraveyard(gameId, attackerChar.id, attackerName, targetOwner);
+          }
+        }
+      }
+    }
+    
+    // COUNTER EFFECT: Deal counter damage to attacker
+    if ((targetCard as any).counterDamage && (targetCard as any).counterDamage > 0 && !isVoodooReflection) {
+      const counterDmg = (targetCard as any).counterDamage;
+      
+      // Find attacker's character
+      const attackerChar = game?.field.find((c: Card) => c.owner === attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+      
+      if (attackerChar) {
+        const attackerPTI = this.extractPTIFromNote(attackerChar.text || '');
+        const newAttackerPTI = Math.max(0, attackerPTI - counterDmg);
+        attackerChar.pti = newAttackerPTI;
+        this.updateCardTextWithPTI(attackerChar);
+        
+        console.log(`⚔️ COUNTER EFFECT: ${targetCard.name} counter-attacked for ${counterDmg} damage`);
+        
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-counter-damage`,
+          playerName: 'Sistema',
+          message: `⚔️ ${targetCard.name || 'Personaggio'} contrattacca per ${counterDmg} danni! (PTI attaccante: ${attackerPTI} → ${newAttackerPTI})`,
+          timestamp: Date.now()
+        });
+        
+        // Check if attacker died from counter damage
+        if (newAttackerPTI <= 0) {
+          this.moveToGraveyard(gameId, attackerChar.id, attackerName, targetOwner);
+        }
+      }
+    }
+    
+    // LIFESTEAL EFFECT: Heal attacker for percentage of damage dealt
+    // Check if attacker's character has lifesteal (set by applyParsedEffect as hasLifesteal/lifestealAmount)
+    const attackerCharForLifesteal = game?.field.find((c: Card) => c.owner === attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+    
+    if (attackerCharForLifesteal && (attackerCharForLifesteal as any).hasLifesteal) {
+      const lifestealPercent = (attackerCharForLifesteal as any).lifestealAmount || 100;
+      const healAmount = Math.floor(effectiveDamage * (lifestealPercent / 100));
+      
+      if (healAmount > 0) {
+        const attackerPTI = this.extractPTIFromNote(attackerCharForLifesteal.text || '');
+        const newAttackerPTI = attackerPTI + healAmount;
+        attackerCharForLifesteal.pti = newAttackerPTI;
+        this.updateCardTextWithPTI(attackerCharForLifesteal);
+        
+        const attackerName2 = attackerCharForLifesteal.name || this.getCardNameFromUrl(attackerCharForLifesteal.frontImage || '');
+        console.log(`🩸 LIFESTEAL EFFECT: ${attackerName2} healed for ${healAmount} PTI`);
+        
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-lifesteal-heal`,
+          playerName: 'Sistema',
+          message: `🩸 ${attackerName2 || 'Attaccante'} ruba ${healAmount} PTI! (PTI: ${attackerPTI} → ${newAttackerPTI})`,
+          timestamp: Date.now()
+        });
+      }
+    }
+    // ========== END CUSTOM EFFECT INTEGRATION ==========
+    
+    // PRESERVE: Calculate new PTI after damage (using effective damage after shield)
+    const newPTI = Math.max(0, currentPTI - effectiveDamage);
     
     // Track damage dealt for missions/achievements (fire-and-forget)
-    this.trackPlayerEvent(gameId, attackerName, 'damage_dealt', { amount: damageValue }).catch(() => {});
+    this.trackPlayerEvent(gameId, attackerName, 'damage_dealt', { amount: effectiveDamage }).catch(() => {});
     
     // DEBUG LOGGING for damage calculation
     if (isHandTarget) {
