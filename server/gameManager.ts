@@ -2252,11 +2252,22 @@ Rispondi SOLO in JSON:`;
       cleanText = cleanText.replace(/\[DETTAGLI:[^\]]+\]/gi, '');
     }
     
-    // Remove [ANIMAZIONE: ...] and [COMPORTAMENTO: ...] for parsing
+    // Extract [COMPORTAMENTO: ...] content - THIS IS THE ACTUAL EFFECT TO PARSE
+    let comportamentoContent = '';
+    const comportamentoMatch = effectText.match(/\[COMPORTAMENTO:\s*([^\]]+)\]/i);
+    if (comportamentoMatch) {
+      comportamentoContent = comportamentoMatch[1].trim();
+      console.log(`🎯 Extracted COMPORTAMENTO content: "${comportamentoContent}"`);
+    }
+    
+    // Remove [ANIMAZIONE: ...] tags (visual only)
     cleanText = cleanText.replace(/\[ANIMAZIONE:[^\]]+\]/gi, '');
+    // Remove [COMPORTAMENTO: ...] tags from cleanText (we already extracted the content)
     cleanText = cleanText.replace(/\[COMPORTAMENTO:[^\]]+\]/gi, '');
     
-    const text = cleanText.toLowerCase();
+    // Use COMPORTAMENTO content as primary parsing source, fallback to cleaned text
+    const textToParse = comportamentoContent || cleanText;
+    const text = textToParse.toLowerCase();
     
     // Extract all numbers from text (for multi-value effects)
     const extractNumber = (str: string, defaultVal: number = 100): number => {
