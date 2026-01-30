@@ -87,9 +87,11 @@ The Wizard panel allows creating cards with custom effects via `[COMPORTAMENTO: 
 - **Reflect**: Reflects percentage of damage back to attacker
 - **Counter**: Deals counter damage to attacker when hit
 - **Lifesteal**: Heals attacker for percentage of damage dealt
+- **Revenge**: Deals damage to attacker when character dies
+- **Freeze/Stun Prevention**: Frozen or stunned characters cannot attack
 
 ### Other Effect Types
-Protection, counter-attack, revenge, powerup, weaken, aura, draw, discard, modify stars, extra turn, skip turn, nullify, resurrect, steal, execute, silence, taunt, halve/double PTI/stars, and more are supported via `parseEffectKeywords` and `applyParsedEffect` functions
+Draw, discard, powerup, weaken, aura, modify stars, extra turn, skip turn, nullify, resurrect, steal, execute, silence, taunt, halve/double PTI/stars, clone, inherit from dead, and more are supported via `parseEffectKeywords` and `applyParsedEffect` functions
 
 ## Audio System
 A comprehensive sound effect system using Web Audio API provides in-game audio for various events, character actions, and 28 special card animations, with user control for muting.

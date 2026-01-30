@@ -3884,7 +3884,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const protectedChar = this.getPlayerActiveCharacter(game, playerName);
         if (protectedChar) {
           protectedChar.isProtected = true;
-          console.log(`🛡️ Custom effect: ${protectedChar.name || protectedChar.id} is now PROTECTED and cannot be attacked!`);
+          (protectedChar as any).protectionTurns = action.value || 1; // Duration in turns
+          console.log(`🛡️ Custom effect: ${protectedChar.name || protectedChar.id} is now PROTECTED for ${action.value || 1} turns!`);
         } else {
           console.log(`🛡️ PROTECTION: No active character found for ${playerName}!`);
         }
@@ -5417,6 +5418,16 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
       // No character on field at all
       return { success: false, error: 'Devi avere un personaggio in campo per usare carte MOSSE.' };
+    }
+    
+    // FREEZE/STUN CHECK: Frozen or stunned characters cannot attack
+    if ((attackerCharacter as any).frozenTurns && (attackerCharacter as any).frozenTurns > 0) {
+      console.log(`❄️ ${attackerName}'s character is FROZEN - cannot attack`);
+      return { success: false, error: `Il tuo personaggio è congelato! Non può attaccare per ancora ${(attackerCharacter as any).frozenTurns} turni.` };
+    }
+    if ((attackerCharacter as any).isStunned) {
+      console.log(`💫 ${attackerName}'s character is STUNNED - cannot attack`);
+      return { success: false, error: 'Il tuo personaggio è stordito! Non può attaccare questo turno.' };
     }
 
     // Find target card - either on field OR in hand (for ATTACCO DISONESTO)
@@ -7869,6 +7880,45 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         
         return { success: true, insuranceTriggered: true };
+      }
+    }
+
+    // REVENGE EFFECT: If card has revenge, deal damage to attacker before dying
+    if (cardToCheck && (cardToCheck as any).revengeDamage && attacker && attacker !== playerName) {
+      const revengeDmg = (cardToCheck as any).revengeDamage;
+      const attackerChar = game.field.find((c: Card) => 
+        c.owner === attacker && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      );
+      
+      if (attackerChar) {
+        const attackerPTI = this.extractPTIFromNote(attackerChar.text || '');
+        const newAttackerPTI = Math.max(0, attackerPTI - revengeDmg);
+        attackerChar.pti = newAttackerPTI;
+        this.updateCardTextWithPTI(attackerChar);
+        
+        const dyingCardName = cardToCheck.name || this.getCardNameFromUrl(cardToCheck.frontImage || '');
+        const attackerCharName = attackerChar.name || this.getCardNameFromUrl(attackerChar.frontImage || '');
+        
+        console.log(`👊 REVENGE TRIGGERED! ${dyingCardName} dealt ${revengeDmg} damage to ${attackerCharName} on death`);
+        
+        const io = (global as any).io;
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-revenge-trigger`,
+            playerName: 'Sistema',
+            message: `👊 VENDETTA! ${dyingCardName} infligge ${revengeDmg} danni a ${attackerCharName} morendo! (PTI: ${attackerPTI} → ${newAttackerPTI})`,
+            timestamp: Date.now()
+          });
+        }
+        
+        // Check if attacker died from revenge
+        if (newAttackerPTI <= 0) {
+          console.log(`💀 ${attackerCharName} killed by revenge!`);
+          // Use setTimeout to avoid recursive death handling
+          setTimeout(() => {
+            this.moveToGraveyard(gameId, attackerChar.id, attacker, playerName);
+          }, 100);
+        }
       }
     }
 
