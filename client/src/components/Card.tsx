@@ -1826,6 +1826,7 @@ export const Card = memo(CardComponent, (prevProps, nextProps) => {
     prevCard.isBarrieraShield === nextCard.isBarrieraShield &&
     prevCard.barrieraPTI === nextCard.barrieraPTI &&
     prevProps.location === nextProps.location &&
-    prevProps.showBack === nextProps.showBack
+    prevProps.showBack === nextProps.showBack &&
+    prevProps.onCardPlayed === nextProps.onCardPlayed
   );
 });
