@@ -10,6 +10,7 @@ import { TrainingMode } from "./components/TrainingMode";
 import { ActiveRooms } from "./components/ActiveRooms";
 import { ProfileSection } from "./components/ProfileSection";
 import { SpectatorView } from "./components/SpectatorView";
+import { ResetPasswordPage } from "./components/ResetPasswordPage";
 import { useGameState } from "./lib/stores/useGameState";
 import { socket } from "./lib/socket";
 import { preloadCriticalImages } from "./lib/imagePreloader";
@@ -17,6 +18,11 @@ import "@fontsource/inter";
 import "./index.css";
 
 type AppSection = 'home' | 'play' | 'training' | 'rooms' | 'profile' | 'spectator';
+
+function getResetPasswordToken(): string | null {
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get('token');
+}
 
 const queryClient = new QueryClient();
 
@@ -38,6 +44,7 @@ function App() {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [currentSection, setCurrentSection] = useState<AppSection>('home');
   const [spectatingGameId, setSpectatingGameId] = useState<string | null>(null);
+  const [resetPasswordToken, setResetPasswordToken] = useState<string | null>(() => getResetPasswordToken());
   const [gameInvitation, setGameInvitation] = useState<{
     senderId: number;
     senderUsername: string;
@@ -243,6 +250,21 @@ function App() {
       userId: authenticatedUser?.id 
     });
   };
+
+  // Show reset password page if token is present in URL
+  if (resetPasswordToken) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <ResetPasswordPage 
+          token={resetPasswordToken} 
+          onComplete={() => {
+            setResetPasswordToken(null);
+            window.history.replaceState({}, '', window.location.pathname);
+          }} 
+        />
+      </QueryClientProvider>
+    );
+  }
 
   // Show loading screen during initialization, reconnection, or waiting for server
   if (isInitializing || isReconnecting || !serverReady) {

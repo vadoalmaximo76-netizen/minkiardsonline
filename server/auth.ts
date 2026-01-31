@@ -391,9 +391,7 @@ export function registerAuthRoutes(app: Express) {
 
       res.json({ 
         success: true, 
-        message: "Se l'email esiste, riceverai le istruzioni per il recupero password",
-        // In development, show the token (remove in production)
-        ...(process.env.NODE_ENV !== 'production' && { resetToken })
+        message: "Se l'email esiste, riceverai le istruzioni per il recupero password"
       });
     } catch (error) {
       console.error("Forgot password error:", error);
