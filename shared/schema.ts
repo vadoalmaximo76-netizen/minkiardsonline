@@ -148,6 +148,27 @@ export const insertTrainingTipSchema = createInsertSchema(trainingTips).pick({
   tipContent: true,
 });
 
+export const tutorialSteps = pgTable("tutorial_steps", {
+  id: serial("id").primaryKey(),
+  stepId: text("step_id").notNull().unique(),
+  trigger: text("trigger").notNull(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertTutorialStepSchema = createInsertSchema(tutorialSteps).pick({
+  stepId: true,
+  trigger: true,
+  title: true,
+  content: true,
+  sortOrder: true,
+  isActive: true,
+});
+
 export const achievements = pgTable("achievements", {
   id: serial("id").primaryKey(),
   code: text("code").notNull().unique(),

@@ -22,6 +22,16 @@ interface CardTip {
   updatedAt: string;
 }
 
+interface TutorialStep {
+  id: number;
+  stepId: string;
+  trigger: string;
+  title: string;
+  content: string;
+  sortOrder: number;
+  isActive: boolean;
+}
+
 const TUTORIAL_STEPS = [
   {
     id: 'welcome',
@@ -102,6 +112,12 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
   const [tutorialStep, setTutorialStep] = useState(0);
   const [showTutorial, setShowTutorial] = useState(false);
   const [completedTutorialSteps, setCompletedTutorialSteps] = useState<Set<string>>(new Set());
+  const [dbTutorialSteps, setDbTutorialSteps] = useState<TutorialStep[]>([]);
+  const [managerTab, setManagerTab] = useState<'tips' | 'tutorial'>('tips');
+  const [editingTutorialStep, setEditingTutorialStep] = useState<TutorialStep | null>(null);
+  const [tutorialStepTitle, setTutorialStepTitle] = useState('');
+  const [tutorialStepContent, setTutorialStepContent] = useState('');
+  const [tutorialStepTrigger, setTutorialStepTrigger] = useState('game_start');
   const { setGameId, setPlayerName, generateSessionId, gameId } = useGameState();
 
   useEffect(() => {
@@ -135,7 +151,22 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
       }
     };
     
+    const fetchTutorialSteps = async () => {
+      try {
+        const res = await fetch('/api/tutorial-steps');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.steps.length > 0) {
+            setDbTutorialSteps(data.steps);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching tutorial steps:', error);
+      }
+    };
+    
     fetchTips();
+    fetchTutorialSteps();
     
     const savedShownTips = localStorage.getItem('trainingShownTips');
     if (savedShownTips) {
@@ -548,23 +579,42 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
             <div className="bg-slate-800 rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
               <div className="p-6 border-b border-slate-700 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-white">Gestione Tips</h2>
-                <div className="flex items-center gap-2">
-                  {!managerNewTip && !managerEditingTip && (
-                    <button 
-                      onClick={startNewTip}
-                      className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium flex items-center gap-2"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Nuovo Tip
-                    </button>
-                  )}
-                  <button onClick={() => { setShowTipsManager(false); cancelManagerEdit(); }} className="text-slate-400 hover:text-white">
-                    <X className="w-6 h-6" />
-                  </button>
-                </div>
+                <h2 className="text-xl font-bold text-white">Gestione Allenamento</h2>
+                <button onClick={() => { setShowTipsManager(false); cancelManagerEdit(); setEditingTutorialStep(null); }} className="text-slate-400 hover:text-white">
+                  <X className="w-6 h-6" />
+                </button>
               </div>
-              <div className="p-6 overflow-y-auto max-h-[60vh]">
+              
+              <div className="flex border-b border-slate-700">
+                <button
+                  onClick={() => setManagerTab('tips')}
+                  className={`flex-1 px-4 py-3 font-medium transition-colors ${managerTab === 'tips' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Tips Carte
+                </button>
+                <button
+                  onClick={() => setManagerTab('tutorial')}
+                  className={`flex-1 px-4 py-3 font-medium transition-colors ${managerTab === 'tutorial' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Tutorial Automatico
+                </button>
+              </div>
+              
+              <div className="p-6 overflow-y-auto max-h-[55vh]">
+              
+              {managerTab === 'tips' && (
+                <div>
+                  <div className="flex justify-end mb-4">
+                    {!managerNewTip && !managerEditingTip && (
+                      <button 
+                        onClick={startNewTip}
+                        className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium flex items-center gap-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Nuovo Tip
+                      </button>
+                    )}
+                  </div>
                 {(managerNewTip || managerEditingTip) ? (
                   <div className="bg-slate-700/50 rounded-xl p-6 space-y-4">
                     <h3 className="text-lg font-semibold text-white">
@@ -671,6 +721,150 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
                     ))}
                   </div>
                 )}
+                </div>
+              )}
+              
+              {managerTab === 'tutorial' && (
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <p className="text-slate-400 text-sm">Modifica i testi del tutorial automatico</p>
+                    {dbTutorialSteps.length === 0 && (
+                      <button
+                        onClick={async () => {
+                          const authToken = localStorage.getItem('authToken');
+                          const res = await fetch('/api/tutorial-steps/initialize', {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${authToken}` }
+                          });
+                          if (res.ok) {
+                            const stepsRes = await fetch('/api/tutorial-steps');
+                            if (stepsRes.ok) {
+                              const data = await stepsRes.json();
+                              setDbTutorialSteps(data.steps || []);
+                            }
+                          }
+                        }}
+                        className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium"
+                      >
+                        Inizializza Tutorial
+                      </button>
+                    )}
+                  </div>
+                  
+                  {editingTutorialStep ? (
+                    <div className="bg-slate-700/50 rounded-xl p-6 space-y-4">
+                      <h3 className="text-lg font-semibold text-white">Modifica Step Tutorial</h3>
+                      
+                      <div>
+                        <label className="block text-sm text-slate-400 mb-1">Trigger</label>
+                        <select
+                          value={tutorialStepTrigger}
+                          onChange={(e) => setTutorialStepTrigger(e.target.value)}
+                          className="w-full px-4 py-2 bg-slate-600 border border-slate-500 rounded-lg text-white"
+                        >
+                          <option value="game_start">Inizio Gioco</option>
+                          <option value="card_drawn">Carta Pescata</option>
+                          <option value="character_played">Personaggio Giocato</option>
+                          <option value="mosse_played">Mossa Usata</option>
+                          <option value="bonus_played">Bonus Applicato</option>
+                          <option value="turn_ended">Turno Finito</option>
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm text-slate-400 mb-1">Titolo</label>
+                        <input
+                          type="text"
+                          value={tutorialStepTitle}
+                          onChange={(e) => setTutorialStepTitle(e.target.value)}
+                          className="w-full px-4 py-2 bg-slate-600 border border-slate-500 rounded-lg text-white"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm text-slate-400 mb-1">Contenuto</label>
+                        <textarea
+                          value={tutorialStepContent}
+                          onChange={(e) => setTutorialStepContent(e.target.value)}
+                          rows={4}
+                          className="w-full px-4 py-2 bg-slate-600 border border-slate-500 rounded-lg text-white resize-none"
+                        />
+                      </div>
+                      
+                      <div className="flex gap-3 pt-2">
+                        <button
+                          onClick={() => setEditingTutorialStep(null)}
+                          className="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded-lg font-medium"
+                        >
+                          Annulla
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const authToken = localStorage.getItem('authToken');
+                            const res = await fetch(`/api/tutorial-steps/${editingTutorialStep.id}`, {
+                              method: 'PUT',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${authToken}`
+                              },
+                              body: JSON.stringify({
+                                trigger: tutorialStepTrigger,
+                                title: tutorialStepTitle,
+                                content: tutorialStepContent
+                              })
+                            });
+                            if (res.ok) {
+                              const stepsRes = await fetch('/api/tutorial-steps');
+                              if (stepsRes.ok) {
+                                const data = await stepsRes.json();
+                                setDbTutorialSteps(data.steps || []);
+                              }
+                              setEditingTutorialStep(null);
+                            }
+                          }}
+                          disabled={!tutorialStepTitle.trim() || !tutorialStepContent.trim()}
+                          className="flex-1 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-500 text-white rounded-lg font-medium flex items-center justify-center gap-2"
+                        >
+                          <Save className="w-4 h-4" />
+                          Salva Modifiche
+                        </button>
+                      </div>
+                    </div>
+                  ) : dbTutorialSteps.length === 0 ? (
+                    <p className="text-slate-400 text-center py-8">Nessuno step tutorial configurato. Clicca "Inizializza Tutorial" per creare gli step predefiniti.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {dbTutorialSteps.map((step, idx) => (
+                        <div key={step.id} className="bg-slate-700/50 rounded-xl p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-xs bg-slate-600 text-slate-300 px-2 py-0.5 rounded">{idx + 1}</span>
+                                <h3 className="font-semibold text-white">{step.title}</h3>
+                              </div>
+                              <p className="text-xs text-amber-400 mb-1">Trigger: {step.trigger}</p>
+                              <p className="text-slate-300 text-sm">{step.content}</p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setEditingTutorialStep(step);
+                                setTutorialStepTitle(step.title);
+                                setTutorialStepContent(step.content);
+                                setTutorialStepTrigger(step.trigger);
+                              }}
+                              className="text-blue-400 hover:text-blue-300 p-2 ml-2"
+                              title="Modifica"
+                            >
+                              <Edit3 className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              
               </div>
             </div>
           </div>

@@ -5,7 +5,7 @@ import { GameManager } from "./gameManager";
 import OpenAI from "openai";
 import jwt from "jsonwebtoken";
 import { db } from "./db";
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, achievements, playerAchievements, missionTemplates, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, cardSkins, playerSkins, seasonalPasses, passRewards, playerPassProgress } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, achievements, playerAchievements, missionTemplates, playerDailyMissions, trainingTips, tutorialSteps, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, cardSkins, playerSkins, seasonalPasses, passRewards, playerPassProgress } from "../shared/schema";
 import { eq, ilike, and, desc, or, ne, sql, inArray } from "drizzle-orm";
 import { CARD_DATA } from "../client/src/lib/cardData";
 import { authMiddleware } from "./auth";
@@ -8488,6 +8488,128 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     } catch (error) {
       console.error('Error deleting training tip:', error);
       res.status(500).json({ error: 'Failed to delete tip' });
+    }
+  });
+
+  // ============ TUTORIAL STEPS API ============
+  app.get('/api/tutorial-steps', async (req, res) => {
+    try {
+      const steps = await db.select().from(tutorialSteps).orderBy(tutorialSteps.sortOrder);
+      res.json({ success: true, steps });
+    } catch (error) {
+      console.error('Error fetching tutorial steps:', error);
+      res.json({ success: true, steps: [] });
+    }
+  });
+
+  app.post('/api/tutorial-steps', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      
+      if (!currentUser.length || !currentUser[0].isAdmin) {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+      
+      const { stepId, trigger, title, content, sortOrder } = req.body;
+      
+      const [newStep] = await db.insert(tutorialSteps).values({
+        stepId,
+        trigger,
+        title,
+        content,
+        sortOrder: sortOrder || 0
+      }).returning();
+      
+      res.json({ success: true, step: newStep });
+    } catch (error) {
+      console.error('Error creating tutorial step:', error);
+      res.status(500).json({ error: 'Failed to create tutorial step' });
+    }
+  });
+
+  app.put('/api/tutorial-steps/:id', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      
+      if (!currentUser.length || !currentUser[0].isAdmin) {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+      
+      const stepId = parseInt(req.params.id);
+      const { trigger, title, content, sortOrder, isActive } = req.body;
+      
+      const updates: Record<string, any> = { updatedAt: new Date() };
+      if (trigger !== undefined) updates.trigger = trigger;
+      if (title !== undefined) updates.title = title;
+      if (content !== undefined) updates.content = content;
+      if (sortOrder !== undefined) updates.sortOrder = sortOrder;
+      if (isActive !== undefined) updates.isActive = isActive;
+      
+      const [updatedStep] = await db.update(tutorialSteps)
+        .set(updates)
+        .where(eq(tutorialSteps.id, stepId))
+        .returning();
+      
+      res.json({ success: true, step: updatedStep });
+    } catch (error) {
+      console.error('Error updating tutorial step:', error);
+      res.status(500).json({ error: 'Failed to update tutorial step' });
+    }
+  });
+
+  app.delete('/api/tutorial-steps/:id', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      
+      if (!currentUser.length || !currentUser[0].isAdmin) {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+      
+      const stepId = parseInt(req.params.id);
+      await db.delete(tutorialSteps).where(eq(tutorialSteps.id, stepId));
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting tutorial step:', error);
+      res.status(500).json({ error: 'Failed to delete tutorial step' });
+    }
+  });
+
+  app.post('/api/tutorial-steps/initialize', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      
+      if (!currentUser.length || !currentUser[0].isAdmin) {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+      
+      const existingSteps = await db.select().from(tutorialSteps);
+      if (existingSteps.length > 0) {
+        return res.json({ success: true, message: 'Steps already initialized', count: existingSteps.length });
+      }
+      
+      const defaultSteps = [
+        { stepId: 'welcome', trigger: 'game_start', title: 'Benvenuto in MINKIARDS!', content: 'Questa è una partita di allenamento. Ti guiderò passo passo per imparare a giocare. Clicca "Avanti" per continuare.', sortOrder: 0 },
+        { stepId: 'deck_overview', trigger: 'game_start', title: 'I Mazzi di Carte', content: 'Hai 4 mazzi: PERSONAGGI (rosso), MOSSE (blu), BONUS (verde) e SPECIALI (viola). Ogni mazzo ha un ruolo diverso nel gioco.', sortOrder: 1 },
+        { stepId: 'draw_card', trigger: 'game_start', title: 'Pescare le Carte', content: 'Clicca su un mazzo per pescare una carta. Inizia pescando una carta PERSONAGGI - sono i tuoi combattenti!', sortOrder: 2 },
+        { stepId: 'play_character', trigger: 'card_drawn', title: 'Giocare un Personaggio', content: 'Ottimo! Hai pescato una carta. Ora clicca sulla carta nella tua mano e poi su uno slot vuoto del campo per posizionarla.', sortOrder: 3 },
+        { stepId: 'character_stats', trigger: 'character_played', title: 'Statistiche Personaggio', content: 'Ogni personaggio ha PTI (punti vita) e Stelle (potenza). Quando i PTI arrivano a 0, il personaggio muore.', sortOrder: 4 },
+        { stepId: 'mosse_attack', trigger: 'character_played', title: 'Usare le MOSSE', content: 'Pesca una carta MOSSE per attaccare! Seleziona la MOSSA, poi il tuo personaggio, infine il bersaglio nemico.', sortOrder: 5 },
+        { stepId: 'bonus_cards', trigger: 'mosse_played', title: 'Carte BONUS', content: 'Le carte BONUS potenziano i tuoi personaggi. Usale strategicamente per aumentare PTI o stelle!', sortOrder: 6 },
+        { stepId: 'end_turn', trigger: 'bonus_played', title: 'Fine del Turno', content: 'Quando hai finito, clicca "FINE TURNO" per passare al prossimo giocatore.', sortOrder: 7 },
+        { stepId: 'victory', trigger: 'turn_ended', title: 'Obiettivo', content: 'Elimina tutti i personaggi avversari per vincere! Buona fortuna!', sortOrder: 8 }
+      ];
+      
+      await db.insert(tutorialSteps).values(defaultSteps);
+      
+      res.json({ success: true, message: 'Tutorial steps initialized', count: defaultSteps.length });
+    } catch (error) {
+      console.error('Error initializing tutorial steps:', error);
+      res.status(500).json({ error: 'Failed to initialize tutorial steps' });
     }
   });
 
