@@ -530,6 +530,17 @@ export const CardModal: React.FC = () => {
                 </Button>
               )}
 
+              {/* SKIN button - apply cosmetic skin to all card types */}
+              {isOwner && (
+                <Button
+                  onClick={() => setShowSkinPanel(true)}
+                  className="aspect-square bg-violet-600 hover:bg-violet-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
+                >
+                  <Palette size={14} />
+                  SKIN
+                </Button>
+              )}
+
               {/* BAMBOLA VOODOO ATTIVA button - show only for BAMBOLA VOODOO bonus cards */}
               {isBambolaVoodoo && selectedCard.type === 'bonus' && (
                 <Button
@@ -697,6 +708,15 @@ export const CardModal: React.FC = () => {
                   SCAMBIA
                 </Button>
               )}
+
+              {/* SKIN button for all card types in hand */}
+              <Button
+                onClick={() => setShowSkinPanel(true)}
+                className="aspect-square bg-violet-600 hover:bg-violet-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
+              >
+                <Palette size={14} />
+                SKIN
+              </Button>
 
               {/* DUPLICA button for PERSONAGGI and PERSONAGGI_SPECIALI cards in hand */}
               {(selectedCard.type === 'personaggi' || selectedCard.type === 'personaggi_speciali') && (
