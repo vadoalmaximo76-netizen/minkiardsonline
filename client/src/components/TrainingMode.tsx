@@ -22,7 +22,62 @@ interface CardTip {
   updatedAt: string;
 }
 
-const ADMIN_EMAIL = 'lucaforte94@gmail.com';
+const TUTORIAL_STEPS = [
+  {
+    id: 'welcome',
+    trigger: 'game_start',
+    title: 'Benvenuto in MINKIARDS!',
+    content: 'Questa è una partita di allenamento. Ti guiderò passo passo per imparare a giocare. Clicca "Avanti" per continuare.',
+  },
+  {
+    id: 'deck_overview',
+    trigger: 'game_start',
+    title: 'I Mazzi di Carte',
+    content: 'Hai 4 mazzi: PERSONAGGI (rosso), MOSSE (blu), BONUS (verde) e SPECIALI (viola). Ogni mazzo ha un ruolo diverso nel gioco.',
+  },
+  {
+    id: 'draw_card',
+    trigger: 'game_start',
+    title: 'Pescare le Carte',
+    content: 'Clicca su un mazzo per pescare una carta. Inizia pescando una carta PERSONAGGI - sono i tuoi combattenti!',
+  },
+  {
+    id: 'play_character',
+    trigger: 'card_drawn',
+    title: 'Giocare un Personaggio',
+    content: 'Ottimo! Hai pescato una carta. Ora clicca sulla carta nella tua mano e poi su uno slot vuoto del campo per posizionarla.',
+  },
+  {
+    id: 'character_stats',
+    trigger: 'character_played',
+    title: 'Statistiche Personaggio',
+    content: 'Ogni personaggio ha PTI (punti vita) e Stelle (potenza). Quando i PTI arrivano a 0, il personaggio muore.',
+  },
+  {
+    id: 'mosse_attack',
+    trigger: 'character_played',
+    title: 'Usare le MOSSE',
+    content: 'Pesca una carta MOSSE per attaccare! Seleziona la MOSSA, poi il tuo personaggio, infine il bersaglio nemico.',
+  },
+  {
+    id: 'bonus_cards',
+    trigger: 'mosse_played',
+    title: 'Carte BONUS',
+    content: 'Le carte BONUS potenziano i tuoi personaggi! Pesca una BONUS e applicala a un tuo personaggio sul campo.',
+  },
+  {
+    id: 'turn_end',
+    trigger: 'bonus_played',
+    title: 'Fine Turno',
+    content: 'Puoi giocare più carte per turno. Quando hai finito, il turno passerà automaticamente o puoi passarlo manualmente.',
+  },
+  {
+    id: 'win_condition',
+    trigger: 'turn_ended',
+    title: 'Come Vincere',
+    content: 'Vinci eliminando tutti i personaggi nemici o facendo scendere i punti vita dell\'avversario a 0. Buon divertimento!',
+  },
+];
 
 export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }: TrainingModeProps) {
   const [gameStarted, setGameStarted] = useState(false);
@@ -38,10 +93,29 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
   const [cpuName, setCpuName] = useState<string | null>(null);
   const [addingCpu, setAddingCpu] = useState(false);
   const [trainingGameId, setTrainingGameId] = useState<string | null>(null);
+  const [tutorialStep, setTutorialStep] = useState(0);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [completedTutorialSteps, setCompletedTutorialSteps] = useState<Set<string>>(new Set());
   const { setGameId, setPlayerName, generateSessionId, gameId } = useGameState();
 
   useEffect(() => {
-    setIsAdmin(userEmail === ADMIN_EMAIL);
+    const checkAdminStatus = async () => {
+      try {
+        const authToken = localStorage.getItem('authToken');
+        if (authToken) {
+          const res = await fetch('/api/profile', {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setIsAdmin(data.user?.isAdmin || false);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+      }
+    };
+    checkAdminStatus();
     
     const fetchTips = async () => {
       try {
@@ -78,6 +152,12 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
     });
     
     setGameStarted(true);
+    
+    // Start tutorial after a short delay
+    setTimeout(() => {
+      setShowTutorial(true);
+      setTutorialStep(0);
+    }, 1500);
   }, [playerName, avatarId, userId, setGameId, setPlayerName, generateSessionId]);
 
   const addCpuPlayer = useCallback(() => {
@@ -136,6 +216,75 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
       socket.off('card-played', handleCardPlayed);
     };
   }, [gameStarted, trainingGameId, gameId, allTips]);
+
+  // Generic tutorial progression handler
+  const advanceTutorialForTrigger = useCallback((trigger: string) => {
+    setCompletedTutorialSteps(prev => {
+      const updated = new Set([...Array.from(prev), trigger]);
+      
+      // Find next uncompleted step for this trigger
+      const nextStep = TUTORIAL_STEPS.findIndex(s => s.trigger === trigger && !prev.has(s.id));
+      if (nextStep !== -1) {
+        setTimeout(() => {
+          setTutorialStep(nextStep);
+          setShowTutorial(true);
+        }, 500);
+      }
+      
+      return updated;
+    });
+  }, []);
+
+  // Tutorial progression based on game events
+  useEffect(() => {
+    if (!gameStarted || !trainingGameId) return;
+
+    const handleCardDrawn = () => advanceTutorialForTrigger('card_drawn');
+    const handleCharacterPlayed = () => advanceTutorialForTrigger('character_played');
+    const handleMossePlayed = () => advanceTutorialForTrigger('mosse_played');
+    const handleBonusPlayed = () => advanceTutorialForTrigger('bonus_played');
+    const handleTurnEnded = () => advanceTutorialForTrigger('turn_ended');
+
+    socket.on('card-picked', handleCardDrawn);
+    socket.on('character-placed', handleCharacterPlayed);
+    socket.on('mosse-applied', handleMossePlayed);
+    socket.on('bonus-applied', handleBonusPlayed);
+    socket.on('turn-changed', handleTurnEnded);
+    
+    return () => {
+      socket.off('card-picked', handleCardDrawn);
+      socket.off('character-placed', handleCharacterPlayed);
+      socket.off('mosse-applied', handleMossePlayed);
+      socket.off('bonus-applied', handleBonusPlayed);
+      socket.off('turn-changed', handleTurnEnded);
+    };
+  }, [gameStarted, trainingGameId, advanceTutorialForTrigger]);
+
+  const handleNextTutorialStep = () => {
+    const currentStepId = TUTORIAL_STEPS[tutorialStep]?.id;
+    if (currentStepId) {
+      setCompletedTutorialSteps(prev => new Set([...Array.from(prev), currentStepId]));
+    }
+    
+    if (tutorialStep < TUTORIAL_STEPS.length - 1) {
+      const nextStep = tutorialStep + 1;
+      const nextTrigger = TUTORIAL_STEPS[nextStep]?.trigger;
+      
+      // If next step has same trigger, show it immediately
+      if (nextTrigger === TUTORIAL_STEPS[tutorialStep]?.trigger) {
+        setTutorialStep(nextStep);
+      } else {
+        setShowTutorial(false);
+      }
+    } else {
+      setShowTutorial(false);
+    }
+  };
+
+  const handleSkipTutorial = () => {
+    setShowTutorial(false);
+    setCompletedTutorialSteps(new Set(TUTORIAL_STEPS.map(s => s.id)));
+  };
 
   const handleSaveTip = async () => {
     if (!currentTip) return;
@@ -376,6 +525,53 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
         <div className="fixed top-4 right-4 z-50 px-4 py-2 bg-green-500/90 text-white rounded-xl font-medium backdrop-blur-sm flex items-center gap-2">
           <Bot className="w-5 h-5" />
           {cpuName} aggiunto!
+        </div>
+      )}
+
+      {/* Tutorial Modal */}
+      {showTutorial && TUTORIAL_STEPS[tutorialStep] && (
+        <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-50 p-4 pb-32">
+          <div className="bg-gradient-to-br from-blue-900 to-indigo-900 rounded-2xl max-w-lg w-full p-6 border border-blue-500/30 shadow-2xl animate-in slide-in-from-bottom-4 duration-300">
+            <div className="flex items-start gap-4 mb-4">
+              <div className="w-14 h-14 rounded-xl bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                <Lightbulb className="w-7 h-7 text-blue-400" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-white">{TUTORIAL_STEPS[tutorialStep].title}</h3>
+                  <span className="text-blue-400 text-sm">{tutorialStep + 1}/{TUTORIAL_STEPS.length}</span>
+                </div>
+                <p className="text-blue-200 mt-2 leading-relaxed">{TUTORIAL_STEPS[tutorialStep].content}</p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={handleSkipTutorial}
+                className="px-4 py-2 text-blue-400 hover:text-white hover:bg-blue-800/50 rounded-xl font-medium transition-colors"
+              >
+                Salta Tutorial
+              </button>
+              <button
+                onClick={handleNextTutorialStep}
+                className="flex-1 px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors"
+              >
+                {tutorialStep < TUTORIAL_STEPS.length - 1 ? 'Avanti' : 'Fine Tutorial'}
+              </button>
+            </div>
+            
+            {/* Progress dots */}
+            <div className="flex justify-center gap-1.5 mt-4">
+              {TUTORIAL_STEPS.slice(0, 9).map((_, idx) => (
+                <div
+                  key={idx}
+                  className={`w-2 h-2 rounded-full transition-colors ${
+                    idx === tutorialStep ? 'bg-blue-400' : idx < tutorialStep ? 'bg-blue-600' : 'bg-blue-800'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       )}
 

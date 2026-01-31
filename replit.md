@@ -34,6 +34,15 @@ Game state is managed on both client and server, with the server as the authorit
 ## CPU Player Intelligence
 CPU players incorporate advanced AI for strategic decision-making, understanding complete MINKIARDS rules, including card analysis, combat calculations, power economics, and turn restrictions. They communicate actions in Italian and adapt to player input.
 
+## Training Mode Tutorial System
+A step-by-step tutorial guides new players through the basics of MINKIARDS:
+- **9 Progressive Steps**: Covers game introduction, deck overview, card drawing, playing characters, stats explanation, using MOSSE, BONUS cards, turn management, and win conditions
+- **Event-Based Triggers**: Steps advance automatically based on game events (card_drawn, character_played, mosse_played, bonus_played, turn_ended)
+- **Socket Events**: Listens to card-picked, character-placed, mosse-applied, bonus-applied, turn-changed
+- **Skip Functionality**: Players can skip the entire tutorial at any time
+- **Progress Indicator**: Visual dots show completion progress through all 9 steps
+- **Automatic Start**: Tutorial begins 1.5 seconds after training game starts
+
 ## User Authentication
 The system supports email/password and Google OAuth authentication. Passwords are bcrypt-hashed, and JWT tokens (7-day expiry) secure authenticated endpoints.
 

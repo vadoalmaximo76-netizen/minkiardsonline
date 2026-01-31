@@ -8198,9 +8198,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   app.post('/api/training-tips', authMiddleware, async (req, res) => {
     try {
       const user = (req as any).user;
-      const ADMIN_EMAIL = 'lucaforte94@gmail.com';
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
       
-      if (user.email !== ADMIN_EMAIL) {
+      if (!currentUser.length || !currentUser[0].isAdmin) {
         return res.status(403).json({ error: 'Admin access required' });
       }
       
@@ -8223,9 +8223,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   app.put('/api/training-tips/:id', authMiddleware, async (req, res) => {
     try {
       const user = (req as any).user;
-      const ADMIN_EMAIL = 'lucaforte94@gmail.com';
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
       
-      if (user.email !== ADMIN_EMAIL) {
+      if (!currentUser.length || !currentUser[0].isAdmin) {
         return res.status(403).json({ error: 'Admin access required' });
       }
       
@@ -8247,9 +8247,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   app.delete('/api/training-tips/:id', authMiddleware, async (req, res) => {
     try {
       const user = (req as any).user;
-      const ADMIN_EMAIL = 'lucaforte94@gmail.com';
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
       
-      if (user.email !== ADMIN_EMAIL) {
+      if (!currentUser.length || !currentUser[0].isAdmin) {
         return res.status(403).json({ error: 'Admin access required' });
       }
       
