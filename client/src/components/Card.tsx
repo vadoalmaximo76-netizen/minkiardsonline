@@ -1020,20 +1020,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         <div className="h-6 sm:h-7"></div>
       )}
 
-      {/* SCEGLI SKIN button for cards on field (owned by player) */}
-      {location === 'field' && isOwner && !card.faceDown && (
-        <div className="flex flex-col gap-1 mt-1">
-          <Button
-            onClick={() => setShowSkinPanel(true)}
-            className="bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs px-2 py-1"
-            size="sm"
-          >
-            <Palette className="w-3 h-3 mr-1 inline" />
-            SKIN
-          </Button>
-        </div>
-      )}
-
+      
       {/* Super Dice button for MINKIARD N 300 card on field */}
       {location === 'field' && isMinkiard300 && !card.faceDown && (
         <div className="flex flex-col gap-1">

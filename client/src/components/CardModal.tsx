@@ -2,8 +2,9 @@ import React, { useState } from "react";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
-import { X, Sword, Plus, Sparkles } from "lucide-react";
+import { X, Sword, Plus, Sparkles, Palette } from "lucide-react";
 import { CARD_DATA } from "../lib/cardData";
+import { SkinSelectionPanel } from "./SkinSelectionPanel";
 
 export const CardModal: React.FC = () => {
   const [showPlayerSelect, setShowPlayerSelect] = useState(false);
@@ -20,6 +21,8 @@ export const CardModal: React.FC = () => {
   const [showAddPRPanel, setShowAddPRPanel] = useState(false);
   const [prToAdd, setPrToAdd] = useState('');
   const [showPowerSelect, setShowPowerSelect] = useState(false);
+  const [showSkinPanel, setShowSkinPanel] = useState(false);
+  const [appliedSkinUrl, setAppliedSkinUrl] = useState<string | null>(null);
   const { selectedCard, setSelectedCard, playerName, gameState, gameId, setSelectedMosseCard, userRankiardPoints, prSpentThisGame, addPRSpent, setHandModalOpen } = useGameState();
   
   // Calculate available Rankiard points (total from authenticated user minus spent this game)
@@ -347,6 +350,16 @@ export const CardModal: React.FC = () => {
     setPrToAdd('');
   };
 
+  // Handler for skin selection
+  const handleSkinSelect = (skinImageUrl: string | null, skinId: number | null, rarity: string) => {
+    if (skinImageUrl) {
+      setAppliedSkinUrl(skinImageUrl);
+    } else {
+      setAppliedSkinUrl(null);
+    }
+    setShowSkinPanel(false);
+  };
+
   // Get PERSONAGGI cards from other players in the field
   const getOtherPlayersPersonaggiCards = () => {
     if (!gameState?.field) return [];
@@ -609,6 +622,17 @@ export const CardModal: React.FC = () => {
                       <Sparkles size={14} />
                       POTERI
                     </Button>
+
+                    {/* SKIN button - apply cosmetic skin to card */}
+                    {isOwner && (
+                      <Button
+                        onClick={() => setShowSkinPanel(true)}
+                        className="aspect-square bg-violet-600 hover:bg-violet-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
+                      >
+                        <Palette size={14} />
+                        SKIN
+                      </Button>
+                    )}
 
                     {/* SUPER DADO button - only for MINKIARD N 300 */}
                     {isMinkiard300 && (
@@ -1221,6 +1245,19 @@ export const CardModal: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Skin Selection Panel */}
+      {selectedCard && (
+        <SkinSelectionPanel
+          isOpen={showSkinPanel}
+          onClose={() => setShowSkinPanel(false)}
+          cardName={cardName}
+          cardId={selectedCard.id}
+          currentImage={selectedCard.frontImage}
+          onSkinSelect={handleSkinSelect}
+          authToken={localStorage.getItem('authToken')}
+        />
       )}
     </div>
   );
