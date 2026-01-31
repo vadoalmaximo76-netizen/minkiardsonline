@@ -524,6 +524,11 @@ function App() {
           authenticatedUser={authenticatedUser}
           onLogout={handleLogout}
           authToken={localStorage.getItem('authToken')}
+          onBack={() => {
+            setCurrentSection('home');
+            setGameId('');
+            window.history.pushState(null, '', window.location.origin);
+          }}
         />
       </div>
     </QueryClientProvider>

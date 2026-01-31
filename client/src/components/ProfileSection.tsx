@@ -17,6 +17,11 @@ interface UserStats {
   gamesWon: number;
   totalPlayTime: number;
   rank: number;
+  totalPlayers: number;
+  completedMissions: number;
+  totalMissions: number;
+  completedAchievements: number;
+  totalAchievements: number;
   achievements: Array<{ id: number; name: string; description: string; unlockedAt: string }>;
   friends: Array<{ id: number; username: string; avatar: string | null; online: boolean }>;
 }
@@ -42,46 +47,40 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
         const authToken = localStorage.getItem('authToken');
         if (!authToken) return;
 
-        const [meRes, statsRes, friendsRes] = await Promise.all([
-          fetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${authToken}` } }),
-          fetch(`/api/user-stats/${userId}`, { headers: { 'Authorization': `Bearer ${authToken}` } }),
+        const [profileRes, friendsRes] = await Promise.all([
+          fetch('/api/profile', { headers: { 'Authorization': `Bearer ${authToken}` } }),
           fetch('/api/friends', { headers: { 'Authorization': `Bearer ${authToken}` } })
         ]);
 
-        let userData = null;
-        let statsData = { gamesPlayed: 0, gamesWon: 0, totalPlayTime: 0 };
+        let profileData = null;
         let friendsData: UserStats['friends'] = [];
 
-        if (meRes.ok) {
-          const data = await meRes.json();
-          userData = data.user;
-        }
-
-        if (statsRes.ok) {
-          statsData = await statsRes.json();
+        if (profileRes.ok) {
+          const data = await profileRes.json();
+          profileData = data.profile;
         }
 
         if (friendsRes.ok) {
-          friendsData = await friendsRes.json();
+          const data = await friendsRes.json();
+          friendsData = data.friends || [];
         }
 
-        const rankRes = await fetch('/api/leaderboard', { headers: { 'Authorization': `Bearer ${authToken}` } });
-        let rank = 0;
-        if (rankRes.ok) {
-          const leaderboard = await rankRes.json();
-          const userIndex = leaderboard.findIndex((u: any) => u.id === userId);
-          rank = userIndex >= 0 ? userIndex + 1 : 0;
+        if (profileData) {
+          setStats({
+            puntiRankiard: profileData.user?.puntiRankiard || 0,
+            gamesPlayed: profileData.user?.gamesPlayed || 0,
+            gamesWon: profileData.user?.gamesWon || 0,
+            totalPlayTime: profileData.user?.minutesPlayed || 0,
+            rank: profileData.rank || 0,
+            totalPlayers: profileData.totalPlayers || 0,
+            completedMissions: profileData.completedMissions || 0,
+            totalMissions: profileData.totalMissions || 0,
+            completedAchievements: profileData.completedAchievements || 0,
+            totalAchievements: profileData.totalAchievements || 0,
+            achievements: [],
+            friends: friendsData
+          });
         }
-
-        setStats({
-          puntiRankiard: userData?.puntiRankiard || 0,
-          gamesPlayed: statsData.gamesPlayed || userData?.gamesPlayed || 0,
-          gamesWon: statsData.gamesWon || userData?.gamesWon || 0,
-          totalPlayTime: statsData.totalPlayTime || 0,
-          rank,
-          achievements: [],
-          friends: friendsData
-        });
       } catch (error) {
         console.error('Error fetching stats:', error);
       } finally {
@@ -314,6 +313,26 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
                 <TrendingUp className="w-8 h-8 text-blue-400 mx-auto mb-2" />
                 <p className="text-3xl font-bold text-white">{winRate}%</p>
                 <p className="text-slate-400 text-sm">Win Rate</p>
+              </div>
+            </div>
+
+            {/* Rank and Progress */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-slate-800/50 rounded-2xl p-5 border border-white/10 text-center">
+                <Award className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
+                <p className="text-3xl font-bold text-white">#{stats?.rank || '-'}</p>
+                <p className="text-slate-400 text-sm">Posizione Classifica</p>
+                <p className="text-xs text-slate-500 mt-1">su {stats?.totalPlayers || 0} giocatori</p>
+              </div>
+              <div className="bg-slate-800/50 rounded-2xl p-5 border border-white/10 text-center">
+                <Target className="w-8 h-8 text-orange-400 mx-auto mb-2" />
+                <p className="text-3xl font-bold text-white">{stats?.completedMissions || 0}/{stats?.totalMissions || 0}</p>
+                <p className="text-slate-400 text-sm">Missioni Completate</p>
+              </div>
+              <div className="bg-slate-800/50 rounded-2xl p-5 border border-white/10 text-center">
+                <Trophy className="w-8 h-8 text-pink-400 mx-auto mb-2" />
+                <p className="text-3xl font-bold text-white">{stats?.completedAchievements || 0}/{stats?.totalAchievements || 0}</p>
+                <p className="text-slate-400 text-sm">Achievements</p>
               </div>
             </div>
 

@@ -62,9 +62,10 @@ interface GameBoardProps {
   onLogout?: () => void;
   authToken?: string | null;
   isTrainingMode?: boolean;
+  onBack?: () => void;
 }
 
-export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogout, authToken }) => {
+export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogout, authToken, onBack }) => {
   const [chatOpen, setChatOpen] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [musicPlayerOpen, setMusicPlayerOpen] = useState(false);
@@ -1426,6 +1427,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           backgroundImage: 'url(https://files.123freevectors.com/wp-content/original/113342-royal-blue-blurred-background-vector.jpg)'
         }}
       />
+
+      {/* Back to Home button */}
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="fixed top-4 left-4 z-40 px-4 py-2 bg-slate-800/90 hover:bg-slate-700 rounded-xl text-white font-medium transition-colors backdrop-blur-sm flex items-center gap-2"
+        >
+          ← Indietro
+        </button>
+      )}
 
       {/* Portrait mode message - only show on mobile portrait if not dismissed */}
       {showRotationWarning && (
