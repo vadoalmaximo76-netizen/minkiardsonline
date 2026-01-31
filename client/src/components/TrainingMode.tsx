@@ -218,24 +218,37 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
 
   if (!gameStarted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-emerald-900/10 to-slate-900 flex flex-col items-center justify-center p-4">
-        <div className="max-w-lg w-full text-center">
+      <div className="min-h-screen bg-arena-deep flex flex-col items-center justify-center p-4 relative overflow-hidden">
+        {/* Same background as home page */}
+        <div 
+          className="fixed inset-0 bg-cover bg-center opacity-50"
+          style={{
+            backgroundImage: 'url(https://files.123freevectors.com/wp-content/original/113342-royal-blue-blurred-background-vector.jpg)'
+          }}
+        />
+        {/* Animated background elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-600/10 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-teal-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        </div>
+        
+        <div className="max-w-lg w-full text-center relative z-10">
           <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-emerald-500/30">
             <Lightbulb className="w-12 h-12 text-white" />
           </div>
           
-          <h1 className="text-4xl font-bold text-white mb-4">Modalità Allenamento</h1>
-          <p className="text-slate-400 text-lg mb-8">
+          <h1 className="text-4xl font-bold text-white mb-4 drop-shadow-lg">Modalità Allenamento</h1>
+          <p className="text-white/80 text-lg mb-8 font-medium">
             Impara a giocare a MINKIARDS contro un avversario CPU. 
             Riceverai suggerimenti e spiegazioni mentre giochi.
           </p>
           
-          <div className="bg-slate-800/50 rounded-2xl p-6 mb-8 text-left border border-emerald-500/20">
+          <div className="bg-slate-900/70 backdrop-blur-sm rounded-2xl p-6 mb-8 text-left border border-emerald-500/30 shadow-xl">
             <h3 className="text-emerald-400 font-semibold mb-3 flex items-center gap-2">
               <Lightbulb className="w-5 h-5" />
               Cosa imparerai:
             </h3>
-            <ul className="space-y-2 text-slate-300">
+            <ul className="space-y-2 text-white/90">
               <li>• Come funzionano le carte PERSONAGGI</li>
               <li>• Come usare le carte MOSSE per attaccare</li>
               <li>• Come applicare le carte BONUS ai personaggi</li>

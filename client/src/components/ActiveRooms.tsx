@@ -99,19 +99,32 @@ export function ActiveRooms({ playerName, userId, avatarId, onBack, onJoinRoom, 
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-amber-900/10 to-slate-900 p-4 md:p-8">
+    <div className="min-h-screen bg-arena-deep p-4 md:p-8 relative overflow-hidden">
+      {/* Same background as home page */}
+      <div 
+        className="fixed inset-0 bg-cover bg-center opacity-50"
+        style={{
+          backgroundImage: 'url(https://files.123freevectors.com/wp-content/original/113342-royal-blue-blurred-background-vector.jpg)'
+        }}
+      />
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-amber-600/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-orange-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+      </div>
+      
       {/* Header */}
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto relative z-10">
         <div className="flex items-center gap-4 mb-8">
           <button
             onClick={onBack}
-            className="p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
+            className="p-3 rounded-xl bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-sm border border-white/10"
           >
             <ArrowLeft className="w-6 h-6 text-white" />
           </button>
           <div>
-            <h1 className="text-3xl font-bold text-white">Stanze di Gioco Attive</h1>
-            <p className="text-slate-400">Trova una partita e unisciti</p>
+            <h1 className="text-3xl font-bold text-white drop-shadow-lg">Stanze di Gioco Attive</h1>
+            <p className="text-white/80 font-medium">Trova una partita e unisciti</p>
           </div>
           <button
             onClick={fetchRooms}
@@ -125,13 +138,13 @@ export function ActiveRooms({ playerName, userId, avatarId, onBack, onJoinRoom, 
         {loading && rooms.length === 0 ? (
           <div className="text-center py-20">
             <div className="w-16 h-16 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-slate-400">Caricamento stanze...</p>
+            <p className="text-white/80 font-medium">Caricamento stanze...</p>
           </div>
         ) : rooms.length === 0 ? (
-          <div className="text-center py-20 bg-white/5 rounded-3xl border border-white/10">
-            <Users className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">Nessuna stanza attiva</h3>
-            <p className="text-slate-400 mb-6">Non ci sono partite in corso al momento</p>
+          <div className="text-center py-20 bg-slate-900/70 backdrop-blur-sm rounded-3xl border border-white/20 shadow-lg">
+            <Users className="w-16 h-16 text-white/50 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2 drop-shadow-lg">Nessuna stanza attiva</h3>
+            <p className="text-white/70 mb-6 font-medium">Non ci sono partite in corso al momento</p>
             <button
               onClick={onBack}
               className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium transition-colors"
@@ -144,7 +157,7 @@ export function ActiveRooms({ playerName, userId, avatarId, onBack, onJoinRoom, 
             {rooms.map((room) => (
               <div
                 key={room.gameId}
-                className="bg-gradient-to-r from-slate-800/80 to-slate-700/50 rounded-2xl p-6 border border-white/10 hover:border-amber-500/30 transition-all"
+                className="bg-slate-900/70 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:border-amber-500/30 transition-all shadow-lg"
               >
                 <div className="flex items-center justify-between flex-wrap gap-4">
                   <div className="flex items-center gap-4">
@@ -164,18 +177,18 @@ export function ActiveRooms({ playerName, userId, avatarId, onBack, onJoinRoom, 
                           <Unlock className="w-4 h-4 text-green-400" />
                         )}
                       </div>
-                      <p className="text-slate-400 text-sm">
+                      <p className="text-white/60 text-sm">
                         Creata da <span className="text-white">{room.creatorName}</span>
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-2 text-slate-300">
+                    <div className="flex items-center gap-2 text-white/80">
                       <Users className="w-5 h-5" />
                       <span className="font-medium">{room.playerCount}/{room.maxPlayers}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-slate-400 text-sm">
+                    <div className="flex items-center gap-2 text-white/60 text-sm">
                       <Clock className="w-4 h-4" />
                       <span>{getTimeAgo(room.createdAt)}</span>
                     </div>
@@ -191,7 +204,7 @@ export function ActiveRooms({ playerName, userId, avatarId, onBack, onJoinRoom, 
 
                 {/* Players preview */}
                 <div className="mt-4 flex items-center gap-2">
-                  <span className="text-slate-500 text-sm">Giocatori:</span>
+                  <span className="text-white/60 text-sm">Giocatori:</span>
                   <div className="flex -space-x-2">
                     {room.players.slice(0, 5).map((player, idx) => (
                       <div
@@ -203,7 +216,7 @@ export function ActiveRooms({ playerName, userId, avatarId, onBack, onJoinRoom, 
                       </div>
                     ))}
                     {room.players.length > 5 && (
-                      <div className="w-8 h-8 rounded-full bg-slate-700 border-2 border-slate-800 flex items-center justify-center text-slate-300 text-xs">
+                      <div className="w-8 h-8 rounded-full bg-slate-700 border-2 border-slate-800 flex items-center justify-center text-white/80 text-xs">
                         +{room.players.length - 5}
                       </div>
                     )}

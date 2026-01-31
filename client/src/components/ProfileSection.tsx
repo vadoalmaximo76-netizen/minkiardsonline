@@ -203,19 +203,32 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
   const winRate = stats ? (stats.gamesPlayed > 0 ? Math.round((stats.gamesWon / stats.gamesPlayed) * 100) : 0) : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900/10 to-slate-900 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-arena-deep p-4 md:p-8 relative overflow-hidden">
+      {/* Same background as home page */}
+      <div 
+        className="fixed inset-0 bg-cover bg-center opacity-50"
+        style={{
+          backgroundImage: 'url(https://files.123freevectors.com/wp-content/original/113342-royal-blue-blurred-background-vector.jpg)'
+        }}
+      />
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+      </div>
+      
+      <div className="max-w-4xl mx-auto relative z-10">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <button
             onClick={onBack}
-            className="p-3 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
+            className="p-3 rounded-xl bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-sm border border-white/10"
           >
             <ArrowLeft className="w-6 h-6 text-white" />
           </button>
           <div>
-            <h1 className="text-3xl font-bold text-white">Il Mio Profilo</h1>
-            <p className="text-slate-400">Gestisci il tuo account e visualizza le statistiche</p>
+            <h1 className="text-3xl font-bold text-white drop-shadow-lg">Il Mio Profilo</h1>
+            <p className="text-white/80 font-medium">Gestisci il tuo account e visualizza le statistiche</p>
           </div>
         </div>
 
@@ -232,7 +245,7 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
         {loading ? (
           <div className="text-center py-20">
             <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-slate-400">Caricamento profilo...</p>
+            <p className="text-white/80 font-medium">Caricamento profilo...</p>
           </div>
         ) : (
           <div className="grid gap-6">
@@ -264,7 +277,7 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
                   ) : (
                     <h2 className="text-2xl font-bold text-white">{playerName}</h2>
                   )}
-                  <p className="text-slate-400">{userEmail || 'Email non impostata'}</p>
+                  <p className="text-white/70">{userEmail || 'Email non impostata'}</p>
                   
                   {stats && stats.rank > 0 && (
                     <div className="mt-2 flex items-center gap-2">
@@ -308,56 +321,56 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-slate-800/50 rounded-2xl p-5 border border-white/10 text-center">
+              <div className="bg-slate-900/70 backdrop-blur-sm rounded-2xl p-5 border border-white/20 shadow-lg text-center">
                 <Star className="w-8 h-8 text-amber-400 mx-auto mb-2" />
                 <p className="text-3xl font-bold text-white">{stats?.puntiRankiard || 0}</p>
-                <p className="text-slate-400 text-sm">Punti Rankiard</p>
+                <p className="text-white/70 text-sm font-medium">Punti Rankiard</p>
               </div>
-              <div className="bg-slate-800/50 rounded-2xl p-5 border border-white/10 text-center">
+              <div className="bg-slate-900/70 backdrop-blur-sm rounded-2xl p-5 border border-white/20 shadow-lg text-center">
                 <Gamepad2 className="w-8 h-8 text-purple-400 mx-auto mb-2" />
                 <p className="text-3xl font-bold text-white">{stats?.gamesPlayed || 0}</p>
-                <p className="text-slate-400 text-sm">Partite Giocate</p>
+                <p className="text-white/70 text-sm font-medium">Partite Giocate</p>
               </div>
-              <div className="bg-slate-800/50 rounded-2xl p-5 border border-white/10 text-center">
+              <div className="bg-slate-900/70 backdrop-blur-sm rounded-2xl p-5 border border-white/20 shadow-lg text-center">
                 <Trophy className="w-8 h-8 text-green-400 mx-auto mb-2" />
                 <p className="text-3xl font-bold text-white">{stats?.gamesWon || 0}</p>
-                <p className="text-slate-400 text-sm">Vittorie</p>
+                <p className="text-white/70 text-sm font-medium">Vittorie</p>
               </div>
-              <div className="bg-slate-800/50 rounded-2xl p-5 border border-white/10 text-center">
+              <div className="bg-slate-900/70 backdrop-blur-sm rounded-2xl p-5 border border-white/20 shadow-lg text-center">
                 <TrendingUp className="w-8 h-8 text-blue-400 mx-auto mb-2" />
                 <p className="text-3xl font-bold text-white">{winRate}%</p>
-                <p className="text-slate-400 text-sm">Win Rate</p>
+                <p className="text-white/70 text-sm font-medium">Win Rate</p>
               </div>
             </div>
 
             {/* Rank and Progress */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-slate-800/50 rounded-2xl p-5 border border-white/10 text-center">
+              <div className="bg-slate-900/70 backdrop-blur-sm rounded-2xl p-5 border border-white/20 shadow-lg text-center">
                 <Award className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
                 <p className="text-3xl font-bold text-white">#{stats?.rank || '-'}</p>
-                <p className="text-slate-400 text-sm">Posizione Classifica</p>
+                <p className="text-white/70 text-sm font-medium">Posizione Classifica</p>
                 <p className="text-xs text-slate-500 mt-1">su {stats?.totalPlayers || 0} giocatori</p>
               </div>
-              <div className="bg-slate-800/50 rounded-2xl p-5 border border-white/10 text-center">
+              <div className="bg-slate-900/70 backdrop-blur-sm rounded-2xl p-5 border border-white/20 shadow-lg text-center">
                 <Target className="w-8 h-8 text-orange-400 mx-auto mb-2" />
                 <p className="text-3xl font-bold text-white">{stats?.completedMissions || 0}/{stats?.totalMissions || 0}</p>
-                <p className="text-slate-400 text-sm">Missioni Completate</p>
+                <p className="text-white/70 text-sm font-medium">Missioni Completate</p>
               </div>
-              <div className="bg-slate-800/50 rounded-2xl p-5 border border-white/10 text-center">
+              <div className="bg-slate-900/70 backdrop-blur-sm rounded-2xl p-5 border border-white/20 shadow-lg text-center">
                 <Trophy className="w-8 h-8 text-pink-400 mx-auto mb-2" />
                 <p className="text-3xl font-bold text-white">{stats?.completedAchievements || 0}/{stats?.totalAchievements || 0}</p>
-                <p className="text-slate-400 text-sm">Achievements</p>
+                <p className="text-white/70 text-sm font-medium">Achievements</p>
               </div>
             </div>
 
             {/* Play Time */}
-            <div className="bg-slate-800/50 rounded-2xl p-5 border border-white/10">
+            <div className="bg-slate-900/70 backdrop-blur-sm rounded-2xl p-5 border border-white/20 shadow-lg">
               <div className="flex items-center gap-3 mb-4">
                 <Clock className="w-6 h-6 text-cyan-400" />
                 <h3 className="text-lg font-semibold text-white">Tempo di Gioco</h3>
               </div>
               <p className="text-3xl font-bold text-white">{formatPlayTime(stats?.totalPlayTime || 0)}</p>
-              <p className="text-slate-400">Tempo totale trascorso a giocare</p>
+              <p className="text-white/70">Tempo totale trascorso a giocare</p>
             </div>
 
             {/* Clan */}
@@ -367,7 +380,7 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
                   <Shield className="w-6 h-6 text-purple-400" />
                   <div>
                     <h3 className="text-lg font-semibold text-white">Il Mio Clan</h3>
-                    <p className="text-slate-400 text-sm">Unisciti a un clan per competere insieme</p>
+                    <p className="text-white/70 text-sm font-medium">Unisciti a un clan per competere insieme</p>
                   </div>
                 </div>
                 <button
@@ -386,7 +399,7 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
                   <Palette className="w-6 h-6 text-violet-400" />
                   <div>
                     <h3 className="text-lg font-semibold text-white">Skin Carte</h3>
-                    <p className="text-slate-400 text-sm">Personalizza le tue carte</p>
+                    <p className="text-white/70 text-sm font-medium">Personalizza le tue carte</p>
                   </div>
                 </div>
                 <button
@@ -401,7 +414,7 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
                   <Crown className="w-6 h-6 text-amber-400" />
                   <div>
                     <h3 className="text-lg font-semibold text-white">Pass Stagionale</h3>
-                    <p className="text-slate-400 text-sm">Sblocca ricompense esclusive</p>
+                    <p className="text-white/70 text-sm font-medium">Sblocca ricompense esclusive</p>
                   </div>
                 </div>
                 <button
@@ -417,7 +430,7 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
                     <Settings className="w-6 h-6 text-red-400" />
                     <div>
                       <h3 className="text-lg font-semibold text-white">Pannello Admin</h3>
-                      <p className="text-slate-400 text-sm">Gestisci contenuti del gioco</p>
+                      <p className="text-white/70 text-sm font-medium">Gestisci contenuti del gioco</p>
                     </div>
                   </div>
                   <div className="grid gap-2">
@@ -446,7 +459,7 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
 
             {/* Friends */}
             {stats && stats.friends.length > 0 && (
-              <div className="bg-slate-800/50 rounded-2xl p-5 border border-white/10">
+              <div className="bg-slate-900/70 backdrop-blur-sm rounded-2xl p-5 border border-white/20 shadow-lg">
                 <div className="flex items-center gap-3 mb-4">
                   <Users className="w-6 h-6 text-pink-400" />
                   <h3 className="text-lg font-semibold text-white">Amici ({stats.friends.length})</h3>
@@ -466,7 +479,7 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
             )}
 
             {/* Account Settings */}
-            <div className="bg-slate-800/50 rounded-2xl p-5 border border-white/10">
+            <div className="bg-slate-900/70 backdrop-blur-sm rounded-2xl p-5 border border-white/20 shadow-lg">
               <h3 className="text-lg font-semibold text-white mb-4">Impostazioni Account</h3>
               <div className="grid gap-3">
                 <button
@@ -476,7 +489,7 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
                   <Key className="w-5 h-5 text-amber-400" />
                   <div>
                     <p className="text-white font-medium">Cambia Password</p>
-                    <p className="text-slate-400 text-sm">Modifica la password del tuo account</p>
+                    <p className="text-white/70 text-sm font-medium">Modifica la password del tuo account</p>
                   </div>
                 </button>
                 <button
@@ -486,7 +499,7 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
                   <Mail className="w-5 h-5 text-blue-400" />
                   <div>
                     <p className="text-white font-medium">Email di Recupero</p>
-                    <p className="text-slate-400 text-sm">Imposta un'email per recuperare la password</p>
+                    <p className="text-white/70 text-sm font-medium">Imposta un'email per recuperare la password</p>
                   </div>
                 </button>
               </div>
@@ -541,7 +554,7 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
               </div>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-slate-400 text-sm mb-2">Password Attuale</label>
+                  <label className="block text-white/70 text-sm font-medium mb-2">Password Attuale</label>
                   <input
                     type="password"
                     value={currentPassword}
@@ -550,7 +563,7 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-400 text-sm mb-2">Nuova Password</label>
+                  <label className="block text-white/70 text-sm font-medium mb-2">Nuova Password</label>
                   <input
                     type="password"
                     value={newPassword}
@@ -559,7 +572,7 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-400 text-sm mb-2">Conferma Password</label>
+                  <label className="block text-white/70 text-sm font-medium mb-2">Conferma Password</label>
                   <input
                     type="password"
                     value={confirmPassword}
