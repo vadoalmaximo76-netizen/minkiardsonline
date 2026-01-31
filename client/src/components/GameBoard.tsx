@@ -41,6 +41,7 @@ import { AchievementsPanel } from "./AchievementsPanel";
 import { RankiardLeaderboard } from "./RankiardLeaderboard";
 import { ProfilePanel } from "./ProfilePanel";
 import { EmojiReactions } from "./EmojiReactions";
+import { JoinRequestDialog } from "./JoinRequestDialog";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
@@ -1419,6 +1420,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         onClose={() => setProfileOpen(false)}
         authToken={authToken || null}
         gameId={gameId || undefined}
+      />
+      
+      {/* Join Request Dialog for room creator */}
+      <JoinRequestDialog
+        isCreator={gameState?.turnOrder?.[0] === playerName}
+        gameId={gameId || ''}
       />
       
       {/* Background image */}

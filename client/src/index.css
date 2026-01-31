@@ -31,6 +31,21 @@
   animation: shake 0.5s ease-in-out 4;
 }
 
+@keyframes slideInRight {
+  0% {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.3s ease-out forwards;
+}
+
 /* CIMICE green splash explosion effect */
 @keyframes cimice-splash {
   0% {
