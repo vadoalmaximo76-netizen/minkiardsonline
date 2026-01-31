@@ -111,6 +111,22 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
     fetchUnreadCount();
   }, [userId]);
 
+  useEffect(() => {
+    if (!socket) return;
+    
+    const handleNewMessage = () => {
+      if (!showMessagesPanel) {
+        fetchUnreadCount();
+      }
+    };
+    
+    socket.on('new-private-message', handleNewMessage);
+    
+    return () => {
+      socket.off('new-private-message', handleNewMessage);
+    };
+  }, [socket, showMessagesPanel]);
+
   const fetchUnreadCount = async () => {
     try {
       const authToken = localStorage.getItem('authToken');

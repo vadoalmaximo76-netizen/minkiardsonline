@@ -163,6 +163,22 @@ Quick in-game communication with emoji reactions:
 - **Floating Animations**: Emojis float up with player name labels
 - **Integration**: EmojiReactions component in GameBoard
 
+## Private Messaging System
+Real-time private chat between players:
+- **Database Tables**: conversations, privateMessages, pushSubscriptions
+- **Features**: One-on-one messaging, user search, conversation list, unread counts
+- **Socket Events**: `new-private-message` for real-time message delivery
+- **PrivateMessagesPanel Component**: Full chat UI with message history, accessible from ProfileSection
+- **Unread Badge**: Shows unread message count in ProfileSection, updates in real-time via socket
+
+## Push Notification System
+Browser push notifications for important events:
+- **Service Worker**: `/sw.js` handles push events and displays notifications
+- **Web Push API**: Uses VAPID keys for secure push subscription
+- **NotificationSettings Component**: Enable/disable push notifications in ProfileSection
+- **Subscription Storage**: Push subscriptions stored in database linked to user
+- **Events**: New private messages, game invitations
+
 ## Clan/Guild System
 Organized groups of players:
 - **Database Tables**: clans, clanMembers, clanJoinRequests

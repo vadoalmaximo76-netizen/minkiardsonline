@@ -494,6 +494,7 @@ function App() {
           userId={authenticatedUser?.id}
           userEmail={authenticatedUser?.email}
           userAvatar={authenticatedUser?.avatar}
+          socket={socket}
           onBack={() => setCurrentSection('home')}
           onUpdateProfile={handleUpdateProfile}
         />
