@@ -6682,6 +6682,152 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     }
   });
 
+  // ============= ADMIN SEASONAL EVENTS ENDPOINTS =============
+
+  // Create a new seasonal event (admin only)
+  app.post('/api/admin/seasonal-events', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      
+      if (!currentUser.length || !currentUser[0].isAdmin) {
+        return res.status(403).json({ success: false, error: 'Admin access required' });
+      }
+
+      const { name, description, startDate, endDate, bannerImage, isActive } = req.body;
+
+      if (!name || !startDate || !endDate) {
+        return res.status(400).json({ success: false, error: 'Name, start date and end date are required' });
+      }
+
+      const newEvent = await db.insert(seasonalEvents).values({
+        name,
+        description: description || null,
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
+        bannerImage: bannerImage || null,
+        isActive: isActive !== false
+      }).returning();
+
+      res.json({ success: true, event: newEvent[0] });
+    } catch (error) {
+      console.error('Error creating seasonal event:', error);
+      res.status(500).json({ success: false, error: 'Failed to create event' });
+    }
+  });
+
+  // Update a seasonal event (admin only)
+  app.put('/api/admin/seasonal-events/:id', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const eventId = parseInt(req.params.id);
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      
+      if (!currentUser.length || !currentUser[0].isAdmin) {
+        return res.status(403).json({ success: false, error: 'Admin access required' });
+      }
+
+      const { name, description, startDate, endDate, bannerImage, isActive } = req.body;
+
+      const updated = await db.update(seasonalEvents)
+        .set({
+          name,
+          description: description || null,
+          startDate: new Date(startDate),
+          endDate: new Date(endDate),
+          bannerImage: bannerImage || null,
+          isActive: isActive !== false
+        })
+        .where(eq(seasonalEvents.id, eventId))
+        .returning();
+
+      if (!updated.length) {
+        return res.status(404).json({ success: false, error: 'Event not found' });
+      }
+
+      res.json({ success: true, event: updated[0] });
+    } catch (error) {
+      console.error('Error updating seasonal event:', error);
+      res.status(500).json({ success: false, error: 'Failed to update event' });
+    }
+  });
+
+  // Delete a seasonal event (admin only)
+  app.delete('/api/admin/seasonal-events/:id', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const eventId = parseInt(req.params.id);
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      
+      if (!currentUser.length || !currentUser[0].isAdmin) {
+        return res.status(403).json({ success: false, error: 'Admin access required' });
+      }
+
+      // Also delete associated seasonal cards
+      await db.delete(seasonalCards).where(eq(seasonalCards.eventId, eventId));
+      await db.delete(seasonalEvents).where(eq(seasonalEvents.id, eventId));
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting seasonal event:', error);
+      res.status(500).json({ success: false, error: 'Failed to delete event' });
+    }
+  });
+
+  // Add a card to a seasonal event (admin only)
+  app.post('/api/admin/seasonal-events/:id/cards', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const eventId = parseInt(req.params.id);
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      
+      if (!currentUser.length || !currentUser[0].isAdmin) {
+        return res.status(403).json({ success: false, error: 'Admin access required' });
+      }
+
+      const { name, deckType, imageUrl, pti, stars, effect, rarity } = req.body;
+
+      if (!name || !deckType) {
+        return res.status(400).json({ success: false, error: 'Name and deck type are required' });
+      }
+
+      const newCard = await db.insert(seasonalCards).values({
+        eventId,
+        name,
+        deckType,
+        imageUrl: imageUrl || null,
+        pti: pti || null,
+        stars: stars || null,
+        effect: effect || null,
+        rarity: rarity || 'rare'
+      }).returning();
+
+      res.json({ success: true, card: newCard[0] });
+    } catch (error) {
+      console.error('Error adding seasonal card:', error);
+      res.status(500).json({ success: false, error: 'Failed to add card' });
+    }
+  });
+
+  // Delete a seasonal card (admin only)
+  app.delete('/api/admin/seasonal-cards/:id', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const cardId = parseInt(req.params.id);
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      
+      if (!currentUser.length || !currentUser[0].isAdmin) {
+        return res.status(403).json({ success: false, error: 'Admin access required' });
+      }
+
+      await db.delete(seasonalCards).where(eq(seasonalCards.id, cardId));
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting seasonal card:', error);
+      res.status(500).json({ success: false, error: 'Failed to delete card' });
+    }
+  });
+
   // ============= CARD SKINS ENDPOINTS =============
 
   // Get all card names for skin assignment (organized by deck)
@@ -7066,6 +7212,169 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     } catch (error) {
       console.error('Error claiming reward:', error);
       res.status(500).json({ success: false, error: 'Failed to claim reward' });
+    }
+  });
+
+  // ============= ADMIN SEASONAL PASS ENDPOINTS =============
+
+  // Get all seasonal passes (admin only)
+  app.get('/api/admin/seasonal-passes', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      
+      if (!currentUser.length || !currentUser[0].isAdmin) {
+        return res.status(403).json({ success: false, error: 'Admin access required' });
+      }
+
+      const passesList = await db.select().from(seasonalPasses)
+        .orderBy(desc(seasonalPasses.startDate));
+      
+      res.json({ success: true, passes: passesList });
+    } catch (error) {
+      console.error('Error fetching seasonal passes:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch passes' });
+    }
+  });
+
+  // Create a new seasonal pass (admin only)
+  app.post('/api/admin/seasonal-passes', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      
+      if (!currentUser.length || !currentUser[0].isAdmin) {
+        return res.status(403).json({ success: false, error: 'Admin access required' });
+      }
+
+      const { name, description, startDate, endDate, maxLevel, isActive } = req.body;
+
+      if (!name || !startDate || !endDate) {
+        return res.status(400).json({ success: false, error: 'Name, start date and end date are required' });
+      }
+
+      const newPass = await db.insert(seasonalPasses).values({
+        name,
+        description: description || null,
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
+        maxLevel: maxLevel || 50,
+        isActive: isActive !== false
+      }).returning();
+
+      res.json({ success: true, pass: newPass[0] });
+    } catch (error) {
+      console.error('Error creating seasonal pass:', error);
+      res.status(500).json({ success: false, error: 'Failed to create pass' });
+    }
+  });
+
+  // Update a seasonal pass (admin only)
+  app.put('/api/admin/seasonal-passes/:id', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const passId = parseInt(req.params.id);
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      
+      if (!currentUser.length || !currentUser[0].isAdmin) {
+        return res.status(403).json({ success: false, error: 'Admin access required' });
+      }
+
+      const { name, description, startDate, endDate, maxLevel, isActive } = req.body;
+
+      const updated = await db.update(seasonalPasses)
+        .set({
+          name,
+          description: description || null,
+          startDate: new Date(startDate),
+          endDate: new Date(endDate),
+          maxLevel: maxLevel || 50,
+          isActive: isActive !== false
+        })
+        .where(eq(seasonalPasses.id, passId))
+        .returning();
+
+      if (!updated.length) {
+        return res.status(404).json({ success: false, error: 'Pass not found' });
+      }
+
+      res.json({ success: true, pass: updated[0] });
+    } catch (error) {
+      console.error('Error updating seasonal pass:', error);
+      res.status(500).json({ success: false, error: 'Failed to update pass' });
+    }
+  });
+
+  // Delete a seasonal pass (admin only)
+  app.delete('/api/admin/seasonal-passes/:id', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const passId = parseInt(req.params.id);
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      
+      if (!currentUser.length || !currentUser[0].isAdmin) {
+        return res.status(403).json({ success: false, error: 'Admin access required' });
+      }
+
+      // Also delete associated rewards
+      await db.delete(passRewards).where(eq(passRewards.passId, passId));
+      await db.delete(seasonalPasses).where(eq(seasonalPasses.id, passId));
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting seasonal pass:', error);
+      res.status(500).json({ success: false, error: 'Failed to delete pass' });
+    }
+  });
+
+  // Add a reward to a seasonal pass (admin only)
+  app.post('/api/admin/seasonal-passes/:id/rewards', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const passId = parseInt(req.params.id);
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      
+      if (!currentUser.length || !currentUser[0].isAdmin) {
+        return res.status(403).json({ success: false, error: 'Admin access required' });
+      }
+
+      const { level, rewardType, rewardValue, isPremium } = req.body;
+
+      if (!level || !rewardType || !rewardValue) {
+        return res.status(400).json({ success: false, error: 'Level, reward type and reward value are required' });
+      }
+
+      const newReward = await db.insert(passRewards).values({
+        passId,
+        level,
+        rewardType,
+        rewardValue,
+        isPremium: isPremium || false
+      }).returning();
+
+      res.json({ success: true, reward: newReward[0] });
+    } catch (error) {
+      console.error('Error adding pass reward:', error);
+      res.status(500).json({ success: false, error: 'Failed to add reward' });
+    }
+  });
+
+  // Delete a pass reward (admin only)
+  app.delete('/api/admin/pass-rewards/:id', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const rewardId = parseInt(req.params.id);
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      
+      if (!currentUser.length || !currentUser[0].isAdmin) {
+        return res.status(403).json({ success: false, error: 'Admin access required' });
+      }
+
+      await db.delete(passRewards).where(eq(passRewards.id, rewardId));
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting pass reward:', error);
+      res.status(500).json({ success: false, error: 'Failed to delete reward' });
     }
   });
 

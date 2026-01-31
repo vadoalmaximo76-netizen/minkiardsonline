@@ -5,6 +5,8 @@ import { ClanPanel } from './ClanPanel';
 import { CardSkinsPanel } from './CardSkinsPanel';
 import { SeasonalPassPanel } from './SeasonalPassPanel';
 import { AdminSkinsPanel } from './AdminSkinsPanel';
+import { AdminEventsPanel } from './AdminEventsPanel';
+import { AdminPassPanel } from './AdminPassPanel';
 
 interface ProfileSectionProps {
   playerName: string;
@@ -48,6 +50,8 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
   const [showSkinsPanel, setShowSkinsPanel] = useState(false);
   const [showPassPanel, setShowPassPanel] = useState(false);
   const [showAdminSkinsPanel, setShowAdminSkinsPanel] = useState(false);
+  const [showAdminEventsPanel, setShowAdminEventsPanel] = useState(false);
+  const [showAdminPassPanel, setShowAdminPassPanel] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -412,16 +416,30 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
                   <div className="flex items-center gap-3 mb-3">
                     <Settings className="w-6 h-6 text-red-400" />
                     <div>
-                      <h3 className="text-lg font-semibold text-white">Admin Skin</h3>
-                      <p className="text-slate-400 text-sm">Gestisci le skin del gioco</p>
+                      <h3 className="text-lg font-semibold text-white">Pannello Admin</h3>
+                      <p className="text-slate-400 text-sm">Gestisci contenuti del gioco</p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setShowAdminSkinsPanel(true)}
-                    className="w-full px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-xl font-medium transition-colors"
-                  >
-                    Gestisci Skin
-                  </button>
+                  <div className="grid gap-2">
+                    <button
+                      onClick={() => setShowAdminSkinsPanel(true)}
+                      className="w-full px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-xl font-medium transition-colors"
+                    >
+                      Gestisci Skin
+                    </button>
+                    <button
+                      onClick={() => setShowAdminEventsPanel(true)}
+                      className="w-full px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded-xl font-medium transition-colors"
+                    >
+                      Gestisci Eventi Stagionali
+                    </button>
+                    <button
+                      onClick={() => setShowAdminPassPanel(true)}
+                      className="w-full px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded-xl font-medium transition-colors"
+                    >
+                      Gestisci Pass Stagionali
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -619,6 +637,24 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
           <AdminSkinsPanel
             isOpen={showAdminSkinsPanel}
             onClose={() => setShowAdminSkinsPanel(false)}
+            authToken={localStorage.getItem('authToken')}
+          />
+        )}
+
+        {/* Admin Events Panel */}
+        {isAdmin && (
+          <AdminEventsPanel
+            isOpen={showAdminEventsPanel}
+            onClose={() => setShowAdminEventsPanel(false)}
+            authToken={localStorage.getItem('authToken')}
+          />
+        )}
+
+        {/* Admin Pass Panel */}
+        {isAdmin && (
+          <AdminPassPanel
+            isOpen={showAdminPassPanel}
+            onClose={() => setShowAdminPassPanel(false)}
             authToken={localStorage.getItem('authToken')}
           />
         )}
