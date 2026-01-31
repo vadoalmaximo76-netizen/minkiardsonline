@@ -332,4 +332,115 @@ export function registerAuthRoutes(app: Express) {
   app.post("/api/auth/logout", (_req: Request, res: Response) => {
     res.json({ success: true, message: "Logout effettuato" });
   });
+
+  // Request password reset - generates token and stores it
+  app.post("/api/auth/forgot-password", async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ error: "Email richiesta" });
+      }
+
+      const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      
+      // Always return success to prevent email enumeration
+      if (!user) {
+        return res.json({ success: true, message: "Se l'email esiste, riceverai le istruzioni per il recupero password" });
+      }
+
+      // Generate a random token
+      const crypto = await import('crypto');
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const resetExpires = new Date(Date.now() + 3600000); // 1 hour from now
+
+      // Store token in database
+      await db.update(users)
+        .set({ 
+          resetPasswordToken: resetToken,
+          resetPasswordExpires: resetExpires
+        })
+        .where(eq(users.id, user.id));
+
+      // Try to send email if Resend is configured
+      if (process.env.RESEND_API_KEY) {
+        try {
+          const { Resend } = await import('resend');
+          const resend = new Resend(process.env.RESEND_API_KEY);
+          
+          const resetUrl = `${req.protocol}://${req.get('host')}/reset-password?token=${resetToken}`;
+          
+          await resend.emails.send({
+            from: 'MINKIARDS <noreply@minkiards.com>',
+            to: email,
+            subject: 'Recupero Password MINKIARDS',
+            html: `
+              <h1>Recupero Password</h1>
+              <p>Hai richiesto il recupero della password per il tuo account MINKIARDS.</p>
+              <p>Clicca sul link seguente per reimpostare la password:</p>
+              <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #7c3aed; color: white; text-decoration: none; border-radius: 6px;">Reimposta Password</a>
+              <p>Il link scadrà tra 1 ora.</p>
+              <p>Se non hai richiesto il recupero password, ignora questa email.</p>
+            `
+          });
+        } catch (emailError) {
+          console.error("Error sending reset email:", emailError);
+          // Continue even if email fails - user can still use the token
+        }
+      }
+
+      res.json({ 
+        success: true, 
+        message: "Se l'email esiste, riceverai le istruzioni per il recupero password",
+        // In development, show the token (remove in production)
+        ...(process.env.NODE_ENV !== 'production' && { resetToken })
+      });
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      res.status(500).json({ error: "Errore durante il recupero password" });
+    }
+  });
+
+  // Reset password with token
+  app.post("/api/auth/reset-password", async (req: Request, res: Response) => {
+    try {
+      const { token, newPassword } = req.body;
+      
+      if (!token || !newPassword) {
+        return res.status(400).json({ error: "Token e nuova password richiesti" });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({ error: "La password deve essere di almeno 6 caratteri" });
+      }
+
+      const [user] = await db.select().from(users)
+        .where(eq(users.resetPasswordToken, token))
+        .limit(1);
+
+      if (!user) {
+        return res.status(400).json({ error: "Token non valido o scaduto" });
+      }
+
+      if (user.resetPasswordExpires && user.resetPasswordExpires < new Date()) {
+        return res.status(400).json({ error: "Token scaduto, richiedi un nuovo recupero password" });
+      }
+
+      // Hash new password and clear reset token
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      
+      await db.update(users)
+        .set({ 
+          password: hashedPassword,
+          resetPasswordToken: null,
+          resetPasswordExpires: null
+        })
+        .where(eq(users.id, user.id));
+
+      res.json({ success: true, message: "Password reimpostata con successo" });
+    } catch (error) {
+      console.error("Reset password error:", error);
+      res.status(500).json({ error: "Errore durante il reset della password" });
+    }
+  });
 }

@@ -23,13 +23,14 @@ declare global {
 }
 
 export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onSuccess }) => {
-  const [mode, setMode] = useState<"login" | "register" | "guest">("login");
+  const [mode, setMode] = useState<"login" | "register" | "guest" | "forgot-password">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
   const [guestName, setGuestName] = useState("");
   const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0].id);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleClientId, setGoogleClientId] = useState<string | null>(null);
 
@@ -180,17 +181,100 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onSuccess }) => {
     onSuccess(guestUser);
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    setSuccessMessage("");
+
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Errore durante il recupero password");
+      }
+
+      setSuccessMessage(data.message || "Email inviata con successo!");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Errore sconosciuto");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Dialog open={open}>
       <DialogContent className="sm:max-w-md bg-gray-800 border-gray-600 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-white text-center text-2xl">
-            {mode === "login" ? "Accedi a MINKIARDS" : mode === "register" ? "Registrati a MINKIARDS" : "Entra come Ospite"}
+            {mode === "login" ? "Accedi a MINKIARDS" : 
+             mode === "register" ? "Registrati a MINKIARDS" : 
+             mode === "forgot-password" ? "Recupera Password" : 
+             "Entra come Ospite"}
           </DialogTitle>
         </DialogHeader>
 
-        {/* Guest mode form */}
-        {mode === "guest" ? (
+        {/* Forgot password form */}
+        {mode === "forgot-password" ? (
+          <form onSubmit={handleForgotPassword} className="space-y-4">
+            <div className="text-gray-300 text-sm mb-4">
+              Inserisci la tua email e ti invieremo le istruzioni per reimpostare la password.
+            </div>
+            
+            <div>
+              <label className="text-white block mb-2">Email:</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-3 py-2 bg-gray-700 text-white rounded border-0 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="email@esempio.com"
+                required
+                autoFocus
+              />
+            </div>
+
+            {error && (
+              <div className="text-red-400 text-sm text-center bg-red-900/30 p-2 rounded">
+                {error}
+              </div>
+            )}
+
+            {successMessage && (
+              <div className="text-green-400 text-sm text-center bg-green-900/30 p-2 rounded">
+                {successMessage}
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3"
+              disabled={loading}
+            >
+              {loading ? "Invio in corso..." : "INVIA EMAIL DI RECUPERO"}
+            </Button>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("login");
+                  setError("");
+                  setSuccessMessage("");
+                }}
+                className="text-purple-400 hover:text-purple-300 text-sm underline"
+              >
+                Torna al login
+              </button>
+            </div>
+          </form>
+        ) : mode === "guest" ? (
           <form onSubmit={handleGuestEntry} className="space-y-4">
             <div>
               <label className="text-white block mb-2">Il tuo nome:</label>
@@ -281,6 +365,19 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onSuccess }) => {
               minLength={mode === "register" ? 6 : undefined}
               required
             />
+            {mode === "login" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("forgot-password");
+                  setError("");
+                  setSuccessMessage("");
+                }}
+                className="text-purple-400 hover:text-purple-300 text-xs mt-1 underline"
+              >
+                Password dimenticata?
+              </button>
+            )}
           </div>
 
           {mode === "register" && (
