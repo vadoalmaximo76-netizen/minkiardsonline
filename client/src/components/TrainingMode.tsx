@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ArrowLeft, Lightbulb, X, Edit3, Save, Trash2, Bot, Plus } from 'lucide-react';
 import { GameBoard } from './GameBoard';
 import { socket } from '../lib/socket';
@@ -119,6 +119,20 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
   const [tutorialStepContent, setTutorialStepContent] = useState('');
   const [tutorialStepTrigger, setTutorialStepTrigger] = useState('game_start');
   const { setGameId, setPlayerName, generateSessionId, gameId } = useGameState();
+
+  // Use database tutorial steps if available, otherwise fallback to hardcoded defaults
+  const activeTutorialSteps = useMemo(() => {
+    if (dbTutorialSteps.length > 0) {
+      // Convert database format to expected format
+      return dbTutorialSteps.map(step => ({
+        id: step.stepId,
+        trigger: step.trigger,
+        title: step.title,
+        content: step.content
+      }));
+    }
+    return TUTORIAL_STEPS;
+  }, [dbTutorialSteps]);
 
   useEffect(() => {
     const checkAdminStatus = async () => {
@@ -258,11 +272,11 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
   const advanceTutorialForTrigger = useCallback((trigger: string) => {
     // Find next uncompleted step for this trigger
     setCompletedTutorialSteps(prev => {
-      const nextStepIndex = TUTORIAL_STEPS.findIndex(s => s.trigger === trigger && !prev.has(s.id));
+      const nextStepIndex = activeTutorialSteps.findIndex(s => s.trigger === trigger && !prev.has(s.id));
       
       if (nextStepIndex !== -1) {
-        const stepId = TUTORIAL_STEPS[nextStepIndex].id;
-        console.log(`Tutorial: trigger "${trigger}" -> showing step ${nextStepIndex + 1}/${TUTORIAL_STEPS.length} (${stepId})`);
+        const stepId = activeTutorialSteps[nextStepIndex].id;
+        console.log(`Tutorial: trigger "${trigger}" -> showing step ${nextStepIndex + 1}/${activeTutorialSteps.length} (${stepId})`);
         
         setTimeout(() => {
           setTutorialStep(nextStepIndex);
@@ -275,7 +289,7 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
       
       return prev;
     });
-  }, []);
+  }, [activeTutorialSteps]);
 
   // Tutorial progression based on game events
   useEffect(() => {
@@ -316,17 +330,17 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
   }, [gameStarted, trainingGameId, advanceTutorialForTrigger]);
 
   const handleNextTutorialStep = () => {
-    const currentStepId = TUTORIAL_STEPS[tutorialStep]?.id;
+    const currentStepId = activeTutorialSteps[tutorialStep]?.id;
     if (currentStepId) {
       setCompletedTutorialSteps(prev => new Set([...Array.from(prev), currentStepId]));
     }
     
-    if (tutorialStep < TUTORIAL_STEPS.length - 1) {
+    if (tutorialStep < activeTutorialSteps.length - 1) {
       const nextStep = tutorialStep + 1;
-      const nextTrigger = TUTORIAL_STEPS[nextStep]?.trigger;
+      const nextTrigger = activeTutorialSteps[nextStep]?.trigger;
       
       // If next step has same trigger, show it immediately
-      if (nextTrigger === TUTORIAL_STEPS[tutorialStep]?.trigger) {
+      if (nextTrigger === activeTutorialSteps[tutorialStep]?.trigger) {
         setTutorialStep(nextStep);
       } else {
         setShowTutorial(false);
@@ -338,7 +352,7 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
 
   const handleSkipTutorial = () => {
     setShowTutorial(false);
-    setCompletedTutorialSteps(new Set(TUTORIAL_STEPS.map(s => s.id)));
+    setCompletedTutorialSteps(new Set(activeTutorialSteps.map(s => s.id)));
   };
 
   const handleSaveTip = async () => {
@@ -898,7 +912,7 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
 
       
       {/* Tutorial Modal */}
-      {showTutorial && TUTORIAL_STEPS[tutorialStep] && (
+      {showTutorial && activeTutorialSteps[tutorialStep] && (
         <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-50 p-4 pb-32">
           <div className="bg-gradient-to-br from-blue-900 to-indigo-900 rounded-2xl max-w-lg w-full p-6 border border-blue-500/30 shadow-2xl animate-in slide-in-from-bottom-4 duration-300">
             <div className="flex items-start gap-4 mb-4">
@@ -907,10 +921,10 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
               </div>
               <div className="flex-1">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-white">{TUTORIAL_STEPS[tutorialStep].title}</h3>
-                  <span className="text-blue-400 text-sm">{tutorialStep + 1}/{TUTORIAL_STEPS.length}</span>
+                  <h3 className="text-xl font-bold text-white">{activeTutorialSteps[tutorialStep].title}</h3>
+                  <span className="text-blue-400 text-sm">{tutorialStep + 1}/{activeTutorialSteps.length}</span>
                 </div>
-                <p className="text-blue-200 mt-2 leading-relaxed">{TUTORIAL_STEPS[tutorialStep].content}</p>
+                <p className="text-blue-200 mt-2 leading-relaxed">{activeTutorialSteps[tutorialStep].content}</p>
               </div>
             </div>
             
@@ -925,13 +939,13 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
                 onClick={handleNextTutorialStep}
                 className="flex-1 px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors"
               >
-                {tutorialStep < TUTORIAL_STEPS.length - 1 ? 'Avanti' : 'Fine Tutorial'}
+                {tutorialStep < activeTutorialSteps.length - 1 ? 'Avanti' : 'Fine Tutorial'}
               </button>
             </div>
             
             {/* Progress dots */}
             <div className="flex justify-center gap-1.5 mt-4">
-              {TUTORIAL_STEPS.slice(0, 9).map((_, idx) => (
+              {activeTutorialSteps.slice(0, 9).map((_, idx) => (
                 <div
                   key={idx}
                   className={`w-2 h-2 rounded-full transition-colors ${
