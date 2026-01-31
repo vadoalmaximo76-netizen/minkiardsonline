@@ -344,6 +344,10 @@ export class GameManager {
   private lastSaveTime: Map<string, number> = new Map(); // Throttle DB saves per game
   private saveDebounceMs = 2000; // Save at most every 2 seconds per game
 
+  getGame(gameId: string): GameState | undefined {
+    return this.games.get(gameId);
+  }
+
   private async getUserEmail(userId: number): Promise<string | null> {
     // Check cache first
     const cached = this.userEmailCache.get(userId);
