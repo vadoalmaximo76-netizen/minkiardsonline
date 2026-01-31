@@ -137,3 +137,60 @@ Vite is used for frontend building with React plugin, and ESBuild handles server
 ## Fonts and Assets
 - **Inter**: Web font.
 - **PostImg/Imgur**: External image hosting.
+
+# Social & Competitive Features (Phase 2-4)
+
+## Spectator Mode
+Players can watch live games without participating:
+- **Socket Events**: `join-as-spectator`, `leave-spectator`, `spectator-joined`, `spectator-left-notification`
+- **SpectatorView Component**: Read-only game field visualization
+- **Integration**: "Guarda" button in ActiveRooms panel
+- **Disconnect Cleanup**: Automatic spectator removal on socket disconnect
+
+## Emoji Reactions
+Quick in-game communication with emoji reactions:
+- **12 Quick Emojis**: Thumbs up, applause, fire, laughing, crying, thinking, etc.
+- **Server-side Rate Limiting**: 1 emoji per second per socket to prevent spam
+- **Floating Animations**: Emojis float up with player name labels
+- **Integration**: EmojiReactions component in GameBoard
+
+## Clan/Guild System
+Organized groups of players:
+- **Database Tables**: clans, clanMembers, clanJoinRequests
+- **Features**: Create/join clans, clan tags, member management, join requests
+- **ClanPanel Component**: Full UI for clan management in ProfileSection
+
+## Tournament System
+Competitive organized play:
+- **Database Tables**: tournaments, tournamentParticipants, tournamentMatches
+- **Bracket Generation**: Automatic first-round pairing on tournament start
+- **Status Checks**: Registration phase validation before start
+- **TournamentPanel Component**: Browse, create, join tournaments from HomeScreen
+
+## Replay System
+Review past games:
+- **Database Tables**: matches, gameEvents
+- **ReplayPanel Component**: Playback controls, speed options (0.5x-4x), event timeline
+- **Search**: Find matches by player name or game ID
+- **Integration**: "Replay" button on HomeScreen
+
+## Seasonal Events
+Time-limited special content:
+- **Database Tables**: seasonalEvents, seasonalCards
+- **SeasonalEventsPanel Component**: Browse active/past events and exclusive cards
+- **Card Rarity System**: Common, rare, epic, legendary cards
+- **Integration**: "Eventi" button on HomeScreen
+
+## Card Skins System
+Visual customization for cards:
+- **Database Tables**: cardSkins, playerSkins
+- **Features**: Purchase skins with Rankiard points, equip/unequip skins
+- **Rarity Tiers**: Common, rare, epic, legendary with different visual styles
+- **CardSkinsPanel Component**: Browse and manage skins in ProfileSection
+
+## Seasonal Pass System
+Progressive reward system:
+- **Database Tables**: seasonalPasses, passRewards, playerPassProgress
+- **Features**: Free and premium reward tracks, level progression, XP system
+- **Claim Rewards**: API endpoint for claiming unlocked rewards
+- **SeasonalPassPanel Component**: View progress and rewards in ProfileSection

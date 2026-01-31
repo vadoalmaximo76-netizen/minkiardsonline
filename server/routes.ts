@@ -6854,6 +6854,52 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     }
   });
 
+  // Claim a pass reward
+  app.post('/api/seasonal-pass/claim', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { rewardId } = req.body;
+      
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser.length) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      
+      const reward = await db.select().from(passRewards).where(eq(passRewards.id, rewardId)).limit(1);
+      if (!reward.length) {
+        return res.status(404).json({ success: false, error: 'Reward not found' });
+      }
+      
+      const progress = await db.select().from(playerPassProgress)
+        .where(and(
+          eq(playerPassProgress.userId, currentUser[0].id),
+          eq(playerPassProgress.passId, reward[0].passId)
+        ))
+        .limit(1);
+      
+      if (!progress.length || progress[0].currentLevel < reward[0].level) {
+        return res.status(400).json({ success: false, error: 'Reward not unlocked yet' });
+      }
+      
+      if (reward[0].isPremium && !progress[0].hasPremium) {
+        return res.status(400).json({ success: false, error: 'Premium required for this reward' });
+      }
+      
+      // Apply reward based on type
+      if (reward[0].rewardType === 'rankiard') {
+        const points = parseInt(reward[0].rewardValue) || 0;
+        await db.update(users)
+          .set({ puntiRankiard: currentUser[0].puntiRankiard + points })
+          .where(eq(users.id, currentUser[0].id));
+      }
+      
+      res.json({ success: true, message: 'Reward claimed successfully' });
+    } catch (error) {
+      console.error('Error claiming reward:', error);
+      res.status(500).json({ success: false, error: 'Failed to claim reward' });
+    }
+  });
+
   // ============= CLAN SYSTEM ENDPOINTS =============
 
   // Get all clans (with optional search)
