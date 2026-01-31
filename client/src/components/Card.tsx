@@ -60,6 +60,7 @@ interface CardProps {
     isBarrieraShield?: boolean;
     barrieraProtecting?: string;
     barrieraPTI?: number;
+    appliedSkinUrl?: string | null;
   };
   location: 'hand' | 'field' | 'graveyard';
   showBack?: boolean;
@@ -99,8 +100,10 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   const originalPTIRef = useRef<number | null>(null);
   const prevLocationRef = useRef<string>(location);
   const [showSkinPanel, setShowSkinPanel] = useState(false);
-  const [appliedSkinUrl, setAppliedSkinUrl] = useState<string | null>(null);
   const [skinAnimation, setSkinAnimation] = useState<string | null>(null);
+  
+  // Use skin from card's game state (persisted) instead of local state
+  const appliedSkinUrl = card.appliedSkinUrl || null;
 
   // Sync local cardText state with incoming card.text prop (for real-time updates)
   useEffect(() => {
@@ -355,15 +358,20 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   };
 
   const handleSkinSelect = (skinImageUrl: string | null, skinId: number | null, rarity: string) => {
+    // Emit socket event to apply skin to card in game state
+    socket.emit('apply-card-skin', {
+      cardId: card.id,
+      skinImageUrl: skinImageUrl,
+      playerName: playerName
+    });
+    
     if (skinImageUrl) {
-      setAppliedSkinUrl(skinImageUrl);
       const animClass = rarity === 'legendary' ? 'animate-legendary-glow' :
                         rarity === 'epic' ? 'animate-epic-glow' :
                         rarity === 'rare' ? 'animate-rare-glow' : 'animate-common-glow';
       setSkinAnimation(animClass);
       setTimeout(() => setSkinAnimation(null), 2000);
     } else {
-      setAppliedSkinUrl(null);
       setSkinAnimation(null);
     }
     setShowSkinPanel(false);

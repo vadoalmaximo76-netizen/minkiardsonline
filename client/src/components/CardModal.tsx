@@ -350,12 +350,15 @@ export const CardModal: React.FC = () => {
     setPrToAdd('');
   };
 
-  // Handler for skin selection
+  // Handler for skin selection - emit socket event to persist skin on card
   const handleSkinSelect = (skinImageUrl: string | null, skinId: number | null, rarity: string) => {
-    if (skinImageUrl) {
-      setAppliedSkinUrl(skinImageUrl);
-    } else {
-      setAppliedSkinUrl(null);
+    if (selectedCard) {
+      // Emit socket event to apply skin to card in game state
+      socket.emit('apply-card-skin', {
+        cardId: selectedCard.id,
+        skinImageUrl: skinImageUrl,
+        playerName: playerName
+      });
     }
     setShowSkinPanel(false);
   };

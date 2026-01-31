@@ -2930,6 +2930,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // Apply skin to card
+    socket.on('apply-card-skin', ({ cardId, skinImageUrl, playerName }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        const success = gameManager.applyCardSkin(gameId, cardId, skinImageUrl, playerName);
+        if (success) {
+          const gameState = gameManager.getSanitizedGameState(gameId);
+          emitThrottledGameState(io, gameId, gameState);
+        }
+      }
+    });
+
     // FUSION SYSTEM HANDLERS
     socket.on('fuse-cards', async ({ leaderCardId, targetCardId, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);

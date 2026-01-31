@@ -103,6 +103,7 @@ interface Card {
   isLocked?: boolean; // Cannot use abilities
   lockTurns?: number; // Turns remaining for lock
   isTrap?: boolean; // This card is a trap
+  appliedSkinUrl?: string | null; // Custom skin URL applied to this card
 }
 
 interface Player {
@@ -11422,6 +11423,36 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     for (const player of Object.values(game.players)) {
       if (findAndUpdateCard(player.hand)) return;
     }
+  }
+
+  applyCardSkin(gameId: string, cardId: string, skinImageUrl: string | null, playerName: string): boolean {
+    const game = this.games.get(gameId);
+    if (!game) return false;
+
+    const findAndApplySkin = (cards: Card[]) => {
+      const card = cards.find(c => c.id === cardId);
+      if (card) {
+        // Only allow skin application by the card owner
+        if (card.owner !== playerName) {
+          console.log(`Skin application denied: ${playerName} is not the owner of card ${cardId}`);
+          return false;
+        }
+        card.appliedSkinUrl = skinImageUrl;
+        console.log(`Applied skin to card ${cardId}: ${skinImageUrl ? 'custom skin' : 'removed skin'}`);
+        return true;
+      }
+      return false;
+    };
+
+    // Check field
+    if (findAndApplySkin(game.field)) return true;
+
+    // Check all players' hands
+    for (const player of Object.values(game.players)) {
+      if (findAndApplySkin(player.hand)) return true;
+    }
+
+    return false;
   }
 
   // Transfer request management for human-to-human transfers
