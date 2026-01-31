@@ -89,6 +89,12 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
   const [editedTipTitle, setEditedTipTitle] = useState('');
   const [allTips, setAllTips] = useState<CardTip[]>([]);
   const [showTipsManager, setShowTipsManager] = useState(false);
+  const [managerEditingTip, setManagerEditingTip] = useState<CardTip | null>(null);
+  const [managerNewTip, setManagerNewTip] = useState(false);
+  const [managerTipTitle, setManagerTipTitle] = useState('');
+  const [managerTipContent, setManagerTipContent] = useState('');
+  const [managerCardName, setManagerCardName] = useState('');
+  const [managerCardType, setManagerCardType] = useState('personaggi');
   const [cpuAdded, setCpuAdded] = useState(false);
   const [cpuName, setCpuName] = useState<string | null>(null);
   const [addingCpu, setAddingCpu] = useState(false);
@@ -383,6 +389,92 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
     }
   };
 
+  const handleManagerSaveTip = async () => {
+    if (!managerEditingTip) return;
+    
+    try {
+      const authToken = localStorage.getItem('authToken');
+      const res = await fetch(`/api/training-tips/${managerEditingTip.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          tipTitle: managerTipTitle,
+          tipContent: managerTipContent
+        })
+      });
+      
+      if (res.ok) {
+        const updatedTip = await res.json();
+        setAllTips(prev => prev.map(t => t.id === updatedTip.id ? updatedTip : t));
+        setManagerEditingTip(null);
+        setManagerTipTitle('');
+        setManagerTipContent('');
+      }
+    } catch (error) {
+      console.error('Error saving tip:', error);
+    }
+  };
+
+  const handleManagerCreateTip = async () => {
+    if (!managerTipTitle.trim() || !managerTipContent.trim()) return;
+    
+    try {
+      const authToken = localStorage.getItem('authToken');
+      const res = await fetch('/api/training-tips', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          cardName: managerCardName.trim() || 'Generale',
+          cardType: managerCardType,
+          tipTitle: managerTipTitle,
+          tipContent: managerTipContent
+        })
+      });
+      
+      if (res.ok) {
+        const newTip = await res.json();
+        setAllTips(prev => [...prev, newTip]);
+        setManagerNewTip(false);
+        setManagerTipTitle('');
+        setManagerTipContent('');
+        setManagerCardName('');
+        setManagerCardType('personaggi');
+      }
+    } catch (error) {
+      console.error('Error creating tip:', error);
+    }
+  };
+
+  const startEditTip = (tip: CardTip) => {
+    setManagerEditingTip(tip);
+    setManagerTipTitle(tip.tipTitle);
+    setManagerTipContent(tip.tipContent);
+    setManagerNewTip(false);
+  };
+
+  const startNewTip = () => {
+    setManagerNewTip(true);
+    setManagerEditingTip(null);
+    setManagerTipTitle('');
+    setManagerTipContent('');
+    setManagerCardName('');
+    setManagerCardType('personaggi');
+  };
+
+  const cancelManagerEdit = () => {
+    setManagerEditingTip(null);
+    setManagerNewTip(false);
+    setManagerTipTitle('');
+    setManagerTipContent('');
+    setManagerCardName('');
+  };
+
   if (!gameStarted) {
     return (
       <div className="min-h-screen bg-arena-deep flex flex-col items-center justify-center p-4 relative overflow-hidden">
@@ -457,29 +549,123 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
             <div className="bg-slate-800 rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
               <div className="p-6 border-b border-slate-700 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-white">Gestione Tips</h2>
-                <button onClick={() => setShowTipsManager(false)} className="text-slate-400 hover:text-white">
-                  <X className="w-6 h-6" />
-                </button>
+                <div className="flex items-center gap-2">
+                  {!managerNewTip && !managerEditingTip && (
+                    <button 
+                      onClick={startNewTip}
+                      className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-medium flex items-center gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Nuovo Tip
+                    </button>
+                  )}
+                  <button onClick={() => { setShowTipsManager(false); cancelManagerEdit(); }} className="text-slate-400 hover:text-white">
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
               </div>
               <div className="p-6 overflow-y-auto max-h-[60vh]">
-                {allTips.length === 0 ? (
-                  <p className="text-slate-400 text-center py-8">Nessun tip creato ancora.</p>
+                {(managerNewTip || managerEditingTip) ? (
+                  <div className="bg-slate-700/50 rounded-xl p-6 space-y-4">
+                    <h3 className="text-lg font-semibold text-white">
+                      {managerNewTip ? 'Crea Nuovo Tip' : 'Modifica Tip'}
+                    </h3>
+                    
+                    {managerNewTip && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm text-slate-400 mb-1">Nome Carta (opzionale)</label>
+                          <input
+                            type="text"
+                            value={managerCardName}
+                            onChange={(e) => setManagerCardName(e.target.value)}
+                            placeholder="es. Goku, Vegeta..."
+                            className="w-full px-4 py-2 bg-slate-600 border border-slate-500 rounded-lg text-white placeholder-slate-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm text-slate-400 mb-1">Tipo Carta</label>
+                          <select
+                            value={managerCardType}
+                            onChange={(e) => setManagerCardType(e.target.value)}
+                            className="w-full px-4 py-2 bg-slate-600 border border-slate-500 rounded-lg text-white"
+                          >
+                            <option value="personaggi">Personaggi</option>
+                            <option value="mosse">Mosse</option>
+                            <option value="bonus">Bonus</option>
+                            <option value="speciali">Speciali</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div>
+                      <label className="block text-sm text-slate-400 mb-1">Titolo</label>
+                      <input
+                        type="text"
+                        value={managerTipTitle}
+                        onChange={(e) => setManagerTipTitle(e.target.value)}
+                        placeholder="Titolo del tip..."
+                        className="w-full px-4 py-2 bg-slate-600 border border-slate-500 rounded-lg text-white placeholder-slate-400"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm text-slate-400 mb-1">Contenuto</label>
+                      <textarea
+                        value={managerTipContent}
+                        onChange={(e) => setManagerTipContent(e.target.value)}
+                        placeholder="Descrizione del tip..."
+                        rows={4}
+                        className="w-full px-4 py-2 bg-slate-600 border border-slate-500 rounded-lg text-white placeholder-slate-400 resize-none"
+                      />
+                    </div>
+                    
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        onClick={cancelManagerEdit}
+                        className="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded-lg font-medium"
+                      >
+                        Annulla
+                      </button>
+                      <button
+                        onClick={managerNewTip ? handleManagerCreateTip : handleManagerSaveTip}
+                        disabled={!managerTipTitle.trim() || !managerTipContent.trim()}
+                        className="flex-1 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-500 disabled:cursor-not-allowed text-white rounded-lg font-medium flex items-center justify-center gap-2"
+                      >
+                        <Save className="w-4 h-4" />
+                        {managerNewTip ? 'Crea Tip' : 'Salva Modifiche'}
+                      </button>
+                    </div>
+                  </div>
+                ) : allTips.length === 0 ? (
+                  <p className="text-slate-400 text-center py-8">Nessun tip creato ancora. Clicca "Nuovo Tip" per iniziare.</p>
                 ) : (
                   <div className="space-y-4">
                     {allTips.map(tip => (
                       <div key={tip.id} className="bg-slate-700/50 rounded-xl p-4">
                         <div className="flex items-start justify-between">
-                          <div>
+                          <div className="flex-1">
                             <h3 className="font-semibold text-white">{tip.tipTitle}</h3>
                             <p className="text-sm text-slate-400">{tip.cardType} - {tip.cardName}</p>
                             <p className="text-slate-300 mt-2">{tip.tipContent}</p>
                           </div>
-                          <button
-                            onClick={() => handleDeleteTip(tip.id)}
-                            className="text-red-400 hover:text-red-300 p-2"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </button>
+                          <div className="flex items-center gap-2 ml-4">
+                            <button
+                              onClick={() => startEditTip(tip)}
+                              className="text-blue-400 hover:text-blue-300 p-2"
+                              title="Modifica"
+                            >
+                              <Edit3 className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTip(tip.id)}
+                              className="text-red-400 hover:text-red-300 p-2"
+                              title="Elimina"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
