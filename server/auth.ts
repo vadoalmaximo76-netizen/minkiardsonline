@@ -362,31 +362,30 @@ export function registerAuthRoutes(app: Express) {
         })
         .where(eq(users.id, user.id));
 
-      // Try to send email if Resend is configured
-      if (process.env.RESEND_API_KEY) {
-        try {
-          const { Resend } = await import('resend');
-          const resend = new Resend(process.env.RESEND_API_KEY);
-          
-          const resetUrl = `${req.protocol}://${req.get('host')}/reset-password?token=${resetToken}`;
-          
-          await resend.emails.send({
-            from: 'MINKIARDS <noreply@minkiards.com>',
-            to: email,
-            subject: 'Recupero Password MINKIARDS',
-            html: `
-              <h1>Recupero Password</h1>
-              <p>Hai richiesto il recupero della password per il tuo account MINKIARDS.</p>
-              <p>Clicca sul link seguente per reimpostare la password:</p>
-              <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #7c3aed; color: white; text-decoration: none; border-radius: 6px;">Reimposta Password</a>
-              <p>Il link scadrà tra 1 ora.</p>
-              <p>Se non hai richiesto il recupero password, ignora questa email.</p>
-            `
-          });
-        } catch (emailError) {
-          console.error("Error sending reset email:", emailError);
-          // Continue even if email fails - user can still use the token
-        }
+      // Try to send email using Resend integration
+      try {
+        const { getUncachableResendClient } = await import('./resendClient');
+        const { client, fromEmail } = await getUncachableResendClient();
+        
+        const resetUrl = `${req.protocol}://${req.get('host')}/?token=${resetToken}`;
+        
+        await client.emails.send({
+          from: fromEmail || 'MINKIARDS <onboarding@resend.dev>',
+          to: email,
+          subject: 'Recupero Password MINKIARDS',
+          html: `
+            <h1>Recupero Password</h1>
+            <p>Hai richiesto il recupero della password per il tuo account MINKIARDS.</p>
+            <p>Clicca sul link seguente per reimpostare la password:</p>
+            <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #7c3aed; color: white; text-decoration: none; border-radius: 6px;">Reimposta Password</a>
+            <p>Il link scadrà tra 1 ora.</p>
+            <p>Se non hai richiesto il recupero password, ignora questa email.</p>
+          `
+        });
+        console.log("Password reset email sent to:", email);
+      } catch (emailError) {
+        console.error("Error sending reset email:", emailError);
+        // Continue even if email fails - user can still use the token
       }
 
       res.json({ 
