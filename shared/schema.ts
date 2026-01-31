@@ -14,6 +14,7 @@ export const users = pgTable("users", {
   gamesWon: integer("games_won").notNull().default(0), // Total games won
   minutesPlayed: integer("minutes_played").notNull().default(0), // Total minutes played
   tutorialCompleted: boolean("tutorial_completed").notNull().default(false), // Track if user completed the tutorial
+  isAdmin: boolean("is_admin").notNull().default(false), // Admin flag for managing skins and events
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -404,11 +405,13 @@ export type InsertSeasonalCard = z.infer<typeof insertSeasonalCardSchema>;
 export const cardSkins = pgTable("card_skins", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  cardName: text("card_name"), // Name of the card this skin applies to
   description: text("description"),
   borderStyle: text("border_style"),
   backgroundGradient: text("background_gradient"),
   glowColor: text("glow_color"),
   frameImageUrl: text("frame_image_url"),
+  skinImageUrl: text("skin_image_url"), // Custom image URL for the skin
   rarity: text("rarity").default("common"),
   price: integer("price").default(100),
   isAvailable: boolean("is_available").notNull().default(true),

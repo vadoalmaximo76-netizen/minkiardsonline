@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, User, Trophy, Clock, Target, Users, Edit3, Save, X, Key, Mail, Camera, Award, Gamepad2, Star, TrendingUp, Shield, Palette, Crown } from 'lucide-react';
+import { ArrowLeft, User, Trophy, Clock, Target, Users, Edit3, Save, X, Key, Mail, Camera, Award, Gamepad2, Star, TrendingUp, Shield, Palette, Crown, Settings } from 'lucide-react';
 import { AVATARS } from '../lib/avatars';
 import { ClanPanel } from './ClanPanel';
 import { CardSkinsPanel } from './CardSkinsPanel';
 import { SeasonalPassPanel } from './SeasonalPassPanel';
+import { AdminSkinsPanel } from './AdminSkinsPanel';
 
 interface ProfileSectionProps {
   playerName: string;
@@ -46,6 +47,8 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
   const [showClanPanel, setShowClanPanel] = useState(false);
   const [showSkinsPanel, setShowSkinsPanel] = useState(false);
   const [showPassPanel, setShowPassPanel] = useState(false);
+  const [showAdminSkinsPanel, setShowAdminSkinsPanel] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -86,6 +89,7 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
             achievements: [],
             friends: friendsData
           });
+          setIsAdmin(profileData.user?.isAdmin || false);
         }
       } catch (error) {
         console.error('Error fetching stats:', error);
@@ -403,6 +407,23 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
                   Vedi Pass
                 </button>
               </div>
+              {isAdmin && (
+                <div className="bg-gradient-to-r from-red-900/30 to-slate-800/50 rounded-2xl p-5 border border-red-500/20">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Settings className="w-6 h-6 text-red-400" />
+                    <div>
+                      <h3 className="text-lg font-semibold text-white">Admin Skin</h3>
+                      <p className="text-slate-400 text-sm">Gestisci le skin del gioco</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowAdminSkinsPanel(true)}
+                    className="w-full px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-xl font-medium transition-colors"
+                  >
+                    Gestisci Skin
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Friends */}
@@ -592,6 +613,15 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
           onClose={() => setShowPassPanel(false)}
           authToken={localStorage.getItem('authToken')}
         />
+
+        {/* Admin Skins Panel */}
+        {isAdmin && (
+          <AdminSkinsPanel
+            isOpen={showAdminSkinsPanel}
+            onClose={() => setShowAdminSkinsPanel(false)}
+            authToken={localStorage.getItem('authToken')}
+          />
+        )}
       </div>
     </div>
   );

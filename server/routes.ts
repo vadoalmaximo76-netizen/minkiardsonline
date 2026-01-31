@@ -6603,7 +6603,8 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
             puntiRankiard: currentUser.puntiRankiard,
             gamesPlayed: currentUser.gamesPlayed,
             gamesWon: currentUser.gamesWon,
-            minutesPlayed: currentUser.minutesPlayed
+            minutesPlayed: currentUser.minutesPlayed,
+            isAdmin: currentUser.isAdmin
           },
           rank,
           totalPlayers: allUsers.length,
@@ -6784,6 +6785,101 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     } catch (error) {
       console.error('Error equipping skin:', error);
       res.status(500).json({ success: false, error: 'Failed to equip skin' });
+    }
+  });
+
+  // ============= ADMIN SKIN MANAGEMENT ENDPOINTS =============
+
+  // Create a new skin (admin only)
+  app.post('/api/admin/card-skins', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      
+      if (!currentUser.length || !currentUser[0].isAdmin) {
+        return res.status(403).json({ success: false, error: 'Admin access required' });
+      }
+
+      const { name, cardName, description, skinImageUrl, rarity, price, borderStyle, glowColor, isAvailable } = req.body;
+
+      if (!name) {
+        return res.status(400).json({ success: false, error: 'Name is required' });
+      }
+
+      const newSkin = await db.insert(cardSkins).values({
+        name,
+        cardName: cardName || null,
+        description: description || null,
+        skinImageUrl: skinImageUrl || null,
+        borderStyle: borderStyle || null,
+        glowColor: glowColor || null,
+        rarity: rarity || 'common',
+        price: price || 100,
+        isAvailable: isAvailable !== false
+      }).returning();
+
+      res.json({ success: true, skin: newSkin[0] });
+    } catch (error) {
+      console.error('Error creating skin:', error);
+      res.status(500).json({ success: false, error: 'Failed to create skin' });
+    }
+  });
+
+  // Update a skin (admin only)
+  app.put('/api/admin/card-skins/:id', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const skinId = parseInt(req.params.id);
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      
+      if (!currentUser.length || !currentUser[0].isAdmin) {
+        return res.status(403).json({ success: false, error: 'Admin access required' });
+      }
+
+      const { name, cardName, description, skinImageUrl, rarity, price, borderStyle, glowColor, isAvailable } = req.body;
+
+      const updated = await db.update(cardSkins)
+        .set({
+          name,
+          cardName: cardName || null,
+          description: description || null,
+          skinImageUrl: skinImageUrl || null,
+          borderStyle: borderStyle || null,
+          glowColor: glowColor || null,
+          rarity: rarity || 'common',
+          price: price || 100,
+          isAvailable: isAvailable !== false
+        })
+        .where(eq(cardSkins.id, skinId))
+        .returning();
+
+      if (!updated.length) {
+        return res.status(404).json({ success: false, error: 'Skin not found' });
+      }
+
+      res.json({ success: true, skin: updated[0] });
+    } catch (error) {
+      console.error('Error updating skin:', error);
+      res.status(500).json({ success: false, error: 'Failed to update skin' });
+    }
+  });
+
+  // Delete a skin (admin only)
+  app.delete('/api/admin/card-skins/:id', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const skinId = parseInt(req.params.id);
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      
+      if (!currentUser.length || !currentUser[0].isAdmin) {
+        return res.status(403).json({ success: false, error: 'Admin access required' });
+      }
+
+      await db.delete(cardSkins).where(eq(cardSkins.id, skinId));
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting skin:', error);
+      res.status(500).json({ success: false, error: 'Failed to delete skin' });
     }
   });
 
