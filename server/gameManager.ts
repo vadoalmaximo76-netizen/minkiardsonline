@@ -1,6 +1,6 @@
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from '../client/src/lib/cardData';
 import { db } from './db';
-import { matches, gameEvents, personaggi, customCards, cardModifications, users, gameStates, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
+import { matches, gameEvents, personaggi, customCards, cardModifications, users, gameStates, cardSkins, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
 import { eq, ilike, sql } from 'drizzle-orm';
 import { CPUPlayer } from './cpuPlayer';
 import { trackGameEvent } from './missionsAndAchievements';
@@ -11523,6 +11523,22 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             };
             await db.insert(customCards).values(customCardRecord);
             console.log(`Permanent card "${cardData.name}" saved to database with audioUrl: ${cardData.audioUrl}, youtubeUrl: ${cardData.youtubeUrl}`);
+            
+            // Automatically create a skin for this permanent custom card
+            try {
+              await db.insert(cardSkins).values({
+                name: `Skin - ${cardData.name}`,
+                description: `Skin personalizzata per ${cardData.name}`,
+                rarity: 'common',
+                price: 0,
+                cardName: cardData.name,
+                skinImageUrl: cardData.data,
+                isAvailable: true
+              });
+              console.log(`Auto-created skin for permanent card "${cardData.name}"`);
+            } catch (skinError) {
+              console.error('Error creating skin for permanent card:', skinError);
+            }
           } catch (dbError) {
             console.error('Error saving permanent card to database:', dbError);
           }
