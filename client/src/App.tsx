@@ -125,70 +125,81 @@ function App() {
         
         const authToken = localStorage.getItem('authToken');
         
-        if (authToken) {
-          try {
-            const res = await fetch('/api/auth/me', {
-              headers: {
-                'Authorization': `Bearer ${authToken}`
+        try {
+          const res = await fetch('/api/auth/me', {
+            headers: authToken ? {
+              'Authorization': `Bearer ${authToken}`
+            } : {}
+          });
+          
+          const data = await res.json();
+          
+          if (res.ok && data.user) {
+            setAuthenticatedUser(data.user);
+            setShowAuthDialog(false);
+            
+            // Register user with socket for targeted notifications (game invites)
+            console.log('Emitting set-user-data after login validation');
+            socket.emit('set-user-data', { authToken });
+            
+            if (hasActiveSession()) {
+              console.log('Found active session, attempting to restore...');
+              const restored = await restoreSession();
+              
+              if (restored) {
+                console.log('Session restored successfully');
+                setShowNameDialog(false);
+                setShowRoomDialog(false);
+                setIsInitializing(false);
+                return;
               }
-            });
-            if (res.ok) {
-              const data = await res.json();
-              setAuthenticatedUser(data.user);
-              setShowAuthDialog(false);
-              
-              // Register user with socket for targeted notifications (game invites)
-              console.log('Emitting set-user-data after login validation');
-              socket.emit('set-user-data', { authToken });
-              
-              if (hasActiveSession()) {
-                console.log('Found active session, attempting to restore...');
-                const restored = await restoreSession();
-                
-                if (restored) {
-                  console.log('Session restored successfully');
-                  setShowNameDialog(false);
-                  setShowRoomDialog(false);
-                  setIsInitializing(false);
-                  return;
-                }
-              }
-              
-              // Check if server has an active game for this player (after server restart)
-              // SECURITY: Send auth token, server will resolve player identity
-              socket.emit('check-active-game', { authToken });
-              
-              setPlayerName(data.user.username);
-              setPendingAvatar(data.user.avatar);
-              
-              const urlParams = new URLSearchParams(window.location.search);
-              const gameIdFromUrl = urlParams.get('game');
-              
-              if (gameIdFromUrl) {
-                setGameId(gameIdFromUrl);
-                setCurrentSection('play');
-                generateSessionId();
-                socket.emit('join-game', { 
-                  gameId: gameIdFromUrl, 
-                  playerName: data.user.username, 
-                  avatarId: data.user.avatar,
-                  userId: data.user.id
-                });
-              } else {
-                setCurrentSection('home');
-              }
-              
-              setIsInitializing(false);
-              return;
-            } else {
-              localStorage.removeItem('authToken');
-              localStorage.removeItem('userId');
             }
-          } catch (error) {
-            console.error('Error restoring user:', error);
+            
+            // Check if server has an active game for this player (after server restart)
+            // SECURITY: Send auth token, server will resolve player identity
+            socket.emit('check-active-game', { authToken });
+            
+            setPlayerName(data.user.username);
+            setPendingAvatar(data.user.avatar);
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const gameIdFromUrl = urlParams.get('game');
+            
+            if (gameIdFromUrl) {
+              setGameId(gameIdFromUrl);
+              setCurrentSection('play');
+              generateSessionId();
+              socket.emit('join-game', { 
+                gameId: gameIdFromUrl, 
+                playerName: data.user.username, 
+                avatarId: data.user.avatar,
+                userId: data.user.id
+              });
+            } else {
+              setCurrentSection('home');
+            }
+            
+            setIsInitializing(false);
+            return;
+          } else if (res.ok && data.guestMode && data.dbError) {
+            // Database unavailable - enable guest mode with warning
+            console.log('Guest mode enabled - database unavailable');
+            setShowAuthDialog(false);
+            setCurrentSection('home');
+            setIsInitializing(false);
+            return;
+          } else if (res.ok && data.guestMode && data.noToken) {
+            // No token stored - show auth dialog
+            setIsInitializing(false);
+            return;
+          } else if (res.status === 401) {
+            // Invalid or expired token - clear and show auth dialog
+            console.log('Token invalid/expired, clearing auth');
             localStorage.removeItem('authToken');
             localStorage.removeItem('userId');
           }
+        } catch (error) {
+          console.error('Error checking auth:', error);
         }
         
         setIsInitializing(false);

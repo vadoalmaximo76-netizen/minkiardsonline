@@ -262,30 +262,47 @@ export function registerAuthRoutes(app: Express) {
     }
   });
 
-  app.get("/api/auth/me", authMiddleware, async (req: Request, res: Response) => {
+  app.get("/api/auth/me", async (req: Request, res: Response) => {
     try {
-      if (!req.user) {
-        return res.status(401).json({ error: "Non autenticato" });
+      const authHeader = req.headers.authorization;
+      
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.json({ user: null, guestMode: true, noToken: true });
+      }
+      
+      const token = authHeader.split(" ")[1];
+      let decoded: JWTPayload;
+      
+      try {
+        decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
+      } catch (tokenError) {
+        return res.status(401).json({ error: "Token non valido o scaduto" });
       }
 
-      const [user] = await db.select().from(users).where(eq(users.id, req.user.userId)).limit(1);
+      try {
+        const [user] = await db.select().from(users).where(eq(users.id, decoded.userId)).limit(1);
 
-      if (!user) {
-        return res.status(404).json({ error: "Utente non trovato" });
-      }
-
-      res.json({
-        user: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          avatar: user.avatar,
-          puntiRankiard: user.puntiRankiard,
+        if (!user) {
+          return res.status(404).json({ error: "Utente non trovato" });
         }
-      });
+
+        res.json({
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            avatar: user.avatar,
+            puntiRankiard: user.puntiRankiard,
+          },
+          guestMode: false
+        });
+      } catch (dbError) {
+        console.error("Database error in /api/auth/me:", dbError);
+        res.json({ user: null, guestMode: true, dbError: true });
+      }
     } catch (error) {
       console.error("Get current user error:", error);
-      res.status(500).json({ error: "Errore nel recupero utente" });
+      res.status(500).json({ error: "Errore interno del server" });
     }
   });
 
