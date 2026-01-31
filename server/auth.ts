@@ -9,6 +9,15 @@ import { OAuth2Client } from "google-auth-library";
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const JWT_SECRET = process.env.JWT_SECRET || "minkiards-secret-key-change-in-production";
 
+export const ADMIN_FALLBACK = {
+  id: -1,
+  email: "lucaforte94@gmail.com",
+  username: "LucaForte",
+  avatar: "crown",
+  puntiRankiard: 999999,
+  isAdmin: true
+};
+
 interface JWTPayload {
   userId: number;
   email: string | null;
@@ -125,34 +134,59 @@ export function registerAuthRoutes(app: Express) {
 
       const { email, password } = validation.data;
 
-      const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      try {
+        const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
 
-      if (!user) {
-        return res.status(401).json({ error: "Email o password non corretti" });
-      }
-
-      if (!user.password) {
-        return res.status(401).json({ error: "Questo account usa Google per accedere" });
-      }
-
-      const validPassword = await bcrypt.compare(password, user.password);
-      if (!validPassword) {
-        return res.status(401).json({ error: "Email o password non corretti" });
-      }
-
-      const token = generateToken(user.id, user.email);
-
-      res.json({
-        success: true,
-        token,
-        user: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          avatar: user.avatar,
-          puntiRankiard: user.puntiRankiard,
+        if (!user) {
+          return res.status(401).json({ error: "Email o password non corretti" });
         }
-      });
+
+        if (!user.password) {
+          return res.status(401).json({ error: "Questo account usa Google per accedere" });
+        }
+
+        const validPassword = await bcrypt.compare(password, user.password);
+        if (!validPassword) {
+          return res.status(401).json({ error: "Email o password non corretti" });
+        }
+
+        const token = generateToken(user.id, user.email);
+
+        res.json({
+          success: true,
+          token,
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            avatar: user.avatar,
+            puntiRankiard: user.puntiRankiard,
+          }
+        });
+      } catch (dbError) {
+        console.error("Database error during login, trying fallback:", dbError);
+        
+        if (email === ADMIN_FALLBACK.email && process.env.ADMIN_FALLBACK_PASSWORD) {
+          if (password === process.env.ADMIN_FALLBACK_PASSWORD) {
+            const token = generateToken(ADMIN_FALLBACK.id, ADMIN_FALLBACK.email);
+            
+            return res.json({
+              success: true,
+              token,
+              user: {
+                id: ADMIN_FALLBACK.id,
+                username: ADMIN_FALLBACK.username,
+                email: ADMIN_FALLBACK.email,
+                avatar: ADMIN_FALLBACK.avatar,
+                puntiRankiard: ADMIN_FALLBACK.puntiRankiard,
+              },
+              fallbackMode: true
+            });
+          }
+        }
+        
+        return res.status(503).json({ error: "Database non disponibile. Solo l'admin può accedere." });
+      }
     } catch (error) {
       console.error("Login error:", error);
       res.status(500).json({ error: "Errore durante il login" });
@@ -277,6 +311,20 @@ export function registerAuthRoutes(app: Express) {
         decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
       } catch (tokenError) {
         return res.status(401).json({ error: "Token non valido o scaduto" });
+      }
+
+      if (decoded.userId === ADMIN_FALLBACK.id && decoded.email === ADMIN_FALLBACK.email) {
+        return res.json({
+          user: {
+            id: ADMIN_FALLBACK.id,
+            username: ADMIN_FALLBACK.username,
+            email: ADMIN_FALLBACK.email,
+            avatar: ADMIN_FALLBACK.avatar,
+            puntiRankiard: ADMIN_FALLBACK.puntiRankiard,
+          },
+          guestMode: false,
+          fallbackMode: true
+        });
       }
 
       try {

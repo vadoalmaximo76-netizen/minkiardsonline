@@ -8,9 +8,26 @@ import { db } from "./db";
 import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, achievements, playerAchievements, missionTemplates, playerDailyMissions, trainingTips, tutorialSteps, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, cardSkins, playerSkins, seasonalPasses, passRewards, playerPassProgress } from "../shared/schema";
 import { eq, ilike, and, desc, or, ne, sql, inArray } from "drizzle-orm";
 import { CARD_DATA } from "../client/src/lib/cardData";
-import { authMiddleware } from "./auth";
+import { authMiddleware, ADMIN_FALLBACK } from "./auth";
 
 const jwtSecret = process.env.JWT_SECRET || "minkiards-secret-key-change-in-production";
+
+async function checkAdminAccess(user: { userId: number; email: string | null }): Promise<boolean> {
+  if (user.userId === ADMIN_FALLBACK.id && user.email === ADMIN_FALLBACK.email) {
+    return true;
+  }
+  
+  if (user.email?.toLowerCase() === ADMIN_FALLBACK.email.toLowerCase()) {
+    return true;
+  }
+  
+  try {
+    const currentUser = await db.select().from(users).where(eq(users.email, user.email || '')).limit(1);
+    return currentUser.length > 0 && currentUser[0].isAdmin === true;
+  } catch (dbError) {
+    return user.email?.toLowerCase() === ADMIN_FALLBACK.email.toLowerCase();
+  }
+}
 import { 
   initializeMissionsAndAchievements, 
   getPlayerDailyMissions, 
@@ -6719,9 +6736,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   app.post('/api/admin/seasonal-events', authMiddleware, async (req, res) => {
     try {
       const user = (req as any).user;
-      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      const isAdmin = await checkAdminAccess(user);
       
-      if (!currentUser.length || !currentUser[0].isAdmin) {
+      if (!isAdmin) {
         return res.status(403).json({ success: false, error: 'Admin access required' });
       }
 
@@ -6752,9 +6769,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     try {
       const user = (req as any).user;
       const eventId = parseInt(req.params.id);
-      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      const isAdmin = await checkAdminAccess(user);
       
-      if (!currentUser.length || !currentUser[0].isAdmin) {
+      if (!isAdmin) {
         return res.status(403).json({ success: false, error: 'Admin access required' });
       }
 
@@ -6788,9 +6805,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     try {
       const user = (req as any).user;
       const eventId = parseInt(req.params.id);
-      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      const isAdmin = await checkAdminAccess(user);
       
-      if (!currentUser.length || !currentUser[0].isAdmin) {
+      if (!isAdmin) {
         return res.status(403).json({ success: false, error: 'Admin access required' });
       }
 
@@ -6810,9 +6827,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     try {
       const user = (req as any).user;
       const eventId = parseInt(req.params.id);
-      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      const isAdmin = await checkAdminAccess(user);
       
-      if (!currentUser.length || !currentUser[0].isAdmin) {
+      if (!isAdmin) {
         return res.status(403).json({ success: false, error: 'Admin access required' });
       }
 
@@ -6845,9 +6862,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     try {
       const user = (req as any).user;
       const cardId = parseInt(req.params.id);
-      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      const isAdmin = await checkAdminAccess(user);
       
-      if (!currentUser.length || !currentUser[0].isAdmin) {
+      if (!isAdmin) {
         return res.status(403).json({ success: false, error: 'Admin access required' });
       }
 
@@ -7044,9 +7061,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   app.post('/api/admin/card-skins', authMiddleware, async (req, res) => {
     try {
       const user = (req as any).user;
-      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      const isAdmin = await checkAdminAccess(user);
       
-      if (!currentUser.length || !currentUser[0].isAdmin) {
+      if (!isAdmin) {
         return res.status(403).json({ success: false, error: 'Admin access required' });
       }
 
@@ -7083,9 +7100,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     try {
       const user = (req as any).user;
       const skinId = parseInt(req.params.id);
-      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      const isAdmin = await checkAdminAccess(user);
       
-      if (!currentUser.length || !currentUser[0].isAdmin) {
+      if (!isAdmin) {
         return res.status(403).json({ success: false, error: 'Admin access required' });
       }
 
@@ -7125,9 +7142,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     try {
       const user = (req as any).user;
       const skinId = parseInt(req.params.id);
-      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      const isAdmin = await checkAdminAccess(user);
       
-      if (!currentUser.length || !currentUser[0].isAdmin) {
+      if (!isAdmin) {
         return res.status(403).json({ success: false, error: 'Admin access required' });
       }
 
@@ -7258,9 +7275,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   app.get('/api/admin/seasonal-passes', authMiddleware, async (req, res) => {
     try {
       const user = (req as any).user;
-      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      const isAdmin = await checkAdminAccess(user);
       
-      if (!currentUser.length || !currentUser[0].isAdmin) {
+      if (!isAdmin) {
         return res.status(403).json({ success: false, error: 'Admin access required' });
       }
 
@@ -7278,9 +7295,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   app.post('/api/admin/seasonal-passes', authMiddleware, async (req, res) => {
     try {
       const user = (req as any).user;
-      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      const isAdmin = await checkAdminAccess(user);
       
-      if (!currentUser.length || !currentUser[0].isAdmin) {
+      if (!isAdmin) {
         return res.status(403).json({ success: false, error: 'Admin access required' });
       }
 
@@ -7311,9 +7328,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     try {
       const user = (req as any).user;
       const passId = parseInt(req.params.id);
-      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      const isAdmin = await checkAdminAccess(user);
       
-      if (!currentUser.length || !currentUser[0].isAdmin) {
+      if (!isAdmin) {
         return res.status(403).json({ success: false, error: 'Admin access required' });
       }
 
@@ -7347,9 +7364,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     try {
       const user = (req as any).user;
       const passId = parseInt(req.params.id);
-      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      const isAdmin = await checkAdminAccess(user);
       
-      if (!currentUser.length || !currentUser[0].isAdmin) {
+      if (!isAdmin) {
         return res.status(403).json({ success: false, error: 'Admin access required' });
       }
 
@@ -7369,9 +7386,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     try {
       const user = (req as any).user;
       const passId = parseInt(req.params.id);
-      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      const isAdmin = await checkAdminAccess(user);
       
-      if (!currentUser.length || !currentUser[0].isAdmin) {
+      if (!isAdmin) {
         return res.status(403).json({ success: false, error: 'Admin access required' });
       }
 
@@ -7401,9 +7418,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     try {
       const user = (req as any).user;
       const rewardId = parseInt(req.params.id);
-      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      const isAdmin = await checkAdminAccess(user);
       
-      if (!currentUser.length || !currentUser[0].isAdmin) {
+      if (!isAdmin) {
         return res.status(403).json({ success: false, error: 'Admin access required' });
       }
 
