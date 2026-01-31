@@ -61,6 +61,7 @@ interface GameBoardProps {
   authenticatedUser?: AuthUser | null;
   onLogout?: () => void;
   authToken?: string | null;
+  isTrainingMode?: boolean;
 }
 
 export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogout, authToken }) => {

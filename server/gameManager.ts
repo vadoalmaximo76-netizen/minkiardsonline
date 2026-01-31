@@ -580,6 +580,51 @@ export class GameManager {
     return Array.from(this.games.keys());
   }
 
+  // Get all active games with details for the rooms list
+  getActiveGames(): Array<{
+    gameId: string;
+    playerCount: number;
+    players: Array<{ name: string; avatar?: string }>;
+    createdAt: string;
+    creatorName: string;
+    status: string;
+  }> {
+    const activeGames: Array<{
+      gameId: string;
+      playerCount: number;
+      players: Array<{ name: string; avatar?: string }>;
+      createdAt: string;
+      creatorName: string;
+      status: string;
+    }> = [];
+
+    const entries = Array.from(this.games.entries());
+    for (const entry of entries) {
+      const gameId = entry[0];
+      const game = entry[1];
+      
+      // Skip training games
+      if (gameId.startsWith('training-')) continue;
+      
+      const playerNames = Object.keys(game.players);
+      const players = playerNames.map(name => ({
+        name,
+        avatar: game.players[name]?.avatar
+      }));
+      
+      activeGames.push({
+        gameId,
+        playerCount: playerNames.length,
+        players,
+        createdAt: game.startTime?.toISOString() || new Date().toISOString(),
+        creatorName: playerNames[0] || 'Unknown',
+        status: game.turnOrder.length > 0 ? 'playing' : 'waiting'
+      });
+    }
+
+    return activeGames;
+  }
+
   async loadPermanentCardsIntoDeck(gameId: string): Promise<void> {
     const game = this.games.get(gameId);
     if (!game) return;

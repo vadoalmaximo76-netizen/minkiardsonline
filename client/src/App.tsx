@@ -5,11 +5,17 @@ import { PlayerNameDialog } from "./components/PlayerNameDialog";
 import { RoomCodeDialog } from "./components/RoomCodeDialog";
 import { AuthDialog } from "./components/AuthDialog";
 import { AdBanner } from "./components/AdBanner";
+import { HomeScreen } from "./components/HomeScreen";
+import { TrainingMode } from "./components/TrainingMode";
+import { ActiveRooms } from "./components/ActiveRooms";
+import { ProfileSection } from "./components/ProfileSection";
 import { useGameState } from "./lib/stores/useGameState";
 import { socket } from "./lib/socket";
 import { preloadCriticalImages } from "./lib/imagePreloader";
 import "@fontsource/inter";
 import "./index.css";
+
+type AppSection = 'home' | 'play' | 'training' | 'rooms' | 'profile';
 
 const queryClient = new QueryClient();
 
@@ -29,6 +35,7 @@ function App() {
   const [isInitializing, setIsInitializing] = useState(true);
   const [serverReady, setServerReady] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [currentSection, setCurrentSection] = useState<AppSection>('home');
   const [gameInvitation, setGameInvitation] = useState<{
     senderId: number;
     senderUsername: string;
@@ -150,6 +157,7 @@ function App() {
               
               if (gameIdFromUrl) {
                 setGameId(gameIdFromUrl);
+                setCurrentSection('play');
                 generateSessionId();
                 socket.emit('join-game', { 
                   gameId: gameIdFromUrl, 
@@ -158,7 +166,7 @@ function App() {
                   userId: data.user.id
                 });
               } else {
-                setShowRoomDialog(true);
+                setCurrentSection('home');
               }
               
               setIsInitializing(false);
@@ -281,6 +289,7 @@ function App() {
     
     if (gameIdFromUrl) {
       setGameId(gameIdFromUrl);
+      setCurrentSection('play');
       socket.emit('join-game', { 
         gameId: gameIdFromUrl, 
         playerName: user.username, 
@@ -288,7 +297,48 @@ function App() {
         userId: user.id
       });
     } else {
+      setCurrentSection('home');
+    }
+  };
+
+  const handleNavigate = (section: 'play' | 'training' | 'rooms' | 'profile') => {
+    if (section === 'play') {
       setShowRoomDialog(true);
+    }
+    setCurrentSection(section);
+  };
+
+  const handleJoinRoom = (roomGameId: string) => {
+    setGameId(roomGameId);
+    generateSessionId();
+    
+    const newUrl = `${window.location.origin}?game=${roomGameId}`;
+    window.history.pushState(null, '', newUrl);
+    
+    socket.emit('join-game', { 
+      gameId: roomGameId, 
+      playerName, 
+      avatarId: pendingAvatar,
+      userId: authenticatedUser?.id 
+    });
+    
+    setCurrentSection('play');
+    setShowRoomDialog(false);
+  };
+
+  const handleUpdateProfile = (updates: { username?: string; avatar?: string }) => {
+    if (updates.username) {
+      setPlayerName(updates.username);
+    }
+    if (updates.avatar) {
+      setPendingAvatar(updates.avatar);
+    }
+    if (authenticatedUser) {
+      setAuthenticatedUser({
+        ...authenticatedUser,
+        username: updates.username || authenticatedUser.username,
+        avatar: updates.avatar || authenticatedUser.avatar
+      });
     }
   };
 
@@ -315,10 +365,76 @@ function App() {
     );
   }
 
+  // Show Home Screen
+  if (currentSection === 'home') {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <HomeScreen 
+          playerName={playerName}
+          userId={authenticatedUser?.id}
+          onNavigate={handleNavigate}
+        />
+      </QueryClientProvider>
+    );
+  }
+
+  // Show Training Mode
+  if (currentSection === 'training') {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <TrainingMode
+          playerName={playerName}
+          userId={authenticatedUser?.id}
+          avatarId={pendingAvatar}
+          userEmail={authenticatedUser?.email}
+          onBack={() => setCurrentSection('home')}
+        />
+      </QueryClientProvider>
+    );
+  }
+
+  // Show Active Rooms
+  if (currentSection === 'rooms') {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <ActiveRooms
+          playerName={playerName}
+          userId={authenticatedUser?.id}
+          avatarId={pendingAvatar}
+          onBack={() => setCurrentSection('home')}
+          onJoinRoom={handleJoinRoom}
+        />
+      </QueryClientProvider>
+    );
+  }
+
+  // Show Profile Section
+  if (currentSection === 'profile') {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <ProfileSection
+          playerName={playerName}
+          userId={authenticatedUser?.id}
+          userEmail={authenticatedUser?.email}
+          userAvatar={authenticatedUser?.avatar}
+          onBack={() => setCurrentSection('home')}
+          onUpdateProfile={handleUpdateProfile}
+        />
+      </QueryClientProvider>
+    );
+  }
+
+  // Show Room Dialog for Play section
   if (showRoomDialog || !gameId) {
     return (
       <QueryClientProvider client={queryClient}>
         <div className="min-h-screen bg-arena-deep flex flex-col items-center justify-center">
+          <button
+            onClick={() => setCurrentSection('home')}
+            className="absolute top-4 left-4 p-3 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-colors"
+          >
+            ← Indietro
+          </button>
           <div className="w-full max-w-md mb-4">
             <AdBanner format="horizontal" className="mx-auto" />
           </div>

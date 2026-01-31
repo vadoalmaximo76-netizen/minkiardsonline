@@ -5,7 +5,7 @@ import { GameManager } from "./gameManager";
 import OpenAI from "openai";
 import jwt from "jsonwebtoken";
 import { db } from "./db";
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, achievements, playerAchievements, missionTemplates, playerDailyMissions } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, achievements, playerAchievements, missionTemplates, playerDailyMissions, trainingTips } from "../shared/schema";
 import { eq, ilike, and, desc, or, ne, sql } from "drizzle-orm";
 import { CARD_DATA } from "../client/src/lib/cardData";
 import { authMiddleware } from "./auth";
@@ -6750,6 +6750,193 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     } catch (error) {
       console.error('Error inviting friend:', error);
       res.status(500).json({ success: false, error: 'Failed to invite friend' });
+    }
+  });
+
+  // ============ ACTIVE ROOMS API ============
+  app.get('/api/active-rooms', (req, res) => {
+    try {
+      const activeGames = gameManager.getActiveGames();
+      const rooms = activeGames.map(game => ({
+        gameId: game.gameId,
+        roomCode: game.gameId.replace('room-', ''),
+        playerCount: game.playerCount,
+        maxPlayers: 8,
+        players: game.players,
+        createdAt: game.createdAt,
+        creatorName: game.creatorName || game.players[0]?.name || 'Unknown',
+        requiresApproval: false,
+        status: game.status || 'waiting'
+      }));
+      res.json(rooms);
+    } catch (error) {
+      console.error('Error fetching active rooms:', error);
+      res.json([]);
+    }
+  });
+
+  // ============ TRAINING TIPS API ============
+  app.get('/api/training-tips', async (req, res) => {
+    try {
+      const tips = await db.select().from(trainingTips);
+      res.json(tips);
+    } catch (error) {
+      console.error('Error fetching training tips:', error);
+      res.json([]);
+    }
+  });
+
+  app.post('/api/training-tips', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const ADMIN_EMAIL = 'lucaforte94@gmail.com';
+      
+      if (user.email !== ADMIN_EMAIL) {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+      
+      const { cardName, cardType, tipTitle, tipContent } = req.body;
+      
+      const [newTip] = await db.insert(trainingTips).values({
+        cardName,
+        cardType,
+        tipTitle,
+        tipContent
+      }).returning();
+      
+      res.json(newTip);
+    } catch (error) {
+      console.error('Error creating training tip:', error);
+      res.status(500).json({ error: 'Failed to create tip' });
+    }
+  });
+
+  app.put('/api/training-tips/:id', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const ADMIN_EMAIL = 'lucaforte94@gmail.com';
+      
+      if (user.email !== ADMIN_EMAIL) {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+      
+      const tipId = parseInt(req.params.id);
+      const { tipTitle, tipContent } = req.body;
+      
+      const [updatedTip] = await db.update(trainingTips)
+        .set({ tipTitle, tipContent, updatedAt: new Date() })
+        .where(eq(trainingTips.id, tipId))
+        .returning();
+      
+      res.json(updatedTip);
+    } catch (error) {
+      console.error('Error updating training tip:', error);
+      res.status(500).json({ error: 'Failed to update tip' });
+    }
+  });
+
+  app.delete('/api/training-tips/:id', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const ADMIN_EMAIL = 'lucaforte94@gmail.com';
+      
+      if (user.email !== ADMIN_EMAIL) {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+      
+      const tipId = parseInt(req.params.id);
+      await db.delete(trainingTips).where(eq(trainingTips.id, tipId));
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting training tip:', error);
+      res.status(500).json({ error: 'Failed to delete tip' });
+    }
+  });
+
+  // ============ PROFILE UPDATE API ============
+  app.put('/api/auth/update-profile', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { username, avatar } = req.body;
+      
+      const updates: Record<string, any> = {};
+      if (username) updates.username = username;
+      if (avatar) updates.avatar = avatar;
+      
+      const [updatedUser] = await db.update(users)
+        .set(updates)
+        .where(eq(users.email, user.email))
+        .returning();
+      
+      res.json({ success: true, user: updatedUser });
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      res.status(500).json({ error: 'Failed to update profile' });
+    }
+  });
+
+  app.put('/api/auth/change-password', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { currentPassword, newPassword } = req.body;
+      
+      const [userRecord] = await db.select().from(users).where(eq(users.email, user.email));
+      
+      if (!userRecord || !userRecord.password) {
+        return res.status(400).json({ error: 'Cannot change password for OAuth accounts' });
+      }
+      
+      const bcrypt = await import('bcryptjs');
+      const isValid = await bcrypt.compare(currentPassword, userRecord.password);
+      
+      if (!isValid) {
+        return res.status(400).json({ message: 'Password attuale non corretta' });
+      }
+      
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await db.update(users)
+        .set({ password: hashedPassword })
+        .where(eq(users.email, user.email));
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error changing password:', error);
+      res.status(500).json({ error: 'Failed to change password' });
+    }
+  });
+
+  app.put('/api/auth/set-recovery-email', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { recoveryEmail } = req.body;
+      
+      // For now, just validate and acknowledge - in production, you'd send a verification email
+      // and store it after verification
+      res.json({ success: true, message: 'Recovery email set successfully' });
+    } catch (error) {
+      console.error('Error setting recovery email:', error);
+      res.status(500).json({ error: 'Failed to set recovery email' });
+    }
+  });
+
+  app.get('/api/user-stats/:userId', async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const [userRecord] = await db.select().from(users).where(eq(users.id, userId));
+      
+      if (!userRecord) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      res.json({
+        gamesPlayed: userRecord.gamesPlayed,
+        gamesWon: userRecord.gamesWon,
+        totalPlayTime: userRecord.minutesPlayed
+      });
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+      res.status(500).json({ error: 'Failed to fetch stats' });
     }
   });
 

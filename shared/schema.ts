@@ -127,6 +127,23 @@ export const insertCardModificationSchema = createInsertSchema(cardModifications
   modifiedBy: true,
 });
 
+export const trainingTips = pgTable("training_tips", {
+  id: serial("id").primaryKey(),
+  cardName: text("card_name").notNull(),
+  cardType: text("card_type").notNull(),
+  tipTitle: text("tip_title").notNull(),
+  tipContent: text("tip_content").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertTrainingTipSchema = createInsertSchema(trainingTips).pick({
+  cardName: true,
+  cardType: true,
+  tipTitle: true,
+  tipContent: true,
+});
+
 export const achievements = pgTable("achievements", {
   id: serial("id").primaryKey(),
   code: text("code").notNull().unique(),
