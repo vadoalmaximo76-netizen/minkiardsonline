@@ -6684,6 +6684,79 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
 
   // ============= CARD SKINS ENDPOINTS =============
 
+  // Get all card names for skin assignment (organized by deck)
+  app.get('/api/all-card-names', async (req, res) => {
+    try {
+      // Helper function to extract card name from URL
+      const extractCardName = (url: string): string => {
+        try {
+          const urlObj = new URL(url);
+          const pathname = urlObj.pathname;
+          const filename = pathname.split('/').pop() || '';
+          return filename.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase();
+        } catch {
+          return url;
+        }
+      };
+
+      // Get card data from CARD_DATA
+      const cardNames: { [key: string]: string[] } = {
+        personaggi: [],
+        mosse: [],
+        bonus: [],
+        personaggi_speciali: [],
+        carte_personalizzate: []
+      };
+
+      // Extract names from CARD_DATA
+      CARD_DATA.bonus.forEach(url => {
+        const name = extractCardName(url);
+        if (name && !cardNames.bonus.includes(name)) {
+          cardNames.bonus.push(name);
+        }
+      });
+
+      CARD_DATA.mosse.forEach(url => {
+        const name = extractCardName(url);
+        if (name && !cardNames.mosse.includes(name)) {
+          cardNames.mosse.push(name);
+        }
+      });
+
+      CARD_DATA.personaggi.forEach(url => {
+        const name = extractCardName(url);
+        if (name && !cardNames.personaggi.includes(name)) {
+          cardNames.personaggi.push(name);
+        }
+      });
+
+      CARD_DATA.personaggi_speciali.forEach(url => {
+        const name = extractCardName(url);
+        if (name && !cardNames.personaggi_speciali.includes(name)) {
+          cardNames.personaggi_speciali.push(name);
+        }
+      });
+
+      // Get permanent custom cards from database
+      const permanentCards = await db.select().from(customCards);
+      permanentCards.forEach(card => {
+        if (card.name && !cardNames.carte_personalizzate.includes(card.name.toUpperCase())) {
+          cardNames.carte_personalizzate.push(card.name.toUpperCase());
+        }
+      });
+
+      // Sort all arrays alphabetically
+      Object.keys(cardNames).forEach(key => {
+        cardNames[key].sort();
+      });
+
+      res.json({ success: true, cardNames });
+    } catch (error) {
+      console.error('Error fetching card names:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch card names' });
+    }
+  });
+
   // Get all available card skins
   app.get('/api/card-skins', async (req, res) => {
     try {

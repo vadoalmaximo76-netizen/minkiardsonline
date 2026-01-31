@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Edit2, Trash2, Save, Image, Crown, Sparkles, Star, Palette } from 'lucide-react';
+import { X, Plus, Edit2, Trash2, Save, Image, Crown, Sparkles, Star, Palette, ChevronDown } from 'lucide-react';
 
 interface CardSkin {
   id: number;
@@ -21,11 +21,21 @@ interface AdminSkinsPanelProps {
   authToken: string | null;
 }
 
-const CARD_NAMES = [
-  'GOKU', 'VEGETA', 'GOHAN', 'PICCOLO', 'FREEZER', 'CELL', 'MAJINBU', 'TRUNKS',
-  'GOTEN', 'CRILIN', 'TENSHINHAN', 'YAMCHA', 'BROLY', 'GOGETA', 'VEGETH', 'BEERUS',
-  'WHIS', 'JIREN', 'HIT', 'ZAMASU', 'BLACK GOKU', 'ANDROID 17', 'ANDROID 18', 'ANDROID 16'
-];
+interface CardNamesByDeck {
+  personaggi: string[];
+  mosse: string[];
+  bonus: string[];
+  personaggi_speciali: string[];
+  carte_personalizzate: string[];
+}
+
+const DECK_LABELS: { [key: string]: string } = {
+  personaggi: 'PERSONAGGI',
+  mosse: 'MOSSE',
+  bonus: 'BONUS',
+  personaggi_speciali: 'PERSONAGGI SPECIALI',
+  carte_personalizzate: 'CARTE PERSONALIZZATE'
+};
 
 const RARITY_OPTIONS = [
   { value: 'common', label: 'Comune', color: 'gray' },
@@ -39,6 +49,8 @@ export function AdminSkinsPanel({ isOpen, onClose, authToken }: AdminSkinsPanelP
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingSkin, setEditingSkin] = useState<CardSkin | null>(null);
+  const [cardNamesByDeck, setCardNamesByDeck] = useState<CardNamesByDeck | null>(null);
+  const [selectedDeck, setSelectedDeck] = useState<string>('');
   const [formData, setFormData] = useState({
     name: '',
     cardName: '',
@@ -56,8 +68,21 @@ export function AdminSkinsPanel({ isOpen, onClose, authToken }: AdminSkinsPanelP
   useEffect(() => {
     if (isOpen && authToken) {
       fetchSkins();
+      fetchCardNames();
     }
   }, [isOpen, authToken]);
+
+  const fetchCardNames = async () => {
+    try {
+      const res = await fetch('/api/all-card-names');
+      const data = await res.json();
+      if (data.success) {
+        setCardNamesByDeck(data.cardNames);
+      }
+    } catch (error) {
+      console.error('Failed to fetch card names:', error);
+    }
+  };
 
   const fetchSkins = async () => {
     setLoading(true);
@@ -308,17 +333,38 @@ export function AdminSkinsPanel({ isOpen, onClose, authToken }: AdminSkinsPanelP
                 </div>
 
                 <div>
+                  <label className="block text-sm text-gray-400 mb-1">Mazzo</label>
+                  <select
+                    value={selectedDeck}
+                    onChange={e => {
+                      setSelectedDeck(e.target.value);
+                      setFormData({ ...formData, cardName: '' });
+                    }}
+                    className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                  >
+                    <option value="">-- Seleziona mazzo --</option>
+                    {cardNamesByDeck && Object.keys(cardNamesByDeck).map(deck => (
+                      <option key={deck} value={deck}>{DECK_LABELS[deck] || deck.toUpperCase()}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
                   <label className="block text-sm text-gray-400 mb-1">Carta Associata</label>
                   <select
                     value={formData.cardName}
                     onChange={e => setFormData({ ...formData, cardName: e.target.value })}
                     className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                    disabled={!selectedDeck}
                   >
                     <option value="">-- Seleziona carta --</option>
-                    {CARD_NAMES.map(name => (
+                    {selectedDeck && cardNamesByDeck && cardNamesByDeck[selectedDeck as keyof CardNamesByDeck]?.map(name => (
                       <option key={name} value={name}>{name}</option>
                     ))}
                   </select>
+                  {!selectedDeck && (
+                    <p className="text-xs text-gray-500 mt-1">Seleziona prima un mazzo</p>
+                  )}
                 </div>
 
                 <div>
