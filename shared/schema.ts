@@ -399,3 +399,74 @@ export type SeasonalEvent = typeof seasonalEvents.$inferSelect;
 export type SeasonalCard = typeof seasonalCards.$inferSelect;
 export type InsertSeasonalEvent = z.infer<typeof insertSeasonalEventSchema>;
 export type InsertSeasonalCard = z.infer<typeof insertSeasonalCardSchema>;
+
+// Card Skins
+export const cardSkins = pgTable("card_skins", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  borderStyle: text("border_style"),
+  backgroundGradient: text("background_gradient"),
+  glowColor: text("glow_color"),
+  frameImageUrl: text("frame_image_url"),
+  rarity: text("rarity").default("common"),
+  price: integer("price").default(100),
+  isAvailable: boolean("is_available").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const playerSkins = pgTable("player_skins", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  skinId: integer("skin_id").notNull(),
+  isEquipped: boolean("is_equipped").notNull().default(false),
+  purchasedAt: timestamp("purchased_at").notNull().defaultNow(),
+});
+
+// Seasonal Pass
+export const seasonalPasses = pgTable("seasonal_passes", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  maxLevel: integer("max_level").notNull().default(50),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const passRewards = pgTable("pass_rewards", {
+  id: serial("id").primaryKey(),
+  passId: integer("pass_id").notNull(),
+  level: integer("level").notNull(),
+  rewardType: text("reward_type").notNull(),
+  rewardValue: text("reward_value").notNull(),
+  isPremium: boolean("is_premium").notNull().default(false),
+});
+
+export const playerPassProgress = pgTable("player_pass_progress", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  passId: integer("pass_id").notNull(),
+  currentLevel: integer("current_level").notNull().default(1),
+  currentXp: integer("current_xp").notNull().default(0),
+  hasPremium: boolean("has_premium").notNull().default(false),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertCardSkinSchema = createInsertSchema(cardSkins).omit({ id: true, createdAt: true });
+export const insertPlayerSkinSchema = createInsertSchema(playerSkins).omit({ id: true, purchasedAt: true });
+export const insertSeasonalPassSchema = createInsertSchema(seasonalPasses).omit({ id: true, createdAt: true });
+export const insertPassRewardSchema = createInsertSchema(passRewards).omit({ id: true });
+export const insertPlayerPassProgressSchema = createInsertSchema(playerPassProgress).omit({ id: true, updatedAt: true });
+
+export type CardSkin = typeof cardSkins.$inferSelect;
+export type PlayerSkin = typeof playerSkins.$inferSelect;
+export type SeasonalPass = typeof seasonalPasses.$inferSelect;
+export type PassReward = typeof passRewards.$inferSelect;
+export type PlayerPassProgress = typeof playerPassProgress.$inferSelect;
+export type InsertCardSkin = z.infer<typeof insertCardSkinSchema>;
+export type InsertPlayerSkin = z.infer<typeof insertPlayerSkinSchema>;
+export type InsertSeasonalPass = z.infer<typeof insertSeasonalPassSchema>;
+export type InsertPassReward = z.infer<typeof insertPassRewardSchema>;
+export type InsertPlayerPassProgress = z.infer<typeof insertPlayerPassProgressSchema>;

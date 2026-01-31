@@ -5,7 +5,7 @@ import { GameManager } from "./gameManager";
 import OpenAI from "openai";
 import jwt from "jsonwebtoken";
 import { db } from "./db";
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, achievements, playerAchievements, missionTemplates, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, achievements, playerAchievements, missionTemplates, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, cardSkins, playerSkins, seasonalPasses, passRewards, playerPassProgress } from "../shared/schema";
 import { eq, ilike, and, desc, or, ne, sql } from "drizzle-orm";
 import { CARD_DATA } from "../client/src/lib/cardData";
 import { authMiddleware } from "./auth";
@@ -6678,6 +6678,179 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     } catch (error) {
       console.error('Error fetching seasonal cards:', error);
       res.status(500).json({ success: false, error: 'Failed to fetch cards' });
+    }
+  });
+
+  // ============= CARD SKINS ENDPOINTS =============
+
+  // Get all available card skins
+  app.get('/api/card-skins', async (req, res) => {
+    try {
+      const skinsList = await db.select().from(cardSkins)
+        .where(eq(cardSkins.isAvailable, true));
+      
+      res.json({ success: true, skins: skinsList });
+    } catch (error) {
+      console.error('Error fetching card skins:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch skins' });
+    }
+  });
+
+  // Get player's owned skins
+  app.get('/api/card-skins/owned', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser.length) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      
+      const ownedSkins = await db.select().from(playerSkins)
+        .where(eq(playerSkins.userId, currentUser[0].id));
+      
+      res.json({ success: true, skins: ownedSkins });
+    } catch (error) {
+      console.error('Error fetching owned skins:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch owned skins' });
+    }
+  });
+
+  // Purchase a skin
+  app.post('/api/card-skins/purchase', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { skinId } = req.body;
+      
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser.length) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      
+      const skin = await db.select().from(cardSkins).where(eq(cardSkins.id, skinId)).limit(1);
+      if (!skin.length) {
+        return res.status(404).json({ success: false, error: 'Skin not found' });
+      }
+      
+      if (currentUser[0].puntiRankiard < (skin[0].price || 0)) {
+        return res.status(400).json({ success: false, error: 'Not enough Rankiard points' });
+      }
+      
+      // Check if already owned
+      const existing = await db.select().from(playerSkins)
+        .where(and(eq(playerSkins.userId, currentUser[0].id), eq(playerSkins.skinId, skinId)));
+      if (existing.length) {
+        return res.status(400).json({ success: false, error: 'Skin already owned' });
+      }
+      
+      // Deduct points and add skin
+      await db.update(users)
+        .set({ puntiRankiard: currentUser[0].puntiRankiard - (skin[0].price || 0) })
+        .where(eq(users.id, currentUser[0].id));
+      
+      await db.insert(playerSkins).values({
+        userId: currentUser[0].id,
+        skinId
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error purchasing skin:', error);
+      res.status(500).json({ success: false, error: 'Failed to purchase skin' });
+    }
+  });
+
+  // Equip a skin
+  app.post('/api/card-skins/equip', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { skinId } = req.body;
+      
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser.length) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      
+      // Unequip all skins first
+      await db.update(playerSkins)
+        .set({ isEquipped: false })
+        .where(eq(playerSkins.userId, currentUser[0].id));
+      
+      // Equip the selected skin
+      await db.update(playerSkins)
+        .set({ isEquipped: true })
+        .where(and(eq(playerSkins.userId, currentUser[0].id), eq(playerSkins.skinId, skinId)));
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error equipping skin:', error);
+      res.status(500).json({ success: false, error: 'Failed to equip skin' });
+    }
+  });
+
+  // ============= SEASONAL PASS ENDPOINTS =============
+
+  // Get active seasonal pass
+  app.get('/api/seasonal-pass/active', async (req, res) => {
+    try {
+      const activePasses = await db.select().from(seasonalPasses)
+        .where(eq(seasonalPasses.isActive, true))
+        .limit(1);
+      
+      if (!activePasses.length) {
+        return res.json({ success: true, pass: null });
+      }
+      
+      res.json({ success: true, pass: activePasses[0] });
+    } catch (error) {
+      console.error('Error fetching active pass:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch pass' });
+    }
+  });
+
+  // Get pass rewards
+  app.get('/api/seasonal-pass/:id/rewards', async (req, res) => {
+    try {
+      const passId = parseInt(req.params.id);
+      
+      const rewardsList = await db.select().from(passRewards)
+        .where(eq(passRewards.passId, passId))
+        .orderBy(passRewards.level);
+      
+      res.json({ success: true, rewards: rewardsList });
+    } catch (error) {
+      console.error('Error fetching pass rewards:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch rewards' });
+    }
+  });
+
+  // Get player's pass progress
+  app.get('/api/seasonal-pass/:id/progress', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const passId = parseInt(req.params.id);
+      
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser.length) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      
+      let progressData = await db.select().from(playerPassProgress)
+        .where(and(eq(playerPassProgress.userId, currentUser[0].id), eq(playerPassProgress.passId, passId)))
+        .limit(1);
+      
+      if (!progressData.length) {
+        // Create initial progress
+        const inserted = await db.insert(playerPassProgress).values({
+          userId: currentUser[0].id,
+          passId
+        }).returning();
+        progressData = inserted;
+      }
+      
+      res.json({ success: true, progress: progressData[0] });
+    } catch (error) {
+      console.error('Error fetching pass progress:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch progress' });
     }
   });
 

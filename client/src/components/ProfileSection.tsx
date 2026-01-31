@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, User, Trophy, Clock, Target, Users, Edit3, Save, X, Key, Mail, Camera, Award, Gamepad2, Star, TrendingUp, Shield } from 'lucide-react';
+import { ArrowLeft, User, Trophy, Clock, Target, Users, Edit3, Save, X, Key, Mail, Camera, Award, Gamepad2, Star, TrendingUp, Shield, Palette, Crown } from 'lucide-react';
 import { AVATARS } from '../lib/avatars';
 import { ClanPanel } from './ClanPanel';
+import { CardSkinsPanel } from './CardSkinsPanel';
+import { SeasonalPassPanel } from './SeasonalPassPanel';
 
 interface ProfileSectionProps {
   playerName: string;
@@ -42,6 +44,8 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
   const [recoveryEmail, setRecoveryEmail] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showClanPanel, setShowClanPanel] = useState(false);
+  const [showSkinsPanel, setShowSkinsPanel] = useState(false);
+  const [showPassPanel, setShowPassPanel] = useState(false);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -367,6 +371,40 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
               </div>
             </div>
 
+            {/* Card Skins & Seasonal Pass */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-gradient-to-r from-violet-900/30 to-slate-800/50 rounded-2xl p-5 border border-violet-500/20">
+                <div className="flex items-center gap-3 mb-3">
+                  <Palette className="w-6 h-6 text-violet-400" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Skin Carte</h3>
+                    <p className="text-slate-400 text-sm">Personalizza le tue carte</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowSkinsPanel(true)}
+                  className="w-full px-4 py-2 bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 rounded-xl font-medium transition-colors"
+                >
+                  Vedi Skin
+                </button>
+              </div>
+              <div className="bg-gradient-to-r from-amber-900/30 to-slate-800/50 rounded-2xl p-5 border border-amber-500/20">
+                <div className="flex items-center gap-3 mb-3">
+                  <Crown className="w-6 h-6 text-amber-400" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Pass Stagionale</h3>
+                    <p className="text-slate-400 text-sm">Sblocca ricompense esclusive</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowPassPanel(true)}
+                  className="w-full px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded-xl font-medium transition-colors"
+                >
+                  Vedi Pass
+                </button>
+              </div>
+            </div>
+
             {/* Friends */}
             {stats && stats.friends.length > 0 && (
               <div className="bg-slate-800/50 rounded-2xl p-5 border border-white/10">
@@ -537,6 +575,21 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
         <ClanPanel
           isOpen={showClanPanel}
           onClose={() => setShowClanPanel(false)}
+          authToken={localStorage.getItem('authToken')}
+        />
+
+        {/* Card Skins Panel */}
+        <CardSkinsPanel
+          isOpen={showSkinsPanel}
+          onClose={() => setShowSkinsPanel(false)}
+          authToken={localStorage.getItem('authToken')}
+          userRankiards={stats?.puntiRankiard || 0}
+        />
+
+        {/* Seasonal Pass Panel */}
+        <SeasonalPassPanel
+          isOpen={showPassPanel}
+          onClose={() => setShowPassPanel(false)}
           authToken={localStorage.getItem('authToken')}
         />
       </div>
