@@ -497,5 +497,45 @@ export type PlayerPassProgress = typeof playerPassProgress.$inferSelect;
 export type InsertCardSkin = z.infer<typeof insertCardSkinSchema>;
 export type InsertPlayerSkin = z.infer<typeof insertPlayerSkinSchema>;
 export type InsertSeasonalPass = z.infer<typeof insertSeasonalPassSchema>;
+
+// Private Messages - Conversations
+export const conversations = pgTable("conversations", {
+  id: serial("id").primaryKey(),
+  participant1Id: integer("participant1_id").notNull(),
+  participant2Id: integer("participant2_id").notNull(),
+  lastMessageAt: timestamp("last_message_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Private Messages - Messages
+export const privateMessages = pgTable("private_messages", {
+  id: serial("id").primaryKey(),
+  conversationId: integer("conversation_id").notNull(),
+  senderId: integer("sender_id").notNull(),
+  content: text("content").notNull(),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Push Notification Subscriptions
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  endpoint: text("endpoint").notNull(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertConversationSchema = createInsertSchema(conversations).omit({ id: true, createdAt: true });
+export const insertPrivateMessageSchema = createInsertSchema(privateMessages).omit({ id: true, createdAt: true });
+export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({ id: true, createdAt: true });
+
+export type Conversation = typeof conversations.$inferSelect;
+export type PrivateMessage = typeof privateMessages.$inferSelect;
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+export type InsertConversation = z.infer<typeof insertConversationSchema>;
+export type InsertPrivateMessage = z.infer<typeof insertPrivateMessageSchema>;
+export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;
 export type InsertPassReward = z.infer<typeof insertPassRewardSchema>;
 export type InsertPlayerPassProgress = z.infer<typeof insertPlayerPassProgressSchema>;

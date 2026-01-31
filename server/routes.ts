@@ -5,7 +5,7 @@ import { GameManager } from "./gameManager";
 import OpenAI from "openai";
 import jwt from "jsonwebtoken";
 import { db } from "./db";
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, achievements, playerAchievements, missionTemplates, playerDailyMissions, trainingTips, tutorialSteps, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, cardSkins, playerSkins, seasonalPasses, passRewards, playerPassProgress } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, achievements, playerAchievements, missionTemplates, playerDailyMissions, trainingTips, tutorialSteps, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, cardSkins, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions } from "../shared/schema";
 import { eq, ilike, and, desc, or, ne, sql, inArray } from "drizzle-orm";
 import { CARD_DATA } from "../client/src/lib/cardData";
 import { authMiddleware, ADMIN_FALLBACK } from "./auth";
@@ -8738,6 +8738,295 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     } catch (error) {
       console.error('Error fetching user stats:', error);
       res.status(500).json({ error: 'Failed to fetch stats' });
+    }
+  });
+
+  // ============ PRIVATE MESSAGING API ============
+  
+  // Get all conversations for a user
+  app.get('/api/messages/conversations', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email));
+      
+      if (!currentUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      const userConversations = await db.select()
+        .from(conversations)
+        .where(or(
+          eq(conversations.participant1Id, currentUser.id),
+          eq(conversations.participant2Id, currentUser.id)
+        ))
+        .orderBy(desc(conversations.lastMessageAt));
+      
+      // Get participant info and unread counts for each conversation
+      const conversationsWithDetails = await Promise.all(userConversations.map(async (conv) => {
+        const otherUserId = conv.participant1Id === currentUser.id ? conv.participant2Id : conv.participant1Id;
+        const [otherUser] = await db.select().from(users).where(eq(users.id, otherUserId));
+        
+        const unreadCount = await db.select({ count: sql<number>`count(*)` })
+          .from(privateMessages)
+          .where(and(
+            eq(privateMessages.conversationId, conv.id),
+            ne(privateMessages.senderId, currentUser.id),
+            eq(privateMessages.isRead, false)
+          ));
+        
+        const [lastMessage] = await db.select()
+          .from(privateMessages)
+          .where(eq(privateMessages.conversationId, conv.id))
+          .orderBy(desc(privateMessages.createdAt))
+          .limit(1);
+        
+        return {
+          ...conv,
+          otherUser: otherUser ? { id: otherUser.id, username: otherUser.username, avatar: otherUser.avatar } : null,
+          unreadCount: Number(unreadCount[0]?.count || 0),
+          lastMessage: lastMessage || null
+        };
+      }));
+      
+      res.json(conversationsWithDetails);
+    } catch (error) {
+      console.error('Error fetching conversations:', error);
+      res.status(500).json({ error: 'Failed to fetch conversations' });
+    }
+  });
+  
+  // Get messages for a specific conversation
+  app.get('/api/messages/conversation/:conversationId', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email));
+      const conversationId = parseInt(req.params.conversationId);
+      
+      if (!currentUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      // Verify user is part of this conversation
+      const [conv] = await db.select().from(conversations).where(eq(conversations.id, conversationId));
+      if (!conv || (conv.participant1Id !== currentUser.id && conv.participant2Id !== currentUser.id)) {
+        return res.status(403).json({ error: 'Not authorized to view this conversation' });
+      }
+      
+      const messages = await db.select()
+        .from(privateMessages)
+        .where(eq(privateMessages.conversationId, conversationId))
+        .orderBy(privateMessages.createdAt);
+      
+      // Mark messages as read
+      await db.update(privateMessages)
+        .set({ isRead: true })
+        .where(and(
+          eq(privateMessages.conversationId, conversationId),
+          ne(privateMessages.senderId, currentUser.id)
+        ));
+      
+      res.json(messages);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+      res.status(500).json({ error: 'Failed to fetch messages' });
+    }
+  });
+  
+  // Start a new conversation or get existing one
+  app.post('/api/messages/conversation', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { recipientId } = req.body;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email));
+      
+      if (!currentUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      if (currentUser.id === recipientId) {
+        return res.status(400).json({ error: 'Cannot message yourself' });
+      }
+      
+      // Check if conversation already exists
+      const existingConv = await db.select()
+        .from(conversations)
+        .where(or(
+          and(eq(conversations.participant1Id, currentUser.id), eq(conversations.participant2Id, recipientId)),
+          and(eq(conversations.participant1Id, recipientId), eq(conversations.participant2Id, currentUser.id))
+        ))
+        .limit(1);
+      
+      if (existingConv.length > 0) {
+        return res.json(existingConv[0]);
+      }
+      
+      // Create new conversation
+      const [newConv] = await db.insert(conversations)
+        .values({
+          participant1Id: currentUser.id,
+          participant2Id: recipientId,
+          lastMessageAt: new Date()
+        })
+        .returning();
+      
+      res.json(newConv);
+    } catch (error) {
+      console.error('Error creating conversation:', error);
+      res.status(500).json({ error: 'Failed to create conversation' });
+    }
+  });
+  
+  // Send a message
+  app.post('/api/messages/send', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { conversationId, content } = req.body;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email));
+      
+      if (!currentUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      // Verify user is part of this conversation
+      const [conv] = await db.select().from(conversations).where(eq(conversations.id, conversationId));
+      if (!conv || (conv.participant1Id !== currentUser.id && conv.participant2Id !== currentUser.id)) {
+        return res.status(403).json({ error: 'Not authorized to send in this conversation' });
+      }
+      
+      // Create message
+      const [newMessage] = await db.insert(privateMessages)
+        .values({
+          conversationId,
+          senderId: currentUser.id,
+          content,
+          isRead: false
+        })
+        .returning();
+      
+      // Update conversation last message timestamp
+      await db.update(conversations)
+        .set({ lastMessageAt: new Date() })
+        .where(eq(conversations.id, conversationId));
+      
+      // Get recipient for notification
+      const recipientId = conv.participant1Id === currentUser.id ? conv.participant2Id : conv.participant1Id;
+      
+      // Emit socket event for real-time update
+      io.emit('new-private-message', {
+        conversationId,
+        message: newMessage,
+        senderUsername: currentUser.username,
+        recipientId
+      });
+      
+      res.json(newMessage);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      res.status(500).json({ error: 'Failed to send message' });
+    }
+  });
+  
+  // Get unread message count
+  app.get('/api/messages/unread-count', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email));
+      
+      if (!currentUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      // Get all conversations this user is part of
+      const userConvs = await db.select()
+        .from(conversations)
+        .where(or(
+          eq(conversations.participant1Id, currentUser.id),
+          eq(conversations.participant2Id, currentUser.id)
+        ));
+      
+      const convIds = userConvs.map(c => c.id);
+      
+      if (convIds.length === 0) {
+        return res.json({ unreadCount: 0 });
+      }
+      
+      const result = await db.select({ count: sql<number>`count(*)` })
+        .from(privateMessages)
+        .where(and(
+          inArray(privateMessages.conversationId, convIds),
+          ne(privateMessages.senderId, currentUser.id),
+          eq(privateMessages.isRead, false)
+        ));
+      
+      res.json({ unreadCount: Number(result[0]?.count || 0) });
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+      res.status(500).json({ error: 'Failed to fetch unread count' });
+    }
+  });
+
+  // ============ PUSH NOTIFICATIONS API ============
+  
+  // Subscribe to push notifications
+  app.post('/api/push/subscribe', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { subscription } = req.body;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email));
+      
+      if (!currentUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      // Check if subscription already exists
+      const existing = await db.select()
+        .from(pushSubscriptions)
+        .where(and(
+          eq(pushSubscriptions.userId, currentUser.id),
+          eq(pushSubscriptions.endpoint, subscription.endpoint)
+        ))
+        .limit(1);
+      
+      if (existing.length > 0) {
+        return res.json({ success: true, message: 'Already subscribed' });
+      }
+      
+      // Save subscription
+      await db.insert(pushSubscriptions).values({
+        userId: currentUser.id,
+        endpoint: subscription.endpoint,
+        p256dh: subscription.keys.p256dh,
+        auth: subscription.keys.auth
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error subscribing to push:', error);
+      res.status(500).json({ error: 'Failed to subscribe' });
+    }
+  });
+  
+  // Unsubscribe from push notifications
+  app.post('/api/push/unsubscribe', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { endpoint } = req.body;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email));
+      
+      if (!currentUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      await db.delete(pushSubscriptions)
+        .where(and(
+          eq(pushSubscriptions.userId, currentUser.id),
+          eq(pushSubscriptions.endpoint, endpoint)
+        ));
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error unsubscribing from push:', error);
+      res.status(500).json({ error: 'Failed to unsubscribe' });
     }
   });
 
