@@ -1894,6 +1894,7 @@ export const Card = memo(CardComponent, (prevProps, nextProps) => {
     prevCard.protectedByRifugio === nextCard.protectedByRifugio &&
     prevCard.isBarrieraShield === nextCard.isBarrieraShield &&
     prevCard.barrieraPTI === nextCard.barrieraPTI &&
+    prevCard.appliedSkinUrl === nextCard.appliedSkinUrl &&
     prevProps.location === nextProps.location &&
     prevProps.showBack === nextProps.showBack &&
     prevProps.onCardPlayed === nextProps.onCardPlayed
