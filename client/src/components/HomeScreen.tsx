@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Gamepad2, GraduationCap, Users, User, Trophy, Clock, Star, Award, Play, Sparkles } from 'lucide-react';
+import { Gamepad2, GraduationCap, Users, User, Trophy, Clock, Star, Award, Sparkles } from 'lucide-react';
 import { TournamentPanel } from './TournamentPanel';
-import { ReplayPanel } from './ReplayPanel';
 import { SeasonalEventsPanel } from './SeasonalEventsPanel';
 
 interface HomeScreenProps {
@@ -21,7 +20,6 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [activeRoomsCount, setActiveRoomsCount] = useState(0);
   const [showTournaments, setShowTournaments] = useState(false);
-  const [showReplays, setShowReplays] = useState(false);
   const [showSeasonalEvents, setShowSeasonalEvents] = useState(false);
 
   useEffect(() => {
@@ -201,13 +199,6 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
           Tornei
         </button>
         <button
-          onClick={() => setShowReplays(true)}
-          className="px-6 py-3 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-400 hover:via-purple-400 hover:to-pink-400 text-white rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg shadow-purple-500/30 flex items-center gap-2"
-        >
-          <Play className="w-5 h-5" />
-          Replay
-        </button>
-        <button
           onClick={() => setShowSeasonalEvents(true)}
           className="px-6 py-3 bg-gradient-to-r from-pink-500 via-red-500 to-orange-500 hover:from-pink-400 hover:via-red-400 hover:to-orange-400 text-white rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg shadow-red-500/30 flex items-center gap-2"
         >
@@ -230,13 +221,6 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
         authToken={localStorage.getItem('authToken')}
         userId={userId}
         onJoinMatch={onJoinTournamentMatch}
-      />
-
-      {/* Replay Panel */}
-      <ReplayPanel
-        isOpen={showReplays}
-        onClose={() => setShowReplays(false)}
-        authToken={localStorage.getItem('authToken')}
       />
 
       {/* Seasonal Events Panel */}
