@@ -498,7 +498,8 @@ function generateFallbackQuestions(description: string, previousAnswers?: Record
 }
 
 // Helper to emit card-played event for last played cards history
-function emitCardPlayed(io: SocketServer, gameId: string, card: any, playerName: string) {
+// Also handles YouTube video emission for all players (including CPU cards)
+async function emitCardPlayed(io: SocketServer, gameId: string, card: any, playerName: string) {
   if (!card) return;
   const getCardNameFromUrl = (url: string) => {
     const parts = url.split('/');
@@ -519,6 +520,48 @@ function emitCardPlayed(io: SocketServer, gameId: string, card: any, playerName:
     cardName: card.name || getCardNameFromUrl(card.frontImage),
     playerName
   });
+  
+  // YOUTUBE VIDEO: Check if card has youtubeUrl and emit to all players
+  let youtubeUrl = card.youtubeUrl;
+  
+  // If no youtubeUrl in card memory, try database lookup
+  if (!youtubeUrl && card.name) {
+    try {
+      // Check customCards table
+      const customCardResults = await db.select().from(customCards)
+        .where(eq(customCards.name, card.name))
+        .limit(1);
+      if (customCardResults.length > 0 && customCardResults[0].youtubeUrl) {
+        youtubeUrl = customCardResults[0].youtubeUrl;
+        console.log(`[emitCardPlayed] Found youtubeUrl from customCards for ${card.name}: ${youtubeUrl}`);
+      }
+      
+      // Also check cardModifications table if still no youtubeUrl
+      if (!youtubeUrl) {
+        const modResults = await db.select().from(cardModifications)
+          .where(eq(cardModifications.originalCardId, card.id))
+          .limit(1);
+        if (modResults.length > 0 && modResults[0].youtubeUrl) {
+          youtubeUrl = modResults[0].youtubeUrl;
+          console.log(`[emitCardPlayed] Found youtubeUrl from cardModifications for ${card.id}: ${youtubeUrl}`);
+        }
+      }
+    } catch (dbError) {
+      console.error('[emitCardPlayed] Error checking database for youtubeUrl:', dbError);
+    }
+  }
+  
+  // Emit YouTube video event to ALL players in the game
+  if (youtubeUrl) {
+    console.log(`📺 [emitCardPlayed] Emitting show-youtube-video for card ${card.name || card.id}: ${youtubeUrl}`);
+    io.to(gameId).emit('show-youtube-video', {
+      cardId: card.id,
+      playerName,
+      youtubeUrl: youtubeUrl,
+      cardName: card.name || getCardNameFromUrl(card.frontImage || ''),
+      cardType: card.type
+    });
+  }
 }
 
 // Extract card name from image URL
@@ -1164,7 +1207,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   
                   // Track in last played cards history
                   if (playResult.card) {
-                    emitCardPlayed(io, gameId, playResult.card, currentAction.data.playerName);
+                    await emitCardPlayed(io, gameId, playResult.card, currentAction.data.playerName);
                   }
                   
                   if (playResult.isPersonaggio && playResult.card) {
@@ -1259,7 +1302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   
                   // Track in last played cards history
                   if (result.card) {
-                    emitCardPlayed(io, gameId, result.card, currentAction.data.playerName);
+                    await emitCardPlayed(io, gameId, result.card, currentAction.data.playerName);
                   }
                   
                   // According to MINKIARDS rules: when you play a card, you automatically draw a replacement of the same type
@@ -3336,7 +3379,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       
                       // Track in last played cards history
                       if (playResult.card) {
-                        emitCardPlayed(io, gameId, playResult.card, cpuAction.data.playerName);
+                        await emitCardPlayed(io, gameId, playResult.card, cpuAction.data.playerName);
                       }
                       
                       if (playResult.card) {
@@ -3406,7 +3449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       
                       // Track in last played cards history
                       if (result.card) {
-                        emitCardPlayed(io, gameId, result.card, cpuAction.data.playerName);
+                        await emitCardPlayed(io, gameId, result.card, cpuAction.data.playerName);
                       }
                       
                       const updatedGameState = gameManager.getSanitizedGameState(gameId);
@@ -4696,7 +4739,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     
                     // Track in last played cards history
                     if (playDrawResult.card) {
-                      emitCardPlayed(io, gameId, playDrawResult.card, cpuAction.data.playerName);
+                      await emitCardPlayed(io, gameId, playDrawResult.card, cpuAction.data.playerName);
                     }
                     
                     if (playDrawResult.card) {
@@ -4805,7 +4848,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     
                     // Track in last played cards history
                     if (result.card) {
-                      emitCardPlayed(io, gameId, result.card, cpuAction.data.playerName);
+                      await emitCardPlayed(io, gameId, result.card, cpuAction.data.playerName);
                     }
                     
                     // Draw replacement card of same type
