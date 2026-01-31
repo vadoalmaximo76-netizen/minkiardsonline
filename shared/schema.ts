@@ -219,6 +219,87 @@ export const gameInvitations = pgTable("game_invitations", {
   expiresAt: timestamp("expires_at"),
 });
 
+// Clans table
+export const clans = pgTable("clans", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  tag: text("tag").notNull().unique(), // Short 3-5 char tag like [DRG]
+  description: text("description"),
+  emblem: text("emblem"), // Emoji or icon for the clan
+  leaderId: integer("leader_id").notNull(), // User who created the clan
+  totalPoints: integer("total_points").notNull().default(0), // Combined Rankiard points
+  totalWins: integer("total_wins").notNull().default(0),
+  memberCount: integer("member_count").notNull().default(1),
+  maxMembers: integer("max_members").notNull().default(20),
+  isPublic: boolean("is_public").notNull().default(true), // Can anyone join?
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Clan members table
+export const clanMembers = pgTable("clan_members", {
+  id: serial("id").primaryKey(),
+  clanId: integer("clan_id").notNull(),
+  userId: integer("user_id").notNull(),
+  role: text("role").notNull().default("member"), // leader, officer, member
+  joinedAt: timestamp("joined_at").notNull().defaultNow(),
+  contributedPoints: integer("contributed_points").notNull().default(0),
+});
+
+// Clan join requests
+export const clanJoinRequests = pgTable("clan_join_requests", {
+  id: serial("id").primaryKey(),
+  clanId: integer("clan_id").notNull(),
+  userId: integer("user_id").notNull(),
+  status: text("status").notNull().default("pending"), // pending, accepted, rejected
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  respondedAt: timestamp("responded_at"),
+});
+
+// Tournaments table
+export const tournaments = pgTable("tournaments", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  type: text("type").notNull().default("elimination"), // elimination, round_robin
+  status: text("status").notNull().default("registration"), // registration, in_progress, completed
+  maxParticipants: integer("max_participants").notNull().default(8),
+  currentParticipants: integer("current_participants").notNull().default(0),
+  prizePool: integer("prize_pool").notNull().default(0), // Rankiard points prize
+  entryFee: integer("entry_fee").notNull().default(0), // Entry fee in Rankiard points
+  organizerId: integer("organizer_id").notNull(),
+  winnerId: integer("winner_id"),
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Tournament participants
+export const tournamentParticipants = pgTable("tournament_participants", {
+  id: serial("id").primaryKey(),
+  tournamentId: integer("tournament_id").notNull(),
+  userId: integer("user_id").notNull(),
+  status: text("status").notNull().default("registered"), // registered, eliminated, winner
+  placement: integer("placement"),
+  wins: integer("wins").notNull().default(0),
+  losses: integer("losses").notNull().default(0),
+  joinedAt: timestamp("joined_at").notNull().defaultNow(),
+});
+
+// Tournament matches (bracket)
+export const tournamentMatches = pgTable("tournament_matches", {
+  id: serial("id").primaryKey(),
+  tournamentId: integer("tournament_id").notNull(),
+  round: integer("round").notNull(),
+  matchNumber: integer("match_number").notNull(),
+  player1Id: integer("player1_id"),
+  player2Id: integer("player2_id"),
+  winnerId: integer("winner_id"),
+  gameId: text("game_id"), // Link to actual game
+  status: text("status").notNull().default("pending"), // pending, in_progress, completed
+  scheduledAt: timestamp("scheduled_at"),
+  completedAt: timestamp("completed_at"),
+});
+
 // Persistent game state table for server restart recovery
 export const gameStates = pgTable("game_states", {
   id: serial("id").primaryKey(),
@@ -238,6 +319,12 @@ export const insertPlayerDailyMissionSchema = createInsertSchema(playerDailyMiss
 export const insertFriendRequestSchema = createInsertSchema(friendRequests);
 export const insertFriendshipSchema = createInsertSchema(friendships);
 export const insertGameInvitationSchema = createInsertSchema(gameInvitations);
+export const insertClanSchema = createInsertSchema(clans);
+export const insertClanMemberSchema = createInsertSchema(clanMembers);
+export const insertClanJoinRequestSchema = createInsertSchema(clanJoinRequests);
+export const insertTournamentSchema = createInsertSchema(tournaments);
+export const insertTournamentParticipantSchema = createInsertSchema(tournamentParticipants);
+export const insertTournamentMatchSchema = createInsertSchema(tournamentMatches);
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -267,3 +354,15 @@ export type InsertFriendRequest = z.infer<typeof insertFriendRequestSchema>;
 export type InsertFriendship = z.infer<typeof insertFriendshipSchema>;
 export type InsertGameInvitation = z.infer<typeof insertGameInvitationSchema>;
 export type InsertGameState = z.infer<typeof insertGameStateSchema>;
+export type Clan = typeof clans.$inferSelect;
+export type ClanMember = typeof clanMembers.$inferSelect;
+export type ClanJoinRequest = typeof clanJoinRequests.$inferSelect;
+export type InsertClan = z.infer<typeof insertClanSchema>;
+export type InsertClanMember = z.infer<typeof insertClanMemberSchema>;
+export type InsertClanJoinRequest = z.infer<typeof insertClanJoinRequestSchema>;
+export type Tournament = typeof tournaments.$inferSelect;
+export type TournamentParticipant = typeof tournamentParticipants.$inferSelect;
+export type TournamentMatch = typeof tournamentMatches.$inferSelect;
+export type InsertTournament = z.infer<typeof insertTournamentSchema>;
+export type InsertTournamentParticipant = z.infer<typeof insertTournamentParticipantSchema>;
+export type InsertTournamentMatch = z.infer<typeof insertTournamentMatchSchema>;

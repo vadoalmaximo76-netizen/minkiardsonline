@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, User, Trophy, Clock, Target, Users, Edit3, Save, X, Key, Mail, Camera, Award, Gamepad2, Star, TrendingUp } from 'lucide-react';
+import { ArrowLeft, User, Trophy, Clock, Target, Users, Edit3, Save, X, Key, Mail, Camera, Award, Gamepad2, Star, TrendingUp, Shield } from 'lucide-react';
 import { AVATARS } from '../lib/avatars';
+import { ClanPanel } from './ClanPanel';
 
 interface ProfileSectionProps {
   playerName: string;
@@ -40,6 +41,7 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
   const [confirmPassword, setConfirmPassword] = useState('');
   const [recoveryEmail, setRecoveryEmail] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showClanPanel, setShowClanPanel] = useState(false);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -346,6 +348,25 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
               <p className="text-slate-400">Tempo totale trascorso a giocare</p>
             </div>
 
+            {/* Clan */}
+            <div className="bg-gradient-to-r from-purple-900/30 to-slate-800/50 rounded-2xl p-5 border border-purple-500/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Shield className="w-6 h-6 text-purple-400" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Il Mio Clan</h3>
+                    <p className="text-slate-400 text-sm">Unisciti a un clan per competere insieme</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowClanPanel(true)}
+                  className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded-xl font-medium transition-colors"
+                >
+                  Gestisci Clan
+                </button>
+              </div>
+            </div>
+
             {/* Friends */}
             {stats && stats.friends.length > 0 && (
               <div className="bg-slate-800/50 rounded-2xl p-5 border border-white/10">
@@ -511,6 +532,13 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
             </div>
           </div>
         )}
+
+        {/* Clan Panel */}
+        <ClanPanel
+          isOpen={showClanPanel}
+          onClose={() => setShowClanPanel(false)}
+          authToken={localStorage.getItem('authToken')}
+        />
       </div>
     </div>
   );

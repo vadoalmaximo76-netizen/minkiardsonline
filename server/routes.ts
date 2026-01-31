@@ -5,7 +5,7 @@ import { GameManager } from "./gameManager";
 import OpenAI from "openai";
 import jwt from "jsonwebtoken";
 import { db } from "./db";
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, achievements, playerAchievements, missionTemplates, playerDailyMissions, trainingTips } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, achievements, playerAchievements, missionTemplates, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches } from "../shared/schema";
 import { eq, ilike, and, desc, or, ne, sql } from "drizzle-orm";
 import { CARD_DATA } from "../client/src/lib/cardData";
 import { authMiddleware } from "./auth";
@@ -1136,6 +1136,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error) {
         console.error('Error during rejoin-game:', error);
         socket.emit('join-game-error', { message: 'Failed to rejoin game' });
+      }
+    });
+
+    // Join a game as spectator (watch-only mode)
+    socket.on('join-as-spectator', async ({ gameId, spectatorName }) => {
+      try {
+        console.log(`${spectatorName} joining game ${gameId} as spectator`);
+        
+        const game = gameManager.getGame(gameId);
+        if (!game) {
+          socket.emit('spectator-error', { message: 'Partita non trovata' });
+          return;
+        }
+        
+        // Add to spectators list if not already
+        if (!game.spectators.includes(spectatorName)) {
+          game.spectators.push(spectatorName);
+        }
+        
+        // Join the socket room
+        socket.join(gameId);
+        
+        // Store spectator info on socket
+        socket.data.isSpectator = true;
+        socket.data.spectatorName = spectatorName;
+        socket.data.gameId = gameId;
+        
+        // Send game state to spectator
+        const gameState = gameManager.getSanitizedGameState(gameId);
+        socket.emit('spectator-joined', { 
+          success: true, 
+          gameId,
+          gameState 
+        });
+        
+        // Notify other players
+        socket.to(gameId).emit('spectator-joined-notification', {
+          spectatorName,
+          spectatorCount: game.spectators.length
+        });
+        
+        console.log(`${spectatorName} is now spectating game ${gameId}`);
+      } catch (error) {
+        console.error('Error joining as spectator:', error);
+        socket.emit('spectator-error', { message: 'Errore durante la connessione come spettatore' });
+      }
+    });
+
+    // Leave spectator mode
+    socket.on('leave-spectator', ({ gameId, spectatorName }) => {
+      try {
+        const game = gameManager.getGame(gameId);
+        if (game) {
+          game.spectators = game.spectators.filter(s => s !== spectatorName);
+          socket.leave(gameId);
+          socket.to(gameId).emit('spectator-left-notification', {
+            spectatorName,
+            spectatorCount: game.spectators.length
+          });
+        }
+        socket.data.isSpectator = false;
+        socket.data.spectatorName = undefined;
+        socket.data.gameId = undefined;
+      } catch (error) {
+        console.error('Error leaving spectator mode:', error);
       }
     });
 
@@ -3568,6 +3633,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on('send-emoji-reaction', ({ gameId, emoji, playerName, id }) => {
+      if (gameId) {
+        // Server-side rate limiting: 1 emoji per second per socket
+        const now = Date.now();
+        const lastEmoji = socket.data.lastEmojiTime || 0;
+        if (now - lastEmoji < 1000) {
+          return; // Rate limited
+        }
+        socket.data.lastEmojiTime = now;
+        
+        io.to(gameId).emit('emoji-reaction', {
+          emoji,
+          playerName,
+          id
+        });
+      }
+    });
+
     socket.on('chat-message', async (data) => {
       const { playerName, message } = data;
       const gameId = gameManager.getPlayerGameId(socket.id);
@@ -5838,6 +5921,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('disconnect', () => {
       console.log('Player disconnected:', socket.id);
       
+      // Clean up spectators on disconnect
+      if (socket.data.isSpectator && socket.data.gameId && socket.data.spectatorName) {
+        const game = gameManager.getGame(socket.data.gameId);
+        if (game) {
+          game.spectators = game.spectators.filter(s => s !== socket.data.spectatorName);
+          socket.to(socket.data.gameId).emit('spectator-left-notification', {
+            spectatorName: socket.data.spectatorName,
+            spectatorCount: game.spectators.length
+          });
+        }
+      }
+      
       // Remove from voice chat rooms
       voiceChatRooms.forEach((room, gameId) => {
         const entries = Array.from(room.entries());
@@ -6523,6 +6618,498 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       res.status(500).json({ success: false, error: 'Failed to fetch profile' });
     }
   });
+
+  // ============= CLAN SYSTEM ENDPOINTS =============
+
+  // Get all clans (with optional search)
+  app.get('/api/clans', async (req, res) => {
+    try {
+      const search = req.query.search as string;
+      
+      let clansList;
+      if (search) {
+        clansList = await db.select().from(clans)
+          .where(or(
+            ilike(clans.name, `%${search}%`),
+            ilike(clans.tag, `%${search}%`)
+          ))
+          .orderBy(desc(clans.totalPoints))
+          .limit(20);
+      } else {
+        clansList = await db.select().from(clans)
+          .orderBy(desc(clans.totalPoints))
+          .limit(20);
+      }
+      
+      res.json({ success: true, clans: clansList });
+    } catch (error) {
+      console.error('Error fetching clans:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch clans' });
+    }
+  });
+
+  // Get a specific clan with members
+  app.get('/api/clans/:id', async (req, res) => {
+    try {
+      const clanId = parseInt(req.params.id);
+      
+      const clan = await db.select().from(clans).where(eq(clans.id, clanId)).limit(1);
+      if (!clan.length) {
+        return res.status(404).json({ success: false, error: 'Clan not found' });
+      }
+      
+      const members = await db
+        .select({
+          id: clanMembers.id,
+          userId: clanMembers.userId,
+          role: clanMembers.role,
+          joinedAt: clanMembers.joinedAt,
+          contributedPoints: clanMembers.contributedPoints,
+          username: users.username,
+          avatar: users.avatar,
+          puntiRankiard: users.puntiRankiard
+        })
+        .from(clanMembers)
+        .innerJoin(users, eq(clanMembers.userId, users.id))
+        .where(eq(clanMembers.clanId, clanId))
+        .orderBy(desc(clanMembers.contributedPoints));
+      
+      res.json({ success: true, clan: clan[0], members });
+    } catch (error) {
+      console.error('Error fetching clan:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch clan' });
+    }
+  });
+
+  // Create a new clan
+  app.post('/api/clans', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { name, tag, description, emblem, isPublic } = req.body;
+      
+      if (!name || !tag) {
+        return res.status(400).json({ success: false, error: 'Name and tag are required' });
+      }
+      
+      if (tag.length < 2 || tag.length > 5) {
+        return res.status(400).json({ success: false, error: 'Tag must be 2-5 characters' });
+      }
+      
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser.length) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      
+      // Check if user is already in a clan
+      const existingMembership = await db.select().from(clanMembers)
+        .where(eq(clanMembers.userId, currentUser[0].id)).limit(1);
+      if (existingMembership.length) {
+        return res.status(400).json({ success: false, error: 'You are already in a clan' });
+      }
+      
+      // Check if name or tag is taken
+      const existingClan = await db.select().from(clans)
+        .where(or(eq(clans.name, name), eq(clans.tag, tag.toUpperCase()))).limit(1);
+      if (existingClan.length) {
+        return res.status(400).json({ success: false, error: 'Clan name or tag already taken' });
+      }
+      
+      // Create the clan
+      const [newClan] = await db.insert(clans).values({
+        name,
+        tag: tag.toUpperCase(),
+        description: description || null,
+        emblem: emblem || '⚔️',
+        leaderId: currentUser[0].id,
+        isPublic: isPublic !== false
+      }).returning();
+      
+      // Add creator as leader
+      await db.insert(clanMembers).values({
+        clanId: newClan.id,
+        userId: currentUser[0].id,
+        role: 'leader',
+        contributedPoints: currentUser[0].puntiRankiard
+      });
+      
+      // Update clan total points
+      await db.update(clans)
+        .set({ totalPoints: currentUser[0].puntiRankiard })
+        .where(eq(clans.id, newClan.id));
+      
+      res.json({ success: true, clan: newClan });
+    } catch (error) {
+      console.error('Error creating clan:', error);
+      res.status(500).json({ success: false, error: 'Failed to create clan' });
+    }
+  });
+
+  // Join a clan
+  app.post('/api/clans/:id/join', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const clanId = parseInt(req.params.id);
+      
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser.length) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      
+      // Check if already in a clan
+      const existingMembership = await db.select().from(clanMembers)
+        .where(eq(clanMembers.userId, currentUser[0].id)).limit(1);
+      if (existingMembership.length) {
+        return res.status(400).json({ success: false, error: 'You are already in a clan' });
+      }
+      
+      const clan = await db.select().from(clans).where(eq(clans.id, clanId)).limit(1);
+      if (!clan.length) {
+        return res.status(404).json({ success: false, error: 'Clan not found' });
+      }
+      
+      if (clan[0].memberCount >= clan[0].maxMembers) {
+        return res.status(400).json({ success: false, error: 'Clan is full' });
+      }
+      
+      if (!clan[0].isPublic) {
+        // Create join request for private clans
+        await db.insert(clanJoinRequests).values({
+          clanId,
+          userId: currentUser[0].id
+        });
+        return res.json({ success: true, message: 'Join request sent' });
+      }
+      
+      // Join public clan directly
+      await db.insert(clanMembers).values({
+        clanId,
+        userId: currentUser[0].id,
+        role: 'member',
+        contributedPoints: currentUser[0].puntiRankiard
+      });
+      
+      // Update clan stats
+      await db.update(clans)
+        .set({
+          memberCount: clan[0].memberCount + 1,
+          totalPoints: clan[0].totalPoints + currentUser[0].puntiRankiard
+        })
+        .where(eq(clans.id, clanId));
+      
+      res.json({ success: true, message: 'Joined clan successfully' });
+    } catch (error) {
+      console.error('Error joining clan:', error);
+      res.status(500).json({ success: false, error: 'Failed to join clan' });
+    }
+  });
+
+  // Leave a clan
+  app.post('/api/clans/leave', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser.length) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      
+      const membership = await db.select().from(clanMembers)
+        .where(eq(clanMembers.userId, currentUser[0].id)).limit(1);
+      if (!membership.length) {
+        return res.status(400).json({ success: false, error: 'You are not in a clan' });
+      }
+      
+      const clan = await db.select().from(clans).where(eq(clans.id, membership[0].clanId)).limit(1);
+      if (!clan.length) {
+        return res.status(404).json({ success: false, error: 'Clan not found' });
+      }
+      
+      // If leader and only member, delete clan
+      if (membership[0].role === 'leader' && clan[0].memberCount <= 1) {
+        await db.delete(clanMembers).where(eq(clanMembers.clanId, clan[0].id));
+        await db.delete(clanJoinRequests).where(eq(clanJoinRequests.clanId, clan[0].id));
+        await db.delete(clans).where(eq(clans.id, clan[0].id));
+        return res.json({ success: true, message: 'Clan deleted' });
+      }
+      
+      // If leader, transfer to highest contributor
+      if (membership[0].role === 'leader') {
+        const nextLeader = await db.select().from(clanMembers)
+          .where(and(eq(clanMembers.clanId, clan[0].id), ne(clanMembers.userId, currentUser[0].id)))
+          .orderBy(desc(clanMembers.contributedPoints))
+          .limit(1);
+        if (nextLeader.length) {
+          await db.update(clanMembers).set({ role: 'leader' }).where(eq(clanMembers.id, nextLeader[0].id));
+          await db.update(clans).set({ leaderId: nextLeader[0].userId }).where(eq(clans.id, clan[0].id));
+        }
+      }
+      
+      // Remove member
+      await db.delete(clanMembers).where(eq(clanMembers.id, membership[0].id));
+      
+      // Update clan stats
+      await db.update(clans)
+        .set({
+          memberCount: clan[0].memberCount - 1,
+          totalPoints: clan[0].totalPoints - membership[0].contributedPoints
+        })
+        .where(eq(clans.id, clan[0].id));
+      
+      res.json({ success: true, message: 'Left clan successfully' });
+    } catch (error) {
+      console.error('Error leaving clan:', error);
+      res.status(500).json({ success: false, error: 'Failed to leave clan' });
+    }
+  });
+
+  // Get user's clan
+  app.get('/api/my-clan', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser.length) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      
+      const membership = await db.select().from(clanMembers)
+        .where(eq(clanMembers.userId, currentUser[0].id)).limit(1);
+      if (!membership.length) {
+        return res.json({ success: true, clan: null, membership: null });
+      }
+      
+      const clan = await db.select().from(clans).where(eq(clans.id, membership[0].clanId)).limit(1);
+      
+      res.json({ 
+        success: true, 
+        clan: clan[0] || null, 
+        membership: membership[0] 
+      });
+    } catch (error) {
+      console.error('Error fetching user clan:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch clan' });
+    }
+  });
+
+  // ============= END CLAN SYSTEM =============
+
+  // ============= TOURNAMENT SYSTEM ENDPOINTS =============
+
+  // Get all tournaments
+  app.get('/api/tournaments', async (req, res) => {
+    try {
+      const status = req.query.status as string;
+      
+      let query = db.select().from(tournaments).orderBy(desc(tournaments.createdAt)).limit(20);
+      if (status) {
+        query = db.select().from(tournaments)
+          .where(eq(tournaments.status, status))
+          .orderBy(desc(tournaments.createdAt)).limit(20);
+      }
+      
+      const tournamentList = await query;
+      res.json({ success: true, tournaments: tournamentList });
+    } catch (error) {
+      console.error('Error fetching tournaments:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch tournaments' });
+    }
+  });
+
+  // Get a specific tournament with participants
+  app.get('/api/tournaments/:id', async (req, res) => {
+    try {
+      const tournamentId = parseInt(req.params.id);
+      
+      const tournament = await db.select().from(tournaments).where(eq(tournaments.id, tournamentId)).limit(1);
+      if (!tournament.length) {
+        return res.status(404).json({ success: false, error: 'Tournament not found' });
+      }
+      
+      const participants = await db
+        .select({
+          id: tournamentParticipants.id,
+          userId: tournamentParticipants.userId,
+          status: tournamentParticipants.status,
+          placement: tournamentParticipants.placement,
+          wins: tournamentParticipants.wins,
+          losses: tournamentParticipants.losses,
+          username: users.username,
+          avatar: users.avatar,
+          puntiRankiard: users.puntiRankiard
+        })
+        .from(tournamentParticipants)
+        .innerJoin(users, eq(tournamentParticipants.userId, users.id))
+        .where(eq(tournamentParticipants.tournamentId, tournamentId))
+        .orderBy(desc(tournamentParticipants.wins));
+      
+      const matches = await db.select().from(tournamentMatches)
+        .where(eq(tournamentMatches.tournamentId, tournamentId))
+        .orderBy(tournamentMatches.round, tournamentMatches.matchNumber);
+      
+      res.json({ success: true, tournament: tournament[0], participants, matches });
+    } catch (error) {
+      console.error('Error fetching tournament:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch tournament' });
+    }
+  });
+
+  // Create a new tournament
+  app.post('/api/tournaments', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { name, description, type, maxParticipants, prizePool, entryFee } = req.body;
+      
+      if (!name) {
+        return res.status(400).json({ success: false, error: 'Tournament name is required' });
+      }
+      
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser.length) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      
+      const [newTournament] = await db.insert(tournaments).values({
+        name,
+        description: description || null,
+        type: type || 'elimination',
+        maxParticipants: maxParticipants || 8,
+        prizePool: prizePool || 100,
+        entryFee: entryFee || 0,
+        organizerId: currentUser[0].id
+      }).returning();
+      
+      res.json({ success: true, tournament: newTournament });
+    } catch (error) {
+      console.error('Error creating tournament:', error);
+      res.status(500).json({ success: false, error: 'Failed to create tournament' });
+    }
+  });
+
+  // Join a tournament
+  app.post('/api/tournaments/:id/join', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const tournamentId = parseInt(req.params.id);
+      
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser.length) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      
+      const tournament = await db.select().from(tournaments).where(eq(tournaments.id, tournamentId)).limit(1);
+      if (!tournament.length) {
+        return res.status(404).json({ success: false, error: 'Tournament not found' });
+      }
+      
+      if (tournament[0].status !== 'registration') {
+        return res.status(400).json({ success: false, error: 'Tournament is not open for registration' });
+      }
+      
+      if (tournament[0].currentParticipants >= tournament[0].maxParticipants) {
+        return res.status(400).json({ success: false, error: 'Tournament is full' });
+      }
+      
+      // Check if already registered
+      const existing = await db.select().from(tournamentParticipants)
+        .where(and(
+          eq(tournamentParticipants.tournamentId, tournamentId),
+          eq(tournamentParticipants.userId, currentUser[0].id)
+        )).limit(1);
+      if (existing.length) {
+        return res.status(400).json({ success: false, error: 'Already registered' });
+      }
+      
+      // Check entry fee
+      if (tournament[0].entryFee > 0 && currentUser[0].puntiRankiard < tournament[0].entryFee) {
+        return res.status(400).json({ success: false, error: 'Not enough Rankiard points for entry fee' });
+      }
+      
+      // Deduct entry fee
+      if (tournament[0].entryFee > 0) {
+        await db.update(users)
+          .set({ puntiRankiard: currentUser[0].puntiRankiard - tournament[0].entryFee })
+          .where(eq(users.id, currentUser[0].id));
+      }
+      
+      // Register
+      await db.insert(tournamentParticipants).values({
+        tournamentId,
+        userId: currentUser[0].id
+      });
+      
+      // Update participant count
+      await db.update(tournaments)
+        .set({ currentParticipants: tournament[0].currentParticipants + 1 })
+        .where(eq(tournaments.id, tournamentId));
+      
+      res.json({ success: true, message: 'Successfully joined tournament' });
+    } catch (error) {
+      console.error('Error joining tournament:', error);
+      res.status(500).json({ success: false, error: 'Failed to join tournament' });
+    }
+  });
+
+  // Start a tournament (organizer only)
+  app.post('/api/tournaments/:id/start', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const tournamentId = parseInt(req.params.id);
+      
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser.length) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      
+      const tournament = await db.select().from(tournaments).where(eq(tournaments.id, tournamentId)).limit(1);
+      if (!tournament.length) {
+        return res.status(404).json({ success: false, error: 'Tournament not found' });
+      }
+      
+      if (tournament[0].organizerId !== currentUser[0].id) {
+        return res.status(403).json({ success: false, error: 'Only the organizer can start the tournament' });
+      }
+      
+      // Check tournament is in registration phase
+      if (tournament[0].status !== 'registration') {
+        return res.status(400).json({ success: false, error: 'Tournament has already started or completed' });
+      }
+      
+      if (tournament[0].currentParticipants < 2) {
+        return res.status(400).json({ success: false, error: 'Need at least 2 participants' });
+      }
+      
+      // Update status
+      await db.update(tournaments)
+        .set({ status: 'in_progress', startDate: new Date() })
+        .where(eq(tournaments.id, tournamentId));
+      
+      // Generate first round matches
+      const participants = await db.select().from(tournamentParticipants)
+        .where(eq(tournamentParticipants.tournamentId, tournamentId));
+      
+      const shuffled = participants.sort(() => Math.random() - 0.5);
+      const matchCount = Math.floor(shuffled.length / 2);
+      
+      for (let i = 0; i < matchCount; i++) {
+        await db.insert(tournamentMatches).values({
+          tournamentId,
+          round: 1,
+          matchNumber: i + 1,
+          player1Id: shuffled[i * 2].userId,
+          player2Id: shuffled[i * 2 + 1]?.userId || null,
+          status: shuffled[i * 2 + 1] ? 'pending' : 'completed',
+          winnerId: shuffled[i * 2 + 1] ? null : shuffled[i * 2].userId // Bye
+        });
+      }
+      
+      res.json({ success: true, message: 'Tournament started' });
+    } catch (error) {
+      console.error('Error starting tournament:', error);
+      res.status(500).json({ success: false, error: 'Failed to start tournament' });
+    }
+  });
+
+  // ============= END TOURNAMENT SYSTEM =============
 
   // Search users by username
   app.get('/api/users/search', authMiddleware, async (req, res) => {

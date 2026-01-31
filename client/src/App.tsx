@@ -9,13 +9,14 @@ import { HomeScreen } from "./components/HomeScreen";
 import { TrainingMode } from "./components/TrainingMode";
 import { ActiveRooms } from "./components/ActiveRooms";
 import { ProfileSection } from "./components/ProfileSection";
+import { SpectatorView } from "./components/SpectatorView";
 import { useGameState } from "./lib/stores/useGameState";
 import { socket } from "./lib/socket";
 import { preloadCriticalImages } from "./lib/imagePreloader";
 import "@fontsource/inter";
 import "./index.css";
 
-type AppSection = 'home' | 'play' | 'training' | 'rooms' | 'profile';
+type AppSection = 'home' | 'play' | 'training' | 'rooms' | 'profile' | 'spectator';
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ function App() {
   const [serverReady, setServerReady] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [currentSection, setCurrentSection] = useState<AppSection>('home');
+  const [spectatingGameId, setSpectatingGameId] = useState<string | null>(null);
   const [gameInvitation, setGameInvitation] = useState<{
     senderId: number;
     senderUsername: string;
@@ -393,6 +395,22 @@ function App() {
     );
   }
 
+  // Show Spectator View
+  if (currentSection === 'spectator' && spectatingGameId) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <SpectatorView
+          gameId={spectatingGameId}
+          spectatorName={playerName || 'Spettatore'}
+          onLeave={() => {
+            setSpectatingGameId(null);
+            setCurrentSection('rooms');
+          }}
+        />
+      </QueryClientProvider>
+    );
+  }
+
   // Show Active Rooms
   if (currentSection === 'rooms') {
     return (
@@ -403,6 +421,10 @@ function App() {
           avatarId={pendingAvatar}
           onBack={() => setCurrentSection('home')}
           onJoinRoom={handleJoinRoom}
+          onSpectate={(gameId) => {
+            setSpectatingGameId(gameId);
+            setCurrentSection('spectator');
+          }}
         />
       </QueryClientProvider>
     );

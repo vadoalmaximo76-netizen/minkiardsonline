@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Users, Lock, Unlock, RefreshCw, UserPlus, Clock, Gamepad2 } from 'lucide-react';
+import { ArrowLeft, Users, Lock, Unlock, RefreshCw, UserPlus, Clock, Gamepad2, Eye } from 'lucide-react';
 import { socket } from '../lib/socket';
 
 interface ActiveRoom {
@@ -12,6 +12,7 @@ interface ActiveRoom {
   creatorName: string;
   requiresApproval: boolean;
   status: 'waiting' | 'playing';
+  spectatorCount?: number;
 }
 
 interface ActiveRoomsProps {
@@ -20,9 +21,10 @@ interface ActiveRoomsProps {
   avatarId?: string | null;
   onBack: () => void;
   onJoinRoom: (gameId: string) => void;
+  onSpectate?: (gameId: string) => void;
 }
 
-export function ActiveRooms({ playerName, userId, avatarId, onBack, onJoinRoom }: ActiveRoomsProps) {
+export function ActiveRooms({ playerName, userId, avatarId, onBack, onJoinRoom, onSpectate }: ActiveRoomsProps) {
   const [rooms, setRooms] = useState<ActiveRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const [joiningRoom, setJoiningRoom] = useState<string | null>(null);
@@ -208,14 +210,28 @@ export function ActiveRooms({ playerName, userId, avatarId, onBack, onJoinRoom }
                   </div>
                 </div>
 
-                {/* Join button */}
-                <div className="mt-4 flex justify-end">
+                {/* Join/Spectate buttons */}
+                <div className="mt-4 flex justify-end gap-3">
+                  {room.status === 'playing' && onSpectate && (
+                    <button
+                      onClick={() => onSpectate(room.gameId)}
+                      className="flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white hover:scale-105"
+                    >
+                      <Eye className="w-5 h-5" />
+                      Guarda
+                      {room.spectatorCount !== undefined && room.spectatorCount > 0 && (
+                        <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">
+                          {room.spectatorCount}
+                        </span>
+                      )}
+                    </button>
+                  )}
                   {pendingApproval === room.gameId ? (
                     <div className="flex items-center gap-2 px-6 py-3 bg-amber-500/20 text-amber-400 rounded-xl">
                       <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
                       <span>In attesa di approvazione...</span>
                     </div>
-                  ) : (
+                  ) : room.status === 'waiting' && (
                     <button
                       onClick={() => handleJoinRoom(room)}
                       disabled={joiningRoom === room.gameId || room.playerCount >= room.maxPlayers}

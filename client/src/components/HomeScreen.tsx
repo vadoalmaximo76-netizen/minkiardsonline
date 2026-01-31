@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Gamepad2, GraduationCap, Users, User, Trophy, Clock, Star } from 'lucide-react';
+import { Gamepad2, GraduationCap, Users, User, Trophy, Clock, Star, Award } from 'lucide-react';
+import { TournamentPanel } from './TournamentPanel';
 
 interface HomeScreenProps {
   playerName: string;
@@ -16,6 +17,7 @@ interface UserStats {
 export function HomeScreen({ playerName, userId, onNavigate }: HomeScreenProps) {
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [activeRoomsCount, setActiveRoomsCount] = useState(0);
+  const [showTournaments, setShowTournaments] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -184,12 +186,31 @@ export function HomeScreen({ playerName, userId, onNavigate }: HomeScreenProps) 
         })}
       </div>
 
+      {/* Tournament Button */}
+      <div className="mt-8 relative z-10">
+        <button
+          onClick={() => setShowTournaments(true)}
+          className="px-8 py-4 bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 hover:from-amber-400 hover:via-orange-400 hover:to-red-400 text-white rounded-2xl font-bold text-lg transition-all transform hover:scale-105 shadow-lg shadow-orange-500/30 flex items-center gap-3"
+        >
+          <Award className="w-6 h-6" />
+          Tornei
+          <Trophy className="w-6 h-6" />
+        </button>
+      </div>
+
       {/* Footer */}
-      <div className="mt-12 text-center relative z-10">
+      <div className="mt-8 text-center relative z-10">
         <p className="text-slate-500 text-sm">
           Il gioco di carte Dragon Ball definitivo
         </p>
       </div>
+
+      {/* Tournament Panel */}
+      <TournamentPanel
+        isOpen={showTournaments}
+        onClose={() => setShowTournaments(false)}
+        authToken={localStorage.getItem('authToken')}
+      />
     </div>
   );
 }

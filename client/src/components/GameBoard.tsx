@@ -40,6 +40,7 @@ import { MissionsPanel } from "./MissionsPanel";
 import { AchievementsPanel } from "./AchievementsPanel";
 import { RankiardLeaderboard } from "./RankiardLeaderboard";
 import { ProfilePanel } from "./ProfilePanel";
+import { EmojiReactions } from "./EmojiReactions";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
@@ -3237,6 +3238,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           show={showInterstitialAd}
           onClose={() => setShowInterstitialAd(false)}
         />
+
+        {/* Emoji Reactions for quick communication */}
+        {gameId && playerName && (
+          <EmojiReactions gameId={gameId} playerName={playerName} />
+        )}
       </div>
     </div>
   );
