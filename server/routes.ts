@@ -5,7 +5,7 @@ import { GameManager } from "./gameManager";
 import OpenAI from "openai";
 import jwt from "jsonwebtoken";
 import { db } from "./db";
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, achievements, playerAchievements, missionTemplates, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, achievements, playerAchievements, missionTemplates, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards } from "../shared/schema";
 import { eq, ilike, and, desc, or, ne, sql } from "drizzle-orm";
 import { CARD_DATA } from "../client/src/lib/cardData";
 import { authMiddleware } from "./auth";
@@ -6616,6 +6616,68 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     } catch (error) {
       console.error('Error fetching profile:', error);
       res.status(500).json({ success: false, error: 'Failed to fetch profile' });
+    }
+  });
+
+  // ============= REPLAY SYSTEM ENDPOINTS =============
+
+  // Get all matches for replays
+  app.get('/api/matches', async (req, res) => {
+    try {
+      const matchesList = await db.select().from(matches)
+        .orderBy(desc(matches.startedAt))
+        .limit(50);
+      
+      res.json({ success: true, matches: matchesList });
+    } catch (error) {
+      console.error('Error fetching matches:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch matches' });
+    }
+  });
+
+  // Get match events for replay
+  app.get('/api/matches/:id/events', async (req, res) => {
+    try {
+      const matchId = parseInt(req.params.id);
+      
+      const eventsList = await db.select().from(gameEvents)
+        .where(eq(gameEvents.matchId, matchId))
+        .orderBy(gameEvents.eventOrder);
+      
+      res.json({ success: true, events: eventsList });
+    } catch (error) {
+      console.error('Error fetching match events:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch events' });
+    }
+  });
+
+  // ============= SEASONAL EVENTS ENDPOINTS =============
+
+  // Get all seasonal events
+  app.get('/api/seasonal-events', async (req, res) => {
+    try {
+      const eventsList = await db.select().from(seasonalEvents)
+        .orderBy(desc(seasonalEvents.startDate));
+      
+      res.json({ success: true, events: eventsList });
+    } catch (error) {
+      console.error('Error fetching seasonal events:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch events' });
+    }
+  });
+
+  // Get cards for a seasonal event
+  app.get('/api/seasonal-events/:id/cards', async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.id);
+      
+      const cardsList = await db.select().from(seasonalCards)
+        .where(eq(seasonalCards.eventId, eventId));
+      
+      res.json({ success: true, cards: cardsList });
+    } catch (error) {
+      console.error('Error fetching seasonal cards:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch cards' });
     }
   });
 

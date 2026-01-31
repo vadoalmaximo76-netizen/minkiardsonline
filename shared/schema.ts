@@ -366,3 +366,36 @@ export type TournamentMatch = typeof tournamentMatches.$inferSelect;
 export type InsertTournament = z.infer<typeof insertTournamentSchema>;
 export type InsertTournamentParticipant = z.infer<typeof insertTournamentParticipantSchema>;
 export type InsertTournamentMatch = z.infer<typeof insertTournamentMatchSchema>;
+
+// Seasonal Events
+export const seasonalEvents = pgTable("seasonal_events", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  bannerImage: text("banner_image"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const seasonalCards = pgTable("seasonal_cards", {
+  id: serial("id").primaryKey(),
+  eventId: integer("event_id").notNull(),
+  name: text("name").notNull(),
+  deckType: text("deck_type").notNull(),
+  imageUrl: text("image_url"),
+  pti: integer("pti"),
+  stars: integer("stars"),
+  effect: text("effect"),
+  rarity: text("rarity").default("rare"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertSeasonalEventSchema = createInsertSchema(seasonalEvents).omit({ id: true, createdAt: true });
+export const insertSeasonalCardSchema = createInsertSchema(seasonalCards).omit({ id: true, createdAt: true });
+
+export type SeasonalEvent = typeof seasonalEvents.$inferSelect;
+export type SeasonalCard = typeof seasonalCards.$inferSelect;
+export type InsertSeasonalEvent = z.infer<typeof insertSeasonalEventSchema>;
+export type InsertSeasonalCard = z.infer<typeof insertSeasonalCardSchema>;
