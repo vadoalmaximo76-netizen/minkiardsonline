@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Lightbulb, X, Edit3, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, Lightbulb, X, Edit3, Save, Trash2, Bot, Plus } from 'lucide-react';
 import { GameBoard } from './GameBoard';
 import { socket } from '../lib/socket';
 import { useGameState } from '../lib/stores/useGameState';
@@ -34,7 +34,11 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
   const [editedTipTitle, setEditedTipTitle] = useState('');
   const [allTips, setAllTips] = useState<CardTip[]>([]);
   const [showTipsManager, setShowTipsManager] = useState(false);
-  const { setGameId, setPlayerName, generateSessionId } = useGameState();
+  const [cpuAdded, setCpuAdded] = useState(false);
+  const [cpuName, setCpuName] = useState<string | null>(null);
+  const [addingCpu, setAddingCpu] = useState(false);
+  const [trainingGameId, setTrainingGameId] = useState<string | null>(null);
+  const { setGameId, setPlayerName, generateSessionId, gameId } = useGameState();
 
   useEffect(() => {
     setIsAdmin(userEmail === ADMIN_EMAIL);
@@ -60,13 +64,14 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
   }, [userEmail]);
 
   const startTrainingGame = useCallback(() => {
-    const trainingGameId = `training-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    setGameId(trainingGameId);
+    const newTrainingGameId = `training-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    setGameId(newTrainingGameId);
+    setTrainingGameId(newTrainingGameId);
     setPlayerName(playerName);
     generateSessionId();
     
     socket.emit('create-training-game', {
-      gameId: trainingGameId,
+      gameId: newTrainingGameId,
       playerName,
       avatarId,
       userId
@@ -75,31 +80,62 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
     setGameStarted(true);
   }, [playerName, avatarId, userId, setGameId, setPlayerName, generateSessionId]);
 
+  const addCpuPlayer = useCallback(() => {
+    if (!trainingGameId || addingCpu || cpuAdded) return;
+    setAddingCpu(true);
+    socket.emit('add-training-cpu', { gameId: trainingGameId });
+  }, [trainingGameId, addingCpu, cpuAdded]);
+
   useEffect(() => {
-    const handleCardPlayed = (data: { cardName: string; cardType: string; playerName: string }) => {
+    const handleCpuAdded = (data: { cpuName: string }) => {
+      setCpuAdded(true);
+      setCpuName(data.cpuName);
+      setAddingCpu(false);
+    };
+
+    socket.on('training-cpu-added', handleCpuAdded);
+    
+    return () => {
+      socket.off('training-cpu-added', handleCpuAdded);
+    };
+  }, []);
+
+  // Separate effect for card-played tips to avoid re-registration issues
+  useEffect(() => {
+    if (!gameStarted || !trainingGameId) return;
+
+    const handleCardPlayed = (data: { cardName: string; cardType: string; playerName: string; gameId?: string }) => {
+      // Only process tips for the current training game
+      const currentGameId = gameId || trainingGameId;
+      if (data.gameId && data.gameId !== currentGameId) return;
+      
       const tipKey = `${data.cardType}-${data.cardName}`;
       
-      if (!shownTips.has(tipKey)) {
+      setShownTips(prevShownTips => {
+        if (prevShownTips.has(tipKey)) return prevShownTips;
+        
         const tip = allTips.find(t => 
           t.cardName.toLowerCase() === data.cardName.toLowerCase() ||
-          t.cardType === data.cardType
+          t.cardType.toLowerCase() === data.cardType.toLowerCase()
         );
         
         if (tip) {
           setCurrentTip(tip);
-          const newShownTips = new Set(shownTips);
+          const newShownTips = new Set(prevShownTips);
           newShownTips.add(tipKey);
-          setShownTips(newShownTips);
           localStorage.setItem('trainingShownTips', JSON.stringify(Array.from(newShownTips)));
+          return newShownTips;
         }
-      }
+        return prevShownTips;
+      });
     };
 
-    socket.on('training-card-played', handleCardPlayed);
+    socket.on('card-played', handleCardPlayed);
+    
     return () => {
-      socket.off('training-card-played', handleCardPlayed);
+      socket.off('card-played', handleCardPlayed);
     };
-  }, [shownTips, allTips]);
+  }, [gameStarted, trainingGameId, gameId, allTips]);
 
   const handleSaveTip = async () => {
     if (!currentTip) return;
@@ -299,6 +335,36 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
         <Lightbulb className="w-5 h-5" />
         Modalità Allenamento
       </div>
+
+      {/* Add CPU button */}
+      {!cpuAdded && trainingGameId && (
+        <button
+          onClick={addCpuPlayer}
+          disabled={addingCpu || !trainingGameId}
+          className="fixed top-4 right-4 z-50 px-4 py-2 bg-blue-500/90 hover:bg-blue-600/90 disabled:bg-slate-500/50 text-white rounded-xl font-medium backdrop-blur-sm flex items-center gap-2 transition-colors"
+        >
+          {addingCpu ? (
+            <>
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Aggiungendo CPU...
+            </>
+          ) : (
+            <>
+              <Bot className="w-5 h-5" />
+              <Plus className="w-4 h-4" />
+              Aggiungi Avversario CPU
+            </>
+          )}
+        </button>
+      )}
+
+      {/* CPU added notification */}
+      {cpuAdded && cpuName && (
+        <div className="fixed top-4 right-4 z-50 px-4 py-2 bg-green-500/90 text-white rounded-xl font-medium backdrop-blur-sm flex items-center gap-2">
+          <Bot className="w-5 h-5" />
+          {cpuName} aggiunto!
+        </div>
+      )}
 
       {/* Tip Modal */}
       {currentTip && (

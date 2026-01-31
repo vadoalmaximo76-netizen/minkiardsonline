@@ -518,7 +518,8 @@ async function emitCardPlayed(io: SocketServer, gameId: string, card: any, playe
     cardType: card.type,
     frontImage: card.frontImage,
     cardName: card.name || getCardNameFromUrl(card.frontImage),
-    playerName
+    playerName,
+    gameId
   });
   
   // YOUTUBE VIDEO: Check if card has youtubeUrl and emit to all players
@@ -1135,6 +1136,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error) {
         console.error('Error during rejoin-game:', error);
         socket.emit('join-game-error', { message: 'Failed to rejoin game' });
+      }
+    });
+
+    // Create a training game with CPU opponent
+    socket.on('create-training-game', async ({ gameId, playerName, avatarId, userId }) => {
+      try {
+        console.log(`Creating training game ${gameId} for ${playerName}`);
+        
+        // Create the game and add the player
+        const result = await gameManager.addPlayer(gameId, playerName, socket.id, false, userId);
+        
+        if (!result.success) {
+          console.log(`Training game creation failed for ${playerName}: ${result.error}`);
+          socket.emit('join-game-error', { message: result.error });
+          return;
+        }
+        
+        socket.join(gameId);
+        
+        // Set avatar if provided
+        if (avatarId) {
+          gameManager.setPlayerAvatar(gameId, playerName, avatarId);
+        }
+        
+        // Set user ID for tracking
+        if (userId) {
+          gameManager.setPlayerUserId(gameId, playerName, userId);
+        }
+        
+        // Send initial game state
+        const gameState = gameManager.getSanitizedGameState(gameId);
+        socket.emit('game-state-update', gameState);
+        socket.emit('player-joined', { playerName });
+        
+        console.log(`Training game ${gameId} created successfully`);
+      } catch (error) {
+        console.error('Error creating training game:', error);
+        socket.emit('join-game-error', { message: 'Failed to create training game' });
+      }
+    });
+
+    // Add CPU player to training game
+    socket.on('add-training-cpu', async ({ gameId }) => {
+      try {
+        const cpuName = await gameManager.addCPUPlayer(gameId);
+        const gameState = gameManager.getSanitizedGameState(gameId);
+        emitThrottledGameState(io, gameId, gameState);
+        io.to(gameId).emit('player-joined', { playerName: cpuName });
+        
+        // CPU sends a greeting message for training
+        setTimeout(() => {
+          const game = gameManager.getGameState(gameId);
+          const cpuPlayer = game?.players[cpuName];
+          if (cpuPlayer?.isCPU && cpuPlayer.cpuInstance) {
+            cpuPlayer.cpuInstance.sendChatMessage("Ciao! Sono il tuo avversario di allenamento. Ti aiuterò a imparare a giocare a MINKIARDS!");
+          }
+        }, 1500);
+        
+        io.to(gameId).emit('training-cpu-added', { cpuName });
+      } catch (error) {
+        console.error('Error adding training CPU:', error);
+        socket.emit('training-error', { message: 'Failed to add CPU player' });
       }
     });
 
