@@ -8,6 +8,7 @@ interface HomeScreenProps {
   playerName: string;
   userId?: number;
   onNavigate: (section: 'play' | 'training' | 'rooms' | 'profile') => void;
+  onJoinTournamentMatch?: (gameId: string, matchId: number, tournamentName: string) => void;
 }
 
 interface UserStats {
@@ -16,7 +17,7 @@ interface UserStats {
   gamesWon: number;
 }
 
-export function HomeScreen({ playerName, userId, onNavigate }: HomeScreenProps) {
+export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMatch }: HomeScreenProps) {
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [activeRoomsCount, setActiveRoomsCount] = useState(0);
   const [showTournaments, setShowTournaments] = useState(false);
@@ -228,6 +229,7 @@ export function HomeScreen({ playerName, userId, onNavigate }: HomeScreenProps) 
         onClose={() => setShowTournaments(false)}
         authToken={localStorage.getItem('authToken')}
         userId={userId}
+        onJoinMatch={onJoinTournamentMatch}
       />
 
       {/* Replay Panel */}

@@ -350,6 +350,25 @@ function App() {
     setShowRoomDialog(false);
   };
 
+  const handleJoinTournamentMatch = (tournamentGameId: string, matchId: number, tournamentName: string) => {
+    setGameId(tournamentGameId);
+    generateSessionId();
+    
+    const newUrl = `${window.location.origin}?game=${tournamentGameId}`;
+    window.history.pushState(null, '', newUrl);
+    
+    socket.emit('join-game', { 
+      gameId: tournamentGameId, 
+      playerName, 
+      avatarId: pendingAvatar,
+      userId: authenticatedUser?.id,
+      tournamentMatchId: matchId,
+      tournamentName
+    });
+    
+    setCurrentSection('play');
+  };
+
   const handleUpdateProfile = (updates: { username?: string; avatar?: string }) => {
     if (updates.username) {
       setPlayerName(updates.username);
@@ -397,6 +416,7 @@ function App() {
           playerName={playerName}
           userId={authenticatedUser?.id}
           onNavigate={handleNavigate}
+          onJoinTournamentMatch={handleJoinTournamentMatch}
         />
       </QueryClientProvider>
     );

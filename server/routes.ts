@@ -6,7 +6,7 @@ import OpenAI from "openai";
 import jwt from "jsonwebtoken";
 import { db } from "./db";
 import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, achievements, playerAchievements, missionTemplates, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, cardSkins, playerSkins, seasonalPasses, passRewards, playerPassProgress } from "../shared/schema";
-import { eq, ilike, and, desc, or, ne, sql } from "drizzle-orm";
+import { eq, ilike, and, desc, or, ne, sql, inArray } from "drizzle-orm";
 import { CARD_DATA } from "../client/src/lib/cardData";
 import { authMiddleware } from "./auth";
 
@@ -7889,21 +7889,198 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       const matchCount = Math.floor(shuffled.length / 2);
       
       for (let i = 0; i < matchCount; i++) {
+        const hasBothPlayers = !!shuffled[i * 2 + 1];
+        const gameId = hasBothPlayers ? `tournament-${tournamentId}-r1-m${i + 1}` : null;
+        
         await db.insert(tournamentMatches).values({
           tournamentId,
           round: 1,
           matchNumber: i + 1,
           player1Id: shuffled[i * 2].userId,
           player2Id: shuffled[i * 2 + 1]?.userId || null,
-          status: shuffled[i * 2 + 1] ? 'pending' : 'completed',
-          winnerId: shuffled[i * 2 + 1] ? null : shuffled[i * 2].userId // Bye
+          gameId: gameId,
+          status: hasBothPlayers ? 'pending' : 'completed',
+          winnerId: hasBothPlayers ? null : shuffled[i * 2].userId // Bye
         });
       }
+      
+      // Broadcast tournament started to all connected clients
+      io.emit('tournament-started', {
+        tournamentId,
+        tournamentName: tournament[0].name,
+        participantIds: shuffled.map(p => p.userId),
+        message: `Il torneo "${tournament[0].name}" è iniziato!`
+      });
       
       res.json({ success: true, message: 'Tournament started' });
     } catch (error) {
       console.error('Error starting tournament:', error);
       res.status(500).json({ success: false, error: 'Failed to start tournament' });
+    }
+  });
+
+  // Join a tournament match (creates the game room if needed)
+  app.post('/api/tournaments/matches/:matchId/join', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const matchId = parseInt(req.params.matchId);
+      
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser.length) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      
+      const match = await db.select().from(tournamentMatches).where(eq(tournamentMatches.id, matchId)).limit(1);
+      if (!match.length) {
+        return res.status(404).json({ success: false, error: 'Match not found' });
+      }
+      
+      const matchData = match[0];
+      
+      // Check if user is a participant in this match
+      if (matchData.player1Id !== currentUser[0].id && matchData.player2Id !== currentUser[0].id) {
+        return res.status(403).json({ success: false, error: 'Not a participant in this match' });
+      }
+      
+      // Check match status
+      if (matchData.status === 'completed') {
+        return res.status(400).json({ success: false, error: 'Match already completed' });
+      }
+      
+      // Get tournament info
+      const tournament = await db.select().from(tournaments).where(eq(tournaments.id, matchData.tournamentId)).limit(1);
+      if (!tournament.length || tournament[0].status !== 'in_progress') {
+        return res.status(400).json({ success: false, error: 'Tournament not in progress' });
+      }
+      
+      const gameId = matchData.gameId || `tournament-${matchData.tournamentId}-r${matchData.round}-m${matchData.matchNumber}`;
+      
+      // Update match with gameId and status if needed
+      const updateFields: Record<string, any> = {};
+      if (!matchData.gameId) {
+        updateFields.gameId = gameId;
+      }
+      if (matchData.status === 'pending') {
+        updateFields.status = 'in_progress';
+      }
+      if (Object.keys(updateFields).length > 0) {
+        await db.update(tournamentMatches)
+          .set(updateFields)
+          .where(eq(tournamentMatches.id, matchId));
+      }
+      
+      res.json({ 
+        success: true, 
+        gameId,
+        matchId,
+        tournamentId: matchData.tournamentId,
+        round: matchData.round,
+        matchNumber: matchData.matchNumber
+      });
+    } catch (error) {
+      console.error('Error joining tournament match:', error);
+      res.status(500).json({ success: false, error: 'Failed to join match' });
+    }
+  });
+
+  // Report tournament match result
+  app.post('/api/tournaments/matches/:matchId/report', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const matchId = parseInt(req.params.matchId);
+      const { winnerId } = req.body;
+      
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser.length) {
+        return res.status(404).json({ success: false, error: 'User not found' });
+      }
+      
+      const match = await db.select().from(tournamentMatches).where(eq(tournamentMatches.id, matchId)).limit(1);
+      if (!match.length) {
+        return res.status(404).json({ success: false, error: 'Match not found' });
+      }
+      
+      const matchData = match[0];
+      
+      // Check tournament is in progress
+      const tournament = await db.select().from(tournaments).where(eq(tournaments.id, matchData.tournamentId)).limit(1);
+      if (!tournament.length || tournament[0].status !== 'in_progress') {
+        return res.status(400).json({ success: false, error: 'Tournament not in progress' });
+      }
+      
+      // Only organizer or participants can report
+      const isOrganizer = tournament[0].organizerId === currentUser[0].id;
+      const isParticipant = matchData.player1Id === currentUser[0].id || matchData.player2Id === currentUser[0].id;
+      if (!isOrganizer && !isParticipant) {
+        return res.status(403).json({ success: false, error: 'Not authorized to report this match' });
+      }
+      
+      // Validate winner
+      if (winnerId !== matchData.player1Id && winnerId !== matchData.player2Id) {
+        return res.status(400).json({ success: false, error: 'Invalid winner' });
+      }
+      
+      // Update match
+      await db.update(tournamentMatches)
+        .set({ winnerId, status: 'completed', completedAt: new Date() })
+        .where(eq(tournamentMatches.id, matchId));
+      
+      // Check if all matches in this round are completed
+      const roundMatches = await db.select().from(tournamentMatches)
+        .where(and(
+          eq(tournamentMatches.tournamentId, matchData.tournamentId),
+          eq(tournamentMatches.round, matchData.round)
+        ));
+      
+      const allCompleted = roundMatches.every(m => m.status === 'completed' || m.id === matchId);
+      
+      if (allCompleted) {
+        // Collect winners
+        const winners = roundMatches.map(m => m.id === matchId ? winnerId : m.winnerId).filter(Boolean);
+        
+        if (winners.length <= 1) {
+          // Tournament complete
+          await db.update(tournaments)
+            .set({ status: 'completed', winnerId: winners[0] || null })
+            .where(eq(tournaments.id, matchData.tournamentId));
+          
+          io.emit('tournament-completed', {
+            tournamentId: matchData.tournamentId,
+            winnerId: winners[0]
+          });
+        } else {
+          // Create next round matches
+          const nextRound = matchData.round + 1;
+          const matchCount = Math.floor(winners.length / 2);
+          
+          for (let i = 0; i < matchCount; i++) {
+            const p1 = winners[i * 2];
+            const p2 = winners[i * 2 + 1] || null;
+            const gameId = p2 ? `tournament-${matchData.tournamentId}-r${nextRound}-m${i + 1}` : null;
+            
+            await db.insert(tournamentMatches).values({
+              tournamentId: matchData.tournamentId,
+              round: nextRound,
+              matchNumber: i + 1,
+              player1Id: p1,
+              player2Id: p2,
+              gameId,
+              status: p2 ? 'pending' : 'completed',
+              winnerId: p2 ? null : p1
+            });
+          }
+          
+          io.emit('tournament-round-advanced', {
+            tournamentId: matchData.tournamentId,
+            round: nextRound
+          });
+        }
+      }
+      
+      res.json({ success: true, message: 'Match result reported' });
+    } catch (error) {
+      console.error('Error reporting match result:', error);
+      res.status(500).json({ success: false, error: 'Failed to report match' });
     }
   });
 

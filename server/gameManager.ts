@@ -1,7 +1,7 @@
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from '../client/src/lib/cardData';
 import { db } from './db';
-import { matches, gameEvents, personaggi, customCards, cardModifications, users, gameStates, cardSkins, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
-import { eq, ilike, sql } from 'drizzle-orm';
+import { matches, gameEvents, personaggi, customCards, cardModifications, users, gameStates, cardSkins, tournamentMatches, tournaments, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
+import { eq, ilike, sql, and } from 'drizzle-orm';
 import { CPUPlayer } from './cpuPlayer';
 import { trackGameEvent } from './missionsAndAchievements';
 import { getPersonaggioFromCache } from './personaggiCache';
@@ -1532,8 +1532,113 @@ Rispondi SOLO in JSON:`;
         this.trackPlayerEventAsync(gameId, winnerPlayer, 'game_won', {});
       }
 
+      // Check if this is a tournament match and update it
+      if (gameId.startsWith('tournament-')) {
+        await this.updateTournamentMatch(gameId, winnerPlayer);
+      }
+
     } catch (error) {
       console.error('Failed to complete match:', error);
+    }
+  }
+
+  private async updateTournamentMatch(gameId: string, winnerPlayer?: string): Promise<void> {
+    try {
+      if (!winnerPlayer) return;
+
+      const game = this.games.get(gameId);
+      if (!game) {
+        console.log(`Game not found for tournament update: ${gameId}`);
+        return;
+      }
+
+      // Find the tournament match by gameId
+      const match = await db.select().from(tournamentMatches)
+        .where(eq(tournamentMatches.gameId, gameId))
+        .limit(1);
+
+      if (!match.length) {
+        console.log(`No tournament match found for gameId: ${gameId}`);
+        return;
+      }
+
+      const matchData = match[0];
+
+      // Get winner's userId from game state (more reliable than DB lookup)
+      let winnerId = game.playerUserIds.get(winnerPlayer);
+      
+      // Fallback to DB lookup if not in game state
+      if (!winnerId) {
+        const winnerUser = await db.select().from(users)
+          .where(eq(users.username, winnerPlayer))
+          .limit(1);
+        if (winnerUser.length) {
+          winnerId = winnerUser[0].id;
+        }
+      }
+
+      if (!winnerId) {
+        console.log(`Winner userId not found for: ${winnerPlayer}`);
+        return;
+      }
+
+      // Validate winner is a participant
+      if (matchData.player1Id !== winnerId && matchData.player2Id !== winnerId) {
+        console.log(`Winner ${winnerPlayer} (${winnerId}) is not a participant in match ${matchData.id}`);
+        return;
+      }
+
+      // Update match with winner
+      await db.update(tournamentMatches)
+        .set({ winnerId, status: 'completed', completedAt: new Date() })
+        .where(eq(tournamentMatches.id, matchData.id));
+
+      console.log(`Tournament match ${matchData.id} completed - winner: ${winnerPlayer} (${winnerId})`);
+
+      // Check if all matches in this round are completed
+      const roundMatches = await db.select().from(tournamentMatches)
+        .where(and(
+          eq(tournamentMatches.tournamentId, matchData.tournamentId),
+          eq(tournamentMatches.round, matchData.round)
+        ));
+
+      const allCompleted = roundMatches.every(m => m.status === 'completed');
+
+      if (allCompleted) {
+        const winners = roundMatches.map(m => m.winnerId).filter(Boolean);
+
+        if (winners.length <= 1) {
+          // Tournament complete
+          await db.update(tournaments)
+            .set({ status: 'completed', winnerId: winners[0] || null })
+            .where(eq(tournaments.id, matchData.tournamentId));
+          console.log(`Tournament ${matchData.tournamentId} completed - winner: ${winners[0]}`);
+        } else {
+          // Create next round matches
+          const nextRound = matchData.round + 1;
+          const matchCount = Math.floor(winners.length / 2);
+
+          for (let i = 0; i < matchCount; i++) {
+            const p1 = winners[i * 2];
+            const p2 = winners[i * 2 + 1] || null;
+            const newGameId = p2 ? `tournament-${matchData.tournamentId}-r${nextRound}-m${i + 1}` : null;
+
+            await db.insert(tournamentMatches).values({
+              tournamentId: matchData.tournamentId,
+              round: nextRound,
+              matchNumber: i + 1,
+              player1Id: p1,
+              player2Id: p2,
+              gameId: newGameId,
+              status: p2 ? 'pending' : 'completed',
+              winnerId: p2 ? null : p1
+            });
+          }
+          console.log(`Tournament ${matchData.tournamentId} advanced to round ${nextRound}`);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to update tournament match:', error);
     }
   }
 

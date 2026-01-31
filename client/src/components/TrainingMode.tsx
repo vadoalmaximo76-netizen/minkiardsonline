@@ -251,13 +251,13 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
     
     const handleCardPlayed = (data: { cardType?: string; deckType?: string }) => {
       console.log('Tutorial: card-played event received', data);
-      const cardType = data.cardType || data.deckType || '';
+      const cardType = (data.cardType || data.deckType || '').toLowerCase();
       
-      if (cardType === 'PERSONAGGI' || cardType === 'PERSONAGGI SPECIALI') {
+      if (cardType === 'personaggi' || cardType === 'personaggi_speciali') {
         advanceTutorialForTrigger('character_played');
-      } else if (cardType === 'MOSSE') {
+      } else if (cardType === 'mosse') {
         advanceTutorialForTrigger('mosse_played');
-      } else if (cardType === 'BONUS') {
+      } else if (cardType === 'bonus') {
         advanceTutorialForTrigger('bonus_played');
       }
     };

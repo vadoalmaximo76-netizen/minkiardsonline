@@ -21,9 +21,10 @@ interface TournamentPanelProps {
   onClose: () => void;
   authToken: string | null;
   userId?: number;
+  onJoinMatch?: (gameId: string, matchId: number, tournamentName: string) => void;
 }
 
-export function TournamentPanel({ isOpen, onClose, authToken, userId }: TournamentPanelProps) {
+export function TournamentPanel({ isOpen, onClose, authToken, userId, onJoinMatch }: TournamentPanelProps) {
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null);
@@ -163,6 +164,28 @@ export function TournamentPanel({ isOpen, onClose, authToken, userId }: Tourname
       }
     } catch (error) {
       console.error('Error starting tournament:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleJoinMatch = async (matchId: number) => {
+    if (!authToken || !onJoinMatch || !selectedTournament) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/tournaments/matches/${matchId}/join`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        onJoinMatch(data.gameId, matchId, selectedTournament.name);
+        onClose();
+      } else {
+        alert(data.error);
+      }
+    } catch (error) {
+      console.error('Error joining match:', error);
     } finally {
       setLoading(false);
     }
@@ -371,21 +394,44 @@ export function TournamentPanel({ isOpen, onClose, authToken, userId }: Tourname
 
               {selectedTournament.status === 'in_progress' && matches.length > 0 && (
                 <div className="mt-4">
-                  <h4 className="text-lg font-semibold text-white mb-3">Partite in Corso</h4>
+                  <h4 className="text-lg font-semibold text-white mb-3">Partite</h4>
                   <div className="space-y-2">
-                    {matches.filter(m => m.status === 'pending' || m.status === 'in_progress').map(match => (
-                      <div key={match.id} className="bg-slate-700/50 rounded-xl p-3 flex items-center justify-between border border-white/5">
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs text-slate-400">Round {match.round}</span>
-                          <span className="text-white font-medium">
-                            {participants.find(p => p.id === match.player1Id)?.username || 'TBD'} vs {participants.find(p => p.id === match.player2Id)?.username || 'TBD'}
-                          </span>
+                    {matches.map(match => {
+                      const isMyMatch = match.player1Id === userId || match.player2Id === userId;
+                      const canPlay = isMyMatch && (match.status === 'pending' || match.status === 'in_progress');
+                      
+                      return (
+                        <div key={match.id} className={`bg-slate-700/50 rounded-xl p-3 flex items-center justify-between border ${isMyMatch ? 'border-amber-500/30' : 'border-white/5'}`}>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-slate-400">Round {match.round}</span>
+                            <span className="text-white font-medium">
+                              {participants.find(p => p.id === match.player1Id)?.username || 'TBD'} vs {participants.find(p => p.id === match.player2Id)?.username || 'TBD'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {match.status === 'completed' && match.winnerId && (
+                              <span className="text-xs text-green-400">
+                                Vincitore: {participants.find(p => p.id === match.winnerId)?.username || 'N/A'}
+                              </span>
+                            )}
+                            {canPlay && onJoinMatch ? (
+                              <button
+                                onClick={() => handleJoinMatch(match.id)}
+                                disabled={loading}
+                                className="px-3 py-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white rounded-lg text-sm font-bold flex items-center gap-1"
+                              >
+                                <Play className="w-4 h-4" />
+                                Gioca
+                              </button>
+                            ) : (
+                              <span className={`px-2 py-1 rounded text-xs ${match.status === 'completed' ? 'bg-green-500/20 text-green-400' : match.status === 'in_progress' ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-500/20 text-slate-400'}`}>
+                                {match.status === 'completed' ? 'Completato' : match.status === 'in_progress' ? 'In Corso' : 'In Attesa'}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <span className={`px-2 py-1 rounded text-xs ${match.status === 'in_progress' ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-500/20 text-slate-400'}`}>
-                          {match.status === 'in_progress' ? 'In Corso' : 'In Attesa'}
-                        </span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
