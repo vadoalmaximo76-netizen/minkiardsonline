@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, User, Trophy, Clock, Target, Users, Edit3, Save, X, Key, Mail, Camera, Award, Gamepad2, Star, TrendingUp, Shield, Palette, Crown, Settings } from 'lucide-react';
+import { ArrowLeft, User, Trophy, Clock, Target, Users, Edit3, Save, X, Key, Mail, Camera, Award, Gamepad2, Star, TrendingUp, Shield, Palette, Crown, Settings, MessageCircle, Bell } from 'lucide-react';
 import { AVATARS } from '../lib/avatars';
 import { ClanPanel } from './ClanPanel';
 import { CardSkinsPanel } from './CardSkinsPanel';
@@ -7,12 +7,15 @@ import { SeasonalPassPanel } from './SeasonalPassPanel';
 import { AdminSkinsPanel } from './AdminSkinsPanel';
 import { AdminEventsPanel } from './AdminEventsPanel';
 import { AdminPassPanel } from './AdminPassPanel';
+import PrivateMessagesPanel from './PrivateMessagesPanel';
+import NotificationSettings from './NotificationSettings';
 
 interface ProfileSectionProps {
   playerName: string;
   userId?: number;
   userEmail?: string | null;
   userAvatar?: string | null;
+  socket?: any;
   onBack: () => void;
   onUpdateProfile: (updates: { username?: string; avatar?: string }) => void;
 }
@@ -32,7 +35,7 @@ interface UserStats {
   friends: Array<{ id: number; username: string; avatar: string | null; online: boolean }>;
 }
 
-export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBack, onUpdateProfile }: ProfileSectionProps) {
+export function ProfileSection({ playerName, userId, userEmail, userAvatar, socket, onBack, onUpdateProfile }: ProfileSectionProps) {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingProfile, setEditingProfile] = useState(false);
@@ -53,6 +56,8 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
   const [showAdminEventsPanel, setShowAdminEventsPanel] = useState(false);
   const [showAdminPassPanel, setShowAdminPassPanel] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showMessagesPanel, setShowMessagesPanel] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -103,7 +108,26 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
     };
 
     fetchStats();
+    fetchUnreadCount();
   }, [userId]);
+
+  const fetchUnreadCount = async () => {
+    try {
+      const authToken = localStorage.getItem('authToken');
+      if (!authToken) return;
+      
+      const res = await fetch('/api/messages/unread-count', {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setUnreadMessages(data.unreadCount || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+    }
+  };
 
   const handleSaveProfile = async () => {
     try {
@@ -392,6 +416,42 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
               </div>
             </div>
 
+            {/* Messages & Notifications */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-gradient-to-r from-indigo-900/30 to-slate-800/50 rounded-2xl p-5 border border-indigo-500/20">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="relative">
+                    <MessageCircle className="w-6 h-6 text-indigo-400" />
+                    {unreadMessages > 0 && (
+                      <div className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                        {unreadMessages > 9 ? '9+' : unreadMessages}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Messaggi Privati</h3>
+                    <p className="text-white/70 text-sm font-medium">Chatta con altri giocatori</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowMessagesPanel(true)}
+                  className="w-full px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 rounded-xl font-medium transition-colors"
+                >
+                  Apri Messaggi
+                </button>
+              </div>
+              <div className="bg-gradient-to-r from-teal-900/30 to-slate-800/50 rounded-2xl p-5 border border-teal-500/20">
+                <div className="flex items-center gap-3 mb-3">
+                  <Bell className="w-6 h-6 text-teal-400" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Notifiche</h3>
+                    <p className="text-white/70 text-sm font-medium">Gestisci le notifiche push</p>
+                  </div>
+                </div>
+                <NotificationSettings authToken={localStorage.getItem('authToken')} />
+              </div>
+            </div>
+
             {/* Card Skins & Seasonal Pass */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-gradient-to-r from-violet-900/30 to-slate-800/50 rounded-2xl p-5 border border-violet-500/20">
@@ -669,6 +729,19 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, onBa
             isOpen={showAdminPassPanel}
             onClose={() => setShowAdminPassPanel(false)}
             authToken={localStorage.getItem('authToken')}
+          />
+        )}
+
+        {/* Private Messages Panel */}
+        {showMessagesPanel && userId && (
+          <PrivateMessagesPanel
+            authToken={localStorage.getItem('authToken')}
+            currentUserId={userId}
+            socket={socket}
+            onClose={() => {
+              setShowMessagesPanel(false);
+              fetchUnreadCount();
+            }}
           />
         )}
       </div>

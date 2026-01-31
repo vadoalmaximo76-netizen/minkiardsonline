@@ -8741,6 +8741,30 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     }
   });
 
+  // ============ USER SEARCH API ============
+  app.get('/api/search-users', authMiddleware, async (req, res) => {
+    try {
+      const query = req.query.query as string;
+      if (!query || query.length < 2) {
+        return res.json([]);
+      }
+      
+      const results = await db.select({
+        id: users.id,
+        username: users.username,
+        avatar: users.avatar
+      })
+      .from(users)
+      .where(ilike(users.username, `%${query}%`))
+      .limit(10);
+      
+      res.json(results);
+    } catch (error) {
+      console.error('Error searching users:', error);
+      res.status(500).json({ error: 'Failed to search users' });
+    }
+  });
+
   // ============ PRIVATE MESSAGING API ============
   
   // Get all conversations for a user
