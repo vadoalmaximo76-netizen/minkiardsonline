@@ -13,6 +13,7 @@ export const users = pgTable("users", {
   gamesPlayed: integer("games_played").notNull().default(0), // Total games played
   gamesWon: integer("games_won").notNull().default(0), // Total games won
   minutesPlayed: integer("minutes_played").notNull().default(0), // Total minutes played
+  tutorialCompleted: boolean("tutorial_completed").notNull().default(false), // Track if user completed the tutorial
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
