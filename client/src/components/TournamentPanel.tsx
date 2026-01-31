@@ -20,13 +20,15 @@ interface TournamentPanelProps {
   isOpen: boolean;
   onClose: () => void;
   authToken: string | null;
+  userId?: number;
 }
 
-export function TournamentPanel({ isOpen, onClose, authToken }: TournamentPanelProps) {
+export function TournamentPanel({ isOpen, onClose, authToken, userId }: TournamentPanelProps) {
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null);
   const [participants, setParticipants] = useState<any[]>([]);
+  const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<string>('');
   const [createForm, setCreateForm] = useState({
@@ -64,10 +66,33 @@ export function TournamentPanel({ isOpen, onClose, authToken }: TournamentPanelP
       if (data.success) {
         setSelectedTournament(data.tournament);
         setParticipants(data.participants);
+        setMatches(data.matches || []);
         setView('detail');
       }
     } catch (error) {
       console.error('Error fetching tournament:', error);
+    }
+  };
+
+  const handleCloseRegistration = async (tournamentId: number) => {
+    if (!authToken) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/tournaments/${tournamentId}/close-registration`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        await fetchTournamentDetail(tournamentId);
+        await fetchTournaments();
+      } else {
+        alert(data.error);
+      }
+    } catch (error) {
+      console.error('Error closing registration:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -146,6 +171,7 @@ export function TournamentPanel({ isOpen, onClose, authToken }: TournamentPanelP
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'registration': return 'bg-green-500/20 text-green-400';
+      case 'closed': return 'bg-orange-500/20 text-orange-400';
       case 'in_progress': return 'bg-amber-500/20 text-amber-400';
       case 'completed': return 'bg-slate-500/20 text-slate-400';
       default: return 'bg-slate-500/20 text-slate-400';
@@ -155,6 +181,7 @@ export function TournamentPanel({ isOpen, onClose, authToken }: TournamentPanelP
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'registration': return 'Iscrizioni Aperte';
+      case 'closed': return 'Iscrizioni Chiuse';
       case 'in_progress': return 'In Corso';
       case 'completed': return 'Completato';
       default: return status;
@@ -193,6 +220,7 @@ export function TournamentPanel({ isOpen, onClose, authToken }: TournamentPanelP
               >
                 <option value="">Tutti</option>
                 <option value="registration">Iscrizioni Aperte</option>
+                <option value="closed">Iscrizioni Chiuse</option>
                 <option value="in_progress">In Corso</option>
                 <option value="completed">Completati</option>
               </select>
@@ -286,13 +314,80 @@ export function TournamentPanel({ isOpen, onClose, authToken }: TournamentPanelP
               </div>
 
               {selectedTournament.status === 'registration' && (
-                <button
-                  onClick={() => handleJoin(selectedTournament.id)}
-                  disabled={loading}
-                  className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white rounded-xl font-bold transition-all"
-                >
-                  Iscriviti al Torneo
-                </button>
+                <div className="space-y-3">
+                  {userId !== selectedTournament.organizerId && (
+                    <button
+                      onClick={() => handleJoin(selectedTournament.id)}
+                      disabled={loading}
+                      className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white rounded-xl font-bold transition-all"
+                    >
+                      Iscriviti al Torneo
+                    </button>
+                  )}
+                  
+                  {userId === selectedTournament.organizerId && (
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => handleCloseRegistration(selectedTournament.id)}
+                        disabled={loading || selectedTournament.currentParticipants < 2}
+                        className="flex-1 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 rounded-xl font-bold transition-all disabled:opacity-50"
+                      >
+                        Chiudi Iscrizioni
+                      </button>
+                      <button
+                        onClick={() => handleStart(selectedTournament.id)}
+                        disabled={loading || selectedTournament.currentParticipants < 2}
+                        className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white rounded-xl font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        <Play className="w-5 h-5" />
+                        Avvia Torneo
+                      </button>
+                    </div>
+                  )}
+                  
+                  {userId === selectedTournament.organizerId && selectedTournament.currentParticipants < 2 && (
+                    <p className="text-center text-amber-400 text-sm">Servono almeno 2 partecipanti per avviare il torneo</p>
+                  )}
+                </div>
+              )}
+              
+              {selectedTournament.status === 'closed' && userId === selectedTournament.organizerId && (
+                <div className="space-y-3">
+                  <p className="text-center text-orange-400 text-sm">Le iscrizioni sono chiuse. Sei pronto ad avviare il torneo?</p>
+                  <button
+                    onClick={() => handleStart(selectedTournament.id)}
+                    disabled={loading}
+                    className="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+                  >
+                    <Play className="w-5 h-5" />
+                    Avvia Torneo
+                  </button>
+                </div>
+              )}
+              
+              {selectedTournament.status === 'closed' && userId !== selectedTournament.organizerId && (
+                <p className="text-center text-orange-400 text-sm">Le iscrizioni sono chiuse. In attesa dell'avvio del torneo...</p>
+              )}
+
+              {selectedTournament.status === 'in_progress' && matches.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="text-lg font-semibold text-white mb-3">Partite in Corso</h4>
+                  <div className="space-y-2">
+                    {matches.filter(m => m.status === 'pending' || m.status === 'in_progress').map(match => (
+                      <div key={match.id} className="bg-slate-700/50 rounded-xl p-3 flex items-center justify-between border border-white/5">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-slate-400">Round {match.round}</span>
+                          <span className="text-white font-medium">
+                            {participants.find(p => p.id === match.player1Id)?.username || 'TBD'} vs {participants.find(p => p.id === match.player2Id)?.username || 'TBD'}
+                          </span>
+                        </div>
+                        <span className={`px-2 py-1 rounded text-xs ${match.status === 'in_progress' ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-500/20 text-slate-400'}`}>
+                          {match.status === 'in_progress' ? 'In Corso' : 'In Attesa'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
 

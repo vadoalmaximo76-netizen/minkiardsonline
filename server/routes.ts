@@ -7808,6 +7808,45 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     }
   });
 
+  // Close tournament registration (organizer only)
+  app.post('/api/tournaments/:id/close-registration', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const tournamentId = parseInt(req.params.id);
+
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser.length) {
+        return res.status(401).json({ success: false, error: 'User not found' });
+      }
+
+      const tournament = await db.select().from(tournaments).where(eq(tournaments.id, tournamentId)).limit(1);
+      if (!tournament.length) {
+        return res.status(404).json({ success: false, error: 'Tournament not found' });
+      }
+
+      if (tournament[0].organizerId !== currentUser[0].id) {
+        return res.status(403).json({ success: false, error: 'Only the organizer can close registration' });
+      }
+
+      if (tournament[0].status !== 'registration') {
+        return res.status(400).json({ success: false, error: 'Tournament is not in registration phase' });
+      }
+
+      if (tournament[0].currentParticipants < 2) {
+        return res.status(400).json({ success: false, error: 'Need at least 2 participants to close registration' });
+      }
+
+      await db.update(tournaments)
+        .set({ status: 'closed' })
+        .where(eq(tournaments.id, tournamentId));
+
+      res.json({ success: true, message: 'Registration closed successfully' });
+    } catch (error) {
+      console.error('Error closing registration:', error);
+      res.status(500).json({ success: false, error: 'Failed to close registration' });
+    }
+  });
+
   // Start a tournament (organizer only)
   app.post('/api/tournaments/:id/start', authMiddleware, async (req, res) => {
     try {
@@ -7828,8 +7867,8 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         return res.status(403).json({ success: false, error: 'Only the organizer can start the tournament' });
       }
       
-      // Check tournament is in registration phase
-      if (tournament[0].status !== 'registration') {
+      // Check tournament is in registration or closed phase
+      if (tournament[0].status !== 'registration' && tournament[0].status !== 'closed') {
         return res.status(400).json({ success: false, error: 'Tournament has already started or completed' });
       }
       

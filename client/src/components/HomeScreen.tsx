@@ -227,6 +227,7 @@ export function HomeScreen({ playerName, userId, onNavigate }: HomeScreenProps) 
         isOpen={showTournaments}
         onClose={() => setShowTournaments(false)}
         authToken={localStorage.getItem('authToken')}
+        userId={userId}
       />
 
       {/* Replay Panel */}
