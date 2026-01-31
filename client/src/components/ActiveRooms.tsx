@@ -244,20 +244,21 @@ export function ActiveRooms({ playerName, userId, avatarId, onBack, onJoinRoom, 
                       <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
                       <span>In attesa di approvazione...</span>
                     </div>
-                  ) : room.status === 'waiting' && (
+                  ) : room.playerCount < room.maxPlayers && (
                     <button
                       onClick={() => handleJoinRoom(room)}
-                      disabled={joiningRoom === room.gameId || room.playerCount >= room.maxPlayers}
-                      className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
-                        room.playerCount >= room.maxPlayers
-                          ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
-                          : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white hover:scale-105'
-                      }`}
+                      disabled={joiningRoom === room.gameId}
+                      className="flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white hover:scale-105"
                     >
                       <UserPlus className="w-5 h-5" />
-                      {room.playerCount >= room.maxPlayers ? 'Stanza piena' : 
-                       room.requiresApproval ? 'Richiedi accesso' : 'Entra'}
+                      {room.requiresApproval ? 'Richiedi accesso' : 'Entra'}
                     </button>
+                  )}
+                  {room.playerCount >= room.maxPlayers && (
+                    <div className="flex items-center gap-2 px-6 py-3 bg-slate-600 text-slate-400 rounded-xl cursor-not-allowed">
+                      <UserPlus className="w-5 h-5" />
+                      Stanza piena
+                    </div>
                   )}
                 </div>
               </div>
