@@ -104,7 +104,7 @@ export function SpectatorView({ gameId, spectatorName, onLeave }: SpectatorViewP
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-arena-deep flex items-center justify-center p-4">
         <div className="bg-slate-800/80 rounded-2xl p-8 max-w-md w-full text-center border border-red-500/30">
           <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
             <X className="w-8 h-8 text-red-400" />
@@ -124,7 +124,7 @@ export function SpectatorView({ gameId, spectatorName, onLeave }: SpectatorViewP
 
   if (!connected || !gameState) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-arena-deep flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-slate-400">Connessione in corso...</p>
@@ -137,7 +137,7 @@ export function SpectatorView({ gameId, spectatorName, onLeave }: SpectatorViewP
   const currentPlayer = players[gameState.currentPlayerIndex];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 relative overflow-hidden">
+    <div className="min-h-screen bg-arena-deep relative overflow-hidden">
       <div 
         className="absolute inset-0 bg-cover bg-center opacity-30"
         style={{ backgroundImage: `url('https://i.postimg.cc/RFDM9bSq/1.png')` }}
