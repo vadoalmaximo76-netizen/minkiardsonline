@@ -19,6 +19,18 @@ interface UserStats {
 export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMatch }: HomeScreenProps) {
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [activeRoomsCount, setActiveRoomsCount] = useState(0);
+  const [randomQuote, setRandomQuote] = useState("");
+
+  useEffect(() => {
+    const quotes = [
+      "Viva il Pelux",
+      "Entra nel vivo del gioco scegliendo la sezione che preferisci",
+      "Lo sapevi che puoi compare skin speciali per le tue carte? Vai su PROFILO E STORE e scegli SKIN CARTE",
+      "Vuoi capire meglio il meccanismo delle Minkiards? Vai su ALLENAMENTO e premi su REGOLAMENTO per non avere più dubbi!",
+      "Minkiards è un progetto indipendente nato nel 2012, per maggiori info contatta vadoalmax76@gmail.com"
+    ];
+    setRandomQuote(quotes[Math.floor(Math.random() * quotes.length)]);
+  }, []);
   const [showTournaments, setShowTournaments] = useState(false);
   const [showSeasonalEvents, setShowSeasonalEvents] = useState(false);
 
@@ -218,9 +230,9 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
       </div>
 
       {/* Footer */}
-      <div className="mt-8 text-center relative z-10">
-        <p className="text-slate-500 text-sm">
-          Il gioco di carte Dragon Ball definitivo
+      <div className="mt-8 text-center relative z-10 max-w-xl">
+        <p className="text-slate-500 text-sm leading-relaxed">
+          {randomQuote}
         </p>
       </div>
 
