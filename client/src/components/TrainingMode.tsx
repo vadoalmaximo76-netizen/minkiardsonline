@@ -114,7 +114,7 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
           });
           if (res.ok) {
             const data = await res.json();
-            setIsAdmin(data.user?.isAdmin || false);
+            setIsAdmin(data.profile?.user?.isAdmin || false);
           }
         }
       } catch (error) {
