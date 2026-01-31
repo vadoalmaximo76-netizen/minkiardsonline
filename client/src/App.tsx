@@ -34,6 +34,8 @@ interface AuthUser {
   puntiRankiard?: number;
 }
 
+import { TooltipProvider } from "./components/ui/tooltip";
+
 function App() {
   const [showAuthDialog, setShowAuthDialog] = useState(true);
   const [authenticatedUser, setAuthenticatedUser] = useState<AuthUser | null>(null);
@@ -566,47 +568,49 @@ function App() {
   };
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-arena-deep overflow-auto">
-        {/* Game Invitation Notification */}
-        {gameInvitation && (
-          <div className="fixed top-4 right-4 z-50 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg shadow-2xl p-4 max-w-sm animate-pulse border-2 border-white/20">
-            <div className="text-white font-bold text-lg mb-2">Invito alla Partita!</div>
-            <div className="text-white/90 mb-3">
-              <span className="font-semibold">{gameInvitation.senderUsername}</span> ti ha invitato a giocare!
+    <TooltipProvider>
+      <QueryClientProvider client={queryClient}>
+        <div className="min-h-screen bg-arena-deep overflow-auto">
+          {/* Game Invitation Notification */}
+          {gameInvitation && (
+            <div className="fixed top-4 right-4 z-50 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg shadow-2xl p-4 max-w-sm animate-pulse border-2 border-white/20">
+              <div className="text-white font-bold text-lg mb-2">Invito alla Partita!</div>
+              <div className="text-white/90 mb-3">
+                <span className="font-semibold">{gameInvitation.senderUsername}</span> ti ha invitato a giocare!
+              </div>
+              <div className="text-white/70 text-sm mb-3">
+                Stanza: {gameInvitation.roomCode}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleAcceptInvitation}
+                  className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg font-medium transition-colors"
+                >
+                  Accetta
+                </button>
+                <button
+                  onClick={handleDeclineInvitation}
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg font-medium transition-colors"
+                >
+                  Rifiuta
+                </button>
+              </div>
             </div>
-            <div className="text-white/70 text-sm mb-3">
-              Stanza: {gameInvitation.roomCode}
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={handleAcceptInvitation}
-                className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg font-medium transition-colors"
-              >
-                Accetta
-              </button>
-              <button
-                onClick={handleDeclineInvitation}
-                className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg font-medium transition-colors"
-              >
-                Rifiuta
-              </button>
-            </div>
-          </div>
-        )}
-        
-        <GameBoard 
-          authenticatedUser={authenticatedUser}
-          onLogout={handleLogout}
-          authToken={localStorage.getItem('authToken')}
-          onBack={() => {
-            setCurrentSection('home');
-            setGameId('');
-            window.history.pushState(null, '', window.location.origin);
-          }}
-        />
-      </div>
-    </QueryClientProvider>
+          )}
+          
+          <GameBoard 
+            authenticatedUser={authenticatedUser}
+            onLogout={handleLogout}
+            authToken={localStorage.getItem('authToken')}
+            onBack={() => {
+              setCurrentSection('home');
+              setGameId('');
+              window.history.pushState(null, '', window.location.origin);
+            }}
+          />
+        </div>
+      </QueryClientProvider>
+    </TooltipProvider>
   );
 }
 

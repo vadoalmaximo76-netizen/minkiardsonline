@@ -67,6 +67,38 @@ interface CardProps {
   onCardPlayed?: () => void;
 }
 
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "./ui/tooltip";
+import { CARD_KEYWORDS } from "../lib/tooltips";
+
+const KeywordDescription: React.FC<{ text: string }> = ({ text }) => {
+  const parts = useMemo(() => {
+    // Escape keywords for regex and sort by length descending to match longest first
+    const keywords = Object.keys(CARD_KEYWORDS).sort((a, b) => b.length - a.length);
+    const pattern = new RegExp(`(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
+    
+    return text.split(pattern).map((part, i) => {
+      const keywordMatch = keywords.find(k => k.toLowerCase() === part.toLowerCase());
+      if (keywordMatch) {
+        return (
+          <Tooltip key={i}>
+            <TooltipTrigger asChild>
+              <span className="text-yellow-400 font-bold cursor-help underline decoration-dotted decoration-yellow-400/50 hover:text-yellow-300 transition-colors">
+                {part}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="bg-slate-900 border-slate-700 text-white p-2 text-xs shadow-2xl">
+              {CARD_KEYWORDS[keywordMatch]}
+            </TooltipContent>
+          </Tooltip>
+        );
+      }
+      return part;
+    });
+  }, [text]);
+
+  return <>{parts}</>;
+};
+
 const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, onCardPlayed }) => {
   const [cardText, setCardText] = useState(card.text || "");
   const [showActions, setShowActions] = useState(false);
@@ -979,13 +1011,22 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
 
       {/* Card Text - Only show for non-fused cards or fusion leaders */}
       {(!card.isFused || card.fusionLeader === card.id) && (
-        <textarea
-          value={cardText}
-          onChange={handleTextChange}
-          placeholder="Add note..."
-          className={`w-14 sm:w-16 md:w-20 lg:w-24 h-12 sm:h-14 md:h-16 text-[10px] sm:text-xs p-1 rounded resize-none neon-text-area neon-${card.type}`}
-          disabled={!isOwner && location === 'hand'}
-        />
+        <div className="relative group">
+          <textarea
+            value={cardText}
+            onChange={handleTextChange}
+            placeholder="Add note..."
+            className={`w-14 sm:w-16 md:w-20 lg:w-24 h-12 sm:h-14 md:h-16 text-[10px] sm:text-xs p-1 rounded resize-none neon-text-area neon-${card.type}`}
+            disabled={!isOwner && location === 'hand'}
+          />
+          {!card.faceDown && (
+            <div className="absolute inset-0 pointer-events-none p-1 overflow-y-auto bg-black/40 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+              <p className="text-[7px] sm:text-[10px] text-white leading-tight font-medium text-center italic drop-shadow-md">
+                <KeywordDescription text={cardText} />
+              </p>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Reveal button for face-down cards in field */}
