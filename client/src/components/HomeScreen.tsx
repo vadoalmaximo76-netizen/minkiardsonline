@@ -27,7 +27,7 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
       "Entra nel vivo del gioco scegliendo la sezione che preferisci",
       "Lo sapevi che puoi compare skin speciali per le tue carte? Vai su PROFILO E STORE e scegli SKIN CARTE",
       "Vuoi capire meglio il meccanismo delle Minkiards? Vai su ALLENAMENTO e premi su REGOLAMENTO per non avere più dubbi!",
-      "Minkiards è un progetto indipendente nato nel 2012, per maggiori info contatta vadoalmax76@gmail.com"
+      "Minkiards è un progetto indipendente nato nel 2012, per maggiori info contatta vadoalmaximo76@gmail.com"
     ];
     setRandomQuote(quotes[Math.floor(Math.random() * quotes.length)]);
   }, []);
