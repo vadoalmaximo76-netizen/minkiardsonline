@@ -702,36 +702,7 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
         Modalità Allenamento
       </div>
 
-      {/* Add CPU button */}
-      {!cpuAdded && trainingGameId && (
-        <button
-          onClick={addCpuPlayer}
-          disabled={addingCpu || !trainingGameId}
-          className="fixed top-4 right-4 z-50 px-4 py-2 bg-blue-500/90 hover:bg-blue-600/90 disabled:bg-slate-500/50 text-white rounded-xl font-medium backdrop-blur-sm flex items-center gap-2 transition-colors"
-        >
-          {addingCpu ? (
-            <>
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Aggiungendo CPU...
-            </>
-          ) : (
-            <>
-              <Bot className="w-5 h-5" />
-              <Plus className="w-4 h-4" />
-              Aggiungi Avversario CPU
-            </>
-          )}
-        </button>
-      )}
-
-      {/* CPU added notification */}
-      {cpuAdded && cpuName && (
-        <div className="fixed top-4 right-4 z-50 px-4 py-2 bg-green-500/90 text-white rounded-xl font-medium backdrop-blur-sm flex items-center gap-2">
-          <Bot className="w-5 h-5" />
-          {cpuName} aggiunto!
-        </div>
-      )}
-
+      
       {/* Tutorial Modal */}
       {showTutorial && TUTORIAL_STEPS[tutorialStep] && (
         <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-50 p-4 pb-32">

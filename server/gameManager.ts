@@ -363,6 +363,9 @@ export class GameManager {
 
   // Non-blocking event tracking - queues events for background processing
   private trackPlayerEventAsync(gameId: string, playerName: string, eventType: string, data: any = {}): void {
+    // Skip training games - no missions/achievements tracking
+    if (gameId.startsWith('training-')) return;
+    
     const game = this.games.get(gameId);
     if (!game) return;
     
@@ -1495,6 +1498,12 @@ Rispondi SOLO in JSON:`;
     try {
       const game = this.games.get(gameId);
       if (!game) return;
+      
+      // Skip training games - no rewards, missions, or points
+      if (gameId.startsWith('training-')) {
+        console.log(`Training match ${gameId} completed - no rewards awarded`);
+        return;
+      }
       
       // Prevent duplicate point awards - check if points already awarded
       if (game.pointsAwarded) {
