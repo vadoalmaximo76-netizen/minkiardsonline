@@ -2,7 +2,9 @@ import React, { useState, useEffect, useRef } from "react";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
-import { X, Send } from "lucide-react";
+import { X, Send, Smile } from "lucide-react";
+
+const QUICK_EMOJIS = ['👍', '👎', '😂', '😮', '😢', '🔥', '💪', '🎉', '😤', '🤔', '❤️', '⚡'];
 
 interface ChatProps {
   onClose: () => void;
@@ -18,8 +20,22 @@ interface ChatMessage {
 export const Chat: React.FC<ChatProps> = ({ onClose }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [emojiCooldown, setEmojiCooldown] = useState(false);
   const { playerName, gameId } = useGameState();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const sendEmoji = (emoji: string) => {
+    if (emojiCooldown || !gameId) return;
+    
+    const reactionId = `${playerName}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    socket.emit('send-emoji-reaction', { gameId, emoji, playerName, id: reactionId });
+    
+    setEmojiCooldown(true);
+    setTimeout(() => setEmojiCooldown(false), 1000);
+    
+    setShowEmojiPicker(false);
+  };
 
   // Load persisted messages when chat opens
   useEffect(() => {
@@ -113,21 +129,53 @@ export const Chat: React.FC<ChatProps> = ({ onClose }) => {
       </div>
 
       {/* Input */}
-      <div className="p-3 border-t border-gray-600 flex gap-2">
-        <input
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="Type a message..."
-          className="flex-1 px-3 py-2 bg-gray-700 text-white rounded border-0 focus:outline-none focus:ring-2 focus:ring-sky-blue"
-        />
-        <Button
-          onClick={handleSendMessage}
-          className="bg-sky-blue hover:bg-sky-blue/80 text-white px-3"
-        >
-          <Send size={16} />
-        </Button>
+      <div className="p-3 border-t border-gray-600 relative">
+        {/* Emoji Picker */}
+        {showEmojiPicker && (
+          <div className="absolute bottom-16 left-3 right-3 bg-slate-800/95 backdrop-blur-sm rounded-xl p-3 shadow-2xl border border-white/20 animate-in fade-in slide-in-from-bottom-2 duration-200">
+            <div className="grid grid-cols-6 gap-2">
+              {QUICK_EMOJIS.map((emoji) => (
+                <button
+                  key={emoji}
+                  onClick={() => sendEmoji(emoji)}
+                  disabled={emojiCooldown}
+                  className={`w-9 h-9 rounded-lg flex items-center justify-center text-xl transition-all hover:scale-125 hover:bg-white/10 ${
+                    emojiCooldown ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            className={`p-2 rounded-lg transition-all ${
+              showEmojiPicker 
+                ? 'bg-purple-500 text-white' 
+                : 'bg-gray-700 text-gray-400 hover:text-white hover:bg-gray-600'
+            }`}
+          >
+            <Smile size={20} />
+          </button>
+          <input
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Scrivi un messaggio..."
+            className="flex-1 px-3 py-2 bg-gray-700 text-white rounded border-0 focus:outline-none focus:ring-2 focus:ring-sky-blue"
+          />
+          <Button
+            onClick={handleSendMessage}
+            className="bg-sky-blue hover:bg-sky-blue/80 text-white px-3"
+          >
+            <Send size={16} />
+          </Button>
+        </div>
       </div>
     </div>
   );
