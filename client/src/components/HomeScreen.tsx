@@ -65,7 +65,8 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
       hoverGradient: 'hover:from-purple-500 hover:via-purple-400 hover:to-indigo-500',
       shadowColor: 'shadow-purple-500/30',
       badge: userStats ? `${userStats.puntiRankiard} Rankiard` : null,
-      badgeIcon: Trophy
+      badgeIcon: Trophy,
+      action: () => onNavigate('play')
     },
     {
       id: 'training' as const,
@@ -76,7 +77,8 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
       hoverGradient: 'hover:from-emerald-500 hover:via-emerald-400 hover:to-teal-500',
       shadowColor: 'shadow-emerald-500/30',
       badge: 'Tutorial',
-      badgeIcon: Star
+      badgeIcon: Star,
+      action: () => onNavigate('training')
     },
     {
       id: 'rooms' as const,
@@ -87,18 +89,44 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
       hoverGradient: 'hover:from-amber-500 hover:via-orange-400 hover:to-red-500',
       shadowColor: 'shadow-orange-500/30',
       badge: activeRoomsCount > 0 ? `${activeRoomsCount} attive` : 'Nessuna',
-      badgeIcon: Users
+      badgeIcon: Users,
+      action: () => onNavigate('rooms')
+    },
+    {
+      id: 'tournaments' as const,
+      title: 'Tornei',
+      subtitle: 'Competizioni ufficiali',
+      icon: Award,
+      gradient: 'from-rose-600 via-pink-500 to-fuchsia-600',
+      hoverGradient: 'hover:from-rose-500 hover:via-pink-400 hover:to-fuchsia-500',
+      shadowColor: 'shadow-pink-500/30',
+      badge: 'Competitivo',
+      badgeIcon: Award,
+      action: () => setShowTournaments(true)
+    },
+    {
+      id: 'events' as const,
+      title: 'Eventi',
+      subtitle: 'Eventi stagionali e carte esclusive',
+      icon: Sparkles,
+      gradient: 'from-violet-600 via-fuchsia-500 to-pink-600',
+      hoverGradient: 'hover:from-violet-500 hover:via-fuchsia-400 hover:to-pink-500',
+      shadowColor: 'shadow-fuchsia-500/30',
+      badge: 'Speciale',
+      badgeIcon: Sparkles,
+      action: () => setShowSeasonalEvents(true)
     },
     {
       id: 'profile' as const,
-      title: 'Il Mio Profilo',
-      subtitle: 'Statistiche e impostazioni',
+      title: 'Profilo e Store',
+      subtitle: 'Statistiche, skin e impostazioni',
       icon: User,
       gradient: 'from-blue-600 via-cyan-500 to-blue-600',
       hoverGradient: 'hover:from-blue-500 hover:via-cyan-400 hover:to-blue-500',
       shadowColor: 'shadow-blue-500/30',
       badge: userStats ? `${userStats.gamesWon}/${userStats.gamesPlayed} vinte` : null,
-      badgeIcon: Trophy
+      badgeIcon: Trophy,
+      action: () => onNavigate('profile')
     }
   ];
 
@@ -133,7 +161,7 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
       </div>
 
       {/* Menu Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl w-full relative z-10">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl w-full relative z-10">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const BadgeIcon = item.badgeIcon;
@@ -141,7 +169,7 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
           return (
             <button
               key={item.id}
-              onClick={() => onNavigate(item.id)}
+              onClick={item.action}
               className={`
                 group relative overflow-hidden
                 bg-gradient-to-br ${item.gradient} ${item.hoverGradient}
@@ -187,24 +215,6 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
             </button>
           );
         })}
-      </div>
-
-      {/* Extra Buttons */}
-      <div className="mt-8 relative z-10 flex gap-4 flex-wrap justify-center">
-        <button
-          onClick={() => setShowTournaments(true)}
-          className="px-6 py-3 bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 hover:from-amber-400 hover:via-orange-400 hover:to-red-400 text-white rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg shadow-orange-500/30 flex items-center gap-2"
-        >
-          <Award className="w-5 h-5" />
-          Tornei
-        </button>
-        <button
-          onClick={() => setShowSeasonalEvents(true)}
-          className="px-6 py-3 bg-gradient-to-r from-pink-500 via-red-500 to-orange-500 hover:from-pink-400 hover:via-red-400 hover:to-orange-400 text-white rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg shadow-red-500/30 flex items-center gap-2"
-        >
-          <Sparkles className="w-5 h-5" />
-          Eventi
-        </button>
       </div>
 
       {/* Footer */}
