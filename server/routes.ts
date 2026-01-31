@@ -1030,10 +1030,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Wait for player to be added with identity verification
-      const result = await gameManager.addPlayer(gameId, playerName, socket.id, false, validatedUserId);
+      const result = await gameManager.addPlayer(gameId, playerName, socket.id, false, validatedUserId, false);
       
       if (!result.success) {
         console.log(`Join failed for ${playerName}: ${result.error}`);
+        
+        // If approval is required, tell the client to request approval
+        if (result.requiresApproval) {
+          socket.emit('join-requires-approval', { 
+            gameId, 
+            message: 'Questa partita è già iniziata. Devi richiedere l\'approvazione del creatore per entrare.' 
+          });
+          return;
+        }
+        
         socket.emit('join-game-error', { message: result.error });
         return;
       }
@@ -1232,12 +1242,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return;
         }
         
-        // Find the creator's socket
-        const creatorName = game.creatorName;
+        // Find the creator's socket - fallback to first player in turnOrder if creatorName not set
+        const creatorName = game.creatorName || game.turnOrder[0];
+        if (!creatorName) {
+          socket.emit('join-request-denied', { gameId, message: 'Creatore non trovato' });
+          return;
+        }
+        
         const creatorPlayer = game.players[creatorName];
         
-        if (!creatorPlayer) {
-          socket.emit('join-request-denied', { gameId, message: 'Creatore non trovato' });
+        if (!creatorPlayer || !creatorPlayer.socketId) {
+          socket.emit('join-request-denied', { gameId, message: 'Il creatore non è online' });
           return;
         }
         
@@ -1245,6 +1260,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         socket.data.pendingJoinRequest = { gameId, playerName, userId, avatarId };
         
         // Send join request to the creator
+        console.log(`Sending join request to creator ${creatorName} at socket ${creatorPlayer.socketId}`);
         io.to(creatorPlayer.socketId).emit('join-request-received', {
           gameId,
           requesterName: playerName,
@@ -1261,18 +1277,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // Creator approves a join request
-    socket.on('approve-join-request', ({ gameId, requesterSocketId, requesterName, requesterUserId, requesterAvatarId }) => {
+    socket.on('approve-join-request', async ({ gameId, requesterSocketId, requesterName, requesterUserId, requesterAvatarId }) => {
       try {
+        console.log(`Join request approval attempt for ${requesterName} in game ${gameId} by socket ${socket.id}`);
+        
+        // SECURITY: Verify the approver is the game creator
+        const game = gameManager.getGame(gameId);
+        if (!game) {
+          console.log(`🚫 SECURITY: Game ${gameId} not found for approval`);
+          return;
+        }
+        
+        const creatorName = game.creatorName || game.turnOrder[0];
+        const creatorPlayer = game.players[creatorName];
+        
+        if (!creatorPlayer || creatorPlayer.socketId !== socket.id) {
+          console.log(`🚫 SECURITY: Socket ${socket.id} attempted to approve join request but is not the creator (creator socket: ${creatorPlayer?.socketId})`);
+          socket.emit('error', { message: 'Solo il creatore della stanza può approvare le richieste' });
+          return;
+        }
+        
+        // Verify the requester has a pending join request
+        const requesterSocket = io.sockets.sockets.get(requesterSocketId);
+        if (!requesterSocket) {
+          console.log(`Requester socket ${requesterSocketId} not found - they may have disconnected`);
+          return;
+        }
+        
+        const pendingRequest = requesterSocket.data?.pendingJoinRequest;
+        if (!pendingRequest || pendingRequest.gameId !== gameId || pendingRequest.playerName !== requesterName) {
+          console.log(`🚫 SECURITY: No valid pending request found for ${requesterName} in game ${gameId}`);
+          socket.emit('error', { message: 'Richiesta non valida o scaduta' });
+          return;
+        }
+        
         console.log(`Join request approved for ${requesterName} in game ${gameId}`);
         
-        // Find the requester's socket and notify them
-        const requesterSocket = io.sockets.sockets.get(requesterSocketId);
-        if (requesterSocket) {
-          requesterSocket.emit('join-request-approved', { 
-            gameId,
-            message: 'La tua richiesta è stata approvata!' 
+        // Clear the pending request
+        requesterSocket.data.pendingJoinRequest = undefined;
+        
+        // Add the player to the game with isApproved=true
+        const result = await gameManager.addPlayer(gameId, requesterName, requesterSocketId, false, requesterUserId, true);
+        
+        if (!result.success) {
+          console.log(`Failed to add approved player ${requesterName}: ${result.error}`);
+          requesterSocket.emit('join-request-denied', { 
+            gameId, 
+            message: result.error || 'Impossibile unirsi alla partita' 
           });
+          return;
         }
+        
+        // Join the socket room
+        requesterSocket.join(gameId);
+        
+        // Set avatar if provided
+        if (requesterAvatarId) {
+          gameManager.setPlayerAvatar(gameId, requesterName, requesterAvatarId);
+        }
+        
+        // Set user ID for stats tracking
+        if (requesterUserId) {
+          gameManager.setPlayerUserId(gameId, requesterName, requesterUserId);
+        }
+        
+        // Notify the requester they've been approved
+        requesterSocket.emit('join-request-approved', { 
+          gameId,
+          message: 'La tua richiesta è stata approvata!' 
+        });
+        
+        // Send game state to the new player
+        const gameState = gameManager.getSanitizedGameState(gameId);
+        requesterSocket.emit('game-state-update', gameState);
+        
+        // Notify other players
+        io.to(gameId).emit('player-joined', { playerName: requesterName });
+        
+        console.log(`Player ${requesterName} successfully joined game ${gameId} after approval`);
       } catch (error) {
         console.error('Error approving join request:', error);
       }
@@ -1281,6 +1363,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Creator denies a join request
     socket.on('deny-join-request', ({ gameId, requesterSocketId, requesterName }) => {
       try {
+        console.log(`Join request denial attempt for ${requesterName} in game ${gameId} by socket ${socket.id}`);
+        
+        // SECURITY: Verify the denier is the game creator
+        const game = gameManager.getGame(gameId);
+        if (!game) {
+          console.log(`🚫 SECURITY: Game ${gameId} not found for denial`);
+          return;
+        }
+        
+        const creatorName = game.creatorName || game.turnOrder[0];
+        const creatorPlayer = game.players[creatorName];
+        
+        if (!creatorPlayer || creatorPlayer.socketId !== socket.id) {
+          console.log(`🚫 SECURITY: Socket ${socket.id} attempted to deny join request but is not the creator`);
+          socket.emit('error', { message: 'Solo il creatore della stanza può rifiutare le richieste' });
+          return;
+        }
+        
         console.log(`Join request denied for ${requesterName} in game ${gameId}`);
         
         // Find the requester's socket and notify them
@@ -8520,7 +8620,8 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         players: game.players,
         createdAt: game.createdAt,
         creatorName: game.creatorName || game.players[0]?.name || 'Unknown',
-        requiresApproval: false,
+        requiresApproval: game.requiresApproval,
+        creatorSocketId: game.creatorSocketId,
         status: game.status || 'waiting'
       }));
       res.json(rooms);

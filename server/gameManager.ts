@@ -267,6 +267,10 @@ interface GameState {
   barrieraShields: BarrieraShield[]; // BARRIERA shield protection tracking
   delayedDamages: DelayedDamage[]; // Delayed damage effects from defense
   playerDeathModifiers: Map<string, number>; // Per-player death limit modifiers (+/- deaths)
+  requiresApproval?: boolean; // Whether new players need creator approval to join
+  creatorName?: string; // Name of the room creator
+  creatorSocketId?: string; // Socket ID of the room creator
+  isPlaying?: boolean; // Whether the game has started (players are playing)
   // Advanced custom effect state
   extraTurnPlayer?: string; // Player who gets an extra turn
   skipTurnPlayers?: string[]; // Players who skip their next turn
@@ -595,6 +599,8 @@ export class GameManager {
     players: Array<{ name: string; avatar?: string }>;
     createdAt: string;
     creatorName: string;
+    creatorSocketId?: string;
+    requiresApproval: boolean;
     status: string;
   }> {
     const activeGames: Array<{
@@ -603,6 +609,8 @@ export class GameManager {
       players: Array<{ name: string; avatar?: string }>;
       createdAt: string;
       creatorName: string;
+      creatorSocketId?: string;
+      requiresApproval: boolean;
       status: string;
     }> = [];
 
@@ -620,13 +628,17 @@ export class GameManager {
         avatar: game.players[name]?.avatar
       }));
       
+      const isPlaying = game.isPlaying || game.turnOrder.length > 0;
+      
       activeGames.push({
         gameId,
         playerCount: playerNames.length,
         players,
         createdAt: game.startTime?.toISOString() || new Date().toISOString(),
-        creatorName: playerNames[0] || 'Unknown',
-        status: game.turnOrder.length > 0 ? 'playing' : 'waiting'
+        creatorName: game.creatorName || playerNames[0] || 'Unknown',
+        creatorSocketId: game.creatorSocketId,
+        requiresApproval: isPlaying ? true : (game.requiresApproval || false),
+        status: isPlaying ? 'playing' : 'waiting'
       });
     }
 
@@ -723,8 +735,10 @@ export class GameManager {
     return gameState;
   }
 
-  async addPlayer(gameId: string, playerName: string, socketId: string, isCPU: boolean = false, authenticatedUserId?: number): Promise<{ success: boolean; error?: string }> {
-    if (!this.games.has(gameId)) {
+  async addPlayer(gameId: string, playerName: string, socketId: string, isCPU: boolean = false, authenticatedUserId?: number, isApproved: boolean = false): Promise<{ success: boolean; error?: string; requiresApproval?: boolean }> {
+    const isNewGame = !this.games.has(gameId);
+    
+    if (isNewGame) {
       const deletedCardIds = await this.loadDeletedCardIds();
       this.games.set(gameId, this.initializeGame(gameId, deletedCardIds));
       await this.createMatchRecord(gameId);
@@ -734,8 +748,24 @@ export class GameManager {
 
     const game = this.games.get(gameId)!;
     
-    // Check if player already exists (reconnection after server restart)
+    // Set creator info if this is the first player
+    if (isNewGame && !isCPU) {
+      game.creatorName = playerName;
+      game.creatorSocketId = socketId;
+      console.log(`Room ${gameId} created by ${playerName}`);
+    }
+    
+    // Check if game is in progress and requires approval for new players
+    const isPlaying = game.isPlaying || game.turnOrder.length > 0;
     const existingPlayer = game.players[playerName];
+    
+    // If game is in progress and this is a new player (not reconnecting), require approval
+    if (isPlaying && !existingPlayer && !isCPU && !isApproved) {
+      console.log(`🔒 Player ${playerName} needs approval to join game ${gameId} in progress`);
+      return { success: false, error: 'Approval required to join game in progress', requiresApproval: true };
+    }
+    
+    // Handle reconnection for existing player
     if (existingPlayer) {
       // SECURITY: Get original userId for this player
       const originalUserId = game.playerUserIds?.get(playerName);

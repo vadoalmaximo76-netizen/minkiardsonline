@@ -99,6 +99,12 @@ function App() {
           }
         });
         
+        // Handle when join requires approval (game in progress)
+        socket.on('join-requires-approval', ({ gameId, message }) => {
+          console.log(`Join requires approval for game ${gameId}: ${message}`);
+          alert(message || 'Questa partita è già iniziata. Usa la lista delle stanze attive per richiedere di unirti.');
+        });
+        
         // Register user data on connection to ensure invitations work
         socket.on('connect', () => {
           console.log('Socket connected');
@@ -218,6 +224,7 @@ function App() {
       socket.off('game-invitation');
       socket.off('active-game-found');
       socket.off('connect');
+      socket.off('join-requires-approval');
       socket.disconnect();
     };
   }, [setGameId, hasActiveSession, restoreSession, setPlayerName, generateSessionId]);
