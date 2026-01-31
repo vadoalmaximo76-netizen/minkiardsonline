@@ -429,12 +429,15 @@ export const cardSkins = pgTable("card_skins", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   cardName: text("card_name"), // Name of the card this skin applies to
+  cardType: text("card_type"), // Type: personaggi, mosse, bonus, speciali
   description: text("description"),
   borderStyle: text("border_style"),
   backgroundGradient: text("background_gradient"),
   glowColor: text("glow_color"),
   frameImageUrl: text("frame_image_url"),
   skinImageUrl: text("skin_image_url"), // Custom image URL for the skin
+  skinPti: integer("skin_pti"), // PTI to apply when skin is used on personaggi/speciali
+  skinStars: integer("skin_stars"), // Stars to apply when skin is used on personaggi/speciali
   rarity: text("rarity").default("common"),
   price: integer("price").default(100),
   isAvailable: boolean("is_available").notNull().default(true),

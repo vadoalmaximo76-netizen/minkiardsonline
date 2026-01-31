@@ -11425,7 +11425,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
   }
 
-  applyCardSkin(gameId: string, cardId: string, skinImageUrl: string | null, playerName: string): boolean {
+  applyCardSkin(gameId: string, cardId: string, skinImageUrl: string | null, playerName: string, skinPti?: number | null, skinStars?: number | null): boolean {
     const game = this.games.get(gameId);
     if (!game) return false;
 
@@ -11438,6 +11438,33 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           return false;
         }
         card.appliedSkinUrl = skinImageUrl;
+        
+        // Apply PTI and Stars if provided (for personaggi/speciali cards)
+        if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && (skinPti || skinStars)) {
+          let newText = card.text || '';
+          
+          if (skinPti) {
+            // Update or add PTI
+            if (/PTI:\s*\d+/i.test(newText)) {
+              newText = newText.replace(/PTI:\s*\d+/gi, `PTI: ${skinPti}`);
+            } else {
+              newText = `PTI: ${skinPti}${newText ? '\n' + newText : ''}`;
+            }
+          }
+          
+          if (skinStars) {
+            // Update or add Stars
+            if (/stelle:\s*\d+/i.test(newText)) {
+              newText = newText.replace(/stelle:\s*\d+/gi, `Stelle: ${skinStars}`);
+            } else {
+              newText = newText + `\nStelle: ${skinStars}`;
+            }
+          }
+          
+          card.text = newText.trim();
+          console.log(`Applied skin stats to card ${cardId}: PTI=${skinPti}, Stars=${skinStars}`);
+        }
+        
         console.log(`Applied skin to card ${cardId}: ${skinImageUrl ? 'custom skin' : 'removed skin'}`);
         return true;
       }

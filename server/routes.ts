@@ -2931,10 +2931,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // Apply skin to card
-    socket.on('apply-card-skin', ({ cardId, skinImageUrl, playerName }) => {
+    socket.on('apply-card-skin', async ({ cardId, skinImageUrl, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
-        const success = gameManager.applyCardSkin(gameId, cardId, skinImageUrl, playerName);
+        let skinPti: number | null = null;
+        let skinStars: number | null = null;
+        
+        // If applying a skin, look up its PTI and Stars from database
+        if (skinImageUrl) {
+          try {
+            const skinData = await db.select().from(cardSkins)
+              .where(eq(cardSkins.skinImageUrl, skinImageUrl))
+              .limit(1);
+            
+            if (skinData.length > 0) {
+              skinPti = skinData[0].skinPti;
+              skinStars = skinData[0].skinStars;
+            }
+          } catch (error) {
+            console.error('Error fetching skin data:', error);
+          }
+        }
+        
+        const success = gameManager.applyCardSkin(gameId, cardId, skinImageUrl, playerName, skinPti, skinStars);
         if (success) {
           const gameState = gameManager.getSanitizedGameState(gameId);
           emitThrottledGameState(io, gameId, gameState);
@@ -7031,7 +7050,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         return res.status(403).json({ success: false, error: 'Admin access required' });
       }
 
-      const { name, cardName, description, skinImageUrl, rarity, price, borderStyle, glowColor, isAvailable } = req.body;
+      const { name, cardName, cardType, description, skinImageUrl, skinPti, skinStars, rarity, price, borderStyle, glowColor, isAvailable } = req.body;
 
       if (!name) {
         return res.status(400).json({ success: false, error: 'Name is required' });
@@ -7040,8 +7059,11 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       const newSkin = await db.insert(cardSkins).values({
         name,
         cardName: cardName || null,
+        cardType: cardType || null,
         description: description || null,
         skinImageUrl: skinImageUrl || null,
+        skinPti: skinPti ? parseInt(skinPti) : null,
+        skinStars: skinStars ? parseInt(skinStars) : null,
         borderStyle: borderStyle || null,
         glowColor: glowColor || null,
         rarity: rarity || 'common',
@@ -7067,14 +7089,17 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         return res.status(403).json({ success: false, error: 'Admin access required' });
       }
 
-      const { name, cardName, description, skinImageUrl, rarity, price, borderStyle, glowColor, isAvailable } = req.body;
+      const { name, cardName, cardType, description, skinImageUrl, skinPti, skinStars, rarity, price, borderStyle, glowColor, isAvailable } = req.body;
 
       const updated = await db.update(cardSkins)
         .set({
           name,
           cardName: cardName || null,
+          cardType: cardType || null,
           description: description || null,
           skinImageUrl: skinImageUrl || null,
+          skinPti: skinPti ? parseInt(skinPti) : null,
+          skinStars: skinStars ? parseInt(skinStars) : null,
           borderStyle: borderStyle || null,
           glowColor: glowColor || null,
           rarity: rarity || 'common',

@@ -5,11 +5,14 @@ interface CardSkin {
   id: number;
   name: string;
   cardName: string | null;
+  cardType: string | null;
   description: string | null;
   borderStyle: string | null;
   backgroundGradient: string | null;
   glowColor: string | null;
   skinImageUrl: string | null;
+  skinPti: number | null;
+  skinStars: number | null;
   rarity: string;
   price: number;
   isAvailable: boolean;
@@ -54,8 +57,11 @@ export function AdminSkinsPanel({ isOpen, onClose, authToken }: AdminSkinsPanelP
   const [formData, setFormData] = useState({
     name: '',
     cardName: '',
+    cardType: '',
     description: '',
     skinImageUrl: '',
+    skinPti: '',
+    skinStars: '',
     rarity: 'common',
     price: 100,
     borderStyle: '',
@@ -103,14 +109,18 @@ export function AdminSkinsPanel({ isOpen, onClose, authToken }: AdminSkinsPanelP
     setFormData({
       name: '',
       cardName: '',
+      cardType: '',
       description: '',
       skinImageUrl: '',
+      skinPti: '',
+      skinStars: '',
       rarity: 'common',
       price: 100,
       borderStyle: '',
       glowColor: '',
       isAvailable: true
     });
+    setSelectedDeck('');
     setEditingSkin(null);
     setError('');
   };
@@ -120,14 +130,18 @@ export function AdminSkinsPanel({ isOpen, onClose, authToken }: AdminSkinsPanelP
     setFormData({
       name: skin.name,
       cardName: skin.cardName || '',
+      cardType: skin.cardType || '',
       description: skin.description || '',
       skinImageUrl: skin.skinImageUrl || '',
+      skinPti: skin.skinPti?.toString() || '',
+      skinStars: skin.skinStars?.toString() || '',
       rarity: skin.rarity || 'common',
       price: skin.price || 100,
       borderStyle: skin.borderStyle || '',
       glowColor: skin.glowColor || '',
       isAvailable: skin.isAvailable
     });
+    setSelectedDeck(skin.cardType || '');
     setShowForm(true);
   };
 
@@ -337,8 +351,9 @@ export function AdminSkinsPanel({ isOpen, onClose, authToken }: AdminSkinsPanelP
                   <select
                     value={selectedDeck}
                     onChange={e => {
-                      setSelectedDeck(e.target.value);
-                      setFormData({ ...formData, cardName: '' });
+                      const newDeck = e.target.value;
+                      setSelectedDeck(newDeck);
+                      setFormData({ ...formData, cardName: '', cardType: newDeck, skinPti: '', skinStars: '' });
                     }}
                     className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white"
                   >
@@ -366,6 +381,37 @@ export function AdminSkinsPanel({ isOpen, onClose, authToken }: AdminSkinsPanelP
                     <p className="text-xs text-gray-500 mt-1">Seleziona prima un mazzo</p>
                   )}
                 </div>
+
+                {(selectedDeck === 'personaggi' || selectedDeck === 'personaggi_speciali') && (
+                  <>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">PTI da Applicare</label>
+                      <input
+                        type="number"
+                        value={formData.skinPti}
+                        onChange={e => setFormData({ ...formData, skinPti: e.target.value })}
+                        min="0"
+                        className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                        placeholder="es. 1000"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Questi PTI verranno impostati quando si applica la skin</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Stelle da Applicare</label>
+                      <input
+                        type="number"
+                        value={formData.skinStars}
+                        onChange={e => setFormData({ ...formData, skinStars: e.target.value })}
+                        min="0"
+                        max="10"
+                        className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                        placeholder="es. 5"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Queste stelle verranno impostate quando si applica la skin</p>
+                    </div>
+                  </>
+                )}
 
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">Rarità</label>
