@@ -219,19 +219,24 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
 
   // Generic tutorial progression handler
   const advanceTutorialForTrigger = useCallback((trigger: string) => {
+    // Find next uncompleted step for this trigger
     setCompletedTutorialSteps(prev => {
-      const updated = new Set([...Array.from(prev), trigger]);
+      const nextStepIndex = TUTORIAL_STEPS.findIndex(s => s.trigger === trigger && !prev.has(s.id));
       
-      // Find next uncompleted step for this trigger
-      const nextStep = TUTORIAL_STEPS.findIndex(s => s.trigger === trigger && !prev.has(s.id));
-      if (nextStep !== -1) {
+      if (nextStepIndex !== -1) {
+        const stepId = TUTORIAL_STEPS[nextStepIndex].id;
+        console.log(`Tutorial: trigger "${trigger}" -> showing step ${nextStepIndex + 1}/${TUTORIAL_STEPS.length} (${stepId})`);
+        
         setTimeout(() => {
-          setTutorialStep(nextStep);
+          setTutorialStep(nextStepIndex);
           setShowTutorial(true);
         }, 500);
+        
+        // Mark this step as shown (will be completed when user clicks "Avanti")
+        return prev;
       }
       
-      return updated;
+      return prev;
     });
   }, []);
 
@@ -239,24 +244,37 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
   useEffect(() => {
     if (!gameStarted || !trainingGameId) return;
 
-    const handleCardDrawn = () => advanceTutorialForTrigger('card_drawn');
-    const handleCharacterPlayed = () => advanceTutorialForTrigger('character_played');
-    const handleMossePlayed = () => advanceTutorialForTrigger('mosse_played');
-    const handleBonusPlayed = () => advanceTutorialForTrigger('bonus_played');
-    const handleTurnEnded = () => advanceTutorialForTrigger('turn_ended');
+    const handleCardDrawn = () => {
+      console.log('Tutorial: card-picked-private event received');
+      advanceTutorialForTrigger('card_drawn');
+    };
+    
+    const handleCardPlayed = (data: { cardType?: string; deckType?: string }) => {
+      console.log('Tutorial: card-played event received', data);
+      const cardType = data.cardType || data.deckType || '';
+      
+      if (cardType === 'PERSONAGGI' || cardType === 'PERSONAGGI SPECIALI') {
+        advanceTutorialForTrigger('character_played');
+      } else if (cardType === 'MOSSE') {
+        advanceTutorialForTrigger('mosse_played');
+      } else if (cardType === 'BONUS') {
+        advanceTutorialForTrigger('bonus_played');
+      }
+    };
+    
+    const handleTurnEnded = () => {
+      console.log('Tutorial: next-turn event received');
+      advanceTutorialForTrigger('turn_ended');
+    };
 
-    socket.on('card-picked', handleCardDrawn);
-    socket.on('character-placed', handleCharacterPlayed);
-    socket.on('mosse-applied', handleMossePlayed);
-    socket.on('bonus-applied', handleBonusPlayed);
-    socket.on('turn-changed', handleTurnEnded);
+    socket.on('card-picked-private', handleCardDrawn);
+    socket.on('card-played', handleCardPlayed);
+    socket.on('next-turn', handleTurnEnded);
     
     return () => {
-      socket.off('card-picked', handleCardDrawn);
-      socket.off('character-placed', handleCharacterPlayed);
-      socket.off('mosse-applied', handleMossePlayed);
-      socket.off('bonus-applied', handleBonusPlayed);
-      socket.off('turn-changed', handleTurnEnded);
+      socket.off('card-picked-private', handleCardDrawn);
+      socket.off('card-played', handleCardPlayed);
+      socket.off('next-turn', handleTurnEnded);
     };
   }, [gameStarted, trainingGameId, advanceTutorialForTrigger]);
 
