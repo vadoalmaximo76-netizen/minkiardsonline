@@ -4,10 +4,11 @@ import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
 import { useAudio } from "../lib/stores/useAudio";
-import { X } from "lucide-react";
+import { X, Palette } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { FloatingNumber } from "./FloatingNumber";
+import { SkinSelectionPanel } from "./SkinSelectionPanel";
 
 const parsePTI = (text: string | undefined): number | null => {
   if (!text) return null;
@@ -97,6 +98,9 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   const [imageLoaded, setImageLoaded] = useState(true); // Start as true for immediate interaction
   const originalPTIRef = useRef<number | null>(null);
   const prevLocationRef = useRef<string>(location);
+  const [showSkinPanel, setShowSkinPanel] = useState(false);
+  const [appliedSkinUrl, setAppliedSkinUrl] = useState<string | null>(null);
+  const [skinAnimation, setSkinAnimation] = useState<string | null>(null);
 
   // Sync local cardText state with incoming card.text prop (for real-time updates)
   useEffect(() => {
@@ -348,6 +352,21 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
 
   const handleShowCard = () => {
     setShowPlayerSelect(true);
+  };
+
+  const handleSkinSelect = (skinImageUrl: string | null, skinId: number | null, rarity: string) => {
+    if (skinImageUrl) {
+      setAppliedSkinUrl(skinImageUrl);
+      const animClass = rarity === 'legendary' ? 'animate-legendary-glow' :
+                        rarity === 'epic' ? 'animate-epic-glow' :
+                        rarity === 'rare' ? 'animate-rare-glow' : 'animate-common-glow';
+      setSkinAnimation(animClass);
+      setTimeout(() => setSkinAnimation(null), 2000);
+    } else {
+      setAppliedSkinUrl(null);
+      setSkinAnimation(null);
+    }
+    setShowSkinPanel(false);
   };
 
   const evaluateExpression = (expression: string): number => {
@@ -913,7 +932,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           onClick={handleCardClick}
         >
           <img
-            src={showBack || card.faceDown ? card.backImage : card.frontImage}
+            src={showBack || card.faceDown ? card.backImage : (appliedSkinUrl || card.frontImage)}
             alt="Card"
             loading="eager"
             decoding="async"
@@ -926,8 +945,14 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
               ${isEliminated && isPersonaggio ? 'card-disperse' : ''} 
               ${isShaking && !isEliminated ? 'animate-shake' : ''} 
               ${isMosseSelected ? 'ring-4 ring-purple-500 ring-opacity-70' : ''}
-              ${card.faceDown ? 'ring-2 ring-orange-400 ring-opacity-50' : ''}`}
+              ${card.faceDown ? 'ring-2 ring-orange-400 ring-opacity-50' : ''}
+              ${skinAnimation || ''}`}
           />
+          {appliedSkinUrl && !showBack && !card.faceDown && (
+            <div className="absolute -top-1 -right-1 bg-violet-500 rounded-full p-0.5 z-10">
+              <Palette className="w-3 h-3 text-white" />
+            </div>
+          )}
         </div>
         
         {location === 'field' && (
@@ -993,6 +1018,20 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       {/* Spacer for non-MOSSE field cards to maintain alignment with MOSSE cards that have ATTACCA button */}
       {location === 'field' && card.type !== 'mosse' && !card.faceDown && (
         <div className="h-6 sm:h-7"></div>
+      )}
+
+      {/* SCEGLI SKIN button for cards on field (owned by player) */}
+      {location === 'field' && isOwner && !card.faceDown && (
+        <div className="flex flex-col gap-1 mt-1">
+          <Button
+            onClick={() => setShowSkinPanel(true)}
+            className="bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs px-2 py-1"
+            size="sm"
+          >
+            <Palette className="w-3 h-3 mr-1 inline" />
+            SKIN
+          </Button>
+        </div>
       )}
 
       {/* Super Dice button for MINKIARD N 300 card on field */}
@@ -1806,6 +1845,41 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Skin Selection Panel */}
+      <SkinSelectionPanel
+        isOpen={showSkinPanel}
+        onClose={() => setShowSkinPanel(false)}
+        cardName={getCardName(card)}
+        cardId={card.id}
+        currentImage={card.frontImage}
+        onSkinSelect={handleSkinSelect}
+        authToken={localStorage.getItem('authToken')}
+      />
+
+      {/* Skin animation styles */}
+      <style>{`
+        @keyframes legendary-glow {
+          0%, 100% { filter: drop-shadow(0 0 10px gold); }
+          50% { filter: drop-shadow(0 0 25px gold) drop-shadow(0 0 40px orange); }
+        }
+        @keyframes epic-glow {
+          0%, 100% { filter: drop-shadow(0 0 8px purple); }
+          50% { filter: drop-shadow(0 0 20px purple); }
+        }
+        @keyframes rare-glow {
+          0%, 100% { filter: drop-shadow(0 0 6px blue); }
+          50% { filter: drop-shadow(0 0 15px blue); }
+        }
+        @keyframes common-glow {
+          0%, 100% { filter: brightness(1); }
+          50% { filter: brightness(1.2); }
+        }
+        .animate-legendary-glow { animation: legendary-glow 2s ease-in-out; }
+        .animate-epic-glow { animation: epic-glow 1.5s ease-in-out; }
+        .animate-rare-glow { animation: rare-glow 1.2s ease-in-out; }
+        .animate-common-glow { animation: common-glow 0.8s ease-in-out; }
+      `}</style>
     </div>
   );
 };
