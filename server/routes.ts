@@ -1206,7 +1206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const game = gameManager.getGame(gameId);
         if (game) {
-          game.spectators = game.spectators.filter(s => s !== spectatorName);
+          game.spectators = game.spectators.filter((s: string) => s !== spectatorName);
           socket.leave(gameId);
           socket.to(gameId).emit('spectator-left-notification', {
             spectatorName,
@@ -1218,6 +1218,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
         socket.data.gameId = undefined;
       } catch (error) {
         console.error('Error leaving spectator mode:', error);
+      }
+    });
+
+    // Request to join an active room (requires creator approval)
+    socket.on('request-join-room', ({ gameId, playerName, userId, avatarId }) => {
+      try {
+        console.log(`${playerName} requesting to join game ${gameId}`);
+        
+        const game = gameManager.getGame(gameId);
+        if (!game) {
+          socket.emit('join-request-denied', { gameId, message: 'Partita non trovata' });
+          return;
+        }
+        
+        // Find the creator's socket
+        const creatorName = game.creatorName;
+        const creatorPlayer = game.players[creatorName];
+        
+        if (!creatorPlayer) {
+          socket.emit('join-request-denied', { gameId, message: 'Creatore non trovato' });
+          return;
+        }
+        
+        // Store the requester's socket info for later
+        socket.data.pendingJoinRequest = { gameId, playerName, userId, avatarId };
+        
+        // Send join request to the creator
+        io.to(creatorPlayer.socketId).emit('join-request-received', {
+          gameId,
+          requesterName: playerName,
+          requesterSocketId: socket.id,
+          requesterUserId: userId,
+          requesterAvatarId: avatarId
+        });
+        
+        console.log(`Join request sent to creator ${creatorName} for game ${gameId}`);
+      } catch (error) {
+        console.error('Error processing join request:', error);
+        socket.emit('join-request-denied', { gameId, message: 'Errore durante la richiesta' });
+      }
+    });
+
+    // Creator approves a join request
+    socket.on('approve-join-request', ({ gameId, requesterSocketId, requesterName, requesterUserId, requesterAvatarId }) => {
+      try {
+        console.log(`Join request approved for ${requesterName} in game ${gameId}`);
+        
+        // Find the requester's socket and notify them
+        const requesterSocket = io.sockets.sockets.get(requesterSocketId);
+        if (requesterSocket) {
+          requesterSocket.emit('join-request-approved', { 
+            gameId,
+            message: 'La tua richiesta è stata approvata!' 
+          });
+        }
+      } catch (error) {
+        console.error('Error approving join request:', error);
+      }
+    });
+
+    // Creator denies a join request
+    socket.on('deny-join-request', ({ gameId, requesterSocketId, requesterName }) => {
+      try {
+        console.log(`Join request denied for ${requesterName} in game ${gameId}`);
+        
+        // Find the requester's socket and notify them
+        const requesterSocket = io.sockets.sockets.get(requesterSocketId);
+        if (requesterSocket) {
+          requesterSocket.emit('join-request-denied', { 
+            gameId,
+            message: 'La tua richiesta è stata rifiutata.' 
+          });
+          requesterSocket.data.pendingJoinRequest = undefined;
+        }
+      } catch (error) {
+        console.error('Error denying join request:', error);
       }
     });
 
