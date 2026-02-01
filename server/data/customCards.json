@@ -1,1 +1,38 @@
-[]
+[
+  {
+    "id": 1,
+    "name": "Salvatore Mincione",
+    "deckType": "personaggi",
+    "pti": 104,
+    "stars": 0,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "createdBy": "Fake",
+    "createdAt": "2026-01-06T04:27:14.842Z"
+  },
+  {
+    "id": 2,
+    "name": "PIEDRO RANIERI",
+    "deckType": "personaggi",
+    "pti": 300,
+    "stars": 1,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "createdBy": "Fake",
+    "createdAt": "2026-01-08T13:50:26.512Z"
+  },
+  {
+    "id": 3,
+    "name": "DAMMI UN ALTRO GIORNO!",
+    "deckType": "bonus",
+    "pti": null,
+    "stars": null,
+    "effect": "Se un utente usa questa carta per respingere un attacco, il danno non viene subito immediatamente. Un turno dopo, quando tocca di nuovo all'utente che ha usata \"DAMMI UN ALTRO GIORNO!\", il danno raddoppia e viene subito.",
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "createdBy": "Fake",
+    "createdAt": "2026-01-12T00:04:48.858Z"
+  }
+]
