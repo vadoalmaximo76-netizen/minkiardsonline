@@ -62,6 +62,9 @@ export const customCards = pgTable("custom_cards", {
   youtubeUrl: text("youtube_url"), // YouTube video URL to show when card is played
   mosseDamageValue: integer("mosse_damage_value"), // Numeric PTI damage for MOSSE cards (multiplied by attacker's stars)
   mosseDamageEffect: text("mosse_damage_effect"), // Special effect: 'death', 'halve_pti', 'zero_stars', 'set_5_pti', 'remove_1_star', 'other'
+  mosseCharacterOverrides: jsonb("mosse_character_overrides"), // JSON: character-specific damage/effects [{characterId, characterName, usedBy: {damageValue, effect}, usedOn: {damageValue, effect}}]
+  mosseRestrictedFrom: jsonb("mosse_restricted_from"), // JSON: array of character IDs/names that cannot use this move
+  mosseRestrictedAgainst: jsonb("mosse_restricted_against"), // JSON: array of character IDs/names that this move cannot be used on
   createdBy: text("created_by"), // Player name who created the card
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -79,6 +82,9 @@ export const cardModifications = pgTable("card_modifications", {
   youtubeUrl: text("youtube_url"), // YouTube video URL to show when card is played
   mosseDamageValue: integer("mosse_damage_value"), // Numeric PTI damage for MOSSE cards (multiplied by attacker's stars)
   mosseDamageEffect: text("mosse_damage_effect"), // Special effect: 'death', 'halve_pti', 'zero_stars', 'set_5_pti', 'remove_1_star', 'other'
+  mosseCharacterOverrides: jsonb("mosse_character_overrides"), // JSON: character-specific damage/effects [{characterId, characterName, usedBy: {damageValue, effect}, usedOn: {damageValue, effect}}]
+  mosseRestrictedFrom: jsonb("mosse_restricted_from"), // JSON: array of character IDs/names that cannot use this move
+  mosseRestrictedAgainst: jsonb("mosse_restricted_against"), // JSON: array of character IDs/names that this move cannot be used on
   isDeleted: boolean("is_deleted").default(false), // Hide card from game
   modifiedBy: text("modified_by"), // Admin email who modified
   modifiedAt: timestamp("modified_at").notNull().defaultNow(),
@@ -122,6 +128,9 @@ export const insertCustomCardSchema = createInsertSchema(customCards).pick({
   youtubeUrl: true,
   mosseDamageValue: true,
   mosseDamageEffect: true,
+  mosseCharacterOverrides: true,
+  mosseRestrictedFrom: true,
+  mosseRestrictedAgainst: true,
   createdBy: true,
 });
 
@@ -134,6 +143,12 @@ export const insertCardModificationSchema = createInsertSchema(cardModifications
   stars: true,
   effect: true,
   audioUrl: true,
+  youtubeUrl: true,
+  mosseDamageValue: true,
+  mosseDamageEffect: true,
+  mosseCharacterOverrides: true,
+  mosseRestrictedFrom: true,
+  mosseRestrictedAgainst: true,
   modifiedBy: true,
 });
 

@@ -694,6 +694,14 @@ interface AddCardsModalProps {
 
 type DeckType = 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali';
 
+// Character override for MOSSE cards - specific damage/effects when used by or on specific characters
+interface MosseCharacterOverride {
+  characterId: string;
+  characterName: string;
+  usedBy?: { damageValue: number | null; effect: string | null };
+  usedOn?: { damageValue: number | null; effect: string | null };
+}
+
 interface UploadedCardData {
   file: File;
   name: string;
@@ -705,6 +713,9 @@ interface UploadedCardData {
   isPermanent: boolean;
   mosseDamageValue: number | null;
   mosseDamageEffect: string | null;
+  mosseCharacterOverrides: MosseCharacterOverride[];
+  mosseRestrictedFrom: string[];
+  mosseRestrictedAgainst: string[];
 }
 
 interface PermanentCard {
@@ -719,6 +730,9 @@ interface PermanentCard {
   youtubeUrl: string | null;
   mosseDamageValue: number | null;
   mosseDamageEffect: string | null;
+  mosseCharacterOverrides: MosseCharacterOverride[] | null;
+  mosseRestrictedFrom: string[] | null;
+  mosseRestrictedAgainst: string[] | null;
   createdBy: string | null;
   createdAt: string;
 }
@@ -737,6 +751,9 @@ interface ExistingCard {
   youtubeUrl: string | null;
   mosseDamageValue: number | null;
   mosseDamageEffect: string | null;
+  mosseCharacterOverrides: MosseCharacterOverride[] | null;
+  mosseRestrictedFrom: string[] | null;
+  mosseRestrictedAgainst: string[] | null;
   isDeleted: boolean;
   isModified: boolean;
 }
@@ -748,7 +765,13 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   const [permanentCards, setPermanentCards] = useState<PermanentCard[]>([]);
   const [loadingPermanent, setLoadingPermanent] = useState(false);
   const [editingCard, setEditingCard] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', pti: '', stars: '', effect: '', audioUrl: '', youtubeUrl: '', mosseDamageValue: '', mosseDamageEffect: '' });
+  const [editForm, setEditForm] = useState({ 
+    name: '', pti: '', stars: '', effect: '', audioUrl: '', youtubeUrl: '', 
+    mosseDamageValue: '', mosseDamageEffect: '',
+    mosseCharacterOverrides: [] as MosseCharacterOverride[],
+    mosseRestrictedFrom: [] as string[],
+    mosseRestrictedAgainst: [] as string[]
+  });
   const [activeTab, setActiveTab] = useState<'add' | 'manage' | 'existing'>('add');
   const { gameId, playerName } = useGameState();
   
@@ -756,8 +779,17 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   const [existingCards, setExistingCards] = useState<ExistingCard[]>([]);
   const [loadingExisting, setLoadingExisting] = useState(false);
   const [editingExistingCard, setEditingExistingCard] = useState<string | null>(null);
-  const [existingEditForm, setExistingEditForm] = useState({ name: '', imageUrl: '', pti: '', stars: '', effect: '', audioUrl: '', youtubeUrl: '', mosseDamageValue: '', mosseDamageEffect: '' });
+  const [existingEditForm, setExistingEditForm] = useState({ 
+    name: '', imageUrl: '', pti: '', stars: '', effect: '', audioUrl: '', youtubeUrl: '', 
+    mosseDamageValue: '', mosseDamageEffect: '',
+    mosseCharacterOverrides: [] as MosseCharacterOverride[],
+    mosseRestrictedFrom: [] as string[],
+    mosseRestrictedAgainst: [] as string[]
+  });
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Available characters for MOSSE character-specific settings
+  const [availableCharacters, setAvailableCharacters] = useState<{id: string, name: string, imageUrl: string}[]>([]);
   
   // Effect Wizard state
   const [showEffectWizard, setShowEffectWizard] = useState(false);
@@ -1063,9 +1095,42 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     }
   };
 
+  // Fetch available characters for MOSSE character-specific settings
+  const fetchAvailableCharacters = async () => {
+    try {
+      // Get permanent personaggi cards
+      const permanentRes = await fetch('/api/permanent-cards');
+      const permanentData = await permanentRes.json();
+      const permanentPersonaggi = (permanentData || [])
+        .filter((c: any) => c.deckType === 'personaggi' || c.deckType === 'personaggi_speciali')
+        .map((c: any) => ({
+          id: `permanent_${c.id}`,
+          name: c.name,
+          imageUrl: c.imageData
+        }));
+      
+      // Get built-in personaggi from cardData
+      const { personaggiCards, personaggiSpecialiCards } = await import('../lib/cardData');
+      const builtInCharacters = [...personaggiCards, ...personaggiSpecialiCards].map(c => ({
+        id: c.id,
+        name: c.name || c.id,
+        imageUrl: c.frontImage
+      }));
+      
+      // Combine and sort by name
+      const allCharacters = [...builtInCharacters, ...permanentPersonaggi]
+        .sort((a, b) => a.name.localeCompare(b.name));
+      
+      setAvailableCharacters(allCharacters);
+    } catch (error) {
+      console.error('Error fetching available characters:', error);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       fetchPermanentCards();
+      fetchAvailableCharacters();
     }
   }, [isOpen]);
 
@@ -1120,7 +1185,10 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       youtubeUrl: '',
       isPermanent: false,
       mosseDamageValue: null,
-      mosseDamageEffect: null
+      mosseDamageEffect: null,
+      mosseCharacterOverrides: [],
+      mosseRestrictedFrom: [],
+      mosseRestrictedAgainst: []
     }));
     
     setUploadedCards(prev => [...prev, ...newCards]);
@@ -1178,7 +1246,10 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
             youtubeUrl: card.youtubeUrl.trim() || null,
             isPermanent: card.isPermanent,
             mosseDamageValue: selectedDeck === 'mosse' ? card.mosseDamageValue : null,
-            mosseDamageEffect: selectedDeck === 'mosse' ? card.mosseDamageEffect : null
+            mosseDamageEffect: selectedDeck === 'mosse' ? card.mosseDamageEffect : null,
+            mosseCharacterOverrides: selectedDeck === 'mosse' ? card.mosseCharacterOverrides : null,
+            mosseRestrictedFrom: selectedDeck === 'mosse' ? card.mosseRestrictedFrom : null,
+            mosseRestrictedAgainst: selectedDeck === 'mosse' ? card.mosseRestrictedAgainst : null
           };
         })
       );
@@ -1210,7 +1281,10 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       audioUrl: card.audioUrl || '',
       youtubeUrl: card.youtubeUrl || '',
       mosseDamageValue: card.mosseDamageValue?.toString() || '',
-      mosseDamageEffect: card.mosseDamageEffect || ''
+      mosseDamageEffect: card.mosseDamageEffect || '',
+      mosseCharacterOverrides: card.mosseCharacterOverrides || [],
+      mosseRestrictedFrom: card.mosseRestrictedFrom || [],
+      mosseRestrictedAgainst: card.mosseRestrictedAgainst || []
     });
   };
 
@@ -1227,7 +1301,10 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
           audioUrl: editForm.audioUrl || null,
           youtubeUrl: editForm.youtubeUrl || null,
           mosseDamageValue: editForm.mosseDamageValue ? parseInt(editForm.mosseDamageValue) : null,
-          mosseDamageEffect: editForm.mosseDamageEffect || null
+          mosseDamageEffect: editForm.mosseDamageEffect || null,
+          mosseCharacterOverrides: editForm.mosseCharacterOverrides.length > 0 ? editForm.mosseCharacterOverrides : null,
+          mosseRestrictedFrom: editForm.mosseRestrictedFrom.length > 0 ? editForm.mosseRestrictedFrom : null,
+          mosseRestrictedAgainst: editForm.mosseRestrictedAgainst.length > 0 ? editForm.mosseRestrictedAgainst : null
         })
       });
       
@@ -1277,7 +1354,10 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       audioUrl: card.audioUrl || '',
       youtubeUrl: card.youtubeUrl || '',
       mosseDamageValue: card.mosseDamageValue?.toString() || '',
-      mosseDamageEffect: card.mosseDamageEffect || ''
+      mosseDamageEffect: card.mosseDamageEffect || '',
+      mosseCharacterOverrides: card.mosseCharacterOverrides || [],
+      mosseRestrictedFrom: card.mosseRestrictedFrom || [],
+      mosseRestrictedAgainst: card.mosseRestrictedAgainst || []
     });
   };
 
@@ -1297,7 +1377,10 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
           audioUrl: existingEditForm.audioUrl || null,
           youtubeUrl: existingEditForm.youtubeUrl || null,
           mosseDamageValue: existingEditForm.mosseDamageValue ? parseInt(existingEditForm.mosseDamageValue) : null,
-          mosseDamageEffect: existingEditForm.mosseDamageEffect || null
+          mosseDamageEffect: existingEditForm.mosseDamageEffect || null,
+          mosseCharacterOverrides: existingEditForm.mosseCharacterOverrides.length > 0 ? existingEditForm.mosseCharacterOverrides : null,
+          mosseRestrictedFrom: existingEditForm.mosseRestrictedFrom.length > 0 ? existingEditForm.mosseRestrictedFrom : null,
+          mosseRestrictedAgainst: existingEditForm.mosseRestrictedAgainst.length > 0 ? existingEditForm.mosseRestrictedAgainst : null
         })
       });
       
@@ -1627,6 +1710,238 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                                   </select>
                                 </div>
                               </div>
+                              
+                              {/* Character-Specific Damage Overrides */}
+                              <div className="mt-4 border-t border-red-500/30 pt-4">
+                                <div className="text-orange-400 text-sm font-bold mb-2 flex items-center gap-1">
+                                  🎯 DANNO SPECIFICO PER PERSONAGGIO
+                                </div>
+                                <p className="text-gray-400 text-xs mb-3">
+                                  Imposta danni o effetti diversi quando questa mossa viene usata DA o SU specifici personaggi.
+                                </p>
+                                
+                                {/* Overrides List */}
+                                {card.mosseCharacterOverrides.map((override, overrideIdx) => (
+                                  <div key={overrideIdx} className="bg-gray-800/50 p-3 rounded-lg mb-2">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <span className="text-white text-sm font-bold">{override.characterName}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const newOverrides = [...card.mosseCharacterOverrides];
+                                          newOverrides.splice(overrideIdx, 1);
+                                          updateCardData(index, 'mosseCharacterOverrides', newOverrides);
+                                        }}
+                                        className="text-red-400 hover:text-red-300 text-xs"
+                                      >
+                                        Rimuovi
+                                      </button>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div className="bg-blue-900/30 p-2 rounded">
+                                        <p className="text-blue-400 text-xs font-bold mb-1">Quando usata DA questo:</p>
+                                        <Input
+                                          type="number"
+                                          value={override.usedBy?.damageValue || ''}
+                                          onChange={(e) => {
+                                            const newOverrides = [...card.mosseCharacterOverrides];
+                                            newOverrides[overrideIdx] = {
+                                              ...newOverrides[overrideIdx],
+                                              usedBy: {
+                                                ...newOverrides[overrideIdx].usedBy,
+                                                damageValue: e.target.value ? parseInt(e.target.value) : null,
+                                                effect: newOverrides[overrideIdx].usedBy?.effect || null
+                                              }
+                                            };
+                                            updateCardData(index, 'mosseCharacterOverrides', newOverrides);
+                                          }}
+                                          placeholder="Danno PTI"
+                                          className="bg-gray-600 text-white border-gray-500 mb-1 text-xs h-8"
+                                        />
+                                        <select
+                                          value={override.usedBy?.effect || ''}
+                                          onChange={(e) => {
+                                            const newOverrides = [...card.mosseCharacterOverrides];
+                                            newOverrides[overrideIdx] = {
+                                              ...newOverrides[overrideIdx],
+                                              usedBy: {
+                                                damageValue: newOverrides[overrideIdx].usedBy?.damageValue || null,
+                                                effect: e.target.value || null
+                                              }
+                                            };
+                                            updateCardData(index, 'mosseCharacterOverrides', newOverrides);
+                                          }}
+                                          className="w-full bg-gray-600 text-white border border-gray-500 rounded px-1 py-1 text-xs"
+                                        >
+                                          <option value="">Nessun effetto</option>
+                                          <option value="death">Morte</option>
+                                          <option value="halve_pti">PTI dimezzati</option>
+                                          <option value="zero_stars">0 stelle</option>
+                                          <option value="set_5_pti">5 PTI</option>
+                                          <option value="remove_1_star">-1 stella</option>
+                                        </select>
+                                      </div>
+                                      
+                                      <div className="bg-purple-900/30 p-2 rounded">
+                                        <p className="text-purple-400 text-xs font-bold mb-1">Quando usata SU questo:</p>
+                                        <Input
+                                          type="number"
+                                          value={override.usedOn?.damageValue || ''}
+                                          onChange={(e) => {
+                                            const newOverrides = [...card.mosseCharacterOverrides];
+                                            newOverrides[overrideIdx] = {
+                                              ...newOverrides[overrideIdx],
+                                              usedOn: {
+                                                ...newOverrides[overrideIdx].usedOn,
+                                                damageValue: e.target.value ? parseInt(e.target.value) : null,
+                                                effect: newOverrides[overrideIdx].usedOn?.effect || null
+                                              }
+                                            };
+                                            updateCardData(index, 'mosseCharacterOverrides', newOverrides);
+                                          }}
+                                          placeholder="Danno PTI"
+                                          className="bg-gray-600 text-white border-gray-500 mb-1 text-xs h-8"
+                                        />
+                                        <select
+                                          value={override.usedOn?.effect || ''}
+                                          onChange={(e) => {
+                                            const newOverrides = [...card.mosseCharacterOverrides];
+                                            newOverrides[overrideIdx] = {
+                                              ...newOverrides[overrideIdx],
+                                              usedOn: {
+                                                damageValue: newOverrides[overrideIdx].usedOn?.damageValue || null,
+                                                effect: e.target.value || null
+                                              }
+                                            };
+                                            updateCardData(index, 'mosseCharacterOverrides', newOverrides);
+                                          }}
+                                          className="w-full bg-gray-600 text-white border border-gray-500 rounded px-1 py-1 text-xs"
+                                        >
+                                          <option value="">Nessun effetto</option>
+                                          <option value="death">Morte</option>
+                                          <option value="halve_pti">PTI dimezzati</option>
+                                          <option value="zero_stars">0 stelle</option>
+                                          <option value="set_5_pti">5 PTI</option>
+                                          <option value="remove_1_star">-1 stella</option>
+                                        </select>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                                
+                                {/* Add new override */}
+                                <select
+                                  value=""
+                                  onChange={(e) => {
+                                    if (e.target.value) {
+                                      const selectedChar = availableCharacters.find(c => c.id === e.target.value);
+                                      if (selectedChar && !card.mosseCharacterOverrides.some(o => o.characterId === selectedChar.id)) {
+                                        updateCardData(index, 'mosseCharacterOverrides', [
+                                          ...card.mosseCharacterOverrides,
+                                          { characterId: selectedChar.id, characterName: selectedChar.name }
+                                        ]);
+                                      }
+                                    }
+                                  }}
+                                  className="w-full bg-gray-700 text-white border border-gray-500 rounded px-2 py-2 text-sm"
+                                >
+                                  <option value="">+ Aggiungi personaggio...</option>
+                                  {availableCharacters
+                                    .filter(c => !card.mosseCharacterOverrides.some(o => o.characterId === c.id))
+                                    .map(c => (
+                                      <option key={c.id} value={c.id}>{c.name}</option>
+                                    ))
+                                  }
+                                </select>
+                              </div>
+                              
+                              {/* Move Restrictions */}
+                              <div className="mt-4 border-t border-red-500/30 pt-4">
+                                <div className="text-yellow-400 text-sm font-bold mb-2 flex items-center gap-1">
+                                  🚫 RESTRIZIONI MOSSA
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div>
+                                    <label className="text-white text-xs mb-1 block">Non può essere usata DA:</label>
+                                    <div className="max-h-24 overflow-y-auto bg-gray-800/50 rounded p-2">
+                                      {card.mosseRestrictedFrom.map((charName, i) => (
+                                        <div key={i} className="flex items-center justify-between text-xs text-white py-1">
+                                          <span>{charName}</span>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const newRestricted = [...card.mosseRestrictedFrom];
+                                              newRestricted.splice(i, 1);
+                                              updateCardData(index, 'mosseRestrictedFrom', newRestricted);
+                                            }}
+                                            className="text-red-400 hover:text-red-300"
+                                          >
+                                            ×
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <select
+                                      value=""
+                                      onChange={(e) => {
+                                        if (e.target.value && !card.mosseRestrictedFrom.includes(e.target.value)) {
+                                          updateCardData(index, 'mosseRestrictedFrom', [...card.mosseRestrictedFrom, e.target.value]);
+                                        }
+                                      }}
+                                      className="w-full bg-gray-700 text-white border border-gray-500 rounded px-1 py-1 text-xs mt-1"
+                                    >
+                                      <option value="">+ Aggiungi...</option>
+                                      {availableCharacters
+                                        .filter(c => !card.mosseRestrictedFrom.includes(c.name))
+                                        .map(c => (
+                                          <option key={c.id} value={c.name}>{c.name}</option>
+                                        ))
+                                      }
+                                    </select>
+                                  </div>
+                                  
+                                  <div>
+                                    <label className="text-white text-xs mb-1 block">Non può essere usata SU:</label>
+                                    <div className="max-h-24 overflow-y-auto bg-gray-800/50 rounded p-2">
+                                      {card.mosseRestrictedAgainst.map((charName, i) => (
+                                        <div key={i} className="flex items-center justify-between text-xs text-white py-1">
+                                          <span>{charName}</span>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const newRestricted = [...card.mosseRestrictedAgainst];
+                                              newRestricted.splice(i, 1);
+                                              updateCardData(index, 'mosseRestrictedAgainst', newRestricted);
+                                            }}
+                                            className="text-red-400 hover:text-red-300"
+                                          >
+                                            ×
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <select
+                                      value=""
+                                      onChange={(e) => {
+                                        if (e.target.value && !card.mosseRestrictedAgainst.includes(e.target.value)) {
+                                          updateCardData(index, 'mosseRestrictedAgainst', [...card.mosseRestrictedAgainst, e.target.value]);
+                                        }
+                                      }}
+                                      className="w-full bg-gray-700 text-white border border-gray-500 rounded px-1 py-1 text-xs mt-1"
+                                    >
+                                      <option value="">+ Aggiungi...</option>
+                                      {availableCharacters
+                                        .filter(c => !card.mosseRestrictedAgainst.includes(c.name))
+                                        .map(c => (
+                                          <option key={c.id} value={c.name}>{c.name}</option>
+                                        ))
+                                      }
+                                    </select>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           )}
                           
@@ -1819,6 +2134,110 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                                       <option value="set_5_pti">5️⃣ 5 PTI</option>
                                       <option value="remove_1_star">⭐ -1 stella</option>
                                     </select>
+                                  </div>
+                                </div>
+                                
+                                {/* Character-Specific Overrides */}
+                                <div className="mt-3 border-t border-red-500/30 pt-3">
+                                  <div className="text-orange-400 text-xs font-bold mb-2">🎯 Danno specifico per personaggio</div>
+                                  {editForm.mosseCharacterOverrides.map((override, idx) => (
+                                    <div key={idx} className="bg-gray-800/50 p-2 rounded mb-2 text-xs">
+                                      <div className="flex justify-between mb-1">
+                                        <span className="text-white font-bold">{override.characterName}</span>
+                                        <button type="button" onClick={() => setEditForm(prev => ({
+                                          ...prev,
+                                          mosseCharacterOverrides: prev.mosseCharacterOverrides.filter((_, i) => i !== idx)
+                                        }))} className="text-red-400 text-xs">×</button>
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                          <p className="text-blue-400 text-xs mb-1">Usata DA:</p>
+                                          <Input type="number" value={override.usedBy?.damageValue || ''} 
+                                            onChange={(e) => {
+                                              const newOverrides = [...editForm.mosseCharacterOverrides];
+                                              newOverrides[idx] = { ...newOverrides[idx], usedBy: { ...newOverrides[idx].usedBy, damageValue: e.target.value ? parseInt(e.target.value) : null, effect: newOverrides[idx].usedBy?.effect || null }};
+                                              setEditForm(prev => ({ ...prev, mosseCharacterOverrides: newOverrides }));
+                                            }} placeholder="PTI" className="bg-gray-600 text-white text-xs h-7 mb-1" />
+                                          <select value={override.usedBy?.effect || ''} onChange={(e) => {
+                                            const newOverrides = [...editForm.mosseCharacterOverrides];
+                                            newOverrides[idx] = { ...newOverrides[idx], usedBy: { damageValue: newOverrides[idx].usedBy?.damageValue || null, effect: e.target.value || null }};
+                                            setEditForm(prev => ({ ...prev, mosseCharacterOverrides: newOverrides }));
+                                          }} className="w-full bg-gray-600 text-white text-xs px-1 py-1 rounded border border-gray-500">
+                                            <option value="">Nessun effetto</option>
+                                            <option value="death">Morte</option>
+                                            <option value="halve_pti">PTI dimezzati</option>
+                                          </select>
+                                        </div>
+                                        <div>
+                                          <p className="text-purple-400 text-xs mb-1">Usata SU:</p>
+                                          <Input type="number" value={override.usedOn?.damageValue || ''} 
+                                            onChange={(e) => {
+                                              const newOverrides = [...editForm.mosseCharacterOverrides];
+                                              newOverrides[idx] = { ...newOverrides[idx], usedOn: { ...newOverrides[idx].usedOn, damageValue: e.target.value ? parseInt(e.target.value) : null, effect: newOverrides[idx].usedOn?.effect || null }};
+                                              setEditForm(prev => ({ ...prev, mosseCharacterOverrides: newOverrides }));
+                                            }} placeholder="PTI" className="bg-gray-600 text-white text-xs h-7 mb-1" />
+                                          <select value={override.usedOn?.effect || ''} onChange={(e) => {
+                                            const newOverrides = [...editForm.mosseCharacterOverrides];
+                                            newOverrides[idx] = { ...newOverrides[idx], usedOn: { damageValue: newOverrides[idx].usedOn?.damageValue || null, effect: e.target.value || null }};
+                                            setEditForm(prev => ({ ...prev, mosseCharacterOverrides: newOverrides }));
+                                          }} className="w-full bg-gray-600 text-white text-xs px-1 py-1 rounded border border-gray-500">
+                                            <option value="">Nessun effetto</option>
+                                            <option value="death">Morte</option>
+                                            <option value="halve_pti">PTI dimezzati</option>
+                                          </select>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                  <select value="" onChange={(e) => {
+                                    if (e.target.value) {
+                                      const char = availableCharacters.find(c => c.id === e.target.value);
+                                      if (char && !editForm.mosseCharacterOverrides.some(o => o.characterId === char.id)) {
+                                        setEditForm(prev => ({ ...prev, mosseCharacterOverrides: [...prev.mosseCharacterOverrides, { characterId: char.id, characterName: char.name }]}));
+                                      }
+                                    }
+                                  }} className="w-full bg-gray-700 text-white text-xs px-2 py-1 rounded border border-gray-500">
+                                    <option value="">+ Aggiungi personaggio...</option>
+                                    {availableCharacters.filter(c => !editForm.mosseCharacterOverrides.some(o => o.characterId === c.id)).map(c => (
+                                      <option key={c.id} value={c.id}>{c.name}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                
+                                {/* Restrictions */}
+                                <div className="mt-3 border-t border-red-500/30 pt-3">
+                                  <div className="text-yellow-400 text-xs font-bold mb-2">🚫 Restrizioni</div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <p className="text-white text-xs mb-1">Non usabile DA:</p>
+                                      <div className="max-h-16 overflow-y-auto bg-gray-800/50 rounded p-1 mb-1">
+                                        {editForm.mosseRestrictedFrom.map((name, i) => (
+                                          <div key={i} className="flex justify-between text-xs text-white py-0.5">
+                                            <span>{name}</span>
+                                            <button type="button" onClick={() => setEditForm(prev => ({ ...prev, mosseRestrictedFrom: prev.mosseRestrictedFrom.filter((_, idx) => idx !== i) }))} className="text-red-400">×</button>
+                                          </div>
+                                        ))}
+                                      </div>
+                                      <select value="" onChange={(e) => { if (e.target.value && !editForm.mosseRestrictedFrom.includes(e.target.value)) setEditForm(prev => ({ ...prev, mosseRestrictedFrom: [...prev.mosseRestrictedFrom, e.target.value] })); }} className="w-full bg-gray-700 text-white text-xs px-1 py-1 rounded border border-gray-500">
+                                        <option value="">+ Aggiungi...</option>
+                                        {availableCharacters.filter(c => !editForm.mosseRestrictedFrom.includes(c.name)).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <p className="text-white text-xs mb-1">Non usabile SU:</p>
+                                      <div className="max-h-16 overflow-y-auto bg-gray-800/50 rounded p-1 mb-1">
+                                        {editForm.mosseRestrictedAgainst.map((name, i) => (
+                                          <div key={i} className="flex justify-between text-xs text-white py-0.5">
+                                            <span>{name}</span>
+                                            <button type="button" onClick={() => setEditForm(prev => ({ ...prev, mosseRestrictedAgainst: prev.mosseRestrictedAgainst.filter((_, idx) => idx !== i) }))} className="text-red-400">×</button>
+                                          </div>
+                                        ))}
+                                      </div>
+                                      <select value="" onChange={(e) => { if (e.target.value && !editForm.mosseRestrictedAgainst.includes(e.target.value)) setEditForm(prev => ({ ...prev, mosseRestrictedAgainst: [...prev.mosseRestrictedAgainst, e.target.value] })); }} className="w-full bg-gray-700 text-white text-xs px-1 py-1 rounded border border-gray-500">
+                                        <option value="">+ Aggiungi...</option>
+                                        {availableCharacters.filter(c => !editForm.mosseRestrictedAgainst.includes(c.name)).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                                      </select>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -2088,6 +2507,110 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                                       <option value="set_5_pti">5️⃣ Manda a 5 PTI</option>
                                       <option value="remove_1_star">⭐ Elimina 1 stella</option>
                                     </select>
+                                  </div>
+                                </div>
+                                
+                                {/* Character-Specific Overrides */}
+                                <div className="mt-3 border-t border-red-500/30 pt-3">
+                                  <div className="text-orange-400 text-xs font-bold mb-2">🎯 Danno specifico per personaggio</div>
+                                  {existingEditForm.mosseCharacterOverrides.map((override, idx) => (
+                                    <div key={idx} className="bg-gray-800/50 p-2 rounded mb-2 text-xs">
+                                      <div className="flex justify-between mb-1">
+                                        <span className="text-white font-bold">{override.characterName}</span>
+                                        <button type="button" onClick={() => setExistingEditForm(prev => ({
+                                          ...prev,
+                                          mosseCharacterOverrides: prev.mosseCharacterOverrides.filter((_, i) => i !== idx)
+                                        }))} className="text-red-400 text-xs">×</button>
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                          <p className="text-blue-400 text-xs mb-1">Usata DA:</p>
+                                          <Input type="number" value={override.usedBy?.damageValue || ''} 
+                                            onChange={(e) => {
+                                              const newOverrides = [...existingEditForm.mosseCharacterOverrides];
+                                              newOverrides[idx] = { ...newOverrides[idx], usedBy: { ...newOverrides[idx].usedBy, damageValue: e.target.value ? parseInt(e.target.value) : null, effect: newOverrides[idx].usedBy?.effect || null }};
+                                              setExistingEditForm(prev => ({ ...prev, mosseCharacterOverrides: newOverrides }));
+                                            }} placeholder="PTI" className="bg-gray-600 text-white text-xs h-7 mb-1" />
+                                          <select value={override.usedBy?.effect || ''} onChange={(e) => {
+                                            const newOverrides = [...existingEditForm.mosseCharacterOverrides];
+                                            newOverrides[idx] = { ...newOverrides[idx], usedBy: { damageValue: newOverrides[idx].usedBy?.damageValue || null, effect: e.target.value || null }};
+                                            setExistingEditForm(prev => ({ ...prev, mosseCharacterOverrides: newOverrides }));
+                                          }} className="w-full bg-gray-600 text-white text-xs px-1 py-1 rounded border border-gray-500">
+                                            <option value="">Nessun effetto</option>
+                                            <option value="death">Morte</option>
+                                            <option value="halve_pti">PTI dimezzati</option>
+                                          </select>
+                                        </div>
+                                        <div>
+                                          <p className="text-purple-400 text-xs mb-1">Usata SU:</p>
+                                          <Input type="number" value={override.usedOn?.damageValue || ''} 
+                                            onChange={(e) => {
+                                              const newOverrides = [...existingEditForm.mosseCharacterOverrides];
+                                              newOverrides[idx] = { ...newOverrides[idx], usedOn: { ...newOverrides[idx].usedOn, damageValue: e.target.value ? parseInt(e.target.value) : null, effect: newOverrides[idx].usedOn?.effect || null }};
+                                              setExistingEditForm(prev => ({ ...prev, mosseCharacterOverrides: newOverrides }));
+                                            }} placeholder="PTI" className="bg-gray-600 text-white text-xs h-7 mb-1" />
+                                          <select value={override.usedOn?.effect || ''} onChange={(e) => {
+                                            const newOverrides = [...existingEditForm.mosseCharacterOverrides];
+                                            newOverrides[idx] = { ...newOverrides[idx], usedOn: { damageValue: newOverrides[idx].usedOn?.damageValue || null, effect: e.target.value || null }};
+                                            setExistingEditForm(prev => ({ ...prev, mosseCharacterOverrides: newOverrides }));
+                                          }} className="w-full bg-gray-600 text-white text-xs px-1 py-1 rounded border border-gray-500">
+                                            <option value="">Nessun effetto</option>
+                                            <option value="death">Morte</option>
+                                            <option value="halve_pti">PTI dimezzati</option>
+                                          </select>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                  <select value="" onChange={(e) => {
+                                    if (e.target.value) {
+                                      const char = availableCharacters.find(c => c.id === e.target.value);
+                                      if (char && !existingEditForm.mosseCharacterOverrides.some(o => o.characterId === char.id)) {
+                                        setExistingEditForm(prev => ({ ...prev, mosseCharacterOverrides: [...prev.mosseCharacterOverrides, { characterId: char.id, characterName: char.name }]}));
+                                      }
+                                    }
+                                  }} className="w-full bg-gray-700 text-white text-xs px-2 py-1 rounded border border-gray-500">
+                                    <option value="">+ Aggiungi personaggio...</option>
+                                    {availableCharacters.filter(c => !existingEditForm.mosseCharacterOverrides.some(o => o.characterId === c.id)).map(c => (
+                                      <option key={c.id} value={c.id}>{c.name}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                
+                                {/* Restrictions */}
+                                <div className="mt-3 border-t border-red-500/30 pt-3">
+                                  <div className="text-yellow-400 text-xs font-bold mb-2">🚫 Restrizioni</div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <p className="text-white text-xs mb-1">Non usabile DA:</p>
+                                      <div className="max-h-16 overflow-y-auto bg-gray-800/50 rounded p-1 mb-1">
+                                        {existingEditForm.mosseRestrictedFrom.map((name, i) => (
+                                          <div key={i} className="flex justify-between text-xs text-white py-0.5">
+                                            <span>{name}</span>
+                                            <button type="button" onClick={() => setExistingEditForm(prev => ({ ...prev, mosseRestrictedFrom: prev.mosseRestrictedFrom.filter((_, idx) => idx !== i) }))} className="text-red-400">×</button>
+                                          </div>
+                                        ))}
+                                      </div>
+                                      <select value="" onChange={(e) => { if (e.target.value && !existingEditForm.mosseRestrictedFrom.includes(e.target.value)) setExistingEditForm(prev => ({ ...prev, mosseRestrictedFrom: [...prev.mosseRestrictedFrom, e.target.value] })); }} className="w-full bg-gray-700 text-white text-xs px-1 py-1 rounded border border-gray-500">
+                                        <option value="">+ Aggiungi...</option>
+                                        {availableCharacters.filter(c => !existingEditForm.mosseRestrictedFrom.includes(c.name)).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <p className="text-white text-xs mb-1">Non usabile SU:</p>
+                                      <div className="max-h-16 overflow-y-auto bg-gray-800/50 rounded p-1 mb-1">
+                                        {existingEditForm.mosseRestrictedAgainst.map((name, i) => (
+                                          <div key={i} className="flex justify-between text-xs text-white py-0.5">
+                                            <span>{name}</span>
+                                            <button type="button" onClick={() => setExistingEditForm(prev => ({ ...prev, mosseRestrictedAgainst: prev.mosseRestrictedAgainst.filter((_, idx) => idx !== i) }))} className="text-red-400">×</button>
+                                          </div>
+                                        ))}
+                                      </div>
+                                      <select value="" onChange={(e) => { if (e.target.value && !existingEditForm.mosseRestrictedAgainst.includes(e.target.value)) setExistingEditForm(prev => ({ ...prev, mosseRestrictedAgainst: [...prev.mosseRestrictedAgainst, e.target.value] })); }} className="w-full bg-gray-700 text-white text-xs px-1 py-1 rounded border border-gray-500">
+                                        <option value="">+ Aggiungi...</option>
+                                        {availableCharacters.filter(c => !existingEditForm.mosseRestrictedAgainst.includes(c.name)).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                                      </select>
+                                    </div>
                                   </div>
                                 </div>
                               </div>

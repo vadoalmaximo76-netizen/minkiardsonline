@@ -6231,7 +6231,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/custom-cards/:id', async (req, res) => {
     try {
       const cardId = parseInt(req.params.id);
-      const { name, pti, stars, effect, audioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect } = req.body;
+      const { name, pti, stars, effect, audioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect, mosseCharacterOverrides, mosseRestrictedFrom, mosseRestrictedAgainst } = req.body;
       
       if (isNaN(cardId)) {
         return res.status(400).json({ success: false, error: 'Invalid card ID' });
@@ -6261,6 +6261,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (mosseDamageEffect !== undefined) {
         updateData.mosseDamageEffect = mosseDamageEffect || null;
+      }
+      if (mosseCharacterOverrides !== undefined) {
+        updateData.mosseCharacterOverrides = mosseCharacterOverrides || null;
+      }
+      if (mosseRestrictedFrom !== undefined) {
+        updateData.mosseRestrictedFrom = mosseRestrictedFrom || null;
+      }
+      if (mosseRestrictedAgainst !== undefined) {
+        updateData.mosseRestrictedAgainst = mosseRestrictedAgainst || null;
       }
       
       if (Object.keys(updateData).length === 0) {
@@ -6388,7 +6397,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ success: false, error: 'Unauthorized' });
       }
 
-      const { originalCardId, deckType, name, imageUrl, pti, stars, effect, audioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect } = req.body;
+      const { originalCardId, deckType, name, imageUrl, pti, stars, effect, audioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect, mosseCharacterOverrides, mosseRestrictedFrom, mosseRestrictedAgainst } = req.body;
 
       // Helper to safely parse integer values (handles NaN, empty strings, undefined)
       const safeParseInt = (value: any): number | null => {
@@ -6415,6 +6424,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             youtubeUrl: youtubeUrl || null,
             mosseDamageValue: safeParseInt(mosseDamageValue),
             mosseDamageEffect: mosseDamageEffect || null,
+            mosseCharacterOverrides: mosseCharacterOverrides || null,
+            mosseRestrictedFrom: mosseRestrictedFrom || null,
+            mosseRestrictedAgainst: mosseRestrictedAgainst || null,
             modifiedBy: userEmail,
             modifiedAt: new Date()
           })
@@ -6436,6 +6448,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             youtubeUrl: youtubeUrl || null,
             mosseDamageValue: safeParseInt(mosseDamageValue),
             mosseDamageEffect: mosseDamageEffect || null,
+            mosseCharacterOverrides: mosseCharacterOverrides || null,
+            mosseRestrictedFrom: mosseRestrictedFrom || null,
+            mosseRestrictedAgainst: mosseRestrictedAgainst || null,
             modifiedBy: userEmail
           })
           .returning();
