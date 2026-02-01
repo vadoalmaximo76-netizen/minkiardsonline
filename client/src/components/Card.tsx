@@ -748,7 +748,8 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
             damageValue: damage,
             starsToRemove: stars,
             isHandTarget: false,
-            isFurtoAttack: false
+            isFurtoAttack: false,
+            mosseEffect: selectedMosseEffect  // Pass special effect
           });
           
           // Wait 3 seconds between attacks to allow full attack cycle (including defense resolution)
