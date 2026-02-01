@@ -63,8 +63,14 @@ async function assignDailyMissions(usernameOrEmail: string) {
   
   const allTemplates = jsonStorage.missionTemplates.getAll();
   
+  if (allTemplates.length === 0) {
+    console.warn('⚠️ No mission templates available to assign');
+    return;
+  }
+  
   const shuffled = [...allTemplates].sort(() => Math.random() - 0.5);
-  const selected = shuffled.slice(0, 3);
+  const missionCount = Math.min(3, shuffled.length);
+  const selected = shuffled.slice(0, missionCount);
   
   for (const template of selected) {
     await db.insert(playerDailyMissions).values({
@@ -77,7 +83,7 @@ async function assignDailyMissions(usernameOrEmail: string) {
     });
   }
   
-  console.log(`📋 Assigned 3 daily missions to ${usernameOrEmail}`);
+  console.log(`📋 Assigned ${missionCount} daily missions to ${usernameOrEmail}`);
 }
 
 export async function getPlayerAchievements(usernameOrEmail: string) {
