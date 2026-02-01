@@ -2061,14 +2061,18 @@ Rispondi SOLO in JSON:`;
           sql`${gameStates.lastUpdated} < ${sevenDaysAgo.toISOString()}`
         ));
       
-      // Only load active games from the last 7 days
+      // Only load active games from the last 24 hours (limit to 10 to prevent memory issues)
+      const oneDayAgo = new Date();
+      oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+      
       const activeGames = await db
         .select()
         .from(gameStates)
         .where(and(
           eq(gameStates.isActive, true),
-          sql`${gameStates.lastUpdated} >= ${sevenDaysAgo.toISOString()}`
-        ));
+          sql`${gameStates.lastUpdated} >= ${oneDayAgo.toISOString()}`
+        ))
+        .limit(10);
 
       console.log(`📂 Found ${activeGames.length} active games in database`);
 
@@ -5716,6 +5720,39 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     const attackTypeLabel = isHandTarget ? '🎯 ATTACCO DISONESTO' : '⚔️ MOSSE';
     console.log(`${attackTypeLabel}: ${attackerName} uses ${mosseCardId} to attack ${targetOwnerName}'s ${targetCardId}`);
+    
+    // MOSSE RESTRICTION CHECK: Check if this MOSSE is restricted from/against specific characters
+    const mosseCardName = this.getCardNameFromUrl(mosseCard.frontImage || '');
+    const targetCardName = this.getCardNameFromUrl(targetCard.frontImage || '');
+    const attackerCharacterName = this.getCardNameFromUrl(attackerCharacter.frontImage || '');
+    
+    // Check mosseRestrictedAgainst - this MOSSE cannot be used ON certain characters
+    if (mosseCard.mosseRestrictedAgainst && Array.isArray(mosseCard.mosseRestrictedAgainst)) {
+      const normalizedTarget = targetCardName.toUpperCase().replace(/[_-]/g, ' ').trim();
+      const isRestricted = mosseCard.mosseRestrictedAgainst.some((restrictedName: string) => {
+        const normalizedRestricted = restrictedName.toUpperCase().replace(/[_-]/g, ' ').trim();
+        return normalizedTarget.includes(normalizedRestricted) || normalizedRestricted.includes(normalizedTarget);
+      });
+      
+      if (isRestricted) {
+        console.log(`🚫 MOSSE RESTRICTION: "${mosseCardName}" cannot be used AGAINST "${targetCardName}"`);
+        return { success: false, error: `La mossa "${mosseCardName}" non può essere usata contro "${targetCardName}"!` };
+      }
+    }
+    
+    // Check mosseRestrictedFrom - certain characters cannot USE this MOSSE
+    if (mosseCard.mosseRestrictedFrom && Array.isArray(mosseCard.mosseRestrictedFrom)) {
+      const normalizedAttacker = attackerCharacterName.toUpperCase().replace(/[_-]/g, ' ').trim();
+      const isRestricted = mosseCard.mosseRestrictedFrom.some((restrictedName: string) => {
+        const normalizedRestricted = restrictedName.toUpperCase().replace(/[_-]/g, ' ').trim();
+        return normalizedAttacker.includes(normalizedRestricted) || normalizedRestricted.includes(normalizedAttacker);
+      });
+      
+      if (isRestricted) {
+        console.log(`🚫 MOSSE RESTRICTION: "${attackerCharacterName}" cannot USE "${mosseCardName}"`);
+        return { success: false, error: `Il personaggio "${attackerCharacterName}" non può usare la mossa "${mosseCardName}"!` };
+      }
+    }
     
     // PROTECTION CHECK: Check if target card has custom protection effect (isProtected)
     if (!isHandTarget) {
