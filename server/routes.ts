@@ -6269,7 +6269,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/custom-cards/:id', async (req, res) => {
     try {
       const cardId = parseInt(req.params.id);
-      const { name, pti, stars, effect, audioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect, mosseCharacterOverrides, mosseRestrictedFrom, mosseRestrictedAgainst, mosseTargetingMode, mosseTargetCount } = req.body;
+      const { name, imageData, pti, stars, effect, audioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect, mosseCharacterOverrides, mosseRestrictedFrom, mosseRestrictedAgainst, mosseTargetingMode, mosseTargetCount } = req.body;
       
       if (isNaN(cardId)) {
         return res.status(400).json({ success: false, error: 'Invalid card ID' });
@@ -6278,6 +6278,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updateData: Record<string, any> = {};
       if (name !== undefined && typeof name === 'string' && name.trim()) {
         updateData.name = name.trim();
+      }
+      if (imageData !== undefined && typeof imageData === 'string' && imageData.trim()) {
+        updateData.imageData = imageData.trim();
       }
       if (pti !== undefined) {
         updateData.pti = pti === null || pti === '' ? null : parseInt(pti);
