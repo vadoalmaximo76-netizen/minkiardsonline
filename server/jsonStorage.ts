@@ -73,11 +73,58 @@ interface PersonaggioCache {
   stars: number | null;
 }
 
+interface Achievement {
+  id: number;
+  code: string;
+  name: string;
+  description: string;
+  category: string;
+  icon: string;
+  requirement: number;
+  rewardPoints: number;
+  createdAt: string;
+}
+
+interface MissionTemplate {
+  id: number;
+  code: string;
+  name: string;
+  description: string;
+  type: string;
+  requirement: number;
+  rewardPoints: number;
+  difficulty: string;
+}
+
+interface TutorialStep {
+  id: number;
+  stepId: string;
+  trigger: string;
+  title: string;
+  content: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface PlayerSkin {
+  id: number;
+  userId: number;
+  skinId: number;
+  isEquipped: boolean;
+  purchasedAt: string;
+}
+
 interface JsonData {
   customCards: CustomCard[];
   cardModifications: CardModification[];
   cardSkins: CardSkin[];
   personaggiCache: PersonaggioCache[];
+  achievements: Achievement[];
+  missionTemplates: MissionTemplate[];
+  tutorialSteps: TutorialStep[];
+  playerSkins: PlayerSkin[];
 }
 
 function ensureDataDir(): void {
@@ -371,7 +418,251 @@ export const jsonStorage = {
       console.log(`[JSON] Updated cache: ${name}`);
       return cache[index];
     }
+  },
+
+  achievements: {
+    getAll(): Achievement[] {
+      return readJsonFile<Achievement>('achievements');
+    },
+    
+    getByCode(code: string): Achievement | undefined {
+      return this.getAll().find(a => a.code === code);
+    },
+    
+    getById(id: number): Achievement | undefined {
+      return this.getAll().find(a => a.id === id);
+    },
+    
+    getByCategory(category: string): Achievement[] {
+      return this.getAll().filter(a => a.category === category);
+    },
+    
+    create(data: Omit<Achievement, 'id' | 'createdAt'>): Achievement {
+      const achievements = this.getAll();
+      const newAchievement: Achievement = {
+        ...data,
+        id: getNextId(achievements),
+        createdAt: new Date().toISOString()
+      };
+      achievements.push(newAchievement);
+      writeJsonFile('achievements', achievements);
+      console.log(`[JSON] Created achievement: ${newAchievement.name}`);
+      return newAchievement;
+    },
+    
+    update(id: number, data: Partial<Omit<Achievement, 'id' | 'createdAt'>>): Achievement | null {
+      const achievements = this.getAll();
+      const index = achievements.findIndex(a => a.id === id);
+      if (index === -1) return null;
+      
+      achievements[index] = { ...achievements[index], ...data };
+      writeJsonFile('achievements', achievements);
+      console.log(`[JSON] Updated achievement ID: ${id}`);
+      return achievements[index];
+    },
+    
+    delete(id: number): boolean {
+      const achievements = this.getAll();
+      const index = achievements.findIndex(a => a.id === id);
+      if (index === -1) return false;
+      
+      achievements.splice(index, 1);
+      writeJsonFile('achievements', achievements);
+      console.log(`[JSON] Deleted achievement ID: ${id}`);
+      return true;
+    }
+  },
+
+  missionTemplates: {
+    getAll(): MissionTemplate[] {
+      return readJsonFile<MissionTemplate>('missionTemplates');
+    },
+    
+    getByCode(code: string): MissionTemplate | undefined {
+      return this.getAll().find(m => m.code === code);
+    },
+    
+    getById(id: number): MissionTemplate | undefined {
+      return this.getAll().find(m => m.id === id);
+    },
+    
+    getByDifficulty(difficulty: string): MissionTemplate[] {
+      return this.getAll().filter(m => m.difficulty === difficulty);
+    },
+    
+    getByType(type: string): MissionTemplate[] {
+      return this.getAll().filter(m => m.type === type);
+    },
+    
+    create(data: Omit<MissionTemplate, 'id'>): MissionTemplate {
+      const missions = this.getAll();
+      const newMission: MissionTemplate = {
+        ...data,
+        id: getNextId(missions)
+      };
+      missions.push(newMission);
+      writeJsonFile('missionTemplates', missions);
+      console.log(`[JSON] Created mission template: ${newMission.name}`);
+      return newMission;
+    },
+    
+    update(id: number, data: Partial<Omit<MissionTemplate, 'id'>>): MissionTemplate | null {
+      const missions = this.getAll();
+      const index = missions.findIndex(m => m.id === id);
+      if (index === -1) return null;
+      
+      missions[index] = { ...missions[index], ...data };
+      writeJsonFile('missionTemplates', missions);
+      console.log(`[JSON] Updated mission template ID: ${id}`);
+      return missions[index];
+    },
+    
+    delete(id: number): boolean {
+      const missions = this.getAll();
+      const index = missions.findIndex(m => m.id === id);
+      if (index === -1) return false;
+      
+      missions.splice(index, 1);
+      writeJsonFile('missionTemplates', missions);
+      console.log(`[JSON] Deleted mission template ID: ${id}`);
+      return true;
+    }
+  },
+
+  tutorialSteps: {
+    getAll(): TutorialStep[] {
+      return readJsonFile<TutorialStep>('tutorialSteps');
+    },
+    
+    getActive(): TutorialStep[] {
+      return this.getAll().filter(s => s.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
+    },
+    
+    getByStepId(stepId: string): TutorialStep | undefined {
+      return this.getAll().find(s => s.stepId === stepId);
+    },
+    
+    getById(id: number): TutorialStep | undefined {
+      return this.getAll().find(s => s.id === id);
+    },
+    
+    getByTrigger(trigger: string): TutorialStep[] {
+      return this.getAll().filter(s => s.trigger === trigger && s.isActive);
+    },
+    
+    create(data: Omit<TutorialStep, 'id' | 'createdAt' | 'updatedAt'>): TutorialStep {
+      const steps = this.getAll();
+      const now = new Date().toISOString();
+      const newStep: TutorialStep = {
+        ...data,
+        id: getNextId(steps),
+        createdAt: now,
+        updatedAt: now
+      };
+      steps.push(newStep);
+      writeJsonFile('tutorialSteps', steps);
+      console.log(`[JSON] Created tutorial step: ${newStep.title}`);
+      return newStep;
+    },
+    
+    update(id: number, data: Partial<Omit<TutorialStep, 'id' | 'createdAt'>>): TutorialStep | null {
+      const steps = this.getAll();
+      const index = steps.findIndex(s => s.id === id);
+      if (index === -1) return null;
+      
+      steps[index] = { ...steps[index], ...data, updatedAt: new Date().toISOString() };
+      writeJsonFile('tutorialSteps', steps);
+      console.log(`[JSON] Updated tutorial step ID: ${id}`);
+      return steps[index];
+    },
+    
+    delete(id: number): boolean {
+      const steps = this.getAll();
+      const index = steps.findIndex(s => s.id === id);
+      if (index === -1) return false;
+      
+      steps.splice(index, 1);
+      writeJsonFile('tutorialSteps', steps);
+      console.log(`[JSON] Deleted tutorial step ID: ${id}`);
+      return true;
+    }
+  },
+
+  playerSkins: {
+    getAll(): PlayerSkin[] {
+      return readJsonFile<PlayerSkin>('playerSkins');
+    },
+    
+    getByUserId(userId: number): PlayerSkin[] {
+      return this.getAll().filter(s => s.userId === userId);
+    },
+    
+    getEquipped(userId: number): PlayerSkin | undefined {
+      return this.getAll().find(s => s.userId === userId && s.isEquipped);
+    },
+    
+    getById(id: number): PlayerSkin | undefined {
+      return this.getAll().find(s => s.id === id);
+    },
+    
+    create(data: Omit<PlayerSkin, 'id' | 'purchasedAt'>): PlayerSkin {
+      const skins = this.getAll();
+      const newSkin: PlayerSkin = {
+        ...data,
+        id: getNextId(skins),
+        purchasedAt: new Date().toISOString()
+      };
+      skins.push(newSkin);
+      writeJsonFile('playerSkins', skins);
+      console.log(`[JSON] Created player skin for user ${newSkin.userId}`);
+      return newSkin;
+    },
+    
+    update(id: number, data: Partial<Omit<PlayerSkin, 'id' | 'purchasedAt'>>): PlayerSkin | null {
+      const skins = this.getAll();
+      const index = skins.findIndex(s => s.id === id);
+      if (index === -1) return null;
+      
+      skins[index] = { ...skins[index], ...data };
+      writeJsonFile('playerSkins', skins);
+      console.log(`[JSON] Updated player skin ID: ${id}`);
+      return skins[index];
+    },
+    
+    equipSkin(userId: number, skinId: number): boolean {
+      const skins = this.getAll();
+      let found = false;
+      
+      // Unequip all skins for this user, equip the target
+      skins.forEach(skin => {
+        if (skin.userId === userId) {
+          if (skin.skinId === skinId) {
+            skin.isEquipped = true;
+            found = true;
+          } else {
+            skin.isEquipped = false;
+          }
+        }
+      });
+      
+      if (found) {
+        writeJsonFile('playerSkins', skins);
+        console.log(`[JSON] Equipped skin ${skinId} for user ${userId}`);
+      }
+      return found;
+    },
+    
+    delete(id: number): boolean {
+      const skins = this.getAll();
+      const index = skins.findIndex(s => s.id === id);
+      if (index === -1) return false;
+      
+      skins.splice(index, 1);
+      writeJsonFile('playerSkins', skins);
+      console.log(`[JSON] Deleted player skin ID: ${id}`);
+      return true;
+    }
   }
 };
 
-export type { CustomCard, CardModification, CardSkin, PersonaggioCache };
+export type { CustomCard, CardModification, CardSkin, PersonaggioCache, Achievement, MissionTemplate, TutorialStep, PlayerSkin };
