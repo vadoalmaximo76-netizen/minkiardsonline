@@ -511,13 +511,8 @@ export class GameManager {
         deck.forEach((card, index) => {
           const mod = modifications.get(card.id);
           if (mod) {
-            if (mod.name) card.name = mod.name;
-            if (mod.imageUrl) card.frontImage = mod.imageUrl;
-            if (mod.pti !== null && mod.pti !== undefined) card.pti = mod.pti;
-            if (mod.stars !== null && mod.stars !== undefined) card.stars = mod.stars;
-            if (mod.effect) card.effect = mod.effect;
-            if (mod.audioUrl) card.audioUrl = mod.audioUrl;
-            console.log(`✏️ Applied modifications to card ${card.id}: name=${mod.name}, effect=${mod.effect ? `"${mod.effect}"` : 'none'}, audioUrl=${mod.audioUrl}`);
+            this.applyModificationToCard(card, mod);
+            console.log(`✏️ Applied modifications to card ${card.id}: name=${mod.name}, effect=${mod.effect ? `"${mod.effect}"` : 'none'}, audioUrl=${mod.audioUrl}, mosseDamageValue=${mod.mosseDamageValue}, mosseDamageEffect=${mod.mosseDamageEffect}`);
           }
         });
       }
@@ -535,6 +530,22 @@ export class GameManager {
     if (mod.effect) card.effect = mod.effect;
     // Always update audioUrl (including clearing it if null/undefined)
     card.audioUrl = mod.audioUrl || undefined;
+    // MOSSE-specific fields for damage auto-fill
+    if (mod.mosseDamageValue !== null && mod.mosseDamageValue !== undefined) {
+      card.mosseDamageValue = mod.mosseDamageValue;
+    }
+    if (mod.mosseDamageEffect) {
+      card.mosseDamageEffect = mod.mosseDamageEffect;
+    }
+    if (mod.mosseCharacterOverrides) {
+      card.mosseCharacterOverrides = mod.mosseCharacterOverrides;
+    }
+    if (mod.mosseRestrictedFrom) {
+      card.mosseRestrictedFrom = mod.mosseRestrictedFrom;
+    }
+    if (mod.mosseRestrictedAgainst) {
+      card.mosseRestrictedAgainst = mod.mosseRestrictedAgainst;
+    }
   }
 
   // Refresh card metadata for all active games (called after admin modifications)
