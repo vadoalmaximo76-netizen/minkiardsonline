@@ -7831,7 +7831,21 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     try {
       const cardName = this.getCardNameFromUrl(card.frontImage);
       
-      // Use synchronous cache lookup for instant response
+      // FIRST: Check if card has modifications from JSON storage (highest priority)
+      const mod = jsonStorage.cardModifications.getByOriginalCardId(card.id);
+      if (mod && !mod.isDeleted && (mod.pti !== null || mod.stars !== null)) {
+        const pti = mod.pti !== null ? mod.pti : (card.pti || 1000);
+        const stars = mod.stars !== null ? mod.stars : (card.stars || 1);
+        card.text = `PTI: ${pti} | Stelle: ${stars} | PTI originali: ${pti}`;
+        card.pti = pti;
+        card.originalPti = pti;
+        card.stars = stars;
+        card.name = mod.name || cardName;
+        console.log(`✅ Card ${card.id} PTI from modifications: pti=${pti}, stars=${stars}`);
+        return;
+      }
+      
+      // SECOND: Use synchronous cache lookup for instant response
       const cachedResult = getPersonaggioFromCache(cardName);
       
       if (cachedResult && (cachedResult.pti !== null || cachedResult.stars !== null)) {
@@ -7862,7 +7876,20 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     try {
       const cardName = this.getCardNameFromUrl(card.frontImage);
       
-      // Try sync cache first
+      // FIRST: Check if card has modifications from JSON storage (highest priority)
+      const mod = jsonStorage.cardModifications.getByOriginalCardId(card.id);
+      if (mod && !mod.isDeleted && (mod.pti !== null || mod.stars !== null)) {
+        const pti = mod.pti !== null ? mod.pti : (card.pti || 1000);
+        const stars = mod.stars !== null ? mod.stars : (card.stars || 1);
+        card.text = `PTI: ${pti} | Stelle: ${stars} | PTI originali: ${pti}`;
+        card.pti = pti;
+        card.originalPti = pti;
+        card.stars = stars;
+        card.name = mod.name || cardName;
+        return;
+      }
+      
+      // SECOND: Try sync cache
       const cachedResult = getPersonaggioFromCache(cardName);
       
       if (cachedResult && (cachedResult.pti !== null || cachedResult.stars !== null)) {
@@ -7876,7 +7903,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         return;
       }
       
-      // Fallback for CPU players using AI analysis (async)
+      // THIRD: Fallback for CPU players using AI analysis (async)
       const game = this.games.get(gameId);
       const player = game?.players[playerName];
       
