@@ -65,6 +65,8 @@ export const customCards = pgTable("custom_cards", {
   mosseCharacterOverrides: jsonb("mosse_character_overrides"), // JSON: character-specific damage/effects [{characterId, characterName, usedBy: {damageValue, effect}, usedOn: {damageValue, effect}}]
   mosseRestrictedFrom: jsonb("mosse_restricted_from"), // JSON: array of character IDs/names that cannot use this move
   mosseRestrictedAgainst: jsonb("mosse_restricted_against"), // JSON: array of character IDs/names that this move cannot be used on
+  mosseTargetingMode: text("mosse_targeting_mode"), // 'single', 'highest_pti', 'all_enemies', 'all_characters', 'specific_count', null=manual
+  mosseTargetCount: integer("mosse_target_count"), // Number of targets when mosseTargetingMode='specific_count'
   createdBy: text("created_by"), // Player name who created the card
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -85,6 +87,8 @@ export const cardModifications = pgTable("card_modifications", {
   mosseCharacterOverrides: jsonb("mosse_character_overrides"), // JSON: character-specific damage/effects [{characterId, characterName, usedBy: {damageValue, effect}, usedOn: {damageValue, effect}}]
   mosseRestrictedFrom: jsonb("mosse_restricted_from"), // JSON: array of character IDs/names that cannot use this move
   mosseRestrictedAgainst: jsonb("mosse_restricted_against"), // JSON: array of character IDs/names that this move cannot be used on
+  mosseTargetingMode: text("mosse_targeting_mode"), // 'single', 'highest_pti', 'all_enemies', 'all_characters', 'specific_count', null=manual
+  mosseTargetCount: integer("mosse_target_count"), // Number of targets when mosseTargetingMode='specific_count'
   isDeleted: boolean("is_deleted").default(false), // Hide card from game
   modifiedBy: text("modified_by"), // Admin email who modified
   modifiedAt: timestamp("modified_at").notNull().defaultNow(),
@@ -131,6 +135,8 @@ export const insertCustomCardSchema = createInsertSchema(customCards).pick({
   mosseCharacterOverrides: true,
   mosseRestrictedFrom: true,
   mosseRestrictedAgainst: true,
+  mosseTargetingMode: true,
+  mosseTargetCount: true,
   createdBy: true,
 });
 
@@ -149,6 +155,8 @@ export const insertCardModificationSchema = createInsertSchema(cardModifications
   mosseCharacterOverrides: true,
   mosseRestrictedFrom: true,
   mosseRestrictedAgainst: true,
+  mosseTargetingMode: true,
+  mosseTargetCount: true,
   modifiedBy: true,
 });
 

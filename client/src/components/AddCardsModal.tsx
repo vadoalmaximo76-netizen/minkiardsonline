@@ -716,6 +716,8 @@ interface UploadedCardData {
   mosseCharacterOverrides: MosseCharacterOverride[];
   mosseRestrictedFrom: string[];
   mosseRestrictedAgainst: string[];
+  mosseTargetingMode: string | null;
+  mosseTargetCount: number | null;
 }
 
 interface PermanentCard {
@@ -733,6 +735,8 @@ interface PermanentCard {
   mosseCharacterOverrides: MosseCharacterOverride[] | null;
   mosseRestrictedFrom: string[] | null;
   mosseRestrictedAgainst: string[] | null;
+  mosseTargetingMode: string | null;
+  mosseTargetCount: number | null;
   createdBy: string | null;
   createdAt: string;
 }
@@ -754,6 +758,8 @@ interface ExistingCard {
   mosseCharacterOverrides: MosseCharacterOverride[] | null;
   mosseRestrictedFrom: string[] | null;
   mosseRestrictedAgainst: string[] | null;
+  mosseTargetingMode: string | null;
+  mosseTargetCount: number | null;
   isDeleted: boolean;
   isModified: boolean;
 }
@@ -770,7 +776,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     mosseDamageValue: '', mosseDamageEffect: '',
     mosseCharacterOverrides: [] as MosseCharacterOverride[],
     mosseRestrictedFrom: [] as string[],
-    mosseRestrictedAgainst: [] as string[]
+    mosseRestrictedAgainst: [] as string[],
+    mosseTargetingMode: '',
+    mosseTargetCount: ''
   });
   const [activeTab, setActiveTab] = useState<'add' | 'manage' | 'existing'>('add');
   const { gameId, playerName } = useGameState();
@@ -784,7 +792,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     mosseDamageValue: '', mosseDamageEffect: '',
     mosseCharacterOverrides: [] as MosseCharacterOverride[],
     mosseRestrictedFrom: [] as string[],
-    mosseRestrictedAgainst: [] as string[]
+    mosseRestrictedAgainst: [] as string[],
+    mosseTargetingMode: '',
+    mosseTargetCount: ''
   });
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -1173,7 +1183,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       mosseDamageEffect: null,
       mosseCharacterOverrides: [],
       mosseRestrictedFrom: [],
-      mosseRestrictedAgainst: []
+      mosseRestrictedAgainst: [],
+      mosseTargetingMode: null,
+      mosseTargetCount: null
     }));
     
     setUploadedCards(prev => [...prev, ...newCards]);
@@ -1234,7 +1246,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
             mosseDamageEffect: selectedDeck === 'mosse' ? card.mosseDamageEffect : null,
             mosseCharacterOverrides: selectedDeck === 'mosse' ? card.mosseCharacterOverrides : null,
             mosseRestrictedFrom: selectedDeck === 'mosse' ? card.mosseRestrictedFrom : null,
-            mosseRestrictedAgainst: selectedDeck === 'mosse' ? card.mosseRestrictedAgainst : null
+            mosseRestrictedAgainst: selectedDeck === 'mosse' ? card.mosseRestrictedAgainst : null,
+            mosseTargetingMode: selectedDeck === 'mosse' ? card.mosseTargetingMode : null,
+            mosseTargetCount: selectedDeck === 'mosse' ? card.mosseTargetCount : null
           };
         })
       );
@@ -1269,7 +1283,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       mosseDamageEffect: card.mosseDamageEffect || '',
       mosseCharacterOverrides: card.mosseCharacterOverrides || [],
       mosseRestrictedFrom: card.mosseRestrictedFrom || [],
-      mosseRestrictedAgainst: card.mosseRestrictedAgainst || []
+      mosseRestrictedAgainst: card.mosseRestrictedAgainst || [],
+      mosseTargetingMode: card.mosseTargetingMode || '',
+      mosseTargetCount: card.mosseTargetCount?.toString() || ''
     });
   };
 
@@ -1289,7 +1305,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
           mosseDamageEffect: editForm.mosseDamageEffect || null,
           mosseCharacterOverrides: editForm.mosseCharacterOverrides.length > 0 ? editForm.mosseCharacterOverrides : null,
           mosseRestrictedFrom: editForm.mosseRestrictedFrom.length > 0 ? editForm.mosseRestrictedFrom : null,
-          mosseRestrictedAgainst: editForm.mosseRestrictedAgainst.length > 0 ? editForm.mosseRestrictedAgainst : null
+          mosseRestrictedAgainst: editForm.mosseRestrictedAgainst.length > 0 ? editForm.mosseRestrictedAgainst : null,
+          mosseTargetingMode: editForm.mosseTargetingMode || null,
+          mosseTargetCount: editForm.mosseTargetCount ? parseInt(editForm.mosseTargetCount) : null
         })
       });
       
@@ -1342,7 +1360,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       mosseDamageEffect: card.mosseDamageEffect || '',
       mosseCharacterOverrides: card.mosseCharacterOverrides || [],
       mosseRestrictedFrom: card.mosseRestrictedFrom || [],
-      mosseRestrictedAgainst: card.mosseRestrictedAgainst || []
+      mosseRestrictedAgainst: card.mosseRestrictedAgainst || [],
+      mosseTargetingMode: card.mosseTargetingMode || '',
+      mosseTargetCount: card.mosseTargetCount?.toString() || ''
     });
   };
 
@@ -1365,7 +1385,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
           mosseDamageEffect: existingEditForm.mosseDamageEffect || null,
           mosseCharacterOverrides: existingEditForm.mosseCharacterOverrides.length > 0 ? existingEditForm.mosseCharacterOverrides : null,
           mosseRestrictedFrom: existingEditForm.mosseRestrictedFrom.length > 0 ? existingEditForm.mosseRestrictedFrom : null,
-          mosseRestrictedAgainst: existingEditForm.mosseRestrictedAgainst.length > 0 ? existingEditForm.mosseRestrictedAgainst : null
+          mosseRestrictedAgainst: existingEditForm.mosseRestrictedAgainst.length > 0 ? existingEditForm.mosseRestrictedAgainst : null,
+          mosseTargetingMode: existingEditForm.mosseTargetingMode || null,
+          mosseTargetCount: existingEditForm.mosseTargetCount ? parseInt(existingEditForm.mosseTargetCount) : null
         })
       });
       
@@ -1841,6 +1863,49 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                                 </select>
                               </div>
                               
+                              {/* Targeting Mode */}
+                              <div className="mt-4 border-t border-red-500/30 pt-4">
+                                <div className="text-cyan-400 text-sm font-bold mb-2 flex items-center gap-1">
+                                  🎯 TARGETING AUTOMATICO
+                                </div>
+                                <p className="text-gray-400 text-xs mb-3">
+                                  Scegli come questa mossa seleziona automaticamente i bersagli.
+                                </p>
+                                
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div>
+                                    <label className="text-white text-xs mb-1 block">Modalità</label>
+                                    <select
+                                      value={card.mosseTargetingMode || ''}
+                                      onChange={(e) => updateCardData(index, 'mosseTargetingMode', e.target.value || null)}
+                                      className="w-full bg-gray-600 text-white border border-gray-500 rounded px-2 py-2 text-sm"
+                                    >
+                                      <option value="">Manuale (selezione giocatore)</option>
+                                      <option value="single">🎯 Singolo avversario casuale</option>
+                                      <option value="highest_pti">⬆️ Avversario con PTI più alti</option>
+                                      <option value="all_enemies">👥 Tutti gli avversari</option>
+                                      <option value="all_characters">🌍 Tutti i personaggi (incluso attaccante)</option>
+                                      <option value="specific_count">🔢 Numero specifico di bersagli</option>
+                                    </select>
+                                  </div>
+                                  
+                                  {card.mosseTargetingMode === 'specific_count' && (
+                                    <div>
+                                      <label className="text-white text-xs mb-1 block">Numero bersagli</label>
+                                      <Input
+                                        type="number"
+                                        min="1"
+                                        value={card.mosseTargetCount || ''}
+                                        onChange={(e) => updateCardData(index, 'mosseTargetCount', e.target.value ? parseInt(e.target.value) : null)}
+                                        placeholder="es. 2"
+                                        className="bg-gray-600 text-white border-gray-500"
+                                      />
+                                      <p className="text-gray-500 text-xs mt-1">Si applica anche se ci sono meno bersagli</p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              
                               {/* Move Restrictions */}
                               <div className="mt-4 border-t border-red-500/30 pt-4">
                                 <div className="text-yellow-400 text-sm font-bold mb-2 flex items-center gap-1">
@@ -2187,6 +2252,41 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                                       <option key={c.id} value={c.id}>{c.name}</option>
                                     ))}
                                   </select>
+                                </div>
+                                
+                                {/* Targeting Mode */}
+                                <div className="mt-3 border-t border-red-500/30 pt-3">
+                                  <div className="text-cyan-400 text-xs font-bold mb-2">🎯 Targeting Automatico</div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <p className="text-white text-xs mb-1">Modalità</p>
+                                      <select 
+                                        value={editForm.mosseTargetingMode || ''} 
+                                        onChange={(e) => setEditForm(prev => ({ ...prev, mosseTargetingMode: e.target.value }))} 
+                                        className="w-full bg-gray-700 text-white text-xs px-1 py-1 rounded border border-gray-500"
+                                      >
+                                        <option value="">Manuale</option>
+                                        <option value="single">🎯 Singolo casuale</option>
+                                        <option value="highest_pti">⬆️ PTI più alti</option>
+                                        <option value="all_enemies">👥 Tutti nemici</option>
+                                        <option value="all_characters">🌍 Tutti</option>
+                                        <option value="specific_count">🔢 Numero specifico</option>
+                                      </select>
+                                    </div>
+                                    {editForm.mosseTargetingMode === 'specific_count' && (
+                                      <div>
+                                        <p className="text-white text-xs mb-1">Numero bersagli</p>
+                                        <Input 
+                                          type="number" 
+                                          min="1"
+                                          value={editForm.mosseTargetCount || ''} 
+                                          onChange={(e) => setEditForm(prev => ({ ...prev, mosseTargetCount: e.target.value }))} 
+                                          placeholder="es. 2"
+                                          className="bg-gray-600 text-white border-gray-500 text-xs h-7"
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                                 
                                 {/* Restrictions */}
@@ -2560,6 +2660,41 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                                       <option key={c.id} value={c.id}>{c.name}</option>
                                     ))}
                                   </select>
+                                </div>
+                                
+                                {/* Targeting Mode */}
+                                <div className="mt-3 border-t border-red-500/30 pt-3">
+                                  <div className="text-cyan-400 text-xs font-bold mb-2">🎯 Targeting Automatico</div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <p className="text-white text-xs mb-1">Modalità</p>
+                                      <select 
+                                        value={existingEditForm.mosseTargetingMode || ''} 
+                                        onChange={(e) => setExistingEditForm(prev => ({ ...prev, mosseTargetingMode: e.target.value }))} 
+                                        className="w-full bg-gray-700 text-white text-xs px-1 py-1 rounded border border-gray-500"
+                                      >
+                                        <option value="">Manuale</option>
+                                        <option value="single">🎯 Singolo casuale</option>
+                                        <option value="highest_pti">⬆️ PTI più alti</option>
+                                        <option value="all_enemies">👥 Tutti nemici</option>
+                                        <option value="all_characters">🌍 Tutti</option>
+                                        <option value="specific_count">🔢 Numero specifico</option>
+                                      </select>
+                                    </div>
+                                    {existingEditForm.mosseTargetingMode === 'specific_count' && (
+                                      <div>
+                                        <p className="text-white text-xs mb-1">Numero bersagli</p>
+                                        <Input 
+                                          type="number" 
+                                          min="1"
+                                          value={existingEditForm.mosseTargetCount || ''} 
+                                          onChange={(e) => setExistingEditForm(prev => ({ ...prev, mosseTargetCount: e.target.value }))} 
+                                          placeholder="es. 2"
+                                          className="bg-gray-600 text-white border-gray-500 text-xs h-7"
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                                 
                                 {/* Restrictions */}
