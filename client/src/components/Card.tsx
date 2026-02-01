@@ -673,6 +673,50 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     const targets = allPersonaggi.filter((c: any) => selectedTargets.includes(c.id));
     setTargetCards(targets);
     setShowAttackTargetSelect(false);
+    
+    // Auto-fill damage based on MOSSE card configuration
+    const mosseCard = selectedMosseCard as any;
+    if (mosseCard) {
+      const attackerCard = gameState?.field?.find((c: any) => 
+        c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      );
+      const attackerStars = attackerCard?.stars || 1;
+      const attackerName = attackerCard ? getCardName(attackerCard) : null;
+      // Use first target for character override check
+      const firstTarget = targets[0];
+      const targetName = firstTarget ? getCardName(firstTarget) : null;
+      
+      // Check for character-specific overrides
+      const charOverride = getCharacterOverride(mosseCard, attackerName, targetName);
+      
+      if (charOverride.overrideType) {
+        if (charOverride.damageValue !== null) {
+          const suggestedDamage = charOverride.damageValue * attackerStars;
+          setDamageValue(suggestedDamage.toString());
+          setMosseHasPreset(true);
+          console.log(`🎯 Multi-target override (${charOverride.overrideType}): ${charOverride.damageValue} × ${attackerStars} = ${suggestedDamage}`);
+        } else if (mosseCard.mosseDamageValue !== null && mosseCard.mosseDamageValue !== undefined) {
+          const suggestedDamage = mosseCard.mosseDamageValue * attackerStars;
+          setDamageValue(suggestedDamage.toString());
+          setMosseHasPreset(true);
+        } else {
+          setDamageValue('');
+          setMosseHasPreset(charOverride.effect !== null);
+        }
+        setSelectedMosseEffect(charOverride.effect || mosseCard.mosseDamageEffect || null);
+      } else if (mosseCard.mosseDamageValue !== null && mosseCard.mosseDamageValue !== undefined) {
+        const suggestedDamage = mosseCard.mosseDamageValue * attackerStars;
+        setDamageValue(suggestedDamage.toString());
+        setMosseHasPreset(true);
+        setSelectedMosseEffect(mosseCard.mosseDamageEffect || null);
+        console.log(`🎯 Multi-target autofill: ${mosseCard.mosseDamageValue} × ${attackerStars} = ${suggestedDamage}`);
+      } else {
+        setDamageValue('');
+        setMosseHasPreset(false);
+        setSelectedMosseEffect(mosseCard.mosseDamageEffect || null);
+      }
+    }
+    
     setShowDamageInput(true);
   };
 
