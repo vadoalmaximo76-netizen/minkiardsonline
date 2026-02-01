@@ -2049,10 +2049,26 @@ Rispondi SOLO in JSON:`;
   // Load all active games from database on server startup
   async loadActiveGamesFromDB(): Promise<void> {
     try {
+      // First, mark games older than 7 days as inactive to prevent data bloat
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      
+      await db
+        .update(gameStates)
+        .set({ isActive: false })
+        .where(and(
+          eq(gameStates.isActive, true),
+          sql`${gameStates.lastUpdated} < ${sevenDaysAgo.toISOString()}`
+        ));
+      
+      // Only load active games from the last 7 days
       const activeGames = await db
         .select()
         .from(gameStates)
-        .where(eq(gameStates.isActive, true));
+        .where(and(
+          eq(gameStates.isActive, true),
+          sql`${gameStates.lastUpdated} >= ${sevenDaysAgo.toISOString()}`
+        ));
 
       console.log(`📂 Found ${activeGames.length} active games in database`);
 
