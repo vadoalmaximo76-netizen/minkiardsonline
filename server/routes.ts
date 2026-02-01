@@ -6863,7 +6863,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
           eq(playerDailyMissions.completed, true)
         ));
       
-      const allAchievements = await db.select().from(achievements);
+      const allAchievements = jsonStorage.achievements.getAll();
       const playerAchievementsData = await db
         .select()
         .from(playerAchievements)
@@ -8765,7 +8765,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // ============ TUTORIAL STEPS API ============
   app.get('/api/tutorial-steps', async (req, res) => {
     try {
-      const steps = await db.select().from(tutorialSteps).orderBy(tutorialSteps.sortOrder);
+      const steps = jsonStorage.tutorialSteps.getActive();
       res.json({ success: true, steps });
     } catch (error) {
       console.error('Error fetching tutorial steps:', error);
@@ -8782,15 +8782,16 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         return res.status(403).json({ error: 'Admin access required' });
       }
       
-      const { stepId, trigger, title, content, sortOrder } = req.body;
+      const { stepId, trigger, title, content, sortOrder, isActive } = req.body;
       
-      const [newStep] = await db.insert(tutorialSteps).values({
+      const newStep = jsonStorage.tutorialSteps.create({
         stepId,
         trigger,
         title,
         content,
-        sortOrder: sortOrder || 0
-      }).returning();
+        sortOrder: sortOrder || 0,
+        isActive: isActive !== false
+      });
       
       res.json({ success: true, step: newStep });
     } catch (error) {
@@ -8811,17 +8812,18 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       const stepId = parseInt(req.params.id);
       const { trigger, title, content, sortOrder, isActive } = req.body;
       
-      const updates: Record<string, any> = { updatedAt: new Date() };
+      const updates: Record<string, any> = {};
       if (trigger !== undefined) updates.trigger = trigger;
       if (title !== undefined) updates.title = title;
       if (content !== undefined) updates.content = content;
       if (sortOrder !== undefined) updates.sortOrder = sortOrder;
       if (isActive !== undefined) updates.isActive = isActive;
       
-      const [updatedStep] = await db.update(tutorialSteps)
-        .set(updates)
-        .where(eq(tutorialSteps.id, stepId))
-        .returning();
+      const updatedStep = jsonStorage.tutorialSteps.update(stepId, updates);
+      
+      if (!updatedStep) {
+        return res.status(404).json({ error: 'Tutorial step not found' });
+      }
       
       res.json({ success: true, step: updatedStep });
     } catch (error) {
@@ -8840,7 +8842,11 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       }
       
       const stepId = parseInt(req.params.id);
-      await db.delete(tutorialSteps).where(eq(tutorialSteps.id, stepId));
+      const deleted = jsonStorage.tutorialSteps.delete(stepId);
+      
+      if (!deleted) {
+        return res.status(404).json({ error: 'Tutorial step not found' });
+      }
       
       res.json({ success: true });
     } catch (error) {
@@ -8858,24 +8864,26 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         return res.status(403).json({ error: 'Admin access required' });
       }
       
-      const existingSteps = await db.select().from(tutorialSteps);
+      const existingSteps = jsonStorage.tutorialSteps.getAll();
       if (existingSteps.length > 0) {
         return res.json({ success: true, message: 'Steps already initialized', count: existingSteps.length });
       }
       
       const defaultSteps = [
-        { stepId: 'welcome', trigger: 'game_start', title: 'Benvenuto in MINKIARDS!', content: 'Questa è una partita di allenamento. Ti guiderò passo passo per imparare a giocare. Clicca "Avanti" per continuare.', sortOrder: 0 },
-        { stepId: 'deck_overview', trigger: 'game_start', title: 'I Mazzi di Carte', content: 'Hai 4 mazzi: PERSONAGGI (rosso), MOSSE (blu), BONUS (verde) e SPECIALI (viola). Ogni mazzo ha un ruolo diverso nel gioco.', sortOrder: 1 },
-        { stepId: 'draw_card', trigger: 'game_start', title: 'Pescare le Carte', content: 'Clicca su un mazzo per pescare una carta. Inizia pescando una carta PERSONAGGI - sono i tuoi combattenti!', sortOrder: 2 },
-        { stepId: 'play_character', trigger: 'card_drawn', title: 'Giocare un Personaggio', content: 'Ottimo! Hai pescato una carta. Ora clicca sulla carta nella tua mano e poi su uno slot vuoto del campo per posizionarla.', sortOrder: 3 },
-        { stepId: 'character_stats', trigger: 'character_played', title: 'Statistiche Personaggio', content: 'Ogni personaggio ha PTI (punti vita) e Stelle (potenza). Quando i PTI arrivano a 0, il personaggio muore.', sortOrder: 4 },
-        { stepId: 'mosse_attack', trigger: 'character_played', title: 'Usare le MOSSE', content: 'Pesca una carta MOSSE per attaccare! Seleziona la MOSSA, poi il tuo personaggio, infine il bersaglio nemico.', sortOrder: 5 },
-        { stepId: 'bonus_cards', trigger: 'mosse_played', title: 'Carte BONUS', content: 'Le carte BONUS potenziano i tuoi personaggi. Usale strategicamente per aumentare PTI o stelle!', sortOrder: 6 },
-        { stepId: 'end_turn', trigger: 'bonus_played', title: 'Fine del Turno', content: 'Quando hai finito, clicca "FINE TURNO" per passare al prossimo giocatore.', sortOrder: 7 },
-        { stepId: 'victory', trigger: 'turn_ended', title: 'Obiettivo', content: 'Elimina tutti i personaggi avversari per vincere! Buona fortuna!', sortOrder: 8 }
+        { stepId: 'welcome', trigger: 'game_start', title: 'Benvenuto in MINKIARDS!', content: 'Questa è una partita di allenamento. Ti guiderò passo passo per imparare a giocare. Clicca "Avanti" per continuare.', sortOrder: 0, isActive: true },
+        { stepId: 'deck_overview', trigger: 'game_start', title: 'I Mazzi di Carte', content: 'Hai 4 mazzi: PERSONAGGI (rosso), MOSSE (blu), BONUS (verde) e SPECIALI (viola). Ogni mazzo ha un ruolo diverso nel gioco.', sortOrder: 1, isActive: true },
+        { stepId: 'draw_card', trigger: 'game_start', title: 'Pescare le Carte', content: 'Clicca su un mazzo per pescare una carta. Inizia pescando una carta PERSONAGGI - sono i tuoi combattenti!', sortOrder: 2, isActive: true },
+        { stepId: 'play_character', trigger: 'card_drawn', title: 'Giocare un Personaggio', content: 'Ottimo! Hai pescato una carta. Ora clicca sulla carta nella tua mano e poi su uno slot vuoto del campo per posizionarla.', sortOrder: 3, isActive: true },
+        { stepId: 'character_stats', trigger: 'character_played', title: 'Statistiche Personaggio', content: 'Ogni personaggio ha PTI (punti vita) e Stelle (potenza). Quando i PTI arrivano a 0, il personaggio muore.', sortOrder: 4, isActive: true },
+        { stepId: 'mosse_attack', trigger: 'character_played', title: 'Usare le MOSSE', content: 'Pesca una carta MOSSE per attaccare! Seleziona la MOSSA, poi il tuo personaggio, infine il bersaglio nemico.', sortOrder: 5, isActive: true },
+        { stepId: 'bonus_cards', trigger: 'mosse_played', title: 'Carte BONUS', content: 'Le carte BONUS potenziano i tuoi personaggi. Usale strategicamente per aumentare PTI o stelle!', sortOrder: 6, isActive: true },
+        { stepId: 'end_turn', trigger: 'bonus_played', title: 'Fine del Turno', content: 'Quando hai finito, clicca "FINE TURNO" per passare al prossimo giocatore.', sortOrder: 7, isActive: true },
+        { stepId: 'victory', trigger: 'turn_ended', title: 'Obiettivo', content: 'Elimina tutti i personaggi avversari per vincere! Buona fortuna!', sortOrder: 8, isActive: true }
       ];
       
-      await db.insert(tutorialSteps).values(defaultSteps);
+      for (const step of defaultSteps) {
+        jsonStorage.tutorialSteps.create(step);
+      }
       
       res.json({ success: true, message: 'Tutorial steps initialized', count: defaultSteps.length });
     } catch (error) {
