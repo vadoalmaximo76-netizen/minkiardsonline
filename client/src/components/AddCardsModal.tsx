@@ -1098,30 +1098,15 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   // Fetch available characters for MOSSE character-specific settings
   const fetchAvailableCharacters = async () => {
     try {
-      // Get permanent personaggi cards
-      const permanentRes = await fetch('/api/permanent-cards');
-      const permanentData = await permanentRes.json();
-      const permanentPersonaggi = (permanentData || [])
-        .filter((c: any) => c.deckType === 'personaggi' || c.deckType === 'personaggi_speciali')
-        .map((c: any) => ({
-          id: `permanent_${c.id}`,
-          name: c.name,
-          imageUrl: c.imageData
-        }));
+      const res = await fetch('/api/characters');
+      const data = await res.json();
       
-      // Get built-in personaggi from cardData
-      const { personaggiCards, personaggiSpecialiCards } = await import('../lib/cardData');
-      const builtInCharacters = [...personaggiCards, ...personaggiSpecialiCards].map(c => ({
-        id: c.id,
-        name: c.name || c.id,
-        imageUrl: c.frontImage
-      }));
-      
-      // Combine and sort by name
-      const allCharacters = [...builtInCharacters, ...permanentPersonaggi]
-        .sort((a, b) => a.name.localeCompare(b.name));
-      
-      setAvailableCharacters(allCharacters);
+      if (data.success && data.characters) {
+        setAvailableCharacters(data.characters.map((c: { id: string; name: string }) => ({
+          id: c.id,
+          name: c.name
+        })));
+      }
     } catch (error) {
       console.error('Error fetching available characters:', error);
     }

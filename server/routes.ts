@@ -6205,6 +6205,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
+  // CHARACTER NAMES ENDPOINT (for MOSSE overrides)
+  // ============================================
+  
+  // Get all character names from cache for MOSSE character-specific settings
+  app.get('/api/characters', async (req, res) => {
+    try {
+      // Get characters from the personaggiCache (all built-in characters with names)
+      const characters: { id: string; name: string }[] = [];
+      const seenNames = new Set<string>();
+      
+      personaggiCache.forEach((value, key) => {
+        // Only add if we haven't seen this name (avoid duplicates from normalized keys)
+        if (!seenNames.has(value.name)) {
+          seenNames.add(value.name);
+          characters.push({
+            id: key,
+            name: value.name
+          });
+        }
+      });
+      
+      // Also get permanent custom character cards
+      const permanentCharacters = await db.select({
+        id: customCards.id,
+        name: customCards.name
+      }).from(customCards).where(
+        sql`${customCards.deckType} IN ('personaggi', 'personaggi_speciali')`
+      );
+      
+      permanentCharacters.forEach(c => {
+        if (!seenNames.has(c.name)) {
+          seenNames.add(c.name);
+          characters.push({
+            id: `permanent_${c.id}`,
+            name: c.name
+          });
+        }
+      });
+      
+      // Sort by name
+      characters.sort((a, b) => a.name.localeCompare(b.name));
+      
+      res.json({ success: true, characters });
+    } catch (error) {
+      console.error('Error fetching characters:', error);
+      res.status(500).json({ success: false, error: 'Failed to fetch characters' });
+    }
+  });
+
+  // ============================================
   // CUSTOM CARDS CRUD ENDPOINTS
   // ============================================
   
