@@ -5,7 +5,7 @@ import { GameManager } from "./gameManager";
 import OpenAI from "openai";
 import jwt from "jsonwebtoken";
 import { db } from "./db";
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, achievements, playerAchievements, missionTemplates, playerDailyMissions, trainingTips, tutorialSteps, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, cardSkins, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions } from "../shared/schema";
 import { jsonStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray } from "drizzle-orm";
 import { CARD_DATA } from "../client/src/lib/cardData";
@@ -7202,8 +7202,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         return res.status(404).json({ success: false, error: 'User not found' });
       }
       
-      const ownedSkins = await db.select().from(playerSkins)
-        .where(eq(playerSkins.userId, currentUser[0].id));
+      const ownedSkins = jsonStorage.playerSkins.getByUserId(currentUser[0].id);
       
       res.json({ success: true, skins: ownedSkins });
     } catch (error) {
@@ -7233,9 +7232,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       }
       
       // Check if already owned
-      const existing = await db.select().from(playerSkins)
-        .where(and(eq(playerSkins.userId, currentUser[0].id), eq(playerSkins.skinId, skinId)));
-      if (existing.length) {
+      const userSkins = jsonStorage.playerSkins.getByUserId(currentUser[0].id);
+      const existing = userSkins.find(s => s.skinId === skinId);
+      if (existing) {
         return res.status(400).json({ success: false, error: 'Skin already owned' });
       }
       
@@ -7244,9 +7243,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         .set({ puntiRankiard: currentUser[0].puntiRankiard - (skin.price || 0) })
         .where(eq(users.id, currentUser[0].id));
       
-      await db.insert(playerSkins).values({
+      jsonStorage.playerSkins.create({
         userId: currentUser[0].id,
-        skinId
+        skinId,
+        isEquipped: false
       });
       
       res.json({ success: true });
@@ -7267,15 +7267,11 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         return res.status(404).json({ success: false, error: 'User not found' });
       }
       
-      // Unequip all skins first
-      await db.update(playerSkins)
-        .set({ isEquipped: false })
-        .where(eq(playerSkins.userId, currentUser[0].id));
+      const equipped = jsonStorage.playerSkins.equipSkin(currentUser[0].id, skinId);
       
-      // Equip the selected skin
-      await db.update(playerSkins)
-        .set({ isEquipped: true })
-        .where(and(eq(playerSkins.userId, currentUser[0].id), eq(playerSkins.skinId, skinId)));
+      if (!equipped) {
+        return res.status(400).json({ success: false, error: 'Skin not owned' });
+      }
       
       res.json({ success: true });
     } catch (error) {
