@@ -154,7 +154,7 @@ const KeywordDescription: React.FC<{ text: string }> = ({ text }) => {
                 {part}
               </span>
             </TooltipTrigger>
-            <TooltipContent className="bg-slate-900 border-slate-700 text-white p-2 text-xs shadow-2xl">
+            <TooltipContent className="hidden bg-slate-900 border-slate-700 text-white p-2 text-xs shadow-2xl">
               {CARD_KEYWORDS[keywordMatch]}
             </TooltipContent>
           </Tooltip>
