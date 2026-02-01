@@ -6426,6 +6426,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             effect: mod?.effect || null,
             audioUrl: mod?.audioUrl || null,
             youtubeUrl: mod?.youtubeUrl || null,
+            mosseDamageValue: mod?.mosseDamageValue || null,
+            mosseDamageEffect: mod?.mosseDamageEffect || null,
+            mosseCharacterOverrides: mod?.mosseCharacterOverrides || null,
+            mosseRestrictedFrom: mod?.mosseRestrictedFrom || null,
+            mosseRestrictedAgainst: mod?.mosseRestrictedAgainst || null,
             isDeleted: mod?.isDeleted || false,
             isModified: !!mod
           });
