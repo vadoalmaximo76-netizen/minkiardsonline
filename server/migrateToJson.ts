@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { cardModifications, customCards as customCardsTable, cardSkins } from "@shared/schema";
+import { cardModifications, customCards as customCardsTable, cardSkins, personaggi } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import * as fs from "fs";
 import * as path from "path";
@@ -99,6 +99,24 @@ async function migrate() {
     JSON.stringify(skinsJson, null, 2)
   );
   console.log("Card skins migrated!");
+
+  // Migrate personaggi cache
+  console.log("Fetching personaggi cache...");
+  const personaggiData = await db.select().from(personaggi);
+  console.log(`Found ${personaggiData.length} personaggi entries`);
+  
+  const personaggiJson = personaggiData.map(p => ({
+    id: p.id,
+    name: p.name,
+    pti: p.pti,
+    stars: p.stars
+  }));
+  
+  fs.writeFileSync(
+    path.join(DATA_DIR, "personaggiCache.json"),
+    JSON.stringify(personaggiJson, null, 2)
+  );
+  console.log("Personaggi cache migrated!");
 
   console.log("Migration complete!");
   process.exit(0);
