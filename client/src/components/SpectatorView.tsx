@@ -140,7 +140,7 @@ export function SpectatorView({ gameId, spectatorName, onLeave }: SpectatorViewP
     <div className="min-h-screen bg-arena-deep relative overflow-hidden">
       <div 
         className="absolute inset-0 bg-cover bg-center opacity-30"
-        style={{ backgroundImage: `url('https://i.postimg.cc/RFDM9bSq/1.png')` }}
+        style={{ backgroundImage: `url('https://i.ibb.co/Y4bv4xwz/sfondo-minkiards.png')` }}
       />
       
       <div className="relative z-10">
