@@ -42,6 +42,74 @@ const getHealthBarColor = (percentage: number): string => {
   return 'from-red-600 via-red-700 to-red-900';
 };
 
+// Helper to check character-specific overrides for MOSSE cards
+interface CharacterOverrideResult {
+  damageValue: number | null;
+  effect: string | null;
+  overrideType: 'usedBy' | 'usedOn' | 'both' | null;
+}
+
+const getCharacterOverride = (
+  mosseCard: any,
+  attackerCardName: string | null,
+  targetCardName: string | null
+): CharacterOverrideResult => {
+  const result: CharacterOverrideResult = { damageValue: null, effect: null, overrideType: null };
+  
+  if (!mosseCard?.mosseCharacterOverrides || !Array.isArray(mosseCard.mosseCharacterOverrides)) {
+    return result;
+  }
+  
+  const overrides = mosseCard.mosseCharacterOverrides;
+  
+  // Normalize names for comparison
+  const normalizeCardName = (name: string | null): string => {
+    if (!name) return '';
+    return name.toUpperCase().replace(/[_-]/g, ' ').trim();
+  };
+  
+  const attackerNorm = normalizeCardName(attackerCardName);
+  const targetNorm = normalizeCardName(targetCardName);
+  
+  // Check for usedBy override (when attacker matches)
+  if (attackerNorm) {
+    const usedByOverride = overrides.find((o: any) => {
+      const charNorm = normalizeCardName(o.characterName || o.characterId);
+      return charNorm === attackerNorm && o.usedBy && (o.usedBy.damageValue !== null || o.usedBy.effect);
+    });
+    if (usedByOverride?.usedBy) {
+      result.damageValue = usedByOverride.usedBy.damageValue;
+      result.effect = usedByOverride.usedBy.effect;
+      result.overrideType = 'usedBy';
+    }
+  }
+  
+  // Check for usedOn override (when target matches) - takes priority over usedBy
+  if (targetNorm) {
+    const usedOnOverride = overrides.find((o: any) => {
+      const charNorm = normalizeCardName(o.characterName || o.characterId);
+      return charNorm === targetNorm && o.usedOn && (o.usedOn.damageValue !== null || o.usedOn.effect);
+    });
+    if (usedOnOverride?.usedOn) {
+      // If both usedBy and usedOn exist, usedOn takes priority for damage/effect
+      if (result.overrideType === 'usedBy') {
+        result.overrideType = 'both';
+      } else {
+        result.overrideType = 'usedOn';
+      }
+      // usedOn values override usedBy values
+      if (usedOnOverride.usedOn.damageValue !== null) {
+        result.damageValue = usedOnOverride.usedOn.damageValue;
+      }
+      if (usedOnOverride.usedOn.effect) {
+        result.effect = usedOnOverride.usedOn.effect;
+      }
+    }
+  }
+  
+  return result;
+};
+
 interface CardProps {
   card: {
     id: string;
@@ -335,26 +403,44 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         const isFurto = mosseCardName === 'FURTO' || mosseCardName.includes('FURTO');
         setIsFurtoAttack(isFurto);
         
-        // Auto-fill damage based on MOSSE card settings
+        // Auto-fill damage based on MOSSE card settings and character overrides
         const mosseCard = selectedMosseCard as any;
-        if (mosseCard.mosseDamageValue !== null && mosseCard.mosseDamageValue !== undefined) {
-          const attackerCard = gameState?.field?.find((c: any) => 
-            c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
-          );
-          const attackerStars = attackerCard?.stars || 1;
+        const attackerCard = gameState?.field?.find((c: any) => 
+          c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        const attackerStars = attackerCard?.stars || 1;
+        const attackerName = attackerCard ? getCardName(attackerCard) : null;
+        const targetName = getCardName(card);
+        
+        // Check for character-specific overrides first
+        const charOverride = getCharacterOverride(mosseCard, attackerName, targetName);
+        
+        if (charOverride.overrideType) {
+          // Use character-specific override values
+          if (charOverride.damageValue !== null) {
+            const suggestedDamage = charOverride.damageValue * attackerStars;
+            setDamageValue(suggestedDamage.toString());
+            setMosseHasPreset(true);
+            console.log(`🎯 Character override applied (${charOverride.overrideType}): ${charOverride.damageValue} × ${attackerStars} = ${suggestedDamage}`);
+          } else if (mosseCard.mosseDamageValue !== null && mosseCard.mosseDamageValue !== undefined) {
+            const suggestedDamage = mosseCard.mosseDamageValue * attackerStars;
+            setDamageValue(suggestedDamage.toString());
+            setMosseHasPreset(true);
+          } else {
+            setDamageValue('');
+            setMosseHasPreset(charOverride.effect !== null);
+          }
+          setSelectedMosseEffect(charOverride.effect || mosseCard.mosseDamageEffect || null);
+        } else if (mosseCard.mosseDamageValue !== null && mosseCard.mosseDamageValue !== undefined) {
+          // Use default MOSSE damage value
           const suggestedDamage = mosseCard.mosseDamageValue * attackerStars;
           setDamageValue(suggestedDamage.toString());
           setMosseHasPreset(true);
+          setSelectedMosseEffect(mosseCard.mosseDamageEffect || null);
         } else {
           setDamageValue('');
           setMosseHasPreset(false);
-        }
-        
-        // Set special effect if defined
-        if (mosseCard.mosseDamageEffect) {
-          setSelectedMosseEffect(mosseCard.mosseDamageEffect);
-        } else {
-          setSelectedMosseEffect(null);
+          setSelectedMosseEffect(mosseCard.mosseDamageEffect || null);
         }
         
         // Open damage input dialog instead of attacking immediately
@@ -520,29 +606,47 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     setMosseHasPreset(false);
   };
 
-  const handleHandTargetSelect = (targetCard: any) => {
-    setTargetCard(targetCard);
+  const handleHandTargetSelect = (handTargetCard: any) => {
+    setTargetCard(handTargetCard);
     setIsHandTarget(true);
     setShowHandTargetSelect(false);
     
-    // Auto-fill damage for hand target attacks too
+    // Auto-fill damage for hand target attacks with character override support
     const mosseCard = selectedMosseCard as any;
-    if (mosseCard?.mosseDamageValue !== null && mosseCard?.mosseDamageValue !== undefined) {
-      const attackerCard = gameState?.field?.find((c: any) => 
-        c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
-      );
-      const attackerStars = attackerCard?.stars || 1;
+    const attackerCard = gameState?.field?.find((c: any) => 
+      c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+    );
+    const attackerStars = attackerCard?.stars || 1;
+    const attackerName = attackerCard ? getCardName(attackerCard) : null;
+    const targetName = getCardName(handTargetCard);
+    
+    // Check for character-specific overrides
+    const charOverride = getCharacterOverride(mosseCard, attackerName, targetName);
+    
+    if (charOverride.overrideType) {
+      if (charOverride.damageValue !== null) {
+        const suggestedDamage = charOverride.damageValue * attackerStars;
+        setDamageValue(suggestedDamage.toString());
+        setMosseHasPreset(true);
+        console.log(`🎯 Hand target override (${charOverride.overrideType}): ${charOverride.damageValue} × ${attackerStars} = ${suggestedDamage}`);
+      } else if (mosseCard?.mosseDamageValue !== null && mosseCard?.mosseDamageValue !== undefined) {
+        const suggestedDamage = mosseCard.mosseDamageValue * attackerStars;
+        setDamageValue(suggestedDamage.toString());
+        setMosseHasPreset(true);
+      } else {
+        setDamageValue('');
+        setMosseHasPreset(charOverride.effect !== null);
+      }
+      setSelectedMosseEffect(charOverride.effect || mosseCard?.mosseDamageEffect || null);
+    } else if (mosseCard?.mosseDamageValue !== null && mosseCard?.mosseDamageValue !== undefined) {
       const suggestedDamage = mosseCard.mosseDamageValue * attackerStars;
       setDamageValue(suggestedDamage.toString());
       setMosseHasPreset(true);
+      setSelectedMosseEffect(mosseCard.mosseDamageEffect || null);
     } else {
       setDamageValue('');
       setMosseHasPreset(false);
-    }
-    if (mosseCard?.mosseDamageEffect) {
-      setSelectedMosseEffect(mosseCard.mosseDamageEffect);
-    } else {
-      setSelectedMosseEffect(null);
+      setSelectedMosseEffect(mosseCard?.mosseDamageEffect || null);
     }
     
     setShowDamageInput(true);

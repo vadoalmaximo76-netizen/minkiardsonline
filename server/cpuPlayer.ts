@@ -1918,8 +1918,29 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         
         // Calculate suggested damage based on mosse card settings and attacker stars
         const attackerStars = attackerCard?.stars || 1;
+        const attackerName = attackerCard ? this.getCardNameFromUrl(attackerCard.frontImage) : null;
+        const targetName = target.name;
+        
+        // Check for character-specific overrides
+        const charOverride = this.getCharacterOverride(mosseCard, attackerName, targetName);
+        
         let suggestedDamage: number | null = null;
-        if (mosseCard?.mosseDamageValue) {
+        let effectiveDamageValue = mosseCard?.mosseDamageValue || null;
+        let effectiveEffect = mosseCard?.mosseDamageEffect || null;
+        
+        if (charOverride.overrideType) {
+          // Use character-specific override
+          if (charOverride.damageValue !== null) {
+            effectiveDamageValue = charOverride.damageValue;
+            suggestedDamage = charOverride.damageValue * attackerStars;
+            console.log(`🎯 CPU ${this.playerName}: Character override applied (${charOverride.overrideType}): ${charOverride.damageValue} × ${attackerStars} = ${suggestedDamage}`);
+          } else if (mosseCard?.mosseDamageValue) {
+            suggestedDamage = mosseCard.mosseDamageValue * attackerStars;
+          }
+          if (charOverride.effect) {
+            effectiveEffect = charOverride.effect;
+          }
+        } else if (mosseCard?.mosseDamageValue) {
           suggestedDamage = mosseCard.mosseDamageValue * attackerStars;
         }
         
@@ -1935,15 +1956,16 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           targetOwner: target.owner,
           gameCreator: gameCreator,
           timestamp: Date.now(),
-          // MOSSE damage auto-fill
-          mosseDamageValue: mosseCard?.mosseDamageValue || null,
-          mosseDamageEffect: mosseCard?.mosseDamageEffect || null,
+          // MOSSE damage auto-fill (with character override applied)
+          mosseDamageValue: effectiveDamageValue,
+          mosseDamageEffect: effectiveEffect,
           suggestedDamage: suggestedDamage,
           attackerStars: attackerStars,
+          mosseCharacterOverrides: mosseCard?.mosseCharacterOverrides || null,
           // Add complete character data
           attackerCharacter: attackerCard ? {
             id: attackerCard.id,
-            name: this.getCardNameFromUrl(attackerCard.frontImage),
+            name: attackerName,
             image: attackerCard.frontImage,
             notes: attackerCard.text || ''
           } : null,
@@ -1980,8 +2002,29 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     
     // Calculate suggested damage based on mosse card settings and attacker stars
     const attackerStars = attackerCard?.stars || 1;
+    const attackerName = attackerCard ? this.getCardNameFromUrl(attackerCard.frontImage) : null;
+    const targetName = target.name;
+    
+    // Check for character-specific overrides
+    const charOverride = this.getCharacterOverride(mosseCard, attackerName, targetName);
+    
     let suggestedDamage: number | null = null;
-    if (mosseCard.mosseDamageValue) {
+    let effectiveDamageValue = mosseCard.mosseDamageValue || null;
+    let effectiveEffect = mosseCard.mosseDamageEffect || null;
+    
+    if (charOverride.overrideType) {
+      // Use character-specific override
+      if (charOverride.damageValue !== null) {
+        effectiveDamageValue = charOverride.damageValue;
+        suggestedDamage = charOverride.damageValue * attackerStars;
+        console.log(`🎯 CPU ${this.playerName}: ATOMIC - Character override (${charOverride.overrideType}): ${charOverride.damageValue} × ${attackerStars} = ${suggestedDamage}`);
+      } else if (mosseCard.mosseDamageValue) {
+        suggestedDamage = mosseCard.mosseDamageValue * attackerStars;
+      }
+      if (charOverride.effect) {
+        effectiveEffect = charOverride.effect;
+      }
+    } else if (mosseCard.mosseDamageValue) {
       suggestedDamage = mosseCard.mosseDamageValue * attackerStars;
     }
     
@@ -1998,14 +2041,15 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       gameCreator: gameCreator,
       timestamp: Date.now(),
       isHandTarget: isHandTarget,  // NEW: Flag for ATTACCO DISONESTO
-      // MOSSE damage auto-fill
-      mosseDamageValue: mosseCard.mosseDamageValue || null,
-      mosseDamageEffect: mosseCard.mosseDamageEffect || null,
+      // MOSSE damage auto-fill (with character override applied)
+      mosseDamageValue: effectiveDamageValue,
+      mosseDamageEffect: effectiveEffect,
       suggestedDamage: suggestedDamage,
       attackerStars: attackerStars,
+      mosseCharacterOverrides: mosseCard?.mosseCharacterOverrides || null,
       attackerCharacter: attackerCard ? {
         id: attackerCard.id,
-        name: this.getCardNameFromUrl(attackerCard.frontImage),
+        name: attackerName,
         image: attackerCard.frontImage,
         notes: attackerCard.text || ''
       } : null,
@@ -2490,6 +2534,66 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       // Fallback for non-URL strings or failed URL parsing
       return imageUrl?.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase() || 'Carta';
     }
+  }
+
+  // Get character-specific damage/effect overrides for MOSSE cards
+  private getCharacterOverride(
+    mosseCard: any,
+    attackerCardName: string | null,
+    targetCardName: string | null
+  ): { damageValue: number | null; effect: string | null; overrideType: 'usedBy' | 'usedOn' | 'both' | null } {
+    const result = { damageValue: null as number | null, effect: null as string | null, overrideType: null as 'usedBy' | 'usedOn' | 'both' | null };
+    
+    if (!mosseCard?.mosseCharacterOverrides || !Array.isArray(mosseCard.mosseCharacterOverrides)) {
+      return result;
+    }
+    
+    const overrides = mosseCard.mosseCharacterOverrides;
+    
+    // Normalize names for comparison
+    const normalizeCardName = (name: string | null): string => {
+      if (!name) return '';
+      return name.toUpperCase().replace(/[_-]/g, ' ').trim();
+    };
+    
+    const attackerNorm = normalizeCardName(attackerCardName);
+    const targetNorm = normalizeCardName(targetCardName);
+    
+    // Check for usedBy override (when attacker matches)
+    if (attackerNorm) {
+      const usedByOverride = overrides.find((o: any) => {
+        const charNorm = normalizeCardName(o.characterName || o.characterId);
+        return charNorm === attackerNorm && o.usedBy && (o.usedBy.damageValue !== null || o.usedBy.effect);
+      });
+      if (usedByOverride?.usedBy) {
+        result.damageValue = usedByOverride.usedBy.damageValue;
+        result.effect = usedByOverride.usedBy.effect;
+        result.overrideType = 'usedBy';
+      }
+    }
+    
+    // Check for usedOn override (when target matches) - takes priority over usedBy
+    if (targetNorm) {
+      const usedOnOverride = overrides.find((o: any) => {
+        const charNorm = normalizeCardName(o.characterName || o.characterId);
+        return charNorm === targetNorm && o.usedOn && (o.usedOn.damageValue !== null || o.usedOn.effect);
+      });
+      if (usedOnOverride?.usedOn) {
+        if (result.overrideType === 'usedBy') {
+          result.overrideType = 'both';
+        } else {
+          result.overrideType = 'usedOn';
+        }
+        if (usedOnOverride.usedOn.damageValue !== null) {
+          result.damageValue = usedOnOverride.usedOn.damageValue;
+        }
+        if (usedOnOverride.usedOn.effect) {
+          result.effect = usedOnOverride.usedOn.effect;
+        }
+      }
+    }
+    
+    return result;
   }
 
   // Handle player chat messages for specific CPU functions
