@@ -145,6 +145,7 @@ interface PendingDefense {
   isHandTarget?: boolean; // NEW: Whether this is ATTACCO DISONESTO (target in hand)
   starsToRemove?: number; // Stars to remove from target alongside PTI damage
   isFurtoAttack?: boolean; // Whether this is a FURTO attack
+  mosseEffect?: string;   // Special effect like death, halve_pti, zero_stars, set_5_pti, remove_1_star
   createdAt: Date;
   timeoutId?: NodeJS.Timeout;
 }
@@ -5601,7 +5602,16 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   }
 
   // NEW: Authoritative MOSSE attack execution
-  async executeMossaAttack(gameId: string, attackerName: string, mosseCardId: string, targetCardId: string, damageValue: number, isHandTarget: boolean = false, defenseRequestEmitter?: (data: any) => void): Promise<{ success: boolean; result?: any; error?: string }> {
+  async executeMossaAttack(gameId: string, attackerName: string, mosseCardId: string, targetCardId: string, damageValue: number, isHandTarget: boolean | number = false, defenseRequestEmitter?: (data: any) => void | string | null, starsToRemove: number = 0, mosseEffect?: string | null): Promise<{ success: boolean; result?: any; error?: string }> {
+    // Handle legacy calls where isHandTarget might be starsToRemove number
+    if (typeof isHandTarget === 'number') {
+      starsToRemove = isHandTarget;
+      isHandTarget = false;
+      if (typeof defenseRequestEmitter === 'string') {
+        mosseEffect = defenseRequestEmitter;
+        defenseRequestEmitter = undefined;
+      }
+    }
     const game = this.games.get(gameId);
     if (!game) {
       return { success: false, error: 'Game not found' };
@@ -5841,8 +5851,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       damage: damageValue, // Proper damage value from attacker input
       targetCardId: targetCardId, // Character being attacked
       mosseCardId: mosseCardId, // MOSSE card used for attack
-      isHandTarget: isHandTarget, // NEW: Pass isHandTarget flag
-      deckType: 'mosse'
+      isHandTarget: isHandTarget as boolean, // NEW: Pass isHandTarget flag
+      deckType: 'mosse',
+      starsToRemove: starsToRemove || 0,
+      mosseEffect: mosseEffect || undefined
     });
 
     if (!defenseCreated) {
@@ -13461,7 +13473,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     game.pendingDefense = undefined;
 
     // Retain local copy for processing
-    const { attacker, defender, targetCardId, mosseCardId, damage, isHandTarget, starsToRemove = 0, isFurtoAttack = false } = pendingDefense;
+    const { attacker, defender, targetCardId, mosseCardId, damage, isHandTarget, starsToRemove = 0, isFurtoAttack = false, mosseEffect } = pendingDefense;
 
     // STRUCTURED LOGGING: Log resolution details
     console.log(`[DEFENSE-RESOLVE] Processing defense resolution`, {
@@ -13548,7 +13560,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       });
 
       // Apply damage using existing processMosseDamage to targetCardId owned by defender
-      await this.processMosseDamage(gameId, attacker, targetCardId, damage, mosseCardId, io, false, isHandTarget || false, isFurtoAttack, false, starsToRemove);
+      await this.processMosseDamage(gameId, attacker, targetCardId, damage, mosseCardId, io, false, isHandTarget || false, isFurtoAttack, false, starsToRemove, mosseEffect);
       
       // DUELLO: Switch turn to opponent after attack is accepted
       if (game.activeDuel && game.activeDuel.active) {
@@ -13895,8 +13907,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     return game?.activeClashBattle;
   }
 
-  // EXTRACTED AND HARDENED: Damage processing method (preserves ALL legacy logic + BAMBOLA VOODOO + ATTACCO DISONESTO + FURTO + STAR REMOVAL)
-  async processMosseDamage(gameId: string, attackerName: string, targetCardId: string, damageValue: number, mosseCardId: string, io: any, isVoodooReflection: boolean = false, isHandTarget: boolean = false, isFurtoAttack: boolean = false, isPersistentTick: boolean = false, starsToRemove: number = 0): Promise<void> {
+  // EXTRACTED AND HARDENED: Damage processing method (preserves ALL legacy logic + BAMBOLA VOODOO + ATTACCO DISONESTO + FURTO + STAR REMOVAL + SPECIAL EFFECTS)
+  async processMosseDamage(gameId: string, attackerName: string, targetCardId: string, damageValue: number, mosseCardId: string, io: any, isVoodooReflection: boolean = false, isHandTarget: boolean = false, isFurtoAttack: boolean = false, isPersistentTick: boolean = false, starsToRemove: number = 0, mosseEffect?: string): Promise<void> {
     const game = this.games.get(gameId);
     const gameState = this.getSanitizedGameState(gameId);
     
@@ -14670,8 +14682,68 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
     // ========== END CUSTOM EFFECT INTEGRATION ==========
     
+    // ========== MOSSE SPECIAL EFFECT HANDLING ==========
+    let forceInstantDeath = false;
+    let additionalStarsToRemove = 0;
+    let effectMessage = '';
+    
+    if (mosseEffect) {
+      switch (mosseEffect) {
+        case 'death':
+          // Instant death - character dies regardless of PTI
+          forceInstantDeath = true;
+          effectMessage = '💀 MORTE ISTANTANEA!';
+          console.log(`💀 SPECIAL EFFECT: Instant death triggered for ${targetCard.frontImage}`);
+          break;
+          
+        case 'halve_pti':
+          // Halve the target's PTI (override normal damage)
+          currentPTI = Math.floor(currentPTI / 2);
+          effectiveDamage = 0; // Don't apply additional damage
+          effectMessage = `➗ PTI DIMEZZATI! (${currentPTI * 2} → ${currentPTI})`;
+          console.log(`➗ SPECIAL EFFECT: Halved PTI for ${targetCard.frontImage}: ${currentPTI}`);
+          break;
+          
+        case 'zero_stars':
+          // Set stars to 0
+          additionalStarsToRemove = 999; // Will be capped to current stars
+          effectMessage = '⭐ STELLE AZZERATE!';
+          console.log(`⭐ SPECIAL EFFECT: Zero stars for ${targetCard.frontImage}`);
+          break;
+          
+        case 'set_5_pti':
+          // Set PTI to exactly 5
+          effectiveDamage = Math.max(0, currentPTI - 5);
+          effectMessage = '5️⃣ PTI IMPOSTATI A 5!';
+          console.log(`5️⃣ SPECIAL EFFECT: Set PTI to 5 for ${targetCard.frontImage}`);
+          break;
+          
+        case 'remove_1_star':
+          // Remove exactly 1 star
+          additionalStarsToRemove = 1;
+          effectMessage = '⭐ -1 STELLA!';
+          console.log(`⭐ SPECIAL EFFECT: Remove 1 star from ${targetCard.frontImage}`);
+          break;
+      }
+      
+      // Broadcast effect message
+      if (effectMessage) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-mosse-effect`,
+          playerName: 'Sistema',
+          message: `⚡ EFFETTO SPECIALE: ${effectMessage}`,
+          timestamp: Date.now()
+        });
+      }
+    }
+    
+    // Combine star removal from both manual input and special effects
+    const totalStarsToRemove = starsToRemove + additionalStarsToRemove;
+    // ========== END MOSSE SPECIAL EFFECT HANDLING ==========
+    
     // PRESERVE: Calculate new PTI after damage (using effective damage after shield)
-    const newPTI = Math.max(0, currentPTI - effectiveDamage);
+    // If instant death effect, set newPTI to 0
+    const newPTI = forceInstantDeath ? 0 : Math.max(0, currentPTI - effectiveDamage);
     
     // Track damage dealt for missions/achievements (fire-and-forget)
     this.trackPlayerEvent(gameId, attackerName, 'damage_dealt', { amount: effectiveDamage }).catch(() => {});
@@ -14693,11 +14765,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       updatedNotes = currentNotes ? `${currentNotes}\nPTI: ${newPTI}` : `PTI: ${newPTI}`;
     }
 
-    // STAR REMOVAL: Apply star damage if specified
+    // STAR REMOVAL: Apply star damage if specified (including special effect star removal)
     let starsRemovedMessage = '';
-    if (starsToRemove > 0) {
+    if (totalStarsToRemove > 0) {
       const currentStars = this.extractStarsFromNote(updatedNotes);
-      const newStars = Math.max(0, currentStars - starsToRemove);
+      const actualStarsRemoved = Math.min(totalStarsToRemove, currentStars);
+      const newStars = Math.max(0, currentStars - totalStarsToRemove);
       updatedNotes = updatedNotes.replace(/Stelle:\s*\d+/i, `Stelle: ${newStars}`);
       
       // If no stars field exists, add it
@@ -14706,7 +14779,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
       
       starsRemovedMessage = ` | ⭐ Stelle: ${currentStars} → ${newStars}`;
-      console.log(`⭐ STAR REMOVAL: ${targetOwner}'s card lost ${starsToRemove} stars: ${currentStars} → ${newStars}`);
+      console.log(`⭐ STAR REMOVAL: ${targetOwner}'s card lost ${actualStarsRemoved} stars: ${currentStars} → ${newStars}`);
     }
 
     // PRESERVE: Update the card in the game state (works for both hand and field)
@@ -15397,14 +15470,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             if (attackAction && attackAction.type === 'mosse-attack') {
               console.log(`${playerName} MOSSE attack executed:`, attackAction.data);
               
-              // Execute the attack using the gameManager method
+              // Execute the attack using the gameManager method (correct parameter order)
               const attackResult = await this.executeMossaAttack(
                 gameId,
+                attackAction.data.attackerName || playerName,
                 attackAction.data.mosseCardId,
                 attackAction.data.targetCardId,
-                attackAction.data.attackerName,
-                attackAction.data.targetOwner,
-                attackAction.data.damage
+                attackAction.data.damage || 100
               );
               
               console.log(`${playerName} attack result:`, attackResult);
@@ -15483,14 +15555,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if (attackAction && attackAction.type === 'mosse-attack') {
           console.log(`${playerName} MOSSE attack executed:`, attackAction.data);
           
-          // Execute the attack using the gameManager method
+          // Execute the attack using the gameManager method (correct parameter order)
           const attackResult = await this.executeMossaAttack(
             gameId,
+            attackAction.data.attackerName || playerName,
             attackAction.data.mosseCardId,
             attackAction.data.targetCardId,
-            attackAction.data.attackerName,
-            attackAction.data.targetOwner,
-            attackAction.data.damage
+            attackAction.data.damage || 100
           );
           
           console.log(`${playerName} attack result:`, attackResult);

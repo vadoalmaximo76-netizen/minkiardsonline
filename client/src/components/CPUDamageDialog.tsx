@@ -101,9 +101,17 @@ export const CPUDamageDialog: React.FC = () => {
   const handleDamageSubmit = () => {
     if (!damageRequest || isProcessing) return;
     
-    const damage = evaluateMathExpression(damageValue);
-    if (damage === null || damage < 0) {
-      alert('Inserisci un valore di danno valido (minimo 0)!');
+    // Allow 0 damage if there's a special effect like "death"
+    let damage = 0;
+    if (damageValue.trim() !== '') {
+      const parsed = evaluateMathExpression(damageValue);
+      if (parsed === null || parsed < 0) {
+        alert('Inserisci un valore di danno valido (minimo 0)!');
+        return;
+      }
+      damage = parsed;
+    } else if (!damageRequest.mosseDamageEffect) {
+      alert('Inserisci un valore di danno valido!');
       return;
     }
     
@@ -114,7 +122,7 @@ export const CPUDamageDialog: React.FC = () => {
     }
     
     setIsProcessing(true);
-    console.log(`🤖 Submitting CPU damage: ${damage}, stars to remove: ${stars}`);
+    console.log(`🤖 Submitting CPU damage: ${damage}, stars to remove: ${stars}, effect: ${damageRequest.mosseDamageEffect || 'none'}`);
     
     socket.emit('cpu-damage-submit', {
       cpuName: damageRequest.cpuName,
@@ -122,7 +130,8 @@ export const CPUDamageDialog: React.FC = () => {
       targetCardId: damageRequest.targetCardId,
       targetOwner: damageRequest.targetOwner,
       damageValue: damage,
-      starsToRemove: stars
+      starsToRemove: stars,
+      mosseEffect: damageRequest.mosseDamageEffect || null
     });
 
     // Close dialog after sending response

@@ -124,6 +124,8 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
   const [isHandTarget, setIsHandTarget] = useState(false);
   const [isFurtoAttack, setIsFurtoAttack] = useState(false);
+  const [selectedMosseEffect, setSelectedMosseEffect] = useState<string | null>(null);
+  const [mosseHasPreset, setMosseHasPreset] = useState(false);
   const [prevPTI, setPrevPTI] = useState<number | null>(null);
   const [prevStars, setPrevStars] = useState<number | null>(null);
   const [statGlowEffect, setStatGlowEffect] = useState<'pti-up' | 'pti-down' | 'star-up' | 'star-down' | null>(null);
@@ -333,6 +335,28 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         const isFurto = mosseCardName === 'FURTO' || mosseCardName.includes('FURTO');
         setIsFurtoAttack(isFurto);
         
+        // Auto-fill damage based on MOSSE card settings
+        const mosseCard = selectedMosseCard as any;
+        if (mosseCard.mosseDamageValue !== null && mosseCard.mosseDamageValue !== undefined) {
+          const attackerCard = gameState?.field?.find((c: any) => 
+            c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          );
+          const attackerStars = attackerCard?.stars || 1;
+          const suggestedDamage = mosseCard.mosseDamageValue * attackerStars;
+          setDamageValue(suggestedDamage.toString());
+          setMosseHasPreset(true);
+        } else {
+          setDamageValue('');
+          setMosseHasPreset(false);
+        }
+        
+        // Set special effect if defined
+        if (mosseCard.mosseDamageEffect) {
+          setSelectedMosseEffect(mosseCard.mosseDamageEffect);
+        } else {
+          setSelectedMosseEffect(null);
+        }
+        
         // Open damage input dialog instead of attacking immediately
         setTargetCard(card);
         setIsHandTarget(false);
@@ -437,9 +461,17 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
 
   const handleDamageConfirm = () => {
     try {
-      const damage = evaluateExpression(damageValue.trim());
-      if (damage < 0) {
-        alert("Il risultato non può essere negativo");
+      // If there's a special effect like "death", damage can be 0
+      let damage = 0;
+      if (damageValue.trim() !== '') {
+        damage = evaluateExpression(damageValue.trim());
+        if (damage < 0) {
+          alert("Il risultato non può essere negativo");
+          return;
+        }
+      } else if (!selectedMosseEffect) {
+        // No damage value and no effect - require something
+        alert("Inserisci un valore di danno!");
         return;
       }
 
@@ -449,7 +481,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         return;
       }
 
-      // Attack with damage value
+      // Attack with damage value and optional effect
       socket.emit('mosse-attack', { 
         mosseCardId: selectedMosseCard?.id,
         targetCardId: targetCard?.id,
@@ -458,7 +490,8 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         damageValue: damage,
         starsToRemove: stars,
         isHandTarget: isHandTarget,
-        isFurtoAttack: isFurtoAttack  // NEW: Pass FURTO flag for star stealing
+        isFurtoAttack: isFurtoAttack,
+        mosseEffect: selectedMosseEffect  // Pass special effect
       });
 
       // Clear states
@@ -469,6 +502,8 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       setTargetCard(null);
       setIsHandTarget(false);
       setIsFurtoAttack(false);
+      setSelectedMosseEffect(null);
+      setMosseHasPreset(false);
     } catch (error: any) {
       alert(error.message || "Errore nel calcolo del danno");
     }
@@ -481,12 +516,35 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     setTargetCard(null);
     setIsHandTarget(false);
     setIsFurtoAttack(false);
+    setSelectedMosseEffect(null);
+    setMosseHasPreset(false);
   };
 
   const handleHandTargetSelect = (targetCard: any) => {
     setTargetCard(targetCard);
     setIsHandTarget(true);
     setShowHandTargetSelect(false);
+    
+    // Auto-fill damage for hand target attacks too
+    const mosseCard = selectedMosseCard as any;
+    if (mosseCard?.mosseDamageValue !== null && mosseCard?.mosseDamageValue !== undefined) {
+      const attackerCard = gameState?.field?.find((c: any) => 
+        c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      );
+      const attackerStars = attackerCard?.stars || 1;
+      const suggestedDamage = mosseCard.mosseDamageValue * attackerStars;
+      setDamageValue(suggestedDamage.toString());
+      setMosseHasPreset(true);
+    } else {
+      setDamageValue('');
+      setMosseHasPreset(false);
+    }
+    if (mosseCard?.mosseDamageEffect) {
+      setSelectedMosseEffect(mosseCard.mosseDamageEffect);
+    } else {
+      setSelectedMosseEffect(null);
+    }
+    
     setShowDamageInput(true);
   };
 
@@ -1794,6 +1852,53 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
               )}
             </div>
           </div>
+
+          {/* MOSSE Effect Info - Show if there's a preset */}
+          {(mosseHasPreset || selectedMosseEffect) && (
+            <div className="bg-green-900/50 p-4 rounded-lg border-2 border-green-500 mb-4">
+              <p className="text-green-300 font-bold mb-2">⚡ Effetto Preconfigurato</p>
+              {selectedMosseEffect && (
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-white">Effetto speciale:</span>
+                  <span className={`font-bold px-2 py-1 rounded ${
+                    selectedMosseEffect === 'death' ? 'bg-red-600 text-white' :
+                    selectedMosseEffect === 'halve_pti' ? 'bg-orange-600 text-white' :
+                    selectedMosseEffect === 'zero_stars' ? 'bg-yellow-600 text-black' :
+                    selectedMosseEffect === 'set_5_pti' ? 'bg-purple-600 text-white' :
+                    selectedMosseEffect === 'remove_1_star' ? 'bg-blue-600 text-white' :
+                    'bg-gray-600 text-white'
+                  }`}>
+                    {selectedMosseEffect === 'death' ? '💀 MORTE ISTANTANEA' :
+                     selectedMosseEffect === 'halve_pti' ? '➗ DIMEZZA PTI' :
+                     selectedMosseEffect === 'zero_stars' ? '⭐ AZZERA STELLE' :
+                     selectedMosseEffect === 'set_5_pti' ? '5️⃣ IMPOSTA 5 PTI' :
+                     selectedMosseEffect === 'remove_1_star' ? '⭐ -1 STELLA' :
+                     selectedMosseEffect}
+                  </span>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setSelectedMosseEffect(null)}
+                    className="text-red-400 hover:text-red-300 text-xs"
+                  >
+                    Rimuovi
+                  </Button>
+                </div>
+              )}
+              {mosseHasPreset && (selectedMosseCard as any)?.mosseDamageValue !== undefined && (
+                <p className="text-green-200 text-sm">
+                  Danno base: {(selectedMosseCard as any).mosseDamageValue} PTI × {
+                    gameState?.field?.find((c: any) => c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'))?.stars || 1
+                  } stelle = <span className="font-bold text-green-400">{damageValue} PTI</span>
+                </p>
+              )}
+              {selectedMosseEffect === 'death' && (
+                <p className="text-red-300 text-xs mt-2">
+                  ⚠️ Questo effetto uccide istantaneamente il bersaglio. Il danno PTI è opzionale.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Damage Input Section */}
           <div className="space-y-4 mt-6">
