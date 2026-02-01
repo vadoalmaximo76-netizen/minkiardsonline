@@ -766,19 +766,28 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": "Dimezza i PTI ai personaggi scelti [BERSAGLIO: scelta]",
+    "effect": null,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
-    "mosseDamageEffect": null,
-    "mosseCharacterOverrides": null,
+    "mosseDamageEffect": "halve_pti",
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "boscaiolo",
+        "characterName": "BOSCAIOLO",
+        "usedBy": {
+          "damageValue": 20,
+          "effect": "halve_pti"
+        }
+      }
+    ],
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T21:23:36.005Z"
+    "modifiedAt": "2026-02-01T11:12:43.164Z"
   },
   {
     "id": 34,
@@ -791,7 +800,7 @@
     "effect": "Assorbe 50 PTI da un avversario e li aggiunge a te [BERSAGLIO: scelta]",
     "audioUrl": null,
     "youtubeUrl": null,
-    "mosseDamageValue": null,
+    "mosseDamageValue": 50,
     "mosseDamageEffect": null,
     "mosseCharacterOverrides": null,
     "mosseRestrictedFrom": null,
@@ -800,7 +809,7 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T21:26:18.314Z"
+    "modifiedAt": "2026-02-01T11:13:31.599Z"
   },
   {
     "id": 35,
@@ -989,16 +998,27 @@
     "effect": null,
     "audioUrl": null,
     "youtubeUrl": "https://youtube.com/shorts/kxQKjM9cR4M?si=6c0ZqMmwS5IXEshz",
-    "mosseDamageValue": null,
+    "mosseDamageValue": 200,
     "mosseDamageEffect": null,
-    "mosseCharacterOverrides": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "goku",
+        "characterName": "GOKU",
+        "usedBy": {
+          "damageValue": 300,
+          "effect": null
+        }
+      }
+    ],
     "mosseRestrictedFrom": null,
-    "mosseRestrictedAgainst": null,
+    "mosseRestrictedAgainst": [
+      "GOKU"
+    ],
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-30T00:14:38.277Z"
+    "modifiedAt": "2026-02-01T11:36:54.060Z"
   },
   {
     "id": 47,
@@ -1011,16 +1031,27 @@
     "effect": null,
     "audioUrl": null,
     "youtubeUrl": "https://youtube.com/shorts/9Fcw8AjzxPI?si=BMCsziQ_Yr8GDWw_",
-    "mosseDamageValue": null,
+    "mosseDamageValue": 190,
     "mosseDamageEffect": null,
-    "mosseCharacterOverrides": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "vegeta",
+        "characterName": "VEGETA",
+        "usedBy": {
+          "damageValue": 280,
+          "effect": null
+        }
+      }
+    ],
     "mosseRestrictedFrom": null,
-    "mosseRestrictedAgainst": null,
+    "mosseRestrictedAgainst": [
+      "VEGETA"
+    ],
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-30T00:18:20.926Z"
+    "modifiedAt": "2026-02-01T11:24:15.777Z"
   },
   {
     "id": 48,
@@ -1395,5 +1426,2070 @@
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
     "modifiedAt": "2026-02-01T01:42:47.631Z"
+  },
+  {
+    "id": 64,
+    "originalCardId": "mosse-0",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 50,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:11:54.611Z"
+  },
+  {
+    "id": 65,
+    "originalCardId": "mosse-6",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 100,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:13:51.832Z"
+  },
+  {
+    "id": 66,
+    "originalCardId": "mosse-8",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 100,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:14:06.754Z"
+  },
+  {
+    "id": 67,
+    "originalCardId": "mosse-10",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 50,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "bin laden",
+        "characterName": "BIN LADEN",
+        "usedBy": {
+          "damageValue": 100,
+          "effect": null
+        }
+      },
+      {
+        "characterId": "hitler",
+        "characterName": "HITLER",
+        "usedBy": {
+          "damageValue": 100,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "BIN LADEN",
+      "HITLER"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:15:06.932Z"
+  },
+  {
+    "id": 68,
+    "originalCardId": "mosse-12",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 50,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "neymar junior (versione piccolo)",
+        "characterName": "NEYMAR JUNIOR (versione Piccolo)",
+        "usedOn": {
+          "damageValue": 70,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:15:44.004Z"
+  },
+  {
+    "id": 69,
+    "originalCardId": "mosse-13",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 49,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "chuck norris",
+        "characterName": "CHUCK NORRIS",
+        "usedBy": {
+          "damageValue": 100,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "CHUCK NORRIS"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:16:10.831Z"
+  },
+  {
+    "id": 70,
+    "originalCardId": "mosse-14",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 50,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "chuck norris",
+        "characterName": "CHUCK NORRIS",
+        "usedBy": {
+          "damageValue": 150,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "CHUCK NORRIS"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:16:41.934Z"
+  },
+  {
+    "id": 71,
+    "originalCardId": "mosse-15",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 50,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "napoletano",
+        "characterName": "NAPOLETANO",
+        "usedBy": {
+          "damageValue": 300,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "NAPOLETANO"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:17:15.253Z"
+  },
+  {
+    "id": 72,
+    "originalCardId": "mosse-16",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 70,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:17:34.277Z"
+  },
+  {
+    "id": 73,
+    "originalCardId": "mosse-17",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 150,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:17:51.791Z"
+  },
+  {
+    "id": 74,
+    "originalCardId": "mosse-18",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 60,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:18:07.933Z"
+  },
+  {
+    "id": 75,
+    "originalCardId": "mosse-19",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 50,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:18:23.084Z"
+  },
+  {
+    "id": 76,
+    "originalCardId": "mosse-20",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 120,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "panino malefico",
+        "characterName": "PANINO MALEFICO",
+        "usedOn": {
+          "damageValue": 400,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:18:45.866Z"
+  },
+  {
+    "id": 77,
+    "originalCardId": "mosse-21",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 99,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "francesco pandolfi",
+        "characterName": "FRANCESCO PANDOLFI",
+        "usedBy": {
+          "damageValue": 500,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "FRANCESCO PANDOLFI"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:19:39.628Z"
+  },
+  {
+    "id": 78,
+    "originalCardId": "mosse-22",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 100,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "vu cumpra",
+        "characterName": "VU CUMPRA",
+        "usedBy": {
+          "damageValue": 200,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "VU CUMPRA"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:20:22.186Z"
+  },
+  {
+    "id": 79,
+    "originalCardId": "mosse-23",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 45,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:20:35.758Z"
+  },
+  {
+    "id": 80,
+    "originalCardId": "mosse-24",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": null,
+    "mosseDamageEffect": "zero_stars",
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:21:11.711Z"
+  },
+  {
+    "id": 81,
+    "originalCardId": "mosse-25",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 50,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "montaquilano",
+        "characterName": "MONTAQUILANO",
+        "usedBy": {
+          "damageValue": 150,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "MONTAQUILANO"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:21:42.715Z"
+  },
+  {
+    "id": 82,
+    "originalCardId": "mosse-26",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 50,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:21:57.852Z"
+  },
+  {
+    "id": 83,
+    "originalCardId": "mosse-27",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 300,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": "all_enemies",
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:22:22.002Z"
+  },
+  {
+    "id": 84,
+    "originalCardId": "mosse-28",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 20,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "mohamed kebabbaro di fiducia",
+        "characterName": "MOHAMED KEBABBARO DI FIDUCIA",
+        "usedBy": {
+          "damageValue": 80,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "MOHAMED KEBABBARO DI FIDUCIA"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:22:49.374Z"
+  },
+  {
+    "id": 85,
+    "originalCardId": "mosse-30",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 100,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": "specific_count",
+    "mosseTargetCount": 3,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:25:03.015Z"
+  },
+  {
+    "id": 86,
+    "originalCardId": "mosse-31",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 50,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "napoletano",
+        "characterName": "NAPOLETANO",
+        "usedBy": {
+          "damageValue": 100,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "NAPOLETANO"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:25:28.980Z"
+  },
+  {
+    "id": 87,
+    "originalCardId": "mosse-32",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 55,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:25:42.168Z"
+  },
+  {
+    "id": 88,
+    "originalCardId": "mosse-34",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 90,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "niko bellic",
+        "characterName": "NIKO BELLIC",
+        "usedBy": {
+          "damageValue": 150,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "NIKO BELLIC"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:26:17.758Z"
+  },
+  {
+    "id": 89,
+    "originalCardId": "mosse-35",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 80,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "mancazione",
+        "characterName": "MANCAZIONE",
+        "usedBy": {
+          "damageValue": 180,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "MANCAZIONE"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:26:43.512Z"
+  },
+  {
+    "id": 90,
+    "originalCardId": "mosse-37",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 20,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "francesco pandolfi",
+        "characterName": "FRANCESCO PANDOLFI",
+        "usedBy": {
+          "damageValue": 50,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "FRANCESCO PANDOLFI"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:27:31.794Z"
+  },
+  {
+    "id": 91,
+    "originalCardId": "mosse-38",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 80,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:27:47.053Z"
+  },
+  {
+    "id": 92,
+    "originalCardId": "mosse-39",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 40,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "super mario",
+        "characterName": "SUPER MARIO",
+        "usedBy": {
+          "damageValue": 100,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "SUPER MARIO"
+    ],
+    "mosseTargetingMode": "highest_pti",
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:28:31.543Z"
+  },
+  {
+    "id": 93,
+    "originalCardId": "mosse-40",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 20,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:28:44.593Z"
+  },
+  {
+    "id": 94,
+    "originalCardId": "mosse-41",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 250,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:28:56.696Z"
+  },
+  {
+    "id": 95,
+    "originalCardId": "mosse-42",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 20,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "mohamed kebabbaro di fiducia",
+        "characterName": "MOHAMED KEBABBARO DI FIDUCIA",
+        "usedBy": {
+          "damageValue": 100,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "MOHAMED KEBABBARO DI FIDUCIA"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:29:21.259Z"
+  },
+  {
+    "id": 96,
+    "originalCardId": "mosse-43",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 50,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "bisteccone",
+        "characterName": "BISTECCONE",
+        "usedBy": {
+          "damageValue": 100,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "BISTECCONE"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:29:44.090Z"
+  },
+  {
+    "id": 97,
+    "originalCardId": "mosse-44",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 70,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "panino malefico",
+        "characterName": "PANINO MALEFICO",
+        "usedOn": {
+          "damageValue": 120,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:30:24.147Z"
+  },
+  {
+    "id": 98,
+    "originalCardId": "mosse-46",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 5,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "neymar junior (versione piccolo)",
+        "characterName": "NEYMAR JUNIOR (versione Piccolo)",
+        "usedBy": {
+          "damageValue": 20,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "NEYMAR JUNIOR (versione Piccolo)"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:31:09.724Z"
+  },
+  {
+    "id": 99,
+    "originalCardId": "mosse-47",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 100,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "zio michele",
+        "characterName": "ZIO MICHELE",
+        "usedBy": {
+          "damageValue": 150,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "ZIO MICHELE"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:31:38.989Z"
+  },
+  {
+    "id": 100,
+    "originalCardId": "mosse-48",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 50,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "tizio mafioso",
+        "characterName": "TIZIO MAFIOSO",
+        "usedBy": {
+          "damageValue": 100,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "TIZIO MAFIOSO"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:32:03.464Z"
+  },
+  {
+    "id": 101,
+    "originalCardId": "mosse-49",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 1000,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:32:15.095Z"
+  },
+  {
+    "id": 102,
+    "originalCardId": "mosse-50",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 20,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "pingu",
+        "characterName": "PINGU",
+        "usedBy": {
+          "damageValue": 100,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "PINGU"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:32:40.212Z"
+  },
+  {
+    "id": 103,
+    "originalCardId": "mosse-51",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 68,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:32:53.820Z"
+  },
+  {
+    "id": 104,
+    "originalCardId": "mosse-52",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 50,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:33:10.830Z"
+  },
+  {
+    "id": 105,
+    "originalCardId": "mosse-53",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 100,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:33:28.399Z"
+  },
+  {
+    "id": 106,
+    "originalCardId": "mosse-55",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 85,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "panino malefico",
+        "characterName": "PANINO MALEFICO",
+        "usedOn": {
+          "damageValue": null,
+          "effect": "death"
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:34:19.562Z"
+  },
+  {
+    "id": 107,
+    "originalCardId": "mosse-56",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 95,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "panino malefico",
+        "characterName": "PANINO MALEFICO",
+        "usedOn": {
+          "damageValue": null,
+          "effect": "death"
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:34:54.268Z"
+  },
+  {
+    "id": 108,
+    "originalCardId": "mosse-57",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 100,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:35:15.189Z"
+  },
+  {
+    "id": 109,
+    "originalCardId": "mosse-58",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 140,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:35:28.880Z"
+  },
+  {
+    "id": 110,
+    "originalCardId": "mosse-59",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": null,
+    "mosseDamageEffect": "remove_1_star",
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:35:44.817Z"
+  },
+  {
+    "id": 111,
+    "originalCardId": "mosse-60",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 150,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "ciccio pancetta",
+        "characterName": "CICCIO PANCETTA",
+        "usedBy": {
+          "damageValue": 300,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "CICCIO PANCETTA"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:36:29.603Z"
+  },
+  {
+    "id": 112,
+    "originalCardId": "mosse-62",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 50,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:37:19.198Z"
+  },
+  {
+    "id": 113,
+    "originalCardId": "mosse-63",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 50,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "cannavacciuolo",
+        "characterName": "CANNAVACCIUOLO",
+        "usedBy": {
+          "damageValue": 300,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "CANNAVACCIUOLO"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:38:10.208Z"
+  },
+  {
+    "id": 114,
+    "originalCardId": "mosse-64",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 90,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:38:29.318Z"
+  },
+  {
+    "id": 115,
+    "originalCardId": "mosse-65",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 50,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:38:41.904Z"
+  },
+  {
+    "id": 116,
+    "originalCardId": "mosse-67",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 60,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": "all_enemies",
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:39:14.041Z"
+  },
+  {
+    "id": 117,
+    "originalCardId": "mosse-68",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 10,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "zanzara",
+        "characterName": "ZANZARA",
+        "usedBy": {
+          "damageValue": 50,
+          "effect": null
+        }
+      },
+      {
+        "characterId": "ape",
+        "characterName": "APE",
+        "usedBy": {
+          "damageValue": 100,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "ZANZARA",
+      "APE"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:39:54.513Z"
+  },
+  {
+    "id": 118,
+    "originalCardId": "mosse-69",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 180,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:40:17.282Z"
+  },
+  {
+    "id": 119,
+    "originalCardId": "mosse-70",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 65,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:40:34.333Z"
+  },
+  {
+    "id": 120,
+    "originalCardId": "mosse-71",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 70,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "joe bastianich",
+        "characterName": "JOE BASTIANICH",
+        "usedBy": {
+          "damageValue": 200,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "JOE BASTIANICH"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:41:07.096Z"
+  },
+  {
+    "id": 121,
+    "originalCardId": "mosse-72",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 150,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "francesco pandolfi",
+        "characterName": "FRANCESCO PANDOLFI",
+        "usedBy": {
+          "damageValue": 700,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "FRANCESCO PANDOLFI"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:41:48.284Z"
+  },
+  {
+    "id": 122,
+    "originalCardId": "mosse-73",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 50,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:42:05.790Z"
+  },
+  {
+    "id": 123,
+    "originalCardId": "mosse-74",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 5,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:42:22.534Z"
+  },
+  {
+    "id": 124,
+    "originalCardId": "mosse-76",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": "Scommessa: 50% possibilità di guadagnare o perdere 100 PTI [BERSAGLIO: scelta] [DADO: Se indovina: Nessun effetto; Se sbaglia: Morte del personaggio]",
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": null,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:44:01.299Z"
+  },
+  {
+    "id": 125,
+    "originalCardId": "mosse-77",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 50,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "zeus",
+        "characterName": "ZEUS",
+        "usedBy": {
+          "damageValue": 1000,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "ZEUS"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:44:39.807Z"
+  },
+  {
+    "id": 126,
+    "originalCardId": "mosse-78",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 40,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:44:59.307Z"
+  },
+  {
+    "id": 127,
+    "originalCardId": "mosse-79",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": null,
+    "mosseDamageEffect": "set_5_pti",
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:45:14.504Z"
+  },
+  {
+    "id": 128,
+    "originalCardId": "mosse-80",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 75,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:45:32.314Z"
+  },
+  {
+    "id": 129,
+    "originalCardId": "mosse-81",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 50,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "ciccio pancetta",
+        "characterName": "CICCIO PANCETTA",
+        "usedBy": {
+          "damageValue": 70,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "CICCIO PANCETTA"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:46:05.193Z"
+  },
+  {
+    "id": 130,
+    "originalCardId": "mosse-82",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 50,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "hitler",
+        "characterName": "HITLER",
+        "usedBy": {
+          "damageValue": null,
+          "effect": "death"
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "HITLER"
+    ],
+    "mosseTargetingMode": "all_enemies",
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:46:42.375Z"
+  },
+  {
+    "id": 131,
+    "originalCardId": "mosse-83",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 70,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "goghi",
+        "characterName": "GOGHI",
+        "usedBy": {
+          "damageValue": 150,
+          "effect": null
+        }
+      },
+      {
+        "characterId": "mosca",
+        "characterName": "MOSCA",
+        "usedOn": {
+          "damageValue": null,
+          "effect": "death"
+        }
+      },
+      {
+        "characterId": "cimice",
+        "characterName": "CIMICE",
+        "usedOn": {
+          "damageValue": null,
+          "effect": "death"
+        }
+      },
+      {
+        "characterId": "zanzara",
+        "characterName": "ZANZARA",
+        "usedOn": {
+          "damageValue": null,
+          "effect": "death"
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "GOGHI"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:47:49.386Z"
+  },
+  {
+    "id": 132,
+    "originalCardId": "mosse-84",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 50,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": "all_characters",
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:48:16.940Z"
+  },
+  {
+    "id": 133,
+    "originalCardId": "mosse-85",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 30,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "montaquilano",
+        "characterName": "MONTAQUILANO",
+        "usedBy": {
+          "damageValue": 60,
+          "effect": null
+        }
+      },
+      {
+        "characterId": "napoletano",
+        "characterName": "NAPOLETANO",
+        "usedBy": {
+          "damageValue": 120,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "MONTAQUILANO",
+      "NAPOLETANO"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:49:38.604Z"
+  },
+  {
+    "id": 134,
+    "originalCardId": "mosse-86",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 100,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "neymar junior (versione piccolo)",
+        "characterName": "NEYMAR JUNIOR (versione Piccolo)",
+        "usedBy": {
+          "damageValue": 150,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "NEYMAR JUNIOR (versione Piccolo)"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:50:04.230Z"
+  },
+  {
+    "id": 135,
+    "originalCardId": "mosse-88",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 50,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": [
+      {
+        "characterId": "cacca",
+        "characterName": "CACCA",
+        "usedBy": {
+          "damageValue": 100,
+          "effect": null
+        }
+      }
+    ],
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": [
+      "CACCA"
+    ],
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:50:55.605Z"
+  },
+  {
+    "id": 136,
+    "originalCardId": "mosse-89",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 50,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:51:09.817Z"
+  },
+  {
+    "id": 137,
+    "originalCardId": "mosse-90",
+    "deckType": "mosse",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": 50,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T11:51:22.139Z"
   }
 ]
