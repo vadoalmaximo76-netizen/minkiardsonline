@@ -1,0 +1,102 @@
+[
+  {
+    "id": 1,
+    "code": "win_1",
+    "name": "Vittoria del Giorno",
+    "description": "Vinci 1 partita",
+    "type": "wins",
+    "requirement": 1,
+    "rewardPoints": 30,
+    "difficulty": "easy"
+  },
+  {
+    "id": 2,
+    "code": "win_2",
+    "name": "Doppia Vittoria",
+    "description": "Vinci 2 partite",
+    "type": "wins",
+    "requirement": 2,
+    "rewardPoints": 50,
+    "difficulty": "medium"
+  },
+  {
+    "id": 3,
+    "code": "play_cards_10",
+    "name": "Giocatore Attivo",
+    "description": "Gioca 10 carte",
+    "type": "cards_played",
+    "requirement": 10,
+    "rewardPoints": 20,
+    "difficulty": "easy"
+  },
+  {
+    "id": 4,
+    "code": "play_cards_25",
+    "name": "Mano Calda",
+    "description": "Gioca 25 carte",
+    "type": "cards_played",
+    "requirement": 25,
+    "rewardPoints": 40,
+    "difficulty": "medium"
+  },
+  {
+    "id": 5,
+    "code": "deal_damage_500",
+    "name": "Combattente",
+    "description": "Infliggi 500 danni",
+    "type": "damage_dealt",
+    "requirement": 500,
+    "rewardPoints": 25,
+    "difficulty": "easy"
+  },
+  {
+    "id": 6,
+    "code": "deal_damage_1500",
+    "name": "Guerriero Feroce",
+    "description": "Infliggi 1500 danni",
+    "type": "damage_dealt",
+    "requirement": 1500,
+    "rewardPoints": 45,
+    "difficulty": "medium"
+  },
+  {
+    "id": 7,
+    "code": "eliminate_3",
+    "name": "Eliminatore",
+    "description": "Elimina 3 personaggi",
+    "type": "eliminations",
+    "requirement": 3,
+    "rewardPoints": 35,
+    "difficulty": "medium"
+  },
+  {
+    "id": 8,
+    "code": "use_mosse_5",
+    "name": "Tattico del Giorno",
+    "description": "Usa 5 carte MOSSE",
+    "type": "mosse_used",
+    "requirement": 5,
+    "rewardPoints": 25,
+    "difficulty": "easy"
+  },
+  {
+    "id": 9,
+    "code": "use_bonus_3",
+    "name": "Bonus Hunter",
+    "description": "Usa 3 carte BONUS",
+    "type": "bonus_used",
+    "requirement": 3,
+    "rewardPoints": 25,
+    "difficulty": "easy"
+  },
+  {
+    "id": 10,
+    "code": "play_game_3",
+    "name": "Sessione Intensiva",
+    "description": "Gioca 3 partite",
+    "type": "games_played",
+    "requirement": 3,
+    "rewardPoints": 30,
+    "difficulty": "medium"
+  }
+]

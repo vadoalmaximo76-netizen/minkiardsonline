@@ -3,1242 +3,1449 @@
     "id": 1,
     "name": "AL BANO",
     "pti": 1250,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:13.353Z"
   },
   {
     "id": 2,
     "name": "ALBERTO ANGELA",
     "pti": 2000,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:13.569Z"
   },
   {
     "id": 3,
     "name": "AMADEUS",
     "pti": 750,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:13.618Z"
   },
   {
     "id": 4,
     "name": "ANDREA",
     "pti": 1000,
-    "stars": 4
+    "stars": 4,
+    "createdAt": "2025-09-10T21:59:13.661Z"
   },
   {
     "id": 5,
     "name": "APE",
     "pti": 150,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:13.709Z"
   },
   {
     "id": 6,
     "name": "APOLLO",
     "pti": 1800,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:13.752Z"
   },
   {
     "id": 7,
     "name": "ARAGOSTA IRACHENA",
     "pti": 320,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:13.800Z"
   },
   {
     "id": 8,
     "name": "AVVOLTOIO",
     "pti": 100,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:13.844Z"
   },
   {
     "id": 9,
     "name": "BAMBOLA DEL DEMONIO",
     "pti": 666,
-    "stars": 0
+    "stars": 0,
+    "createdAt": "2025-09-10T21:59:13.892Z"
   },
   {
     "id": 10,
     "name": "BARBONE",
     "pti": 400,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:13.935Z"
   },
   {
     "id": 11,
     "name": "BEAR",
     "pti": 1500,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:13.983Z"
   },
   {
     "id": 12,
     "name": "BELLO FIGO GU",
     "pti": 200,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:14.025Z"
   },
   {
     "id": 13,
     "name": "BERLUSCONI",
     "pti": 1994,
-    "stars": 4
+    "stars": 4,
+    "createdAt": "2025-09-10T21:59:14.072Z"
   },
   {
     "id": 14,
     "name": "BIG DABOL",
     "pti": 700,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:14.115Z"
   },
   {
     "id": 15,
     "name": "BIGFOOT",
     "pti": 990,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:14.167Z"
   },
   {
     "id": 16,
     "name": "BIMBAMINKIA",
     "pti": 5,
-    "stars": 4
+    "stars": 4,
+    "createdAt": "2025-09-10T21:59:14.209Z"
   },
   {
     "id": 17,
     "name": "BIN LADEN",
     "pti": 1000,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:14.255Z"
   },
   {
     "id": 18,
     "name": "BISTECCONE",
     "pti": 350,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:14.300Z"
   },
   {
     "id": 19,
     "name": "BOLDI BUILDING",
     "pti": 1000,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:14.347Z"
   },
   {
     "id": 21,
     "name": "BOSCAIOLO",
     "pti": 800,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:14.439Z"
   },
   {
     "id": 22,
     "name": "BRIAN",
     "pti": 400,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:14.481Z"
   },
   {
     "id": 23,
     "name": "BRUNO BARBIERI",
     "pti": 520,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:14.530Z"
   },
   {
     "id": 24,
     "name": "BUD SPENCER",
     "pti": 1200,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:14.573Z"
   },
   {
     "id": 25,
     "name": "BUGS VANNI",
     "pti": null,
-    "stars": 0
+    "stars": 0,
+    "createdAt": "2025-09-10T21:59:14.619Z"
   },
   {
     "id": 26,
     "name": "BULLOX",
     "pti": 2400,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:14.661Z"
   },
   {
     "id": 27,
     "name": "CACCA",
     "pti": 500,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:14.707Z"
   },
   {
     "id": 28,
     "name": "CACCIATORE STRABICO",
     "pti": 370,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:14.748Z"
   },
   {
     "id": 29,
     "name": "CAIFA",
     "pti": 1500,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:14.794Z"
   },
   {
     "id": 30,
     "name": "CANNAVACCIUOLO",
     "pti": 1400,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:14.836Z"
   },
   {
     "id": 31,
     "name": "CANNUCCIA",
     "pti": 150,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:14.882Z"
   },
   {
     "id": 32,
     "name": "CAPELLO & SMITH",
     "pti": 2400,
-    "stars": 6
+    "stars": 6,
+    "createdAt": "2025-09-10T21:59:14.924Z"
   },
   {
     "id": 33,
     "name": "CAPO RABBINO",
     "pti": 1200,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:14.971Z"
   },
   {
     "id": 34,
     "name": "CELLVINI",
     "pti": 500,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:15.014Z"
   },
   {
     "id": 35,
     "name": "CHUCK NORRIS",
     "pti": 3000,
-    "stars": 4
+    "stars": 4,
+    "createdAt": "2025-09-10T21:59:15.060Z"
   },
   {
     "id": 36,
     "name": "CICCHETTI",
     "pti": 2000,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:15.103Z"
   },
   {
     "id": 37,
     "name": "CICCIO PANCETTA",
     "pti": 100,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:15.151Z"
   },
   {
     "id": 38,
     "name": "CIMICE",
     "pti": 80,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:15.194Z"
   },
   {
     "id": 39,
     "name": "CINESE COMUNE",
     "pti": 500,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:15.240Z"
   },
   {
     "id": 40,
     "name": "CINGHIALE INFEROCITO",
     "pti": 2300,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:15.286Z"
   },
   {
     "id": 41,
     "name": "CIRO PIZZAIOLO DI SFIDUCIA",
     "pti": 600,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:15.332Z"
   },
   {
     "id": 42,
     "name": "C-MASTROTA",
     "pti": 400,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:15.374Z"
   },
   {
     "id": 43,
     "name": "CRAPA",
     "pti": 550,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:15.420Z"
   },
   {
     "id": 44,
     "name": "CRASH BANDICOOT",
     "pti": 700,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:15.462Z"
   },
   {
     "id": 46,
     "name": "DADDY CONTE",
     "pti": 1000,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:15.551Z"
   },
   {
     "id": 47,
     "name": "DE MARINIS",
     "pti": 800,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:15.597Z"
   },
   {
     "id": 48,
     "name": "DIVINO JOHNNY",
     "pti": 2900,
-    "stars": 4
+    "stars": 4,
+    "createdAt": "2025-09-10T21:59:15.639Z"
   },
   {
     "id": 49,
     "name": "DJIDJI D'ALESSIO",
     "pti": 1200,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:15.685Z"
   },
   {
     "id": 50,
     "name": "DON GIULIANO LEELLLEE",
     "pti": 1000,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:15.727Z"
   },
   {
     "id": 51,
     "name": "DONALD TRUMP",
     "pti": 800,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:15.772Z"
   },
   {
     "id": 52,
     "name": "EEGEENEO MASSAREE",
     "pti": 1900,
-    "stars": 4
+    "stars": 4,
+    "createdAt": "2025-09-10T21:59:15.816Z"
   },
   {
     "id": 53,
     "name": "EMIS KILLA",
     "pti": 800,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:15.863Z"
   },
   {
     "id": 54,
     "name": "ENRICO PAPEEIY",
     "pti": 970,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:15.907Z"
   },
   {
     "id": 55,
     "name": "EVIL FAKE",
     "pti": 666,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:15.952Z"
   },
   {
     "id": 56,
     "name": "EZIO GREGGIO",
     "pti": 1200,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:15.994Z"
   },
   {
     "id": 57,
     "name": "FABIO FAUZO",
     "pti": 64,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:16.040Z"
   },
   {
     "id": 58,
     "name": "FEDESIMO",
     "pti": 10,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:16.083Z"
   },
   {
     "id": 59,
     "name": "FOREVER ALONE",
     "pti": 250,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:16.128Z"
   },
   {
     "id": 60,
     "name": "FRA MARTINO",
     "pti": 1,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:16.170Z"
   },
   {
     "id": 61,
     "name": "FRANCESCO PANDOLFI",
     "pti": 2800,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:16.217Z"
   },
   {
     "id": 62,
     "name": "FRANCESCO ROSSI PAOLOZZI",
     "pti": 2500,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:16.259Z"
   },
   {
     "id": 63,
     "name": "GERRY SCOTTI",
     "pti": 1100,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:16.304Z"
   },
   {
     "id": 64,
     "name": "GHELLER",
     "pti": 900,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:16.351Z"
   },
   {
     "id": 65,
     "name": "GIANNI GIGANTI",
     "pti": 3000,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:16.396Z"
   },
   {
     "id": 66,
     "name": "GIDI",
     "pti": 700,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:16.438Z"
   },
   {
     "id": 67,
     "name": "GIGI PROIETTILE",
     "pti": 500,
-    "stars": 4
+    "stars": 4,
+    "createdAt": "2025-09-10T21:59:16.484Z"
   },
   {
     "id": 68,
     "name": "GIGIBABY777",
     "pti": 777,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:16.526Z"
   },
   {
     "id": 69,
     "name": "GIGIONE",
     "pti": 200,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:16.572Z"
   },
   {
     "id": 70,
     "name": "GIOVANNI GRANA",
     "pti": 937,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:16.614Z"
   },
   {
     "id": 71,
     "name": "GNOMO ARMATO DI ASCIA",
     "pti": 1300,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:16.659Z"
   },
   {
     "id": 72,
     "name": "GOD ZILLA",
     "pti": 700,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:16.701Z"
   },
   {
     "id": 73,
     "name": "GOGHI",
     "pti": 1200,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:16.746Z"
   },
   {
     "id": 74,
     "name": "GOKU",
     "pti": 2500,
-    "stars": 4
+    "stars": 4,
+    "createdAt": "2025-09-10T21:59:16.787Z"
   },
   {
     "id": 75,
     "name": "GOLDEN FREEZER",
     "pti": 2173,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:16.833Z"
   },
   {
     "id": 76,
     "name": "HEIHACHI MISHIMA",
     "pti": 2700,
-    "stars": 4
+    "stars": 4,
+    "createdAt": "2025-09-10T21:59:16.876Z"
   },
   {
     "id": 77,
     "name": "HIPPIE",
     "pti": 680,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:16.922Z"
   },
   {
     "id": 78,
     "name": "HITLER",
     "pti": 700,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:16.964Z"
   },
   {
     "id": 79,
     "name": "HOLLY",
     "pti": 300,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:17.010Z"
   },
   {
     "id": 80,
     "name": "HOMER",
     "pti": 200,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:17.052Z"
   },
   {
     "id": 81,
     "name": "HORSY",
     "pti": 2400,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:17.101Z"
   },
   {
     "id": 82,
     "name": "IL FENOMENO",
     "pti": 100,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:17.145Z"
   },
   {
     "id": 83,
     "name": "IL PELUX",
     "pti": 994,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:17.191Z"
   },
   {
     "id": 84,
     "name": "IL ZINGARO",
     "pti": 450,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:17.233Z"
   },
   {
     "id": 85,
     "name": "JANARA",
     "pti": 300,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:17.278Z"
   },
   {
     "id": 86,
     "name": "JO DONATELLO",
     "pti": 430,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:17.320Z"
   },
   {
     "id": 87,
     "name": "JOE BASTIANICH",
     "pti": 1105,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:17.365Z"
   },
   {
     "id": 88,
     "name": "JOHN CENA",
     "pti": 500,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:17.406Z"
   },
   {
     "id": 89,
     "name": "JUSTIN BIEBERON",
     "pti": 120,
-    "stars": 4
+    "stars": 4,
+    "createdAt": "2025-09-10T21:59:17.453Z"
   },
   {
     "id": 90,
     "name": "KIM JONG UN",
     "pti": 900,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:17.495Z"
   },
   {
     "id": 91,
     "name": "KULUNGU",
     "pti": 800,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:17.553Z"
   },
   {
     "id": 92,
     "name": "LA MAESTRA VANDA",
     "pti": 700,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:17.605Z"
   },
   {
     "id": 93,
     "name": "LEENO BANFY",
     "pti": 2300,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:17.651Z"
   },
   {
     "id": 94,
     "name": "LOTAIN",
     "pti": 710,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:17.693Z"
   },
   {
     "id": 95,
     "name": "LUCA GIURATO",
     "pti": 444,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:17.739Z"
   },
   {
     "id": 96,
     "name": "LUCA NERVI",
     "pti": 600,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:17.781Z"
   },
   {
     "id": 97,
     "name": "MAESTRO TONINO",
     "pti": 2200,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:17.827Z"
   },
   {
     "id": 98,
     "name": "MAGALLY",
     "pti": 0,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:17.869Z"
   },
   {
     "id": 99,
     "name": "MAGO LETTERIUS",
     "pti": 666,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:17.914Z"
   },
   {
     "id": 100,
     "name": "MAGONE ALEZIO",
     "pti": 1250,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:17.957Z"
   },
   {
     "id": 101,
     "name": "MAJIN PUPO",
     "pti": 800,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:18.003Z"
   },
   {
     "id": 102,
     "name": "MALGIOGLIO",
     "pti": 170,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:18.044Z"
   },
   {
     "id": 103,
     "name": "MANCAZIONE",
     "pti": 1500,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:18.090Z"
   },
   {
     "id": 104,
     "name": "MAOOREETIO KOSTANZO",
     "pti": 600,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:18.132Z"
   },
   {
     "id": 105,
     "name": "MAZZAMAURIEL",
     "pti": 300,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:18.178Z"
   },
   {
     "id": 106,
     "name": "MICHELE TELO",
     "pti": 20,
-    "stars": 4
+    "stars": 4,
+    "createdAt": "2025-09-10T21:59:18.220Z"
   },
   {
     "id": 107,
     "name": "MILHOUSE",
     "pti": 150,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:18.267Z"
   },
   {
     "id": 108,
     "name": "MISTER X",
     "pti": null,
-    "stars": null
+    "stars": null,
+    "createdAt": "2025-09-10T21:59:18.308Z"
   },
   {
     "id": 109,
     "name": "MOHAMED KEBABBARO DI FIDUCIA",
     "pti": 600,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:18.353Z"
   },
   {
     "id": 110,
     "name": "MOLISE",
     "pti": 1,
-    "stars": 0
+    "stars": 0,
+    "createdAt": "2025-09-10T21:59:18.395Z"
   },
   {
     "id": 111,
     "name": "MONATTO",
     "pti": 630,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:18.440Z"
   },
   {
     "id": 112,
     "name": "MONTAQUILANO",
     "pti": 400,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:18.482Z"
   },
   {
     "id": 113,
     "name": "MORTE",
     "pti": 470,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:18.528Z"
   },
   {
     "id": 114,
     "name": "MOSCA",
     "pti": 50,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:18.570Z"
   },
   {
     "id": 115,
     "name": "MR BEAN",
     "pti": 200,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:18.618Z"
   },
   {
     "id": 116,
     "name": "MUSSOLINI",
     "pti": 600,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:18.660Z"
   },
   {
     "id": 117,
     "name": "NANO COL MACHETE NORMALE CHE SEMBRA GIGANTE",
     "pti": 30,
-    "stars": null
+    "stars": null,
+    "createdAt": "2025-09-10T21:59:18.706Z"
   },
   {
     "id": 118,
     "name": "NAPOLETANO",
     "pti": 400,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:18.747Z"
   },
   {
     "id": 119,
     "name": "NEENO PHRASSEEKA",
     "pti": 1000,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:18.793Z"
   },
   {
     "id": 120,
     "name": "NERO CHE BEVE LA SODA",
     "pti": 999,
-    "stars": 0
+    "stars": 0,
+    "createdAt": "2025-09-10T21:59:18.835Z"
   },
   {
     "id": 121,
     "name": "N E U E R",
     "pti": 500,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:18.880Z"
   },
   {
     "id": 122,
     "name": "NEYMAR JUNIOR (versione Piccolo)",
     "pti": 1500,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:18.922Z"
   },
   {
     "id": 123,
     "name": "NIKO BELLIC",
     "pti": 1800,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:18.967Z"
   },
   {
     "id": 124,
     "name": "NOKIA 3310",
     "pti": 3000,
-    "stars": 4
+    "stars": 4,
+    "createdAt": "2025-09-10T21:59:19.010Z"
   },
   {
     "id": 125,
     "name": "O PAPPON",
     "pti": 400,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:19.056Z"
   },
   {
     "id": 126,
     "name": "OBAMA",
     "pti": 800,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:19.098Z"
   },
   {
     "id": 127,
     "name": "ONE DIRECTION",
     "pti": 110,
-    "stars": 4
+    "stars": 4,
+    "createdAt": "2025-09-10T21:59:19.144Z"
   },
   {
     "id": 128,
     "name": "OPOSSUM CON LA RABBIA",
     "pti": 300,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:19.186Z"
   },
   {
     "id": 129,
     "name": "PANINO MALEFICO",
     "pti": 150,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:19.234Z"
   },
   {
     "id": 130,
     "name": "PAOLO BITTA",
     "pti": 600,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:19.275Z"
   },
   {
     "id": 131,
     "name": "PAP",
     "pti": 500,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:19.320Z"
   },
   {
     "id": 132,
     "name": "PARASSITA",
     "pti": 300,
-    "stars": 0
+    "stars": 0,
+    "createdAt": "2025-09-10T21:59:19.362Z"
   },
   {
     "id": 133,
     "name": "PASQUALE S",
     "pti": 800,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:19.408Z"
   },
   {
     "id": 134,
     "name": "PEEO",
     "pti": 1954,
-    "stars": 4
+    "stars": 4,
+    "createdAt": "2025-09-10T21:59:19.449Z"
   },
   {
     "id": 135,
     "name": "PETER",
     "pti": 200,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:19.495Z"
   },
   {
     "id": 136,
     "name": "PIERO ANGELA CHE FA LA KAMEHAMEHA",
     "pti": 2300,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:19.537Z"
   },
   {
     "id": 137,
     "name": "PINGU",
     "pti": 450,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:19.583Z"
   },
   {
     "id": 138,
     "name": "PIPPO RAUDO",
     "pti": 510,
-    "stars": 4
+    "stars": 4,
+    "createdAt": "2025-09-10T21:59:19.624Z"
   },
   {
     "id": 139,
     "name": "POLIZIOTTO",
     "pti": 600,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:19.671Z"
   },
   {
     "id": 140,
     "name": "POLLON",
     "pti": 450,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:19.712Z"
   },
   {
     "id": 141,
     "name": "PONTIUS PILATUS",
     "pti": 800,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:19.757Z"
   },
   {
     "id": 142,
     "name": "POPEYE",
     "pti": 900,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:19.799Z"
   },
   {
     "id": 143,
     "name": "POSEIDONE",
     "pti": 2000,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:19.850Z"
   },
   {
     "id": 144,
     "name": "PROCIONE INSATANATO",
     "pti": 400,
-    "stars": 4
+    "stars": 4,
+    "createdAt": "2025-09-10T21:59:19.892Z"
   },
   {
     "id": 145,
     "name": "PSY",
     "pti": 500,
-    "stars": 4
+    "stars": 4,
+    "createdAt": "2025-09-10T21:59:19.938Z"
   },
   {
     "id": 146,
     "name": "PUTIN",
     "pti": 1000,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:19.979Z"
   },
   {
     "id": 147,
     "name": "RAZZI",
     "pti": 500,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:20.025Z"
   },
   {
     "id": 148,
     "name": "REAL GEE",
     "pti": 600,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:20.067Z"
   },
   {
     "id": 149,
     "name": "RICCIO PIC",
     "pti": 200,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:20.113Z"
   },
   {
     "id": 150,
     "name": "ROMINA POWER",
     "pti": 1350,
-    "stars": 0
+    "stars": 0,
+    "createdAt": "2025-09-10T21:59:20.154Z"
   },
   {
     "id": 151,
     "name": "SAIBAIM",
     "pti": 500,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:20.201Z"
   },
   {
     "id": 152,
     "name": "SAVERIO",
     "pti": 2300,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:20.244Z"
   },
   {
     "id": 153,
     "name": "SCIALLCUAN",
     "pti": 300,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:20.290Z"
   },
   {
     "id": 154,
     "name": "SCIMMIA STRAFATTA",
     "pti": 200,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:20.332Z"
   },
   {
     "id": 155,
     "name": "SCREAM",
     "pti": 1000,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:20.377Z"
   },
   {
     "id": 156,
     "name": "SHORTY",
     "pti": 400,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:20.419Z"
   },
   {
     "id": 157,
     "name": "SILVANO",
     "pti": 200,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:20.464Z"
   },
   {
     "id": 158,
     "name": "SILVER SILVIO",
     "pti": 411,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:20.506Z"
   },
   {
     "id": 159,
     "name": "STALIN",
     "pti": 900,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:20.552Z"
   },
   {
     "id": 160,
     "name": "STEWIE",
     "pti": 500,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:20.593Z"
   },
   {
     "id": 161,
     "name": "SUPER MARIO",
     "pti": 500,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:20.639Z"
   },
   {
     "id": 162,
     "name": "TED",
     "pti": 400,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:20.680Z"
   },
   {
     "id": 163,
     "name": "TEETSEEANO",
     "pti": 1200,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:20.725Z"
   },
   {
     "id": 164,
     "name": "TERENCE HILL",
     "pti": 1150,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:20.767Z"
   },
   {
     "id": 165,
     "name": "THE ROAK",
     "pti": 1000,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:20.813Z"
   },
   {
     "id": 166,
     "name": "THE ROCK",
     "pti": 3000,
-    "stars": 4
+    "stars": 4,
+    "createdAt": "2025-09-10T21:59:20.857Z"
   },
   {
     "id": 167,
     "name": "TIZIO JAMAICANO",
     "pti": 400,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:20.902Z"
   },
   {
     "id": 168,
     "name": "TIZIO MAFIOSO",
     "pti": 400,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:20.944Z"
   },
   {
     "id": 169,
     "name": "TONY TAMMARO",
     "pti": 1200,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:20.990Z"
   },
   {
     "id": 170,
     "name": "TRUE MATTARELLA",
     "pti": 2950,
-    "stars": 4
+    "stars": 4,
+    "createdAt": "2025-09-10T21:59:21.032Z"
   },
   {
     "id": 171,
     "name": "VEGETA",
     "pti": 2400,
-    "stars": 4
+    "stars": 4,
+    "createdAt": "2025-09-10T21:59:21.077Z"
   },
   {
     "id": 172,
     "name": "VU CUMPRA",
     "pti": 400,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:21.120Z"
   },
   {
     "id": 173,
     "name": "ZANZARA",
     "pti": 50,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-09-10T21:59:21.166Z"
   },
   {
     "id": 174,
     "name": "ZEUS",
     "pti": 2800,
-    "stars": 4
+    "stars": 4,
+    "createdAt": "2025-09-10T21:59:21.207Z"
   },
   {
     "id": 175,
     "name": "ZI VCIENZ",
     "pti": 2300,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:21.252Z"
   },
   {
     "id": 176,
     "name": "ZIO GREGORIO",
     "pti": 1700,
-    "stars": 4
+    "stars": 4,
+    "createdAt": "2025-09-10T21:59:21.298Z"
   },
   {
     "id": 177,
     "name": "ZIO MICHELE",
     "pti": 400,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:21.345Z"
   },
   {
     "id": 532,
     "name": "CAMILLO",
     "pti": 2100,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-10-02T22:32:42.165Z"
   },
   {
     "id": 533,
     "name": "CARMINE",
     "pti": 1400,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-10-02T22:32:42.214Z"
   },
   {
     "id": 534,
     "name": "CHRISTIAN DE SICA",
     "pti": 2900,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-10-02T22:32:42.260Z"
   },
   {
     "id": 535,
     "name": "DON DOMENICO CERRONE",
     "pti": 500,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-10-02T22:32:42.305Z"
   },
   {
     "id": 536,
     "name": "ENZO SALVI",
     "pti": 2500,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-10-02T22:32:42.350Z"
   },
   {
     "id": 537,
     "name": "ERNESTO",
     "pti": 2800,
-    "stars": 4
+    "stars": 4,
+    "createdAt": "2025-10-02T22:32:42.395Z"
   },
   {
     "id": 538,
     "name": "FABRIZIO",
     "pti": 2000,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-10-02T22:32:42.441Z"
   },
   {
     "id": 540,
     "name": "FIBRA",
     "pti": 2200,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-10-02T22:32:42.532Z"
   },
   {
     "id": 541,
     "name": "LEO",
     "pti": 1962,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-10-02T22:32:42.578Z"
   },
   {
     "id": 542,
     "name": "MANGHIK",
     "pti": 1300,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-10-02T22:32:42.624Z"
   },
   {
     "id": 543,
     "name": "MARCIANO RICCI",
     "pti": 1400,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-10-02T22:32:42.669Z"
   },
   {
     "id": 544,
     "name": "MIMMETTO",
     "pti": 2222,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-10-02T22:32:42.715Z"
   },
   {
     "id": 545,
     "name": "NDONJ MANZ",
     "pti": 900,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-10-02T22:32:42.761Z"
   },
   {
     "id": 546,
     "name": "NICODEMO LO STREGONE DEL COVID",
     "pti": 1800,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-10-02T22:32:42.810Z"
   },
   {
     "id": 547,
     "name": "PASQUALINO PAONAZZO",
     "pti": 650,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-10-02T22:32:42.856Z"
   },
   {
     "id": 548,
     "name": "PASQUY JR",
     "pti": 200,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-10-02T22:32:42.901Z"
   },
   {
     "id": 549,
     "name": "PEPPE ZONA",
     "pti": 500,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-10-02T22:32:42.947Z"
   },
   {
     "id": 550,
     "name": "PQL",
     "pti": 1550,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-10-02T22:32:42.992Z"
   },
   {
     "id": 551,
     "name": "RENATO CASTALDI",
     "pti": 1100,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-10-02T22:32:43.051Z"
   },
   {
     "id": 552,
     "name": "SANDRO",
     "pti": 1700,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-10-02T22:32:43.097Z"
   },
   {
     "id": 553,
     "name": "SCURZONE",
     "pti": 1900,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-10-02T22:32:43.142Z"
   },
   {
     "id": 554,
     "name": "SPADINO",
     "pti": 670,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-10-02T22:32:43.187Z"
   },
   {
     "id": 555,
     "name": "TAMBURELLO",
     "pti": 2100,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-10-02T22:32:43.232Z"
   },
   {
     "id": 556,
     "name": "Z A",
     "pti": 400,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-10-02T22:32:43.278Z"
   },
   {
     "id": 539,
     "name": "FELICE PODDA",
     "pti": 104,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-10-02T22:32:42.487Z"
   },
   {
     "id": 759,
     "name": "DON EMILIO",
     "pti": 450,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-10-06T09:30:02.310Z"
   },
   {
     "id": 760,
     "name": "LELO JR",
     "pti": 160,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-10-06T09:30:02.364Z"
   },
   {
     "id": 761,
     "name": "LELO",
     "pti": 300,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-10-06T09:30:02.421Z"
   },
   {
     "id": 762,
     "name": "MMT J",
     "pti": 300,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-10-06T09:30:02.467Z"
   },
   {
     "id": 763,
     "name": "SABATINO",
     "pti": 800,
-    "stars": 2
+    "stars": 2,
+    "createdAt": "2025-10-06T09:30:02.515Z"
   },
   {
     "id": 20,
     "name": "BORGARALLY",
     "pti": 400,
-    "stars": 1
+    "stars": 1,
+    "createdAt": "2025-09-10T21:59:14.393Z"
   },
   {
     "id": 45,
     "name": "CYBER GEENA",
     "pti": 1011,
-    "stars": 3
+    "stars": 3,
+    "createdAt": "2025-09-10T21:59:15.508Z"
   }
 ]

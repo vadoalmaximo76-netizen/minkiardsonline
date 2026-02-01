@@ -1,0 +1,101 @@
+[
+  {
+    "id": 1,
+    "stepId": "welcome",
+    "trigger": "game_start",
+    "title": "Benvenuto in MINKIARDS!",
+    "content": "Questa è una partita di allenamento. Ti guiderò passo passo per imparare a giocare. Clicca \"Avanti\" per continuare.",
+    "sortOrder": 0,
+    "isActive": true,
+    "createdAt": "2026-01-31T04:47:48.810Z",
+    "updatedAt": "2026-01-31T04:47:48.810Z"
+  },
+  {
+    "id": 3,
+    "stepId": "draw_card",
+    "trigger": "game_start",
+    "title": "Pescare le Carte",
+    "content": "Clicca su un mazzo per pescare una carta. Inizia pescando una carta PERSONAGGI - sono i tuoi combattenti!",
+    "sortOrder": 2,
+    "isActive": true,
+    "createdAt": "2026-01-31T04:47:48.810Z",
+    "updatedAt": "2026-01-31T04:47:48.810Z"
+  },
+  {
+    "id": 7,
+    "stepId": "bonus_cards",
+    "trigger": "mosse_played",
+    "title": "Carte BONUS",
+    "content": "Le carte BONUS potenziano i tuoi personaggi. Usale strategicamente per aumentare PTI o stelle!",
+    "sortOrder": 6,
+    "isActive": true,
+    "createdAt": "2026-01-31T04:47:48.810Z",
+    "updatedAt": "2026-01-31T04:47:48.810Z"
+  },
+  {
+    "id": 8,
+    "stepId": "end_turn",
+    "trigger": "bonus_played",
+    "title": "Fine del Turno",
+    "content": "Quando hai finito, clicca \"FINE TURNO\" per passare al prossimo giocatore.",
+    "sortOrder": 7,
+    "isActive": true,
+    "createdAt": "2026-01-31T04:47:48.810Z",
+    "updatedAt": "2026-01-31T04:47:48.810Z"
+  },
+  {
+    "id": 2,
+    "stepId": "deck_overview",
+    "trigger": "game_start",
+    "title": "I Mazzi di Carte",
+    "content": "Hai 4 mazzi: PERSONAGGI (azzurro), MOSSE (rosso), BONUS (nero) e SPECIALI (giallo). Ogni mazzo ha un ruolo diverso nel gioco.",
+    "sortOrder": 1,
+    "isActive": true,
+    "createdAt": "2026-01-31T04:47:48.810Z",
+    "updatedAt": "2026-01-31T04:48:27.575Z"
+  },
+  {
+    "id": 4,
+    "stepId": "play_character",
+    "trigger": "card_drawn",
+    "title": "Giocare un Personaggio",
+    "content": "Ottimo! Hai pescato una carta. Ora clicca mano a destra dello schermo, premi sulla carta che hai appena pescato e poi su \"Gioca\". ",
+    "sortOrder": 3,
+    "isActive": true,
+    "createdAt": "2026-01-31T04:47:48.810Z",
+    "updatedAt": "2026-01-31T04:49:15.265Z"
+  },
+  {
+    "id": 5,
+    "stepId": "character_stats",
+    "trigger": "character_played",
+    "title": "Statistiche Personaggio",
+    "content": "Ogni personaggio ha PTI (punti vita) e Stelle (potenza). Quando i PTI arrivano a 0, il personaggio muore. Le stelle servono per moltiplicare il valore di un attacco su un avversario. ",
+    "sortOrder": 4,
+    "isActive": true,
+    "createdAt": "2026-01-31T04:47:48.810Z",
+    "updatedAt": "2026-01-31T04:49:48.803Z"
+  },
+  {
+    "id": 6,
+    "stepId": "mosse_attack",
+    "trigger": "character_played",
+    "title": "Usare le MOSSE",
+    "content": "Pesca una carta MOSSE per attaccare! Seleziona la MOSSA dalla mano, GIOCA, poi premi su \"ATTACCA\" sotto la carta, infine scegli il bersaglio nemico e inserisci il valore dell'attacco. Il numero da inserire è dato dai PTI danno scritti sulla carta moltiplicati per il numero di stelle del tuo personaggio. Puoi scrivere anche la moltiplicazione e ci penserà il sistema a calcolare il danno. ",
+    "sortOrder": 5,
+    "isActive": true,
+    "createdAt": "2026-01-31T04:47:48.810Z",
+    "updatedAt": "2026-01-31T04:52:26.878Z"
+  },
+  {
+    "id": 9,
+    "stepId": "victory",
+    "trigger": "turn_ended",
+    "title": "Obiettivo",
+    "content": "Elimina tutti i personaggi avversari per vincere! Buona fortuna!",
+    "sortOrder": 8,
+    "isActive": true,
+    "createdAt": "2026-01-31T04:47:48.810Z",
+    "updatedAt": "2026-01-31T05:04:29.814Z"
+  }
+]

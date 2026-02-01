@@ -8,9 +8,6 @@
     "pti": null,
     "stars": null,
     "effect": "Scommessa: 50% possibilità di guadagnare o perdere 100 PTI [BERSAGLIO: scelta] [DADO_AUTOMATICO: 1: Muore tra 1 turno; 2: Muore tra 2 turni; 3: Muore tra 3 turni; 4: Muore tra 4 turni; 5: Muore tra 5 turni; 6: Muore tra 6 turni]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T15:43:01.358Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -19,7 +16,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-29T15:43:01.358Z"
   },
   {
     "id": 1,
@@ -30,9 +30,6 @@
     "pti": 5,
     "stars": 4,
     "effect": null,
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-12T00:32:43.836Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -41,7 +38,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-12T00:32:43.836Z"
   },
   {
     "id": 12,
@@ -52,9 +52,6 @@
     "pti": null,
     "stars": null,
     "effect": "Quando questa carta viene giocata, assorbe 10 PTI da tutti gli altri personaggi in campo [ANIMAZIONE: Un effetto di puzza e cattivo odore]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-28T09:57:02.018Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -63,7 +60,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-28T09:57:02.018Z"
   },
   {
     "id": 11,
@@ -74,9 +74,6 @@
     "pti": null,
     "stars": null,
     "effect": "Quando questa carta viene giocata, si aggiunge i PTI e le STELLE del personaggio morto prima di mettere questa carta",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-28T14:15:40.059Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -85,7 +82,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-28T14:15:40.059Z"
   },
   {
     "id": 3,
@@ -96,9 +96,6 @@
     "pti": null,
     "stars": null,
     "effect": null,
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-12T01:31:49.154Z",
-    "isDeleted": false,
     "audioUrl": "https://open.spotify.com/track/5ccWLR2GqiI5E8S5OxcJ7U",
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -107,7 +104,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-12T01:31:49.154Z"
   },
   {
     "id": 20,
@@ -118,9 +118,6 @@
     "pti": null,
     "stars": null,
     "effect": "Quando questa carta viene giocata, assorbe 100 PTI da tutti gli altri personaggi in campo [ANIMAZIONE: Bandiera Israele e soldi che volano]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T10:56:02.138Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -129,7 +126,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-29T10:56:02.138Z"
   },
   {
     "id": 21,
@@ -140,9 +140,6 @@
     "pti": null,
     "stars": null,
     "effect": "Aggiunge a sé stesso la metà dei PTI di danno che infligge con i suoi attacchi agli avversari [DETTAGLI: target: Tutti i nemici]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T11:00:35.046Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -151,7 +148,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-29T11:00:35.046Z"
   },
   {
     "id": 2,
@@ -162,9 +162,6 @@
     "pti": null,
     "stars": null,
     "effect": null,
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T23:36:17.783Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": "https://www.youtube.com/watch?v=a3EUZbyDyfI",
     "mosseDamageValue": null,
@@ -173,7 +170,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-29T23:36:17.783Z"
   },
   {
     "id": 6,
@@ -184,9 +184,6 @@
     "pti": 6000,
     "stars": 66,
     "effect": null,
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-12T20:11:13.870Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -195,7 +192,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-12T20:11:13.870Z"
   },
   {
     "id": 7,
@@ -206,9 +206,6 @@
     "pti": null,
     "stars": null,
     "effect": "Non può essere attaccato",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-27T15:09:00.472Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -217,7 +214,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-27T15:09:00.472Z"
   },
   {
     "id": 8,
@@ -228,9 +228,6 @@
     "pti": null,
     "stars": null,
     "effect": "Trasforma una carta nemica in una carta casuale più debole",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-27T15:20:42.201Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -239,7 +236,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-27T15:20:42.201Z"
   },
   {
     "id": 9,
@@ -250,9 +250,6 @@
     "pti": null,
     "stars": null,
     "effect": "Aumenta i PTI di 100",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-27T16:45:45.554Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -261,7 +258,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-27T16:45:45.554Z"
   },
   {
     "id": 10,
@@ -272,9 +272,6 @@
     "pti": null,
     "stars": null,
     "effect": "Riporta in mano una carta dal cimitero a scelta. Deve comparire un pannello per scegliere la carta del cimitero che si vuole rimettere in campo",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-27T22:47:31.962Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -283,7 +280,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-27T22:47:31.962Z"
   },
   {
     "id": 22,
@@ -294,9 +294,6 @@
     "pti": null,
     "stars": null,
     "effect": "Scommessa: 50% possibilità di guadagnare o perdere 100000000000000 PTI [DADO: Se indovina: Non succede nulla; Se sbaglia: Morte del personaggio]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T11:35:15.695Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -305,7 +302,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-29T11:35:15.695Z"
   },
   {
     "id": 15,
@@ -316,9 +316,6 @@
     "pti": null,
     "stars": null,
     "effect": "Aumenta i PTI di 150 [BERSAGLIO: scelta]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-30T16:25:31.342Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -327,7 +324,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-30T16:25:31.342Z"
   },
   {
     "id": 23,
@@ -338,9 +338,6 @@
     "pti": null,
     "stars": null,
     "effect": "Guadagna 2 stelle",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T12:47:06.476Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -349,7 +346,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-29T12:47:06.476Z"
   },
   {
     "id": 13,
@@ -360,9 +360,6 @@
     "pti": null,
     "stars": null,
     "effect": "Scegli una carta da uno dei mazzi e mettila in mano. Apri pannelli per la scelta dei mazzi e delle carte",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-27T23:56:51.105Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -371,7 +368,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-27T23:56:51.105Z"
   },
   {
     "id": 17,
@@ -382,9 +382,6 @@
     "pti": null,
     "stars": null,
     "effect": "Fusione: combina con un'altra carta per creare una carta più potente. Attiva la funzione \"Fondi\" dei personaggi a scelta",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-28T00:01:32.582Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -393,7 +390,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-28T00:01:32.582Z"
   },
   {
     "id": 16,
@@ -404,9 +404,6 @@
     "pti": null,
     "stars": null,
     "effect": null,
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-28T00:01:52.450Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -415,7 +412,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-28T00:01:52.450Z"
   },
   {
     "id": 18,
@@ -426,9 +426,6 @@
     "pti": null,
     "stars": null,
     "effect": "Viaggio nel Tempo: riporta il gioco a 1 turni fa",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-28T00:02:49.488Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -437,7 +434,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-28T00:02:49.488Z"
   },
   {
     "id": 14,
@@ -448,9 +448,6 @@
     "pti": null,
     "stars": null,
     "effect": "L'avversario scarta 10 carte dai mazzi e le manda al cimitero. Apri un pannello per scegliere i mazzi e le singole carte da eliminare",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-28T00:23:17.639Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -459,7 +456,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-28T00:23:17.639Z"
   },
   {
     "id": 29,
@@ -470,9 +470,6 @@
     "pti": null,
     "stars": null,
     "effect": "Quando questa carta viene giocata, compare un pannello in cui si sceglie un utente avversario; una volta scelto, si scambiano automaticamente con l'utente avversario sia le carte in campo sia le carte in mano. Dunque tutte le sue carte diventano le tue e tutte le tue carte diventano le sue [DETTAGLI: swap_participants: Tra un mio personaggio e uno nemico; swap_condition: Nessuna condizione; input_type: Selezione di un bersaglio; input_purpose: Per scegliere l'utente con cui effettuare lo scambio; condition_detail: Non ci sono condizioni; card_count: 4]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T16:52:39.453Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -481,7 +478,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-29T16:52:39.453Z"
   },
   {
     "id": 19,
@@ -492,9 +492,6 @@
     "pti": null,
     "stars": null,
     "effect": "Appena messo in campo, si clona",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-28T08:41:37.266Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -503,7 +500,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-28T08:41:37.266Z"
   },
   {
     "id": 25,
@@ -514,9 +514,6 @@
     "pti": null,
     "stars": null,
     "effect": "Scommessa: 50% possibilità di guadagnare o perdere 100 PTI [DADO: Se indovina: Raddoppia PTI e stelle; Se sbaglia: Dimezza PTI e stelle]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T15:12:47.169Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -525,7 +522,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-29T15:12:47.169Z"
   },
   {
     "id": 24,
@@ -536,9 +536,6 @@
     "pti": null,
     "stars": null,
     "effect": "Scommessa: 50% possibilità di guadagnare o perdere 0 PTI [BERSAGLIO: scelta] [DADO_AUTOMATICO: 1: MORTE DEI PERSONAGGI COINVOLTI; 2: MORTE DEI PERSONAGGI COINVOLTI; 3: MORTE DEL PERSONAGGIO CHE USA QUESTA CARTA; 4: MORTE DEL PERSONAGGIO CHE USA QUESTA CARTA; 5: MORTE DEL PERSONAGGIO AVVERSARIO; 6: MORTE DEL PERSONAGGIO AVVERSARIO]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T15:16:24.324Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -547,7 +544,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-29T15:16:24.324Z"
   },
   {
     "id": 26,
@@ -558,9 +558,6 @@
     "pti": null,
     "stars": null,
     "effect": "Scommessa: 50% possibilità di guadagnare o perdere 100 PTI [BERSAGLIO: scelta] [DADO_AUTOMATICO: 1: Morte del personaggio; 2: Dimezza i PTI; 3: Va a 0 stelle; 4: Dimezza le stelle; 5: Perde 100 PTI e perde 1 stella; 6: Nessun effetto]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T15:41:55.551Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -569,7 +566,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-29T15:41:55.551Z"
   },
   {
     "id": 30,
@@ -580,9 +580,6 @@
     "pti": null,
     "stars": null,
     "effect": "Quando questa carta viene giocata, io do le mie carte in campo all'utente successivo a me, lui dà le sue carte in campo all'utente successivo a lui e ogni utente dà le sue carte in campo all'utente successivo a lui finché tutti non hanno dato le loro carte in campo e ne hanno ricevute altre dall'altro utente [DETTAGLI: condition_detail: Non ci sono condizioni]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T17:13:03.074Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -591,7 +588,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-29T17:13:03.074Z"
   },
   {
     "id": 31,
@@ -602,9 +602,6 @@
     "pti": null,
     "stars": null,
     "effect": "Quando si usa il dado e in campo c'è questa carta, è il possessore di questa carta a decidere il numero del dado [DETTAGLI: condition_detail: Se si lancia il dado; condition_else: Nulla, l'effetto non si attiva; dice_control_type: Il giocatore sceglie il numero del dado (1-6); dice_control_trigger: Solo quando il proprietario della carta lancia un dado; dice_control_duration: Finché la carta è in campo; input_type: Scelta tra opzioni; input_purpose: Per scegliere il numero che deve risultare dal dado]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T17:29:16.071Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -613,7 +610,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-29T17:29:16.071Z"
   },
   {
     "id": 4,
@@ -624,9 +624,6 @@
     "pti": null,
     "stars": null,
     "effect": null,
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-30T12:01:25.062Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": "https://youtube.com/shorts/K9FJt_Knscc?feature=share",
     "mosseDamageValue": null,
@@ -635,7 +632,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-30T12:01:25.062Z"
   },
   {
     "id": 5,
@@ -646,9 +646,6 @@
     "pti": null,
     "stars": null,
     "effect": null,
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-30T12:01:43.774Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": "https://youtube.com/shorts/AiG1LNm8q5w?feature=share",
     "mosseDamageValue": null,
@@ -657,7 +654,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-30T12:01:43.774Z"
   },
   {
     "id": 63,
@@ -668,9 +668,6 @@
     "pti": null,
     "stars": null,
     "effect": null,
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-01T01:52:21.589Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": 100,
@@ -679,7 +676,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": "all_characters",
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T01:52:21.589Z"
   },
   {
     "id": 60,
@@ -690,9 +690,6 @@
     "pti": null,
     "stars": null,
     "effect": null,
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-01T01:05:24.036Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -701,7 +698,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T01:05:24.036Z"
   },
   {
     "id": 61,
@@ -712,9 +712,6 @@
     "pti": null,
     "stars": null,
     "effect": null,
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-01T01:05:37.688Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": 100,
@@ -734,7 +731,10 @@
       "GOLDEN FREEZER"
     ],
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T01:05:37.688Z"
   },
   {
     "id": 32,
@@ -745,9 +745,6 @@
     "pti": null,
     "stars": null,
     "effect": "Quando un avversario lancia il dado, il possessore sceglie il numero che dovrà uscire attraverso un apposito pannello [DETTAGLI: input_type: Scelta tra opzioni; input_purpose: Scegliere il numero che deve risultare dal dado; condition_detail: Se un avversario lancia il dado; condition_else: Nulla, l'effetto non si attiva; dice_control_type: Il giocatore sceglie il numero del dado (1-6); dice_control_trigger: Solo quando un avversario lancia un dado; dice_control_duration: Finché la carta è in campo]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T17:35:25.483Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -756,7 +753,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-29T17:35:25.483Z"
   },
   {
     "id": 33,
@@ -767,9 +767,6 @@
     "pti": null,
     "stars": null,
     "effect": "Dimezza i PTI ai personaggi scelti [BERSAGLIO: scelta]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T21:23:36.005Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -778,7 +775,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-29T21:23:36.005Z"
   },
   {
     "id": 34,
@@ -789,9 +789,6 @@
     "pti": null,
     "stars": null,
     "effect": "Assorbe 50 PTI da un avversario e li aggiunge a te [BERSAGLIO: scelta]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T21:26:18.314Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -800,7 +797,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-29T21:26:18.314Z"
   },
   {
     "id": 35,
@@ -811,9 +811,6 @@
     "pti": null,
     "stars": null,
     "effect": "Quando questa carta viene giocata, tutti i personaggi in campo assumono PTI e STELLE equivalenti alla media di PTI e Stelle di tutti i personaggi in campo [ANIMAZIONE: Un'esplosione rossa con la bandiera sovietica]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T21:30:37.821Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -822,7 +819,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-29T21:30:37.821Z"
   },
   {
     "id": 38,
@@ -833,9 +833,6 @@
     "pti": null,
     "stars": null,
     "effect": "Quando questa carta viene giocata, si sceglie un avversario e il valore del suo prossimo attacco verrà dimezzato [DETTAGLI: input_type: Selezione di un bersaglio; input_purpose: Per scegliere un personaggio avversario]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T21:35:24.116Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -844,7 +841,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-29T21:35:24.116Z"
   },
   {
     "id": 39,
@@ -855,9 +855,6 @@
     "pti": null,
     "stars": null,
     "effect": "Quando questa carta viene giocata, dopo 3 turni muoiono tutti i personaggi in campo [DETTAGLI: condition_else: Nulla, l'effetto non si attiva] | Quando questa carta viene giocata, tutte le carte in campo e in mano di tutti i giocatori tornano nei rispettivi mazzi [DETTAGLI: card_count: 100] | Quando questa carta viene giocata, si mischiano i mazzi",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T21:42:23.520Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -866,7 +863,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-29T21:42:23.520Z"
   },
   {
     "id": 40,
@@ -877,9 +877,6 @@
     "pti": null,
     "stars": null,
     "effect": "Quando questa carta viene messa in campo, gli avversari non possono giocare personaggi che hanno meno di 100 PTI [DETTAGLI: condition_detail: se il nemico ha meno di 100 PTI; condition_else: Nulla, l'effetto non si attiva; target: Tutti i nemici]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T21:43:35.005Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -888,7 +885,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-29T21:43:35.005Z"
   },
   {
     "id": 41,
@@ -899,9 +899,6 @@
     "pti": null,
     "stars": null,
     "effect": "Aggiunge la metà dei PTI attuali al proprietario | Aggiunge la metà delle stelle attuali al proprietario",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T21:44:48.472Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -910,7 +907,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-29T21:44:48.472Z"
   },
   {
     "id": 42,
@@ -921,9 +921,6 @@
     "pti": null,
     "stars": null,
     "effect": "Quando questa carta viene giocata, il personaggio che la usa recupera tutti i PTI originali [DETTAGLI: condition_else: Nulla, l'effetto non si attiva]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T21:47:02.592Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -932,7 +929,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-29T21:47:02.592Z"
   },
   {
     "id": 43,
@@ -943,9 +943,6 @@
     "pti": null,
     "stars": null,
     "effect": null,
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T23:50:34.399Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": "https://www.youtube.com/shorts/nbUXzS763bA",
     "mosseDamageValue": null,
@@ -954,7 +951,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-29T23:50:34.399Z"
   },
   {
     "id": 45,
@@ -965,9 +965,6 @@
     "pti": null,
     "stars": null,
     "effect": null,
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T23:53:22.061Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": "https://www.youtube.com/watch?v=pe1ZXh5_wk4",
     "mosseDamageValue": null,
@@ -976,7 +973,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-29T23:53:22.061Z"
   },
   {
     "id": 46,
@@ -987,9 +987,6 @@
     "pti": null,
     "stars": null,
     "effect": null,
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-30T00:14:38.277Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": "https://youtube.com/shorts/kxQKjM9cR4M?si=6c0ZqMmwS5IXEshz",
     "mosseDamageValue": null,
@@ -998,7 +995,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-30T00:14:38.277Z"
   },
   {
     "id": 47,
@@ -1009,9 +1009,6 @@
     "pti": null,
     "stars": null,
     "effect": null,
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-30T00:18:20.926Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": "https://youtube.com/shorts/9Fcw8AjzxPI?si=BMCsziQ_Yr8GDWw_",
     "mosseDamageValue": null,
@@ -1020,7 +1017,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-30T00:18:20.926Z"
   },
   {
     "id": 48,
@@ -1031,9 +1031,6 @@
     "pti": null,
     "stars": null,
     "effect": null,
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-30T08:49:17.000Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": "https://youtube.com/shorts/drthF00Dtog?si=VpUxZKx6ixtbbnZj",
     "mosseDamageValue": null,
@@ -1042,7 +1039,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-30T08:49:17.000Z"
   },
   {
     "id": 50,
@@ -1053,9 +1053,6 @@
     "pti": null,
     "stars": null,
     "effect": null,
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-30T10:57:46.234Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": "https://www.youtube.com/shorts/pKuRgnUSoQ4",
     "mosseDamageValue": null,
@@ -1064,7 +1061,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-30T10:57:46.234Z"
   },
   {
     "id": 56,
@@ -1075,9 +1075,6 @@
     "pti": null,
     "stars": null,
     "effect": "Quando questa carta viene giocata, compare un pannello che permette di scegliere un utente avversario. L'utente che viene scelto, non può giocare carte per un intero turno [ANIMAZIONE: Compare un segnale di divieto e luci rosse] [DETTAGLI: input_type: Selezione di un bersaglio; input_purpose: Per selezionare un avversario da bloccare per 1 turno; condition_detail: Non ci sono condizioni particolari; condition_else: Nulla, l'effetto non si attiva]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-30T16:03:22.245Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -1086,7 +1083,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-30T16:03:22.245Z"
   },
   {
     "id": 51,
@@ -1097,9 +1097,6 @@
     "pti": null,
     "stars": null,
     "effect": null,
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-30T11:02:04.007Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -1108,7 +1105,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-30T11:02:04.007Z"
   },
   {
     "id": 52,
@@ -1119,9 +1119,6 @@
     "pti": null,
     "stars": null,
     "effect": null,
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-30T11:31:43.566Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": "https://www.youtube.com/watch?v=nLyJf-e7rBA&list=RDnLyJf-e7rBA&start_radio=1",
     "mosseDamageValue": null,
@@ -1130,7 +1127,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-30T11:31:43.566Z"
   },
   {
     "id": 49,
@@ -1141,9 +1141,6 @@
     "pti": null,
     "stars": null,
     "effect": null,
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-30T12:01:00.618Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": "https://youtube.com/shorts/hXecWAAK-bg",
     "mosseDamageValue": null,
@@ -1152,7 +1149,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-30T12:01:00.618Z"
   },
   {
     "id": 44,
@@ -1163,9 +1163,6 @@
     "pti": null,
     "stars": null,
     "effect": null,
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-30T12:50:25.651Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": "https://youtu.be/LfsecoQruqA?si=_n2-j-8WDgwqChXr",
     "mosseDamageValue": null,
@@ -1174,7 +1171,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-30T12:50:25.651Z"
   },
   {
     "id": 53,
@@ -1185,9 +1185,6 @@
     "pti": null,
     "stars": null,
     "effect": null,
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-30T12:51:32.570Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": "https://youtu.be/NIYZVSElmj4?si=YuTbcnmBZPln0imm",
     "mosseDamageValue": null,
@@ -1196,7 +1193,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-30T12:51:32.570Z"
   },
   {
     "id": 54,
@@ -1207,9 +1207,6 @@
     "pti": null,
     "stars": null,
     "effect": null,
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-30T12:53:49.453Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": "https://youtu.be/NIYZVSElmj4?si=YuTbcnmBZPln0imm",
     "mosseDamageValue": null,
@@ -1218,7 +1215,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-30T12:53:49.453Z"
   },
   {
     "id": 55,
@@ -1229,9 +1229,6 @@
     "pti": null,
     "stars": null,
     "effect": null,
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-30T13:15:58.307Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": "https://youtu.be/IcS7JB_5Nus?si=ZMixmGSbvSLtLJ8J",
     "mosseDamageValue": null,
@@ -1240,7 +1237,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-30T13:15:58.307Z"
   },
   {
     "id": 28,
@@ -1251,9 +1251,6 @@
     "pti": null,
     "stars": null,
     "effect": "Quando questa carta viene giocata, compare un pannello in cui l'utente deve inserire una quantità di PTI a scelta; quei PTI vengono tolti al personaggio che ha usato questa carta e, quando il personaggio scende a 0 PTI, non muore ma resta in campo aggiungendosi quella quantità di PTI che era stata tolta [DETTAGLI: input_purpose: Per determinare quanti PTI bisogna sottrarre al personaggio per poi aggiungerli di nuovo quando lo stesso personaggio scende a 0 PTI; condition_else: Nulla, l'effetto non si attiva; condition_detail: Se il personaggio scende a o PTI]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-30T16:01:01.608Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -1262,7 +1259,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-30T16:01:01.608Z"
   },
   {
     "id": 57,
@@ -1273,9 +1273,6 @@
     "pti": null,
     "stars": null,
     "effect": "Quando questa carta viene giocata, l'utente che ha il minor numero di personaggi nel cimitero fa raddoppiare PTI e stelle del suo personaggio in campo [ANIMAZIONE: Croci, bare, zombie e cimiteri che saltano sullo schermo con zoom] [DETTAGLI: condition_detail: Se un utente ha il minor numero di personaggi morti nel cimitero rispetto agli altri giocatori; stars_action: Raddoppiate; stars_amount: 100; condition_else: Nulla, l'effetto non si attiva]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-30T16:06:06.761Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -1284,7 +1281,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-30T16:06:06.761Z"
   },
   {
     "id": 36,
@@ -1295,9 +1295,6 @@
     "pti": null,
     "stars": null,
     "effect": "Quando questa carta viene giocata, il personaggio che la usa si aggiunge i PTI danno dell'ultimo attacco che ha subìto [DETTAGLI: condition_detail: Se il tuo personaggio è appena stato attaccato; condition_else: Nulla, l'effetto non si attiva; damage_amount: ]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-30T16:07:39.585Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -1306,7 +1303,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-30T16:07:39.585Z"
   },
   {
     "id": 37,
@@ -1317,9 +1317,6 @@
     "pti": null,
     "stars": null,
     "effect": "Quando questa carta viene messa in campo, scegli un personaggio avversario e gli aggiungi 50 PTI togliendoli a te. Lui, per 3 turni, non può attaccarti [DETTAGLI: input_purpose: Per scegliere un personaggio avversario; condition_detail: Il tuo personaggio deve avere più di 50 PTI; condition_else: Nulla, l'effetto non si attiva]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-30T16:08:45.503Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -1328,7 +1325,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-30T16:08:45.503Z"
   },
   {
     "id": 58,
@@ -1339,9 +1339,6 @@
     "pti": null,
     "stars": null,
     "effect": "Infligge 0 danni a tutti i personaggi in campo [DADO: Se indovina: Nessun effetto; Se sbaglia: Morte del personaggio]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-30T16:10:40.953Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -1350,7 +1347,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-30T16:10:40.953Z"
   },
   {
     "id": 59,
@@ -1361,9 +1361,6 @@
     "pti": null,
     "stars": null,
     "effect": "Quando questo personaggio muore per la prima volta, non va nel cimitero ma torna in mano [DETTAGLI: condition_detail: Se questo personaggio muore; condition_else: Nulla, l'effetto non si attiva; card_count: 1]",
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-30T16:48:58.081Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -1372,7 +1369,10 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": null,
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-01-30T16:48:58.081Z"
   },
   {
     "id": 62,
@@ -1383,9 +1383,6 @@
     "pti": null,
     "stars": null,
     "effect": null,
-    "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-01T01:42:47.631Z",
-    "isDeleted": false,
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": 100,
@@ -1394,6 +1391,9 @@
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
     "mosseTargetingMode": "all_enemies",
-    "mosseTargetCount": null
+    "mosseTargetCount": null,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-01T01:42:47.631Z"
   }
 ]

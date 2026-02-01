@@ -1,0 +1,200 @@
+[
+  {
+    "id": 1,
+    "code": "first_win",
+    "name": "Prima Vittoria",
+    "description": "Vinci la tua prima partita",
+    "category": "bronze",
+    "icon": "🏆",
+    "requirement": 1,
+    "rewardPoints": 50,
+    "createdAt": "2026-01-12T14:31:35.523Z"
+  },
+  {
+    "id": 2,
+    "code": "wins_10",
+    "name": "Campione",
+    "description": "Vinci 10 partite",
+    "category": "silver",
+    "icon": "🥈",
+    "requirement": 10,
+    "rewardPoints": 100,
+    "createdAt": "2026-01-12T14:31:35.770Z"
+  },
+  {
+    "id": 3,
+    "code": "wins_50",
+    "name": "Leggenda",
+    "description": "Vinci 50 partite",
+    "category": "gold",
+    "icon": "🥇",
+    "requirement": 50,
+    "rewardPoints": 250,
+    "createdAt": "2026-01-12T14:31:38.442Z"
+  },
+  {
+    "id": 4,
+    "code": "wins_100",
+    "name": "Mito Vivente",
+    "description": "Vinci 100 partite",
+    "category": "legendary",
+    "icon": "👑",
+    "requirement": 100,
+    "rewardPoints": 500,
+    "createdAt": "2026-01-12T14:31:39.197Z"
+  },
+  {
+    "id": 5,
+    "code": "cards_played_100",
+    "name": "Giocatore Attivo",
+    "description": "Gioca 100 carte",
+    "category": "bronze",
+    "icon": "🃏",
+    "requirement": 100,
+    "rewardPoints": 50,
+    "createdAt": "2026-01-12T14:31:39.549Z"
+  },
+  {
+    "id": 6,
+    "code": "cards_played_500",
+    "name": "Stratega",
+    "description": "Gioca 500 carte",
+    "category": "silver",
+    "icon": "♠️",
+    "requirement": 500,
+    "rewardPoints": 100,
+    "createdAt": "2026-01-12T14:31:39.704Z"
+  },
+  {
+    "id": 7,
+    "code": "cards_played_1000",
+    "name": "Maestro delle Carte",
+    "description": "Gioca 1000 carte",
+    "category": "gold",
+    "icon": "🎴",
+    "requirement": 1000,
+    "rewardPoints": 250,
+    "createdAt": "2026-01-12T14:31:39.857Z"
+  },
+  {
+    "id": 8,
+    "code": "damage_dealt_5000",
+    "name": "Combattente",
+    "description": "Infliggi 5000 danni totali",
+    "category": "bronze",
+    "icon": "⚔️",
+    "requirement": 5000,
+    "rewardPoints": 50,
+    "createdAt": "2026-01-12T14:31:39.955Z"
+  },
+  {
+    "id": 9,
+    "code": "damage_dealt_25000",
+    "name": "Guerriero",
+    "description": "Infliggi 25000 danni totali",
+    "category": "silver",
+    "icon": "🗡️",
+    "requirement": 25000,
+    "rewardPoints": 100,
+    "createdAt": "2026-01-12T14:31:40.048Z"
+  },
+  {
+    "id": 10,
+    "code": "damage_dealt_100000",
+    "name": "Distruttore",
+    "description": "Infliggi 100000 danni totali",
+    "category": "gold",
+    "icon": "💥",
+    "requirement": 100000,
+    "rewardPoints": 250,
+    "createdAt": "2026-01-12T14:31:40.148Z"
+  },
+  {
+    "id": 11,
+    "code": "eliminations_10",
+    "name": "Cacciatore",
+    "description": "Elimina 10 personaggi",
+    "category": "bronze",
+    "icon": "💀",
+    "requirement": 10,
+    "rewardPoints": 50,
+    "createdAt": "2026-01-12T14:31:40.247Z"
+  },
+  {
+    "id": 12,
+    "code": "eliminations_50",
+    "name": "Assassino",
+    "description": "Elimina 50 personaggi",
+    "category": "silver",
+    "icon": "☠️",
+    "requirement": 50,
+    "rewardPoints": 100,
+    "createdAt": "2026-01-12T14:31:40.341Z"
+  },
+  {
+    "id": 13,
+    "code": "eliminations_200",
+    "name": "Angelo della Morte",
+    "description": "Elimina 200 personaggi",
+    "category": "gold",
+    "icon": "👿",
+    "requirement": 200,
+    "rewardPoints": 250,
+    "createdAt": "2026-01-12T14:31:40.452Z"
+  },
+  {
+    "id": 14,
+    "code": "games_played_25",
+    "name": "Giocatore Abituale",
+    "description": "Gioca 25 partite",
+    "category": "bronze",
+    "icon": "🎮",
+    "requirement": 25,
+    "rewardPoints": 50,
+    "createdAt": "2026-01-12T14:31:40.545Z"
+  },
+  {
+    "id": 15,
+    "code": "games_played_100",
+    "name": "Veterano",
+    "description": "Gioca 100 partite",
+    "category": "silver",
+    "icon": "🎖️",
+    "requirement": 100,
+    "rewardPoints": 100,
+    "createdAt": "2026-01-12T14:31:40.640Z"
+  },
+  {
+    "id": 16,
+    "code": "mosse_used_50",
+    "name": "Tattico",
+    "description": "Usa 50 carte MOSSE",
+    "category": "bronze",
+    "icon": "🎯",
+    "requirement": 50,
+    "rewardPoints": 50,
+    "createdAt": "2026-01-12T14:31:40.733Z"
+  },
+  {
+    "id": 17,
+    "code": "bonus_used_30",
+    "name": "Opportunista",
+    "description": "Usa 30 carte BONUS",
+    "category": "bronze",
+    "icon": "✨",
+    "requirement": 30,
+    "rewardPoints": 50,
+    "createdAt": "2026-01-12T14:31:40.828Z"
+  },
+  {
+    "id": 18,
+    "code": "speciali_played_20",
+    "name": "Collezionista Raro",
+    "description": "Gioca 20 PERSONAGGI SPECIALI",
+    "category": "silver",
+    "icon": "⭐",
+    "requirement": 20,
+    "rewardPoints": 100,
+    "createdAt": "2026-01-12T14:31:40.921Z"
+  }
+]
