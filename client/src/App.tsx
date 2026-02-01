@@ -53,6 +53,8 @@ function App() {
     gameId: string;
     roomCode: string;
   } | null>(null);
+  // Track if session was successfully restored to prevent active-game-found from overriding
+  const sessionRestoredRef = React.useRef(false);
   const { 
     setPlayerName, 
     playerName, 
@@ -61,7 +63,8 @@ function App() {
     hasActiveSession, 
     restoreSession, 
     generateSessionId, 
-    isReconnecting 
+    isReconnecting,
+    clearSession
   } = useGameState();
 
   useEffect(() => {
@@ -81,8 +84,33 @@ function App() {
         });
 
         // Listen for active game found (after server restart)
+        // Only rejoin if session was NOT already restored and we don't have an active game
         socket.on('active-game-found', (data: { gameId: string; handCount: number; playerName: string }) => {
           console.log('Active game found on server:', data);
+          
+          // Skip if session was already successfully restored
+          if (sessionRestoredRef.current) {
+            console.log('Session already restored, skipping active-game-found');
+            return;
+          }
+          
+          // Get current gameId from store to check if we're already in a game
+          const currentGameId = useGameState.getState().gameId;
+          const currentPlayerName = useGameState.getState().playerName;
+          
+          // If we already have a gameId, don't switch to a different game
+          if (currentGameId && currentGameId !== data.gameId) {
+            console.log(`Already in game ${currentGameId}, not switching to ${data.gameId}`);
+            return;
+          }
+          
+          // If we already have a gameId that matches, don't rejoin (we're already there)
+          if (currentGameId === data.gameId && currentPlayerName === data.playerName) {
+            console.log('Already in this game, skipping rejoin');
+            return;
+          }
+          
+          // Only rejoin if we don't have an active game
           if (data.playerName && data.gameId) {
             console.log(`Rejoining game ${data.gameId} as ${data.playerName} with ${data.handCount} cards in hand`);
             setGameId(data.gameId);
@@ -156,6 +184,7 @@ function App() {
               
               if (restored) {
                 console.log('Session restored successfully');
+                sessionRestoredRef.current = true; // Mark session as restored to prevent active-game-found override
                 setShowNameDialog(false);
                 setShowRoomDialog(false);
                 setIsInitializing(false);
@@ -544,8 +573,8 @@ function App() {
     setShowAuthDialog(true);
     setShowNameDialog(false);
     setShowRoomDialog(false);
-    setPlayerName('');
-    setGameId('');
+    clearSession(); // Clear all session data including localStorage
+    sessionRestoredRef.current = false; // Reset the ref so active-game-found can work again
   };
 
   const handleAcceptInvitation = () => {
@@ -612,8 +641,13 @@ function App() {
             authToken={localStorage.getItem('authToken')}
             onBack={() => {
               setCurrentSection('home');
-              setGameId('');
+              clearSession(); // Clear all session data including localStorage
+              sessionRestoredRef.current = false; // Reset the ref so active-game-found can work again
               window.history.pushState(null, '', window.location.origin);
+            }}
+            onLeaveGame={() => {
+              // Called when user leaves game via handleLeaveGame in GameBoard
+              sessionRestoredRef.current = false; // Reset the ref so active-game-found can work again
             }}
           />
         </div>

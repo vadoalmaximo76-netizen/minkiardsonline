@@ -65,9 +65,10 @@ interface GameBoardProps {
   authToken?: string | null;
   isTrainingMode?: boolean;
   onBack?: () => void;
+  onLeaveGame?: () => void;
 }
 
-export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogout, authToken, onBack }) => {
+export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogout, authToken, onBack, onLeaveGame }) => {
   const [chatOpen, setChatOpen] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [musicPlayerOpen, setMusicPlayerOpen] = useState(false);
@@ -289,7 +290,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     timestamp: number;
     cardType: string;
   }>>([]);
-    const { selectedCard, gameId, playerName, gameState, setGameId, setUserRankiardPoints, resetPRSpent } = useGameState();
+    const { selectedCard, gameId, playerName, gameState, setGameId, setUserRankiardPoints, resetPRSpent, clearSession } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted, playAttackSound, playDeathSound, playCardPickup, playCardPlay, playTurnChange, playBonusActivated } = useAudio();
 
 
@@ -385,6 +386,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const handleLeaveGame = () => {
     if (confirm("Sei sicuro di voler lasciare la partita? Diventerai uno spettatore.")) {
       socket.emit('leave-game', { gameId, playerName });
+      clearSession(); // Clear session data when leaving game
+      onLeaveGame?.(); // Notify parent to reset session state
     }
   };
 
@@ -1285,6 +1288,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         player: eliminatedPlayer
       });
       
+      // If the current player was eliminated, clear their session
+      if (eliminatedPlayer === playerName) {
+        clearSession();
+        onLeaveGame?.();
+      }
+      
       // Hide notification after 3 seconds
       setTimeout(() => {
         setPlayerEliminationNotification({ visible: false, player: '' });
@@ -1295,6 +1304,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       setVictoryPlayer(winner);
       setVictoryDialogOpen(true);
       setTimeout(() => setShowInterstitialAd(true), 3000);
+      // Clear session when game ends so we don't try to rejoin a finished game
+      clearSession();
+      onLeaveGame?.();
     };
 
     const handleFusionError = ({ message }: { message: string }) => {
