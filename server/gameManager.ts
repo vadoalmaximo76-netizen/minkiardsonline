@@ -5,6 +5,7 @@ import { eq, ilike, sql, and } from 'drizzle-orm';
 import { CPUPlayer } from './cpuPlayer';
 import { trackGameEvent } from './missionsAndAchievements';
 import { getPersonaggioFromCache } from './personaggiCache';
+import { jsonStorage } from './jsonStorage';
 
 interface Card {
   id: string;
@@ -480,7 +481,7 @@ export class GameManager {
 
   async loadDeletedCardIds(): Promise<Set<string>> {
     try {
-      const modifications = await db.select().from(cardModifications).where(eq(cardModifications.isDeleted, true));
+      const modifications = jsonStorage.cardModifications.getAll().filter(m => m.isDeleted);
       return new Set(modifications.map(m => m.originalCardId));
     } catch (error) {
       console.error('Error loading deleted card IDs:', error);
@@ -490,7 +491,7 @@ export class GameManager {
 
   async loadCardModifications(): Promise<Map<string, any>> {
     try {
-      const modifications = await db.select().from(cardModifications).where(eq(cardModifications.isDeleted, false));
+      const modifications = jsonStorage.cardModifications.getAll().filter(m => !m.isDeleted);
       const modMap = new Map<string, any>();
       modifications.forEach(mod => {
         modMap.set(mod.originalCardId, mod);
@@ -676,7 +677,7 @@ export class GameManager {
     if (!game) return;
 
     try {
-      const permanentCards = await db.select().from(customCards);
+      const permanentCards = jsonStorage.customCards.getAll();
       
       permanentCards.forEach((cardRecord) => {
         const cardId = `permanent-${cardRecord.deckType}-${cardRecord.id}`;
@@ -11760,7 +11761,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
         if (cardData.isPermanent) {
           try {
-            const customCardRecord: InsertCustomCard = {
+            jsonStorage.customCards.create({
               name: cardData.name,
               deckType: deckType,
               imageData: cardData.data,
@@ -11769,35 +11770,41 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               effect: cardData.effect || null,
               audioUrl: cardData.audioUrl || null,
               youtubeUrl: cardData.youtubeUrl || null,
-              mosseDamageValue: deckType === 'mosse' ? cardData.mosseDamageValue : null,
-              mosseDamageEffect: deckType === 'mosse' ? cardData.mosseDamageEffect : null,
-              mosseCharacterOverrides: deckType === 'mosse' ? cardData.mosseCharacterOverrides : null,
-              mosseRestrictedFrom: deckType === 'mosse' ? cardData.mosseRestrictedFrom : null,
-              mosseRestrictedAgainst: deckType === 'mosse' ? cardData.mosseRestrictedAgainst : null,
-              mosseTargetingMode: deckType === 'mosse' ? cardData.mosseTargetingMode : null,
-              mosseTargetCount: deckType === 'mosse' ? cardData.mosseTargetCount : null,
+              mosseDamageValue: deckType === 'mosse' ? cardData.mosseDamageValue ?? null : null,
+              mosseDamageEffect: deckType === 'mosse' ? cardData.mosseDamageEffect ?? null : null,
+              mosseCharacterOverrides: deckType === 'mosse' ? cardData.mosseCharacterOverrides ?? null : null,
+              mosseRestrictedFrom: deckType === 'mosse' ? cardData.mosseRestrictedFrom ?? null : null,
+              mosseRestrictedAgainst: deckType === 'mosse' ? cardData.mosseRestrictedAgainst ?? null : null,
+              mosseTargetingMode: deckType === 'mosse' ? cardData.mosseTargetingMode ?? null : null,
+              mosseTargetCount: deckType === 'mosse' ? cardData.mosseTargetCount ?? null : null,
               createdBy: playerName
-            };
-            await db.insert(customCards).values(customCardRecord);
-            console.log(`Permanent card "${cardData.name}" saved to database with audioUrl: ${cardData.audioUrl}, youtubeUrl: ${cardData.youtubeUrl}`);
+            });
+            console.log(`Permanent card "${cardData.name}" saved to JSON with audioUrl: ${cardData.audioUrl}, youtubeUrl: ${cardData.youtubeUrl}`);
             
             // Automatically create a skin for this permanent custom card
             try {
-              await db.insert(cardSkins).values({
+              jsonStorage.cardSkins.create({
                 name: `Skin - ${cardData.name}`,
                 description: `Skin personalizzata per ${cardData.name}`,
                 rarity: 'common',
                 price: 0,
                 cardName: cardData.name,
+                cardType: deckType,
                 skinImageUrl: cardData.data,
+                skinPti: null,
+                skinStars: null,
+                borderStyle: null,
+                backgroundGradient: null,
+                glowColor: null,
+                frameImageUrl: null,
                 isAvailable: true
               });
               console.log(`Auto-created skin for permanent card "${cardData.name}"`);
             } catch (skinError) {
               console.error('Error creating skin for permanent card:', skinError);
             }
-          } catch (dbError) {
-            console.error('Error saving permanent card to database:', dbError);
+          } catch (jsonError) {
+            console.error('Error saving permanent card to JSON:', jsonError);
           }
         }
       }

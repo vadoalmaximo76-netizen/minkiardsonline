@@ -6,6 +6,7 @@ import OpenAI from "openai";
 import jwt from "jsonwebtoken";
 import { db } from "./db";
 import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, achievements, playerAchievements, missionTemplates, playerDailyMissions, trainingTips, tutorialSteps, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, cardSkins, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions } from "../shared/schema";
+import { jsonStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray } from "drizzle-orm";
 import { CARD_DATA } from "../client/src/lib/cardData";
 import { authMiddleware, ADMIN_FALLBACK } from "./auth";
@@ -542,30 +543,27 @@ async function emitCardPlayed(io: SocketServer, gameId: string, card: any, playe
   // YOUTUBE VIDEO: Check if card has youtubeUrl and emit to all players
   let youtubeUrl = card.youtubeUrl;
   
-  // If no youtubeUrl in card memory, try database lookup
+  // If no youtubeUrl in card memory, try JSON storage lookup
   if (!youtubeUrl && card.name) {
     try {
-      // Check customCards table
-      const customCardResults = await db.select().from(customCards)
-        .where(eq(customCards.name, card.name))
-        .limit(1);
-      if (customCardResults.length > 0 && customCardResults[0].youtubeUrl) {
-        youtubeUrl = customCardResults[0].youtubeUrl;
-        console.log(`[emitCardPlayed] Found youtubeUrl from customCards for ${card.name}: ${youtubeUrl}`);
+      // Check customCards JSON storage
+      const customCards = jsonStorage.customCards.getAll();
+      const customCardMatch = customCards.find(c => c.name === card.name);
+      if (customCardMatch && customCardMatch.youtubeUrl) {
+        youtubeUrl = customCardMatch.youtubeUrl;
+        console.log(`[emitCardPlayed] Found youtubeUrl from customCards JSON for ${card.name}: ${youtubeUrl}`);
       }
       
-      // Also check cardModifications table if still no youtubeUrl
+      // Also check cardModifications JSON storage if still no youtubeUrl
       if (!youtubeUrl) {
-        const modResults = await db.select().from(cardModifications)
-          .where(eq(cardModifications.originalCardId, card.id))
-          .limit(1);
-        if (modResults.length > 0 && modResults[0].youtubeUrl) {
-          youtubeUrl = modResults[0].youtubeUrl;
-          console.log(`[emitCardPlayed] Found youtubeUrl from cardModifications for ${card.id}: ${youtubeUrl}`);
+        const mod = jsonStorage.cardModifications.getByOriginalCardId(card.id);
+        if (mod && mod.youtubeUrl) {
+          youtubeUrl = mod.youtubeUrl;
+          console.log(`[emitCardPlayed] Found youtubeUrl from cardModifications JSON for ${card.id}: ${youtubeUrl}`);
         }
       }
-    } catch (dbError) {
-      console.error('[emitCardPlayed] Error checking database for youtubeUrl:', dbError);
+    } catch (jsonError) {
+      console.error('[emitCardPlayed] Error checking JSON storage for youtubeUrl:', jsonError);
     }
   }
   
@@ -2135,30 +2133,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Check if it's a custom card (permanent custom cards from database)
             if (cardIdStr.startsWith('custom-')) {
-              // Look up in customCards table by matching the card name or image
-              const customCardResults = await db.select().from(customCards)
-                .where(eq(customCards.name, result.card.name || ''))
-                .limit(1);
-              if (customCardResults.length > 0 && customCardResults[0].audioUrl) {
-                audioUrl = customCardResults[0].audioUrl;
-                console.log(`Found audioUrl from customCards table for card ${cardId}: ${audioUrl}`);
+              // Look up in customCards JSON storage by matching the card name
+              const customCards = jsonStorage.customCards.getAll();
+              const customCardMatch = customCards.find(c => c.name === (result.card.name || ''));
+              if (customCardMatch && customCardMatch.audioUrl) {
+                audioUrl = customCardMatch.audioUrl;
+                console.log(`Found audioUrl from customCards JSON for card ${cardId}: ${audioUrl}`);
               }
             } else {
-              // Look up in card modifications table for base cards (only active, non-deleted modifications)
-              const mod = await db.select().from(cardModifications)
-                .where(and(
-                  eq(cardModifications.originalCardId, cardIdStr),
-                  eq(cardModifications.isDeleted, false)
-                ))
-                .orderBy(desc(cardModifications.modifiedAt))
-                .limit(1);
-              if (mod.length > 0 && mod[0].audioUrl) {
-                audioUrl = mod[0].audioUrl;
-                console.log(`Found audioUrl from cardModifications table for card ${cardId}: ${audioUrl}`);
+              // Look up in card modifications JSON storage for base cards
+              const mod = jsonStorage.cardModifications.getByOriginalCardId(cardIdStr);
+              if (mod && !mod.isDeleted && mod.audioUrl) {
+                audioUrl = mod.audioUrl;
+                console.log(`Found audioUrl from cardModifications JSON for card ${cardId}: ${audioUrl}`);
               }
             }
-          } catch (dbError) {
-            console.error('Error checking card modifications for audioUrl:', dbError);
+          } catch (jsonError) {
+            console.error('Error checking JSON storage for audioUrl:', jsonError);
           }
         }
         
@@ -2182,31 +2173,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             const cardIdStr = result.card.id;
             
-            // Check if it's a custom card (permanent custom cards from database)
+            // Check if it's a custom card (permanent custom cards from JSON storage)
             if (cardIdStr.startsWith('custom-')) {
-              const customCardResults = await db.select().from(customCards)
-                .where(eq(customCards.name, result.card.name || ''))
-                .limit(1);
-              if (customCardResults.length > 0 && customCardResults[0].youtubeUrl) {
-                youtubeUrl = customCardResults[0].youtubeUrl;
-                console.log(`Found youtubeUrl from customCards table for card ${cardId}: ${youtubeUrl}`);
+              const customCards = jsonStorage.customCards.getAll();
+              const customCardMatch = customCards.find(c => c.name === (result.card.name || ''));
+              if (customCardMatch && customCardMatch.youtubeUrl) {
+                youtubeUrl = customCardMatch.youtubeUrl;
+                console.log(`Found youtubeUrl from customCards JSON for card ${cardId}: ${youtubeUrl}`);
               }
             } else {
-              // Look up in card modifications table for base cards
-              const mod = await db.select().from(cardModifications)
-                .where(and(
-                  eq(cardModifications.originalCardId, cardIdStr),
-                  eq(cardModifications.isDeleted, false)
-                ))
-                .orderBy(desc(cardModifications.modifiedAt))
-                .limit(1);
-              if (mod.length > 0 && mod[0].youtubeUrl) {
-                youtubeUrl = mod[0].youtubeUrl;
-                console.log(`Found youtubeUrl from cardModifications table for card ${cardId}: ${youtubeUrl}`);
+              // Look up in card modifications JSON storage for base cards
+              const mod = jsonStorage.cardModifications.getByOriginalCardId(cardIdStr);
+              if (mod && !mod.isDeleted && mod.youtubeUrl) {
+                youtubeUrl = mod.youtubeUrl;
+                console.log(`Found youtubeUrl from cardModifications JSON for card ${cardId}: ${youtubeUrl}`);
               }
             }
-          } catch (dbError) {
-            console.error('Error checking card modifications for youtubeUrl:', dbError);
+          } catch (jsonError) {
+            console.error('Error checking JSON storage for youtubeUrl:', jsonError);
           }
         }
         
@@ -3130,16 +3114,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let skinPti: number | null = null;
         let skinStars: number | null = null;
         
-        // If applying a skin, look up its PTI and Stars from database
+        // If applying a skin, look up its PTI and Stars from JSON storage
         if (skinImageUrl) {
           try {
-            const skinData = await db.select().from(cardSkins)
-              .where(eq(cardSkins.skinImageUrl, skinImageUrl))
-              .limit(1);
+            const allSkins = jsonStorage.cardSkins.getAll();
+            const skinData = allSkins.find(s => s.skinImageUrl === skinImageUrl);
             
-            if (skinData.length > 0) {
-              skinPti = skinData[0].skinPti;
-              skinStars = skinData[0].skinStars;
+            if (skinData) {
+              skinPti = skinData.skinPti;
+              skinStars = skinData.skinStars;
             }
           } catch (error) {
             console.error('Error fetching skin data:', error);
@@ -6263,16 +6246,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // CUSTOM CARDS CRUD ENDPOINTS
   // ============================================
   
-  // Get all permanent custom cards
+  // Get all permanent custom cards (JSON storage)
   app.get('/api/custom-cards', async (req, res) => {
     try {
       const deckType = req.query.deckType as string | undefined;
       
       let cards;
       if (deckType) {
-        cards = await db.select().from(customCards).where(eq(customCards.deckType, deckType));
+        cards = jsonStorage.customCards.getByDeckType(deckType);
       } else {
-        cards = await db.select().from(customCards);
+        cards = jsonStorage.customCards.getAll();
       }
       
       res.json({ success: true, cards });
@@ -6282,7 +6265,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Update a custom card
+  // Update a custom card (JSON storage)
   app.patch('/api/custom-cards/:id', async (req, res) => {
     try {
       const cardId = parseInt(req.params.id);
@@ -6337,23 +6320,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ success: false, error: 'No valid fields to update' });
       }
       
-      const result = await db.update(customCards)
-        .set(updateData)
-        .where(eq(customCards.id, cardId))
-        .returning();
+      const result = jsonStorage.customCards.update(cardId, updateData);
       
-      if (!result || result.length === 0) {
+      if (!result) {
         return res.status(404).json({ success: false, error: 'Card not found' });
       }
       
-      res.json({ success: true, card: result[0] });
+      res.json({ success: true, card: result });
     } catch (error) {
       console.error('Error updating custom card:', error);
       res.status(500).json({ success: false, error: 'Failed to update custom card' });
     }
   });
   
-  // Delete a custom card
+  // Delete a custom card (JSON storage)
   app.delete('/api/custom-cards/:id', async (req, res) => {
     try {
       const cardId = parseInt(req.params.id);
@@ -6362,11 +6342,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ success: false, error: 'Invalid card ID' });
       }
       
-      const result = await db.delete(customCards)
-        .where(eq(customCards.id, cardId))
-        .returning();
+      const deleted = jsonStorage.customCards.delete(cardId);
       
-      if (!result || result.length === 0) {
+      if (!deleted) {
         return res.status(404).json({ success: false, error: 'Card not found' });
       }
       
@@ -6404,8 +6382,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const deckType = req.query.deckType as string;
       
-      // Get all card modifications from database
-      const modifications = await db.select().from(cardModifications);
+      // Get all card modifications from JSON storage
+      const modifications = jsonStorage.cardModifications.getAll();
       const modMap = new Map(modifications.map(m => [m.originalCardId, m]));
 
       // Get cards from CARD_DATA
@@ -6474,60 +6452,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return isNaN(parsed) ? null : parsed;
       };
 
-      // Check if modification exists
-      const existing = await db.select().from(cardModifications)
-        .where(eq(cardModifications.originalCardId, originalCardId));
-
-      let modification;
-      if (existing.length > 0) {
-        // Update existing
-        const result = await db.update(cardModifications)
-          .set({
-            name: name || null,
-            imageUrl: imageUrl || null,
-            pti: safeParseInt(pti),
-            stars: safeParseInt(stars),
-            effect: effect || null,
-            audioUrl: audioUrl || null,
-            youtubeUrl: youtubeUrl || null,
-            mosseDamageValue: safeParseInt(mosseDamageValue),
-            mosseDamageEffect: mosseDamageEffect || null,
-            mosseCharacterOverrides: mosseCharacterOverrides || null,
-            mosseRestrictedFrom: mosseRestrictedFrom || null,
-            mosseRestrictedAgainst: mosseRestrictedAgainst || null,
-            mosseTargetingMode: mosseTargetingMode || null,
-            mosseTargetCount: safeParseInt(mosseTargetCount),
-            modifiedBy: userEmail,
-            modifiedAt: new Date()
-          })
-          .where(eq(cardModifications.originalCardId, originalCardId))
-          .returning();
-        modification = result[0];
-      } else {
-        // Insert new
-        const result = await db.insert(cardModifications)
-          .values({
-            originalCardId,
-            deckType,
-            name: name || null,
-            imageUrl: imageUrl || null,
-            pti: safeParseInt(pti),
-            stars: safeParseInt(stars),
-            effect: effect || null,
-            audioUrl: audioUrl || null,
-            youtubeUrl: youtubeUrl || null,
-            mosseDamageValue: safeParseInt(mosseDamageValue),
-            mosseDamageEffect: mosseDamageEffect || null,
-            mosseCharacterOverrides: mosseCharacterOverrides || null,
-            mosseRestrictedFrom: mosseRestrictedFrom || null,
-            mosseRestrictedAgainst: mosseRestrictedAgainst || null,
-            mosseTargetingMode: mosseTargetingMode || null,
-            mosseTargetCount: safeParseInt(mosseTargetCount),
-            modifiedBy: userEmail
-          })
-          .returning();
-        modification = result[0];
-      }
+      // Upsert modification using JSON storage
+      const modification = jsonStorage.cardModifications.upsert(originalCardId, {
+        deckType,
+        name: name || null,
+        imageUrl: imageUrl || null,
+        pti: safeParseInt(pti),
+        stars: safeParseInt(stars),
+        effect: effect || null,
+        audioUrl: audioUrl || null,
+        youtubeUrl: youtubeUrl || null,
+        mosseDamageValue: safeParseInt(mosseDamageValue),
+        mosseDamageEffect: mosseDamageEffect || null,
+        mosseCharacterOverrides: mosseCharacterOverrides || null,
+        mosseRestrictedFrom: mosseRestrictedFrom || null,
+        mosseRestrictedAgainst: mosseRestrictedAgainst || null,
+        mosseTargetingMode: mosseTargetingMode || null,
+        mosseTargetCount: safeParseInt(mosseTargetCount),
+        modifiedBy: userEmail || null
+      });
       
       // Refresh card metadata in all active games so changes take effect immediately
       const refreshedGames = await gameManager.refreshCardMetadataForAllGames();
@@ -6556,45 +6499,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { originalCardId, deckType, isDeleted } = req.body;
 
-      // Check if modification exists
-      const existing = await db.select().from(cardModifications)
-        .where(eq(cardModifications.originalCardId, originalCardId));
-
-      if (existing.length > 0) {
-        // Update existing
-        const result = await db.update(cardModifications)
-          .set({
-            isDeleted: isDeleted,
-            modifiedBy: userEmail,
-            modifiedAt: new Date()
-          })
-          .where(eq(cardModifications.originalCardId, originalCardId))
-          .returning();
-        
-        res.json({ success: true, modification: result[0] });
-      } else {
-        // Insert new with just isDeleted flag
-        const result = await db.insert(cardModifications)
-          .values({
-            originalCardId,
-            deckType,
-            isDeleted: isDeleted,
-            modifiedBy: userEmail
-          })
-          .returning();
-        
-        res.json({ success: true, modification: result[0] });
-      }
+      // Upsert modification using JSON storage
+      const modification = jsonStorage.cardModifications.upsert(originalCardId, {
+        deckType,
+        isDeleted: isDeleted,
+        modifiedBy: userEmail || null
+      });
+      
+      res.json({ success: true, modification });
     } catch (error) {
       console.error('Error toggling card deletion:', error);
       res.status(500).json({ success: false, error: 'Failed to toggle deletion' });
     }
   });
 
-  // Get all card modifications (for game use)
+  // Get all card modifications (JSON storage)
   app.get('/api/card-modifications', async (req, res) => {
     try {
-      const modifications = await db.select().from(cardModifications);
+      const modifications = jsonStorage.cardModifications.getAll();
       res.json({ success: true, modifications });
     } catch (error) {
       console.error('Error fetching card modifications:', error);
@@ -7236,8 +7158,8 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         }
       });
 
-      // Get permanent custom cards from database
-      const permanentCards = await db.select().from(customCards);
+      // Get permanent custom cards from JSON storage
+      const permanentCards = jsonStorage.customCards.getAll();
       permanentCards.forEach(card => {
         if (card.name && !cardNames.carte_personalizzate.includes(card.name.toUpperCase())) {
           cardNames.carte_personalizzate.push(card.name.toUpperCase());
@@ -7256,11 +7178,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     }
   });
 
-  // Get all available card skins
+  // Get all available card skins (JSON storage)
   app.get('/api/card-skins', async (req, res) => {
     try {
-      const skinsList = await db.select().from(cardSkins)
-        .where(eq(cardSkins.isAvailable, true));
+      const skinsList = jsonStorage.cardSkins.getAvailable();
       
       res.json({ success: true, skins: skinsList });
     } catch (error) {
@@ -7299,12 +7220,12 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         return res.status(404).json({ success: false, error: 'User not found' });
       }
       
-      const skin = await db.select().from(cardSkins).where(eq(cardSkins.id, skinId)).limit(1);
-      if (!skin.length) {
+      const skin = jsonStorage.cardSkins.getById(skinId);
+      if (!skin) {
         return res.status(404).json({ success: false, error: 'Skin not found' });
       }
       
-      if (currentUser[0].puntiRankiard < (skin[0].price || 0)) {
+      if (currentUser[0].puntiRankiard < (skin.price || 0)) {
         return res.status(400).json({ success: false, error: 'Not enough Rankiard points' });
       }
       
@@ -7317,7 +7238,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       
       // Deduct points and add skin
       await db.update(users)
-        .set({ puntiRankiard: currentUser[0].puntiRankiard - (skin[0].price || 0) })
+        .set({ puntiRankiard: currentUser[0].puntiRankiard - (skin.price || 0) })
         .where(eq(users.id, currentUser[0].id));
       
       await db.insert(playerSkins).values({
@@ -7378,7 +7299,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         return res.status(400).json({ success: false, error: 'Name is required' });
       }
 
-      const newSkin = await db.insert(cardSkins).values({
+      const newSkin = jsonStorage.cardSkins.create({
         name,
         cardName: cardName || null,
         cardType: cardType || null,
@@ -7387,13 +7308,15 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         skinPti: skinPti ? parseInt(skinPti) : null,
         skinStars: skinStars ? parseInt(skinStars) : null,
         borderStyle: borderStyle || null,
+        backgroundGradient: null,
+        frameImageUrl: null,
         glowColor: glowColor || null,
         rarity: rarity || 'common',
         price: price || 100,
         isAvailable: isAvailable !== false
-      }).returning();
+      });
 
-      res.json({ success: true, skin: newSkin[0] });
+      res.json({ success: true, skin: newSkin });
     } catch (error) {
       console.error('Error creating skin:', error);
       res.status(500).json({ success: false, error: 'Failed to create skin' });
@@ -7413,29 +7336,26 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
 
       const { name, cardName, cardType, description, skinImageUrl, skinPti, skinStars, rarity, price, borderStyle, glowColor, isAvailable } = req.body;
 
-      const updated = await db.update(cardSkins)
-        .set({
-          name,
-          cardName: cardName || null,
-          cardType: cardType || null,
-          description: description || null,
-          skinImageUrl: skinImageUrl || null,
-          skinPti: skinPti ? parseInt(skinPti) : null,
-          skinStars: skinStars ? parseInt(skinStars) : null,
-          borderStyle: borderStyle || null,
-          glowColor: glowColor || null,
-          rarity: rarity || 'common',
-          price: price || 100,
-          isAvailable: isAvailable !== false
-        })
-        .where(eq(cardSkins.id, skinId))
-        .returning();
+      const updated = jsonStorage.cardSkins.update(skinId, {
+        name,
+        cardName: cardName || null,
+        cardType: cardType || null,
+        description: description || null,
+        skinImageUrl: skinImageUrl || null,
+        skinPti: skinPti ? parseInt(skinPti) : null,
+        skinStars: skinStars ? parseInt(skinStars) : null,
+        borderStyle: borderStyle || null,
+        glowColor: glowColor || null,
+        rarity: rarity || 'common',
+        price: price || 100,
+        isAvailable: isAvailable !== false
+      });
 
-      if (!updated.length) {
+      if (!updated) {
         return res.status(404).json({ success: false, error: 'Skin not found' });
       }
 
-      res.json({ success: true, skin: updated[0] });
+      res.json({ success: true, skin: updated });
     } catch (error) {
       console.error('Error updating skin:', error);
       res.status(500).json({ success: false, error: 'Failed to update skin' });
@@ -7453,7 +7373,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         return res.status(403).json({ success: false, error: 'Admin access required' });
       }
 
-      await db.delete(cardSkins).where(eq(cardSkins.id, skinId));
+      jsonStorage.cardSkins.delete(skinId);
       res.json({ success: true });
     } catch (error) {
       console.error('Error deleting skin:', error);

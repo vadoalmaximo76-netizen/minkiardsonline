@@ -1,5 +1,4 @@
-import { db } from './db';
-import { personaggi } from '../shared/schema';
+import { jsonStorage } from './jsonStorage';
 
 export const personaggiCache = new Map<string, { pti: number | null, stars: number | null, name: string }>();
 export let personaggiCacheLoaded = false;
@@ -8,8 +7,8 @@ export async function loadPersonaggiCache(): Promise<void> {
   if (personaggiCacheLoaded) return;
   
   try {
-    console.log('📦 Loading PERSONAGGI cache from database...');
-    const allPersonaggi = await db.select().from(personaggi);
+    console.log('📦 Loading PERSONAGGI cache from JSON storage...');
+    const allPersonaggi = jsonStorage.personaggiCache.getAll();
     
     for (const p of allPersonaggi) {
       if (p.name) {
@@ -51,4 +50,12 @@ export function getPersonaggioFromCache(cardName: string): { pti: number | null,
 
 export function isCacheReady(): boolean {
   return personaggiCacheLoaded;
+}
+
+export function addToPersonaggiCache(name: string, pti: number | null, stars: number | null): void {
+  const normalizedName = name.toLowerCase().replace(/[-_]/g, ' ').trim();
+  personaggiCache.set(normalizedName, { pti, stars, name });
+  personaggiCache.set(name.toUpperCase(), { pti, stars, name });
+  
+  jsonStorage.personaggiCache.add({ name, pti, stars });
 }

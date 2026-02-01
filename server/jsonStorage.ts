@@ -340,6 +340,17 @@ export const jsonStorage = {
     
     add(data: Omit<PersonaggioCache, 'id'>): PersonaggioCache {
       const cache = this.getAll();
+      
+      // Check for existing entry to prevent duplicates
+      const existingIndex = cache.findIndex(p => p.name.toLowerCase() === data.name.toLowerCase());
+      if (existingIndex !== -1) {
+        // Update existing entry instead of adding duplicate
+        cache[existingIndex] = { ...cache[existingIndex], pti: data.pti, stars: data.stars };
+        writeJsonFile('personaggiCache', cache);
+        console.log(`[JSON] Updated existing cache entry: ${data.name}`);
+        return cache[existingIndex];
+      }
+      
       const newEntry: PersonaggioCache = {
         ...data,
         id: getNextId(cache)
