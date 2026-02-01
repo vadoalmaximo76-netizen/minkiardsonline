@@ -6286,7 +6286,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/custom-cards/:id', async (req, res) => {
     try {
       const cardId = parseInt(req.params.id);
-      const { name, pti, stars, effect, audioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect, mosseCharacterOverrides, mosseRestrictedFrom, mosseRestrictedAgainst } = req.body;
+      const { name, pti, stars, effect, audioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect, mosseCharacterOverrides, mosseRestrictedFrom, mosseRestrictedAgainst, mosseTargetingMode, mosseTargetCount } = req.body;
       
       if (isNaN(cardId)) {
         return res.status(400).json({ success: false, error: 'Invalid card ID' });
@@ -6325,6 +6325,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (mosseRestrictedAgainst !== undefined) {
         updateData.mosseRestrictedAgainst = mosseRestrictedAgainst || null;
+      }
+      if (mosseTargetingMode !== undefined) {
+        updateData.mosseTargetingMode = mosseTargetingMode || null;
+      }
+      if (mosseTargetCount !== undefined) {
+        updateData.mosseTargetCount = mosseTargetCount === null || mosseTargetCount === '' ? null : parseInt(mosseTargetCount);
       }
       
       if (Object.keys(updateData).length === 0) {
@@ -6436,6 +6442,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             mosseCharacterOverrides: mod?.mosseCharacterOverrides || null,
             mosseRestrictedFrom: mod?.mosseRestrictedFrom || null,
             mosseRestrictedAgainst: mod?.mosseRestrictedAgainst || null,
+            mosseTargetingMode: mod?.mosseTargetingMode || null,
+            mosseTargetCount: mod?.mosseTargetCount || null,
             isDeleted: mod?.isDeleted || false,
             isModified: !!mod
           });
@@ -6457,7 +6465,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ success: false, error: 'Unauthorized' });
       }
 
-      const { originalCardId, deckType, name, imageUrl, pti, stars, effect, audioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect, mosseCharacterOverrides, mosseRestrictedFrom, mosseRestrictedAgainst } = req.body;
+      const { originalCardId, deckType, name, imageUrl, pti, stars, effect, audioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect, mosseCharacterOverrides, mosseRestrictedFrom, mosseRestrictedAgainst, mosseTargetingMode, mosseTargetCount } = req.body;
 
       // Helper to safely parse integer values (handles NaN, empty strings, undefined)
       const safeParseInt = (value: any): number | null => {
@@ -6487,6 +6495,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             mosseCharacterOverrides: mosseCharacterOverrides || null,
             mosseRestrictedFrom: mosseRestrictedFrom || null,
             mosseRestrictedAgainst: mosseRestrictedAgainst || null,
+            mosseTargetingMode: mosseTargetingMode || null,
+            mosseTargetCount: safeParseInt(mosseTargetCount),
             modifiedBy: userEmail,
             modifiedAt: new Date()
           })
@@ -6511,6 +6521,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             mosseCharacterOverrides: mosseCharacterOverrides || null,
             mosseRestrictedFrom: mosseRestrictedFrom || null,
             mosseRestrictedAgainst: mosseRestrictedAgainst || null,
+            mosseTargetingMode: mosseTargetingMode || null,
+            mosseTargetCount: safeParseInt(mosseTargetCount),
             modifiedBy: userEmail
           })
           .returning();

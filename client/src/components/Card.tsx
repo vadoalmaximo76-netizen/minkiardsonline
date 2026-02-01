@@ -1212,7 +1212,64 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
               if (isAtaccoDisonesto) {
                 handleAttaccoDisonesto();
               } else {
-                // For regular MOSSE, open target selection panel
+                const mosseCard = card as any;
+                const targetingMode = mosseCard?.mosseTargetingMode;
+                
+                // Get all characters from field
+                const allCharacters = gameState?.field?.filter((c: any) => 
+                  (c.type === 'personaggi' || c.type === 'personaggi_speciali') && !c.isEliminated
+                ) || [];
+                const enemyCharacters = allCharacters.filter((c: any) => c.owner !== playerName);
+                
+                // Handle automatic targeting modes
+                if (targetingMode && allCharacters.length > 0) {
+                  let autoTargets: any[] = [];
+                  
+                  switch (targetingMode) {
+                    case 'single':
+                      // Random single enemy
+                      if (enemyCharacters.length > 0) {
+                        const randomIndex = Math.floor(Math.random() * enemyCharacters.length);
+                        autoTargets = [enemyCharacters[randomIndex]];
+                      }
+                      break;
+                    case 'highest_pti':
+                      // Enemy with highest PTI
+                      if (enemyCharacters.length > 0) {
+                        const sortedByPTI = [...enemyCharacters].sort((a, b) => {
+                          // Use numeric pti property if available, otherwise parse from text
+                          const aPTI = a.pti ?? parseInt((a.text || '').match(/PTI:\s*(\d+)/i)?.[1] || '0');
+                          const bPTI = b.pti ?? parseInt((b.text || '').match(/PTI:\s*(\d+)/i)?.[1] || '0');
+                          return bPTI - aPTI;
+                        });
+                        autoTargets = [sortedByPTI[0]];
+                      }
+                      break;
+                    case 'all_enemies':
+                      // All enemy characters
+                      autoTargets = enemyCharacters;
+                      break;
+                    case 'all_characters':
+                      // All characters including own
+                      autoTargets = allCharacters;
+                      break;
+                    case 'specific_count':
+                      // Specific number of enemies (even if less available)
+                      const count = mosseCard?.mosseTargetCount || 1;
+                      autoTargets = enemyCharacters.slice(0, count);
+                      break;
+                  }
+                  
+                  if (autoTargets.length > 0) {
+                    // Set the selected targets and mosse card, then open target panel with pre-selected targets
+                    setSelectedMosseCard(card);
+                    setSelectedTargets(autoTargets.map((t: any) => t.id));
+                    setShowAttackTargetSelect(true);
+                    return;
+                  }
+                }
+                
+                // For manual mode or if no targets found, open target selection panel
                 setSelectedMosseCard(card);
                 setSelectedTargets([]);
                 setShowAttackTargetSelect(true);

@@ -110,6 +110,8 @@ interface Card {
   mosseCharacterOverrides?: any[] | null; // Character-specific damage/effects [{characterId, characterName, usedBy: {damageValue, effect}, usedOn: {damageValue, effect}}]
   mosseRestrictedFrom?: string[] | null; // Array of character names that cannot use this move
   mosseRestrictedAgainst?: string[] | null; // Array of character names that this move cannot be used on
+  mosseTargetingMode?: string | null; // 'single', 'highest_pti', 'all_enemies', 'all_characters', 'specific_count', null=manual
+  mosseTargetCount?: number | null; // Number of targets when mosseTargetingMode='specific_count'
 }
 
 interface Player {
@@ -546,6 +548,12 @@ export class GameManager {
     }
     if (mod.mosseRestrictedAgainst) {
       card.mosseRestrictedAgainst = mod.mosseRestrictedAgainst;
+    }
+    if (mod.mosseTargetingMode) {
+      card.mosseTargetingMode = mod.mosseTargetingMode;
+    }
+    if (mod.mosseTargetCount !== undefined && mod.mosseTargetCount !== null) {
+      card.mosseTargetCount = mod.mosseTargetCount;
     }
   }
 
@@ -11698,7 +11706,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   async addCustomCards(
     gameId: string, 
     deckType: string, 
-    cards: Array<{ name: string, data: string, pti: number | null, stars: number | null, effect?: string | null, audioUrl?: string | null, youtubeUrl?: string | null, isPermanent: boolean, mosseDamageValue?: number | null, mosseDamageEffect?: string | null, mosseCharacterOverrides?: any[] | null, mosseRestrictedFrom?: string[] | null, mosseRestrictedAgainst?: string[] | null }>,
+    cards: Array<{ name: string, data: string, pti: number | null, stars: number | null, effect?: string | null, audioUrl?: string | null, youtubeUrl?: string | null, isPermanent: boolean, mosseDamageValue?: number | null, mosseDamageEffect?: string | null, mosseCharacterOverrides?: any[] | null, mosseRestrictedFrom?: string[] | null, mosseRestrictedAgainst?: string[] | null, mosseTargetingMode?: string | null, mosseTargetCount?: number | null }>,
     playerName: string
   ): Promise<{ success: boolean }> {
     const game = this.games.get(gameId);
@@ -11735,7 +11743,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           mosseDamageEffect: deckType === 'mosse' ? cardData.mosseDamageEffect : null,
           mosseCharacterOverrides: deckType === 'mosse' ? cardData.mosseCharacterOverrides : null,
           mosseRestrictedFrom: deckType === 'mosse' ? cardData.mosseRestrictedFrom : null,
-          mosseRestrictedAgainst: deckType === 'mosse' ? cardData.mosseRestrictedAgainst : null
+          mosseRestrictedAgainst: deckType === 'mosse' ? cardData.mosseRestrictedAgainst : null,
+          mosseTargetingMode: deckType === 'mosse' ? cardData.mosseTargetingMode : null,
+          mosseTargetCount: deckType === 'mosse' ? cardData.mosseTargetCount : null
         };
         
         if (deckType === 'personaggi') {
@@ -11764,6 +11774,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               mosseCharacterOverrides: deckType === 'mosse' ? cardData.mosseCharacterOverrides : null,
               mosseRestrictedFrom: deckType === 'mosse' ? cardData.mosseRestrictedFrom : null,
               mosseRestrictedAgainst: deckType === 'mosse' ? cardData.mosseRestrictedAgainst : null,
+              mosseTargetingMode: deckType === 'mosse' ? cardData.mosseTargetingMode : null,
+              mosseTargetCount: deckType === 'mosse' ? cardData.mosseTargetCount : null,
               createdBy: playerName
             };
             await db.insert(customCards).values(customCardRecord);
