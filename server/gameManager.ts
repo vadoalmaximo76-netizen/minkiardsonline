@@ -104,6 +104,9 @@ interface Card {
   lockTurns?: number; // Turns remaining for lock
   isTrap?: boolean; // This card is a trap
   appliedSkinUrl?: string | null; // Custom skin URL applied to this card
+  // MOSSE damage auto-fill system
+  mosseDamageValue?: number | null; // Numeric PTI damage (multiplied by attacker's stars)
+  mosseDamageEffect?: string | null; // Special effect: 'death', 'halve_pti', 'zero_stars', 'set_5_pti', 'remove_1_star'
 }
 
 interface Player {
@@ -11669,7 +11672,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   async addCustomCards(
     gameId: string, 
     deckType: string, 
-    cards: Array<{ name: string, data: string, pti: number | null, stars: number | null, effect?: string | null, audioUrl?: string | null, youtubeUrl?: string | null, isPermanent: boolean }>,
+    cards: Array<{ name: string, data: string, pti: number | null, stars: number | null, effect?: string | null, audioUrl?: string | null, youtubeUrl?: string | null, isPermanent: boolean, mosseDamageValue?: number | null, mosseDamageEffect?: string | null }>,
     playerName: string
   ): Promise<{ success: boolean }> {
     const game = this.games.get(gameId);
@@ -11701,7 +11704,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           stars: isCharacterDeck ? cardData.stars : null,
           effect: cardData.effect || undefined,
           audioUrl: cardData.audioUrl || undefined,
-          youtubeUrl: cardData.youtubeUrl || undefined
+          youtubeUrl: cardData.youtubeUrl || undefined,
+          mosseDamageValue: deckType === 'mosse' ? cardData.mosseDamageValue : null,
+          mosseDamageEffect: deckType === 'mosse' ? cardData.mosseDamageEffect : null
         };
         
         if (deckType === 'personaggi') {
@@ -11725,6 +11730,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               effect: cardData.effect || null,
               audioUrl: cardData.audioUrl || null,
               youtubeUrl: cardData.youtubeUrl || null,
+              mosseDamageValue: deckType === 'mosse' ? cardData.mosseDamageValue : null,
+              mosseDamageEffect: deckType === 'mosse' ? cardData.mosseDamageEffect : null,
               createdBy: playerName
             };
             await db.insert(customCards).values(customCardRecord);

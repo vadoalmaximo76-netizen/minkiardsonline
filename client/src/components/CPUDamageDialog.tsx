@@ -38,6 +38,11 @@ interface CPUDamageRequest {
   attackerCharacter: CharacterData | null;
   defenderCharacter: CharacterData | null;
   isHandTarget?: boolean;  // NEW: True if attacking character in hand (ATTACCO DISONESTO)
+  // MOSSE damage auto-fill
+  mosseDamageValue?: number | null;
+  mosseDamageEffect?: string | null;
+  suggestedDamage?: number | null;
+  attackerStars?: number;
 }
 
 export const CPUDamageDialog: React.FC = () => {
@@ -65,7 +70,13 @@ export const CPUDamageDialog: React.FC = () => {
       if (request.gameCreator === playerName) {
         console.log('🤖 SHOWING CPU DAMAGE DIALOG!');
         setDamageRequest(request);
-        setDamageValue('');
+        // Auto-fill damage value if suggestedDamage is provided (including 0)
+        if (request.suggestedDamage !== null && request.suggestedDamage !== undefined) {
+          setDamageValue(request.suggestedDamage.toString());
+          console.log(`🎯 Auto-filled damage: ${request.suggestedDamage} (${request.mosseDamageValue} x ${request.attackerStars} stars)`);
+        } else {
+          setDamageValue('');
+        }
         setStarsToRemove('');
         setIsProcessing(false);
       } else {
@@ -230,6 +241,34 @@ export const CPUDamageDialog: React.FC = () => {
               </div>
             </div>
             
+            {/* MOSSE Damage Info - Show if pre-filled (including 0) */}
+            {damageRequest.mosseDamageValue !== null && damageRequest.mosseDamageValue !== undefined && (
+              <div className="bg-green-50 p-3 rounded-lg border-2 border-green-300 mb-4">
+                <div className="flex items-center justify-center gap-2 text-green-700 font-bold">
+                  <span>⚔️</span>
+                  <span>Danno pre-calcolato: {damageRequest.mosseDamageValue} PTI × {damageRequest.attackerStars || 1} stelle = {damageRequest.suggestedDamage} PTI</span>
+                </div>
+                <p className="text-center text-green-600 text-xs mt-1">Puoi modificare il valore prima di confermare</p>
+              </div>
+            )}
+            
+            {/* MOSSE Effect Info - Show if special effect */}
+            {damageRequest.mosseDamageEffect && (
+              <div className="bg-red-50 p-3 rounded-lg border-2 border-red-300 mb-4">
+                <div className="flex items-center justify-center gap-2 text-red-700 font-bold">
+                  <span>💀</span>
+                  <span>Effetto speciale: {
+                    damageRequest.mosseDamageEffect === 'death' ? 'Morte istantanea' :
+                    damageRequest.mosseDamageEffect === 'halve_pti' ? 'PTI dimezzati' :
+                    damageRequest.mosseDamageEffect === 'zero_stars' ? 'Manda a 0 stelle' :
+                    damageRequest.mosseDamageEffect === 'set_5_pti' ? 'Manda a 5 PTI' :
+                    damageRequest.mosseDamageEffect === 'remove_1_star' ? 'Elimina 1 stella' :
+                    damageRequest.mosseDamageEffect
+                  }</span>
+                </div>
+              </div>
+            )}
+            
             {/* Damage and Stars Input */}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-purple-50 p-4 rounded-lg border-2 border-purple-200">
@@ -246,7 +285,9 @@ export const CPUDamageDialog: React.FC = () => {
                     }
                   }}
                   placeholder="Es: 50, 100+50, 200*2"
-                  className="w-full px-4 py-3 text-center text-2xl font-bold border-2 border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className={`w-full px-4 py-3 text-center text-2xl font-bold border-2 rounded-lg focus:outline-none focus:ring-2 ${
+                    damageRequest.suggestedDamage !== null && damageRequest.suggestedDamage !== undefined ? 'border-green-400 bg-green-50 focus:ring-green-500' : 'border-purple-300 focus:ring-purple-500'
+                  }`}
                   autoFocus
                   disabled={isProcessing}
                 />

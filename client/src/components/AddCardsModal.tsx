@@ -703,6 +703,8 @@ interface UploadedCardData {
   audioUrl: string;
   youtubeUrl: string;
   isPermanent: boolean;
+  mosseDamageValue: number | null;
+  mosseDamageEffect: string | null;
 }
 
 interface PermanentCard {
@@ -715,6 +717,8 @@ interface PermanentCard {
   effect: string | null;
   audioUrl: string | null;
   youtubeUrl: string | null;
+  mosseDamageValue: number | null;
+  mosseDamageEffect: string | null;
   createdBy: string | null;
   createdAt: string;
 }
@@ -731,6 +735,8 @@ interface ExistingCard {
   effect: string | null;
   audioUrl: string | null;
   youtubeUrl: string | null;
+  mosseDamageValue: number | null;
+  mosseDamageEffect: string | null;
   isDeleted: boolean;
   isModified: boolean;
 }
@@ -742,7 +748,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   const [permanentCards, setPermanentCards] = useState<PermanentCard[]>([]);
   const [loadingPermanent, setLoadingPermanent] = useState(false);
   const [editingCard, setEditingCard] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', pti: '', stars: '', effect: '', audioUrl: '', youtubeUrl: '' });
+  const [editForm, setEditForm] = useState({ name: '', pti: '', stars: '', effect: '', audioUrl: '', youtubeUrl: '', mosseDamageValue: '', mosseDamageEffect: '' });
   const [activeTab, setActiveTab] = useState<'add' | 'manage' | 'existing'>('add');
   const { gameId, playerName } = useGameState();
   
@@ -750,7 +756,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   const [existingCards, setExistingCards] = useState<ExistingCard[]>([]);
   const [loadingExisting, setLoadingExisting] = useState(false);
   const [editingExistingCard, setEditingExistingCard] = useState<string | null>(null);
-  const [existingEditForm, setExistingEditForm] = useState({ name: '', imageUrl: '', pti: '', stars: '', effect: '', audioUrl: '', youtubeUrl: '' });
+  const [existingEditForm, setExistingEditForm] = useState({ name: '', imageUrl: '', pti: '', stars: '', effect: '', audioUrl: '', youtubeUrl: '', mosseDamageValue: '', mosseDamageEffect: '' });
   const [searchQuery, setSearchQuery] = useState('');
   
   // Effect Wizard state
@@ -1112,7 +1118,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       effect: '',
       audioUrl: '',
       youtubeUrl: '',
-      isPermanent: false
+      isPermanent: false,
+      mosseDamageValue: null,
+      mosseDamageEffect: null
     }));
     
     setUploadedCards(prev => [...prev, ...newCards]);
@@ -1168,7 +1176,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
             effect: card.effect.trim() || null,
             audioUrl: card.audioUrl.trim() || null,
             youtubeUrl: card.youtubeUrl.trim() || null,
-            isPermanent: card.isPermanent
+            isPermanent: card.isPermanent,
+            mosseDamageValue: selectedDeck === 'mosse' ? card.mosseDamageValue : null,
+            mosseDamageEffect: selectedDeck === 'mosse' ? card.mosseDamageEffect : null
           };
         })
       );
@@ -1198,7 +1208,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       stars: card.stars?.toString() || '',
       effect: card.effect || '',
       audioUrl: card.audioUrl || '',
-      youtubeUrl: card.youtubeUrl || ''
+      youtubeUrl: card.youtubeUrl || '',
+      mosseDamageValue: card.mosseDamageValue?.toString() || '',
+      mosseDamageEffect: card.mosseDamageEffect || ''
     });
   };
 
@@ -1213,7 +1225,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
           stars: editForm.stars ? parseInt(editForm.stars) : null,
           effect: editForm.effect || null,
           audioUrl: editForm.audioUrl || null,
-          youtubeUrl: editForm.youtubeUrl || null
+          youtubeUrl: editForm.youtubeUrl || null,
+          mosseDamageValue: editForm.mosseDamageValue ? parseInt(editForm.mosseDamageValue) : null,
+          mosseDamageEffect: editForm.mosseDamageEffect || null
         })
       });
       
@@ -1261,7 +1275,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       stars: card.stars?.toString() || '',
       effect: card.effect || '',
       audioUrl: card.audioUrl || '',
-      youtubeUrl: card.youtubeUrl || ''
+      youtubeUrl: card.youtubeUrl || '',
+      mosseDamageValue: card.mosseDamageValue?.toString() || '',
+      mosseDamageEffect: card.mosseDamageEffect || ''
     });
   };
 
@@ -1279,7 +1295,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
           stars: existingEditForm.stars || null,
           effect: existingEditForm.effect || null,
           audioUrl: existingEditForm.audioUrl || null,
-          youtubeUrl: existingEditForm.youtubeUrl || null
+          youtubeUrl: existingEditForm.youtubeUrl || null,
+          mosseDamageValue: existingEditForm.mosseDamageValue ? parseInt(existingEditForm.mosseDamageValue) : null,
+          mosseDamageEffect: existingEditForm.mosseDamageEffect || null
         })
       });
       
@@ -1570,6 +1588,48 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                             />
                           </div>
                           
+                          {/* MOSSE Damage Settings - Only for MOSSE cards */}
+                          {selectedDeck === 'mosse' && (
+                            <div className="p-3 bg-red-900/30 rounded-lg border border-red-500/50">
+                              <div className="text-red-400 text-sm font-bold mb-2 flex items-center gap-1">
+                                ⚔️ DANNO MOSSA (opzionale)
+                              </div>
+                              <p className="text-gray-400 text-xs mb-3">
+                                Imposta il danno che questa mossa infligge. Se impostato, il pannello di input danni verrà pre-compilato automaticamente.
+                              </p>
+                              
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label className="text-white text-xs mb-1 block">Danno PTI (numerico)</label>
+                                  <Input
+                                    type="number"
+                                    value={card.mosseDamageValue || ''}
+                                    onChange={(e) => updateCardData(index, 'mosseDamageValue', e.target.value ? parseInt(e.target.value) : null)}
+                                    placeholder="Es: 100"
+                                    className="bg-gray-600 text-white border-gray-500"
+                                  />
+                                  <p className="text-gray-500 text-xs mt-1">Sarà moltiplicato per le stelle dell'attaccante</p>
+                                </div>
+                                
+                                <div>
+                                  <label className="text-white text-xs mb-1 block">Effetto speciale</label>
+                                  <select
+                                    value={card.mosseDamageEffect || ''}
+                                    onChange={(e) => updateCardData(index, 'mosseDamageEffect', e.target.value || null)}
+                                    className="w-full bg-gray-600 text-white border border-gray-500 rounded px-2 py-2 text-sm"
+                                  >
+                                    <option value="">Nessun effetto</option>
+                                    <option value="death">💀 Morte istantanea</option>
+                                    <option value="halve_pti">➗ PTI dimezzati</option>
+                                    <option value="zero_stars">⭐ Manda a 0 stelle</option>
+                                    <option value="set_5_pti">5️⃣ Manda a 5 PTI</option>
+                                    <option value="remove_1_star">⭐ Elimina 1 stella</option>
+                                  </select>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
                           <div className="flex items-center gap-3">
                             <div 
                               className={`flex items-center gap-2 px-3 py-2 rounded cursor-pointer transition-colors ${
@@ -1728,6 +1788,41 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                                 className="bg-gray-600 text-white border-gray-500"
                               />
                             </div>
+                            
+                            {/* MOSSE Damage Settings */}
+                            {card.deckType === 'mosse' && (
+                              <div className="p-3 bg-red-900/30 rounded-lg border border-red-500/50">
+                                <div className="text-red-400 text-sm font-bold mb-2">⚔️ DANNO MOSSA</div>
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div>
+                                    <label className="text-white text-xs mb-1 block">Danno PTI</label>
+                                    <Input
+                                      type="number"
+                                      value={editForm.mosseDamageValue}
+                                      onChange={(e) => setEditForm(prev => ({ ...prev, mosseDamageValue: e.target.value }))}
+                                      placeholder="Es: 100"
+                                      className="bg-gray-600 text-white border-gray-500"
+                                    />
+                                    <p className="text-gray-500 text-xs mt-1">x stelle attaccante</p>
+                                  </div>
+                                  <div>
+                                    <label className="text-white text-xs mb-1 block">Effetto speciale</label>
+                                    <select
+                                      value={editForm.mosseDamageEffect}
+                                      onChange={(e) => setEditForm(prev => ({ ...prev, mosseDamageEffect: e.target.value }))}
+                                      className="w-full bg-gray-600 text-white border border-gray-500 rounded px-2 py-2 text-sm"
+                                    >
+                                      <option value="">Nessun effetto</option>
+                                      <option value="death">💀 Morte istantanea</option>
+                                      <option value="halve_pti">➗ PTI dimezzati</option>
+                                      <option value="zero_stars">⭐ 0 stelle</option>
+                                      <option value="set_5_pti">5️⃣ 5 PTI</option>
+                                      <option value="remove_1_star">⭐ -1 stella</option>
+                                    </select>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                             
                             <div className="flex gap-2">
                               <Button
@@ -1959,6 +2054,44 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                                 className="bg-gray-600 text-white border-gray-500"
                               />
                             </div>
+                            
+                            {/* MOSSE Damage Settings */}
+                            {card.deckType === 'mosse' && (
+                              <div className="p-3 bg-red-900/30 rounded-lg border border-red-500/50">
+                                <div className="text-red-400 text-sm font-bold mb-2">⚔️ DANNO MOSSA</div>
+                                <p className="text-gray-400 text-xs mb-3">
+                                  Imposta il danno che questa mossa infligge. Il pannello input danni verrà pre-compilato.
+                                </p>
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div>
+                                    <label className="text-white text-xs mb-1 block">Danno PTI (numerico)</label>
+                                    <Input
+                                      type="number"
+                                      value={existingEditForm.mosseDamageValue}
+                                      onChange={(e) => setExistingEditForm(prev => ({ ...prev, mosseDamageValue: e.target.value }))}
+                                      placeholder="Es: 100"
+                                      className="bg-gray-600 text-white border-gray-500"
+                                    />
+                                    <p className="text-gray-500 text-xs mt-1">Sarà moltiplicato per le stelle dell'attaccante</p>
+                                  </div>
+                                  <div>
+                                    <label className="text-white text-xs mb-1 block">Effetto speciale</label>
+                                    <select
+                                      value={existingEditForm.mosseDamageEffect}
+                                      onChange={(e) => setExistingEditForm(prev => ({ ...prev, mosseDamageEffect: e.target.value }))}
+                                      className="w-full bg-gray-600 text-white border border-gray-500 rounded px-2 py-2 text-sm"
+                                    >
+                                      <option value="">Nessun effetto</option>
+                                      <option value="death">💀 Morte istantanea</option>
+                                      <option value="halve_pti">➗ PTI dimezzati</option>
+                                      <option value="zero_stars">⭐ Manda a 0 stelle</option>
+                                      <option value="set_5_pti">5️⃣ Manda a 5 PTI</option>
+                                      <option value="remove_1_star">⭐ Elimina 1 stella</option>
+                                    </select>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                             
                             <div className="flex gap-2">
                               <Button

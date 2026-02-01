@@ -1916,6 +1916,13 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         console.log(`🎯 CPU ${this.playerName}: DEBUG - Defender card:`, defenderCard ? { id: defenderCard.id, image: !!defenderCard.frontImage } : 'NOT FOUND');
         console.log(`🎯 CPU ${this.playerName}: DEBUG - MOSSE card:`, mosseCard ? { id: mosseCard.id, image: !!mosseCard.frontImage } : 'NOT FOUND');
         
+        // Calculate suggested damage based on mosse card settings and attacker stars
+        const attackerStars = attackerCard?.stars || 1;
+        let suggestedDamage: number | null = null;
+        if (mosseCard?.mosseDamageValue) {
+          suggestedDamage = mosseCard.mosseDamageValue * attackerStars;
+        }
+        
         // Emit damage request event to the game creator
         this.socketEmitter.to(this.gameId).emit('cpu-damage-request', {
           cpuName: this.playerName,
@@ -1928,6 +1935,11 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           targetOwner: target.owner,
           gameCreator: gameCreator,
           timestamp: Date.now(),
+          // MOSSE damage auto-fill
+          mosseDamageValue: mosseCard?.mosseDamageValue || null,
+          mosseDamageEffect: mosseCard?.mosseDamageEffect || null,
+          suggestedDamage: suggestedDamage,
+          attackerStars: attackerStars,
           // Add complete character data
           attackerCharacter: attackerCard ? {
             id: attackerCard.id,
@@ -1966,6 +1978,13 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     
     console.log(`🎯 CPU ${this.playerName}: ATOMIC ATTACK EMISSION - card ${mosseCard.id} to ${target.name}${isHandTarget ? ' (HAND TARGET)' : ''}`);
     
+    // Calculate suggested damage based on mosse card settings and attacker stars
+    const attackerStars = attackerCard?.stars || 1;
+    let suggestedDamage: number | null = null;
+    if (mosseCard.mosseDamageValue) {
+      suggestedDamage = mosseCard.mosseDamageValue * attackerStars;
+    }
+    
     // Emit damage request event ATOMICALLY with card play
     this.socketEmitter.to(this.gameId).emit('cpu-damage-request', {
       cpuName: this.playerName,
@@ -1979,6 +1998,11 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       gameCreator: gameCreator,
       timestamp: Date.now(),
       isHandTarget: isHandTarget,  // NEW: Flag for ATTACCO DISONESTO
+      // MOSSE damage auto-fill
+      mosseDamageValue: mosseCard.mosseDamageValue || null,
+      mosseDamageEffect: mosseCard.mosseDamageEffect || null,
+      suggestedDamage: suggestedDamage,
+      attackerStars: attackerStars,
       attackerCharacter: attackerCard ? {
         id: attackerCard.id,
         name: this.getCardNameFromUrl(attackerCard.frontImage),

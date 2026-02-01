@@ -60,6 +60,8 @@ export const customCards = pgTable("custom_cards", {
   effect: text("effect"), // AI-processed effect description (not shown on card)
   audioUrl: text("audio_url"), // URL or base64 audio to play when card is played
   youtubeUrl: text("youtube_url"), // YouTube video URL to show when card is played
+  mosseDamageValue: integer("mosse_damage_value"), // Numeric PTI damage for MOSSE cards (multiplied by attacker's stars)
+  mosseDamageEffect: text("mosse_damage_effect"), // Special effect: 'death', 'halve_pti', 'zero_stars', 'set_5_pti', 'remove_1_star', 'other'
   createdBy: text("created_by"), // Player name who created the card
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -75,6 +77,8 @@ export const cardModifications = pgTable("card_modifications", {
   effect: text("effect"), // AI-processed effect description
   audioUrl: text("audio_url"), // URL or base64 audio to play when card is played
   youtubeUrl: text("youtube_url"), // YouTube video URL to show when card is played
+  mosseDamageValue: integer("mosse_damage_value"), // Numeric PTI damage for MOSSE cards (multiplied by attacker's stars)
+  mosseDamageEffect: text("mosse_damage_effect"), // Special effect: 'death', 'halve_pti', 'zero_stars', 'set_5_pti', 'remove_1_star', 'other'
   isDeleted: boolean("is_deleted").default(false), // Hide card from game
   modifiedBy: text("modified_by"), // Admin email who modified
   modifiedAt: timestamp("modified_at").notNull().defaultNow(),
@@ -116,6 +120,8 @@ export const insertCustomCardSchema = createInsertSchema(customCards).pick({
   effect: true,
   audioUrl: true,
   youtubeUrl: true,
+  mosseDamageValue: true,
+  mosseDamageEffect: true,
   createdBy: true,
 });
 

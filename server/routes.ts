@@ -5308,6 +5308,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           // Find the game creator (first human player)
                           const gameCreator = gameManager.getGameCreator(gameId);
                           
+                          // Calculate suggested damage based on mosse card settings and attacker stars
+                          const attackerStars = cpuCharacter?.stars || 1;
+                          let suggestedDamage: number | null = null;
+                          const mosseCard = result.card!;
+                          if ((mosseCard as any).mosseDamageValue) {
+                            suggestedDamage = (mosseCard as any).mosseDamageValue * attackerStars;
+                          }
+                          
                           io.to(gameId).emit('cpu-damage-request', {
                             cpuName: nextPlayer,
                             cpuCharacterName: cpuCharacter ? getMosseName(cpuCharacter.frontImage) : nextPlayer,
@@ -5319,6 +5327,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                             targetOwner: targetCard.owner,
                             gameCreator: gameCreator || '',
                             timestamp: Date.now(),
+                            // MOSSE damage auto-fill
+                            mosseDamageValue: (mosseCard as any).mosseDamageValue || null,
+                            mosseDamageEffect: (mosseCard as any).mosseDamageEffect || null,
+                            suggestedDamage: suggestedDamage,
+                            attackerStars: attackerStars,
                             attackerCharacter: cpuCharacter ? {
                               id: cpuCharacter.id,
                               name: getMosseName(cpuCharacter.frontImage),
@@ -5750,6 +5763,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                             // Find the game creator (first human player)
                             const gameCreator = gameManager.getGameCreator(gameId);
                             
+                            // Calculate suggested damage based on mosse card settings and attacker stars
+                            const attackerStarsFE = cpuCharacter?.stars || 1;
+                            let suggestedDamageFE: number | null = null;
+                            const mosseCardFE = playResult.card!;
+                            if ((mosseCardFE as any).mosseDamageValue) {
+                              suggestedDamageFE = (mosseCardFE as any).mosseDamageValue * attackerStarsFE;
+                            }
+                            
                             io.to(gameId).emit('cpu-damage-request', {
                               cpuName: nextPlayer,
                               cpuCharacterName: cpuCharacter ? getMosseNameFE(cpuCharacter.frontImage) : nextPlayer,
@@ -5761,6 +5782,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                               targetOwner: targetCard.owner,
                               gameCreator: gameCreator || '',
                               timestamp: Date.now(),
+                              // MOSSE damage auto-fill
+                              mosseDamageValue: (mosseCardFE as any).mosseDamageValue || null,
+                              mosseDamageEffect: (mosseCardFE as any).mosseDamageEffect || null,
+                              suggestedDamage: suggestedDamageFE,
+                              attackerStars: attackerStarsFE,
                               attackerCharacter: cpuCharacter ? {
                                 id: cpuCharacter.id,
                                 name: getMosseNameFE(cpuCharacter.frontImage),
@@ -6205,7 +6231,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/custom-cards/:id', async (req, res) => {
     try {
       const cardId = parseInt(req.params.id);
-      const { name, pti, stars, effect } = req.body;
+      const { name, pti, stars, effect, audioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect } = req.body;
       
       if (isNaN(cardId)) {
         return res.status(400).json({ success: false, error: 'Invalid card ID' });
@@ -6223,6 +6249,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (effect !== undefined) {
         updateData.effect = effect || null;
+      }
+      if (audioUrl !== undefined) {
+        updateData.audioUrl = audioUrl || null;
+      }
+      if (youtubeUrl !== undefined) {
+        updateData.youtubeUrl = youtubeUrl || null;
+      }
+      if (mosseDamageValue !== undefined) {
+        updateData.mosseDamageValue = mosseDamageValue === null || mosseDamageValue === '' ? null : parseInt(mosseDamageValue);
+      }
+      if (mosseDamageEffect !== undefined) {
+        updateData.mosseDamageEffect = mosseDamageEffect || null;
       }
       
       if (Object.keys(updateData).length === 0) {
@@ -6350,7 +6388,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ success: false, error: 'Unauthorized' });
       }
 
-      const { originalCardId, deckType, name, imageUrl, pti, stars, effect, audioUrl, youtubeUrl } = req.body;
+      const { originalCardId, deckType, name, imageUrl, pti, stars, effect, audioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect } = req.body;
 
       // Helper to safely parse integer values (handles NaN, empty strings, undefined)
       const safeParseInt = (value: any): number | null => {
@@ -6375,6 +6413,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             effect: effect || null,
             audioUrl: audioUrl || null,
             youtubeUrl: youtubeUrl || null,
+            mosseDamageValue: safeParseInt(mosseDamageValue),
+            mosseDamageEffect: mosseDamageEffect || null,
             modifiedBy: userEmail,
             modifiedAt: new Date()
           })
@@ -6394,6 +6434,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             effect: effect || null,
             audioUrl: audioUrl || null,
             youtubeUrl: youtubeUrl || null,
+            mosseDamageValue: safeParseInt(mosseDamageValue),
+            mosseDamageEffect: mosseDamageEffect || null,
             modifiedBy: userEmail
           })
           .returning();
