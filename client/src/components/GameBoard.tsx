@@ -1304,9 +1304,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       setVictoryPlayer(winner);
       setVictoryDialogOpen(true);
       setTimeout(() => setShowInterstitialAd(true), 3000);
-      // Clear session when game ends so we don't try to rejoin a finished game
-      clearSession();
-      onLeaveGame?.();
+      // Note: clearSession and onLeaveGame are called when user closes victory dialog
     };
 
     const handleFusionError = ({ message }: { message: string }) => {
@@ -1565,7 +1563,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               VINCE LA PARTITA!
             </h3>
             <Button
-              onClick={() => setVictoryDialogOpen(false)}
+              onClick={() => {
+                setVictoryDialogOpen(false);
+                // Clear session when user acknowledges victory
+                clearSession();
+                onLeaveGame?.();
+              }}
               className="btn-neon-yellow text-white font-bold py-2 px-6"
             >
               Chiudi

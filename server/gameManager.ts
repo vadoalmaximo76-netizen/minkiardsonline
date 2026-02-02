@@ -4741,6 +4741,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           const newStars = Math.floor(oldStars / 2);
           const currentPti = target.pti || this.extractPTIFromNote(target.text || '');
           target.text = `PTI: ${currentPti} | Stelle: ${newStars}`;
+          target.stars = newStars; // CRITICAL: Also update .stars property for damage calculations
           console.log(`⭐➗ HALVE STARS: ${target.name} ${oldStars} → ${newStars}`);
         }
         break;
@@ -4770,6 +4771,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           const newStars = oldStars * 2;
           const currentPti = target.pti || this.extractPTIFromNote(target.text || '');
           target.text = `PTI: ${currentPti} | Stelle: ${newStars}`;
+          target.stars = newStars; // CRITICAL: Also update .stars property for damage calculations
           console.log(`⭐✖️ DOUBLE STARS: ${target.name} ${oldStars} → ${newStars}`);
         }
         break;
@@ -4794,6 +4796,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           const newStars = currentStars + halfStars;
           const currentPti = addHalfStarsChar.pti || this.extractPTIFromNote(addHalfStarsChar.text || '');
           addHalfStarsChar.text = `PTI: ${currentPti} | Stelle: ${newStars}`;
+          addHalfStarsChar.stars = newStars; // CRITICAL: Also update .stars property for damage calculations
           console.log(`⭐➕ ADD HALF STARS: ${addHalfStarsChar.name} ${currentStars} + ${halfStars} = ${newStars}`);
         }
         break;
@@ -4807,6 +4810,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           const oldStars = this.extractStarsFromNote(target.text || '');
           const currentPti = target.pti || this.extractPTIFromNote(target.text || '');
           target.text = `PTI: ${currentPti} | Stelle: 0`;
+          target.stars = 0; // CRITICAL: Also update .stars property for damage calculations
           console.log(`⭐0️⃣ ZERO STARS: ${target.name} ${oldStars} → 0`);
         }
         break;
@@ -11544,6 +11548,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const card = cards.find(c => c.id === cardId);
       if (card) {
         card.text = text;
+        // CRITICAL: Sync .stars property from text to ensure damage calculations use current stars
+        const starsMatch = text.match(/[Ss]telle:\s*(-?\d+)/i);
+        if (starsMatch) {
+          card.stars = parseInt(starsMatch[1]);
+        }
         
         // If this card is part of a fusion, update all fused cards
         if (card.isFused && card.fusionLeader) {
@@ -14495,10 +14504,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           const handCardIndex = player.hand.findIndex((c: Card) => c.id === targetCardId);
           if (handCardIndex !== -1) {
             player.hand[handCardIndex].text = updatedNotes;
+            player.hand[handCardIndex].stars = newStars; // CRITICAL: Update .stars property
           }
         }
       } else {
         this.updateCardText(gameId, targetCardId, updatedNotes);
+        // CRITICAL: Also update .stars property on field card
+        const fieldCard = game?.field?.find((c: Card) => c.id === targetCardId);
+        if (fieldCard) fieldCard.stars = newStars;
       }
       
       console.log(`⭐ FURTO: ${targetOwner}'s ${targetCard.frontImage} lost ${damageValue} stars (stole ${starsToSteal}): ${currentStars} → ${newStars} Stelle`);
@@ -14526,6 +14539,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         } else {
           attackerUpdatedNotes = attackerUpdatedNotes ? `${attackerUpdatedNotes}\nStelle: ${attackerNewStars}` : `Stelle: ${attackerNewStars}`;
         }
+        // CRITICAL: Update attacker's .stars property
+        attackerCharacter.stars = attackerNewStars;
 
         // Handle PTI (if target dies)
         if (newStars < 0) {
@@ -14894,19 +14909,20 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     // STAR REMOVAL: Apply star damage if specified (including special effect star removal)
     let starsRemovedMessage = '';
+    let newStarsAfterRemoval: number | null = null;
     if (totalStarsToRemove > 0) {
       const currentStars = this.extractStarsFromNote(updatedNotes);
       const actualStarsRemoved = Math.min(totalStarsToRemove, currentStars);
-      const newStars = Math.max(0, currentStars - totalStarsToRemove);
-      updatedNotes = updatedNotes.replace(/Stelle:\s*\d+/i, `Stelle: ${newStars}`);
+      newStarsAfterRemoval = Math.max(0, currentStars - totalStarsToRemove);
+      updatedNotes = updatedNotes.replace(/Stelle:\s*\d+/i, `Stelle: ${newStarsAfterRemoval}`);
       
       // If no stars field exists, add it
       if (!updatedNotes.match(/Stelle:/i)) {
-        updatedNotes = `${updatedNotes} | Stelle: ${newStars}`;
+        updatedNotes = `${updatedNotes} | Stelle: ${newStarsAfterRemoval}`;
       }
       
-      starsRemovedMessage = ` | ⭐ Stelle: ${currentStars} → ${newStars}`;
-      console.log(`⭐ STAR REMOVAL: ${targetOwner}'s card lost ${actualStarsRemoved} stars: ${currentStars} → ${newStars}`);
+      starsRemovedMessage = ` | ⭐ Stelle: ${currentStars} → ${newStarsAfterRemoval}`;
+      console.log(`⭐ STAR REMOVAL: ${targetOwner}'s card lost ${actualStarsRemoved} stars: ${currentStars} → ${newStarsAfterRemoval}`);
     }
 
     // PRESERVE: Update the card in the game state (works for both hand and field)
@@ -14917,11 +14933,20 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const handCardIndex = player.hand.findIndex((c: Card) => c.id === targetCardId);
         if (handCardIndex !== -1) {
           player.hand[handCardIndex].text = updatedNotes;
+          // CRITICAL: Also update .stars property if stars were removed
+          if (newStarsAfterRemoval !== null) {
+            player.hand[handCardIndex].stars = newStarsAfterRemoval;
+          }
         }
       }
     } else {
       // For field targets, use existing method
       this.updateCardText(gameId, targetCardId, updatedNotes);
+      // CRITICAL: Also update .stars property on field card if stars were removed
+      if (newStarsAfterRemoval !== null) {
+        const fieldCard = game?.field?.find((c: Card) => c.id === targetCardId);
+        if (fieldCard) fieldCard.stars = newStarsAfterRemoval;
+      }
     }
     
     console.log(`${isHandTarget ? '🎯 ATTACCO DISONESTO: ' : ''}${targetOwner}'s ${targetCard.frontImage} took ${damageValue} damage: ${currentPTI} → ${newPTI} PTI${starsToRemove > 0 ? `, -${starsToRemove} stars` : ''}`);
