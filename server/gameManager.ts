@@ -13838,6 +13838,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       // Apply net damage to attacker's character (no star removal in counter-attacks)
       await this.processMosseDamage(gameId, defender, defenderTargetCardId, netDamage, defenderMosseCardId, io, false, false, false, false, 0);
 
+      // CRITICAL: Resolve CPU attacker's waiting state after counter-attack
+      const cpuInstance = game?.players[attacker]?.cpuInstance;
+      if (cpuInstance) {
+        cpuInstance.resolveAttack();
+        console.log(`🤖 CPU ${attacker} attack resolved after counter-attack (defender won)`);
+      }
+
       // Send game state update
       const updatedGameState = this.getSanitizedGameState(gameId);
       io.to(gameId).emit('game-state-update', updatedGameState);
@@ -13860,6 +13867,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       
       // Apply net damage to defender's character (no star removal in counter-attacks)
       await this.processMosseDamage(gameId, attacker, targetCardId, netDamage, mosseCardId, io, false, isHandTarget || false, false, false, 0);
+
+      // CRITICAL: Resolve CPU attacker's waiting state after counter-attack
+      const cpuInstanceAttacker = game?.players[attacker]?.cpuInstance;
+      if (cpuInstanceAttacker) {
+        cpuInstanceAttacker.resolveAttack();
+        console.log(`🤖 CPU ${attacker} attack resolved after counter-attack (attacker won)`);
+      }
 
       // Send game state update
       const updatedGameState = this.getSanitizedGameState(gameId);
@@ -13965,6 +13979,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         timestamp: Date.now()
       });
 
+      // CRITICAL: Resolve CPU attacker's waiting state after clash tie
+      const cpuInstanceTie = game?.players[attacker]?.cpuInstance;
+      if (cpuInstanceTie) {
+        cpuInstanceTie.resolveAttack();
+        console.log(`🤖 CPU ${attacker} attack resolved after clash tie`);
+      }
+
       game.activeClashBattle = undefined;
       const updatedGameState = this.getSanitizedGameState(gameId);
       io.to(gameId).emit('game-state-update', updatedGameState);
@@ -13994,6 +14015,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     // Apply full damage from winner (no star removal in clash battles)
     await this.processMosseDamage(gameId, winner, targetToHit, damageValue, winnerMosseCardId, io, false, false, false, false, 0);
+
+    // CRITICAL: Resolve CPU attacker's waiting state after clash ends
+    const cpuInstanceClash = game?.players[attacker]?.cpuInstance;
+    if (cpuInstanceClash) {
+      cpuInstanceClash.resolveAttack();
+      console.log(`🤖 CPU ${attacker} attack resolved after clash battle`);
+    }
 
     game.activeClashBattle = undefined;
     const updatedGameState = this.getSanitizedGameState(gameId);
