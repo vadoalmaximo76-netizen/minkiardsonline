@@ -148,16 +148,18 @@ const KeywordDescription: React.FC<{ text: string }> = ({ text }) => {
       const keywordMatch = keywords.find(k => k.toLowerCase() === part.toLowerCase());
       if (keywordMatch) {
         return (
-          <Tooltip key={i}>
-            <TooltipTrigger asChild>
-              <span className="text-yellow-400 font-bold cursor-help underline decoration-dotted decoration-yellow-400/50 hover:text-yellow-300 transition-colors">
-                {part}
-              </span>
-            </TooltipTrigger>
-            <TooltipContent className="hidden bg-slate-900 border-slate-700 text-white p-2 text-xs shadow-2xl">
-              {CARD_KEYWORDS[keywordMatch]}
-            </TooltipContent>
-          </Tooltip>
+          <TooltipProvider key={i}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-yellow-400 font-bold cursor-help underline decoration-dotted decoration-yellow-400/50 hover:text-yellow-300 transition-colors">
+                  {part}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="hidden bg-slate-900 border-slate-700 text-white p-2 text-xs shadow-2xl">
+                {CARD_KEYWORDS[keywordMatch]}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         );
       }
       return part;
