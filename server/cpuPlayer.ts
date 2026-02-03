@@ -2001,7 +2001,18 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     console.log(`🎯 CPU ${this.playerName}: ATOMIC ATTACK EMISSION - card ${mosseCard.id} to ${target.name}${isHandTarget ? ' (HAND TARGET)' : ''}`);
     
     // Calculate suggested damage based on mosse card settings and attacker stars
-    const attackerStars = attackerCard?.stars || 1;
+    // CRITICAL: Use current stars from .stars property OR parse from text as fallback
+    let attackerStars = attackerCard?.stars || 1;
+    if (attackerCard?.text) {
+      const starsMatch = attackerCard.text.match(/[Ss]telle[:\s]*(\d+)/i);
+      if (starsMatch) {
+        const textStars = parseInt(starsMatch[1]);
+        if (textStars !== attackerStars) {
+          console.log(`⚠️ CPU ${this.playerName}: Star mismatch! .stars=${attackerStars}, text=${textStars} - using text value`);
+          attackerStars = textStars;
+        }
+      }
+    }
     const attackerName = attackerCard ? this.getCardNameFromUrl(attackerCard.frontImage) : null;
     const targetName = target.name;
     

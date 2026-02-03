@@ -13693,6 +13693,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       timestamp: Date.now()
     });
 
+    // CRITICAL: Reset CPU's waitingForAttackResolution flag after defense resolution
+    if (game.players[attacker]?.isCPU && game.players[attacker]?.cpuInstance) {
+      const cpuInstance = game.players[attacker].cpuInstance;
+      cpuInstance.resolveAttack();
+      console.log(`🤖 CPU ${attacker} attack resolved after defense resolution`);
+    }
+
     console.log(`[DEFENSE-RESOLVE] Defense resolution completed`, {
       gameId, attackId, defends, resolveSource, attacker, defender, 
       timestamp: new Date().toISOString()

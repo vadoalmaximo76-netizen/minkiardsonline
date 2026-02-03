@@ -5297,7 +5297,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           const gameCreator = gameManager.getGameCreator(gameId);
                           
                           // Calculate suggested damage based on mosse card settings and attacker stars
-                          const attackerStars = cpuCharacter?.stars || 1;
+                          // CRITICAL: Use current stars from .stars property OR parse from text as fallback
+                          let attackerStars = cpuCharacter?.stars || 1;
+                          if (cpuCharacter?.text) {
+                            const starsMatch = cpuCharacter.text.match(/[Ss]telle[:\s]*(\d+)/i);
+                            if (starsMatch) {
+                              attackerStars = parseInt(starsMatch[1]);
+                            }
+                          }
                           let suggestedDamage: number | null = null;
                           const mosseCard = result.card!;
                           if ((mosseCard as any).mosseDamageValue) {
@@ -5752,7 +5759,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                             const gameCreator = gameManager.getGameCreator(gameId);
                             
                             // Calculate suggested damage based on mosse card settings and attacker stars
-                            const attackerStarsFE = cpuCharacter?.stars || 1;
+                            // CRITICAL: Use current stars from .stars property OR parse from text as fallback
+                            let attackerStarsFE = cpuCharacter?.stars || 1;
+                            if (cpuCharacter?.text) {
+                              const starsMatch = cpuCharacter.text.match(/[Ss]telle[:\s]*(\d+)/i);
+                              if (starsMatch) {
+                                attackerStarsFE = parseInt(starsMatch[1]);
+                              }
+                            }
                             let suggestedDamageFE: number | null = null;
                             const mosseCardFE = playResult.card!;
                             if ((mosseCardFE as any).mosseDamageValue) {
