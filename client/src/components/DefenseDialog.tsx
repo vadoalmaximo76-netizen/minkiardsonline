@@ -33,6 +33,9 @@ interface DefenseRequest {
   defenderCardImage?: string;
   attackerCardText?: string;
   defenderCardText?: string;
+  mosseCanBeCountered?: boolean;
+  mosseDamageValue?: number;
+  attackerStars?: number;
 }
 
 interface GameCard {
@@ -43,7 +46,13 @@ interface GameCard {
   backImage?: string;
   ppiValue?: number;
   starsValue?: number;
+  stars?: number;
   owner?: string;
+  mosseDamageValue?: number;
+  mosseCanCounter?: boolean;
+  mosseCanBeCountered?: boolean;
+  mosseRestrictedFrom?: string[];
+  mosseRestrictedAgainst?: string[];
 }
 
 const getCardName = (imageUrl: string) => {
@@ -75,8 +84,57 @@ export const DefenseDialog: React.FC = () => {
   // Get player's hand
   const playerHand: GameCard[] = gameState?.players?.[playerName]?.hand || [];
   
+  // Get defender's character (the one being attacked)
+  const defenderCharacter = (gameState?.field || []).find(
+    (card: any) => card.id === defenseRequest?.targetCardId
+  );
+  
+  // Get defender's current stars (parse from text if needed)
+  const getDefenderStars = (): number => {
+    if (!defenderCharacter) return 1;
+    let stars = defenderCharacter.stars || 1;
+    if (defenderCharacter.text) {
+      const starsMatch = defenderCharacter.text.match(/[Ss]telle[:\s]*(\d+)/i);
+      if (starsMatch) {
+        stars = parseInt(starsMatch[1]);
+      }
+    }
+    return stars;
+  };
+  
+  const defenderStars = getDefenderStars();
+  
   // Get MOSSE cards from player's hand for counter-attack
-  const mosseCards = playerHand.filter(card => card.type === 'mosse');
+  // CRITICAL: Counter-attack is ONLY allowed if the attacking MOSSE has mosseCanBeCountered = true
+  // AND the defender's MOSSE has mosseCanCounter = true AND counter damage >= attack damage
+  const canCounterAttack = defenseRequest?.mosseCanBeCountered === true;
+  
+  const mosseCards = playerHand.filter(card => {
+    if (card.type !== 'mosse') return false;
+    // Counter-attack is only possible if attack can be countered
+    if (!canCounterAttack) return false;
+    // Only show MOSSE that can counter (respingere)
+    return card.mosseCanCounter === true;
+  });
+  
+  // Calculate suggested counter damage for a given MOSSE card
+  const calculateCounterDamage = (mosseCard: GameCard): number | null => {
+    if (!mosseCard.mosseDamageValue) return null;
+    return mosseCard.mosseDamageValue * defenderStars;
+  };
+  
+  // Check if a counter MOSSE can successfully repel the attack
+  const canRepelAttack = (mosseCard: GameCard): boolean => {
+    if (!defenseRequest?.mosseCanBeCountered) return false;
+    if (!mosseCard.mosseCanCounter) return false;
+    const counterDamage = calculateCounterDamage(mosseCard);
+    if (counterDamage === null) return false;
+    return counterDamage >= defenseRequest.damageValue;
+  };
+  
+  // Get eligible MOSSE cards that can successfully repel the current attack
+  // (counter damage >= attack damage AND attack canBeCountered AND card canCounter)
+  const eligibleCounterCards = mosseCards.filter(card => canRepelAttack(card));
   
   // Get attacker's characters on field for counter-attack target
   const attackerName = defenseRequest?.attackerName || '';
@@ -137,11 +195,15 @@ export const DefenseDialog: React.FC = () => {
     return () => clearInterval(timer);
   }, [defenseRequest]);
 
-  const handleDefenseResponse = (defends: boolean, defenseCardId?: string) => {
+  const handleDefenseResponse = (
+    defends: boolean, 
+    defenseCardId?: string, 
+    counterOptions?: { counterAttack?: boolean; counterCardId?: string; counterDamage?: number }
+  ) => {
     if (!defenseRequest || isProcessing) return;
     
     setIsProcessing(true);
-    console.log(`🛡️ Sending defense response: ${defends ? 'DEFEND' : 'ACCEPT'}`, defenseCardId ? `with card ${defenseCardId}` : '');
+    console.log(`🛡️ Sending defense response: ${defends ? 'DEFEND' : 'ACCEPT'}`, defenseCardId ? `with card ${defenseCardId}` : '', counterOptions ? `(counter-attack: ${counterOptions.counterDamage} damage)` : '');
     
     // Play appropriate sound effect
     if (defends) {
@@ -162,7 +224,8 @@ export const DefenseDialog: React.FC = () => {
       gameId: defenseRequest.gameId,
       attackId: defenseRequest.attackId,
       defends,
-      defenseCardId
+      defenseCardId,
+      counterAttackOptions: counterOptions
     });
 
     // Close dialog after sending response
@@ -184,6 +247,13 @@ export const DefenseDialog: React.FC = () => {
       setSelectedMosseCard(card);
       setShowDefenseCardSelect(false);
       setShowCounterAttackFlow(true);
+      
+      // Auto-calculate and pre-fill counter damage if card has mosseDamageValue
+      const autoDamage = calculateCounterDamage(card);
+      if (autoDamage !== null) {
+        setCounterDamage(autoDamage.toString());
+        console.log(`🛡️ Auto-calculated counter damage: ${card.mosseDamageValue} × ${defenderStars} stelle = ${autoDamage}`);
+      }
     } else {
       // Regular defense with non-MOSSE card
       handleDefenseResponse(true, card.id);
@@ -232,6 +302,29 @@ export const DefenseDialog: React.FC = () => {
       return;
     }
     setShowTargetSelect(true);
+  };
+  
+  // NEW: Handle counter-attack that only repels (no target selection needed)
+  const handleRepelOnly = () => {
+    if (!defenseRequest || !selectedMosseCard || isProcessing) return;
+    
+    const damage = evaluateMathExpression(counterDamage);
+    if (damage === null || damage < 0) return;
+    
+    // Verify damage is sufficient to repel
+    if (damage < defenseRequest.damageValue) {
+      console.log('❌ Cannot repel: counter damage insufficient');
+      return;
+    }
+    
+    console.log(`⚔️ REPEL ATTACK: Using ${selectedMosseCard.id} with ${damage} counter damage to block ${defenseRequest.damageValue} attack damage`);
+    
+    // Use the defense response with counter-attack options
+    handleDefenseResponse(true, selectedMosseCard.id, {
+      counterAttack: true,
+      counterCardId: selectedMosseCard.id,
+      counterDamage: damage
+    });
   };
 
   const handleSelectCounterTarget = (targetCard: any) => {
@@ -454,22 +547,36 @@ export const DefenseDialog: React.FC = () => {
             />
           </div>
 
-          <div className="flex gap-2">
-            <Button
-              onClick={handleBackToMain}
-              className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2"
-            >
-              <ChevronLeft className="w-4 h-4 mr-1" />
-              ANNULLA
-            </Button>
-            <Button
-              onClick={handleCounterDamageSubmit}
-              disabled={!counterDamage || evaluateMathExpression(counterDamage) === null || (evaluateMathExpression(counterDamage) ?? -1) < 0}
-              className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2"
-            >
-              <Target className="w-4 h-4 mr-1" />
-              SCEGLI BERSAGLIO
-            </Button>
+          <div className="flex flex-col gap-2">
+            {/* Show RESPINGI SOLO button when counter damage >= attack damage and attack can be countered */}
+            {canCounterAttack && evaluateMathExpression(counterDamage) !== null && 
+             (evaluateMathExpression(counterDamage) ?? 0) >= defenseRequest.damageValue && (
+              <Button
+                onClick={handleRepelOnly}
+                disabled={isProcessing}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3"
+              >
+                <Shield className="w-5 h-5 mr-2" />
+                RESPINGI ATTACCO ({evaluateMathExpression(counterDamage)} vs {defenseRequest.damageValue})
+              </Button>
+            )}
+            <div className="flex gap-2">
+              <Button
+                onClick={handleBackToMain}
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2"
+              >
+                <ChevronLeft className="w-4 h-4 mr-1" />
+                ANNULLA
+              </Button>
+              <Button
+                onClick={handleCounterDamageSubmit}
+                disabled={!counterDamage || evaluateMathExpression(counterDamage) === null || (evaluateMathExpression(counterDamage) ?? -1) < 0}
+                className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2"
+              >
+                <Target className="w-4 h-4 mr-1" />
+                SCEGLI BERSAGLIO
+              </Button>
+            </div>
           </div>
         </div>
       </div>

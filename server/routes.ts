@@ -4440,7 +4440,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('defense:response', async ({ attackId, defends, gameId: clientGameId }) => {
+    socket.on('defense:response', async ({ attackId, defends, gameId: clientGameId, counterAttackOptions }: { 
+      attackId: string; 
+      defends: boolean; 
+      gameId?: string; 
+      counterAttackOptions?: { counterAttack?: boolean; counterCardId?: string; counterDamage?: number } 
+    }) => {
       const startTime = Date.now();
       const gameId = gameManager.getPlayerGameId(socket.id) || clientGameId;
       
@@ -4491,11 +4496,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[DEFENSE-RESPONSE] Processing authorized defense response`, {
         gameId, attackId, defends, defender: pendingDefense.defender, 
         attacker: pendingDefense.attacker, socketId: socket.id,
-        processingTime: Date.now() - startTime, timestamp: new Date().toISOString()
+        counterAttackOptions, processingTime: Date.now() - startTime, 
+        timestamp: new Date().toISOString()
       });
+      
+      // SECURITY: Validate counter-attack options if provided
+      let validatedCounterOptions: { counterAttack?: boolean; counterCardId?: string; counterDamage?: number } | undefined;
+      if (counterAttackOptions?.counterAttack && defends) {
+        // Validate that the attack can be countered (mosseCanBeCountered)
+        const attackCanBeCountered = (pendingDefense as any).mosseCanBeCountered === true;
+        if (!attackCanBeCountered) {
+          console.warn(`[DEFENSE-RESPONSE] Counter-attack rejected: attack cannot be countered`, {
+            gameId, attackId, timestamp: new Date().toISOString()
+          });
+          socket.emit('defense:error', { 
+            message: 'This attack cannot be countered', 
+            code: 'ATTACK_NOT_COUNTERABLE' 
+          });
+          return;
+        }
+        
+        // Validate defender's MOSSE has mosseCanCounter property
+        const counterCardId = counterAttackOptions.counterCardId;
+        if (counterCardId) {
+          const gameState = gameManager.getGameState(gameId);
+          const defenderPlayer = gameState?.players?.[pendingDefense.defender];
+          const counterCard = defenderPlayer?.hand?.find((c: any) => c.id === counterCardId);
+          if (!counterCard || counterCard.mosseCanCounter !== true) {
+            console.warn(`[DEFENSE-RESPONSE] Counter-attack rejected: MOSSE cannot counter`, {
+              gameId, attackId, counterCardId, timestamp: new Date().toISOString()
+            });
+            socket.emit('defense:error', { 
+              message: 'Your MOSSE cannot counter attacks', 
+              code: 'MOSSE_CANNOT_COUNTER' 
+            });
+            return;
+          }
+        }
+        
+        // Validate counter damage meets or exceeds attack damage
+        const attackDamage = pendingDefense.damage || 0;
+        const counterDamage = counterAttackOptions.counterDamage || 0;
+        if (counterDamage < attackDamage) {
+          console.warn(`[DEFENSE-RESPONSE] Counter-attack rejected: insufficient damage`, {
+            gameId, attackId, counterDamage, attackDamage, timestamp: new Date().toISOString()
+          });
+          socket.emit('defense:error', { 
+            message: `Counter damage (${counterDamage}) must be >= attack damage (${attackDamage})`, 
+            code: 'INSUFFICIENT_COUNTER_DAMAGE' 
+          });
+          return;
+        }
+        
+        validatedCounterOptions = counterAttackOptions;
+        console.log(`[DEFENSE-RESPONSE] Counter-attack validated`, {
+          gameId, attackId, counterDamage, attackDamage, timestamp: new Date().toISOString()
+        });
+      }
 
       // Process using enhanced GameManager method with 'client' resolve source
-      const success = await gameManager.processDefenseResponse(gameId, attackId, defends, io, 'client');
+      const success = await gameManager.processDefenseResponse(gameId, attackId, defends, io, 'client', validatedCounterOptions);
       
       if (!success) {
         console.warn(`[DEFENSE-RESPONSE] Failed to process defense response`, {
@@ -4524,6 +4584,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`⚔️ COUNTER-ATTACK received: ${defenderMosseCardId} with ${defenderDamage} damage`);
       
+      // SECURITY: Validate pending defense and eligibility
+      const pendingDefense = gameManager.getPendingDefense(gameId);
+      if (!pendingDefense || pendingDefense.attackId !== attackId) {
+        socket.emit('counter-attack:error', { message: 'Invalid or expired attack', code: 'INVALID_ATTACK' });
+        return;
+      }
+      
+      // Validate that the attack can be countered (mosseCanBeCountered)
+      const attackCanBeCountered = (pendingDefense as any).mosseCanBeCountered === true;
+      if (!attackCanBeCountered) {
+        console.warn(`[COUNTER-ATTACK] Counter rejected: attack cannot be countered`, { gameId, attackId });
+        socket.emit('counter-attack:error', { message: 'This attack cannot be countered', code: 'ATTACK_NOT_COUNTERABLE' });
+        return;
+      }
+      
       const result = await gameManager.processCounterAttack(
         gameId,
         attackId,
@@ -4534,7 +4609,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       if (!result.success) {
-        socket.emit('counter-attack:error', { message: 'Failed to process counter-attack' });
+        socket.emit('counter-attack:error', { 
+          message: result.error || 'Failed to process counter-attack',
+          code: result.error ? 'VALIDATION_FAILED' : 'PROCESSING_FAILED'
+        });
       }
     });
 
@@ -6283,7 +6361,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/custom-cards/:id', async (req, res) => {
     try {
       const cardId = parseInt(req.params.id);
-      const { name, imageData, pti, stars, effect, audioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect, mosseCharacterOverrides, mosseRestrictedFrom, mosseRestrictedAgainst, mosseTargetingMode, mosseTargetCount } = req.body;
+      const { name, imageData, pti, stars, effect, audioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect, mosseCharacterOverrides, mosseRestrictedFrom, mosseRestrictedAgainst, mosseTargetingMode, mosseTargetCount, mosseCanCounter, mosseCanBeCountered } = req.body;
       
       if (isNaN(cardId)) {
         return res.status(400).json({ success: false, error: 'Invalid card ID' });
@@ -6331,6 +6409,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (mosseTargetCount !== undefined) {
         updateData.mosseTargetCount = mosseTargetCount === null || mosseTargetCount === '' ? null : parseInt(mosseTargetCount);
+      }
+      if (mosseCanCounter !== undefined) {
+        updateData.mosseCanCounter = !!mosseCanCounter;
+      }
+      if (mosseCanBeCountered !== undefined) {
+        updateData.mosseCanBeCountered = !!mosseCanBeCountered;
       }
       
       if (Object.keys(updateData).length === 0) {
@@ -6439,6 +6523,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             mosseRestrictedAgainst: mod?.mosseRestrictedAgainst || null,
             mosseTargetingMode: mod?.mosseTargetingMode || null,
             mosseTargetCount: mod?.mosseTargetCount || null,
+            mosseCanCounter: mod?.mosseCanCounter || false,
+            mosseCanBeCountered: mod?.mosseCanBeCountered || false,
             isDeleted: mod?.isDeleted || false,
             isModified: !!mod
           });
@@ -6460,7 +6546,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ success: false, error: 'Unauthorized' });
       }
 
-      const { originalCardId, deckType, name, imageUrl, pti, stars, effect, audioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect, mosseCharacterOverrides, mosseRestrictedFrom, mosseRestrictedAgainst, mosseTargetingMode, mosseTargetCount } = req.body;
+      const { originalCardId, deckType, name, imageUrl, pti, stars, effect, audioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect, mosseCharacterOverrides, mosseRestrictedFrom, mosseRestrictedAgainst, mosseTargetingMode, mosseTargetCount, mosseCanCounter, mosseCanBeCountered } = req.body;
 
       // Helper to safely parse integer values (handles NaN, empty strings, undefined)
       const safeParseInt = (value: any): number | null => {
@@ -6486,6 +6572,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mosseRestrictedAgainst: mosseRestrictedAgainst || null,
         mosseTargetingMode: mosseTargetingMode || null,
         mosseTargetCount: safeParseInt(mosseTargetCount),
+        mosseCanCounter: !!mosseCanCounter,
+        mosseCanBeCountered: !!mosseCanBeCountered,
         modifiedBy: userEmail || null
       });
       

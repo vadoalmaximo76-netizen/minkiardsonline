@@ -67,6 +67,8 @@ export const customCards = pgTable("custom_cards", {
   mosseRestrictedAgainst: jsonb("mosse_restricted_against"), // JSON: array of character IDs/names that this move cannot be used on
   mosseTargetingMode: text("mosse_targeting_mode"), // 'single', 'highest_pti', 'all_enemies', 'all_characters', 'specific_count', null=manual
   mosseTargetCount: integer("mosse_target_count"), // Number of targets when mosseTargetingMode='specific_count'
+  mosseCanCounter: boolean("mosse_can_counter").default(false), // Can be used to counter attacks
+  mosseCanBeCountered: boolean("mosse_can_be_countered").default(false), // Can be countered by other moves
   createdBy: text("created_by"), // Player name who created the card
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -89,6 +91,8 @@ export const cardModifications = pgTable("card_modifications", {
   mosseRestrictedAgainst: jsonb("mosse_restricted_against"), // JSON: array of character IDs/names that this move cannot be used on
   mosseTargetingMode: text("mosse_targeting_mode"), // 'single', 'highest_pti', 'all_enemies', 'all_characters', 'specific_count', null=manual
   mosseTargetCount: integer("mosse_target_count"), // Number of targets when mosseTargetingMode='specific_count'
+  mosseCanCounter: boolean("mosse_can_counter").default(false), // Can be used to counter attacks
+  mosseCanBeCountered: boolean("mosse_can_be_countered").default(false), // Can be countered by other moves
   isDeleted: boolean("is_deleted").default(false), // Hide card from game
   modifiedBy: text("modified_by"), // Admin email who modified
   modifiedAt: timestamp("modified_at").notNull().defaultNow(),

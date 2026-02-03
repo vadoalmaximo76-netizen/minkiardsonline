@@ -718,6 +718,8 @@ interface UploadedCardData {
   mosseRestrictedAgainst: string[];
   mosseTargetingMode: string | null;
   mosseTargetCount: number | null;
+  mosseCanCounter: boolean;
+  mosseCanBeCountered: boolean;
 }
 
 interface PermanentCard {
@@ -737,6 +739,8 @@ interface PermanentCard {
   mosseRestrictedAgainst: string[] | null;
   mosseTargetingMode: string | null;
   mosseTargetCount: number | null;
+  mosseCanCounter: boolean | null;
+  mosseCanBeCountered: boolean | null;
   createdBy: string | null;
   createdAt: string;
 }
@@ -760,6 +764,8 @@ interface ExistingCard {
   mosseRestrictedAgainst: string[] | null;
   mosseTargetingMode: string | null;
   mosseTargetCount: number | null;
+  mosseCanCounter: boolean | null;
+  mosseCanBeCountered: boolean | null;
   isDeleted: boolean;
   isModified: boolean;
 }
@@ -778,7 +784,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     mosseRestrictedFrom: [] as string[],
     mosseRestrictedAgainst: [] as string[],
     mosseTargetingMode: '',
-    mosseTargetCount: ''
+    mosseTargetCount: '',
+    mosseCanCounter: false,
+    mosseCanBeCountered: false
   });
   const [activeTab, setActiveTab] = useState<'add' | 'manage' | 'existing'>('add');
   const { gameId, playerName } = useGameState();
@@ -794,7 +802,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     mosseRestrictedFrom: [] as string[],
     mosseRestrictedAgainst: [] as string[],
     mosseTargetingMode: '',
-    mosseTargetCount: ''
+    mosseTargetCount: '',
+    mosseCanCounter: false,
+    mosseCanBeCountered: false
   });
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -1185,7 +1195,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       mosseRestrictedFrom: [],
       mosseRestrictedAgainst: [],
       mosseTargetingMode: null,
-      mosseTargetCount: null
+      mosseTargetCount: null,
+      mosseCanCounter: false,
+      mosseCanBeCountered: false
     }));
     
     setUploadedCards(prev => [...prev, ...newCards]);
@@ -1248,7 +1260,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
             mosseRestrictedFrom: selectedDeck === 'mosse' ? card.mosseRestrictedFrom : null,
             mosseRestrictedAgainst: selectedDeck === 'mosse' ? card.mosseRestrictedAgainst : null,
             mosseTargetingMode: selectedDeck === 'mosse' ? card.mosseTargetingMode : null,
-            mosseTargetCount: selectedDeck === 'mosse' ? card.mosseTargetCount : null
+            mosseTargetCount: selectedDeck === 'mosse' ? card.mosseTargetCount : null,
+            mosseCanCounter: selectedDeck === 'mosse' ? card.mosseCanCounter : false,
+            mosseCanBeCountered: selectedDeck === 'mosse' ? card.mosseCanBeCountered : false
           };
         })
       );
@@ -1285,7 +1299,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       mosseRestrictedFrom: card.mosseRestrictedFrom || [],
       mosseRestrictedAgainst: card.mosseRestrictedAgainst || [],
       mosseTargetingMode: card.mosseTargetingMode || '',
-      mosseTargetCount: card.mosseTargetCount?.toString() || ''
+      mosseTargetCount: card.mosseTargetCount?.toString() || '',
+      mosseCanCounter: card.mosseCanCounter || false,
+      mosseCanBeCountered: card.mosseCanBeCountered || false
     });
   };
 
@@ -1307,7 +1323,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
           mosseRestrictedFrom: editForm.mosseRestrictedFrom.length > 0 ? editForm.mosseRestrictedFrom : null,
           mosseRestrictedAgainst: editForm.mosseRestrictedAgainst.length > 0 ? editForm.mosseRestrictedAgainst : null,
           mosseTargetingMode: editForm.mosseTargetingMode || null,
-          mosseTargetCount: editForm.mosseTargetCount ? parseInt(editForm.mosseTargetCount) : null
+          mosseTargetCount: editForm.mosseTargetCount ? parseInt(editForm.mosseTargetCount) : null,
+          mosseCanCounter: editForm.mosseCanCounter || false,
+          mosseCanBeCountered: editForm.mosseCanBeCountered || false
         })
       });
       
@@ -1362,7 +1380,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       mosseRestrictedFrom: card.mosseRestrictedFrom || [],
       mosseRestrictedAgainst: card.mosseRestrictedAgainst || [],
       mosseTargetingMode: card.mosseTargetingMode || '',
-      mosseTargetCount: card.mosseTargetCount?.toString() || ''
+      mosseTargetCount: card.mosseTargetCount?.toString() || '',
+      mosseCanCounter: card.mosseCanCounter || false,
+      mosseCanBeCountered: card.mosseCanBeCountered || false
     });
   };
 
@@ -1387,7 +1407,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
           mosseRestrictedFrom: existingEditForm.mosseRestrictedFrom.length > 0 ? existingEditForm.mosseRestrictedFrom : null,
           mosseRestrictedAgainst: existingEditForm.mosseRestrictedAgainst.length > 0 ? existingEditForm.mosseRestrictedAgainst : null,
           mosseTargetingMode: existingEditForm.mosseTargetingMode || null,
-          mosseTargetCount: existingEditForm.mosseTargetCount ? parseInt(existingEditForm.mosseTargetCount) : null
+          mosseTargetCount: existingEditForm.mosseTargetCount ? parseInt(existingEditForm.mosseTargetCount) : null,
+          mosseCanCounter: existingEditForm.mosseCanCounter || false,
+          mosseCanBeCountered: existingEditForm.mosseCanBeCountered || false
         })
       });
       
@@ -1715,6 +1737,42 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                                     <option value="set_5_pti">5️⃣ Manda a 5 PTI</option>
                                     <option value="remove_1_star">⭐ Elimina 1 stella</option>
                                   </select>
+                                </div>
+                              </div>
+                              
+                              {/* Counter Attack Settings */}
+                              <div className="mt-4 border-t border-red-500/30 pt-4">
+                                <div className="text-cyan-400 text-sm font-bold mb-2 flex items-center gap-1">
+                                  ↩️ SISTEMA RESPINTA
+                                </div>
+                                <p className="text-gray-400 text-xs mb-3">
+                                  Configura se questa mossa può essere usata per respingere attacchi o se può essere respinta.
+                                </p>
+                                
+                                <div className="space-y-3">
+                                  <div className="flex items-center gap-2">
+                                    <Checkbox
+                                      id={`can-counter-${index}`}
+                                      checked={card.mosseCanCounter || false}
+                                      onCheckedChange={(checked) => updateCardData(index, 'mosseCanCounter', !!checked)}
+                                    />
+                                    <label htmlFor={`can-counter-${index}`} className="text-white text-sm cursor-pointer">
+                                      Può respingere
+                                    </label>
+                                    <span className="text-gray-500 text-xs">(questa mossa può essere usata per respingere attacchi nemici)</span>
+                                  </div>
+                                  
+                                  <div className="flex items-center gap-2">
+                                    <Checkbox
+                                      id={`can-be-countered-${index}`}
+                                      checked={card.mosseCanBeCountered || false}
+                                      onCheckedChange={(checked) => updateCardData(index, 'mosseCanBeCountered', !!checked)}
+                                    />
+                                    <label htmlFor={`can-be-countered-${index}`} className="text-white text-sm cursor-pointer">
+                                      Può essere respinta
+                                    </label>
+                                    <span className="text-gray-500 text-xs">(questa mossa può essere respinta da altre mosse nemiche)</span>
+                                  </div>
                                 </div>
                               </div>
                               
@@ -2289,6 +2347,33 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                                   </div>
                                 </div>
                                 
+                                {/* Counter Attack Settings */}
+                                <div className="mt-3 border-t border-red-500/30 pt-3">
+                                  <div className="text-cyan-400 text-xs font-bold mb-2">↩️ Sistema Respinta</div>
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                      <Checkbox
+                                        id="edit-can-counter"
+                                        checked={editForm.mosseCanCounter || false}
+                                        onCheckedChange={(checked) => setEditForm(prev => ({ ...prev, mosseCanCounter: !!checked }))}
+                                      />
+                                      <label htmlFor="edit-can-counter" className="text-white text-xs cursor-pointer">
+                                        Può respingere
+                                      </label>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Checkbox
+                                        id="edit-can-be-countered"
+                                        checked={editForm.mosseCanBeCountered || false}
+                                        onCheckedChange={(checked) => setEditForm(prev => ({ ...prev, mosseCanBeCountered: !!checked }))}
+                                      />
+                                      <label htmlFor="edit-can-be-countered" className="text-white text-xs cursor-pointer">
+                                        Può essere respinta
+                                      </label>
+                                    </div>
+                                  </div>
+                                </div>
+                                
                                 {/* Restrictions */}
                                 <div className="mt-3 border-t border-red-500/30 pt-3">
                                   <div className="text-yellow-400 text-xs font-bold mb-2">🚫 Restrizioni</div>
@@ -2694,6 +2779,33 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                                         />
                                       </div>
                                     )}
+                                  </div>
+                                </div>
+                                
+                                {/* Counter Attack Settings */}
+                                <div className="mt-3 border-t border-red-500/30 pt-3">
+                                  <div className="text-cyan-400 text-xs font-bold mb-2">↩️ Sistema Respinta</div>
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                      <Checkbox
+                                        id="existing-can-counter"
+                                        checked={existingEditForm.mosseCanCounter || false}
+                                        onCheckedChange={(checked) => setExistingEditForm(prev => ({ ...prev, mosseCanCounter: !!checked }))}
+                                      />
+                                      <label htmlFor="existing-can-counter" className="text-white text-xs cursor-pointer">
+                                        Può respingere
+                                      </label>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Checkbox
+                                        id="existing-can-be-countered"
+                                        checked={existingEditForm.mosseCanBeCountered || false}
+                                        onCheckedChange={(checked) => setExistingEditForm(prev => ({ ...prev, mosseCanBeCountered: !!checked }))}
+                                      />
+                                      <label htmlFor="existing-can-be-countered" className="text-white text-xs cursor-pointer">
+                                        Può essere respinta
+                                      </label>
+                                    </div>
                                   </div>
                                 </div>
                                 

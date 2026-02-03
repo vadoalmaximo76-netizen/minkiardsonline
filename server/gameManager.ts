@@ -149,6 +149,9 @@ interface PendingDefense {
   starsToRemove?: number; // Stars to remove from target alongside PTI damage
   isFurtoAttack?: boolean; // Whether this is a FURTO attack
   mosseEffect?: string;   // Special effect like death, halve_pti, zero_stars, set_5_pti, remove_1_star
+  mosseCanBeCountered?: boolean; // Whether this attack can be countered (respinta)
+  mosseDamageValue?: number; // Base PTI damage of the attacking MOSSE (for auto-calc)
+  attackerStars?: number; // Attacker's current stars (for auto-calc)
   createdAt: Date;
   timeoutId?: NodeJS.Timeout;
 }
@@ -5910,6 +5913,16 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     // NEW: Interactive defense system - create pending defense request
     const attackId = `attack-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Get attacker's current stars for counter-attack calculation
+    let attackerStars = attackerCharacter.stars || 1;
+    if (attackerCharacter.text) {
+      const starsMatch = attackerCharacter.text.match(/[Ss]telle[:\s]*(\d+)/i);
+      if (starsMatch) {
+        attackerStars = parseInt(starsMatch[1]);
+      }
+    }
+    
     const defenseCreated = this.setPendingDefense(gameId, {
       attackId,
       attacker: attackerName,
@@ -5920,7 +5933,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       isHandTarget: isHandTarget as boolean, // NEW: Pass isHandTarget flag
       deckType: 'mosse',
       starsToRemove: starsToRemove || 0,
-      mosseEffect: mosseEffect || undefined
+      mosseEffect: mosseEffect || undefined,
+      mosseCanBeCountered: (mosseCard as any).mosseCanBeCountered ?? false,
+      mosseDamageValue: (mosseCard as any).mosseDamageValue ?? null,
+      attackerStars: attackerStars
     });
 
     if (!defenseCreated) {
@@ -13412,6 +13428,73 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // Debug: Log CPU hand to check card names
       console.log(`🤖 CPU ${pendingDefense.defender} hand:`, defender.hand.map((c: any) => ({ type: c.type, name: getCardName(c) })));
+      
+      // NEW: CPU COUNTER-ATTACK LOGIC - Check if attack can be countered with MOSSE
+      if ((pendingDefense as any).mosseCanBeCountered) {
+        console.log(`🤖 CPU ${pendingDefense.defender}: Attack CAN be countered - evaluating counter options`);
+        
+        // Get CPU's target card (the one being attacked) to calculate stars
+        const targetCard = game.field.find((c: any) => c.id === pendingDefense.targetCardId);
+        let defenderStars = targetCard?.stars || 1;
+        if (targetCard?.text) {
+          const starsMatch = targetCard.text.match(/[Ss]telle[:\s]*(\d+)/i);
+          if (starsMatch) {
+            defenderStars = parseInt(starsMatch[1]);
+          }
+        }
+        
+        // Find MOSSE cards in CPU hand that can counter (mosseCanCounter = true)
+        const counterMosseCards = defender.hand.filter((c: any) => {
+          return c.type === 'mosse' && c.mosseCanCounter === true;
+        });
+        
+        console.log(`🤖 CPU ${pendingDefense.defender}: Found ${counterMosseCards.length} counter MOSSE cards`);
+        
+        // Find the first counter MOSSE that meets damage requirement
+        const attackDamage = pendingDefense.damage || 0;
+        const eligibleCounterCard = counterMosseCards.find((card: any) => {
+          const mossePti = card.mosseDamageValue || 0;
+          const counterDamage = mossePti * defenderStars;
+          console.log(`🤖 Evaluating ${getCardName(card)}: PTI=${mossePti} × ${defenderStars} stelle = ${counterDamage} vs attack ${attackDamage}`);
+          return counterDamage >= attackDamage;
+        });
+        
+        if (eligibleCounterCard) {
+          const cardName = getCardName(eligibleCounterCard);
+          const mossePti = eligibleCounterCard.mosseDamageValue || 0;
+          const counterDamage = mossePti * defenderStars;
+          
+          console.log(`🤖 CPU ${pendingDefense.defender}: COUNTER-ATTACKING with ${cardName}! Damage: ${counterDamage}`);
+          
+          io.to(gameId).emit('chat-message', {
+            playerName: 'Sistema',
+            message: `🤖 ${pendingDefense.defender} (CPU) usa ${cardName} per RESPINGERE l'attacco con ${counterDamage} danni!`,
+            timestamp: Date.now()
+          });
+          
+          // Put the counter MOSSE card on the field
+          const cardToField = { ...eligibleCounterCard, owner: pendingDefense.defender, isFaceUp: true };
+          game.field.push(cardToField);
+          defender.hand = defender.hand.filter((c: any) => c.id !== eligibleCounterCard.id);
+          
+          // Emit game state update
+          const updatedGameState = this.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', updatedGameState);
+          
+          // Process defense with counter-attack info
+          setTimeout(async () => {
+            console.log(`🤖 CPU ${pendingDefense.defender}: Resolving COUNTER-ATTACK defense`);
+            await this.processDefenseResponse(gameId, pendingDefense.attackId, true, io, 'cpu', {
+              counterAttack: true,
+              counterCardId: eligibleCounterCard.id,
+              counterDamage: counterDamage
+            });
+          }, 1000);
+          
+          return true;
+        }
+        console.log(`🤖 CPU ${pendingDefense.defender}: No eligible counter MOSSE found (damage too low)`);
+      }
 
       const bonusInHand = defender.hand.find((c: any) => {
         if (c.type !== 'bonus') return false;
@@ -13505,7 +13588,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       attackerCardImage: attackerCard?.frontImage,
       defenderCardImage: defenderCard?.frontImage,
       attackerCardText: attackerCard?.text,
-      defenderCardText: defenderCard?.text
+      defenderCardText: defenderCard?.text,
+      mosseCanBeCountered: pendingDefense.mosseCanBeCountered ?? false,
+      mosseDamageValue: pendingDefense.mosseDamageValue ?? null,
+      attackerStars: pendingDefense.attackerStars ?? 1
     };
     
     console.log(`🛡️ DEFENSE REQUEST DATA:`, defenseRequestData);
@@ -13549,7 +13635,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   }
 
   // UNIFIED DEFENSE RESPONSE HANDLER: Processes defense responses and continues attack flow
-  async processDefenseResponse(gameId: string, attackId: string, defends: boolean, io: any, resolveSource: 'client' | 'cpu' | 'offline' | 'timeout' = 'client'): Promise<boolean> {
+  async processDefenseResponse(
+    gameId: string, 
+    attackId: string, 
+    defends: boolean, 
+    io: any, 
+    resolveSource: 'client' | 'cpu' | 'offline' | 'timeout' = 'client',
+    counterAttackOptions?: { counterAttack?: boolean; counterCardId?: string; counterDamage?: number }
+  ): Promise<boolean> {
     // PRODUCTION-READY: Enhanced validation and atomic guards
     const game = this.games.get(gameId);
     if (!game) {
@@ -13592,17 +13685,29 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     if (defends) {
       // DEFENSE SUCCESSFUL: Block attack and return MOSSE card
+      const isCounterAttack = counterAttackOptions?.counterAttack === true;
       console.log(`[DEFENSE-RESOLVE] Defense successful`, {
-        defender, attacker, attackId, resolveSource, timestamp: new Date().toISOString()
+        defender, attacker, attackId, resolveSource, isCounterAttack,
+        counterDamage: counterAttackOptions?.counterDamage,
+        timestamp: new Date().toISOString()
       });
 
       // Broadcast defense success with resolution source
-      io.to(gameId).emit('chat-message', {
-        id: `${Date.now()}-defense-success`,
-        playerName: 'Sistema',
-        message: `🛡️ ${defender} ha respinto l'attacco di ${attacker}! (${resolveSource})`,
-        timestamp: Date.now()
-      });
+      if (isCounterAttack && counterAttackOptions?.counterDamage) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-counter-attack-success`,
+          playerName: 'Sistema',
+          message: `⚔️ RESPINTA! ${defender} ha contrattaccato e respinto l'attacco di ${attacker} con ${counterAttackOptions.counterDamage} danni!`,
+          timestamp: Date.now()
+        });
+      } else {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-defense-success`,
+          playerName: 'Sistema',
+          message: `🛡️ ${defender} ha respinto l'attacco di ${attacker}! (${resolveSource})`,
+          timestamp: Date.now()
+        });
+      }
 
       // Return MOSSE card to deck bottom (push card by mosseCardId)
       console.log(`[DEFENSE-RESOLVE] Returning MOSSE card to deck bottom`, {
@@ -13716,15 +13821,35 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     defenderDamage: number,
     defenderTargetCardId: string, // Attacker's character that will receive counter damage
     io: any
-  ): Promise<{ success: boolean; result?: 'attacker_wins' | 'defender_wins' | 'clash'; netDamage?: number }> {
+  ): Promise<{ success: boolean; result?: 'attacker_wins' | 'defender_wins' | 'clash'; netDamage?: number; error?: string }> {
     const game = this.games.get(gameId);
-    if (!game) return { success: false };
+    if (!game) return { success: false, error: 'Game not found' };
 
     const pendingDefense = game.pendingDefense;
     if (!pendingDefense || pendingDefense.attackId !== attackId) {
       console.warn(`[COUNTER-ATTACK] No matching pending defense for ${attackId}`);
-      return { success: false };
+      return { success: false, error: 'Invalid or expired attack' };
     }
+    
+    // SECURITY: Validate counter-attack eligibility
+    const attackCanBeCountered = (pendingDefense as any).mosseCanBeCountered === true;
+    if (!attackCanBeCountered) {
+      console.warn(`[COUNTER-ATTACK] Attack cannot be countered: mosseCanBeCountered is false`);
+      return { success: false, error: 'This attack cannot be countered' };
+    }
+    
+    // Validate defender's MOSSE has mosseCanCounter
+    const defenderPlayer = game.players[pendingDefense.defender];
+    const defenderMosse = defenderPlayer?.hand?.find((c: any) => c.id === defenderMosseCardId);
+    if (!defenderMosse || defenderMosse.mosseCanCounter !== true) {
+      console.warn(`[COUNTER-ATTACK] Defender's MOSSE cannot counter: mosseCanCounter is false`);
+      return { success: false, error: 'Your MOSSE cannot counter attacks' };
+    }
+    
+    // Note: For targeted counter-attacks, we allow any damage value since the game mechanic
+    // handles damage comparison (clash, net damage, etc.). The counterDamage >= attackDamage
+    // validation is only enforced for the "repel only" flow through defense:response.
+    // This allows strategic counter-attacks even with lower damage (resulting in net damage to defender).
 
     // Clear timeout
     if (pendingDefense.timeoutId) {

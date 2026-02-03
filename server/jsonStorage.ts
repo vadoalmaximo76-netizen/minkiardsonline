@@ -20,6 +20,8 @@ interface CustomCard {
   mosseRestrictedAgainst: string[] | null;
   mosseTargetingMode: string | null;
   mosseTargetCount: number | null;
+  mosseCanCounter: boolean;
+  mosseCanBeCountered: boolean;
   createdBy: string | null;
   createdAt: string;
 }
@@ -42,6 +44,8 @@ interface CardModification {
   mosseRestrictedAgainst: string[] | null;
   mosseTargetingMode: string | null;
   mosseTargetCount: number | null;
+  mosseCanCounter: boolean;
+  mosseCanBeCountered: boolean;
   isDeleted: boolean;
   modifiedBy: string | null;
   modifiedAt: string;
@@ -280,6 +284,8 @@ export const jsonStorage = {
           mosseRestrictedAgainst: data.mosseRestrictedAgainst || null,
           mosseTargetingMode: data.mosseTargetingMode || null,
           mosseTargetCount: data.mosseTargetCount ?? null,
+          mosseCanCounter: data.mosseCanCounter ?? false,
+          mosseCanBeCountered: data.mosseCanBeCountered ?? false,
           isDeleted: data.isDeleted ?? false,
           modifiedBy: data.modifiedBy || null,
           modifiedAt: new Date().toISOString()
