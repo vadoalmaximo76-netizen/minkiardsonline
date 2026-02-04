@@ -155,11 +155,8 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
       badge: cacheReady ? 'Pronto' : (isCaching ? `${cacheProgress}%` : 'Da scaricare'),
       badgeIcon: Download,
       action: () => {
-        if (!cacheReady && !isCaching) {
-          cacheAllCards();
-        } else {
-          onNavigate('offline');
-        }
+        // Always navigate to offline mode - it works both online and offline
+        onNavigate('offline');
       }
     },
     ...(isAdmin ? [{
