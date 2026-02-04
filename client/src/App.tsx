@@ -557,16 +557,24 @@ function App() {
     );
   }
 
-  // Show Admin Panel - redirect to offline mode where AGGIUNGI button works
+  // Show Admin Panel - opens offline mode with AddCardsModal already open
   if (currentSection === 'admin') {
     if (authenticatedUser?.email !== 'lucaforte94@gmail.com') {
       setCurrentSection('home');
       return null;
     }
-    // Redirect to play mode - admin can use the AGGIUNGI button there
-    setCurrentSection('play');
-    setShowRoomDialog(true);
-    return null;
+    return (
+      <QueryClientProvider client={queryClient}>
+        <OfflineGameBoard 
+          playerName={playerName || authenticatedUser?.username || 'Admin'}
+          onBack={() => {
+            setCurrentSection('home');
+            window.history.pushState(null, '', window.location.origin);
+          }}
+          openAddCardsOnStart={true}
+        />
+      </QueryClientProvider>
+    );
   }
 
   // Show Room Dialog for Play section

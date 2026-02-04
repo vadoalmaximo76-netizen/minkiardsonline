@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, RefreshCw, Hand, Swords, Heart, Star, Trophy, Skull, Volume2, VolumeX } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Hand, Swords, Heart, Star, Trophy, Skull, Volume2, VolumeX, Plus } from 'lucide-react';
 import { 
   OfflineGameEngine, 
   OfflineGameState, 
@@ -12,13 +12,15 @@ import {
   isPlayerTurn
 } from '../lib/offlineGameEngine';
 import { executeCPUTurn } from '../lib/offlineCPU';
+import { AddCardsModal } from './AddCardsModal';
 
 interface OfflineGameBoardProps {
   playerName: string;
   onBack: () => void;
+  openAddCardsOnStart?: boolean;
 }
 
-export function OfflineGameBoard({ playerName, onBack }: OfflineGameBoardProps) {
+export function OfflineGameBoard({ playerName, onBack, openAddCardsOnStart = false }: OfflineGameBoardProps) {
   const [gameState, setGameState] = useState<OfflineGameState | null>(null);
   const [selectedCard, setSelectedCard] = useState<OfflineCard | null>(null);
   const [attackMode, setAttackMode] = useState(false);
@@ -26,6 +28,7 @@ export function OfflineGameBoard({ playerName, onBack }: OfflineGameBoardProps) 
   const [isProcessingCPU, setIsProcessingCPU] = useState(false);
   const [showDeckSelector, setShowDeckSelector] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [addCardsModalOpen, setAddCardsModalOpen] = useState(openAddCardsOnStart);
   const engineRef = useRef<OfflineGameEngine | null>(null);
 
   useEffect(() => {
@@ -402,7 +405,22 @@ export function OfflineGameBoard({ playerName, onBack }: OfflineGameBoardProps) 
             ))}
           </div>
         </div>
+
+        <div className="mt-4 flex justify-center">
+          <button
+            onClick={() => setAddCardsModalOpen(true)}
+            className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl text-white font-bold flex items-center gap-2 hover:scale-105 transition-transform shadow-lg"
+          >
+            <Plus size={20} />
+            AGGIUNGI
+          </button>
+        </div>
       </div>
+
+      <AddCardsModal
+        isOpen={addCardsModalOpen}
+        onClose={() => setAddCardsModalOpen(false)}
+      />
     </div>
   );
 }
