@@ -116,6 +116,7 @@ interface Card {
   // Counter-attack system
   mosseCanCounter?: boolean; // True if this MOSSE can be used to counter-attack
   mosseCanBeCountered?: boolean; // True if this MOSSE can be countered when used to attack
+  counterMosseOnField?: boolean; // True when MOSSE is temporarily on field after counter-attack
 }
 
 interface Player {
@@ -13714,6 +13715,82 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           timestamp: Date.now()
         });
         
+        // Add counter MOSSE to field temporarily (5 seconds)
+        const counterCardId = counterAttackOptions?.counterCardId;
+        if (counterCardId && game?.players?.[defender]) {
+          const defenderHand = game.players[defender].hand || [];
+          const counterCardIndex = defenderHand.findIndex((c: any) => c.id === counterCardId);
+          if (counterCardIndex >= 0) {
+            const counterCard = defenderHand[counterCardIndex];
+            counterCard.owner = defender;
+            counterCard.counterMosseOnField = true;
+            
+            // Remove from hand
+            game.players[defender].hand = defenderHand.filter((c: any) => c.id !== counterCardId);
+            
+            // Add to field
+            game.field.push(counterCard);
+            
+            console.log(`[COUNTER-MOSSE] ${defender}'s counter MOSSE ${counterCard.name || counterCardId} placed on field for 5 seconds`);
+            
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-counter-mosse-field`,
+              playerName: 'Sistema',
+              message: `🃏 ${counterCard.name || 'MOSSE'} di ${defender} è in campo per la respinta!`,
+              timestamp: Date.now()
+            });
+            
+            // Send updated game state to show card on field
+            io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+            
+            // Auto-draw replacement MOSSE for defender
+            const mosseDeck = game.decks?.mosse || [];
+            if (mosseDeck.length > 0) {
+              const drawnCard = mosseDeck.shift();
+              if (drawnCard) {
+                drawnCard.owner = defender;
+                game.players[defender].hand.push(drawnCard);
+                console.log(`[AUTO-DRAW] ${defender} drew replacement MOSSE: ${drawnCard.name || drawnCard.id}`);
+                
+                io.to(gameId).emit('chat-message', {
+                  id: `${Date.now()}-auto-draw-mosse`,
+                  playerName: 'Sistema',
+                  message: `🎴 ${defender} pesca automaticamente una nuova MOSSE!`,
+                  timestamp: Date.now()
+                });
+              }
+            }
+            
+            // Set timeout to return counter MOSSE to deck after 5 seconds
+            setTimeout(() => {
+              const currentGame = this.games.get(gameId);
+              if (currentGame) {
+                const cardOnField = currentGame.field.find((c: any) => c.id === counterCardId);
+                if (cardOnField) {
+                  // Remove from field
+                  currentGame.field = currentGame.field.filter((c: any) => c.id !== counterCardId);
+                  
+                  // Return to bottom of MOSSE deck
+                  (cardOnField as any).owner = undefined;
+                  (cardOnField as any).counterMosseOnField = undefined;
+                  currentGame.decks.mosse.push(cardOnField);
+                  
+                  console.log(`[COUNTER-MOSSE] ${cardOnField.name || counterCardId} returned to deck after 5 seconds`);
+                  
+                  io.to(gameId).emit('chat-message', {
+                    id: `${Date.now()}-counter-mosse-return`,
+                    playerName: 'Sistema',
+                    message: `📤 ${cardOnField.name || 'MOSSE'} torna nel mazzo dopo la respinta.`,
+                    timestamp: Date.now()
+                  });
+                  
+                  io.to(gameId).emit('game-state-update', this.getSanitizedGameState(gameId));
+                }
+              }
+            }, 5000);
+          }
+        }
+        
         // APPLY NET COUNTER DAMAGE to attacker's character (counter damage - attack damage)
         const attackerPlayer = game?.players?.[attacker];
         if (attackerPlayer) {
@@ -15475,17 +15552,29 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         io.to(gameId).emit('game-state-update', updatedGameState);
       }, 1000);
     } else {
-      // HUMAN MANUAL RETURN: Emit reminder after delay
-      setTimeout(() => {
-        io.to(gameId).emit('mosse-return-required', {
-          cardId: mosseCardId,
-          playerName: attackerName,
-          cardType: 'mosse',
-          message: `${attackerName} deve rimettere manualmente la carta MOSSE nel mazzo (in fondo)`
-        });
-      }, 2000);
+      // HUMAN AUTO-DRAW: Automatically draw replacement MOSSE card after attack
+      console.log(`🎴 ${attackerName}: Auto-drawing replacement MOSSE card after attack`);
       
-      console.log(`MOSSE card ${mosseCardId} used by ${attackerName} - awaiting manual return to deck bottom`);
+      const mosseDeck = game?.decks?.mosse || [];
+      if (mosseDeck.length > 0 && game?.players?.[attackerName]) {
+        const drawnCard = mosseDeck.shift();
+        if (drawnCard) {
+          drawnCard.owner = attackerName;
+          game.players[attackerName].hand.push(drawnCard);
+          console.log(`[AUTO-DRAW] ${attackerName} drew replacement MOSSE: ${drawnCard.name || drawnCard.id}`);
+          
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-auto-draw-mosse-attacker`,
+            playerName: 'Sistema',
+            message: `🎴 ${attackerName} pesca automaticamente una nuova MOSSE!`,
+            timestamp: Date.now()
+          });
+          
+          // Update game state to show new card
+          const updatedState = this.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', updatedState);
+        }
+      }
     }
   }
 
