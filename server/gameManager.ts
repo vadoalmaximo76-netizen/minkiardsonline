@@ -13718,25 +13718,40 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         // Add counter MOSSE to field temporarily (5 seconds)
         const counterCardId = counterAttackOptions?.counterCardId;
         if (counterCardId && game?.players?.[defender]) {
-          const defenderHand = game.players[defender].hand || [];
-          const counterCardIndex = defenderHand.findIndex((c: any) => c.id === counterCardId);
-          if (counterCardIndex >= 0) {
-            const counterCard = defenderHand[counterCardIndex];
-            counterCard.owner = defender;
-            counterCard.counterMosseOnField = true;
-            
-            // Remove from hand
-            game.players[defender].hand = defenderHand.filter((c: any) => c.id !== counterCardId);
-            
-            // Add to field
-            game.field.push(counterCard);
-            
-            console.log(`[COUNTER-MOSSE] ${defender}'s counter MOSSE ${counterCard.name || counterCardId} placed on field for 5 seconds`);
-            
+          // Check if card is already on field (CPU adds it before calling processDefenseResponse)
+          let counterCardOnField = game.field.find((c: any) => c.id === counterCardId);
+          let counterCardName = counterCardOnField?.name || counterCardId;
+          
+          if (!counterCardOnField) {
+            // Card is still in hand (human player case) - move it to field
+            const defenderHand = game.players[defender].hand || [];
+            const counterCardIndex = defenderHand.findIndex((c: any) => c.id === counterCardId);
+            if (counterCardIndex >= 0) {
+              const counterCard = defenderHand[counterCardIndex];
+              counterCard.owner = defender;
+              counterCard.counterMosseOnField = true;
+              counterCardName = counterCard.name || counterCardId;
+              
+              // Remove from hand
+              game.players[defender].hand = defenderHand.filter((c: any) => c.id !== counterCardId);
+              
+              // Add to field
+              game.field.push(counterCard);
+              counterCardOnField = counterCard;
+              
+              console.log(`[COUNTER-MOSSE] ${defender}'s counter MOSSE ${counterCardName} moved from hand to field for 5 seconds`);
+            }
+          } else {
+            // Card is already on field (CPU case) - just mark it
+            counterCardOnField.counterMosseOnField = true;
+            console.log(`[COUNTER-MOSSE] ${defender}'s counter MOSSE ${counterCardName} already on field - will return to deck in 5 seconds`);
+          }
+          
+          if (counterCardOnField) {
             io.to(gameId).emit('chat-message', {
               id: `${Date.now()}-counter-mosse-field`,
               playerName: 'Sistema',
-              message: `🃏 ${counterCard.name || 'MOSSE'} di ${defender} è in campo per la respinta!`,
+              message: `🃏 ${counterCardName} di ${defender} è in campo per la respinta!`,
               timestamp: Date.now()
             });
             
@@ -13765,22 +13780,22 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             setTimeout(() => {
               const currentGame = this.games.get(gameId);
               if (currentGame) {
-                const cardOnField = currentGame.field.find((c: any) => c.id === counterCardId);
-                if (cardOnField) {
+                const cardToReturn = currentGame.field.find((c: any) => c.id === counterCardId);
+                if (cardToReturn) {
                   // Remove from field
                   currentGame.field = currentGame.field.filter((c: any) => c.id !== counterCardId);
                   
                   // Return to bottom of MOSSE deck
-                  (cardOnField as any).owner = undefined;
-                  (cardOnField as any).counterMosseOnField = undefined;
-                  currentGame.decks.mosse.push(cardOnField);
+                  (cardToReturn as any).owner = undefined;
+                  (cardToReturn as any).counterMosseOnField = undefined;
+                  currentGame.decks.mosse.push(cardToReturn);
                   
-                  console.log(`[COUNTER-MOSSE] ${cardOnField.name || counterCardId} returned to deck after 5 seconds`);
+                  console.log(`[COUNTER-MOSSE] ${cardToReturn.name || counterCardId} returned to deck after 5 seconds`);
                   
                   io.to(gameId).emit('chat-message', {
                     id: `${Date.now()}-counter-mosse-return`,
                     playerName: 'Sistema',
-                    message: `📤 ${cardOnField.name || 'MOSSE'} torna nel mazzo dopo la respinta.`,
+                    message: `📤 ${cardToReturn.name || 'MOSSE'} torna nel mazzo dopo la respinta.`,
                     timestamp: Date.now()
                   });
                   
