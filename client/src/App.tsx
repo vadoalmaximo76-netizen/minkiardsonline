@@ -13,14 +13,13 @@ import { SpectatorView } from "./components/SpectatorView";
 import { ResetPasswordPage } from "./components/ResetPasswordPage";
 import { CardAdminPanel } from "./components/CardAdminPanel";
 import { UpdateNotification } from "./components/UpdateNotification";
-import { OfflineGameBoard } from "./components/OfflineGameBoard";
 import { useGameState } from "./lib/stores/useGameState";
 import { socket } from "./lib/socket";
 import { preloadCriticalImages } from "./lib/imagePreloader";
 import "@fontsource/inter";
 import "./index.css";
 
-type AppSection = 'home' | 'play' | 'training' | 'rooms' | 'profile' | 'spectator' | 'offline' | 'admin';
+type AppSection = 'home' | 'play' | 'training' | 'rooms' | 'profile' | 'spectator' | 'admin';
 
 function getResetPasswordToken(): string | null {
   const urlParams = new URLSearchParams(window.location.search);
@@ -377,7 +376,7 @@ function App() {
     }
   };
 
-  const handleNavigate = (section: 'play' | 'training' | 'rooms' | 'profile' | 'offline' | 'admin') => {
+  const handleNavigate = (section: 'play' | 'training' | 'rooms' | 'profile' | 'admin') => {
     if (section === 'play') {
       setShowRoomDialog(true);
     }
@@ -542,22 +541,7 @@ function App() {
     );
   }
 
-  // Show Offline Game Mode - uses local game engine (works without server)
-  if (currentSection === 'offline') {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <OfflineGameBoard 
-          playerName={playerName || authenticatedUser?.username || 'Giocatore'}
-          onBack={() => {
-            setCurrentSection('home');
-            window.history.pushState(null, '', window.location.origin);
-          }}
-        />
-      </QueryClientProvider>
-    );
-  }
-
-  // Show Admin Panel - opens offline mode with AddCardsModal already open
+  // Show Admin Panel - uses CardAdminPanel for card management
   if (currentSection === 'admin') {
     if (authenticatedUser?.email !== 'lucaforte94@gmail.com') {
       setCurrentSection('home');
@@ -565,13 +549,11 @@ function App() {
     }
     return (
       <QueryClientProvider client={queryClient}>
-        <OfflineGameBoard 
-          playerName={playerName || authenticatedUser?.username || 'Admin'}
+        <CardAdminPanel 
           onBack={() => {
             setCurrentSection('home');
             window.history.pushState(null, '', window.location.origin);
           }}
-          openAddCardsOnStart={true}
         />
       </QueryClientProvider>
     );
