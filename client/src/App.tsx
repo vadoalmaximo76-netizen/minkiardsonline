@@ -678,9 +678,11 @@ function App() {
             onLogout={handleLogout}
             authToken={localStorage.getItem('authToken')}
             onBack={() => {
+              // Only reset game-related state, keep player identity
+              setGameId('');
+              setShowRoomDialog(false);
               setCurrentSection('home');
-              clearSession(); // Clear all session data including localStorage
-              sessionRestoredRef.current = false; // Reset the ref so active-game-found can work again
+              sessionRestoredRef.current = false;
               window.history.pushState(null, '', window.location.origin);
             }}
             onLeaveGame={() => {
