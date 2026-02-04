@@ -92,7 +92,8 @@ const TUTORIAL_STEPS = [
 ];
 
 export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack, skipTutorial = false, isOfflineMode = false }: TrainingModeProps) {
-  const [gameStarted, setGameStarted] = useState(false);
+  // For offline mode, start the game immediately (no intro screen)
+  const [gameStarted, setGameStarted] = useState(isOfflineMode);
   const [currentTip, setCurrentTip] = useState<CardTip | null>(null);
   const [shownTips, setShownTips] = useState<Set<string>>(new Set());
   const [isAdmin, setIsAdmin] = useState(false);
@@ -216,6 +217,13 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack, 
       }, 1500);
     }
   }, [playerName, avatarId, userId, setGameId, setPlayerName, generateSessionId, shouldShowTutorial, isOfflineMode]);
+
+  // Auto-start game for offline mode (no intro screen)
+  useEffect(() => {
+    if (isOfflineMode && gameStarted && !trainingGameId) {
+      startTrainingGame();
+    }
+  }, [isOfflineMode, gameStarted, trainingGameId, startTrainingGame]);
 
   const addCpuPlayer = useCallback(() => {
     if (!trainingGameId || addingCpu || cpuAdded) return;
