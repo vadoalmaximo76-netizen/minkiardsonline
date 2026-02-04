@@ -13,6 +13,7 @@ import { SpectatorView } from "./components/SpectatorView";
 import { ResetPasswordPage } from "./components/ResetPasswordPage";
 import { CardAdminPanel } from "./components/CardAdminPanel";
 import { UpdateNotification } from "./components/UpdateNotification";
+import { OfflineGameBoard } from "./components/OfflineGameBoard";
 import { useGameState } from "./lib/stores/useGameState";
 import { socket } from "./lib/socket";
 import { preloadCriticalImages } from "./lib/imagePreloader";
@@ -261,28 +262,6 @@ function App() {
   }, [setGameId, hasActiveSession, restoreSession, setPlayerName, generateSessionId]);
 
   const [pendingAvatar, setPendingAvatar] = useState<string | null>(null);
-
-  // Auto-create offline game when navigating to offline section (must be before any conditional returns)
-  useEffect(() => {
-    if (currentSection === 'offline' && (!gameId || !gameId.startsWith('offline-'))) {
-      const offlineGameId = `offline-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
-      setGameId(offlineGameId);
-      generateSessionId();
-      
-      // Create room and join
-      socket.emit('join-game', { 
-        gameId: offlineGameId, 
-        playerName, 
-        avatarId: pendingAvatar,
-        userId: authenticatedUser?.id 
-      });
-      
-      // Auto-add CPU after joining
-      setTimeout(() => {
-        socket.emit('add-cpu-player', { gameId: offlineGameId });
-      }, 1000);
-    }
-  }, [currentSection, gameId, playerName, pendingAvatar, authenticatedUser?.id, setGameId, generateSessionId]);
 
   const handleNameSubmit = (name: string, avatarId: string) => {
     setPlayerName(name);
@@ -563,39 +542,18 @@ function App() {
     );
   }
 
-  // Show Offline Game Mode - identical to "Gioca" mode with same GameBoard
+  // Show Offline Game Mode - uses local game engine (works without server)
   if (currentSection === 'offline') {
-    // Wait for game to be created (useEffect handles creation)
-    if (!gameId || !gameId.startsWith('offline-')) {
-      return (
-        <QueryClientProvider client={queryClient}>
-          <div className="min-h-screen bg-arena-deep flex items-center justify-center">
-            <div className="text-white text-xl animate-pulse">Creazione partita offline...</div>
-          </div>
-        </QueryClientProvider>
-      );
-    }
-    
-    // Show GameBoard (identical to "Gioca" mode)
     return (
-      <TooltipProvider>
-        <QueryClientProvider client={queryClient}>
-          <div className="min-h-screen bg-arena-deep overflow-auto">
-            <UpdateNotification />
-            <GameBoard 
-              authenticatedUser={authenticatedUser}
-              onLogout={() => {}}
-              authToken={localStorage.getItem('authToken')}
-              onBack={() => {
-                setGameId('');
-                setCurrentSection('home');
-                window.history.pushState(null, '', window.location.origin);
-              }}
-              onLeaveGame={() => {}}
-            />
-          </div>
-        </QueryClientProvider>
-      </TooltipProvider>
+      <QueryClientProvider client={queryClient}>
+        <OfflineGameBoard 
+          playerName={playerName || authenticatedUser?.username || 'Giocatore'}
+          onBack={() => {
+            setCurrentSection('home');
+            window.history.pushState(null, '', window.location.origin);
+          }}
+        />
+      </QueryClientProvider>
     );
   }
 
