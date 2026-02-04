@@ -262,6 +262,28 @@ function App() {
 
   const [pendingAvatar, setPendingAvatar] = useState<string | null>(null);
 
+  // Auto-create offline game when navigating to offline section (must be before any conditional returns)
+  useEffect(() => {
+    if (currentSection === 'offline' && (!gameId || !gameId.startsWith('offline-'))) {
+      const offlineGameId = `offline-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+      setGameId(offlineGameId);
+      generateSessionId();
+      
+      // Create room and join
+      socket.emit('join-game', { 
+        gameId: offlineGameId, 
+        playerName, 
+        avatarId: pendingAvatar,
+        userId: authenticatedUser?.id 
+      });
+      
+      // Auto-add CPU after joining
+      setTimeout(() => {
+        socket.emit('add-cpu-player', { gameId: offlineGameId });
+      }, 1000);
+    }
+  }, [currentSection, gameId, playerName, pendingAvatar, authenticatedUser?.id, setGameId, generateSessionId]);
+
   const handleNameSubmit = (name: string, avatarId: string) => {
     setPlayerName(name);
     setPendingAvatar(avatarId);
@@ -375,28 +397,6 @@ function App() {
       setCurrentSection('home');
     }
   };
-
-  // Auto-create offline game when navigating to offline section
-  useEffect(() => {
-    if (currentSection === 'offline' && (!gameId || !gameId.startsWith('offline-'))) {
-      const offlineGameId = `offline-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
-      setGameId(offlineGameId);
-      generateSessionId();
-      
-      // Create room and join
-      socket.emit('join-game', { 
-        gameId: offlineGameId, 
-        playerName, 
-        avatarId: pendingAvatar,
-        userId: authenticatedUser?.id 
-      });
-      
-      // Auto-add CPU after joining
-      setTimeout(() => {
-        socket.emit('add-cpu-player', { gameId: offlineGameId });
-      }, 1000);
-    }
-  }, [currentSection, gameId, playerName, pendingAvatar, authenticatedUser?.id, setGameId, generateSessionId]);
 
   const handleNavigate = (section: 'play' | 'training' | 'rooms' | 'profile' | 'offline' | 'admin') => {
     if (section === 'play') {
