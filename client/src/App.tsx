@@ -376,6 +376,28 @@ function App() {
     }
   };
 
+  // Auto-create offline game when navigating to offline section
+  useEffect(() => {
+    if (currentSection === 'offline' && (!gameId || !gameId.startsWith('offline-'))) {
+      const offlineGameId = `offline-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+      setGameId(offlineGameId);
+      generateSessionId();
+      
+      // Create room and join
+      socket.emit('join-game', { 
+        gameId: offlineGameId, 
+        playerName, 
+        avatarId: pendingAvatar,
+        userId: authenticatedUser?.id 
+      });
+      
+      // Auto-add CPU after joining
+      setTimeout(() => {
+        socket.emit('add-cpu-player', { gameId: offlineGameId });
+      }, 1000);
+    }
+  }, [currentSection, gameId, playerName, pendingAvatar, authenticatedUser?.id, setGameId, generateSessionId]);
+
   const handleNavigate = (section: 'play' | 'training' | 'rooms' | 'profile' | 'offline' | 'admin') => {
     if (section === 'play') {
       setShowRoomDialog(true);
@@ -541,31 +563,14 @@ function App() {
     );
   }
 
-  // Show Offline Game Mode - identical to "Gioca" but auto-creates room with CPU
+  // Show Offline Game Mode - identical to "Gioca" mode with same GameBoard
   if (currentSection === 'offline') {
-    // Auto-create offline game room if not already in one
+    // Wait for game to be created (useEffect handles creation)
     if (!gameId || !gameId.startsWith('offline-')) {
-      const offlineGameId = `offline-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
-      setGameId(offlineGameId);
-      generateSessionId();
-      
-      // Create room and join
-      socket.emit('join-game', { 
-        gameId: offlineGameId, 
-        playerName, 
-        avatarId: pendingAvatar,
-        userId: authenticatedUser?.id 
-      });
-      
-      // Auto-add CPU after a short delay
-      setTimeout(() => {
-        socket.emit('add-cpu-player', { gameId: offlineGameId });
-      }, 500);
-      
       return (
         <QueryClientProvider client={queryClient}>
           <div className="min-h-screen bg-arena-deep flex items-center justify-center">
-            <div className="text-white text-xl">Creazione partita offline...</div>
+            <div className="text-white text-xl animate-pulse">Creazione partita offline...</div>
           </div>
         </QueryClientProvider>
       );
