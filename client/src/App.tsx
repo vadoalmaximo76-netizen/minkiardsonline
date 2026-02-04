@@ -11,7 +11,6 @@ import { ActiveRooms } from "./components/ActiveRooms";
 import { ProfileSection } from "./components/ProfileSection";
 import { SpectatorView } from "./components/SpectatorView";
 import { ResetPasswordPage } from "./components/ResetPasswordPage";
-import { OfflineGame } from "./components/OfflineGame";
 import { CardAdminPanel } from "./components/CardAdminPanel";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { useGameState } from "./lib/stores/useGameState";
@@ -542,13 +541,18 @@ function App() {
     );
   }
 
-  // Show Offline Game Mode
+  // Show Offline Game Mode - uses TrainingMode without tutorial for identical experience
   if (currentSection === 'offline') {
     return (
       <QueryClientProvider client={queryClient}>
-        <OfflineGame
+        <TrainingMode
           playerName={playerName}
+          userId={authenticatedUser?.id}
+          avatarId={pendingAvatar}
+          userEmail={authenticatedUser?.email}
           onBack={() => setCurrentSection('home')}
+          skipTutorial={true}
+          isOfflineMode={true}
         />
       </QueryClientProvider>
     );

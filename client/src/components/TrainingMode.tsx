@@ -10,6 +10,8 @@ interface TrainingModeProps {
   avatarId?: string | null;
   userEmail?: string | null;
   onBack: () => void;
+  skipTutorial?: boolean;
+  isOfflineMode?: boolean;
 }
 
 interface CardTip {
@@ -89,7 +91,7 @@ const TUTORIAL_STEPS = [
   },
 ];
 
-export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }: TrainingModeProps) {
+export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack, skipTutorial = false, isOfflineMode = false }: TrainingModeProps) {
   const [gameStarted, setGameStarted] = useState(false);
   const [currentTip, setCurrentTip] = useState<CardTip | null>(null);
   const [shownTips, setShownTips] = useState<Set<string>>(new Set());
@@ -111,6 +113,7 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
   const [trainingGameId, setTrainingGameId] = useState<string | null>(null);
   const [tutorialStep, setTutorialStep] = useState(0);
   const [showTutorial, setShowTutorial] = useState(false);
+  const shouldShowTutorial = !skipTutorial && !isOfflineMode;
   const [completedTutorialSteps, setCompletedTutorialSteps] = useState<Set<string>>(new Set());
   const [dbTutorialSteps, setDbTutorialSteps] = useState<TutorialStep[]>([]);
   const [managerTab, setManagerTab] = useState<'tips' | 'tutorial'>('tips');
@@ -189,7 +192,8 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
   }, [userEmail]);
 
   const startTrainingGame = useCallback(() => {
-    const newTrainingGameId = `training-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const gamePrefix = isOfflineMode ? 'offline' : 'training';
+    const newTrainingGameId = `${gamePrefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     setGameId(newTrainingGameId);
     setTrainingGameId(newTrainingGameId);
     setPlayerName(playerName);
@@ -204,12 +208,14 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
     
     setGameStarted(true);
     
-    // Start tutorial after a short delay
-    setTimeout(() => {
-      setShowTutorial(true);
-      setTutorialStep(0);
-    }, 1500);
-  }, [playerName, avatarId, userId, setGameId, setPlayerName, generateSessionId]);
+    // Start tutorial after a short delay (only if not in offline/skip mode)
+    if (shouldShowTutorial) {
+      setTimeout(() => {
+        setShowTutorial(true);
+        setTutorialStep(0);
+      }, 1500);
+    }
+  }, [playerName, avatarId, userId, setGameId, setPlayerName, generateSessionId, shouldShowTutorial, isOfflineMode]);
 
   const addCpuPlayer = useCallback(() => {
     if (!trainingGameId || addingCpu || cpuAdded) return;
@@ -537,29 +543,49 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
         </div>
         
         <div className="max-w-lg w-full text-center relative z-10">
-          <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-emerald-500/30">
+          <div className={`w-24 h-24 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl ${isOfflineMode ? 'bg-gradient-to-br from-slate-500 to-gray-600 shadow-slate-500/30' : 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/30'}`}>
             <Lightbulb className="w-12 h-12 text-white" />
           </div>
           
-          <h1 className="text-4xl font-bold text-white mb-4 drop-shadow-lg">Modalità Allenamento</h1>
+          <h1 className="text-4xl font-bold text-white mb-4 drop-shadow-lg">
+            {isOfflineMode ? 'Modalità Offline' : 'Modalità Allenamento'}
+          </h1>
           <p className="text-white/80 text-lg mb-8 font-medium">
-            Impara a giocare a MINKIARDS contro un avversario CPU. 
-            Riceverai suggerimenti e spiegazioni mentre giochi.
+            {isOfflineMode 
+              ? 'Gioca a MINKIARDS contro la CPU anche senza connessione internet. Stessa esperienza di gioco completa!'
+              : 'Impara a giocare a MINKIARDS contro un avversario CPU. Riceverai suggerimenti e spiegazioni mentre giochi.'}
           </p>
           
-          <div className="bg-slate-900/70 backdrop-blur-sm rounded-2xl p-6 mb-8 text-left border border-emerald-500/30 shadow-xl">
-            <h3 className="text-emerald-400 font-semibold mb-3 flex items-center gap-2">
-              <Lightbulb className="w-5 h-5" />
-              Cosa imparerai:
-            </h3>
-            <ul className="space-y-2 text-white/90">
-              <li>• Come funzionano le carte PERSONAGGI</li>
-              <li>• Come usare le carte MOSSE per attaccare</li>
-              <li>• Come applicare le carte BONUS ai personaggi</li>
-              <li>• Strategie di base per vincere</li>
-              <li>• Effetti speciali e combinazioni</li>
-            </ul>
-          </div>
+          {!isOfflineMode && (
+            <div className="bg-slate-900/70 backdrop-blur-sm rounded-2xl p-6 mb-8 text-left border border-emerald-500/30 shadow-xl">
+              <h3 className="text-emerald-400 font-semibold mb-3 flex items-center gap-2">
+                <Lightbulb className="w-5 h-5" />
+                Cosa imparerai:
+              </h3>
+              <ul className="space-y-2 text-white/90">
+                <li>• Come funzionano le carte PERSONAGGI</li>
+                <li>• Come usare le carte MOSSE per attaccare</li>
+                <li>• Come applicare le carte BONUS ai personaggi</li>
+                <li>• Strategie di base per vincere</li>
+                <li>• Effetti speciali e combinazioni</li>
+              </ul>
+            </div>
+          )}
+
+          {isOfflineMode && (
+            <div className="bg-slate-900/70 backdrop-blur-sm rounded-2xl p-6 mb-8 text-left border border-slate-500/30 shadow-xl">
+              <h3 className="text-slate-300 font-semibold mb-3 flex items-center gap-2">
+                <Bot className="w-5 h-5" />
+                Partita Offline:
+              </h3>
+              <ul className="space-y-2 text-white/90">
+                <li>• Gioca contro la CPU intelligente</li>
+                <li>• Tutte le carte e meccaniche disponibili</li>
+                <li>• Nessuna connessione richiesta</li>
+                <li>• Stessa esperienza del multiplayer</li>
+              </ul>
+            </div>
+          )}
 
           <div className="flex gap-4">
             <button
@@ -571,13 +597,13 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
             </button>
             <button
               onClick={startTrainingGame}
-              className="flex-1 px-6 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white rounded-xl font-bold text-lg transition-all hover:scale-105 shadow-lg shadow-emerald-500/30"
+              className={`flex-1 px-6 py-4 text-white rounded-xl font-bold text-lg transition-all hover:scale-105 shadow-lg ${isOfflineMode ? 'bg-gradient-to-r from-slate-500 to-gray-500 hover:from-slate-400 hover:to-gray-400 shadow-slate-500/30' : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 shadow-emerald-500/30'}`}
             >
-              Inizia Allenamento
+              {isOfflineMode ? 'Inizia Partita' : 'Inizia Allenamento'}
             </button>
           </div>
 
-          {isAdmin && (
+          {isAdmin && !isOfflineMode && (
             <button
               onClick={() => setShowTipsManager(true)}
               className="mt-4 px-6 py-3 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 rounded-xl font-medium transition-colors w-full"
@@ -904,10 +930,10 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack }
         <ArrowLeft className="w-6 h-6" />
       </button>
 
-      {/* Training badge */}
-      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-emerald-500/90 text-white rounded-full font-medium backdrop-blur-sm flex items-center gap-2">
-        <Lightbulb className="w-5 h-5" />
-        Modalità Allenamento
+      {/* Training/Offline badge */}
+      <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 text-white rounded-full font-medium backdrop-blur-sm flex items-center gap-2 ${isOfflineMode ? 'bg-slate-500/90' : 'bg-emerald-500/90'}`}>
+        {isOfflineMode ? <Bot className="w-5 h-5" /> : <Lightbulb className="w-5 h-5" />}
+        {isOfflineMode ? 'Modalità Offline' : 'Modalità Allenamento'}
       </div>
 
       
