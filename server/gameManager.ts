@@ -13706,20 +13706,27 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // Broadcast defense success with resolution source
       if (isCounterAttack && counterAttackOptions?.counterDamage) {
+        const netDamage = Math.max(0, counterAttackOptions.counterDamage - (damage || 0));
         io.to(gameId).emit('chat-message', {
           id: `${Date.now()}-counter-attack-success`,
           playerName: 'Sistema',
-          message: `⚔️ RESPINTA! ${defender} ha contrattaccato e respinto l'attacco di ${attacker} con ${counterAttackOptions.counterDamage} danni!`,
+          message: `⚔️ RESPINTA! ${defender} ha contrattaccato l'attacco di ${attacker}! Danno netto: ${netDamage} (${counterAttackOptions.counterDamage} - ${damage || 0})`,
           timestamp: Date.now()
         });
         
-        // APPLY COUNTER DAMAGE to attacker's character
+        // APPLY NET COUNTER DAMAGE to attacker's character (counter damage - attack damage)
         const attackerPlayer = game?.players?.[attacker];
         if (attackerPlayer) {
           // Find attacker's character on field
           const attackerCharacter = game.field.find((c: any) => c.owner === attacker && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
           if (attackerCharacter) {
-            const counterDamage = counterAttackOptions.counterDamage;
+            // NET DAMAGE = counter damage - original attack damage
+            const originalAttackDamage = damage || 0;
+            const grossCounterDamage = counterAttackOptions.counterDamage;
+            const netCounterDamage = Math.max(0, grossCounterDamage - originalAttackDamage);
+            
+            console.log(`[COUNTER-DAMAGE] Calculating NET damage: ${grossCounterDamage} (counter) - ${originalAttackDamage} (attack) = ${netCounterDamage}`);
+            
             let currentPti = attackerCharacter.pti || 0;
             
             // Parse PTI from text if not set
@@ -13728,7 +13735,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               if (ptiMatch) currentPti = parseInt(ptiMatch[1]);
             }
             
-            const newPti = Math.max(0, currentPti - counterDamage);
+            const newPti = Math.max(0, currentPti - netCounterDamage);
             attackerCharacter.pti = newPti;
             
             // Update text to reflect new PTI
@@ -13737,12 +13744,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             }
             
             const cardName = attackerCharacter.name || 'Personaggio';
-            console.log(`[COUNTER-DAMAGE] ${attacker}'s ${cardName} took ${counterDamage} counter damage: ${currentPti} → ${newPti} PTI`);
+            console.log(`[COUNTER-DAMAGE] ${attacker}'s ${cardName} took ${netCounterDamage} NET counter damage: ${currentPti} → ${newPti} PTI`);
             
             io.to(gameId).emit('chat-message', {
               id: `${Date.now()}-counter-damage-applied`,
               playerName: 'Sistema',
-              message: `💥 ${cardName} di ${attacker} subisce ${counterDamage} danni dalla respinta! (${currentPti} → ${newPti} PTI)`,
+              message: `💥 ${cardName} di ${attacker} subisce ${netCounterDamage} danni netti dalla respinta! (${grossCounterDamage} - ${originalAttackDamage} = ${netCounterDamage}) PTI: ${currentPti} → ${newPti}`,
               timestamp: Date.now()
             });
             
