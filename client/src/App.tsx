@@ -565,9 +565,11 @@ function App() {
     }
     return (
       <QueryClientProvider client={queryClient}>
-        <CardAdminPanel
-          onBack={() => setCurrentSection('home')}
-        />
+        <div className="min-h-screen bg-arena-deep overflow-auto">
+          <CardAdminPanel
+            onBack={() => setCurrentSection('home')}
+          />
+        </div>
       </QueryClientProvider>
     );
   }
