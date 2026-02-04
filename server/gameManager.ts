@@ -8609,7 +8609,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       return { success: true, message: `🎴 Il mazzo ${deckDisplayName} è vuoto!` };
     }
 
-    const drawnCard = targetDeck.shift();
+    // Use pop() to draw from END of deck (cards returned with returnToDeck go to start)
+    const drawnCard = targetDeck.pop();
     if (drawnCard) {
       drawnCard.owner = playerName;
       playerData.hand.push(drawnCard);
@@ -13761,7 +13762,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             // Auto-draw replacement MOSSE for defender
             const mosseDeck = game.decks?.mosse || [];
             if (mosseDeck.length > 0) {
-              const drawnCard = mosseDeck.shift();
+              // Use pop() to draw from END of deck (cards returned with returnToDeck go to start)
+              const drawnCard = mosseDeck.pop();
               if (drawnCard) {
                 drawnCard.owner = defender;
                 game.players[defender].hand.push(drawnCard);
@@ -15572,7 +15574,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       
       const mosseDeck = game?.decks?.mosse || [];
       if (mosseDeck.length > 0 && game?.players?.[attackerName]) {
-        const drawnCard = mosseDeck.shift();
+        // Use pop() to draw from END of deck (not shift which draws from start where returnToDeck puts cards)
+        const drawnCard = mosseDeck.pop();
         if (drawnCard) {
           drawnCard.owner = attackerName;
           game.players[attackerName].hand.push(drawnCard);
