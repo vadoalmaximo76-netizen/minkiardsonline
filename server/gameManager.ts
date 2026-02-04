@@ -113,6 +113,9 @@ interface Card {
   mosseRestrictedAgainst?: string[] | null; // Array of character names that this move cannot be used on
   mosseTargetingMode?: string | null; // 'single', 'highest_pti', 'all_enemies', 'all_characters', 'specific_count', null=manual
   mosseTargetCount?: number | null; // Number of targets when mosseTargetingMode='specific_count'
+  // Counter-attack system
+  mosseCanCounter?: boolean; // True if this MOSSE can be used to counter-attack
+  mosseCanBeCountered?: boolean; // True if this MOSSE can be countered when used to attack
 }
 
 interface Player {
@@ -519,7 +522,7 @@ export class GameManager {
           const mod = modifications.get(card.id);
           if (mod) {
             this.applyModificationToCard(card, mod);
-            console.log(`✏️ Applied modifications to card ${card.id}: name=${mod.name}, effect=${mod.effect ? `"${mod.effect}"` : 'none'}, audioUrl=${mod.audioUrl}, mosseDamageValue=${mod.mosseDamageValue}, mosseDamageEffect=${mod.mosseDamageEffect}`);
+            console.log(`✏️ Applied modifications to card ${card.id}: name=${mod.name}, effect=${mod.effect ? `"${mod.effect}"` : 'none'}, audioUrl=${mod.audioUrl}, mosseDamageValue=${mod.mosseDamageValue}, mosseDamageEffect=${mod.mosseDamageEffect}, mosseCanCounter=${mod.mosseCanCounter}, mosseCanBeCountered=${mod.mosseCanBeCountered}`);
           }
         });
       }
@@ -558,6 +561,13 @@ export class GameManager {
     }
     if (mod.mosseTargetCount !== undefined && mod.mosseTargetCount !== null) {
       card.mosseTargetCount = mod.mosseTargetCount;
+    }
+    // Counter-attack properties
+    if (mod.mosseCanCounter !== undefined) {
+      card.mosseCanCounter = mod.mosseCanCounter;
+    }
+    if (mod.mosseCanBeCountered !== undefined) {
+      card.mosseCanBeCountered = mod.mosseCanBeCountered;
     }
   }
 
@@ -11882,6 +11892,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               mosseRestrictedAgainst: deckType === 'mosse' ? cardData.mosseRestrictedAgainst ?? null : null,
               mosseTargetingMode: deckType === 'mosse' ? cardData.mosseTargetingMode ?? null : null,
               mosseTargetCount: deckType === 'mosse' ? cardData.mosseTargetCount ?? null : null,
+              mosseCanCounter: deckType === 'mosse' ? cardData.mosseCanCounter ?? false : false,
+              mosseCanBeCountered: deckType === 'mosse' ? cardData.mosseCanBeCountered ?? false : false,
               createdBy: playerName
             });
             console.log(`Permanent card "${cardData.name}" saved to JSON with audioUrl: ${cardData.audioUrl}, youtubeUrl: ${cardData.youtubeUrl}`);
