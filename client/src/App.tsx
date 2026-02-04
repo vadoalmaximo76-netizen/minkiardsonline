@@ -541,20 +541,56 @@ function App() {
     );
   }
 
-  // Show Offline Game Mode - uses TrainingMode without tutorial for identical experience
+  // Show Offline Game Mode - identical to "Gioca" but auto-creates room with CPU
   if (currentSection === 'offline') {
+    // Auto-create offline game room if not already in one
+    if (!gameId || !gameId.startsWith('offline-')) {
+      const offlineGameId = `offline-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+      setGameId(offlineGameId);
+      generateSessionId();
+      
+      // Create room and join
+      socket.emit('join-game', { 
+        gameId: offlineGameId, 
+        playerName, 
+        avatarId: pendingAvatar,
+        userId: authenticatedUser?.id 
+      });
+      
+      // Auto-add CPU after a short delay
+      setTimeout(() => {
+        socket.emit('add-cpu-player', { gameId: offlineGameId });
+      }, 500);
+      
+      return (
+        <QueryClientProvider client={queryClient}>
+          <div className="min-h-screen bg-arena-deep flex items-center justify-center">
+            <div className="text-white text-xl">Creazione partita offline...</div>
+          </div>
+        </QueryClientProvider>
+      );
+    }
+    
+    // Show GameBoard (identical to "Gioca" mode)
     return (
-      <QueryClientProvider client={queryClient}>
-        <TrainingMode
-          playerName={playerName}
-          userId={authenticatedUser?.id}
-          avatarId={pendingAvatar}
-          userEmail={authenticatedUser?.email}
-          onBack={() => setCurrentSection('home')}
-          skipTutorial={true}
-          isOfflineMode={true}
-        />
-      </QueryClientProvider>
+      <TooltipProvider>
+        <QueryClientProvider client={queryClient}>
+          <div className="min-h-screen bg-arena-deep overflow-auto">
+            <UpdateNotification />
+            <GameBoard 
+              authenticatedUser={authenticatedUser}
+              onLogout={() => {}}
+              authToken={localStorage.getItem('authToken')}
+              onBack={() => {
+                setGameId('');
+                setCurrentSection('home');
+                window.history.pushState(null, '', window.location.origin);
+              }}
+              onLeaveGame={() => {}}
+            />
+          </div>
+        </QueryClientProvider>
+      </TooltipProvider>
     );
   }
 
