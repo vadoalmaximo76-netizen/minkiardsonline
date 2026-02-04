@@ -13712,6 +13712,58 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           message: `⚔️ RESPINTA! ${defender} ha contrattaccato e respinto l'attacco di ${attacker} con ${counterAttackOptions.counterDamage} danni!`,
           timestamp: Date.now()
         });
+        
+        // APPLY COUNTER DAMAGE to attacker's character
+        const attackerPlayer = game?.players?.[attacker];
+        if (attackerPlayer) {
+          // Find attacker's character on field
+          const attackerCharacter = game.field.find((c: any) => c.owner === attacker && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+          if (attackerCharacter) {
+            const counterDamage = counterAttackOptions.counterDamage;
+            let currentPti = attackerCharacter.pti || 0;
+            
+            // Parse PTI from text if not set
+            if (!currentPti && attackerCharacter.text) {
+              const ptiMatch = attackerCharacter.text.match(/PTI[:\s]*(\d+)/i);
+              if (ptiMatch) currentPti = parseInt(ptiMatch[1]);
+            }
+            
+            const newPti = Math.max(0, currentPti - counterDamage);
+            attackerCharacter.pti = newPti;
+            
+            // Update text to reflect new PTI
+            if (attackerCharacter.text) {
+              attackerCharacter.text = attackerCharacter.text.replace(/PTI[:\s]*\d+/i, `PTI: ${newPti}`);
+            }
+            
+            const cardName = attackerCharacter.name || 'Personaggio';
+            console.log(`[COUNTER-DAMAGE] ${attacker}'s ${cardName} took ${counterDamage} counter damage: ${currentPti} → ${newPti} PTI`);
+            
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-counter-damage-applied`,
+              playerName: 'Sistema',
+              message: `💥 ${cardName} di ${attacker} subisce ${counterDamage} danni dalla respinta! (${currentPti} → ${newPti} PTI)`,
+              timestamp: Date.now()
+            });
+            
+            // Check if attacker's character died
+            if (newPti <= 0) {
+              console.log(`[COUNTER-DAMAGE] ${attacker}'s ${cardName} DIED from counter-attack!`);
+              
+              // Move to graveyard
+              attackerCharacter.eliminatedBy = defender;
+              game.graveyard.push(attackerCharacter);
+              game.field = game.field.filter((c: any) => c.id !== attackerCharacter.id);
+              
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-counter-kill`,
+                playerName: 'Sistema',
+                message: `💀 ${cardName} di ${attacker} è stato eliminato dalla respinta di ${defender}!`,
+                timestamp: Date.now()
+              });
+            }
+          }
+        }
       } else {
         io.to(gameId).emit('chat-message', {
           id: `${Date.now()}-defense-success`,
