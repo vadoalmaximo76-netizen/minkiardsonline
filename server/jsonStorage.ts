@@ -668,6 +668,32 @@ export const jsonStorage = {
       console.log(`[JSON] Deleted player skin ID: ${id}`);
       return true;
     }
+  },
+
+  cardVersion: {
+    getFilePath(): string {
+      return path.join(DATA_DIR, 'cardVersion.json');
+    },
+    
+    get(): { version: number; updatedAt: string; note?: string } | null {
+      const filePath = this.getFilePath();
+      if (!fs.existsSync(filePath)) {
+        return { version: 1, updatedAt: new Date().toISOString() };
+      }
+      try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        return JSON.parse(content);
+      } catch (error) {
+        return { version: 1, updatedAt: new Date().toISOString() };
+      }
+    },
+    
+    set(data: { version: number; updatedAt: string; note?: string }): void {
+      ensureDataDir();
+      const filePath = this.getFilePath();
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+      console.log(`[JSON] Card version updated to: ${data.version}`);
+    }
   }
 };
 

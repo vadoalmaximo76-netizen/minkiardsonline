@@ -11,13 +11,16 @@ import { ActiveRooms } from "./components/ActiveRooms";
 import { ProfileSection } from "./components/ProfileSection";
 import { SpectatorView } from "./components/SpectatorView";
 import { ResetPasswordPage } from "./components/ResetPasswordPage";
+import { OfflineGame } from "./components/OfflineGame";
+import { CardAdminPanel } from "./components/CardAdminPanel";
+import { UpdateNotification } from "./components/UpdateNotification";
 import { useGameState } from "./lib/stores/useGameState";
 import { socket } from "./lib/socket";
 import { preloadCriticalImages } from "./lib/imagePreloader";
 import "@fontsource/inter";
 import "./index.css";
 
-type AppSection = 'home' | 'play' | 'training' | 'rooms' | 'profile' | 'spectator';
+type AppSection = 'home' | 'play' | 'training' | 'rooms' | 'profile' | 'spectator' | 'offline' | 'admin';
 
 function getResetPasswordToken(): string | null {
   const urlParams = new URLSearchParams(window.location.search);
@@ -374,7 +377,7 @@ function App() {
     }
   };
 
-  const handleNavigate = (section: 'play' | 'training' | 'rooms' | 'profile') => {
+  const handleNavigate = (section: 'play' | 'training' | 'rooms' | 'profile' | 'offline' | 'admin') => {
     if (section === 'play') {
       setShowRoomDialog(true);
     }
@@ -466,6 +469,7 @@ function App() {
           userId={authenticatedUser?.id}
           onNavigate={handleNavigate}
           onJoinTournamentMatch={handleJoinTournamentMatch}
+          userEmail={authenticatedUser?.email || undefined}
         />
       </QueryClientProvider>
     );
@@ -533,6 +537,33 @@ function App() {
           socket={socket}
           onBack={() => setCurrentSection('home')}
           onUpdateProfile={handleUpdateProfile}
+        />
+      </QueryClientProvider>
+    );
+  }
+
+  // Show Offline Game Mode
+  if (currentSection === 'offline') {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <OfflineGame
+          playerName={playerName}
+          onBack={() => setCurrentSection('home')}
+        />
+      </QueryClientProvider>
+    );
+  }
+
+  // Show Admin Panel (only for lucaforte94@gmail.com)
+  if (currentSection === 'admin') {
+    if (authenticatedUser?.email !== 'lucaforte94@gmail.com') {
+      setCurrentSection('home');
+      return null;
+    }
+    return (
+      <QueryClientProvider client={queryClient}>
+        <CardAdminPanel
+          onBack={() => setCurrentSection('home')}
         />
       </QueryClientProvider>
     );
@@ -608,6 +639,9 @@ function App() {
     <TooltipProvider>
       <QueryClientProvider client={queryClient}>
         <div className="min-h-screen bg-arena-deep overflow-auto">
+          {/* Card Update Notification */}
+          <UpdateNotification />
+          
           {/* Game Invitation Notification */}
           {gameInvitation && (
             <div className="fixed top-4 right-4 z-50 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg shadow-2xl p-4 max-w-sm animate-pulse border-2 border-white/20">

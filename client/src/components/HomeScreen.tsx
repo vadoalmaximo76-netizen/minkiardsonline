@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Gamepad2, GraduationCap, Users, User, Trophy, Clock, Star, Award, Sparkles } from 'lucide-react';
+import { Gamepad2, GraduationCap, Users, User, Trophy, Clock, Star, Award, Sparkles, WifiOff, Download, Settings } from 'lucide-react';
 import { TournamentPanel } from './TournamentPanel';
 import { SeasonalEventsPanel } from './SeasonalEventsPanel';
+import { useOfflineCache } from '../hooks/useOfflineCache';
 
 interface HomeScreenProps {
   playerName: string;
   userId?: number;
-  onNavigate: (section: 'play' | 'training' | 'rooms' | 'profile') => void;
+  onNavigate: (section: 'play' | 'training' | 'rooms' | 'profile' | 'offline' | 'admin') => void;
   onJoinTournamentMatch?: (gameId: string, matchId: number, tournamentName: string) => void;
+  userEmail?: string;
 }
 
 interface UserStats {
@@ -16,10 +18,12 @@ interface UserStats {
   gamesWon: number;
 }
 
-export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMatch }: HomeScreenProps) {
+export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMatch, userEmail }: HomeScreenProps) {
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [activeRoomsCount, setActiveRoomsCount] = useState(0);
   const [randomQuote, setRandomQuote] = useState("");
+  const { isOnline, cacheReady, cacheAllCards, isCaching, cacheProgress } = useOfflineCache();
+  const isAdmin = userEmail === 'lucaforte94@gmail.com';
 
   useEffect(() => {
     const quotes = [
@@ -139,7 +143,37 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
       badge: userStats ? `${userStats.gamesWon}/${userStats.gamesPlayed} vinte` : null,
       badgeIcon: Trophy,
       action: () => onNavigate('profile')
-    }
+    },
+    {
+      id: 'offline' as const,
+      title: 'Gioca Offline',
+      subtitle: isOnline ? 'Scarica carte per giocare senza internet' : 'Gioca senza connessione',
+      icon: WifiOff,
+      gradient: 'from-slate-600 via-gray-500 to-slate-600',
+      hoverGradient: 'hover:from-slate-500 hover:via-gray-400 hover:to-slate-500',
+      shadowColor: 'shadow-slate-500/30',
+      badge: cacheReady ? 'Pronto' : (isCaching ? `${cacheProgress}%` : 'Da scaricare'),
+      badgeIcon: Download,
+      action: () => {
+        if (!cacheReady && !isCaching) {
+          cacheAllCards();
+        } else {
+          onNavigate('offline');
+        }
+      }
+    },
+    ...(isAdmin ? [{
+      id: 'admin' as const,
+      title: 'Gestione Carte',
+      subtitle: 'Modifica carte e invia aggiornamenti',
+      icon: Settings,
+      gradient: 'from-red-600 via-rose-500 to-red-600',
+      hoverGradient: 'hover:from-red-500 hover:via-rose-400 hover:to-red-500',
+      shadowColor: 'shadow-red-500/30',
+      badge: 'Admin',
+      badgeIcon: Settings,
+      action: () => onNavigate('admin')
+    }] : [])
   ];
 
   return (

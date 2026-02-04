@@ -9393,5 +9393,175 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     }
   });
 
+  // ========== CARD VERSION & ADMIN ENDPOINTS FOR PWA ==========
+  
+  // Get current card version
+  app.get('/api/card-version', async (req, res) => {
+    try {
+      const versionData = jsonStorage.cardVersion.get();
+      res.json({ version: versionData?.version || 1, updatedAt: versionData?.updatedAt });
+    } catch (error) {
+      res.json({ version: 1 });
+    }
+  });
+
+  // Get all cards for admin panel
+  app.get('/api/admin/cards', authMiddleware, async (req, res) => {
+    try {
+      const userEmail = (req as any).user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const allCards: any[] = [];
+      
+      Object.entries(CARD_DATA).forEach(([type, urls]) => {
+        (urls as string[]).forEach((url: string, index: number) => {
+          const name = url.match(/\/([^\/]+)\.(png|jpg|jpeg|gif|webp)$/i)?.[1]?.replace(/-/g, ' ').toUpperCase() || '';
+          allCards.push({
+            id: `${type}-${index}`,
+            type,
+            name,
+            frontImage: url
+          });
+        });
+      });
+
+      const modifications = jsonStorage.cardModifications.getAll();
+      allCards.forEach(card => {
+        const mod = modifications.find((m: any) => m.cardId === card.id);
+        if (mod) {
+          Object.assign(card, mod);
+        }
+      });
+
+      res.json({ cards: allCards });
+    } catch (error) {
+      console.error('Error loading cards:', error);
+      res.status(500).json({ error: 'Failed to load cards' });
+    }
+  });
+
+  // Get all card modifications
+  app.get('/api/admin/card-modifications', authMiddleware, async (req, res) => {
+    try {
+      const userEmail = (req as any).user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const modifications = jsonStorage.cardModifications.getAll();
+      res.json({ modifications });
+    } catch (error) {
+      console.error('Error loading modifications:', error);
+      res.status(500).json({ error: 'Failed to load modifications' });
+    }
+  });
+
+  // Save card modification
+  app.post('/api/admin/card-modifications', authMiddleware, async (req, res) => {
+    try {
+      const userEmail = (req as any).user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const modification = req.body;
+      if (!modification.cardId) {
+        return res.status(400).json({ error: 'Card ID required' });
+      }
+
+      jsonStorage.cardModifications.upsert(modification.cardId, modification);
+      res.json({ success: true, modification });
+    } catch (error) {
+      console.error('Error saving modification:', error);
+      res.status(500).json({ error: 'Failed to save modification' });
+    }
+  });
+
+  // Publish card update (increment version and notify all users)
+  app.post('/api/admin/publish-card-update', authMiddleware, async (req, res) => {
+    try {
+      const userEmail = (req as any).user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const { note } = req.body;
+      const currentVersion = jsonStorage.cardVersion.get()?.version || 1;
+      const newVersion = currentVersion + 1;
+      
+      jsonStorage.cardVersion.set({
+        version: newVersion,
+        updatedAt: new Date().toISOString(),
+        note: note || ''
+      });
+
+      // Send push notification to all subscribed users
+      const allSubscriptions = await db.select().from(pushSubscriptions);
+      const webpush = require('web-push');
+      
+      const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
+      const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
+      
+      if (vapidPublicKey && vapidPrivateKey) {
+        webpush.setVapidDetails(
+          'mailto:vadoalmaximo76@gmail.com',
+          vapidPublicKey,
+          vapidPrivateKey
+        );
+
+        const payload = JSON.stringify({
+          title: 'Aggiornamento Carte MINKIARDS',
+          body: `Versione ${newVersion} disponibile! ${note || ''}`,
+          type: 'card-update',
+          url: '/',
+          tag: `card-update-v${newVersion}`
+        });
+
+        let sent = 0;
+        for (const sub of allSubscriptions) {
+          try {
+            await webpush.sendNotification({
+              endpoint: sub.endpoint,
+              keys: { p256dh: sub.p256dh, auth: sub.auth }
+            }, payload);
+            sent++;
+          } catch (e) {
+            // Subscription may be invalid, continue
+          }
+        }
+
+        console.log(`[CARD UPDATE] Published v${newVersion}, notified ${sent}/${allSubscriptions.length} users`);
+      }
+
+      // Emit socket event for connected users
+      io.emit('card-update-available', { version: newVersion, note });
+
+      res.json({ success: true, newVersion, notified: allSubscriptions.length });
+    } catch (error) {
+      console.error('Error publishing update:', error);
+      res.status(500).json({ error: 'Failed to publish update' });
+    }
+  });
+
+  // Get card update for PWA download
+  app.get('/api/card-update', async (req, res) => {
+    try {
+      const versionData = jsonStorage.cardVersion.get();
+      const modifications = jsonStorage.cardModifications.getAll();
+      
+      res.json({
+        version: versionData?.version || 1,
+        updatedAt: versionData?.updatedAt,
+        note: versionData?.note,
+        modifications
+      });
+    } catch (error) {
+      console.error('Error getting card update:', error);
+      res.status(500).json({ error: 'Failed to get update' });
+    }
+  });
+
   return httpServer;
 }

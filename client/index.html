@@ -1,12 +1,48 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="it">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0, user-scalable=yes" />
     <title>MINKIARDS - Gioco di Carte Multiplayer</title>
-    <meta name="description" content="MINKIARDS - Un emozionante gioco di carte multiplayer online ispirato a Dragon Ball" />
-    <!-- Google AdSense Auto Ads - Gli annunci verranno mostrati automaticamente quando approvati -->
+    <meta name="description" content="MINKIARDS - Un emozionante gioco di carte multiplayer online ispirato a Dragon Ball. Gioca online o offline!" />
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#ff6b00" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="MINKIARDS" />
+    
+    <!-- PWA Icons -->
+    <link rel="icon" type="image/svg+xml" sizes="32x32" href="/icons/icon-72x72.svg" />
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.svg" />
+    
+    <!-- Google AdSense Auto Ads -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5660517743209013" crossorigin="anonymous"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js')
+            .then(function(registration) {
+              console.log('[PWA] Service Worker registered:', registration.scope);
+              
+              registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    window.dispatchEvent(new CustomEvent('swUpdated', { detail: registration }));
+                  }
+                });
+              });
+            })
+            .catch(function(err) {
+              console.log('[PWA] Service Worker registration failed:', err);
+            });
+        });
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
