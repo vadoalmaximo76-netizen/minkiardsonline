@@ -679,7 +679,9 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-01T01:52:21.589Z"
+    "modifiedAt": "2026-02-04T07:11:58.920Z",
+    "mosseCanCounter": false,
+    "mosseCanBeCountered": true
   },
   {
     "id": 60,
@@ -734,7 +736,9 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-01T01:05:37.688Z"
+    "modifiedAt": "2026-02-03T23:10:17.078Z",
+    "mosseCanCounter": true,
+    "mosseCanBeCountered": true
   },
   {
     "id": 32,
@@ -1425,7 +1429,9 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-01T01:42:47.631Z"
+    "modifiedAt": "2026-02-03T23:09:44.643Z",
+    "mosseCanCounter": false,
+    "mosseCanBeCountered": true
   },
   {
     "id": 64,
@@ -1491,7 +1497,9 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-01T11:14:06.754Z"
+    "modifiedAt": "2026-02-04T07:12:11.395Z",
+    "mosseCanCounter": true,
+    "mosseCanBeCountered": true
   },
   {
     "id": 67,
@@ -1533,7 +1541,9 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-01T11:15:06.932Z"
+    "modifiedAt": "2026-02-04T07:12:25.089Z",
+    "mosseCanCounter": true,
+    "mosseCanBeCountered": true
   },
   {
     "id": 68,
@@ -1564,7 +1574,9 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-01T11:15:44.004Z"
+    "modifiedAt": "2026-02-04T07:12:41.647Z",
+    "mosseCanCounter": true,
+    "mosseCanBeCountered": true
   },
   {
     "id": 69,
@@ -1577,7 +1589,7 @@
     "effect": null,
     "audioUrl": null,
     "youtubeUrl": null,
-    "mosseDamageValue": 49,
+    "mosseDamageValue": 50,
     "mosseDamageEffect": null,
     "mosseCharacterOverrides": [
       {
@@ -1597,7 +1609,9 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-01T11:16:10.831Z"
+    "modifiedAt": "2026-02-04T07:13:15.907Z",
+    "mosseCanCounter": true,
+    "mosseCanBeCountered": true
   },
   {
     "id": 70,
@@ -1630,7 +1644,9 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-01T11:16:41.934Z"
+    "modifiedAt": "2026-02-04T07:13:28.838Z",
+    "mosseCanCounter": true,
+    "mosseCanBeCountered": true
   },
   {
     "id": 71,
@@ -1663,7 +1679,9 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-01T11:17:15.253Z"
+    "modifiedAt": "2026-02-04T07:13:41.677Z",
+    "mosseCanCounter": true,
+    "mosseCanBeCountered": true
   },
   {
     "id": 72,
@@ -1685,7 +1703,9 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-01T11:17:34.277Z"
+    "modifiedAt": "2026-02-04T07:14:13.266Z",
+    "mosseCanCounter": true,
+    "mosseCanBeCountered": true
   },
   {
     "id": 73,
@@ -1707,7 +1727,9 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-01T11:17:51.791Z"
+    "modifiedAt": "2026-02-04T07:14:34.777Z",
+    "mosseCanCounter": false,
+    "mosseCanBeCountered": true
   },
   {
     "id": 74,
@@ -1751,7 +1773,9 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-01T11:18:23.084Z"
+    "modifiedAt": "2026-02-04T07:14:55.385Z",
+    "mosseCanCounter": true,
+    "mosseCanBeCountered": true
   },
   {
     "id": 76,
@@ -1782,7 +1806,9 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-01T11:18:45.866Z"
+    "modifiedAt": "2026-02-04T07:15:19.478Z",
+    "mosseCanCounter": true,
+    "mosseCanBeCountered": true
   },
   {
     "id": 77,
@@ -1795,7 +1821,7 @@
     "effect": null,
     "audioUrl": null,
     "youtubeUrl": null,
-    "mosseDamageValue": 99,
+    "mosseDamageValue": 100,
     "mosseDamageEffect": null,
     "mosseCharacterOverrides": [
       {
@@ -1815,7 +1841,9 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-01T11:19:39.628Z"
+    "modifiedAt": "2026-02-04T07:15:38.167Z",
+    "mosseCanCounter": true,
+    "mosseCanBeCountered": true
   },
   {
     "id": 78,
@@ -1848,7 +1876,9 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-01T11:20:22.186Z"
+    "modifiedAt": "2026-02-04T07:16:06.506Z",
+    "mosseCanCounter": false,
+    "mosseCanBeCountered": true
   },
   {
     "id": 79,
@@ -1870,7 +1900,9 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-01T11:20:35.758Z"
+    "modifiedAt": "2026-02-04T07:16:20.396Z",
+    "mosseCanCounter": true,
+    "mosseCanBeCountered": true
   },
   {
     "id": 80,
