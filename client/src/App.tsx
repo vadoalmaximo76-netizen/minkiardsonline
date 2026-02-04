@@ -557,21 +557,16 @@ function App() {
     );
   }
 
-  // Show Admin Panel (only for lucaforte94@gmail.com)
+  // Show Admin Panel - redirect to offline mode where AGGIUNGI button works
   if (currentSection === 'admin') {
     if (authenticatedUser?.email !== 'lucaforte94@gmail.com') {
       setCurrentSection('home');
       return null;
     }
-    return (
-      <QueryClientProvider client={queryClient}>
-        <div className="min-h-screen bg-arena-deep overflow-auto">
-          <CardAdminPanel
-            onBack={() => setCurrentSection('home')}
-          />
-        </div>
-      </QueryClientProvider>
-    );
+    // Redirect to play mode - admin can use the AGGIUNGI button there
+    setCurrentSection('play');
+    setShowRoomDialog(true);
+    return null;
   }
 
   // Show Room Dialog for Play section
