@@ -20,27 +20,24 @@
     <!-- Google AdSense Auto Ads -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5660517743209013" crossorigin="anonymous"></script>
     
-    <!-- Service Worker Registration -->
+    <!-- Service Worker Cleanup - Remove old caching SW -->
     <script>
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function() {
-          navigator.serviceWorker.register('/sw.js')
-            .then(function(registration) {
-              console.log('[PWA] Service Worker registered:', registration.scope);
-              
-              registration.addEventListener('updatefound', () => {
-                const newWorker = registration.installing;
-                newWorker.addEventListener('statechange', () => {
-                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                    window.dispatchEvent(new CustomEvent('swUpdated', { detail: registration }));
-                  }
-                });
-              });
-            })
-            .catch(function(err) {
-              console.log('[PWA] Service Worker registration failed:', err);
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          registrations.forEach(function(registration) {
+            registration.unregister().then(function() {
+              console.log('[PWA] Service Worker unregistered');
             });
+          });
         });
+        if ('caches' in window) {
+          caches.keys().then(function(cacheNames) {
+            cacheNames.forEach(function(cacheName) {
+              caches.delete(cacheName);
+              console.log('[PWA] Cache deleted:', cacheName);
+            });
+          });
+        }
       }
     </script>
   </head>

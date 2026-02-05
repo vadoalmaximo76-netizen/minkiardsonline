@@ -55,9 +55,20 @@ app.use((req, res, next) => {
       throw err;
     });
 
-    // importantly only setup vite in development and after
-    // setting up all the other routes so the catch-all route
-    // doesn't interfere with the other routes
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      if (req.path === '/sw.js') {
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
+      }
+      else if (req.path.endsWith('.html') || req.path === '/' || !req.path.includes('.')) {
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
+      }
+      next();
+    });
+
     if (app.get("env") === "development") {
       await setupVite(app, server);
     } else {

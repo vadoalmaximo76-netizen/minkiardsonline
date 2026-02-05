@@ -7,11 +7,20 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
   }
   
   try {
-    const registration = await navigator.serviceWorker.register('/sw.js');
-    console.log('Service Worker registered:', registration);
-    return registration;
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    for (const registration of registrations) {
+      await registration.unregister();
+      console.log('[PWA] Old Service Worker unregistered');
+    }
+    if ('caches' in window) {
+      const cacheNames = await caches.keys();
+      for (const cacheName of cacheNames) {
+        await caches.delete(cacheName);
+      }
+    }
+    return null;
   } catch (error) {
-    console.error('Service Worker registration failed:', error);
+    console.error('Service Worker cleanup failed:', error);
     return null;
   }
 }

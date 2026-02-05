@@ -30,14 +30,8 @@ export function UpdateNotification({ onUpdateApplied }: UpdateNotificationProps)
 
     socket.on('card-update-available', handleUpdateAvailable);
 
-    const handleSwUpdated = () => {
-      checkForUpdate();
-    };
-    window.addEventListener('swUpdated', handleSwUpdated);
-
     return () => {
       socket.off('card-update-available', handleUpdateAvailable);
-      window.removeEventListener('swUpdated', handleSwUpdated);
     };
   }, []);
 
@@ -81,13 +75,9 @@ export function UpdateNotification({ onUpdateApplied }: UpdateNotificationProps)
       localStorage.setItem('minkiards_update_date', new Date().toISOString());
 
       if ('caches' in window) {
-        await caches.delete('minkiards-cards-v1');
-      }
-
-      if ('serviceWorker' in navigator) {
-        const registration = await navigator.serviceWorker.ready;
-        if (registration.waiting) {
-          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        const cacheNames = await caches.keys();
+        for (const cacheName of cacheNames) {
+          await caches.delete(cacheName);
         }
       }
 
