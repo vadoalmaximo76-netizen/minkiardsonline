@@ -3060,7 +3060,9 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-01T11:41:48.284Z"
+    "modifiedAt": "2026-02-05T22:42:15.814Z",
+    "mosseCanCounter": true,
+    "mosseCanBeCountered": true
   },
   {
     "id": 122,
