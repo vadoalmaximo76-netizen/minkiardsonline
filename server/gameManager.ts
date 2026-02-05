@@ -13866,12 +13866,64 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
         }
       } else {
+        // DEFENSE WITHOUT COUNTER-ATTACK: Apply original attack damage back to attacker
         io.to(gameId).emit('chat-message', {
           id: `${Date.now()}-defense-success`,
           playerName: 'Sistema',
           message: `🛡️ ${defender} ha respinto l'attacco di ${attacker}! (${resolveSource})`,
           timestamp: Date.now()
         });
+        
+        // Apply reflected damage to attacker's character
+        const attackerPlayer = game?.players?.[attacker];
+        if (attackerPlayer && damage && damage > 0) {
+          // Find attacker's character on field
+          const attackerCharacter = game.field.find((c: any) => c.owner === attacker && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+          if (attackerCharacter) {
+            let currentPti = attackerCharacter.pti || 0;
+            
+            // Parse PTI from text if not set
+            if (!currentPti && attackerCharacter.text) {
+              const ptiMatch = attackerCharacter.text.match(/PTI[:\s]*(\d+)/i);
+              if (ptiMatch) currentPti = parseInt(ptiMatch[1]);
+            }
+            
+            const newPti = Math.max(0, currentPti - damage);
+            attackerCharacter.pti = newPti;
+            
+            // Update text to reflect new PTI
+            if (attackerCharacter.text) {
+              attackerCharacter.text = attackerCharacter.text.replace(/PTI[:\s]*\d+/i, `PTI: ${newPti}`);
+            }
+            
+            const cardName = attackerCharacter.name || 'Personaggio';
+            console.log(`[DEFENSE-REFLECT] ${attacker}'s ${cardName} took ${damage} reflected damage: ${currentPti} → ${newPti} PTI`);
+            
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-defense-reflect-damage`,
+              playerName: 'Sistema',
+              message: `💥 ${cardName} di ${attacker} subisce ${damage} danni riflessi dalla respinta! PTI: ${currentPti} → ${newPti}`,
+              timestamp: Date.now()
+            });
+            
+            // Check if attacker's character died
+            if (newPti <= 0) {
+              console.log(`[DEFENSE-REFLECT] ${attacker}'s ${cardName} DIED from reflected damage!`);
+              
+              // Move to graveyard
+              attackerCharacter.eliminatedBy = defender;
+              game.graveyard.push(attackerCharacter);
+              game.field = game.field.filter((c: any) => c.id !== attackerCharacter.id);
+              
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-defense-reflect-kill`,
+                playerName: 'Sistema',
+                message: `💀 ${cardName} di ${attacker} è stato eliminato dalla respinta di ${defender}!`,
+                timestamp: Date.now()
+              });
+            }
+          }
+        }
       }
 
       // Return MOSSE card to deck bottom (push card by mosseCardId)
