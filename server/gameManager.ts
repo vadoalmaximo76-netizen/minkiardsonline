@@ -13874,12 +13874,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           timestamp: Date.now()
         });
         
-        // Apply reflected damage to attacker's character
+        // Apply reflected damage to attacker's character (only if damage > 0)
         const attackerPlayer = game?.players?.[attacker];
         if (attackerPlayer && damage && damage > 0) {
-          // Find attacker's character on field
-          const attackerCharacter = game.field.find((c: any) => c.owner === attacker && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
-          if (attackerCharacter) {
+          // Find attacker's character on field (prioritize characters with highest PTI)
+          const attackerCharacters = game.field.filter((c: any) => c.owner === attacker && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+          
+          if (attackerCharacters.length === 0) {
+            console.log(`[DEFENSE-REFLECT] No character found for ${attacker} - reflected damage not applied`);
+          } else {
+            // If multiple characters, use the first one (most recently played)
+            const attackerCharacter = attackerCharacters[0];
             let currentPti = attackerCharacter.pti || 0;
             
             // Parse PTI from text if not set
@@ -13923,6 +13928,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               });
             }
           }
+        } else {
+          console.log(`[DEFENSE-REFLECT] Reflected damage skipped: damage=${damage}, attackerPlayer=${!!attackerPlayer}`);
         }
       }
 
