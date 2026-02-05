@@ -5945,7 +5945,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       deckType: 'mosse',
       starsToRemove: starsToRemove || 0,
       mosseEffect: mosseEffect || undefined,
-      mosseCanBeCountered: (mosseCard as any).mosseCanBeCountered ?? false,
+      mosseCanBeCountered: (mosseCard as any).mosseCanBeCountered ?? true,
       mosseDamageValue: (mosseCard as any).mosseDamageValue ?? null,
       attackerStars: attackerStars
     });
