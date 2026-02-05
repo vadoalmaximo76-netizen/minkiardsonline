@@ -6594,6 +6594,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/admin/card-modifications-bulk', authMiddleware, async (req, res) => {
+    try {
+      const userEmail = req.user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ success: false, error: 'Unauthorized' });
+      }
+
+      const { modifications } = req.body;
+      if (!Array.isArray(modifications) || modifications.length === 0) {
+        return res.status(400).json({ success: false, error: 'No modifications provided' });
+      }
+
+      const safeParseInt = (value: any): number | null => {
+        if (value === undefined || value === null || value === '') return null;
+        const parsed = parseInt(value);
+        return isNaN(parsed) ? null : parsed;
+      };
+
+      for (const mod of modifications) {
+        jsonStorage.cardModifications.upsert(mod.originalCardId, {
+          deckType: mod.deckType,
+          name: mod.name || null,
+          imageUrl: mod.imageUrl || null,
+          pti: safeParseInt(mod.pti),
+          stars: safeParseInt(mod.stars),
+          effect: mod.effect || null,
+          audioUrl: mod.audioUrl || null,
+          youtubeUrl: mod.youtubeUrl || null,
+          mosseDamageValue: safeParseInt(mod.mosseDamageValue),
+          mosseDamageEffect: mod.mosseDamageEffect || null,
+          mosseCharacterOverrides: mod.mosseCharacterOverrides || null,
+          mosseRestrictedFrom: mod.mosseRestrictedFrom || null,
+          mosseRestrictedAgainst: mod.mosseRestrictedAgainst || null,
+          mosseTargetingMode: mod.mosseTargetingMode || null,
+          mosseTargetCount: safeParseInt(mod.mosseTargetCount),
+          mosseCanCounter: !!mod.mosseCanCounter,
+          mosseCanBeCountered: !!mod.mosseCanBeCountered,
+          modifiedBy: userEmail || null
+        });
+      }
+
+      const refreshedGames = await gameManager.refreshCardMetadataForAllGames();
+      console.log(`Bulk card modifications saved (${modifications.length}). Refreshed ${refreshedGames.length} active games.`);
+
+      for (const gameId of refreshedGames) {
+        const gameState = gameManager.getSanitizedGameState(gameId);
+        emitThrottledGameState(io, gameId, gameState);
+      }
+
+      res.json({ success: true, count: modifications.length });
+    } catch (error) {
+      console.error('Error bulk saving card modifications:', error);
+      res.status(500).json({ success: false, error: 'Failed to bulk save modifications' });
+    }
+  });
+
   // Toggle card deletion (admin only)
   app.post('/api/admin/card-delete', authMiddleware, async (req, res) => {
     try {

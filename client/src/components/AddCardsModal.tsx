@@ -806,6 +806,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     mosseCanCounter: false,
     mosseCanBeCountered: false
   });
+  const [pendingChanges, setPendingChanges] = useState<Map<string, {card: ExistingCard, formData: typeof existingEditForm}>>(new Map());
+  const [isBulkSaving, setIsBulkSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
   // Available characters for MOSSE character-specific settings
@@ -1365,65 +1367,109 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   };
 
   const handleEditExistingCard = (card: ExistingCard) => {
+    if (editingExistingCard) {
+      const currentCard = existingCards.find(c => c.id === editingExistingCard);
+      if (currentCard) {
+        setPendingChanges(prev => {
+          const newMap = new Map(prev);
+          newMap.set(editingExistingCard, { card: currentCard, formData: { ...existingEditForm } });
+          return newMap;
+        });
+      }
+    }
+    
+    const pending = pendingChanges.get(card.id);
+    if (pending) {
+      setExistingEditForm(pending.formData);
+    } else {
+      setExistingEditForm({
+        name: card.name || '',
+        imageUrl: card.imageUrl || '',
+        pti: card.pti?.toString() || '',
+        stars: card.stars?.toString() || '',
+        effect: card.effect || '',
+        audioUrl: card.audioUrl || '',
+        youtubeUrl: card.youtubeUrl || '',
+        mosseDamageValue: card.mosseDamageValue?.toString() || '',
+        mosseDamageEffect: card.mosseDamageEffect || '',
+        mosseCharacterOverrides: card.mosseCharacterOverrides || [],
+        mosseRestrictedFrom: card.mosseRestrictedFrom || [],
+        mosseRestrictedAgainst: card.mosseRestrictedAgainst || [],
+        mosseTargetingMode: card.mosseTargetingMode || '',
+        mosseTargetCount: card.mosseTargetCount?.toString() || '',
+        mosseCanCounter: card.mosseCanCounter || false,
+        mosseCanBeCountered: card.mosseCanBeCountered || false
+      });
+    }
     setEditingExistingCard(card.id);
-    setExistingEditForm({
-      name: card.name || '',
-      imageUrl: card.imageUrl || '',
-      pti: card.pti?.toString() || '',
-      stars: card.stars?.toString() || '',
-      effect: card.effect || '',
-      audioUrl: card.audioUrl || '',
-      youtubeUrl: card.youtubeUrl || '',
-      mosseDamageValue: card.mosseDamageValue?.toString() || '',
-      mosseDamageEffect: card.mosseDamageEffect || '',
-      mosseCharacterOverrides: card.mosseCharacterOverrides || [],
-      mosseRestrictedFrom: card.mosseRestrictedFrom || [],
-      mosseRestrictedAgainst: card.mosseRestrictedAgainst || [],
-      mosseTargetingMode: card.mosseTargetingMode || '',
-      mosseTargetCount: card.mosseTargetCount?.toString() || '',
-      mosseCanCounter: card.mosseCanCounter || false,
-      mosseCanBeCountered: card.mosseCanBeCountered || false
-    });
   };
 
   const handleSaveExistingEdit = async (card: ExistingCard) => {
+    setPendingChanges(prev => {
+      const newMap = new Map(prev);
+      newMap.set(card.id, { card, formData: { ...existingEditForm } });
+      return newMap;
+    });
+    setEditingExistingCard(null);
+  };
+
+  const handleBulkSave = async () => {
+    let allChanges = new Map(pendingChanges);
+    
+    if (editingExistingCard) {
+      const currentCard = existingCards.find(c => c.id === editingExistingCard);
+      if (currentCard) {
+        allChanges.set(editingExistingCard, { card: currentCard, formData: { ...existingEditForm } });
+      }
+      setEditingExistingCard(null);
+    }
+    
+    setPendingChanges(allChanges);
+    
+    if (allChanges.size === 0) return;
+    
+    setIsBulkSaving(true);
     try {
-      const response = await fetch('/api/admin/card-modification', {
+      const modifications = Array.from(allChanges.values()).map(({ card, formData }) => ({
+        originalCardId: card.id,
+        deckType: card.deckType,
+        name: formData.name || null,
+        imageUrl: formData.imageUrl || null,
+        pti: formData.pti || null,
+        stars: formData.stars || null,
+        effect: formData.effect || null,
+        audioUrl: formData.audioUrl || null,
+        youtubeUrl: formData.youtubeUrl || null,
+        mosseDamageValue: formData.mosseDamageValue ? parseInt(formData.mosseDamageValue) : null,
+        mosseDamageEffect: formData.mosseDamageEffect || null,
+        mosseCharacterOverrides: formData.mosseCharacterOverrides.length > 0 ? formData.mosseCharacterOverrides : null,
+        mosseRestrictedFrom: formData.mosseRestrictedFrom.length > 0 ? formData.mosseRestrictedFrom : null,
+        mosseRestrictedAgainst: formData.mosseRestrictedAgainst.length > 0 ? formData.mosseRestrictedAgainst : null,
+        mosseTargetingMode: formData.mosseTargetingMode || null,
+        mosseTargetCount: formData.mosseTargetCount ? parseInt(formData.mosseTargetCount) : null,
+        mosseCanCounter: formData.mosseCanCounter || false,
+        mosseCanBeCountered: formData.mosseCanBeCountered || false
+      }));
+      
+      const response = await fetch('/api/admin/card-modifications-bulk', {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({
-          originalCardId: card.id,
-          deckType: card.deckType,
-          name: existingEditForm.name || null,
-          imageUrl: existingEditForm.imageUrl || null,
-          pti: existingEditForm.pti || null,
-          stars: existingEditForm.stars || null,
-          effect: existingEditForm.effect || null,
-          audioUrl: existingEditForm.audioUrl || null,
-          youtubeUrl: existingEditForm.youtubeUrl || null,
-          mosseDamageValue: existingEditForm.mosseDamageValue ? parseInt(existingEditForm.mosseDamageValue) : null,
-          mosseDamageEffect: existingEditForm.mosseDamageEffect || null,
-          mosseCharacterOverrides: existingEditForm.mosseCharacterOverrides.length > 0 ? existingEditForm.mosseCharacterOverrides : null,
-          mosseRestrictedFrom: existingEditForm.mosseRestrictedFrom.length > 0 ? existingEditForm.mosseRestrictedFrom : null,
-          mosseRestrictedAgainst: existingEditForm.mosseRestrictedAgainst.length > 0 ? existingEditForm.mosseRestrictedAgainst : null,
-          mosseTargetingMode: existingEditForm.mosseTargetingMode || null,
-          mosseTargetCount: existingEditForm.mosseTargetCount ? parseInt(existingEditForm.mosseTargetCount) : null,
-          mosseCanCounter: existingEditForm.mosseCanCounter || false,
-          mosseCanBeCountered: existingEditForm.mosseCanBeCountered || false
-        })
+        body: JSON.stringify({ modifications })
       });
       
       const data = await response.json();
       if (data.success) {
+        setPendingChanges(new Map());
         await fetchExistingCards();
-        setEditingExistingCard(null);
-        alert('Modifiche salvate!');
+        alert(`${data.count} carte salvate con successo!`);
       } else {
-        alert('Errore durante il salvataggio');
+        alert('Errore durante il salvataggio: ' + (data.error || 'errore sconosciuto'));
       }
     } catch (error) {
-      console.error('Error saving existing card modification:', error);
-      alert('Errore durante il salvataggio');
+      console.error('Error bulk saving:', error);
+      alert('Errore durante il salvataggio in batch');
+    } finally {
+      setIsBulkSaving(false);
     }
   };
 
@@ -2513,9 +2559,21 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
               </div>
             </div>
 
-            <h4 className="text-white font-semibold mb-3">
-              Carte in {getDeckLabel(selectedDeck)} ({filteredExistingCards.length}):
-            </h4>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-white font-semibold">
+                Carte in {getDeckLabel(selectedDeck)} ({filteredExistingCards.length}):
+              </h4>
+              {pendingChanges.size > 0 && (
+                <Button
+                  onClick={handleBulkSave}
+                  disabled={isBulkSaving}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 flex items-center gap-2"
+                >
+                  <Save size={16} />
+                  {isBulkSaving ? 'Salvando...' : `Salva Tutti (${pendingChanges.size})`}
+                </Button>
+              )}
+            </div>
             
             {loadingExisting ? (
               <div className="text-center text-gray-400 py-8">Caricamento...</div>
@@ -2526,7 +2584,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
             ) : (
               <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2">
                 {filteredExistingCards.map((card) => (
-                  <div key={card.id} className={`bg-gray-700 rounded-lg p-4 ${card.isDeleted ? 'opacity-50 border-2 border-red-500' : card.isModified ? 'border-2 border-yellow-500' : ''}`}>
+                  <div key={card.id} className={`bg-gray-700 rounded-lg p-4 ${card.isDeleted ? 'opacity-50 border-2 border-red-500' : pendingChanges.has(card.id) ? 'border-2 border-green-500' : card.isModified ? 'border-2 border-yellow-500' : ''}`}>
                     <div className="flex gap-4">
                       <div className="relative">
                         <img
@@ -2878,6 +2936,9 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                               {card.isModified && !card.isDeleted && (
                                 <span className="bg-yellow-500 text-black text-xs px-1 rounded">Modificata</span>
                               )}
+                              {pendingChanges.has(card.id) && !card.isDeleted && (
+                                <span className="bg-green-500 text-white text-xs px-1 rounded">Da salvare</span>
+                              )}
                             </div>
                             
                             {card.name && card.name !== card.originalName && (
@@ -2939,6 +3000,32 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {pendingChanges.size > 0 && (
+              <div className="sticky bottom-0 bg-gray-800 border-t border-green-500 p-3 mt-2 rounded-b-lg flex items-center justify-between">
+                <span className="text-green-400 text-sm font-medium">
+                  {pendingChanges.size} {pendingChanges.size === 1 ? 'carta modificata' : 'carte modificate'} da salvare
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => { setPendingChanges(new Map()); setEditingExistingCard(null); }}
+                    className="bg-gray-600 hover:bg-gray-700 text-white text-sm px-3 py-1"
+                    size="sm"
+                  >
+                    Annulla Tutto
+                  </Button>
+                  <Button
+                    onClick={handleBulkSave}
+                    disabled={isBulkSaving}
+                    className="bg-green-600 hover:bg-green-700 text-white text-sm px-4 py-1"
+                    size="sm"
+                  >
+                    <Save size={14} className="mr-1" />
+                    {isBulkSaving ? 'Salvando...' : `Salva Tutti (${pendingChanges.size})`}
+                  </Button>
+                </div>
               </div>
             )}
             
