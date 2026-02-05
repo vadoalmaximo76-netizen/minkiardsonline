@@ -1957,7 +1957,9 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-01T11:21:42.715Z"
+    "modifiedAt": "2026-02-05T23:48:25.439Z",
+    "mosseCanCounter": true,
+    "mosseCanBeCountered": true
   },
   {
     "id": 82,
@@ -3293,7 +3295,9 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-01T11:46:42.375Z"
+    "modifiedAt": "2026-02-05T23:45:59.755Z",
+    "mosseCanCounter": false,
+    "mosseCanBeCountered": false
   },
   {
     "id": 131,
