@@ -9868,6 +9868,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const myChar = myChars[0];
       const myCharName = myChar.name || this.getCardNameFromUrl(myChar.frontImage || '');
       
+      const myPtiBefore = myChar.pti || 0;
+      const myStarsBefore = myChar.stars || 0;
+      const targetPtiBefore = targetChar.pti || 0;
+      const targetStarsBefore = targetChar.stars || 0;
+      
       const result = await this.fuseCards(gameId, myChar.id, targetChar.id, playerName);
       if (!result.success) {
         console.log(`🔗🧬 Fusion failed: ${result.message}`);
@@ -9876,16 +9881,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
       
       const bonusPti = selection.bonusPti || 500;
+      const combinedPti = myPtiBefore + targetPtiBefore + bonusPti;
+      const combinedStars = myStarsBefore + targetStarsBefore;
+      
       const fusionGroup = this.getFusionGroup(game, myChar.id);
       for (const card of fusionGroup) {
-        card.pti = (card.pti || 0) + bonusPti;
+        card.pti = combinedPti;
+        card.stars = combinedStars;
         this.updateCardTextWithPTI(card);
       }
       
-      const fusedPti = myChar.pti || 0;
-      const fusedStars = myChar.stars || 0;
-      
-      console.log(`🔗🧬 Proper Fondi fusion done: ${myCharName} + ${targetCharName} with ${bonusPti} bonus PTI`);
+      console.log(`🔗🧬 Proper Fondi fusion done: ${myCharName} (${myPtiBefore} PTI, ${myStarsBefore}★) + ${targetCharName} (${targetPtiBefore} PTI, ${targetStarsBefore}★) + ${bonusPti} bonus = ${combinedPti} PTI, ${combinedStars}★`);
       
       const clonedLeader: Card = {
         id: `${myChar.id}-clone-${Date.now()}`,
@@ -9894,9 +9900,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         backImage: myChar.backImage,
         owner: targetOwner,
         name: `${myCharName} + ${targetCharName} (Clone)`,
-        text: myChar.text,
-        pti: fusedPti,
-        stars: fusedStars,
+        text: `PTI: ${combinedPti} | Stelle: ${combinedStars}`,
+        pti: combinedPti,
+        stars: combinedStars,
       };
       const clonedTarget: Card = {
         id: `${targetChar.id}-clone-${Date.now()}`,
@@ -9905,9 +9911,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         backImage: targetChar.backImage,
         owner: targetOwner,
         name: `${targetCharName} (Clone)`,
-        text: targetChar.text,
-        pti: targetChar.pti,
-        stars: targetChar.stars,
+        text: `PTI: ${combinedPti} | Stelle: ${combinedStars}`,
+        pti: combinedPti,
+        stars: combinedStars,
         isFused: true,
         fusionLeader: clonedLeader.id,
         fusedWith: [clonedLeader.id],
@@ -9919,7 +9925,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       game.field.push(clonedLeader);
       game.field.push(clonedTarget);
       
-      console.log(`🧬 Clone pair created for ${targetOwner}: ${clonedLeader.name} + ${clonedTarget.name}`);
+      console.log(`🧬 Clone pair created for ${targetOwner}: ${clonedLeader.name} + ${clonedTarget.name} with ${combinedPti} PTI, ${combinedStars}★`);
       
       io.to(gameId).emit('chat-message', {
         id: `${Date.now()}-fusion-clone`,
