@@ -7913,6 +7913,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   // AUTO-ANALYZE PERSONAGGI CARDS FOR ALL PLAYERS (using cache - synchronous)
   private autoAnalyzePersonaggioCardSync(card: any, playerName: string): void {
     try {
+      // PERMANENT/CUSTOM CARDS: If card already has PTI, stars, and name set (from loadPermanentCardsIntoDeck), preserve them
+      const isPermanentCard = card.id?.startsWith('permanent-');
+      if (isPermanentCard && card.pti != null && card.stars != null) {
+        const pti = card.pti;
+        const stars = card.stars;
+        card.text = `PTI: ${pti} | Stelle: ${stars} | PTI originali: ${pti}`;
+        card.originalPti = pti;
+        console.log(`✅ Permanent card ${card.id} keeping assigned stats: pti=${pti}, stars=${stars}, name=${card.name}`);
+        return;
+      }
+
       const cardName = this.getCardNameFromUrl(card.frontImage);
       
       // FIRST: Check if card has modifications from JSON storage (highest priority)
@@ -7924,7 +7935,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         card.pti = pti;
         card.originalPti = pti;
         card.stars = stars;
-        card.name = mod.name || cardName;
+        card.name = mod.name || card.name || cardName;
         console.log(`✅ Card ${card.id} PTI from modifications: pti=${pti}, stars=${stars}`);
         return;
       }
@@ -7939,25 +7950,46 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         card.pti = pti;
         card.originalPti = pti;
         card.stars = stars;
-        card.name = cardName;
+        card.name = card.name || cardName;
+      } else {
+        if (card.pti != null && card.stars != null) {
+          card.text = `PTI: ${card.pti} | Stelle: ${card.stars} | PTI originali: ${card.pti}`;
+          card.originalPti = card.pti;
+        } else {
+          card.text = 'PTI: 1000 | Stelle: 1 | PTI originali: 1000';
+          card.pti = 1000;
+          card.originalPti = 1000;
+          card.stars = 1;
+        }
+        card.name = card.name || cardName;
+      }
+    } catch (error) {
+      if (card.pti != null && card.stars != null) {
+        card.text = `PTI: ${card.pti} | Stelle: ${card.stars} | PTI originali: ${card.pti}`;
+        card.originalPti = card.pti;
       } else {
         card.text = 'PTI: 1000 | Stelle: 1 | PTI originali: 1000';
         card.pti = 1000;
         card.originalPti = 1000;
         card.stars = 1;
-        card.name = cardName;
       }
-    } catch (error) {
-      card.text = 'PTI: 1000 | Stelle: 1 | PTI originali: 1000';
-      card.pti = 1000;
-      card.originalPti = 1000;
-      card.stars = 1;
     }
   }
 
   // Async version for CPU AI fallback (kept for compatibility)
   private async autoAnalyzePersonaggioCard(gameId: string, card: any, playerName: string) {
     try {
+      // PERMANENT/CUSTOM CARDS: If card already has PTI, stars, and name set, preserve them
+      const isPermanentCard = card.id?.startsWith('permanent-');
+      if (isPermanentCard && card.pti != null && card.stars != null) {
+        const pti = card.pti;
+        const stars = card.stars;
+        card.text = `PTI: ${pti} | Stelle: ${stars} | PTI originali: ${pti}`;
+        card.originalPti = pti;
+        console.log(`✅ Permanent card ${card.id} keeping assigned stats (async): pti=${pti}, stars=${stars}, name=${card.name}`);
+        return;
+      }
+
       const cardName = this.getCardNameFromUrl(card.frontImage);
       
       // FIRST: Check if card has modifications from JSON storage (highest priority)
@@ -7969,7 +8001,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         card.pti = pti;
         card.originalPti = pti;
         card.stars = stars;
-        card.name = mod.name || cardName;
+        card.name = mod.name || card.name || cardName;
         return;
       }
       
@@ -7983,7 +8015,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         card.pti = pti;
         card.originalPti = pti;
         card.stars = stars;
-        card.name = cardName;
+        card.name = card.name || cardName;
         return;
       }
       
@@ -7999,26 +8031,41 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           card.pti = analysis.pti;
           card.originalPti = analysis.pti;
           card.stars = analysis.stars;
-          card.name = cardName;
+          card.name = card.name || cardName;
+        } else {
+          if (card.pti != null && card.stars != null) {
+            card.text = `PTI: ${card.pti} | Stelle: ${card.stars} | PTI originali: ${card.pti}`;
+            card.originalPti = card.pti;
+          } else {
+            card.text = 'PTI: 1000 | Stelle: 1 | PTI originali: 1000';
+            card.pti = 1000;
+            card.originalPti = 1000;
+            card.stars = 1;
+          }
+          card.name = card.name || cardName;
+        }
+      } else {
+        if (card.pti != null && card.stars != null) {
+          card.text = `PTI: ${card.pti} | Stelle: ${card.stars} | PTI originali: ${card.pti}`;
+          card.originalPti = card.pti;
         } else {
           card.text = 'PTI: 1000 | Stelle: 1 | PTI originali: 1000';
           card.pti = 1000;
           card.originalPti = 1000;
           card.stars = 1;
-          card.name = cardName;
         }
+        card.name = card.name || cardName;
+      }
+    } catch (error) {
+      if (card.pti != null && card.stars != null) {
+        card.text = `PTI: ${card.pti} | Stelle: ${card.stars} | PTI originali: ${card.pti}`;
+        card.originalPti = card.pti;
       } else {
         card.text = 'PTI: 1000 | Stelle: 1 | PTI originali: 1000';
         card.pti = 1000;
         card.originalPti = 1000;
         card.stars = 1;
-        card.name = cardName;
       }
-    } catch (error) {
-      card.text = 'PTI: 1000 | Stelle: 1 | PTI originali: 1000';
-      card.pti = 1000;
-      card.originalPti = 1000;
-      card.stars = 1;
     }
   }
 
