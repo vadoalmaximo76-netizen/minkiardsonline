@@ -5436,37 +5436,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
 
       case 'fusion_enemy': {
-        // Fusion with enemy character - show target selection panel
-        const fusionPlayer = this.getPlayerActiveCharacter(game, playerName);
-        if (!fusionPlayer) {
+        const fusionPlayerChar = this.getPlayerActiveCharacter(game, playerName);
+        if (!fusionPlayerChar) {
           console.log(`🔗 FUSION ENEMY: No active character found for ${playerName}`);
           break;
         }
         
-        // For CPU players, auto-select strongest enemy
-        if (this.isPlayerCPU(gameId, playerName)) {
-          const enemyChars = game.field.filter(c => 
-            c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.pti != null
-          );
-          if (enemyChars.length > 0) {
-            // Pick strongest enemy
-            const bestEnemy = enemyChars.reduce((best, c) => (c.pti || 0) > (best.pti || 0) ? c : best, enemyChars[0]);
-            // Fuse: sum PTI and stars
-            const enemyPti = bestEnemy.pti || 0;
-            const enemyStars = bestEnemy.stars || 0;
-            fusionPlayer.pti = (fusionPlayer.pti || 0) + enemyPti;
-            fusionPlayer.stars = (fusionPlayer.stars || 0) + enemyStars;
-            fusionPlayer.name = `${fusionPlayer.name} + ${bestEnemy.name}`;
-            this.updateCardTextWithPTI(fusionPlayer);
-            // Remove enemy from field
-            game.field = game.field.filter(c => c.id !== bestEnemy.id);
-            game.graveyard.push(bestEnemy);
-            console.log(`🔗 FUSION ENEMY (CPU): ${fusionPlayer.name} fused! Now has ${fusionPlayer.pti} PTI and ${fusionPlayer.stars} stars!`);
-          }
-          break;
-        }
-        
-        // For human players, show target selection
         const enemyCharsForFusion = game.field.filter(c => 
           c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
         );
@@ -5476,36 +5451,46 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           break;
         }
         
-        // Store pending fusion
-        if (!game.pendingEffects) {
-          game.pendingEffects = new Map();
+        if (this.isPlayerCPU(gameId, playerName)) {
+          const bestEnemy = enemyCharsForFusion.reduce((best, c) => (c.pti || 0) > (best.pti || 0) ? c : best, enemyCharsForFusion[0]);
+          const result = await this.fuseCards(gameId, fusionPlayerChar.id, bestEnemy.id, playerName);
+          if (result.success) {
+            console.log(`🔗 FUSION ENEMY (CPU): ${fusionPlayerChar.name} fused with ${bestEnemy.name} using proper Fondi!`);
+          }
+          break;
         }
-        (game.pendingEffects as any).set(playerName, {
-          type: 'fusion_enemy',
+        
+        const fusionSelectionId = `fusion-enemy-${Date.now()}`;
+        if (!game.pendingTargetSelections) {
+          game.pendingTargetSelections = new Map();
+        }
+        (game.pendingTargetSelections as any).set(fusionSelectionId, {
           cardId: card.id,
-          sourceCharId: fusionPlayer.id,
+          cardName: card.name || 'Fusione',
+          effectText: 'fusion_enemy',
+          owner: playerName,
+          leaderCharId: fusionPlayerChar.id,
           timestamp: Date.now()
         });
         
         const ioFusion = (global as any).io;
         if (ioFusion) {
-          // Emit custom target selection for fusion
           ioFusion.to(gameId).emit('show-custom-target-selection', {
-            selectionId: `fusion-enemy-${Date.now()}`,
+            selectionId: fusionSelectionId,
             cardId: card.id,
             cardName: card.name || 'Fusione',
-            playerName,
-            targets: enemyCharsForFusion.map(c => ({
+            owner: playerName,
+            availableTargets: enemyCharsForFusion.map(c => ({
               id: c.id,
-              name: c.name || 'Personaggio',
-              pti: c.pti || 0,
-              stars: c.stars || 0,
+              name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
               owner: c.owner || 'Unknown',
-              frontImage: c.frontImage
+              frontImage: c.frontImage,
+              pti: c.pti || 0,
+              stars: c.stars || 0
             })),
-            selectionType: 'single',
+            maxSelections: 1,
             title: '🔗 FUSIONE - Scegli il personaggio avversario',
-            description: 'Il personaggio scelto verrà fuso con il tuo. I PTI e le stelle verranno sommati.'
+            subtitle: 'Il personaggio scelto verrà fuso con il tuo (come la funzione Fondi). I PTI e le stelle verranno sommati.'
           });
         }
         break;
@@ -9936,6 +9921,66 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       return { success: true, message: `Fusione e clone completati! ${fusedName} con ${fusedPti} PTI` };
     }
 
+    // ============ FUSION ENEMY HANDLER (proper Fondi) ============
+    if (selectionId.startsWith('fusion-enemy-') || selection.effectText === 'fusion_enemy') {
+      console.log(`🔗 Processing FUSION ENEMY (proper Fondi) for ${playerName}`);
+      
+      const selectedEnemy = targetCards[0];
+      if (!selectedEnemy) {
+        game.pendingTargetSelections.delete(selectionId);
+        return { success: false, message: 'Nessun bersaglio selezionato' };
+      }
+      
+      if (!game.field.find((c: Card) => c.id === selectedEnemy.id)) {
+        game.pendingTargetSelections.delete(selectionId);
+        return { success: false, message: 'Il bersaglio non è più in campo' };
+      }
+      
+      if (selectedEnemy.owner === playerName) {
+        game.pendingTargetSelections.delete(selectionId);
+        return { success: false, message: 'Non puoi fondere con un tuo personaggio - scegli un avversario' };
+      }
+      
+      const leaderCharId = (selection as any).leaderCharId;
+      const leaderChar = leaderCharId 
+        ? game.field.find((c: Card) => c.id === leaderCharId) 
+        : this.getPlayerActiveCharacter(game, playerName);
+      
+      if (!leaderChar || !game.field.find((c: Card) => c.id === leaderChar.id)) {
+        game.pendingTargetSelections.delete(selectionId);
+        return { success: false, message: 'Il tuo personaggio non è più in campo' };
+      }
+      
+      const leaderName = leaderChar.name || this.getCardNameFromUrl(leaderChar.frontImage || '');
+      const enemyName = selectedEnemy.name || this.getCardNameFromUrl(selectedEnemy.frontImage || '');
+      
+      const result = await this.fuseCards(gameId, leaderChar.id, selectedEnemy.id, playerName);
+      
+      if (result.success) {
+        console.log(`🔗 FUSION ENEMY: ${leaderName} fused with ${enemyName} using proper Fondi!`);
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-fusion-enemy`,
+          playerName: 'Sistema',
+          message: `🔗 FUSIONE! ${leaderName} si è fuso con ${enemyName}! I PTI e le stelle sono stati sommati!`,
+          timestamp: Date.now()
+        });
+      } else {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-fusion-error`,
+          playerName: 'Sistema',
+          message: `❌ Fusione fallita: ${result.message}`,
+          timestamp: Date.now()
+        });
+      }
+      
+      game.pendingTargetSelections.delete(selectionId);
+      
+      const gameState = this.getSanitizedGameState(gameId);
+      io.to(gameId).emit('game-state-update', gameState);
+      
+      return { success: result.success, message: result.message };
+    }
+
     // Check if effect contains DADO_AUTOMATICO - if so, trigger auto dice with pre-selected targets
     const autoDiceMatch = selection.effectText.match(/\[DADO_AUTOMATICO:\s*([^\]]+)\]/i);
     if (autoDiceMatch) {
@@ -11822,7 +11867,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       
       case 'fusion':
       case 'fusion_enemy': {
-        // Fusion effect in activateCustomEffect path
         const fusionActiveChar = this.getPlayerActiveCharacter(game, playerName);
         if (!fusionActiveChar) break;
         
@@ -11831,30 +11875,22 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         );
         
         if (enemyCharsForFusionAce.length > 0) {
-          // Auto-select strongest enemy (for CPU or auto-apply)
           const bestEnemy = enemyCharsForFusionAce.reduce((best: Card, c: Card) => (c.pti || 0) > (best.pti || 0) ? c : best, enemyCharsForFusionAce[0]);
-          const enemyPti = bestEnemy.pti || 0;
-          const enemyStars = bestEnemy.stars || 0;
-          fusionActiveChar.pti = (fusionActiveChar.pti || 0) + enemyPti;
-          fusionActiveChar.stars = (fusionActiveChar.stars || 0) + enemyStars;
-          this.updateCardTextWithPTI(fusionActiveChar);
-          game.field = game.field.filter((c: Card) => c.id !== bestEnemy.id);
-          game.graveyard.push(bestEnemy);
-          console.log(`🔗 FUSION: ${fusionActiveChar.name} absorbed ${bestEnemy.name}! Now ${fusionActiveChar.pti} PTI, ${fusionActiveChar.stars} stars`);
-          io?.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-fusion`,
-            playerName: 'Sistema',
-            message: `🔗 FUSIONE! ${fusionActiveChar.name} ha assorbito ${bestEnemy.name}! Ora ha ${fusionActiveChar.pti} PTI e ${fusionActiveChar.stars} stelle!`,
-            timestamp: Date.now()
-          });
+          const fuseResult = await this.fuseCards(gameId, fusionActiveChar.id, bestEnemy.id, playerName);
+          if (fuseResult.success) {
+            console.log(`🔗 FUSION (activateCustomEffect): ${fusionActiveChar.name} fused with ${bestEnemy.name} using proper Fondi!`);
+            io?.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-fusion`,
+              playerName: 'Sistema',
+              message: `🔗 FUSIONE! ${fusionActiveChar.name} si è fuso con ${bestEnemy.name}!`,
+              timestamp: Date.now()
+            });
+          }
         } else {
-          // No enemies - boost own character instead
-          fusionActiveChar.pti = (fusionActiveChar.pti || 0) + 200;
-          this.updateCardTextWithPTI(fusionActiveChar);
           io?.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-fusion-boost`,
+            id: `${Date.now()}-fusion-no-target`,
             playerName: 'Sistema',
-            message: `🔗 FUSIONE: Nessun nemico disponibile, +200 PTI a ${fusionActiveChar.name}!`,
+            message: `🔗 FUSIONE: Nessun nemico disponibile per la fusione!`,
             timestamp: Date.now()
           });
         }
