@@ -1313,15 +1313,21 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
   // NEW CPU TURN LOGIC: State machine for pesca → gioca → esegui azione → fine turno
   async takeTurn(gameState: any) {
     try {
-      // CRITICAL FIX: Always reset turn state at the START of a new turn
-      // The waitingForAttackResolution flag indicates we're mid-action (don't reset)
-      // If NOT waiting for attack resolution, this is a new turn - reset everything
-      if (!this.waitingForAttackResolution && !this.waitingForResponse) {
-        // Check if turn state is stale (from previous turn)
-        if (this.turnState.phase !== 'draw_needed' || this.turnState.playedThisTurn) {
-          console.log(`🔧 CPU ${this.playerName}: New turn detected - resetting stale state (phase=${this.turnState.phase}, played=${this.turnState.playedThisTurn})`);
-          this.resetTurnState();
-        }
+      // CRITICAL FIX: Always reset stale attack/response flags at the start of a new turn
+      // These flags should NEVER persist across turns - they only apply within a single turn's action
+      if (this.waitingForAttackResolution) {
+        console.log(`🔧 CPU ${this.playerName}: Clearing stale waitingForAttackResolution flag at turn start`);
+        this.waitingForAttackResolution = false;
+      }
+      if (this.waitingForResponse) {
+        console.log(`🔧 CPU ${this.playerName}: Clearing stale waitingForResponse flag at turn start`);
+        this.waitingForResponse = false;
+      }
+      
+      // Reset turn state if stale (from previous turn)
+      if (this.turnState.phase !== 'draw_needed' || this.turnState.playedThisTurn) {
+        console.log(`🔧 CPU ${this.playerName}: New turn detected - resetting stale state (phase=${this.turnState.phase}, played=${this.turnState.playedThisTurn})`);
+        this.resetTurnState();
       }
       
       console.log(`CPU ${this.playerName} is thinking... Current phase: ${this.turnState.phase}`);
