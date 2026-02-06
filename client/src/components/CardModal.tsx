@@ -25,6 +25,7 @@ export const CardModal: React.FC = () => {
   const [showSkinPanel, setShowSkinPanel] = useState(false);
   const [appliedSkinUrl, setAppliedSkinUrl] = useState<string | null>(null);
   const { selectedCard, setSelectedCard, playerName, gameState, gameId, setSelectedMosseCard, userRankiardPoints, prSpentThisGame, addPRSpent, setHandModalOpen } = useGameState();
+  const { playFusionSound } = useAudio();
   
   // Calculate available Rankiard points (total from authenticated user minus spent this game)
   const availableRankiardPoints = userRankiardPoints - prSpentThisGame;
@@ -195,8 +196,6 @@ export const CardModal: React.FC = () => {
   const handleFusion = () => {
     setShowFusionSelect(true);
   };
-
-  const { playFusionSound } = useAudio();
 
   const handleFuseWith = (targetCardId: string) => {
     playFusionSound();
