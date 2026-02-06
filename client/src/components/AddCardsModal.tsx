@@ -912,13 +912,11 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
 
   // Apply all saved effects (combined) to the card
   const applyEffectFromWizard = () => {
-    // If there's a current effect being edited, add it first
     const currentEffect = generateEffectDescription(effectWizard);
     const allEffects = currentEffect.trim() 
       ? [...savedEffects, currentEffect]
       : savedEffects;
     
-    // Combine all effects with " | " separator
     const combinedEffect = allEffects.join(' | ');
     
     if (effectWizardTarget === 'new' && effectWizardCardIndex !== null) {
@@ -926,7 +924,22 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     } else if (effectWizardTarget === 'permanent') {
       setEditForm(prev => ({ ...prev, effect: combinedEffect }));
     } else if (effectWizardTarget === 'existing') {
-      setExistingEditForm(prev => ({ ...prev, effect: combinedEffect }));
+      setExistingEditForm(prev => {
+        const updatedForm = { ...prev, effect: combinedEffect };
+        
+        if (editingExistingCard) {
+          const currentCard = existingCards.find(c => c.id === editingExistingCard);
+          if (currentCard) {
+            setPendingChanges(prevChanges => {
+              const newMap = new Map(prevChanges);
+              newMap.set(editingExistingCard, { card: currentCard, formData: updatedForm });
+              return newMap;
+            });
+          }
+        }
+        
+        return updatedForm;
+      });
     }
     
     setShowEffectWizard(false);
