@@ -205,6 +205,9 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   const prevLocationRef = useRef<string>(location);
   const [showSkinPanel, setShowSkinPanel] = useState(false);
   const [skinAnimation, setSkinAnimation] = useState<string | null>(null);
+  const [showHoverPreview, setShowHoverPreview] = useState(false);
+  const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
+  const [damageFlash, setDamageFlash] = useState(false);
   
   // Use skin from card's game state (persisted) instead of local state
   const appliedSkinUrl = card.appliedSkinUrl || null;
@@ -282,6 +285,8 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           setFloatingNumbers(prev => [...prev, { id, value: Math.abs(diff), type: 'damage', x, y }]);
           playPointLoss();
           setStatGlowEffect('pti-down');
+          setDamageFlash(true);
+          setTimeout(() => setDamageFlash(false), 600);
         }
         
         // Clear glow effect after animation
@@ -1047,10 +1052,31 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     }
   };
 
+  const handleMouseEnter = useCallback((e: React.MouseEvent) => {
+    if (location !== 'field') return;
+    const rect = (e.target as HTMLElement).getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const previewWidth = 250;
+    let x = rect.right + 12;
+    if (x + previewWidth > viewportWidth) {
+      x = rect.left - previewWidth - 12;
+    }
+    let y = Math.max(10, rect.top - 50);
+    if (y + 350 > window.innerHeight) {
+      y = window.innerHeight - 360;
+    }
+    setHoverPosition({ x, y });
+    setShowHoverPreview(true);
+  }, [location]);
+
+  const handleMouseLeave = useCallback(() => {
+    setShowHoverPreview(false);
+  }, []);
+
   return (
     <div 
       ref={cardRef}
-      className={`relative flex flex-col gap-2 ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? getEntryAnimationClass() : ''}`}
+      className={`relative flex flex-col gap-2 card-play-transition ${damageFlash ? 'card-damage-flash' : ''} ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? getEntryAnimationClass() : ''}`}
     >
       {/* Floating Numbers */}
       {floatingNumbers.map(num => (
@@ -1063,6 +1089,30 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           onComplete={() => removeFloatingNumber(num.id)}
         />
       ))}
+
+      {showHoverPreview && location === 'field' && !card.faceDown && typeof document !== 'undefined' && ReactDOM.createPortal(
+        <div 
+          className="card-hover-preview"
+          style={{
+            left: `${hoverPosition.x}px`,
+            top: `${hoverPosition.y}px`,
+            width: '250px',
+          }}
+        >
+          <img 
+            src={appliedSkinUrl || card.frontImage} 
+            alt="Card preview"
+            className="w-full rounded-lg"
+            style={{ maxHeight: '350px', objectFit: 'contain' }}
+          />
+          {cardText && (
+            <div className="mt-1 bg-black/90 text-white text-xs p-2 rounded-lg max-w-full">
+              {cardText}
+            </div>
+          )}
+        </div>,
+        document.body
+      )}
 
       {/* Particle Effects for newly placed cards */}
       {isNewlyPlaced && location === 'field' && (
@@ -1185,6 +1235,8 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
             alt="Card"
             loading="eager"
             decoding="async"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
             className={`w-14 h-auto aspect-[2/3] sm:w-16 md:w-20 lg:w-24 card-master object-cover rounded-xl bg-slate-700
               ${getEntryAnimationClass()}
               ${card.type === 'personaggi' ? 'card-border-personaggi' : ''}

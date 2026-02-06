@@ -37,12 +37,13 @@ export const PlayerHand: React.FC = () => {
   };
 
   return (
-    <div className="mb-4 sm:mb-8">
+    <div className="mb-4 sm:mb-8 zone-hand">
       <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-2 sm:mb-4">
         <h2 className="text-white font-bold text-base sm:text-2xl flex items-center gap-1 sm:gap-2">
           <span className="text-xl sm:text-3xl">{playerAvatar ? getAvatarEmoji(playerAvatar) : '👤'}</span>
           <span className="hidden sm:inline">CARTE IN MANO</span>
           <span className="sm:hidden">MANO</span>
+          <span className="ml-2 text-[10px] sm:text-xs text-blue-400/60 font-normal">🃏 MANO</span>
         </h2>
         <Button
           data-tutorial="end-turn"

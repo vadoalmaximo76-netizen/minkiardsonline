@@ -1370,3 +1370,86 @@ input:focus, select:focus {
     filter: brightness(1);
   }
 }
+
+/* Turn indicator animations */
+@keyframes turn-glow-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(74, 222, 128, 0.6), 0 0 16px rgba(74, 222, 128, 0.3); }
+  50% { box-shadow: 0 0 16px rgba(74, 222, 128, 0.9), 0 0 32px rgba(74, 222, 128, 0.5); }
+}
+.turn-glow-active {
+  animation: turn-glow-pulse 2s ease-in-out infinite;
+}
+.turn-indicator-mine {
+  animation: turn-glow-pulse 1.5s ease-in-out infinite;
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.6);
+}
+.turn-indicator-other {
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+}
+.turn-text-glow {
+  text-shadow: 0 0 8px rgba(74, 222, 128, 0.8), 1px 1px 2px rgba(0,0,0,0.8) !important;
+}
+
+/* Zone distinction styles */
+.zone-hand {
+  background: linear-gradient(180deg, rgba(30, 58, 138, 0.3) 0%, rgba(30, 58, 138, 0.1) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 12px;
+  padding: 8px;
+}
+.zone-field {
+  border: 2px solid rgba(147, 51, 234, 0.3);
+}
+.zone-decks {
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.2) 70%);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+}
+.zone-graveyard {
+  background: linear-gradient(180deg, rgba(127, 29, 29, 0.3) 0%, rgba(127, 29, 29, 0.1) 100%);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+}
+
+/* Card hover zoom preview */
+.card-hover-preview {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  animation: card-preview-appear 0.2s ease-out;
+  filter: drop-shadow(0 0 20px rgba(0,0,0,0.8));
+}
+@keyframes card-preview-appear {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Card play animation - hand to field */
+.card-play-transition {
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+}
+
+/* Damage flash effect */
+@keyframes damage-flash {
+  0% { filter: brightness(1); }
+  15% { filter: brightness(2) saturate(0) sepia(1) hue-rotate(-50deg); }
+  30% { filter: brightness(1.5) saturate(2) hue-rotate(-10deg); }
+  50% { filter: brightness(1); }
+  65% { filter: brightness(1.8) saturate(0) sepia(1) hue-rotate(-50deg); }
+  80% { filter: brightness(1); }
+  100% { filter: brightness(1); }
+}
+.card-damage-flash {
+  animation: damage-flash 0.6s ease-out;
+}
+
+/* Attack lunge animation */
+@keyframes attack-lunge {
+  0% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(-20px) scale(1.1); }
+  50% { transform: translateY(-30px) scale(1.15); }
+  70% { transform: translateY(-20px) scale(1.1); }
+  100% { transform: translateY(0) scale(1); }
+}
+.card-attack-lunge {
+  animation: attack-lunge 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}

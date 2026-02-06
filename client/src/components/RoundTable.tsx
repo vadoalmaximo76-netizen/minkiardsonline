@@ -6,6 +6,7 @@ import { Button } from "./ui/button";
 import { ChevronLeft, ChevronRight, Zap } from "lucide-react";
 import { socket } from "../lib/socket";
 import { Checkbox } from "./ui/checkbox";
+import { getAvatarEmoji } from "../lib/avatars";
 
 // Check if a card has custom activatable effects
 const hasCustomEffect = (card: any): boolean => {
@@ -44,6 +45,9 @@ const hasCustomEffect = (card: any): boolean => {
 const RoundTableComponent: React.FC = () => {
   const { gameState, playerName, gameId, showBrowser } = useGameState();
   
+  const currentTurnPlayer = gameState?.turnOrder?.[gameState?.currentTurnIndex ?? 0] || '';
+  const isMyTurn = currentTurnPlayer === playerName;
+
   const fieldCards = gameState?.field || [];
   const players = gameState?.players || {};
   const allPlayerNames = Object.keys(players);
@@ -293,10 +297,20 @@ const RoundTableComponent: React.FC = () => {
           className="absolute inset-0 bg-black opacity-40 rounded-lg"
           style={{ borderRadius: '16px' }}
         />
+
+        {currentTurnPlayer && (
+          <div className={`absolute top-2 left-1/2 -translate-x-1/2 z-20 px-4 py-1.5 rounded-full text-sm font-bold shadow-lg whitespace-nowrap transition-all duration-500 ${
+            isMyTurn 
+              ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-black turn-indicator-mine' 
+              : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white turn-indicator-other'
+          }`} style={{textShadow: isMyTurn ? 'none' : '1px 1px 2px rgba(0,0,0,0.8)'}}>
+            {isMyTurn ? '👑 TOCCA A TE!' : `⏳ Turno di ${currentTurnPlayer}`}
+          </div>
+        )}
         
         {/* Center Area - Decks with protection zone - centered vertically */}
         <div className="absolute top-[45%] sm:top-[45%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
-          <div data-tutorial="decks" className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-3 md:gap-4 items-start justify-center bg-black/40 rounded-lg sm:rounded-xl p-2 sm:p-3 md:p-4 backdrop-blur-sm">
+          <div data-tutorial="decks" className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-3 md:gap-4 items-start justify-center zone-decks rounded-lg sm:rounded-xl p-2 sm:p-3 md:p-4 backdrop-blur-sm">
             <Deck
               name="PERSONAGGI"
               backImage="https://i.imgur.com/r1rfUAB.png"
@@ -336,7 +350,7 @@ const RoundTableComponent: React.FC = () => {
                   top: `${playerPosition.y}%`,
                 }}
               >
-                <span className="bg-blue-800/80 text-white font-bold px-2 py-1 rounded-full text-xs shadow-lg whitespace-nowrap" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                <span className={`${player === currentTurnPlayer ? 'bg-green-600/90 ring-2 ring-green-400 turn-glow-active' : 'bg-blue-800/80'} text-white font-bold px-2 py-1 rounded-full text-xs shadow-lg whitespace-nowrap`} style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
                   {player}
                 </span>
               </div>
@@ -415,7 +429,7 @@ const RoundTableComponent: React.FC = () => {
           <>
             {/* Player Name at bottom */}
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
-              <span className="bg-yellow-600/80 text-white font-bold px-2 py-1 rounded-full text-xs shadow-lg whitespace-nowrap">
+              <span className={`${isMyTurn ? 'bg-green-500/90 ring-2 ring-green-400 turn-glow-active' : 'bg-yellow-600/80'} text-white font-bold px-2 py-1 rounded-full text-xs shadow-lg whitespace-nowrap`}>
                 {playerName} (Tu)
               </span>
             </div>
@@ -517,7 +531,7 @@ const RoundTableComponent: React.FC = () => {
       {/* CARTE IN CAMPO section for all players */}
       <div className="mt-4 md:mt-8">
         <h3 className="text-white font-bold text-lg md:text-xl mb-2 md:mb-4 text-center" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>CARTE IN CAMPO</h3>
-        <div className="bg-blue-800/30 rounded-lg p-2 md:p-4">
+        <div className="bg-blue-800/30 rounded-lg p-2 md:p-4 zone-field">
           {allPlayerNames.length > 0 ? (
             (() => {
               // Reorder players to put current player first
@@ -533,8 +547,8 @@ const RoundTableComponent: React.FC = () => {
                 return (
                 <div key={player} className="mb-3 md:mb-4 last:mb-0">
                   <div className="flex items-center justify-between mb-1 md:mb-2">
-                    <h4 className={`font-semibold text-sm md:text-base ${isCurrentPlayer ? 'text-yellow-400' : 'text-white'}`} style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
-                      {player} {isCurrentPlayer && '(Tu)'}
+                    <h4 className={`font-semibold text-sm md:text-base ${player === currentTurnPlayer ? 'text-green-400 turn-text-glow' : isCurrentPlayer ? 'text-yellow-400' : 'text-white'}`} style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                      {player} {isCurrentPlayer && '(Tu)'}{player === currentTurnPlayer && <span className="ml-1 text-xs">🟢</span>}
                     </h4>
                     <span className="text-white/60 text-xs md:text-sm" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
                       {playerCards.length} carte
