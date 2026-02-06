@@ -312,6 +312,7 @@ interface GameState {
   weatherTurns?: number; // Turns remaining for weather
   terrainEffect?: string; // Current terrain effect
   counterSpellActive?: string; // Player with counter spell ready
+  ptiThresholds?: Array<{ threshold: number; dropTo: number; stars: number }>; // PTI cap rules
   delayedDeaths?: Array<{
     cardId: string;
     cardName: string;
@@ -2639,7 +2640,69 @@ Rispondi SOLO in JSON:`;
       return defaultVal;
     };
 
+    // ============ GAMBLING/SCOMMESSA PATTERN ============
+    if (/scommessa|scommetti/i.test(text) || (/50%/.test(text) && (/guadagn|perd|pti|roulette|dado/i.test(text)))) {
+      const gambValue = extractNumberForKeyword(text, ['pti', 'guadagn', 'perd'], 100);
+      const gambDesc = /morte/i.test(effectText) ? `Scommessa ${gambValue} PTI - morte se PTI <= 0` : `Scommessa ${gambValue} PTI`;
+      actions.push({ type: 'gambling', target: 'self', value: gambValue, description: gambDesc });
+    }
+
+    // ============ MULTI-TARGET ATTACK PATTERN ============
+    if (/attaccare\s+\d+\s+avversari/i.test(text) || /contemporaneamente/i.test(text) || /multi.?attacco/i.test(text) || /colpire\s+(tutti|più)\s+(avversari|nemici)/i.test(text)) {
+      const multiMatch = text.match(/attaccare\s+(\d+)\s+avversari/i) || text.match(/colpire\s+(\d+)/i);
+      const multiVal = multiMatch ? parseInt(multiMatch[1], 10) : 2;
+      actions.push({ type: 'multi_attack', target: 'opponents', value: multiVal, description: `Attacca ${multiVal} avversari contemporaneamente` });
+    }
+
+    // ============ ALL-ATTACK-ONE PATTERN ============
+    if (/tutti.*giocatori.*attacca/i.test(text) || /tutti.*attaccano/i.test(text) || /attacco\s+simultaneo/i.test(text) || /attacco\s+coordinato/i.test(text)) {
+      actions.push({ type: 'all_attack_target', target: 'choose_target', value: 0, description: 'Tutti i giocatori attaccano un bersaglio' });
+    }
+
+    // ============ BLOCK MOSSE PATTERN ============
+    if (/non\s+può\s+giocare.*mosse/i.test(text) || /blocca.*mosse/i.test(text) || /impedisci.*mosse/i.test(text) || /mosse.*bloccate/i.test(text) || /carte\s+mosse.*blocc/i.test(text) || /non.*usare.*mosse/i.test(text)) {
+      const blockTurns = extractNumberForKeyword(text, ['turni', 'turno'], 3);
+      const blockTarget = determineTarget(text);
+      actions.push({ type: 'block_mosse', target: blockTarget === 'self' ? 'opponents' : blockTarget, value: blockTurns, description: `Blocca carte MOSSE per ${blockTurns} turni` });
+    }
+
+    // ============ RETURN ALL CARDS TO HAND PATTERN ============
+    if (/carte\s+tornano\s+in\s+mano/i.test(text) || /tornano.*in\s+mano/i.test(text) || /le\s+tue\s+carte.*mano/i.test(text) || /riprendi.*carte.*mano/i.test(text)) {
+      actions.push({ type: 'return_all_to_hand', target: 'self', value: 99, description: 'Tutte le carte tornano in mano' });
+      const skipMatch = text.match(/per\s+(\d+)\s+turni/i) || text.match(/(\d+)\s+turni/i);
+      if (skipMatch || /non\s+puoi\s+giocare/i.test(text)) {
+        const skipVal = skipMatch ? parseInt(skipMatch[1], 10) : 3;
+        actions.push({ type: 'skip_turns_self', target: 'self', value: skipVal, description: `Non puoi giocare per ${skipVal} turni` });
+      }
+    }
+
+    // ============ SKIP TURNS SELF PATTERN ============
+    if (!actions.some(a => a.type === 'skip_turns_self') && (/non\s+puoi\s+giocare.*turni/i.test(text) || /non.*giocare.*per\s+\d+\s+turni/i.test(text) || /salti\s+\d+\s+turni/i.test(text) || /non\s+puoi.*per\s+\d+\s+turni/i.test(text))) {
+      const skipTurnsVal = extractNumberForKeyword(text, ['turni', 'turno'], 3);
+      actions.push({ type: 'skip_turns_self', target: 'self', value: skipTurnsVal, description: `Salti ${skipTurnsVal} turni` });
+    }
+
+    // ============ PTI THRESHOLD/CAP PATTERN ============
+    if (/più\s+di\s+\d+\s*pti.*scende/i.test(text) || /supera\s+\d+\s*pti/i.test(text) || /ha\s+più\s+di\s+\d+.*pti/i.test(text) || /pti.*scende.*a\s+\d+/i.test(text) || /cap.*pti/i.test(text) || /limite.*pti/i.test(text)) {
+      const threshMatch = text.match(/(?:più\s+di|supera|ha\s+più\s+di)\s+(\d+)/i);
+      const threshVal = threshMatch ? parseInt(threshMatch[1], 10) : 2000;
+      const dropToMatch = text.match(/scende.*?a\s+(\d+)\s*pti/i) || text.match(/a\s+(\d+)\s*pti/i);
+      const dropToVal = dropToMatch ? parseInt(dropToMatch[1], 10) : 100;
+      actions.push({ type: 'pti_threshold', target: 'all', value: threshVal, description: `Se supera ${threshVal} PTI, scende a ${dropToVal} PTI e 1 stella` });
+    }
+
+    // ============ DELAYED DEATH PATTERN ============
+    if (/dopo\s+\d+\s+turni.*muore/i.test(text) || /morirà.*dopo\s+\d+\s+turni/i.test(text) || /muore.*tra\s+\d+\s+turni/i.test(text) || /morte.*dopo\s+\d+\s+turni/i.test(text) || /morire.*dopo/i.test(text)) {
+      const deathTurnsMatch = text.match(/(\d+)\s+turni/i);
+      const deathTurnsVal = deathTurnsMatch ? parseInt(deathTurnsMatch[1], 10) : 5;
+      actions.push({ type: 'delayed_death', target: 'self', value: deathTurnsVal, description: `Muore dopo ${deathTurnsVal} turni` });
+    }
+
     // ============ DAMAGE PATTERNS ============
+    const hasMultiAttack = actions.some(a => a.type === 'multi_attack');
+    const hasAllAttack = actions.some(a => a.type === 'all_attack_target');
+    const hasGambling = actions.some(a => a.type === 'gambling');
+    const hasReturnToHand = actions.some(a => a.type === 'return_all_to_hand');
     if (text.includes('danno') || text.includes('danni') || text.includes('infligge') || text.includes('danneggia') || 
         text.includes('colpisce') || text.includes('attacca') || text.includes('ferisce') || text.includes('distrugge') ||
         text.includes('elimina') || text.includes('uccide') || text.includes('fa male') || text.includes('subisce') ||
@@ -2649,9 +2712,11 @@ Rispondi SOLO in JSON:`;
         text.includes('schianta') || text.includes('bombarda') || text.includes('martella') || text.includes('sfonda') ||
         text.includes('fracassa') || text.includes('trapassa') || text.includes('trafigge') || text.includes('lacera') ||
         text.includes('squarcia')) {
-      const value = getDetailValue(['damage_amount', 'danni', 'danno', 'valore'], extractNumber(text));
-      const target = determineTarget(text);
-      actions.push({ type: 'damage', target, value, description: `Infligge ${value} danni` });
+      if (!hasMultiAttack && !hasAllAttack && !hasGambling && !hasReturnToHand) {
+        const value = getDetailValue(['damage_amount', 'danni', 'danno', 'valore'], extractNumber(text));
+        const target = determineTarget(text);
+        actions.push({ type: 'damage', target, value, description: `Infligge ${value} danni` });
+      }
     }
 
     // ============ HEAL PATTERNS ============
@@ -4211,6 +4276,7 @@ Rispondi SOLO in JSON:`;
             await this.executeCustomEffectAction(gameId, action, playerName, card);
           }
           (card as any).effectAlreadyApplied = true;
+          this.checkAndEnforcePtiThresholds(gameId);
           
           // Record the effect execution
           await this.recordEvent(gameId, 'custom-card-effect', {
@@ -4314,6 +4380,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           await this.executeCustomEffectAction(gameId, action, playerName, card);
         }
         (card as any).effectAlreadyApplied = true;
+        this.checkAndEnforcePtiThresholds(gameId);
         
         // Record the effect execution
         await this.recordEvent(gameId, 'custom-card-effect', {
@@ -6239,6 +6306,234 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
       }
 
+      case 'gambling': {
+        const gambleChar = this.getPlayerActiveCharacter(game, playerName);
+        if (gambleChar && gambleChar.pti != null) {
+          const win = Math.random() >= 0.5;
+          const amount = action.value || 100;
+          if (win) {
+            gambleChar.pti += amount;
+            this.updateCardTextWithPTI(gambleChar);
+            console.log(`🎰 GAMBLING WIN: ${gambleChar.name} gained ${amount} PTI → ${gambleChar.pti}`);
+            const io = (global as any).io;
+            if (io) {
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-gambling`,
+                playerName: 'Sistema',
+                message: `🎰 Scommessa VINTA! ${gambleChar.name} guadagna ${amount} PTI!`,
+                timestamp: Date.now()
+              });
+            }
+          } else {
+            gambleChar.pti -= amount;
+            this.updateCardTextWithPTI(gambleChar);
+            console.log(`🎰 GAMBLING LOSS: ${gambleChar.name} lost ${amount} PTI → ${gambleChar.pti}`);
+            const io = (global as any).io;
+            if (io) {
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-gambling`,
+                playerName: 'Sistema',
+                message: `🎰 Scommessa PERSA! ${gambleChar.name} perde ${amount} PTI!`,
+                timestamp: Date.now()
+              });
+            }
+            if (action.description && action.description.toLowerCase().includes('morte')) {
+              if (gambleChar.pti <= 0) {
+                gambleChar.pti = 0;
+                this.updateCardTextWithPTI(gambleChar);
+                this.moveToGraveyard(gameId, gambleChar.id, playerName, 'SCOMMESSA_PERSA');
+              }
+            }
+          }
+        }
+        break;
+      }
+
+      case 'multi_attack': {
+        const multiChar = this.getPlayerActiveCharacter(game, playerName);
+        if (multiChar) {
+          (multiChar as any).multiAttackTargets = action.value || 2;
+          console.log(`🎯🎯 MULTI ATTACK: ${multiChar.name} can attack ${action.value || 2} opponents with next move!`);
+          const io = (global as any).io;
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-multi-attack`,
+              playerName: 'Sistema',
+              message: `🎯🎯 ${multiChar.name} può attaccare ${action.value || 2} avversari con la prossima mossa!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        break;
+      }
+
+      case 'all_attack_target': {
+        const enemyChars = game.field.filter(c => 
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (enemyChars.length > 0) {
+          const targetChar = enemyChars[0];
+          let totalDamage = 0;
+          for (const pName of game.turnOrder) {
+            if (pName !== playerName && !game.eliminatedPlayers.has(pName)) {
+              const attackerChar = this.getPlayerActiveCharacter(game, pName);
+              if (attackerChar) {
+                const stars = attackerChar.stars || this.extractStarsFromNote(attackerChar.text || '');
+                const damage = stars * 50;
+                totalDamage += damage;
+                console.log(`🎯 ALL ATTACK: ${attackerChar.name} (${pName}) attacks ${targetChar.name} for ${damage}`);
+              }
+            }
+          }
+          if (totalDamage > 0 && targetChar.pti != null) {
+            targetChar.pti = Math.max(0, targetChar.pti - totalDamage);
+            this.updateCardTextWithPTI(targetChar);
+            console.log(`🎯 ALL ATTACK TOTAL: ${targetChar.name} took ${totalDamage} total damage → ${targetChar.pti} PTI`);
+            const io = (global as any).io;
+            if (io) {
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-all-attack`,
+                playerName: 'Sistema',
+                message: `🎯 Tutti attaccano ${targetChar.name}! Danno totale: ${totalDamage} PTI!`,
+                timestamp: Date.now()
+              });
+            }
+            if (targetChar.pti <= 0) {
+              this.moveToGraveyard(gameId, targetChar.id, targetChar.owner || '', 'ATTACCO_SIMULTANEO');
+            }
+          }
+        }
+        break;
+      }
+
+      case 'block_mosse': {
+        const blockTurns = action.value || 3;
+        for (const pName of game.turnOrder) {
+          if (pName !== playerName && !game.eliminatedPlayers.has(pName)) {
+            const enemyChar = this.getPlayerActiveCharacter(game, pName);
+            if (enemyChar) {
+              (enemyChar as any).blockedMosse = blockTurns;
+              console.log(`🫧 BLOCK MOSSE: ${enemyChar.name} (${pName}) cannot use MOSSE for ${blockTurns} turns!`);
+              const io = (global as any).io;
+              if (io) {
+                io.to(gameId).emit('chat-message', {
+                  id: `${Date.now()}-block-mosse`,
+                  playerName: 'Sistema',
+                  message: `🫧 ${enemyChar.name} non può usare carte MOSSE per ${blockTurns} turni!`,
+                  timestamp: Date.now()
+                });
+              }
+              break;
+            }
+          }
+        }
+        break;
+      }
+
+      case 'return_all_to_hand': {
+        const playerFieldCards = game.field.filter(c => c.owner === playerName);
+        for (const fieldCard of playerFieldCards) {
+          game.field = game.field.filter(c => c.id !== fieldCard.id);
+          game.players[playerName]?.hand.push(fieldCard);
+          console.log(`✋ RETURN ALL TO HAND: ${fieldCard.name || fieldCard.id} returned to ${playerName}'s hand`);
+        }
+        const io = (global as any).io;
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-return-all`,
+            playerName: 'Sistema',
+            message: `✋ Tutte le carte di ${playerName} tornano in mano!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      }
+
+      case 'skip_turns_self': {
+        const skipCount = action.value || 3;
+        if (!game.skipTurnPlayers) game.skipTurnPlayers = [];
+        for (let i = 0; i < skipCount; i++) {
+          game.skipTurnPlayers.push(playerName);
+        }
+        console.log(`⏭️ SKIP TURNS SELF: ${playerName} will skip ${skipCount} turns!`);
+        const io = (global as any).io;
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-skip-self`,
+            playerName: 'Sistema',
+            message: `⏭️ ${playerName} non può giocare per ${skipCount} turni!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      }
+
+      case 'pti_threshold': {
+        const threshold = action.value || 2000;
+        const dropMatch = action.description.match(/scende.*?(\d+)\s*pti/i);
+        const dropTo = dropMatch ? parseInt(dropMatch[1]) : 100;
+        if (!game.ptiThresholds) game.ptiThresholds = [];
+        game.ptiThresholds.push({ threshold, dropTo, stars: 1 });
+        for (const fieldCard of game.field) {
+          if ((fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') && 
+              fieldCard.pti != null && fieldCard.pti > threshold) {
+            const oldPti = fieldCard.pti;
+            fieldCard.pti = dropTo;
+            fieldCard.text = `PTI: ${dropTo} | Stelle: 1`;
+            fieldCard.stars = 1;
+            this.updateCardTextWithPTI(fieldCard);
+            console.log(`📉 PTI THRESHOLD: ${fieldCard.name} exceeded ${threshold} PTI (${oldPti}), dropped to ${dropTo} PTI and 1 star!`);
+          }
+        }
+        console.log(`📉 PTI THRESHOLD SET: Characters exceeding ${threshold} PTI will drop to ${dropTo} PTI and 1 star`);
+        const io = (global as any).io;
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-pti-threshold`,
+            playerName: 'Sistema',
+            message: `📉 Limite PTI attivo! Se un personaggio supera ${threshold} PTI, scende a ${dropTo} PTI e 1 stella!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      }
+
+      case 'delayed_death': {
+        const deathTurns = action.value || 5;
+        const deathChar = this.getPlayerActiveCharacter(game, playerName);
+        if (deathChar) {
+          if (!game.delayedDeaths) game.delayedDeaths = [];
+          const existingIdx = game.delayedDeaths.findIndex(dd => dd.cardId === deathChar.id);
+          if (existingIdx >= 0) {
+            if (deathTurns < game.delayedDeaths[existingIdx].turnsRemaining) {
+              game.delayedDeaths[existingIdx].turnsRemaining = deathTurns;
+            }
+          } else {
+            game.delayedDeaths.push({
+              cardId: deathChar.id,
+              cardName: deathChar.name || deathChar.id,
+              owner: playerName,
+              turnsRemaining: deathTurns,
+              createdAt: Date.now()
+            });
+          }
+          const currentPTI = deathChar.pti || 0;
+          const currentStars = this.extractStarsFromNote(deathChar.text || '');
+          deathChar.text = `PTI: ${currentPTI} | Stelle: ${currentStars} | ☠️ Muore tra ${deathTurns} turni`;
+          console.log(`☠️ DELAYED DEATH: ${deathChar.name} will die in ${deathTurns} turns!`);
+          const io = (global as any).io;
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-delayed-death`,
+              playerName: 'Sistema',
+              message: `☠️ ${deathChar.name} morirà tra ${deathTurns} turni!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        break;
+      }
+
       default:
         console.log(`❓ Unknown custom effect type: ${action.type}`);
     }
@@ -6340,6 +6635,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const targetCardName = this.getCardNameFromUrl(targetCard.frontImage || '');
     const attackerCharacterName = this.getCardNameFromUrl(attackerCharacter.frontImage || '');
     
+    // Check if attacker's character has MOSSE blocked (BOLLA DI SAPONE effect)
+    if (attackerCharacter && (attackerCharacter as any).blockedMosse && (attackerCharacter as any).blockedMosse > 0) {
+      console.log(`🫧 BLOCKED MOSSE: ${attackerCharacterName} cannot use MOSSE cards (${(attackerCharacter as any).blockedMosse} turns remaining)`);
+      return { success: false, error: `🫧 ${attackerCharacterName} non può usare carte MOSSE per ancora ${(attackerCharacter as any).blockedMosse} turni!` };
+    }
+
     // Check mosseRestrictedAgainst - this MOSSE cannot be used ON certain characters
     if (mosseCard.mosseRestrictedAgainst && Array.isArray(mosseCard.mosseRestrictedAgainst)) {
       const normalizedTarget = targetCardName.toUpperCase().replace(/[_-]/g, ' ').trim();
@@ -12423,6 +12724,34 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     return { success: true, cardName };
   }
 
+  checkAndEnforcePtiThresholds(gameId: string): void {
+    const game = this.games.get(gameId);
+    if (!game || !game.ptiThresholds || game.ptiThresholds.length === 0) return;
+    
+    for (const fieldCard of game.field) {
+      if ((fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') && fieldCard.pti != null) {
+        for (const threshold of game.ptiThresholds) {
+          if (fieldCard.pti > threshold.threshold) {
+            const oldPti = fieldCard.pti;
+            fieldCard.pti = threshold.dropTo;
+            fieldCard.stars = threshold.stars;
+            fieldCard.text = `PTI: ${threshold.dropTo} | Stelle: ${threshold.stars}`;
+            console.log(`📉 PTI THRESHOLD ENFORCED: ${fieldCard.name} exceeded ${threshold.threshold} PTI (${oldPti}), dropped to ${threshold.dropTo} PTI and ${threshold.stars} star!`);
+            const io = (global as any).io;
+            if (io) {
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-pti-cap-${fieldCard.id}`,
+                playerName: 'Sistema',
+                message: `📉 ${fieldCard.name} ha superato ${threshold.threshold} PTI! Scende a ${threshold.dropTo} PTI e ${threshold.stars} stella!`,
+                timestamp: Date.now()
+              });
+            }
+          }
+        }
+      }
+    }
+  }
+
   updateCardTextWithPTI(card: Card): void {
     if (card.pti == null) return;
     
@@ -13276,6 +13605,26 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       
       // Check if player is eliminated
       if (!gameState.eliminatedPlayers.has(nextPlayer)) {
+        // Check if next player should skip their turn
+        if (gameState.skipTurnPlayers && gameState.skipTurnPlayers.includes(nextPlayer)) {
+          const skipIdx = gameState.skipTurnPlayers.indexOf(nextPlayer);
+          if (skipIdx >= 0) {
+            gameState.skipTurnPlayers.splice(skipIdx, 1);
+          }
+          console.log(`⏭️ ${nextPlayer} skips turn! (${gameState.skipTurnPlayers.filter(p => p === nextPlayer).length} skips remaining)`);
+          const skipIo = (global as any).io;
+          if (skipIo) {
+            skipIo.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-skip-turn`,
+              playerName: 'Sistema',
+              message: `⏭️ ${nextPlayer} salta il turno!`,
+              timestamp: Date.now()
+            });
+          }
+          attempts++;
+          continue;
+        }
+
         // Increment turn counters for cards on field owned by the NEXT player
         gameState.field.forEach(card => {
           if ((card.type === 'bonus' || card.type === 'mosse') && card.placedBy === nextPlayer) {
@@ -13293,6 +13642,47 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
         });
         
+        // Decrement blockedMosse for all characters of the next player
+        const nextPlayerCards = gameState.field.filter((c: Card) => 
+          c.owner === nextPlayer && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        for (const npc of nextPlayerCards) {
+          if ((npc as any).blockedMosse && (npc as any).blockedMosse > 0) {
+            (npc as any).blockedMosse--;
+            if ((npc as any).blockedMosse <= 0) {
+              delete (npc as any).blockedMosse;
+              console.log(`🫧 BLOCK MOSSE EXPIRED: ${npc.name} can use MOSSE again!`);
+            }
+          }
+        }
+
+        // Check PTI thresholds for all characters on field
+        if (gameState.ptiThresholds && gameState.ptiThresholds.length > 0) {
+          for (const fieldCard of gameState.field) {
+            if ((fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') && fieldCard.pti != null) {
+              for (const threshold of gameState.ptiThresholds) {
+                if (fieldCard.pti > threshold.threshold) {
+                  const oldPti = fieldCard.pti;
+                  fieldCard.pti = threshold.dropTo;
+                  fieldCard.stars = threshold.stars;
+                  fieldCard.text = `PTI: ${threshold.dropTo} | Stelle: ${threshold.stars}`;
+                  this.updateCardTextWithPTI(fieldCard);
+                  console.log(`📉 PTI THRESHOLD: ${fieldCard.name} exceeded ${threshold.threshold} PTI (${oldPti}), dropped to ${threshold.dropTo} PTI and ${threshold.stars} star!`);
+                  const threshIo = (global as any).io;
+                  if (threshIo) {
+                    threshIo.to(gameId).emit('chat-message', {
+                      id: `${Date.now()}-pti-threshold-trigger`,
+                      playerName: 'Sistema',
+                      message: `📉 ${fieldCard.name} ha superato ${threshold.threshold} PTI! Scende a ${threshold.dropTo} PTI e ${threshold.stars} stella!`,
+                      timestamp: Date.now()
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+
         // NOTE: PARASITIC CARD effects (PARASSITA drain, SAIBAIM explosion) are processed
         // by processParasiticTurnEffects() which is called from routes.ts after endTurn()
 
