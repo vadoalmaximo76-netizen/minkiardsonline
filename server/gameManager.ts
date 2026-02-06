@@ -9868,44 +9868,63 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const myChar = myChars[0];
       const myCharName = myChar.name || this.getCardNameFromUrl(myChar.frontImage || '');
       
-      const myPti = myChar.pti || 0;
-      const myStars = myChar.stars || 0;
-      const targetPti = targetChar.pti || 0;
-      const targetStars = targetChar.stars || 0;
+      const result = await this.fuseCards(gameId, myChar.id, targetChar.id, playerName);
+      if (!result.success) {
+        console.log(`🔗🧬 Fusion failed: ${result.message}`);
+        game.pendingTargetSelections.delete(selectionId);
+        return result;
+      }
       
       const bonusPti = selection.bonusPti || 500;
-      const fusedPti = myPti + targetPti + bonusPti;
-      const fusedStars = myStars + targetStars;
-      const fusedName = `${myCharName} + ${targetCharName}`;
+      const fusionGroup = this.getFusionGroup(game, myChar.id);
+      for (const card of fusionGroup) {
+        card.pti = (card.pti || 0) + bonusPti;
+        this.updateCardTextWithPTI(card);
+      }
       
-      console.log(`🔗 Fusion: ${myCharName} (${myPti} PTI, ${myStars}★) + ${targetCharName} (${targetPti} PTI, ${targetStars}★) + ${bonusPti} bonus = ${fusedPti} PTI, ${fusedStars}★`);
+      const fusedPti = myChar.pti || 0;
+      const fusedStars = myChar.stars || 0;
       
-      game.field = game.field.filter((c: Card) => c.id !== targetChar.id);
+      console.log(`🔗🧬 Proper Fondi fusion done: ${myCharName} + ${targetCharName} with ${bonusPti} bonus PTI`);
       
-      myChar.pti = fusedPti;
-      myChar.stars = fusedStars;
-      myChar.name = fusedName;
-      this.updateCardTextWithPTI(myChar);
-      
-      const clonedCard: Card = {
+      const clonedLeader: Card = {
         id: `${myChar.id}-clone-${Date.now()}`,
         type: myChar.type,
         frontImage: myChar.frontImage,
         backImage: myChar.backImage,
         owner: targetOwner,
-        name: `${fusedName} (Clone)`,
+        name: `${myCharName} + ${targetCharName} (Clone)`,
         text: myChar.text,
         pti: fusedPti,
         stars: fusedStars,
       };
-      game.field.push(clonedCard);
+      const clonedTarget: Card = {
+        id: `${targetChar.id}-clone-${Date.now()}`,
+        type: targetChar.type,
+        frontImage: targetChar.frontImage,
+        backImage: targetChar.backImage,
+        owner: targetOwner,
+        name: `${targetCharName} (Clone)`,
+        text: targetChar.text,
+        pti: targetChar.pti,
+        stars: targetChar.stars,
+        isFused: true,
+        fusionLeader: clonedLeader.id,
+        fusedWith: [clonedLeader.id],
+      };
+      clonedLeader.isFused = true;
+      clonedLeader.fusionLeader = clonedLeader.id;
+      clonedLeader.fusedWith = [clonedTarget.id];
       
-      console.log(`🧬 Clone created for ${targetOwner}: ${clonedCard.name} with ${fusedPti} PTI, ${fusedStars}★`);
+      game.field.push(clonedLeader);
+      game.field.push(clonedTarget);
+      
+      console.log(`🧬 Clone pair created for ${targetOwner}: ${clonedLeader.name} + ${clonedTarget.name}`);
       
       io.to(gameId).emit('chat-message', {
         id: `${Date.now()}-fusion-clone`,
         playerName: 'Sistema',
-        message: `🔗🧬 FUSIONE + CLONE! ${playerName} ha fuso ${myCharName} con ${targetCharName}! Risultato: ${fusedName} con ${fusedPti} PTI e ${fusedStars}★ (+${bonusPti} PTI bonus). Un clone è stato dato a ${targetOwner}!`,
+        message: `🔗🧬 FUSIONE + CLONE! ${playerName} ha fuso ${myCharName} con ${targetCharName} (come Fondi)! +${bonusPti} PTI bonus. Un clone fuso è stato dato a ${targetOwner}!`,
         timestamp: Date.now()
       });
       
@@ -9914,7 +9933,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const gameState = this.getSanitizedGameState(gameId);
       io.to(gameId).emit('game-state-update', gameState);
       
-      return { success: true, message: `Fusione e clone completati! ${fusedName} con ${fusedPti} PTI` };
+      return { success: true, message: `Fusione e clone completati!` };
     }
 
     // ============ FUSION ENEMY HANDLER (proper Fondi) ============
