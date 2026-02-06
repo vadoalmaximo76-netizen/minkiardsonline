@@ -271,6 +271,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     cardName: string;
     owner: string;
     availableTargets: Array<{ id: string; name: string; owner: string; frontImage: string; pti: number | null; stars: number | null }>;
+    maxSelections?: number;
+    title?: string;
+    subtitle?: string;
   }>({ visible: false, selectionId: '', cardId: '', cardName: '', owner: '', availableTargets: [] });
   const [customSelectedTargets, setCustomSelectedTargets] = useState<string[]>([]);
   // AUTO DICE SETUP: Modal for configuring automatic dice before rolling
@@ -973,9 +976,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       cardName: string;
       owner: string;
       availableTargets: Array<{ id: string; name: string; owner: string; frontImage: string; pti: number | null; stars: number | null }>;
+      maxSelections?: number;
+      title?: string;
+      subtitle?: string;
     }) => {
       console.log('🎯 Show custom target selection:', data);
-      // Only show to the card owner
       if (data.owner === playerName) {
         setCustomSelectedTargets([]);
         setCustomTargetModal({
@@ -984,7 +989,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           cardId: data.cardId,
           cardName: data.cardName,
           owner: data.owner,
-          availableTargets: data.availableTargets
+          availableTargets: data.availableTargets,
+          maxSelections: data.maxSelections,
+          title: data.title,
+          subtitle: data.subtitle
         });
       }
     };
@@ -2300,10 +2308,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           <div className="bg-gradient-to-br from-cyan-900 via-teal-800 to-cyan-700 rounded-2xl p-6 border-4 border-cyan-400 shadow-[0_0_60px_rgba(34,211,238,0.6)] max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
             <div className="text-center mb-4">
               <h2 className="text-2xl font-bold text-white mb-2" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
-                🎯 SCEGLI I BERSAGLI
+                {customTargetModal.title || '🎯 SCEGLI I BERSAGLI'}
               </h2>
-              <p className="text-cyan-200">Effetto di <span className="font-bold text-white">{customTargetModal.cardName}</span></p>
-              <p className="text-cyan-300 text-sm mt-1">Clicca sui personaggi da selezionare</p>
+              <p className="text-cyan-200">{customTargetModal.subtitle || <>Effetto di <span className="font-bold text-white">{customTargetModal.cardName}</span></>}</p>
+              <p className="text-cyan-300 text-sm mt-1">
+                {customTargetModal.maxSelections === 1 ? 'Clicca su un personaggio' : 'Clicca sui personaggi da selezionare'}
+              </p>
             </div>
             
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
@@ -2315,6 +2325,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                     onClick={() => {
                       if (isSelected) {
                         setCustomSelectedTargets(prev => prev.filter(id => id !== target.id));
+                      } else if (customTargetModal.maxSelections === 1) {
+                        setCustomSelectedTargets([target.id]);
                       } else {
                         setCustomSelectedTargets(prev => [...prev, target.id]);
                       }

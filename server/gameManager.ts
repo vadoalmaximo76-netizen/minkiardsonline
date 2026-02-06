@@ -325,6 +325,8 @@ interface GameState {
     effectText: string;
     owner: string;
     timestamp: number;
+    fusionClone?: boolean;
+    bonusPti?: number;
   }>; // Pending target selection for custom effects with [BERSAGLIO: scelta]
   pendingAutoDice?: Map<string, {
     cardId: string;
@@ -3313,6 +3315,89 @@ Rispondi SOLO in JSON:`;
 
     console.log(`🎴 Processing custom card effect for ${card.name || card.id}: "${card.effect}"`);
     
+    // ============ FUSION + CLONE PATTERN ============
+    // Detect complex fusion-clone effects: choose opponent character, fuse, add PTI, clone to both
+    const effectLower = card.effect.toLowerCase();
+    const hasFusion = effectLower.includes('fonde') || effectLower.includes('fusione') || effectLower.includes('fonde con');
+    const hasClone = effectLower.includes('clona') || effectLower.includes('clonato') || effectLower.includes('crea copia');
+    const hasOpponent = effectLower.includes('avversario') || effectLower.includes('nemico');
+    
+    if (hasFusion && hasClone && hasOpponent) {
+      console.log(`🔗🧬 FUSION+CLONE pattern detected for ${card.name || card.id}`);
+      
+      const io = (global as any).io;
+      if (!io) return {};
+      
+      const allFieldChars = game.field.filter((c: Card) => 
+        (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      );
+      
+      const opponentChars = allFieldChars.filter((c: Card) => c.owner !== playerName);
+      const myChars = allFieldChars.filter((c: Card) => c.owner === playerName);
+      
+      if (opponentChars.length === 0 || myChars.length === 0) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-fusion-no-targets`,
+          playerName: 'Sistema',
+          message: `🔗 Non ci sono abbastanza personaggi in campo per la fusione! Servono almeno un tuo personaggio e uno avversario.`,
+          timestamp: Date.now()
+        });
+        return {};
+      }
+      
+      if (!game.pendingTargetSelections) {
+        game.pendingTargetSelections = new Map();
+      }
+      
+      const cardName = card.name || this.getCardNameFromUrl(card.frontImage || '');
+      const selectionId = `fusion-clone-${Date.now()}`;
+      
+      const ptiMatch = card.effect.match(/(\d+)\s*PTI/i);
+      const bonusPti = ptiMatch ? parseInt(ptiMatch[1], 10) : 500;
+      
+      game.pendingTargetSelections.set(selectionId, {
+        cardId: card.id,
+        cardName,
+        effectText: card.effect,
+        owner: playerName,
+        timestamp: Date.now(),
+        fusionClone: true,
+        bonusPti
+      });
+      
+      if (this.isPlayerCPU(gameId, playerName)) {
+        const targetEnemy = opponentChars[Math.floor(Math.random() * opponentChars.length)];
+        console.log(`🤖 CPU ${playerName} auto-selecting fusion target: ${targetEnemy.name || targetEnemy.id}`);
+        
+        setTimeout(async () => {
+          await this.processTargetSelection(gameId, selectionId, [targetEnemy.id], playerName, io);
+        }, 500);
+        
+        return {};
+      }
+      
+      io.to(gameId).emit('show-custom-target-selection', {
+        selectionId,
+        cardId: card.id,
+        cardName,
+        owner: playerName,
+        maxSelections: 1,
+        title: '🔗 SCEGLI PERSONAGGIO AVVERSARIO PER FUSIONE',
+        subtitle: 'Il personaggio scelto si fonderà con il tuo',
+        availableTargets: opponentChars.map((c: Card) => ({
+          id: c.id,
+          name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+          owner: c.owner,
+          frontImage: c.frontImage || '',
+          pti: c.pti,
+          stars: c.stars
+        }))
+      });
+      
+      const animationMatch = card.effect.match(/\[ANIMAZIONE:\s*([^\]]+)\]/i);
+      return { customAnimation: animationMatch ? animationMatch[1].trim() : undefined };
+    }
+
     // Check for BERSAGLIO: scelta (target choice) - must select targets first
     const bersaglioMatch = card.effect.match(/\[BERSAGLIO:\s*scelta\]/i);
     if (bersaglioMatch) {
@@ -9245,6 +9330,81 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     const targetNames = targetCards.map(c => c.name || this.getCardNameFromUrl(c.frontImage || '')).join(', ');
     console.log(`🎯 ${playerName} selected targets: ${targetNames}`);
+
+    // ============ FUSION + CLONE HANDLER ============
+    if (selection.fusionClone) {
+      console.log(`🔗🧬 Processing FUSION+CLONE effect for ${playerName}`);
+      
+      const targetChar = targetCards[0];
+      
+      if (!targetChar || !game.field.find((c: Card) => c.id === targetChar.id) || targetChar.owner === playerName) {
+        game.pendingTargetSelections.delete(selectionId);
+        return { success: false, message: 'Bersaglio non valido o non più in campo' };
+      }
+      
+      const targetOwner = targetChar.owner;
+      const targetCharName = targetChar.name || this.getCardNameFromUrl(targetChar.frontImage || '');
+      
+      const myChars = game.field.filter((c: Card) => 
+        c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      );
+      
+      if (myChars.length === 0) {
+        game.pendingTargetSelections.delete(selectionId);
+        return { success: false, message: 'Non hai personaggi in campo per la fusione' };
+      }
+      
+      const myChar = myChars[0];
+      const myCharName = myChar.name || this.getCardNameFromUrl(myChar.frontImage || '');
+      
+      const myPti = myChar.pti || 0;
+      const myStars = myChar.stars || 0;
+      const targetPti = targetChar.pti || 0;
+      const targetStars = targetChar.stars || 0;
+      
+      const bonusPti = selection.bonusPti || 500;
+      const fusedPti = myPti + targetPti + bonusPti;
+      const fusedStars = myStars + targetStars;
+      const fusedName = `${myCharName} + ${targetCharName}`;
+      
+      console.log(`🔗 Fusion: ${myCharName} (${myPti} PTI, ${myStars}★) + ${targetCharName} (${targetPti} PTI, ${targetStars}★) + ${bonusPti} bonus = ${fusedPti} PTI, ${fusedStars}★`);
+      
+      game.field = game.field.filter((c: Card) => c.id !== targetChar.id);
+      
+      myChar.pti = fusedPti;
+      myChar.stars = fusedStars;
+      myChar.name = fusedName;
+      this.updateCardTextWithPTI(myChar);
+      
+      const clonedCard: Card = {
+        id: `${myChar.id}-clone-${Date.now()}`,
+        type: myChar.type,
+        frontImage: myChar.frontImage,
+        backImage: myChar.backImage,
+        owner: targetOwner,
+        name: `${fusedName} (Clone)`,
+        text: myChar.text,
+        pti: fusedPti,
+        stars: fusedStars,
+      };
+      game.field.push(clonedCard);
+      
+      console.log(`🧬 Clone created for ${targetOwner}: ${clonedCard.name} with ${fusedPti} PTI, ${fusedStars}★`);
+      
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-fusion-clone`,
+        playerName: 'Sistema',
+        message: `🔗🧬 FUSIONE + CLONE! ${playerName} ha fuso ${myCharName} con ${targetCharName}! Risultato: ${fusedName} con ${fusedPti} PTI e ${fusedStars}★ (+${bonusPti} PTI bonus). Un clone è stato dato a ${targetOwner}!`,
+        timestamp: Date.now()
+      });
+      
+      game.pendingTargetSelections.delete(selectionId);
+      
+      const gameState = this.getSanitizedGameState(gameId);
+      io.to(gameId).emit('game-state-update', gameState);
+      
+      return { success: true, message: `Fusione e clone completati! ${fusedName} con ${fusedPti} PTI` };
+    }
 
     // Check if effect contains DADO_AUTOMATICO - if so, trigger auto dice with pre-selected targets
     const autoDiceMatch = selection.effectText.match(/\[DADO_AUTOMATICO:\s*([^\]]+)\]/i);
