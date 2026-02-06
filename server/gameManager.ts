@@ -5339,25 +5339,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         break;
 
-      case 'mill':
-        // Discard from deck to graveyard
-        for (const [pName, player] of Object.entries(game.players)) {
-          if (pName !== playerName) {
-            const millCount = action.value || 3;
-            console.log(`⚙️ Custom effect: ${pName} milled ${millCount} cards!`);
-          }
-        }
-        break;
-
       case 'triple':
         // Triple next effect
         game.tripleNextEffect = playerName;
         console.log(`3️⃣ Custom effect: Next effect will be TRIPLED!`);
-        break;
-
-      case 'copy':
-        // Copy last played card effect
-        console.log(`📋 Custom effect: Copying last played effect!`);
         break;
 
       case 'clone':
@@ -5432,16 +5417,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           // For non-character cards, just log
           console.log(`🔗 Custom effect: FUSION activated for ${card.name || card.id}!`);
         }
-        break;
-
-      case 'split':
-        // Split into multiple cards
-        console.log(`✂️ Custom effect: Card SPLIT into multiple!`);
-        break;
-
-      case 'teleport':
-        // Move card position
-        console.log(`🌀 Custom effect: Card TELEPORTED!`);
         break;
 
       case 'time_travel':
