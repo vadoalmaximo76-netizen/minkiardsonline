@@ -71,6 +71,18 @@ Real-time WebRTC peer-to-peer voice communication with STUN servers for NAT trav
 ## Turn Transition Animation
 Cinematic full-screen overlay animation when turns change. Different styling for your turn (golden/crown icons, "È IL TUO TURNO!") vs opponent's turn (blue/purple, "Turno di [PLAYER]"). Uses phase-based CSS animations with slide-in, glow pulse, icon spin, and auto-dismiss after 2.5 seconds.
 
+## Persistent Turn Indicator
+A persistent banner at the top of the game table shows whose turn it is ("👑 TOCCA A TE!" or "⏳ Turno di [PLAYER]"). Active player name labels glow green with pulsing ring animation. CARTE IN CAMPO section highlights the active player with green text and 🟢 indicator.
+
+## Visual Zone Distinction
+Game areas are visually differentiated: hand zone has blue gradient border, deck zone has radial purple gradient, field zone has purple border styling. Each zone has subtle background effects to improve spatial clarity.
+
+## Card Hover Zoom Preview
+Hovering over field cards shows an enlarged preview (250px) using a ReactDOM portal for proper z-index control. Smart positioning prevents viewport overflow. Shows card image and text details.
+
+## Combat Feedback System
+Damage flash animation (red/white filter flash) triggers when a card takes PTI damage. Cards have smooth CSS transitions for movement. Attack lunge animation available for combat emphasis. Floating damage numbers already show PTI/star changes with audio feedback.
+
 ## Game Log Panel
 A slide-out panel (GameLog component) showing all game events with category filtering (Tutti/Azioni/Carte/Sistema), auto-categorized entries with emoji icons, color-coded by event type, and auto-scroll to latest entry. Loads existing messages from localStorage.
 
