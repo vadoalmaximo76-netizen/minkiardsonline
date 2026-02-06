@@ -46,6 +46,17 @@ interface AudioState {
   playClashBattleStart: () => void;
   playClashVictory: () => void;
   playMyTurn: () => void;
+  playDeckShuffle: () => void;
+  playEffectActivate: () => void;
+  playHostageApplied: () => void;
+  playHostageReleased: () => void;
+  playPersonaggioEnter: () => void;
+  playCardReveal: () => void;
+  playErrorSound: () => void;
+  playPlayerEliminated: () => void;
+  playSorosActivation: () => void;
+  playFusionSound: () => void;
+  playCardPlayedToField: () => void;
   soundSettings: {
     turnChange: boolean;
     attack: boolean;
@@ -1380,5 +1391,246 @@ export const useAudio = create<AudioState>((set, get) => ({
         osc.stop(audioContext.currentTime + 0.25);
       }, index * 80);
     });
+  },
+
+  playDeckShuffle: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+    if (!get().soundSettings.cardPlay) return;
+
+    for (let i = 0; i < 8; i++) {
+      setTimeout(() => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        const freq = 200 + Math.random() * 400;
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        osc.type = 'sawtooth';
+        gain.gain.setValueAtTime(0.06, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.06);
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + 0.06);
+      }, i * 60);
+    }
+  },
+
+  playEffectActivate: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+    if (!get().soundSettings.bonus) return;
+
+    const freqs = [440, 554, 659, 880];
+    freqs.forEach((freq, i) => {
+      setTimeout(() => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0.15, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + 0.2);
+      }, i * 80);
+    });
+  },
+
+  playHostageApplied: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+    if (!get().soundSettings.attack) return;
+
+    const freqs = [200, 150, 100, 80];
+    freqs.forEach((freq, i) => {
+      setTimeout(() => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        osc.type = 'square';
+        gain.gain.setValueAtTime(0.12, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + 0.3);
+      }, i * 150);
+    });
+  },
+
+  playHostageReleased: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+    if (!get().soundSettings.bonus) return;
+
+    const freqs = [220, 330, 440, 660];
+    freqs.forEach((freq, i) => {
+      setTimeout(() => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        osc.type = 'triangle';
+        gain.gain.setValueAtTime(0.15, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.25);
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + 0.25);
+      }, i * 100);
+    });
+  },
+
+  playPersonaggioEnter: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+    if (!get().soundSettings.cardPlay) return;
+
+    const freqs = [262, 330, 392, 523, 659];
+    freqs.forEach((freq, i) => {
+      setTimeout(() => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        osc.type = 'triangle';
+        gain.gain.setValueAtTime(0.12, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + 0.3);
+      }, i * 100);
+    });
+  },
+
+  playCardReveal: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+    if (!get().soundSettings.cardPlay) return;
+
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.frequency.setValueAtTime(400, audioContext.currentTime);
+    osc.frequency.linearRampToValueAtTime(800, audioContext.currentTime + 0.15);
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.12, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+    osc.start(audioContext.currentTime);
+    osc.stop(audioContext.currentTime + 0.3);
+  },
+
+  playErrorSound: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+    if (!get().soundSettings.attack) return;
+
+    const freqs = [400, 300];
+    freqs.forEach((freq, i) => {
+      setTimeout(() => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        osc.type = 'square';
+        gain.gain.setValueAtTime(0.1, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + 0.15);
+      }, i * 120);
+    });
+  },
+
+  playPlayerEliminated: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+    if (!get().soundSettings.death) return;
+
+    const freqs = [523, 440, 349, 262, 196, 131];
+    freqs.forEach((freq, i) => {
+      setTimeout(() => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        osc.type = 'sawtooth';
+        gain.gain.setValueAtTime(0.1, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + 0.4);
+      }, i * 200);
+    });
+  },
+
+  playSorosActivation: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+    if (!get().soundSettings.bonus) return;
+
+    const freqs = [196, 262, 330, 392, 523, 659, 784];
+    freqs.forEach((freq, i) => {
+      setTimeout(() => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0.15, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.35);
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + 0.35);
+      }, i * 120);
+    });
+  },
+
+  playFusionSound: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+    if (!get().soundSettings.cardPlay) return;
+
+    const freqs = [262, 330, 392, 523];
+    freqs.forEach((freq, i) => {
+      setTimeout(() => {
+        const osc1 = audioContext.createOscillator();
+        const osc2 = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(audioContext.destination);
+        osc1.frequency.setValueAtTime(freq, audioContext.currentTime);
+        osc2.frequency.setValueAtTime(freq * 1.5, audioContext.currentTime);
+        osc1.type = 'triangle';
+        osc2.type = 'sine';
+        gain.gain.setValueAtTime(0.12, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+        osc1.start(audioContext.currentTime);
+        osc2.start(audioContext.currentTime);
+        osc1.stop(audioContext.currentTime + 0.4);
+        osc2.stop(audioContext.currentTime + 0.4);
+      }, i * 150);
+    });
+  },
+
+  playCardPlayedToField: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+    if (!get().soundSettings.cardPlay) return;
+
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.frequency.setValueAtTime(500, audioContext.currentTime);
+    osc.frequency.linearRampToValueAtTime(700, audioContext.currentTime + 0.08);
+    osc.frequency.linearRampToValueAtTime(600, audioContext.currentTime + 0.15);
+    osc.type = 'triangle';
+    gain.gain.setValueAtTime(0.1, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+    osc.start(audioContext.currentTime);
+    osc.stop(audioContext.currentTime + 0.2);
   }
 }));

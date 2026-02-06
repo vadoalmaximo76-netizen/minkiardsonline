@@ -307,7 +307,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     cardType: string;
   }>>([]);
     const { selectedCard, gameId, playerName, gameState, setGameId, setUserRankiardPoints, resetPRSpent, clearSession } = useGameState();
-  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted, playAttackSound, playDeathSound, playCardPickup, playCardPlay, playTurnChange, playBonusActivated, playMyTurn } = useAudio();
+  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted, playAttackSound, playDeathSound, playCardPickup, playCardPlay, playTurnChange, playBonusActivated, playMyTurn, playDeckShuffle, playEffectActivate, playHostageApplied, playHostageReleased, playPersonaggioEnter, playCardReveal, playErrorSound, playPlayerEliminated, playSorosActivation, playFusionSound, playCardPlayedToField, playVictory, playDefeat } = useAudio();
 
 
   const shareInviteLink = () => {
@@ -565,6 +565,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
     const handlePersonaggioEnters = ({ cardName, message, cardImage }: { cardName: string, message: string, cardImage: string }) => {
       console.log('Personaggio enters:', { cardName, message, cardImage });
+      playPersonaggioEnter();
       setPersonaggioCardName(cardName);
       setPersonaggioMessage(message);
       setPersonaggioCardImage(cardImage);
@@ -604,6 +605,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       animationDescription: string 
     }) => {
       console.log(`🎬 Custom animation triggered for ${cardName}: ${animationDescription}`);
+      playEffectActivate();
       setCustomAnimationData({ cardName, animationDescription });
       setCustomAnimationVisible(true);
       // Auto-hide after 4 seconds
@@ -620,6 +622,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       cardName?: string,
       playerName: string 
     }) => {
+      playCardPlayedToField();
       setLastPlayedCards(prev => {
         const newCard = {
           id: cardId,
@@ -635,11 +638,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
 
     const handleCardPlayedFaceDown = ({ cardId, playerName, message }: { cardId: string, playerName: string, message: string }) => {
+      playCardPlayedToField();
       console.log(`Card played face down: ${message}`);
       // Optional: Show a notification that a card was played face down
     };
 
     const handleCardRevealed = ({ cardId, cardName, playerName, cardImage, message }: { cardId: string, cardName: string, playerName: string, cardImage: string, message: string }) => {
+      playCardReveal();
       console.log(`Card revealed: ${message}`);
       // Optional: Show a notification that a card was revealed
     };
@@ -675,6 +680,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
 
     const handleSorosActivation = ({ activator, cardImage }: { activator: string; cardImage: string }) => {
+      playSorosActivation();
       setSorosData({ activator, cardImage });
       setSorosActivationVisible(true);
       
@@ -723,6 +729,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
     // MOSSE ATTACK ERROR: Handle attack errors (e.g., one MOSSE per turn limit)
     const handleAttackError = ({ message }: { message: string }) => {
+      playErrorSound();
       console.log(`❌ Attack error: ${message}`);
       setChoosingNotification({ visible: true, message: `❌ ${message}` });
       setTimeout(() => {
@@ -1091,6 +1098,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       if (ownerPlayer === playerName) {
         setParasiticTargetSelect({ visible: false, parasiticCardId: '', parasiticType: null, targets: [] });
       }
+      playEffectActivate();
       
       // Show attachment notification to all players
       setPersonaggioNotificationVisible(true);
@@ -1131,6 +1139,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       damageDealt: number;
     }) => {
       console.log(`⛓️ OSTAGGIO applied: ${targetName} captured by ${captorPlayer}`);
+      playHostageApplied();
       setPersonaggioNotificationVisible(true);
       setPersonaggioCardName('OSTAGGIO');
       setPersonaggioMessage(`⛓️ ${captorPlayer} prende ${targetName} in OSTAGGIO per ${turnsRemaining} turni! (${damageDealt} danni inflitti)`);
@@ -1158,6 +1167,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       captorPlayer: string;
     }) => {
       console.log(`⛓️🔓 OSTAGGIO released: ${targetName} freed`);
+      playHostageReleased();
       setPersonaggioNotificationVisible(true);
       setPersonaggioCardName('OSTAGGIO TERMINATO');
       setPersonaggioMessage(`⛓️🔓 ${targetName} è stato liberato dall'OSTAGGIO e torna a ${originalOwner}!`);
@@ -1176,6 +1186,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       originalOwner: string;
     }) => {
       console.log(`⛓️💀 OSTAGGIO death: ${targetName} died`);
+      playDeathSound();
       setPersonaggioNotificationVisible(true);
       setPersonaggioCardName('OSTAGGIO - MORTE');
       setPersonaggioMessage(`⛓️💀 ${targetName} aveva meno di 300 PTI ed è morto sotto OSTAGGIO!`);
@@ -1330,6 +1341,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
 
     const handlePlayerEliminated = ({ playerName: eliminatedPlayer }: { playerName: string }) => {
+      playPlayerEliminated();
       setPlayerEliminationNotification({
         visible: true,
         player: eliminatedPlayer
@@ -1348,6 +1360,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
 
     const handleGameVictory = ({ winner }: { winner: string }) => {
+      if (winner === playerName) {
+        playVictory();
+      } else {
+        playDefeat();
+      }
       setVictoryPlayer(winner);
       setVictoryDialogOpen(true);
       setTimeout(() => setShowInterstitialAd(true), 3000);
@@ -1355,10 +1372,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
 
     const handleFusionError = ({ message }: { message: string }) => {
+      playErrorSound();
       alert(`❌ ${message}`);
     };
 
     const handleVoodooError = ({ message }: { message: string }) => {
+      playErrorSound();
       alert(`❌ ${message}`);
     };
 
@@ -2983,6 +3002,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           
           <Button
             onClick={() => {
+              playDeckShuffle();
               const deckTypes = ['personaggi', 'mosse', 'bonus', 'personaggi_speciali'];
               deckTypes.forEach(deckType => {
                 socket.emit('shuffle-deck', { deckType });

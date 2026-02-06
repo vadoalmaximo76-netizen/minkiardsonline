@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
+import { useAudio } from "../lib/stores/useAudio";
 import { X, Sword, Plus, Sparkles, Palette } from "lucide-react";
 import { CARD_DATA } from "../lib/cardData";
 import { SkinSelectionPanel } from "./SkinSelectionPanel";
@@ -195,7 +196,10 @@ export const CardModal: React.FC = () => {
     setShowFusionSelect(true);
   };
 
+  const { playFusionSound } = useAudio();
+
   const handleFuseWith = (targetCardId: string) => {
+    playFusionSound();
     socket.emit('fuse-cards', {
       leaderCardId: selectedCard.id,
       targetCardId: targetCardId,
