@@ -45,6 +45,19 @@ interface AudioState {
   playClashTap: () => void;
   playClashBattleStart: () => void;
   playClashVictory: () => void;
+  playMyTurn: () => void;
+  soundSettings: {
+    turnChange: boolean;
+    attack: boolean;
+    defense: boolean;
+    death: boolean;
+    cardPlay: boolean;
+    bonus: boolean;
+    dice: boolean;
+    chat: boolean;
+    myTurn: boolean;
+  };
+  setSoundSettings: (settings: Partial<AudioState['soundSettings']>) => void;
 }
 
 export const useAudio = create<AudioState>((set, get) => ({
@@ -53,6 +66,22 @@ export const useAudio = create<AudioState>((set, get) => ({
   successSound: null,
   isMuted: false, // Sound effects enabled by default
   audioContext: null,
+  soundSettings: (() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('minkiards-sound-settings') : null;
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      turnChange: true, attack: true, defense: true, death: true,
+      cardPlay: true, bonus: true, dice: true, chat: true, myTurn: true
+    };
+  })(),
+  setSoundSettings: (newSettings) => {
+    const current = get().soundSettings;
+    const updated = { ...current, ...newSettings };
+    set({ soundSettings: updated });
+    try { localStorage.setItem('minkiards-sound-settings', JSON.stringify(updated)); } catch {}
+  },
   
   setBackgroundMusic: (music) => set({ backgroundMusic: music }),
   setHitSound: (sound) => set({ hitSound: sound }),
@@ -167,6 +196,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   playChatMessage: () => {
     const { audioContext, isMuted } = get();
     if (isMuted || !audioContext) return;
+    if (!get().soundSettings.chat) return;
 
     // Quick notification blip
     const oscillator = audioContext.createOscillator();
@@ -189,6 +219,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   playCardToGraveyard: () => {
     const { audioContext, isMuted } = get();
     if (isMuted || !audioContext) return;
+    if (!get().soundSettings.death) return;
 
     // Sad losing sound - descending tones
     const frequencies = [440, 370, 294, 220]; // A4 down to A3
@@ -216,6 +247,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   playDiceRoll: () => {
     const { audioContext, isMuted } = get();
     if (isMuted || !audioContext) return;
+    if (!get().soundSettings.dice) return;
 
     // Rolling dice sound - rapid series of clicks and rattles
     const rollDuration = 1000; // 1 second
@@ -254,6 +286,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   playDamageSound: () => {
     const { audioContext, isMuted } = get();
     if (isMuted || !audioContext) return;
+    if (!get().soundSettings.attack) return;
 
     // Damage sound - sharp impact with distortion
     const oscillator1 = audioContext.createOscillator();
@@ -840,6 +873,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   playAttackSound: () => {
     const { hitSound, isMuted } = get();
     if (isMuted) return;
+    if (!get().soundSettings.attack) return;
 
     if (hitSound) {
       const soundClone = hitSound.cloneNode() as HTMLAudioElement;
@@ -853,6 +887,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   playDeathSound: () => {
     const { audioContext, isMuted } = get();
     if (isMuted || !audioContext) return;
+    if (!get().soundSettings.death) return;
 
     const frequencies = [440, 370, 294, 220, 165, 110];
     frequencies.forEach((freq, index) => {
@@ -906,6 +941,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   playCardPickup: () => {
     const { audioContext, isMuted } = get();
     if (isMuted || !audioContext) return;
+    if (!get().soundSettings.cardPlay) return;
 
     const osc = audioContext.createOscillator();
     const gain = audioContext.createGain();
@@ -927,6 +963,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   playCardPlay: () => {
     const { audioContext, isMuted } = get();
     if (isMuted || !audioContext) return;
+    if (!get().soundSettings.cardPlay) return;
 
     const osc1 = audioContext.createOscillator();
     const osc2 = audioContext.createOscillator();
@@ -954,6 +991,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   playTurnChange: () => {
     const { audioContext, isMuted } = get();
     if (isMuted || !audioContext) return;
+    if (!get().soundSettings.turnChange) return;
 
     const frequencies = [392, 523, 659];
     frequencies.forEach((freq, index) => {
@@ -1029,6 +1067,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   playDefenseActivated: () => {
     const { audioContext, isMuted } = get();
     if (isMuted || !audioContext) return;
+    if (!get().soundSettings.defense) return;
 
     const osc = audioContext.createOscillator();
     const gain = audioContext.createGain();
@@ -1050,6 +1089,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   playBonusActivated: () => {
     const { audioContext, isMuted } = get();
     if (isMuted || !audioContext) return;
+    if (!get().soundSettings.bonus) return;
 
     const sparkle = [800, 1000, 1200, 1000, 800];
     sparkle.forEach((freq, index) => {
@@ -1075,6 +1115,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   playPersistentDamage: () => {
     const { audioContext, isMuted } = get();
     if (isMuted || !audioContext) return;
+    if (!get().soundSettings.attack) return;
 
     for (let i = 0; i < 3; i++) {
       setTimeout(() => {
@@ -1099,6 +1140,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   playStarGain: () => {
     const { audioContext, isMuted } = get();
     if (isMuted || !audioContext) return;
+    if (!get().soundSettings.bonus) return;
 
     const sparkle = [1047, 1319, 1568, 2093];
     sparkle.forEach((freq, index) => {
@@ -1124,6 +1166,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   playStarLoss: () => {
     const { audioContext, isMuted } = get();
     if (isMuted || !audioContext) return;
+    if (!get().soundSettings.bonus) return;
 
     const descend = [784, 523, 392, 262];
     descend.forEach((freq, index) => {
@@ -1149,6 +1192,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   playPointGain: () => {
     const { audioContext, isMuted } = get();
     if (isMuted || !audioContext) return;
+    if (!get().soundSettings.bonus) return;
 
     const osc = audioContext.createOscillator();
     const gain = audioContext.createGain();
@@ -1170,6 +1214,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   playPointLoss: () => {
     const { audioContext, isMuted } = get();
     if (isMuted || !audioContext) return;
+    if (!get().soundSettings.bonus) return;
 
     const osc = audioContext.createOscillator();
     const gain = audioContext.createGain();
@@ -1191,6 +1236,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   playAttackBlocked: () => {
     const { audioContext, isMuted } = get();
     if (isMuted || !audioContext) return;
+    if (!get().soundSettings.defense) return;
 
     const osc1 = audioContext.createOscillator();
     const osc2 = audioContext.createOscillator();
@@ -1217,6 +1263,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   playCardDraw: () => {
     const { audioContext, isMuted } = get();
     if (isMuted || !audioContext) return;
+    if (!get().soundSettings.cardPlay) return;
 
     const notes = [392, 523, 659, 784];
     notes.forEach((freq, index) => {
@@ -1306,6 +1353,32 @@ export const useAudio = create<AudioState>((set, get) => ({
         osc.start(audioContext.currentTime);
         osc.stop(audioContext.currentTime + 0.4);
       }, index * 100);
+    });
+  },
+
+  playMyTurn: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+    if (!get().soundSettings.myTurn) return;
+
+    const fanfare = [523, 659, 784, 1047, 784, 1047];
+    fanfare.forEach((freq, index) => {
+      setTimeout(() => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        osc.type = 'triangle';
+        
+        gain.gain.setValueAtTime(0.18, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.25);
+        
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + 0.25);
+      }, index * 80);
     });
   }
 }));

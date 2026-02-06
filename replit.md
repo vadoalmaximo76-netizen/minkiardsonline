@@ -54,7 +54,7 @@ Custom card effects can trigger interactive panels for player input, such as PTI
 The game supports a wide range of custom card effects through `[COMPORTAMENTO: ...]` tags, including status effects (Poison, Burn, Freeze, Stun, Protection), combat effects (Shield, Reflect, Counter, Lifesteal, Revenge), and other effects like draw, discard, powerup, and resurrection.
 
 ## Audio System
-A comprehensive sound effect system uses the Web Audio API for in-game events, character actions, and special card animations, with user muting control.
+A comprehensive sound effect system uses the Web Audio API for in-game events, character actions, and special card animations. Features per-category sound toggles (turn change, attack, defense, death, card play, bonus, dice, chat, my turn) with localStorage persistence and a dedicated SoundSettings panel. Global mute and per-category toggles work together.
 
 ## Card Animation System
 Twenty-eight unique full-screen animations with synchronized audio are triggered by specific cards to enhance visual feedback.
@@ -67,6 +67,12 @@ Players can select from 24 emoji-based avatars, with server-side validation and 
 
 ## Voice Chat System
 Real-time WebRTC peer-to-peer voice communication with STUN servers for NAT traversal, using Socket.IO for signaling.
+
+## Turn Transition Animation
+Cinematic full-screen overlay animation when turns change. Different styling for your turn (golden/crown icons, "È IL TUO TURNO!") vs opponent's turn (blue/purple, "Turno di [PLAYER]"). Uses phase-based CSS animations with slide-in, glow pulse, icon spin, and auto-dismiss after 2.5 seconds.
+
+## Game Log Panel
+A slide-out panel (GameLog component) showing all game events with category filtering (Tutti/Azioni/Carte/Sistema), auto-categorized entries with emoji icons, color-coded by event type, and auto-scroll to latest entry. Loads existing messages from localStorage.
 
 ## Development Tools
 Vite is used for frontend bundling with React plugin, and ESBuild handles server-side bundling.

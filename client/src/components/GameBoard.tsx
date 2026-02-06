@@ -35,7 +35,9 @@ import { CharacterEffects } from "./CharacterEffects";
 import { TutorialOverlay } from "./TutorialOverlay";
 import { AdBanner, InterstitialAd } from "./AdBanner";
 import { ConnectionStatus } from "./ConnectionStatus";
+import { SoundSettings } from "./SoundSettings";
 import { LastPlayedCards } from "./LastPlayedCards";
+import { GameLog } from "./GameLog";
 import { MissionsPanel } from "./MissionsPanel";
 import { AchievementsPanel } from "./AchievementsPanel";
 import { RankiardLeaderboard } from "./RankiardLeaderboard";
@@ -47,7 +49,7 @@ import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
-import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star, Hand, Music, Shuffle, User, LogOut, Target, Trophy, SkipForward } from "lucide-react";
+import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star, Hand, Music, Shuffle, User, LogOut, Target, Trophy, SkipForward, ScrollText, Settings } from "lucide-react";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 
@@ -70,12 +72,14 @@ interface GameBoardProps {
 
 export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogout, authToken, onBack, onLeaveGame }) => {
   const [chatOpen, setChatOpen] = useState(false);
+  const [soundSettingsOpen, setSoundSettingsOpen] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [musicPlayerOpen, setMusicPlayerOpen] = useState(false);
   const [graveyardOpen, setGraveyardOpen] = useState(false);
   const [missionsOpen, setMissionsOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [gameLogOpen, setGameLogOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [diceOpen, setDiceOpen] = useState(false);
   const [diceResult, setDiceResult] = useState<number | undefined>();
@@ -303,7 +307,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     cardType: string;
   }>>([]);
     const { selectedCard, gameId, playerName, gameState, setGameId, setUserRankiardPoints, resetPRSpent, clearSession } = useGameState();
-  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted, playAttackSound, playDeathSound, playCardPickup, playCardPlay, playTurnChange, playBonusActivated } = useAudio();
+  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted, playAttackSound, playDeathSound, playCardPickup, playCardPlay, playTurnChange, playBonusActivated, playMyTurn } = useAudio();
 
 
   const shareInviteLink = () => {
@@ -648,7 +652,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     const handleNextTurn = ({ nextPlayer }: { nextPlayer: string }) => {
       setNextTurnPlayer(nextPlayer);
       setNextTurnVisible(true);
-      playTurnChange();
+      if (nextPlayer === playerName) {
+        playMyTurn();
+      } else {
+        playTurnChange();
+      }
     };
 
     const handlePlayerLeft = ({ playerName }: { playerName: string }) => {
@@ -2870,6 +2878,24 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         >
           {isMuted ? <VolumeX size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" /> : <Volume2 size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />}
         </Button>
+
+        <Button
+          onClick={() => setSoundSettingsOpen(!soundSettingsOpen)}
+          className="fixed bottom-36 landscape:bottom-44 md:bottom-44 left-2 landscape:left-4 md:left-4 btn-neon-cyan text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
+          style={{ position: 'fixed' }}
+          title="Impostazioni Audio"
+        >
+          <Settings size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
+        </Button>
+
+        {soundSettingsOpen && (
+          <div 
+            className="fixed bottom-16 landscape:bottom-20 md:bottom-52 right-1 landscape:right-4 md:right-4 w-[calc(100vw-1rem)] max-w-64 landscape:w-72 md:w-80 h-80 landscape:h-96 md:h-[28rem] z-40 animate-in slide-in-from-right-5 fade-in duration-300"
+            style={{ position: 'fixed' }}
+          >
+            <SoundSettings onClose={() => setSoundSettingsOpen(false)} />
+          </div>
+        )}
         
         {/* Music Player Component */}
         <MusicPlayer 
@@ -2918,6 +2944,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 {unreadMessages > 9 ? '9+' : unreadMessages}
               </span>
             )}
+          </Button>
+
+          <Button
+            onClick={() => setGameLogOpen(!gameLogOpen)}
+            className="btn-neon-purple text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
+            title="Game Log"
+          >
+            <ScrollText size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
           </Button>
           
           <Button
@@ -2979,6 +3013,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             style={{ position: 'fixed' }}
           >
             <Chat onClose={handleCloseChat} />
+          </div>
+        )}
+
+        {gameLogOpen && (
+          <div 
+            className="fixed bottom-16 landscape:bottom-20 md:bottom-52 right-1 landscape:right-4 md:right-4 w-[calc(100vw-1rem)] max-w-80 landscape:w-96 md:w-[28rem] h-80 landscape:h-96 md:h-[28rem] z-40 animate-in slide-in-from-right-5 fade-in duration-300"
+            style={{ position: 'fixed' }}
+          >
+            <GameLog onClose={() => setGameLogOpen(false)} />
           </div>
         )}
 
@@ -3057,6 +3100,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           isVisible={nextTurnVisible}
           nextPlayer={nextTurnPlayer}
           onClose={() => setNextTurnVisible(false)}
+          isMyTurn={nextTurnPlayer === playerName}
         />
 
         {/* Leave Game Notification */}
