@@ -2677,7 +2677,10 @@ Rispondi SOLO in JSON:`;
     }
 
     // ============ SKIP TURNS SELF PATTERN ============
-    if (!actions.some(a => a.type === 'skip_turns_self') && (/non\s+puoi\s+giocare.*turni/i.test(text) || /non.*giocare.*per\s+\d+\s+turni/i.test(text) || /salti\s+\d+\s+turni/i.test(text) || /non\s+puoi.*per\s+\d+\s+turni/i.test(text))) {
+    // Exclude when text is about blocking MOSSE for opponents (block_mosse already handles that)
+    if (!actions.some(a => a.type === 'skip_turns_self') && !actions.some(a => a.type === 'block_mosse') && 
+        !(/non\s+può\s+giocare\s+carte\s+mosse/i.test(text) || /non\s+potrà\s+usare\s+mosse/i.test(text)) &&
+        (/non\s+puoi\s+giocare.*turni/i.test(text) || /non.*giocare.*per\s+\d+\s+turni/i.test(text) || /salti\s+\d+\s+turni/i.test(text) || /non\s+puoi.*per\s+\d+\s+turni/i.test(text))) {
       const skipTurnsVal = extractNumberForKeyword(text, ['turni', 'turno'], 3);
       actions.push({ type: 'skip_turns_self', target: 'self', value: skipTurnsVal, description: `Salti ${skipTurnsVal} turni` });
     }
@@ -4306,12 +4309,11 @@ Rispondi SOLO in JSON:`;
                 timestamp: Date.now()
               });
               
-              io.to(gameId).emit('show-target-selection', {
+              io.to(gameId).emit('show-custom-target-selection', {
                 selectionId,
+                cardId: card.id,
                 cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
-                effectText: card.effect,
-                targetType: 'enemy',
-                maxTargets: 1,
+                owner: cardOwner,
                 availableTargets: enemyChars.map(c => ({
                   id: c.id,
                   name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
@@ -4320,7 +4322,9 @@ Rispondi SOLO in JSON:`;
                   pti: c.pti,
                   stars: c.stars
                 })),
-                initiatorPlayer: cardOwner
+                maxSelections: 1,
+                title: `Scegli il bersaglio per ${card.name || this.getCardNameFromUrl(card.frontImage || '')}`,
+                subtitle: card.effect.replace(/\[DETTAGLI:[^\]]*\]/gi, '').replace(/\[ANIMAZIONE:[^\]]*\]/gi, '').trim().substring(0, 100)
               });
               
               console.log(`🎯 Showing target selection panel for ${card.name || card.id} (${keywordActions.map(a => a.type).join(', ')})`);
