@@ -4249,43 +4249,115 @@ Rispondi SOLO in JSON:`;
       // Otherwise, continue to AI processing below
     }
 
-    // Check for DETTAGLI (details) - extract metadata only, do NOT execute as effects
+    // Check for DETTAGLI (details) - extract metadata and check for target selection requirement
     const dettagliMatch = card.effect.match(/\[DETTAGLI:\s*([^\]]*)\]/i);
+    let dettagliData: Record<string, string> = {};
     if (dettagliMatch) {
       const details = dettagliMatch[1].trim();
       console.log(`⚡ DETTAGLI metadata extracted: "${details}"`);
+      details.split(';').forEach(pair => {
+        const colonIdx = pair.indexOf(':');
+        if (colonIdx > -1) {
+          const key = pair.substring(0, colonIdx).trim().toLowerCase();
+          const value = pair.substring(colonIdx + 1).trim();
+          dettagliData[key] = value;
+        }
+      });
+    }
+
+    // PRIORITY: Always try keyword parser FIRST before AI - it's more reliable for known patterns
+    {
+      console.log('🔧 Trying keyword-based effect parsing FIRST (before AI)');
+      const keywordActions = this.parseEffectKeywords(card.effect);
+      console.log(`🎴 Keyword-parsed actions (${keywordActions.length}):`, keywordActions.map(a => `${a.type}:${a.target}`));
+      
+      if (keywordActions.length > 0) {
+        const needsTargetSelection = dettagliData['input_type']?.toLowerCase().includes('selezione') ||
+          keywordActions.some(a => a.target === 'choose_target');
+        
+        if (needsTargetSelection) {
+          const io = (global as any).io;
+          const cardOwner = card.owner || playerName;
+          const isCPU = this.isPlayerCPU(gameId, cardOwner);
+          
+          const enemyChars = game.field.filter((c: Card) =>
+            c.owner !== cardOwner && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          );
+          
+          if (enemyChars.length > 0) {
+            if (isCPU) {
+              const cpuTarget = enemyChars[Math.floor(Math.random() * enemyChars.length)];
+              console.log(`🤖 CPU ${cardOwner} auto-selecting target: ${cpuTarget.name || cpuTarget.id}`);
+              for (const action of keywordActions) {
+                action.target = 'selected';
+                await this.applyEffectToCardWithFallback(gameId, action, card, cpuTarget, cardOwner, io);
+              }
+            } else if (io) {
+              const selectionId = `dettagli-target-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+              if (!game.pendingTargetSelections) game.pendingTargetSelections = new Map();
+              game.pendingTargetSelections.set(selectionId, {
+                cardId: card.id,
+                cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+                owner: cardOwner,
+                effectText: card.effect.replace(/\[BERSAGLIO:[^\]]*\]/gi, '').replace(/\[DETTAGLI:[^\]]*\]/gi, '').trim(),
+                targetType: 'enemy',
+                maxTargets: 1,
+                availableTargets: enemyChars.map(c => c.id),
+                timestamp: Date.now()
+              });
+              
+              io.to(gameId).emit('show-target-selection', {
+                selectionId,
+                cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+                effectText: card.effect,
+                targetType: 'enemy',
+                maxTargets: 1,
+                availableTargets: enemyChars.map(c => ({
+                  id: c.id,
+                  name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+                  owner: c.owner,
+                  frontImage: c.frontImage || '',
+                  pti: c.pti,
+                  stars: c.stars
+                })),
+                initiatorPlayer: cardOwner
+              });
+              
+              console.log(`🎯 Showing target selection panel for ${card.name || card.id} (${keywordActions.map(a => a.type).join(', ')})`);
+            }
+          } else {
+            console.log(`⚠️ No enemy characters available for target selection`);
+          }
+          
+          return { customAnimation };
+        }
+        
+        for (const action of keywordActions) {
+          await this.executeCustomEffectAction(gameId, action, playerName, card);
+        }
+        (card as any).effectAlreadyApplied = true;
+        this.checkAndEnforcePtiThresholds(gameId);
+        
+        await this.recordEvent(gameId, 'custom-card-effect', {
+          cardId: card.id,
+          cardName: card.name,
+          effect: card.effect,
+          result: { keywordActions, message: `Effetto attivato: ${keywordActions.map(a => a.description).join(', ')}` }
+        }, playerName);
+        
+        return { customAnimation };
+      }
     }
 
     try {
-      // Use Replit's native AI integration key first, fallback to user's key
       const replitKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
       const userKey = process.env.OPENAI_API_KEY;
       const apiKey = replitKey || userKey;
       
-      console.log(`🔑 AI Key check: Replit native=${replitKey ? 'YES' : 'NO'}, User key=${userKey ? 'YES' : 'NO'}`);
+      console.log(`🔑 AI Key check (keyword parser found 0 actions, falling back): Replit native=${replitKey ? 'YES' : 'NO'}, User key=${userKey ? 'YES' : 'NO'}`);
       
       if (!apiKey) {
-        console.log('🔧 No OpenAI API key - using keyword-based effect parsing');
-        
-        // Use keyword-based parsing instead
-        const actions = this.parseEffectKeywords(card.effect);
-        console.log(`🎴 Keyword-parsed actions:`, actions);
-        
-        if (actions.length > 0) {
-          for (const action of actions) {
-            await this.executeCustomEffectAction(gameId, action, playerName, card);
-          }
-          (card as any).effectAlreadyApplied = true;
-          this.checkAndEnforcePtiThresholds(gameId);
-          
-          // Record the effect execution
-          await this.recordEvent(gameId, 'custom-card-effect', {
-            cardId: card.id,
-            cardName: card.name,
-            effect: card.effect,
-            result: { actions, message: `Effetto attivato: ${actions.map(a => a.description).join(', ')}` }
-          }, playerName);
-        }
+        console.log('🔧 No OpenAI API key and keyword parser found no actions - no effect applied');
         return { customAnimation };
       }
 
@@ -10478,14 +10550,64 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       return { success: true, message: `Selezionati ${targetCards.length} personaggi per il dado` };
     }
 
+    // Check for [DADO:] pattern in effect text (gambling dice)
+    const dadoMatch = selection.effectText.match(/\[DADO:\s*Se indovina:\s*([^;]+);\s*Se sbaglia:\s*([^\]]+)\]/i);
+    if (dadoMatch) {
+      const correctEffect = dadoMatch[1].trim();
+      const wrongEffect = dadoMatch[2].trim();
+      console.log(`🎲 DADO effect detected in target selection! Correct: "${correctEffect}", Wrong: "${wrongEffect}"`);
+      
+      const targetChar = targetCards[0];
+      if (targetChar) {
+        const diceEffectId = `dice-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        if (!game.pendingDiceEffects) game.pendingDiceEffects = new Map();
+        game.pendingDiceEffects.set(diceEffectId, {
+          cardId: sourceCard.id,
+          cardName: selection.cardName,
+          correctEffect,
+          wrongEffect,
+          involvedCharacters: [{ id: targetChar.id, name: targetChar.name || this.getCardNameFromUrl(targetChar.frontImage || ''), owner: targetChar.owner, frontImage: targetChar.frontImage || '' }],
+          selectedCharacters: [targetChar.id],
+          choices: new Map<string, string>(),
+          initiatorPlayer: playerName,
+          preSelectedTarget: targetChar.id,
+          timestamp: Date.now()
+        });
+        
+        io.to(gameId).emit('show-dice-character-select', {
+          diceEffectId,
+          cardName: selection.cardName,
+          correctEffect,
+          wrongEffect,
+          availableCharacters: [{ id: targetChar.id, name: targetChar.name || this.getCardNameFromUrl(targetChar.frontImage || ''), owner: targetChar.owner, frontImage: targetChar.frontImage || '' }],
+          initiatorPlayer: playerName,
+          preSelectedTarget: targetChar.id
+        });
+      }
+      
+      game.pendingTargetSelections.delete(selectionId);
+      return { success: true, message: `Dado pronto per ${targetNames}` };
+    }
+
     // Parse and apply effects to selected targets (non-dice effects)
     const actions = this.parseEffectKeywords(selection.effectText);
     
     if (actions.length > 0) {
       for (const action of actions) {
-        // Override target to apply to selected cards
-        for (const target of targetCards) {
-          await this.applyEffectToCard(gameId, action, sourceCard, target, io);
+        if (action.type === 'delayed_death' || action.type === 'skip_turns_self' || action.type === 'return_all_to_hand') {
+          const selfChar = this.getPlayerActiveCharacter(game, playerName);
+          if (selfChar) {
+            await this.applyEffectToCard(gameId, action, sourceCard, selfChar, io);
+          }
+        } else if (action.type === 'all_attack_target' || action.type === 'block_mosse') {
+          for (const target of targetCards) {
+            await this.applyEffectToCard(gameId, action, sourceCard, target, io);
+          }
+        } else {
+          for (const target of targetCards) {
+            await this.applyEffectToCard(gameId, action, sourceCard, target, io);
+          }
         }
       }
       
@@ -10496,7 +10618,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         timestamp: Date.now()
       });
     } else {
-      // Fallback: just notify about target selection
       io.to(gameId).emit('chat-message', {
         id: `${Date.now()}-target-selected`,
         playerName: 'Sistema',
@@ -10677,10 +10798,191 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         break;
 
+      case 'gambling': {
+        const gambleChar = targetCard;
+        if (gambleChar && gambleChar.pti != null) {
+          const win = Math.random() >= 0.5;
+          const amount = action.value || 100;
+          if (win) {
+            gambleChar.pti += amount;
+            this.updateCardTextWithPTI(gambleChar);
+            console.log(`🎰 GAMBLING WIN: ${targetName} gained ${amount} PTI → ${gambleChar.pti}`);
+            io?.to?.(gameId)?.emit?.('chat-message', {
+              id: `${Date.now()}-gambling`,
+              playerName: 'Sistema',
+              message: `🎰 Scommessa VINTA! ${targetName} guadagna ${amount} PTI!`,
+              timestamp: Date.now()
+            });
+          } else {
+            gambleChar.pti -= amount;
+            this.updateCardTextWithPTI(gambleChar);
+            console.log(`🎰 GAMBLING LOSS: ${targetName} lost ${amount} PTI → ${gambleChar.pti}`);
+            io?.to?.(gameId)?.emit?.('chat-message', {
+              id: `${Date.now()}-gambling`,
+              playerName: 'Sistema',
+              message: `🎰 Scommessa PERSA! ${targetName} perde ${amount} PTI!`,
+              timestamp: Date.now()
+            });
+            if (action.description?.toLowerCase().includes('morte') && gambleChar.pti <= 0) {
+              gambleChar.pti = 0;
+              this.updateCardTextWithPTI(gambleChar);
+              this.moveToGraveyard(gameId, gambleChar.id, gambleChar.owner || '', 'SCOMMESSA_PERSA');
+            }
+          }
+        }
+        break;
+      }
+
+      case 'delayed_death': {
+        const deathTurns = action.value || 5;
+        if (!game.delayedDeaths) game.delayedDeaths = [];
+        const existingIdx = game.delayedDeaths.findIndex((dd: any) => dd.cardId === targetCard.id);
+        if (existingIdx >= 0) {
+          if (deathTurns < game.delayedDeaths[existingIdx].turnsRemaining) {
+            game.delayedDeaths[existingIdx].turnsRemaining = deathTurns;
+          }
+        } else {
+          game.delayedDeaths.push({
+            cardId: targetCard.id,
+            cardName: targetName,
+            owner: targetCard.owner || '',
+            turnsRemaining: deathTurns,
+            createdAt: Date.now()
+          });
+        }
+        const ddPTI = targetCard.pti || 0;
+        const ddStars = targetCard.stars || this.extractStarsFromNote(targetCard.text || '');
+        targetCard.text = `PTI: ${ddPTI} | Stelle: ${ddStars} | ☠️ Muore tra ${deathTurns} turni`;
+        console.log(`☠️ DELAYED DEATH: ${targetName} will die in ${deathTurns} turns!`);
+        io?.to?.(gameId)?.emit?.('chat-message', {
+          id: `${Date.now()}-delayed-death`,
+          playerName: 'Sistema',
+          message: `☠️ ${targetName} morirà tra ${deathTurns} turni!`,
+          timestamp: Date.now()
+        });
+        break;
+      }
+
+      case 'pti_threshold': {
+        const threshold = action.value || 2000;
+        const dropMatch = action.description?.match(/scende.*?(\d+)\s*pti/i);
+        const dropTo = dropMatch ? parseInt(dropMatch[1]) : 100;
+        if (!game.ptiThresholds) game.ptiThresholds = [];
+        game.ptiThresholds.push({ threshold, dropTo, stars: 1 });
+        for (const fieldCard of game.field) {
+          if ((fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') &&
+              fieldCard.pti != null && fieldCard.pti > threshold) {
+            fieldCard.pti = dropTo;
+            fieldCard.stars = 1;
+            this.updateCardTextWithPTI(fieldCard);
+          }
+        }
+        io?.to?.(gameId)?.emit?.('chat-message', {
+          id: `${Date.now()}-pti-threshold`,
+          playerName: 'Sistema',
+          message: `📉 Limite PTI attivo! Se un personaggio supera ${threshold} PTI, scende a ${dropTo} PTI e 1 stella!`,
+          timestamp: Date.now()
+        });
+        break;
+      }
+
+      case 'block_mosse': {
+        const blockTurns = action.value || 3;
+        (targetCard as any).blockedMosse = blockTurns;
+        console.log(`🫧 BLOCK MOSSE: ${targetName} cannot use MOSSE for ${blockTurns} turns!`);
+        io?.to?.(gameId)?.emit?.('chat-message', {
+          id: `${Date.now()}-block-mosse`,
+          playerName: 'Sistema',
+          message: `🫧 ${targetName} non può usare carte MOSSE per ${blockTurns} turni!`,
+          timestamp: Date.now()
+        });
+        break;
+      }
+
+      case 'all_attack_target': {
+        let totalDamage = 0;
+        for (const pName of game.turnOrder) {
+          if (pName !== targetCard.owner && !game.eliminatedPlayers.has(pName)) {
+            const attackerChar = this.getPlayerActiveCharacter(game, pName);
+            if (attackerChar) {
+              const stars = attackerChar.stars || this.extractStarsFromNote(attackerChar.text || '');
+              const damage = stars * 50;
+              totalDamage += damage;
+            }
+          }
+        }
+        if (totalDamage > 0 && targetCard.pti != null) {
+          targetCard.pti = Math.max(0, targetCard.pti - totalDamage);
+          this.updateCardTextWithPTI(targetCard);
+          console.log(`🎯 ALL ATTACK: ${targetName} took ${totalDamage} total damage → ${targetCard.pti} PTI`);
+          io?.to?.(gameId)?.emit?.('chat-message', {
+            id: `${Date.now()}-all-attack`,
+            playerName: 'Sistema',
+            message: `🎯 Tutti attaccano ${targetName}! Danno totale: ${totalDamage} PTI!`,
+            timestamp: Date.now()
+          });
+          if (targetCard.pti <= 0) {
+            this.moveToGraveyard(gameId, targetCard.id, targetCard.owner || '', 'ATTACCO_SIMULTANEO');
+          }
+        }
+        break;
+      }
+
+      case 'multi_attack': {
+        const multiChar = sourceCard;
+        if (multiChar) {
+          (multiChar as any).multiAttackTargets = action.value || 2;
+          console.log(`🎯🎯 MULTI ATTACK: ${multiChar.name || 'character'} can attack ${action.value || 2} opponents with next move!`);
+          io?.to?.(gameId)?.emit?.('chat-message', {
+            id: `${Date.now()}-multi-attack`,
+            playerName: 'Sistema',
+            message: `🎯🎯 ${multiChar.name || 'Personaggio'} può attaccare ${action.value || 2} avversari con la prossima mossa!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      }
+
+      case 'return_all_to_hand': {
+        const returnOwner = sourceCard.owner || '';
+        const playerFieldCards = game.field.filter((c: Card) => c.owner === returnOwner);
+        for (const fieldCard of playerFieldCards) {
+          game.field = game.field.filter((c: Card) => c.id !== fieldCard.id);
+          game.players[returnOwner]?.hand.push(fieldCard);
+        }
+        io?.to?.(gameId)?.emit?.('chat-message', {
+          id: `${Date.now()}-return-all`,
+          playerName: 'Sistema',
+          message: `✋ Tutte le carte di ${returnOwner} tornano in mano!`,
+          timestamp: Date.now()
+        });
+        break;
+      }
+
+      case 'skip_turns_self': {
+        const skipCount = action.value || 3;
+        const skipOwner = sourceCard.owner || '';
+        if (!game.skipTurnPlayers) game.skipTurnPlayers = [];
+        for (let i = 0; i < skipCount; i++) {
+          game.skipTurnPlayers.push(skipOwner);
+        }
+        io?.to?.(gameId)?.emit?.('chat-message', {
+          id: `${Date.now()}-skip-self`,
+          playerName: 'Sistema',
+          message: `⏭️ ${skipOwner} non può giocare per ${skipCount} turni!`,
+          timestamp: Date.now()
+        });
+        break;
+      }
+
       default:
         console.log(`🎯 Effect type '${action.type}' recognized but no specific handler - applying as description: ${action.description}`);
         break;
     }
+  }
+
+  private async applyEffectToCardWithFallback(gameId: string, action: { type: string; target: string; value: number; description: string }, sourceCard: Card, targetCard: Card, playerName: string, io: any): Promise<void> {
+    await this.applyEffectToCard(gameId, action, sourceCard, targetCard, io);
   }
 
   // AUTO DICE: Process auto dice confirmation with selected characters and custom effects
@@ -17253,6 +17555,40 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       io.to(gameId).emit('game-state-update', updatedGameState);
     }
     
+    // MULTI-ATTACK: Check if attacker's character has multiAttackTargets set
+    // Only for normal field attacks (not voodoo, hand targets, or persistent ticks)
+    if (!isVoodooReflection && !isPersistentTick && !isHandTarget) {
+      const attackerCharMulti = game?.field.find((c: Card) => 
+        c.owner === attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      );
+      if (attackerCharMulti && (attackerCharMulti as any).multiAttackTargets && (attackerCharMulti as any).multiAttackTargets > 1) {
+        const remainingTargets = (attackerCharMulti as any).multiAttackTargets - 1;
+        (attackerCharMulti as any).multiAttackTargets = 0;
+        
+        const otherEnemies = game?.field.filter((c: Card) =>
+          c.id !== targetCardId &&
+          c.owner !== attackerName &&
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        ) || [];
+        
+        const extraTargets = otherEnemies.slice(0, remainingTargets);
+        
+        for (const extraTarget of extraTargets) {
+          const extraName = extraTarget.name || this.getCardNameFromUrl(extraTarget.frontImage || '');
+          console.log(`🎯🎯 MULTI ATTACK: Applying ${damageValue} damage to ${extraName} via processMosseDamage pipeline`);
+          
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-multi-attack-extra`,
+            playerName: 'Sistema',
+            message: `🎯🎯 ATTACCO MULTIPLO! ${extraName} viene attaccato anche!`,
+            timestamp: Date.now()
+          });
+          
+          await this.processMosseDamage(gameId, attackerName, extraTarget.id, damageValue, mosseCardId, io, false, false, false, false, starsToRemove);
+        }
+      }
+    }
+
     // MOSSE return system: CPU auto-return with replacement, humans manual
     console.log(`MOSSE card ${mosseCardId} used by ${attackerName}`);
     
