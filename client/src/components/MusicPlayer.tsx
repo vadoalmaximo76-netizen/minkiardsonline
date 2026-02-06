@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import ReactDOM from "react-dom";
 import { Button } from "./ui/button";
 import { Slider } from "./ui/slider";
 import { Play, Pause, Volume2, VolumeX, Music } from "lucide-react";
@@ -19,6 +20,51 @@ declare global {
 
 const YOUTUBE_PLAYLIST_ID = "PLFC7776F0C2183335";
 
+let ytScriptLoaded = false;
+let ytContainerElement: HTMLDivElement | null = null;
+
+function ensureYouTubeContainer(): HTMLDivElement {
+  if (ytContainerElement && document.body.contains(ytContainerElement)) {
+    return ytContainerElement;
+  }
+
+  const existing = document.getElementById('youtube-player-container') as HTMLDivElement;
+  if (existing) {
+    ytContainerElement = existing;
+    return existing;
+  }
+
+  const container = document.createElement('div');
+  container.id = 'youtube-player-container';
+  container.style.position = 'absolute';
+  container.style.width = '0';
+  container.style.height = '0';
+  container.style.overflow = 'hidden';
+  container.style.pointerEvents = 'none';
+  document.body.appendChild(container);
+  ytContainerElement = container;
+
+  const playerDiv = document.createElement('div');
+  playerDiv.id = 'youtube-player';
+  container.appendChild(playerDiv);
+
+  return container;
+}
+
+function loadYouTubeScript() {
+  if (ytScriptLoaded || window.YT?.Player) return;
+  if (document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+    ytScriptLoaded = true;
+    return;
+  }
+
+  const tag = document.createElement('script');
+  tag.src = "https://www.youtube.com/iframe_api";
+  const firstScriptTag = document.getElementsByTagName('script')[0];
+  firstScriptTag?.parentNode?.insertBefore(tag, firstScriptTag);
+  ytScriptLoaded = true;
+}
+
 export const MusicPlayer: React.FC<MusicPlayerProps> = ({ isOpen, onClose }) => {
   const playerRef = useRef<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -31,13 +77,15 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({ isOpen, onClose }) => 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const tag = document.createElement('script');
-    tag.src = "https://www.youtube.com/iframe_api";
-    const firstScriptTag = document.getElementsByTagName('script')[0];
-    firstScriptTag?.parentNode?.insertBefore(tag, firstScriptTag);
+    ensureYouTubeContainer();
+    loadYouTubeScript();
 
-    window.onYouTubeIframeAPIReady = () => {
-      console.log('🎵 YouTube IFrame API ready');
+    const initPlayer = () => {
+      if (playerRef.current) return;
+
+      const targetEl = document.getElementById('youtube-player');
+      if (!targetEl) return;
+
       playerRef.current = new window.YT.Player('youtube-player', {
         height: '0',
         width: '0',
@@ -80,15 +128,27 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({ isOpen, onClose }) => 
       });
     };
 
+    if (window.YT?.Player) {
+      initPlayer();
+    } else {
+      const previousHandler = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => {
+        console.log('🎵 YouTube IFrame API ready');
+        if (previousHandler) previousHandler();
+        initPlayer();
+      };
+    }
+
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
   }, []);
 
   useEffect(() => {
-    socket.on('music-control', (data: {
+    const handler = (data: {
       action: 'play' | 'pause' | 'seek';
       time?: number;
     }) => {
@@ -106,10 +166,11 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({ isOpen, onClose }) => 
       } else if (data.action === 'seek' && data.time !== undefined) {
         playerRef.current.seekTo(data.time, true);
       }
-    });
+    };
 
+    socket.on('music-control', handler);
     return () => {
-      socket.off('music-control');
+      socket.off('music-control', handler);
     };
   }, [isPlayerReady]);
 
@@ -165,81 +226,78 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({ isOpen, onClose }) => 
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  return (
+  if (!isOpen) return null;
+
+  return ReactDOM.createPortal(
     <>
-      <div id="youtube-player" style={{ display: 'none' }}></div>
+      <div 
+        className="fixed inset-0 bg-black/50 z-[100]"
+        onClick={onClose}
+      />
       
-      {isOpen && (
-        <>
-          <div 
-            className="fixed inset-0 bg-black/50 z-[100]"
-            onClick={onClose}
-          />
-          
-          <div 
-            className="fixed bottom-16 landscape:bottom-20 md:bottom-20 left-2 landscape:left-4 md:left-4 bg-gray-900 rounded-lg shadow-2xl border-2 border-purple-600 p-4 z-[101] w-80"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Music className="w-5 h-5 text-purple-400" />
-                <h3 className="text-white font-bold text-lg">Music Player</h3>
-              </div>
-              <Button
-                onClick={onClose}
-                className="bg-gray-700 hover:bg-gray-600 text-white p-1 h-auto rounded"
-              >
-                ✕
-              </Button>
-            </div>
-
-            <div className="mb-3">
-              <Slider
-                value={[currentTime]}
-                max={duration || 100}
-                step={0.1}
-                onValueChange={handleSeek}
-                className="w-full"
-                disabled={!isPlayerReady}
-              />
-              <div className="flex justify-between text-xs text-gray-400 mt-1">
-                <span>{formatTime(currentTime)}</span>
-                <span>{formatTime(duration)}</span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 mb-3">
-              <Button
-                onClick={handlePlayPause}
-                className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-3"
-                disabled={!isPlayerReady}
-              >
-                {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
-              </Button>
-
-              <div className="flex items-center gap-2 flex-1">
-                <Button
-                  onClick={toggleMute}
-                  className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded"
-                >
-                  {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                </Button>
-                <Slider
-                  value={[isMuted ? 0 : volume]}
-                  max={100}
-                  step={1}
-                  onValueChange={handleVolumeChange}
-                  className="flex-1"
-                />
-              </div>
-            </div>
-
-            <div className="text-xs text-gray-400 text-center">
-              {isPlayerReady ? "🎵 YouTube Music synchronized across all players" : "⏳ Loading YouTube player..."}
-            </div>
+      <div 
+        className="fixed bottom-16 landscape:bottom-20 md:bottom-20 left-2 landscape:left-4 md:left-4 bg-gray-900 rounded-lg shadow-2xl border-2 border-purple-600 p-4 z-[101] w-80"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Music className="w-5 h-5 text-purple-400" />
+            <h3 className="text-white font-bold text-lg">Music Player</h3>
           </div>
-        </>
-      )}
-    </>
+          <Button
+            onClick={onClose}
+            className="bg-gray-700 hover:bg-gray-600 text-white p-1 h-auto rounded"
+          >
+            ✕
+          </Button>
+        </div>
+
+        <div className="mb-3">
+          <Slider
+            value={[currentTime]}
+            max={duration || 100}
+            step={0.1}
+            onValueChange={handleSeek}
+            className="w-full"
+            disabled={!isPlayerReady}
+          />
+          <div className="flex justify-between text-xs text-gray-400 mt-1">
+            <span>{formatTime(currentTime)}</span>
+            <span>{formatTime(duration)}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 mb-3">
+          <Button
+            onClick={handlePlayPause}
+            className="bg-purple-600 hover:bg-purple-700 text-white rounded-full p-3"
+            disabled={!isPlayerReady}
+          >
+            {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
+          </Button>
+
+          <div className="flex items-center gap-2 flex-1">
+            <Button
+              onClick={toggleMute}
+              className="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded"
+            >
+              {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+            </Button>
+            <Slider
+              value={[isMuted ? 0 : volume]}
+              max={100}
+              step={1}
+              onValueChange={handleVolumeChange}
+              className="flex-1"
+            />
+          </div>
+        </div>
+
+        <div className="text-xs text-gray-400 text-center">
+          {isPlayerReady ? "🎵 YouTube Music synchronized across all players" : "⏳ Loading YouTube player..."}
+        </div>
+      </div>
+    </>,
+    document.body
   );
 };

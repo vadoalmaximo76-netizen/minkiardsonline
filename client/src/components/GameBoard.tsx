@@ -2908,16 +2908,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           <Settings size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
         </Button>
 
-        {soundSettingsOpen && (
-          <div 
-            className="fixed bottom-16 landscape:bottom-20 md:bottom-52 right-1 landscape:right-4 md:right-4 w-[calc(100vw-1rem)] max-w-64 landscape:w-72 md:w-80 h-80 landscape:h-96 md:h-[28rem] z-50 fade-in duration-300"
-            style={{ position: 'fixed' }}
-          >
-            <SoundSettings onClose={() => setSoundSettingsOpen(false)} />
-          </div>
-        )}
-        
-        {/* Music Player Component */}
+        <div id="sound-settings-container">
+          {soundSettingsOpen && (
+            <div 
+              className="fixed bottom-16 landscape:bottom-20 md:bottom-52 right-1 landscape:right-4 md:right-4 w-[calc(100vw-1rem)] max-w-64 landscape:w-72 md:w-80 h-80 landscape:h-96 md:h-[28rem] z-50 fade-in duration-300"
+              style={{ position: 'fixed' }}
+            >
+              <SoundSettings onClose={() => setSoundSettingsOpen(false)} />
+            </div>
+          )}
+        </div>
+
         <MusicPlayer 
           isOpen={musicPlayerOpen}
           onClose={() => setMusicPlayerOpen(false)}
