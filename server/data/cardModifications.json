@@ -3685,5 +3685,29 @@
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
     "modifiedAt": "2026-02-06T13:29:50.912Z"
+  },
+  {
+    "id": 141,
+    "originalCardId": "bonus-154",
+    "deckType": "bonus",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": "Quando questa carta viene giocata, appare un pannello in cui puoi scegliere un personaggio avversario. Il personaggio scelto si fonde con il tuo creandone uno unico con la somma di PTI e stelle attuali di entrambi. Il personaggio appena creato diventa tuo e viene messo in campo [DETTAGLI: input_purpose: Scegliere un personaggio avversario; condition_detail: Se ci sono personaggi avversari in campo; condition_else: Nulla, l'effetto non si attiva; stars_action: Aggiunte]",
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": null,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "mosseCanCounter": false,
+    "mosseCanBeCountered": false,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-06T13:42:34.038Z"
   }
 ]

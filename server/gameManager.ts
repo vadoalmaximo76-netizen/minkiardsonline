@@ -2479,6 +2479,19 @@ Rispondi SOLO in JSON:`;
   private parseEffectKeywords(effectText: string): Array<{ type: string; target: string; value: number; description: string }> {
     const actions: Array<{ type: string; target: string; value: number; description: string }> = [];
     
+    // Split by Italian connectors for composite effects
+    if (!effectText.includes(' | ') && (effectText.includes(' e ') || effectText.includes('; '))) {
+      const parts = effectText.split(/\s+e\s+|\s*;\s*/);
+      if (parts.length >= 2 && parts.every(p => p.trim().length > 10)) {
+        console.log(`🎴 Composite effects detected (${parts.length}): processing each separately`);
+        for (const part of parts) {
+          const partActions = this.parseEffectKeywords(part.trim());
+          actions.push(...partActions);
+        }
+        if (actions.length > 0) return actions;
+      }
+    }
+
     // SUPPORT FOR MULTIPLE EFFECTS: Split by " | " separator and process each effect
     if (effectText.includes(' | ')) {
       const multipleEffects = effectText.split(' | ');
@@ -2532,6 +2545,22 @@ Rispondi SOLO in JSON:`;
       return match ? parseInt(match[1], 10) : defaultVal;
     };
     
+    const extractNumberForKeyword = (str: string, keywords: string[], defaultVal: number): number => {
+      const lower = str.toLowerCase();
+      for (const kw of keywords) {
+        const patterns = [
+          new RegExp(`(\\d+)\\s*${kw}`, 'i'),
+          new RegExp(`${kw}\\s*(?:di\\s*)?(?::|=)?\\s*(\\d+)`, 'i'),
+          new RegExp(`${kw}[^\\d]*?(\\d+)`, 'i'),
+        ];
+        for (const pat of patterns) {
+          const m = lower.match(pat);
+          if (m) return parseInt(m[1], 10);
+        }
+      }
+      return defaultVal;
+    };
+
     // Extract multiple numbers
     const extractAllNumbers = (str: string): number[] => {
       const matches = str.match(/\d+/g);
@@ -2577,7 +2606,11 @@ Rispondi SOLO in JSON:`;
         text.includes('colpisce') || text.includes('attacca') || text.includes('ferisce') || text.includes('distrugge') ||
         text.includes('elimina') || text.includes('uccide') || text.includes('fa male') || text.includes('subisce') ||
         text.includes('fa perdere') || text.includes('toglie') || text.includes('sottrae') || text.includes('leva') ||
-        text.includes('causa') || text.includes('provoca') || text.includes('perde pti') || text.includes('perde vita')) {
+        text.includes('causa') || text.includes('provoca') || text.includes('perde pti') || text.includes('perde vita') ||
+        text.includes('picchia') || text.includes('aggredisce') || text.includes('massacra') || text.includes('devasta') ||
+        text.includes('schianta') || text.includes('bombarda') || text.includes('martella') || text.includes('sfonda') ||
+        text.includes('fracassa') || text.includes('trapassa') || text.includes('trafigge') || text.includes('lacera') ||
+        text.includes('squarcia')) {
       const value = getDetailValue(['damage_amount', 'danni', 'danno', 'valore'], extractNumber(text));
       const target = determineTarget(text);
       actions.push({ type: 'damage', target, value, description: `Infligge ${value} danni` });
@@ -2589,7 +2622,10 @@ Rispondi SOLO in JSON:`;
         text.includes('ottiene pti') || text.includes('vita +') || text.includes('+ pti') ||
         text.includes('aggiunge pti') || text.includes('riguadagna') || text.includes('riacquista') ||
         text.includes('si cura') || text.includes('viene curato') || text.includes('aumenta pti') ||
-        text.includes('pti in più') || text.includes('guadagna vita') || text.includes('ripara')) {
+        text.includes('pti in più') || text.includes('guadagna vita') || text.includes('ripara') ||
+        text.includes('risana') || text.includes('ristabilisce') || text.includes('rinvigorisce') ||
+        text.includes('rivitalizza') || text.includes('sana') || text.includes('medica') ||
+        text.includes('salva') || text.includes('guarigione') || text.includes('terapia')) {
       const value = getDetailValue(['heal_amount', 'cura', 'guarigione', 'valore'], extractNumber(text));
       const target = determineTarget(text);
       actions.push({ type: 'heal', target: target === 'opponents' ? 'self' : target, value, description: `Cura ${value} PTI` });
@@ -2600,7 +2636,9 @@ Rispondi SOLO in JSON:`;
         text.includes('prendere carta') || text.includes('pescare') || text.includes('tira una carta') ||
         text.includes('carta dal mazzo') || text.includes('aggiungi alla mano') || text.includes('prendi dal mazzo') ||
         text.includes('metti in mano') || text.includes('aggiungi in mano') || text.includes('carta in mano') ||
-        text.includes('ottieni carta') || text.includes('guadagna carta') || text.includes('ricevi carta')) {
+        text.includes('ottieni carta') || text.includes('guadagna carta') || text.includes('ricevi carta') ||
+        text.includes('acquisisci') || text.includes('preleva') || text.includes('ritira') ||
+        text.includes('raccoglie') || text.includes('raccatta') || text.includes('recupera carte')) {
       const value = extractNumber(text, 1);
       let deckType = 'any';
       if (text.includes('personaggio') || text.includes('personaggi')) deckType = 'personaggi';
@@ -2661,7 +2699,10 @@ Rispondi SOLO in JSON:`;
         text.includes('cannot be attacked') || text.includes('invincibile') || text.includes('inattaccabile') ||
         text.includes('non subisce') || text.includes('ignora i danni') || text.includes('ignora attacchi') ||
         text.includes('blocca attacchi') || text.includes('blocca danni') || text.includes('resistente') ||
-        text.includes('impenetrabile') || text.includes('blindato') || text.includes('corazzato')) {
+        text.includes('impenetrabile') || text.includes('blindato') || text.includes('corazzato') ||
+        text.includes('indistruttibile') || text.includes('divino') || text.includes('benedetto') ||
+        text.includes('sacro') || text.includes('scudo divino') || text.includes('egida') ||
+        text.includes('difesa totale') || text.includes('campo di forza')) {
       const turns = getDuration(1);
       actions.push({ type: 'protection', target: 'self', value: turns || 1, description: turns > 0 ? `Protezione per ${turns} turni` : 'Non può essere attaccato' });
     }
@@ -2694,7 +2735,9 @@ Rispondi SOLO in JSON:`;
     if (text.includes('congela') || text.includes('congelamento') || text.includes('non può agire') ||
         text.includes('ghiaccia') || text.includes('immobilizza') || text.includes('paralizza') ||
         text.includes('blocca') || text.includes('ferma') || text.includes('non può muoversi') ||
-        text.includes('non può attaccare') || text.includes('cristallizza') || text.includes('iberna')) {
+        text.includes('non può attaccare') || text.includes('cristallizza') || text.includes('iberna') ||
+        text.includes('gelo') || text.includes('glaciale') || text.includes('criogenico') ||
+        text.includes('ghiaccio') || text.includes('surgela') || text.includes('crioconserva')) {
       const value = getDuration(2);
       const target = determineTarget(text);
       actions.push({ type: 'freeze', target: target === 'self' ? 'opponents' : target, value, description: `Congela per ${value} turni` });
@@ -2712,7 +2755,10 @@ Rispondi SOLO in JSON:`;
     // ============ POISON PATTERNS ============
     if (text.includes('veleno') || text.includes('avvelena') || text.includes('tossico') ||
         text.includes('intossica') || text.includes('infetta') || text.includes('virus') ||
-        text.includes('contamina') || text.includes('corrompe') || text.includes('danni nel tempo')) {
+        text.includes('contamina') || text.includes('corrompe') || text.includes('danni nel tempo') ||
+        text.includes('intossicamento') || text.includes('tossina') || text.includes('tossine') ||
+        text.includes('acido') || text.includes('corrode') || text.includes('marcisce') ||
+        text.includes('decomposizione')) {
       const value = getDetailValue(['damage_amount', 'valore', 'danni'], extractNumber(text, 50));
       const target = determineTarget(text);
       actions.push({ type: 'poison', target: target === 'self' ? 'opponents' : target, value, description: `Veleno: ${value} danni/turno` });
@@ -2721,7 +2767,10 @@ Rispondi SOLO in JSON:`;
     // ============ BURN PATTERNS ============
     if (text.includes('brucia') || text.includes('bruciatura') || text.includes('fiamme') ||
         text.includes('incendia') || text.includes('fuoco') || text.includes('infuoca') ||
-        text.includes('scottatura') || text.includes('incenerisce') || text.includes('carbonizza')) {
+        text.includes('scottatura') || text.includes('incenerisce') || text.includes('carbonizza') ||
+        text.includes('brasa') || text.includes('vampa') || text.includes('rovente') ||
+        text.includes('ardente') || text.includes('ustione') || text.includes('calore') ||
+        text.includes('magma') || text.includes('lava') || text.includes('piromanzia')) {
       const value = getDetailValue(['damage_amount', 'valore', 'danni'], extractNumber(text, 30));
       const target = determineTarget(text);
       actions.push({ type: 'burn', target: target === 'self' ? 'opponents' : target, value, description: `Bruciatura: ${value} danni/turno` });
@@ -2787,7 +2836,10 @@ Rispondi SOLO in JSON:`;
         text.includes('ripristina carta') || text.includes('richiama') || text.includes('riporta') ||
         text.includes('rianima') || text.includes('revival') || text.includes('ritorna in gioco') ||
         text.includes('recupera dal cimitero') || text.includes('fa tornare') || text.includes('risorge') ||
-        text.includes('resuscitare') || text.includes('resurrezione') || text.includes('reincarna')) {
+        text.includes('resuscitare') || text.includes('resurrezione') || text.includes('reincarna') ||
+        text.includes('rivive') || text.includes('ravviva') || text.includes('ritorna dalla morte') ||
+        text.includes('seconda vita') || text.includes('seconda chance') || text.includes('phoenix') ||
+        text.includes('fenice') || text.includes('rinasce')) {
       const requiresChoice = text.includes('scelta') || text.includes('scegli') || 
                              text.includes('pannello') || text.includes('quale carta') ||
                              text.includes('a tua scelta') || text.includes('che vuoi') ||
@@ -3297,6 +3349,180 @@ Rispondi SOLO in JSON:`;
 
     if (text.includes('mimetismo') || text.includes('mimetico') || text.includes('copia statistiche')) {
       actions.push({ type: 'mimic', target: 'any', value: 1, description: 'Mimetismo' });
+    }
+
+    // ============ PERCENTAGE DAMAGE ============
+    if ((text.includes('percentuale') || text.includes('%')) && (text.includes('pti') || text.includes('vita') || text.includes('salute'))) {
+      const percent = extractNumber(text, 50);
+      if (text.includes('toglie') || text.includes('rimuove') || text.includes('riduce') || text.includes('perde')) {
+        actions.push({ type: 'percentage_damage', target: determineTarget(text), value: percent, description: `Toglie il ${percent}% dei PTI` });
+      } else if (text.includes('aggiunge') || text.includes('guadagna') || text.includes('ottiene') || text.includes('aumenta')) {
+        actions.push({ type: 'percentage_heal', target: determineTarget(text), value: percent, description: `Aggiunge il ${percent}% dei PTI` });
+      }
+    }
+
+    // ============ SET PTI TO SPECIFIC VALUE ============
+    if ((text.includes('porta') || text.includes('imposta') || text.includes('setta') || text.includes('fissa') || text.includes('metti')) && 
+        (text.includes('pti a ') || text.includes('pti =') || text.includes('pti:') || text.includes('vita a'))) {
+      const value = extractNumber(text, 500);
+      const target = determineTarget(text);
+      actions.push({ type: 'set_pti', target, value, description: `Imposta i PTI a ${value}` });
+    }
+
+    // ============ SET STARS TO SPECIFIC VALUE ============
+    if ((text.includes('porta') || text.includes('imposta') || text.includes('setta') || text.includes('fissa') || text.includes('metti')) && 
+        (text.includes('stelle a ') || text.includes('stelle =') || text.includes('stelle:'))) {
+      const value = extractNumber(text, 1);
+      const target = determineTarget(text);
+      actions.push({ type: 'set_stars', target, value, description: `Imposta le stelle a ${value}` });
+    }
+
+    // ============ EQUAL PTI ============
+    if (text.includes('stess') && text.includes('pti') && (text.includes('tutti') || text.includes('ognuno') || text.includes('ugual'))) {
+      actions.push({ type: 'equalize_pti', target: 'all', value: 0, description: 'Tutti i personaggi hanno gli stessi PTI' });
+    }
+
+    // ============ TRANSFER PTI ============
+    if ((text.includes('trasferis') || text.includes('dona') || text.includes('passa') || text.includes('cedi') || text.includes('regala')) && 
+        (text.includes('pti') || text.includes('punti') || text.includes('vita'))) {
+      const value = extractNumber(text, 100);
+      const target = determineTarget(text);
+      if (target === 'opponents' || target === 'all_opponents') {
+        actions.push({ type: 'transfer_pti_to_enemy', target, value, description: `Trasferisce ${value} PTI a un nemico` });
+      } else {
+        actions.push({ type: 'transfer_pti_to_ally', target: 'allies', value, description: `Trasferisce ${value} PTI a un alleato` });
+      }
+    }
+
+    // ============ STEAL STARS ============
+    if ((text.includes('ruba') || text.includes('sottrae') || text.includes('prende') || text.includes('furto')) && 
+        (text.includes('stella') || text.includes('stelle'))) {
+      const value = extractNumber(text, 1);
+      actions.push({ type: 'steal_stars', target: 'opponents', value, description: `Ruba ${value} stelle` });
+    }
+
+    // ============ STEAL PTI ============
+    if ((text.includes('ruba') || text.includes('furto')) && (text.includes('pti') || text.includes('punti')) && 
+        !actions.some(a => a.type === 'absorb_pti' || a.type === 'lifesteal' || a.type === 'drain')) {
+      const value = extractNumber(text, 100);
+      actions.push({ type: 'absorb_pti', target: 'enemy_card', value, description: `Ruba ${value} PTI` });
+    }
+
+    // ============ ADD STARS ============  
+    if ((text.includes('aggiung') || text.includes('guadagn') || text.includes('ottien') || text.includes('ricev') || text.includes('+')) && 
+        (text.includes('stella') || text.includes('stelle')) && 
+        !actions.some(a => a.type === 'modify_stars' || a.type === 'steal_stars')) {
+      const value = extractNumber(text, 1);
+      actions.push({ type: 'modify_stars', target: 'self', value, description: `Guadagna ${value} stelle` });
+    }
+
+    // ============ REMOVE STARS ============
+    if ((text.includes('togli') || text.includes('rimuov') || text.includes('sottra') || text.includes('-')) && 
+        (text.includes('stella') || text.includes('stelle')) && 
+        !actions.some(a => a.type === 'modify_stars' || a.type === 'steal_stars' || a.type === 'zero_stars')) {
+      const value = extractNumber(text, 1);
+      actions.push({ type: 'modify_stars', target: 'opponents', value: -value, description: `Rimuove ${value} stelle` });
+    }
+
+    // ============ IMMUNITY TO SPECIFIC EFFECTS ============
+    if ((text.includes('immune') || text.includes('immunità') || text.includes('resiste')) && 
+        (text.includes('veleno') || text.includes('fuoco') || text.includes('ghiaccio') || text.includes('effetti negativi'))) {
+      actions.push({ type: 'immunity', target: 'self', value: 3, description: 'Immunità agli effetti negativi' });
+    }
+
+    // ============ SUMMON/EVOKE PATTERNS ============
+    if ((text.includes('evoca') || text.includes('invoca') || text.includes('richiama') || text.includes('materializza') || text.includes('genera')) && 
+        (text.includes('personaggio') || text.includes('carta') || text.includes('creatura') || text.includes('mostro') || text.includes('guerriero'))) {
+      actions.push({ type: 'summon', target: 'self', value: 1, description: 'Evoca un personaggio dal mazzo' });
+    }
+
+    // ============ DESTROY PATTERNS ============
+    if ((text.includes('distrugge') || text.includes('distrugg') || text.includes('annientare') || text.includes('annienta') || 
+         text.includes('spazza via') || text.includes('demolisce') || text.includes('elimina dal campo') || text.includes('polverizza') ||
+         text.includes('vaporizza') || text.includes('disintegra')) && 
+        !actions.some(a => a.type === 'damage' || a.type === 'execute')) {
+      const target = determineTarget(text);
+      actions.push({ type: 'destroy', target: target === 'self' ? 'opponents' : target, value: 9999, description: 'Distrugge il bersaglio' });
+    }
+
+    // ============ MULTI-TARGET DAMAGE (up to N) ============
+    if ((text.includes('fino a') || text.includes('massimo')) && (text.includes('personaggi') || text.includes('bersagli') || text.includes('nemici'))) {
+      const maxTargets = extractNumber(text, 3);
+      const dmgValue = extractAllNumbers(text).find(n => n >= 50) || 100;
+      if (!actions.some(a => a.type === 'damage')) {
+        actions.push({ type: 'damage', target: 'choice', value: dmgValue, description: `Infligge ${dmgValue} danni (fino a ${maxTargets} bersagli)` });
+      }
+    }
+
+    // ============ HEAL PERCENTAGE ============
+    if ((text.includes('cura del') || text.includes('recupera il') || text.includes('rigenera il')) && text.includes('%')) {
+      const percent = extractNumber(text, 50);
+      actions.push({ type: 'percentage_heal', target: 'self', value: percent, description: `Cura il ${percent}% dei PTI massimi` });
+    }
+
+    // ============ SACRIFICE FOR EFFECT ============
+    if ((text.includes('sacrifica') || text.includes('sacrificio')) && 
+        (text.includes('pti') || text.includes('stella') || text.includes('stelle') || text.includes('vita')) &&
+        !actions.some(a => a.type === 'sacrifice')) {
+      const value = extractNumber(text, 100);
+      actions.push({ type: 'sacrifice', target: 'self', value, description: `Sacrifica ${value} PTI per un effetto` });
+    }
+
+    // ============ DEATH TIMER PATTERNS ============
+    if ((text.includes('muore tra') || text.includes('morirà tra') || text.includes('morte in') || text.includes('countdown') || 
+         text.includes('conto alla rovescia') || text.includes('morte dopo')) && 
+        (text.includes('turno') || text.includes('turni'))) {
+      const turns = extractNumber(text, 3);
+      const target = determineTarget(text);
+      actions.push({ type: 'death_timer', target: target === 'self' ? 'opponents' : target, value: turns, description: `Morte tra ${turns} turni` });
+    }
+
+    // ============ SWAP STARS ============
+    if ((text.includes('scambia') || text.includes('inverti') || text.includes('swap')) && (text.includes('stelle') || text.includes('stella'))) {
+      actions.push({ type: 'swap_stars', target: 'opponents', value: 1, description: 'Scambia le stelle con un avversario' });
+    }
+
+    // ============ SWAP PTI ============
+    if ((text.includes('scambia') || text.includes('inverti') || text.includes('swap')) && (text.includes('pti') || text.includes('punti') || text.includes('vita'))) {
+      if (!actions.some(a => a.type === 'swap')) {
+        actions.push({ type: 'swap', target: 'any', value: 1, description: 'Scambia i PTI con un avversario' });
+      }
+    }
+
+    // ============ MULTIPLY DAMAGE ============
+    if ((text.includes('moltiplica') || text.includes('x')) && (text.includes('danni') || text.includes('danno') || text.includes('attacco'))) {
+      const multiplier = extractNumber(text, 2);
+      actions.push({ type: 'multiply_damage', target: 'self', value: multiplier, description: `Moltiplica i danni per ${multiplier}` });
+    }
+
+    // ============ LINK/CONNECT PATTERNS ============
+    if ((text.includes('collega') || text.includes('connett') || text.includes('lega') || text.includes('vincola')) && 
+        (text.includes('personaggio') || text.includes('carta') || text.includes('nemico') || text.includes('avversario'))) {
+      actions.push({ type: 'link', target: 'opponents', value: 1, description: 'Collega due personaggi' });
+    }
+
+    // ============ DEATH/KILL PATTERNS ============
+    if ((text.includes('morte istantanea') || text.includes('uccidi') || text.includes('elimina dal gioco') || 
+         text.includes('uccide') || text.includes('muore subito') || text.includes('muore immediatamente') ||
+         text.includes('kill') || text.includes('one hit') || text.includes('one shot')) &&
+        !actions.some(a => a.type === 'execute' || a.type === 'destroy')) {
+      const target = determineTarget(text);
+      actions.push({ type: 'destroy', target: target === 'self' ? 'opponents' : target, value: 9999, description: 'Morte istantanea' });
+    }
+
+    // ============ GAIN/ADD PTI PATTERNS (catchall) ============
+    if ((text.includes('+') || text.includes('aggiungi')) && text.includes('pti') && 
+        !actions.some(a => a.type === 'heal' || a.type === 'powerup' || a.type === 'buff' || a.type === 'absorb_pti')) {
+      const value = extractNumber(text, 100);
+      actions.push({ type: 'heal', target: 'self', value, description: `+${value} PTI` });
+    }
+
+    // ============ LOSE/REMOVE PTI PATTERNS (catchall) ============
+    if ((text.includes('-') || text.includes('rimuovi')) && text.includes('pti') && 
+        !actions.some(a => a.type === 'damage' || a.type === 'weaken' || a.type === 'absorb_pti')) {
+      const value = extractNumber(text, 100);
+      const target = determineTarget(text);
+      actions.push({ type: 'damage', target: target === 'self' ? 'self' : target, value, description: `-${value} PTI` });
     }
 
     // ============ SPECIAL/GENERIC PATTERNS (fallback) ============
@@ -5724,6 +5950,213 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               timestamp: Date.now()
             });
           }
+        }
+        break;
+      }
+
+      case 'draw_specific': {
+        const specificDeckTypes: Array<'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali'> = ['personaggi', 'mosse', 'bonus', 'personaggi_speciali'];
+        const drawSpecificDeck = specificDeckTypes.find(d => action.description.toLowerCase().includes(d)) || 'mosse';
+        for (let i = 0; i < (action.value || 1); i++) {
+          this.pickCard(gameId, drawSpecificDeck, playerName);
+        }
+        console.log(`🎴 DRAW SPECIFIC: ${playerName} drew ${action.value || 1} from ${drawSpecificDeck}!`);
+        break;
+      }
+
+      case 'summon': {
+        const summonDeck = game.decks.personaggi.length > 0 ? 'personaggi' : 'personaggi_speciali';
+        if (game.decks[summonDeck].length > 0) {
+          const randIdx = Math.floor(Math.random() * game.decks[summonDeck].length);
+          const summonedCard = game.decks[summonDeck].splice(randIdx, 1)[0];
+          summonedCard.owner = playerName;
+          game.field.push(summonedCard);
+          console.log(`🌟 SUMMON: ${playerName} summoned ${summonedCard.name || summonedCard.id} to the field!`);
+        }
+        break;
+      }
+
+      case 'return_to_hand': {
+        const rthTarget = game.field.find(c => 
+          c.owner !== playerName && 
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (rthTarget) {
+          game.field = game.field.filter(c => c.id !== rthTarget.id);
+          game.players[rthTarget.owner || playerName]?.hand.push(rthTarget);
+          console.log(`✋ RETURN TO HAND: ${rthTarget.name || rthTarget.id} returned to hand!`);
+        }
+        break;
+      }
+
+      case 'return_to_deck': {
+        const rtdTarget = game.field.find(c => 
+          c.owner !== playerName && 
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (rtdTarget) {
+          const rtdDeckType = rtdTarget.type as 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali';
+          game.field = game.field.filter(c => c.id !== rtdTarget.id);
+          game.decks[rtdDeckType]?.push(rtdTarget);
+          console.log(`📚 RETURN TO DECK: ${rtdTarget.name || rtdTarget.id} returned to ${rtdDeckType} deck!`);
+        }
+        break;
+      }
+
+      case 'percentage_damage': {
+        const percentDmgTargets = action.target === 'self' 
+          ? [this.getPlayerActiveCharacter(game, playerName)].filter(Boolean)
+          : game.field.filter(c => c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+        for (const target of percentDmgTargets) {
+          if (target && target.pti != null) {
+            const dmg = Math.floor(target.pti * (action.value / 100));
+            target.pti = Math.max(0, target.pti - dmg);
+            this.updateCardTextWithPTI(target);
+            console.log(`📊 PERCENTAGE DAMAGE: ${target.name} lost ${action.value}% = ${dmg} PTI, now ${target.pti}`);
+          }
+        }
+        break;
+      }
+
+      case 'percentage_heal': {
+        const percentHealChar = this.getPlayerActiveCharacter(game, playerName);
+        if (percentHealChar && percentHealChar.pti != null) {
+          const healAmt = Math.floor(percentHealChar.pti * (action.value / 100));
+          percentHealChar.pti += healAmt;
+          this.updateCardTextWithPTI(percentHealChar);
+          console.log(`📊 PERCENTAGE HEAL: ${percentHealChar.name} gained ${action.value}% = ${healAmt} PTI, now ${percentHealChar.pti}`);
+        }
+        break;
+      }
+
+      case 'set_pti': {
+        const setPtiTargets = action.target === 'opponents' || action.target === 'enemy_card'
+          ? game.field.filter(c => c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'))
+          : [this.getPlayerActiveCharacter(game, playerName)].filter(Boolean);
+        for (const target of setPtiTargets) {
+          if (target) {
+            target.pti = action.value;
+            this.updateCardTextWithPTI(target);
+            console.log(`📌 SET PTI: ${target.name} PTI set to ${action.value}`);
+          }
+        }
+        break;
+      }
+
+      case 'set_stars': {
+        const setStarsTargets = action.target === 'opponents' || action.target === 'enemy_card'
+          ? game.field.filter(c => c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'))
+          : [this.getPlayerActiveCharacter(game, playerName)].filter(Boolean);
+        for (const target of setStarsTargets) {
+          if (target) {
+            target.stars = action.value;
+            const currentPti = target.pti || 0;
+            target.text = `PTI: ${currentPti} | Stelle: ${action.value}`;
+            console.log(`⭐📌 SET STARS: ${target.name} stars set to ${action.value}`);
+          }
+        }
+        break;
+      }
+
+      case 'equalize_pti': {
+        const allCharsForEqual = game.field.filter(c => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+        if (allCharsForEqual.length > 0) {
+          const totalPti = allCharsForEqual.reduce((sum, c) => sum + (c.pti || 0), 0);
+          const avgPti = Math.floor(totalPti / allCharsForEqual.length);
+          for (const char of allCharsForEqual) {
+            char.pti = avgPti;
+            this.updateCardTextWithPTI(char);
+          }
+          console.log(`⚖️ EQUALIZE PTI: All characters set to ${avgPti} PTI`);
+        }
+        break;
+      }
+
+      case 'transfer_pti_to_enemy':
+      case 'transfer_pti_to_ally': {
+        const transferSource = this.getPlayerActiveCharacter(game, playerName);
+        const transferAmount = Math.min(transferSource?.pti || 0, action.value || 100);
+        if (transferSource && transferSource.pti != null && transferAmount > 0) {
+          transferSource.pti -= transferAmount;
+          this.updateCardTextWithPTI(transferSource);
+          const transferTargets = action.type === 'transfer_pti_to_enemy' 
+            ? game.field.filter(c => c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'))
+            : game.field.filter(c => c.owner === playerName && c.id !== transferSource.id && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+          if (transferTargets.length > 0) {
+            transferTargets[0].pti = (transferTargets[0].pti || 0) + transferAmount;
+            this.updateCardTextWithPTI(transferTargets[0]);
+            console.log(`🔄 TRANSFER PTI: ${transferSource.name} → ${transferTargets[0].name}: ${transferAmount} PTI`);
+          }
+        }
+        break;
+      }
+
+      case 'steal_stars': {
+        const stealStarsEnemy = game.field.find(c => 
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        const stealStarsSelf = this.getPlayerActiveCharacter(game, playerName);
+        if (stealStarsEnemy && stealStarsSelf) {
+          const stolenStars = Math.min(stealStarsEnemy.stars || 0, action.value || 1);
+          stealStarsEnemy.stars = (stealStarsEnemy.stars || 0) - stolenStars;
+          stealStarsSelf.stars = (stealStarsSelf.stars || 0) + stolenStars;
+          const enemyPti = stealStarsEnemy.pti || 0;
+          stealStarsEnemy.text = `PTI: ${enemyPti} | Stelle: ${stealStarsEnemy.stars}`;
+          const selfPti = stealStarsSelf.pti || 0;
+          stealStarsSelf.text = `PTI: ${selfPti} | Stelle: ${stealStarsSelf.stars}`;
+          console.log(`⭐🤏 STEAL STARS: Stole ${stolenStars} stars from ${stealStarsEnemy.name}!`);
+        }
+        break;
+      }
+
+      case 'death_timer': {
+        for (const fieldCard of game.field) {
+          if (fieldCard.owner !== playerName && 
+              (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali')) {
+            (fieldCard as any).deathTimer = action.value || 3;
+            console.log(`💀⏰ DEATH TIMER: ${fieldCard.name} will die in ${action.value} turns!`);
+            break;
+          }
+        }
+        break;
+      }
+
+      case 'swap_stars': {
+        const swapStarsSelf = this.getPlayerActiveCharacter(game, playerName);
+        const swapStarsEnemy = game.field.find(c => 
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (swapStarsSelf && swapStarsEnemy) {
+          const tempStars = swapStarsSelf.stars || 0;
+          swapStarsSelf.stars = swapStarsEnemy.stars || 0;
+          swapStarsEnemy.stars = tempStars;
+          const selfPti = swapStarsSelf.pti || 0;
+          const enemyPti = swapStarsEnemy.pti || 0;
+          swapStarsSelf.text = `PTI: ${selfPti} | Stelle: ${swapStarsSelf.stars}`;
+          swapStarsEnemy.text = `PTI: ${enemyPti} | Stelle: ${swapStarsEnemy.stars}`;
+          console.log(`🔄⭐ SWAP STARS: ${swapStarsSelf.name} (${swapStarsSelf.stars}★) ↔ ${swapStarsEnemy.name} (${swapStarsEnemy.stars}★)`);
+        }
+        break;
+      }
+
+      case 'multiply_damage': {
+        const multiplyChar = this.getPlayerActiveCharacter(game, playerName);
+        if (multiplyChar) {
+          (multiplyChar as any).damageMultiplier = action.value || 2;
+          console.log(`✖️ MULTIPLY DAMAGE: ${multiplyChar.name} damage multiplied by ${action.value}!`);
+        }
+        break;
+      }
+
+      case 'link': {
+        const linkSelf = this.getPlayerActiveCharacter(game, playerName);
+        const linkEnemy = game.field.find(c => 
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (linkSelf && linkEnemy) {
+          (linkSelf as any).linkedTo = linkEnemy.id;
+          (linkEnemy as any).linkedTo = linkSelf.id;
+          console.log(`🔗 LINK: ${linkSelf.name} linked to ${linkEnemy.name}!`);
         }
         break;
       }
