@@ -750,6 +750,9 @@ export const DefenseDialog: React.FC = () => {
               {playerHand.filter(card => !isDefenseCardDisabled(card)).map((card) => {
                 const cardNameStr = card.frontImage ? getCardName(card.frontImage) : '';
                 const isBonusDef = isDefenseBonusCard(card);
+                const isMosseCard = card.type === 'mosse';
+                const mosseCannotRepel = isMosseCard && !canRepelAttack(card);
+                const mosseCounterDmg = isMosseCard ? calculateCounterDamage(card) : null;
                 const bonusLabel = isBonusDef ? (
                   cardNameStr.includes('BOOMERANG') || cardNameStr.includes('RESPINTA') ? 'Riflette danno' :
                   cardNameStr.includes('CONTRO SKRAZZKOOM') ? 'Riflette x2' :
@@ -764,21 +767,24 @@ export const DefenseDialog: React.FC = () => {
                 return (
                 <div
                   key={card.id}
-                  onClick={() => handleSelectDefenseCard(card)}
-                  className={`cursor-pointer hover:scale-105 transition-transform duration-200 bg-gray-800 rounded-lg border-2 ${isBonusDef ? 'border-green-500 hover:border-green-300' : 'border-gray-600 hover:border-blue-400'} p-2 flex flex-col items-center relative`}
+                  onClick={() => {
+                    if (mosseCannotRepel) return;
+                    handleSelectDefenseCard(card);
+                  }}
+                  className={`${mosseCannotRepel ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:scale-105'} transition-transform duration-200 bg-gray-800 rounded-lg border-2 ${mosseCannotRepel ? 'border-red-800' : isBonusDef ? 'border-green-500 hover:border-green-300' : 'border-gray-600 hover:border-blue-400'} p-2 flex flex-col items-center relative`}
                 >
                   {card.frontImage ? (
                     <img
                       src={card.frontImage}
                       alt={getCardName(card.frontImage)}
-                      className="w-20 h-28 object-cover rounded-md mb-2"
+                      className={`w-20 h-28 object-cover rounded-md mb-2 ${mosseCannotRepel ? 'grayscale' : ''}`}
                     />
                   ) : (
                     <div className="w-20 h-28 bg-gray-700 rounded-md mb-2 flex items-center justify-center">
                       <span className="text-gray-500 text-xs">Carta</span>
                     </div>
                   )}
-                  <div className="text-white text-xs font-bold text-center w-full" style={{ wordBreak: 'break-word' }}>
+                  <div className={`${mosseCannotRepel ? 'text-gray-500' : 'text-white'} text-xs font-bold text-center w-full`} style={{ wordBreak: 'break-word' }}>
                     {card.frontImage ? getCardName(card.frontImage) : (card.text?.substring(0, 15) || 'Carta')}
                   </div>
                   {card.type && (
@@ -799,6 +805,15 @@ export const DefenseDialog: React.FC = () => {
                   {bonusLabel && (
                     <div className="absolute top-0 right-0 bg-green-600 text-white text-[9px] font-bold px-1 py-0.5 rounded-bl-md rounded-tr-md">
                       {bonusLabel}
+                    </div>
+                  )}
+                  {mosseCannotRepel && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-lg">
+                      <div className="text-center px-1">
+                        <div className="text-red-400 text-[10px] font-bold leading-tight">
+                          {!canCounterAttack ? 'NON CONTRASTABILE' : mosseCounterDmg !== null ? `Danno ${mosseCounterDmg} < ${defenseRequest?.damageValue}` : 'DANNO INSUFFICIENTE'}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
