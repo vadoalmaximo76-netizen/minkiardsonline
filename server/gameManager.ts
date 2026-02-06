@@ -2058,6 +2058,10 @@ Rispondi SOLO in JSON:`;
         });
 
       console.log(`💾 Game state saved to DB for ${gameId} (${Object.keys(playerHands).length} players)`);
+
+      await db
+        .delete(gameStates)
+        .where(sql`${gameStates.gameId} NOT IN (SELECT game_id FROM game_states ORDER BY last_updated DESC LIMIT 5)`);
     } catch (error) {
       console.error(`❌ Failed to save game state for ${gameId}:`, error);
     }
@@ -2066,30 +2070,28 @@ Rispondi SOLO in JSON:`;
   // Load all active games from database on server startup
   async loadActiveGamesFromDB(): Promise<void> {
     try {
-      // First, mark games older than 7 days as inactive to prevent data bloat
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      
+      await db
+        .delete(gameStates)
+        .where(sql`${gameStates.lastUpdated} < NOW() - INTERVAL '2 days'`);
+
+      await db
+        .delete(gameStates)
+        .where(eq(gameStates.isActive, false));
+
       await db
         .update(gameStates)
         .set({ isActive: false })
         .where(and(
           eq(gameStates.isActive, true),
-          sql`${gameStates.lastUpdated} < ${sevenDaysAgo.toISOString()}`
+          sql`${gameStates.lastUpdated} < NOW() - INTERVAL '1 day'`
         ));
-      
-      // Only load active games from the last 24 hours (limit to 10 to prevent memory issues)
-      const oneDayAgo = new Date();
-      oneDayAgo.setDate(oneDayAgo.getDate() - 1);
       
       const activeGames = await db
         .select()
         .from(gameStates)
-        .where(and(
-          eq(gameStates.isActive, true),
-          sql`${gameStates.lastUpdated} >= ${oneDayAgo.toISOString()}`
-        ))
-        .limit(10);
+        .where(eq(gameStates.isActive, true))
+        .orderBy(sql`${gameStates.lastUpdated} DESC`)
+        .limit(3);
 
       console.log(`📂 Found ${activeGames.length} active games in database`);
 
