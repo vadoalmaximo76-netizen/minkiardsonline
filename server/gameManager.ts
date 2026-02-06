@@ -15438,6 +15438,166 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // Broadcast defense success with resolution source
       if (isCounterAttack && counterAttackOptions?.counterDamage) {
+        // CLASH BATTLE: If counter damage equals attack damage, trigger tap battle
+        if (counterAttackOptions.counterDamage === (damage || 0)) {
+          console.log(`⚡ CLASH BATTLE (from repel): Equal damage (${damage}) - starting tap battle between ${attacker} and ${defender}!`);
+          
+          // Find attacker's character on field - required for clash battle
+          const attackerChars = game.field.filter((c: any) => c.owner === attacker && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+          if (attackerChars.length === 0) {
+            console.warn(`[CLASH] Cannot start clash: attacker ${attacker} has no character on field, falling back to net damage 0`);
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-clash-aborted`,
+              playerName: 'Sistema',
+              message: `⚔️ RESPINTA! ${defender} ha respinto l'attacco di ${attacker} con la stessa forza! Nessun danno inflitto.`,
+              timestamp: Date.now()
+            });
+            this.returnToDeck(gameId, mosseCardId, attacker);
+            const nextPlayer = this.endTurn(gameId, attacker);
+            if (nextPlayer) {
+              io.to(gameId).emit('next-turn', { nextPlayer });
+            }
+            const updatedGameState = this.getSanitizedGameState(gameId);
+            io.to(gameId).emit('game-state-update', updatedGameState);
+            return true;
+          }
+          
+          const clashId = `clash-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          const clashDefenderMosseCardId = counterAttackOptions.counterCardId || '';
+          const clashDefenderTargetCardId = attackerChars[0].id;
+          
+          // Move defender's counter MOSSE to field temporarily and auto-draw replacement
+          if (clashDefenderMosseCardId && game?.players?.[defender]) {
+            let counterCardOnField = game.field.find((c: any) => c.id === clashDefenderMosseCardId);
+            let counterCardName = counterCardOnField?.name || clashDefenderMosseCardId;
+            
+            if (!counterCardOnField) {
+              const defenderHand = game.players[defender].hand || [];
+              const counterCardIndex = defenderHand.findIndex((c: any) => c.id === clashDefenderMosseCardId);
+              if (counterCardIndex >= 0) {
+                const counterCard = defenderHand[counterCardIndex];
+                counterCard.owner = defender;
+                counterCard.counterMosseOnField = true;
+                counterCardName = counterCard.name || clashDefenderMosseCardId;
+                game.players[defender].hand = defenderHand.filter((c: any) => c.id !== clashDefenderMosseCardId);
+                game.field.push(counterCard);
+                console.log(`[CLASH-MOSSE] ${defender}'s counter MOSSE ${counterCardName} moved from hand to field for clash battle`);
+              }
+            } else {
+              counterCardOnField.counterMosseOnField = true;
+            }
+            
+            // Auto-draw replacement MOSSE for defender
+            const mosseDeck = game.decks?.mosse || [];
+            if (mosseDeck.length > 0) {
+              const drawnCard = mosseDeck.pop();
+              if (drawnCard) {
+                drawnCard.owner = defender;
+                game.players[defender].hand.push(drawnCard);
+                console.log(`[CLASH-AUTO-DRAW] ${defender} drew replacement MOSSE: ${drawnCard.name || drawnCard.id}`);
+              }
+            }
+            
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-clash-counter-mosse`,
+              playerName: 'Sistema',
+              message: `🃏 ${counterCardName} di ${defender} è in campo per lo scontro!`,
+              timestamp: Date.now()
+            });
+          }
+          
+          game.activeClashBattle = {
+            id: clashId,
+            attacker,
+            defender,
+            attackerTaps: 0,
+            defenderTaps: 0,
+            damageValue: damage || 0,
+            attackerMosseCardId: mosseCardId,
+            defenderMosseCardId: clashDefenderMosseCardId,
+            targetCardId, // Defender's character
+            defenderTargetCardId: clashDefenderTargetCardId, // Attacker's character
+            startTime: Date.now(),
+            duration: 10000,
+            active: true
+          };
+
+          io.to(gameId).emit('clash-battle-start', {
+            clashId,
+            attacker,
+            defender,
+            damageValue: damage || 0,
+            duration: 10000
+          });
+
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-clash-start`,
+            playerName: 'Sistema',
+            message: `⚡ SCONTRO! ${attacker} e ${defender} si affrontano con ${damage} PTI ciascuno! Premi il tasto più velocemente!`,
+            timestamp: Date.now()
+          });
+
+          // CPU AUTO-TAP
+          const clashAttackerIsCPU = attacker.startsWith('CPU');
+          const clashDefenderIsCPU = defender.startsWith('CPU');
+          
+          if (clashAttackerIsCPU || clashDefenderIsCPU) {
+            const cpuTaps = Math.floor(Math.random() * 11) + 15;
+            const tapInterval = 10000 / cpuTaps;
+            
+            if (clashAttackerIsCPU) {
+              console.log(`🤖 CPU ${attacker} will auto-tap ${cpuTaps} times`);
+              for (let i = 0; i < cpuTaps; i++) {
+                setTimeout(() => {
+                  const result = this.handleClashTap(gameId, attacker);
+                  if (result.success) {
+                    io.to(gameId).emit('clash-tap-update', {
+                      clashId,
+                      attackerTaps: result.attackerTaps,
+                      defenderTaps: result.defenderTaps
+                    });
+                    const overwhelmCheck = this.checkClashOverwhelm(gameId);
+                    if (overwhelmCheck.winner) {
+                      this.resolveClashBattle(gameId, clashId, io);
+                    }
+                  }
+                }, Math.random() * tapInterval + (i * tapInterval * 0.8));
+              }
+            }
+            
+            if (clashDefenderIsCPU) {
+              console.log(`🤖 CPU ${defender} will auto-tap ${cpuTaps} times`);
+              for (let i = 0; i < cpuTaps; i++) {
+                setTimeout(() => {
+                  const result = this.handleClashTap(gameId, defender);
+                  if (result.success) {
+                    io.to(gameId).emit('clash-tap-update', {
+                      clashId,
+                      attackerTaps: result.attackerTaps,
+                      defenderTaps: result.defenderTaps
+                    });
+                    const overwhelmCheck = this.checkClashOverwhelm(gameId);
+                    if (overwhelmCheck.winner) {
+                      this.resolveClashBattle(gameId, clashId, io);
+                    }
+                  }
+                }, Math.random() * tapInterval + (i * tapInterval * 0.8));
+              }
+            }
+          }
+
+          // Set timeout to resolve clash after 10 seconds
+          setTimeout(async () => {
+            await this.resolveClashBattle(gameId, clashId, io);
+          }, 10500);
+
+          // Send updated game state
+          const updatedGameState = this.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', updatedGameState);
+          
+          return true; // Early return - clash battle will handle resolution
+        }
+
         const netDamage = Math.max(0, counterAttackOptions.counterDamage - (damage || 0));
         io.to(gameId).emit('chat-message', {
           id: `${Date.now()}-counter-attack-success`,
