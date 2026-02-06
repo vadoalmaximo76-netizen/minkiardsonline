@@ -14204,6 +14204,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           cpuInstance.resolveAttack();
           console.log(`🎯 CPU ${attacker}: Attack blocked by defense - CPU attack resolved`);
         }
+        
+        // Draw replacement MOSSE for CPU attacker after defense
+        const replacementCard = await this.pickCard(gameId, 'mosse', attacker);
+        if (replacementCard) {
+          console.log(`🎴 CPU ${attacker}: Drew replacement MOSSE after defense blocked attack`);
+        }
       }
 
       // DUELLO: Special turn handling during duel
