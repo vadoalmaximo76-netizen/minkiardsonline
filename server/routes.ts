@@ -4503,10 +4503,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // SECURITY: Validate counter-attack options if provided
       let validatedCounterOptions: { counterAttack?: boolean; counterCardId?: string; counterDamage?: number } | undefined;
       if (counterAttackOptions?.counterAttack && defends) {
-        // Validate that the attack can be countered (default: true unless explicitly false)
-        const attackCanBeCountered = (pendingDefense as any).mosseCanBeCountered !== false;
+        // Validate that the attack can be countered (mosseCanBeCountered)
+        const attackCanBeCountered = (pendingDefense as any).mosseCanBeCountered === true;
         if (!attackCanBeCountered) {
-          console.warn(`[DEFENSE-RESPONSE] Counter-attack rejected: attack explicitly cannot be countered`, {
+          console.warn(`[DEFENSE-RESPONSE] Counter-attack rejected: attack cannot be countered`, {
             gameId, attackId, timestamp: new Date().toISOString()
           });
           socket.emit('defense:error', { 
@@ -4521,8 +4521,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (counterCardId) {
           const gameState = gameManager.getGameState(gameId);
           const defenderPlayer = gameState?.players?.[pendingDefense.defender];
-          const counterCard = defenderPlayer?.hand?.find((c: any) => c.id === counterCardId);
-          if (!counterCard || counterCard.mosseCanCounter === false) {
+          let counterCard = defenderPlayer?.hand?.find((c: any) => c.id === counterCardId);
+          if (!counterCard) {
+            const gameFullState = gameManager.getGameState(gameId);
+            counterCard = gameFullState?.field?.find((c: any) => c.id === counterCardId && c.owner === pendingDefense.defender);
+          }
+          if (!counterCard || counterCard.mosseCanCounter !== true) {
             console.warn(`[DEFENSE-RESPONSE] Counter-attack rejected: MOSSE cannot counter`, {
               gameId, attackId, counterCardId, timestamp: new Date().toISOString()
             });
@@ -4591,10 +4595,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
       
-      // Validate that the attack can be countered (default: true unless explicitly false)
-      const attackCanBeCountered = (pendingDefense as any).mosseCanBeCountered !== false;
+      // Validate that the attack can be countered (mosseCanBeCountered)
+      const attackCanBeCountered = (pendingDefense as any).mosseCanBeCountered === true;
       if (!attackCanBeCountered) {
-        console.warn(`[COUNTER-ATTACK] Counter rejected: attack explicitly cannot be countered`, { gameId, attackId });
+        console.warn(`[COUNTER-ATTACK] Counter rejected: attack cannot be countered`, { gameId, attackId });
         socket.emit('counter-attack:error', { message: 'This attack cannot be countered', code: 'ATTACK_NOT_COUNTERABLE' });
         return;
       }

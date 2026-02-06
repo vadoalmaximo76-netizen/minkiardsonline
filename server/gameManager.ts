@@ -5945,7 +5945,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       deckType: 'mosse',
       starsToRemove: starsToRemove || 0,
       mosseEffect: mosseEffect || undefined,
-      mosseCanBeCountered: (mosseCard as any).mosseCanBeCountered !== false,
+      mosseCanBeCountered: (mosseCard as any).mosseCanBeCountered === true,
       mosseDamageValue: (mosseCard as any).mosseDamageValue ?? null,
       attackerStars: attackerStars
     });
@@ -13444,8 +13444,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       console.log(`🤖 CPU ${pendingDefense.defender} hand:`, defender.hand.map((c: any) => ({ type: c.type, name: getCardName(c) })));
       
       // NEW: CPU COUNTER-ATTACK LOGIC - Check if attack can be countered with MOSSE
-      // Default: all MOSSE can be countered unless explicitly set to false
-      if ((pendingDefense as any).mosseCanBeCountered !== false) {
+      if ((pendingDefense as any).mosseCanBeCountered) {
         console.log(`🤖 CPU ${pendingDefense.defender}: Attack CAN be countered - evaluating counter options`);
         
         // Get CPU's target card (the one being attacked) to calculate stars
@@ -13458,9 +13457,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
         }
         
-        // Find MOSSE cards in CPU hand that can counter (default: all MOSSE can counter unless explicitly false)
+        // Find MOSSE cards in CPU hand that can counter (mosseCanCounter = true)
         const counterMosseCards = defender.hand.filter((c: any) => {
-          return c.type === 'mosse' && c.mosseCanCounter !== false;
+          return c.type === 'mosse' && c.mosseCanCounter === true;
         });
         
         console.log(`🤖 CPU ${pendingDefense.defender}: Found ${counterMosseCards.length} counter MOSSE cards`);
@@ -13604,7 +13603,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       defenderCardImage: defenderCard?.frontImage,
       attackerCardText: attackerCard?.text,
       defenderCardText: defenderCard?.text,
-      mosseCanBeCountered: pendingDefense.mosseCanBeCountered !== false,
+      mosseCanBeCountered: pendingDefense.mosseCanBeCountered === true,
       mosseDamageValue: pendingDefense.mosseDamageValue ?? null,
       attackerStars: pendingDefense.attackerStars ?? 1
     };
@@ -14057,18 +14056,21 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
     
     // SECURITY: Validate counter-attack eligibility
-    // Default: all MOSSE can be countered unless explicitly set to false
-    const attackCanBeCountered = (pendingDefense as any).mosseCanBeCountered !== false;
+    const attackCanBeCountered = (pendingDefense as any).mosseCanBeCountered === true;
     if (!attackCanBeCountered) {
-      console.warn(`[COUNTER-ATTACK] Attack cannot be countered: mosseCanBeCountered is explicitly false`);
+      console.warn(`[COUNTER-ATTACK] Attack cannot be countered: mosseCanBeCountered is not true`);
       return { success: false, error: 'This attack cannot be countered' };
     }
     
-    // Validate defender's MOSSE can counter (default: true unless explicitly false)
+    // Validate defender's MOSSE has mosseCanCounter
+    // Look in BOTH hand AND field (card may have been moved to field by play-card before counter-attack)
     const defenderPlayer = game.players[pendingDefense.defender];
-    const defenderMosse = defenderPlayer?.hand?.find((c: any) => c.id === defenderMosseCardId);
-    if (!defenderMosse || defenderMosse.mosseCanCounter === false) {
-      console.warn(`[COUNTER-ATTACK] Defender's MOSSE cannot counter: mosseCanCounter is explicitly false`);
+    let defenderMosse = defenderPlayer?.hand?.find((c: any) => c.id === defenderMosseCardId);
+    if (!defenderMosse) {
+      defenderMosse = game.field?.find((c: any) => c.id === defenderMosseCardId && c.owner === pendingDefense.defender);
+    }
+    if (!defenderMosse || defenderMosse.mosseCanCounter !== true) {
+      console.warn(`[COUNTER-ATTACK] Defender's MOSSE cannot counter: mosseCanCounter=${defenderMosse?.mosseCanCounter}, cardFound=${!!defenderMosse}, searchedHand=${defenderPlayer?.hand?.length}, searchedField=${game.field?.length}`);
       return { success: false, error: 'Your MOSSE cannot counter attacks' };
     }
     

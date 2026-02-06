@@ -105,13 +105,14 @@ export const DefenseDialog: React.FC = () => {
   const defenderStars = getDefenderStars();
   
   // Get MOSSE cards from player's hand for counter-attack
-  // Default: all MOSSE can counter/be countered unless explicitly set to false
-  const canCounterAttack = defenseRequest?.mosseCanBeCountered !== false;
+  // Counter-attack is ONLY allowed if the attacking MOSSE has mosseCanBeCountered = true
+  // AND the defender's MOSSE has mosseCanCounter = true
+  const canCounterAttack = defenseRequest?.mosseCanBeCountered === true;
   
   const mosseCards = playerHand.filter(card => {
     if (card.type !== 'mosse') return false;
     if (!canCounterAttack) return false;
-    return card.mosseCanCounter !== false;
+    return card.mosseCanCounter === true;
   });
   
   // Calculate suggested counter damage for a given MOSSE card
@@ -122,8 +123,8 @@ export const DefenseDialog: React.FC = () => {
   
   // Check if a counter MOSSE can successfully repel the attack
   const canRepelAttack = (mosseCard: GameCard): boolean => {
-    if (defenseRequest?.mosseCanBeCountered === false) return false;
-    if (mosseCard.mosseCanCounter === false) return false;
+    if (!defenseRequest?.mosseCanBeCountered) return false;
+    if (!mosseCard.mosseCanCounter) return false;
     const counterDamage = calculateCounterDamage(mosseCard);
     if (counterDamage === null) return false;
     return counterDamage >= (defenseRequest?.damageValue ?? 0);
