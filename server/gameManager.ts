@@ -2942,8 +2942,8 @@ Rispondi SOLO in JSON:`;
     }
 
     // ============ TRANSFORM PATTERNS ============
-    if (text.includes('trasforma') || text.includes('muta') || text.includes('evolve') ||
-        text.includes('diventa') || text.includes('si trasforma') || text.includes('metamorfosi')) {
+    if ((text.includes('trasforma') || text.includes('si trasforma') || text.includes('metamorfosi') || text.includes('evolve')) &&
+        !text.includes('fonde') && !text.includes('fusione') && !text.includes('fondere') && !text.includes('unione')) {
       actions.push({ type: 'transform', target: 'self', value: 1, description: 'Si trasforma in un\'altra carta' });
     }
 
@@ -4180,21 +4180,11 @@ Rispondi SOLO in JSON:`;
       // Otherwise, continue to AI processing below
     }
 
-    // Check for DETTAGLI (details) effect and process it
+    // Check for DETTAGLI (details) - extract metadata only, do NOT execute as effects
     const dettagliMatch = card.effect.match(/\[DETTAGLI:\s*([^\]]*)\]/i);
     if (dettagliMatch) {
       const details = dettagliMatch[1].trim();
-      console.log(`⚡ DETTAGLI effect detected: "${details}"`);
-      
-      // Parse details for structured data and apply
-      const io = (global as any).io;
-      const actions = this.parseEffectKeywords(details);
-      
-      if (actions.length > 0) {
-        for (const action of actions) {
-          await this.applyParsedEffect(gameId, action, card, playerName, io);
-        }
-      }
+      console.log(`⚡ DETTAGLI metadata extracted: "${details}"`);
     }
 
     try {
@@ -4216,6 +4206,7 @@ Rispondi SOLO in JSON:`;
           for (const action of actions) {
             await this.executeCustomEffectAction(gameId, action, playerName, card);
           }
+          (card as any).effectAlreadyApplied = true;
           
           // Record the effect execution
           await this.recordEvent(gameId, 'custom-card-effect', {
@@ -4318,6 +4309,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         for (const action of actions) {
           await this.executeCustomEffectAction(gameId, action, playerName, card);
         }
+        (card as any).effectAlreadyApplied = true;
         
         // Record the effect execution
         await this.recordEvent(gameId, 'custom-card-effect', {
