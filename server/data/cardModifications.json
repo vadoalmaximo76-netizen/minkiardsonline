@@ -3694,7 +3694,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": "Quando questa carta viene giocata, appare un pannello in cui puoi scegliere un personaggio avversario. Il personaggio scelto si fonde con il tuo creandone uno unico con la somma di PTI e stelle attuali di entrambi. Il personaggio appena creato diventa tuo e viene messo in campo [DETTAGLI: input_purpose: Scegliere un personaggio avversario; condition_detail: Se ci sono personaggi avversari in campo; condition_else: Nulla, l'effetto non si attiva; stars_action: Aggiunte]",
+    "effect": "Quando questa carta viene giocata, appare un pannello in cui puoi scegliere un personaggio avversario. Il personaggio scelto si fonde con il tuo creandone uno unico con la somma di PTI e stelle attuali di entrambi. Il personaggio appena creato diventa tuo e viene messo in campo [DETTAGLI: input_purpose: Per scegliere un personaggio avversario da fondere con il tuo ; stars_action: Aggiunte]",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -3708,6 +3708,6 @@
     "mosseCanBeCountered": false,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-06T13:42:34.038Z"
+    "modifiedAt": "2026-02-06T15:17:02.675Z"
   }
 ]

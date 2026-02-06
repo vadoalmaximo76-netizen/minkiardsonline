@@ -2479,16 +2479,54 @@ Rispondi SOLO in JSON:`;
   private parseEffectKeywords(effectText: string): Array<{ type: string; target: string; value: number; description: string }> {
     const actions: Array<{ type: string; target: string; value: number; description: string }> = [];
     
-    // Split by Italian connectors for composite effects
-    if (!effectText.includes(' | ') && (effectText.includes(' e ') || effectText.includes('; '))) {
-      const parts = effectText.split(/\s+e\s+|\s*;\s*/);
-      if (parts.length >= 2 && parts.every(p => p.trim().length > 10)) {
-        console.log(`🎴 Composite effects detected (${parts.length}): processing each separately`);
-        for (const part of parts) {
-          const partActions = this.parseEffectKeywords(part.trim());
-          actions.push(...partActions);
+    // Smart composite effect splitting - avoid breaking meaningful phrases
+    if (!effectText.includes(' | ')) {
+      // Strip structured tags before analyzing
+      const tagFreeText = effectText
+        .replace(/\[DETTAGLI:[^\]]*\]/gi, '')
+        .replace(/\[ANIMAZIONE:[^\]]*\]/gi, '')
+        .replace(/\[COMPORTAMENTO:[^\]]*\]/gi, '')
+        .replace(/\[BERSAGLIO:[^\]]*\]/gi, '')
+        .replace(/\[DADO[^\]]*\]/gi, '')
+        .replace(/\[RICHIEDE[^\]]*\]/gi, '')
+        .replace(/\[SOLO_SU:[^\]]*\]/gi, '')
+        .replace(/\[NON_SU:[^\]]*\]/gi, '')
+        .replace(/\[BLOCCATA[^\]]*\]/gi, '')
+        .trim();
+      
+      // Don't split complex descriptions that describe a single multi-step effect
+      const isComplexSingleEffect = /fonde|fonder|fusione|unione|unisce|combina.*con|assorb.*personaggio/i.test(tagFreeText);
+      
+      if (!isComplexSingleEffect && tagFreeText.includes('; ')) {
+        // Semicolons are safer to split on
+        const parts = tagFreeText.split(/\s*;\s*/).filter(p => p.trim().length > 5);
+        if (parts.length >= 2) {
+          console.log(`🎴 Composite effects detected via semicolon (${parts.length}): processing each separately`);
+          for (const part of parts) {
+            const partActions = this.parseEffectKeywords(part.trim());
+            actions.push(...partActions);
+          }
+          if (actions.length > 0) return actions;
         }
-        if (actions.length > 0) return actions;
+      }
+      
+      // Only split on " e " if both sides contain clear action verbs (not just "PTI e stelle")
+      if (!isComplexSingleEffect && /\s+e\s+/i.test(tagFreeText)) {
+        const eIndex = tagFreeText.search(/\s+e\s+/i);
+        const leftPart = tagFreeText.substring(0, eIndex).trim();
+        const rightPart = tagFreeText.substring(eIndex).replace(/^\s+e\s+/i, '').trim();
+        
+        // Italian action verbs that indicate an independent effect clause
+        const actionVerbs = /infligg|curar?|togli|aggiung|pesca|raddoppi|dimezz|avvelen|bruci|congel|proteg|rimuov|guadagn|perd|ruba|scambi|distrugg|evoca|sacrifica|resuscit|stordis|silenzi|esili/i;
+        
+        // Only split if BOTH sides contain an action verb
+        if (leftPart.length > 10 && rightPart.length > 10 && actionVerbs.test(leftPart) && actionVerbs.test(rightPart)) {
+          console.log(`🎴 Composite effects detected via 'e' (2): processing each separately`);
+          const leftActions = this.parseEffectKeywords(leftPart);
+          const rightActions = this.parseEffectKeywords(rightPart);
+          actions.push(...leftActions, ...rightActions);
+          if (actions.length > 0) return actions;
+        }
       }
     }
 
@@ -3304,6 +3342,14 @@ Rispondi SOLO in JSON:`;
     if (text.includes('combo') || text.includes('combinato')) {
       const value = extractNumber(text, 50);
       actions.push({ type: 'combo', target: 'self', value, description: `Combo: +${value}%` });
+    }
+
+    // ============ FUSION WITH ENEMY (takes enemy character, combines with yours) ============
+    if ((text.includes('fonde') || text.includes('fonder') || text.includes('fusione') || text.includes('unione') || text.includes('unisce') || text.includes('assorbe') || text.includes('incorpora')) && 
+        (text.includes('avversario') || text.includes('nemico') || text.includes('avversari') || text.includes('nemici') || text.includes('scelto') || text.includes('scegl'))) {
+      // This is a special fusion that takes an enemy character
+      actions.push({ type: 'fusion_enemy', target: 'enemy_card', value: 1, description: 'Fusione con personaggio avversario: somma PTI e stelle' });
+      return actions; // This is the primary effect, don't process further
     }
 
     if (text.includes('fusione') || text.includes('fonde') || text.includes('unisce')) {
@@ -5388,6 +5434,82 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         // These are marker effects, handled specially
         console.log(`📌 Custom effect: Conditional/triggered/passive effect registered!`);
         break;
+
+      case 'fusion_enemy': {
+        // Fusion with enemy character - show target selection panel
+        const fusionPlayer = this.getPlayerActiveCharacter(game, playerName);
+        if (!fusionPlayer) {
+          console.log(`🔗 FUSION ENEMY: No active character found for ${playerName}`);
+          break;
+        }
+        
+        // For CPU players, auto-select strongest enemy
+        if (this.isPlayerCPU(gameId, playerName)) {
+          const enemyChars = game.field.filter(c => 
+            c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.pti != null
+          );
+          if (enemyChars.length > 0) {
+            // Pick strongest enemy
+            const bestEnemy = enemyChars.reduce((best, c) => (c.pti || 0) > (best.pti || 0) ? c : best, enemyChars[0]);
+            // Fuse: sum PTI and stars
+            const enemyPti = bestEnemy.pti || 0;
+            const enemyStars = bestEnemy.stars || 0;
+            fusionPlayer.pti = (fusionPlayer.pti || 0) + enemyPti;
+            fusionPlayer.stars = (fusionPlayer.stars || 0) + enemyStars;
+            fusionPlayer.name = `${fusionPlayer.name} + ${bestEnemy.name}`;
+            this.updateCardTextWithPTI(fusionPlayer);
+            // Remove enemy from field
+            game.field = game.field.filter(c => c.id !== bestEnemy.id);
+            game.graveyard.push(bestEnemy);
+            console.log(`🔗 FUSION ENEMY (CPU): ${fusionPlayer.name} fused! Now has ${fusionPlayer.pti} PTI and ${fusionPlayer.stars} stars!`);
+          }
+          break;
+        }
+        
+        // For human players, show target selection
+        const enemyCharsForFusion = game.field.filter(c => 
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        
+        if (enemyCharsForFusion.length === 0) {
+          console.log(`🔗 FUSION ENEMY: No enemy characters on field!`);
+          break;
+        }
+        
+        // Store pending fusion
+        if (!game.pendingEffects) {
+          game.pendingEffects = new Map();
+        }
+        (game.pendingEffects as any).set(playerName, {
+          type: 'fusion_enemy',
+          cardId: card.id,
+          sourceCharId: fusionPlayer.id,
+          timestamp: Date.now()
+        });
+        
+        const ioFusion = (global as any).io;
+        if (ioFusion) {
+          // Emit custom target selection for fusion
+          ioFusion.to(gameId).emit('show-custom-target-selection', {
+            selectionId: `fusion-enemy-${Date.now()}`,
+            cardId: card.id,
+            cardName: card.name || 'Fusione',
+            playerName,
+            targets: enemyCharsForFusion.map(c => ({
+              id: c.id,
+              name: c.name || 'Personaggio',
+              pti: c.pti || 0,
+              stars: c.stars || 0,
+              owner: c.owner || 'Unknown',
+              frontImage: c.frontImage
+            })),
+            selectionType: 'single',
+            title: '🔗 FUSIONE - Scegli il personaggio avversario',
+            description: 'Il personaggio scelto verrà fuso con il tuo. I PTI e le stelle verranno sommati.'
+          });
+        }
+        break;
+      }
 
       case 'fusion':
         // Combine cards - boost the played card with stats from allies
@@ -10602,6 +10724,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const cardName = card.name || this.getCardNameFromUrl(card.frontImage || '');
     console.log(`⚡ Activating custom effect for ${cardName}: text="${cardText}", effect="${cardEffect}"`);
 
+    // GUARD: Don't re-trigger effects for BONUS cards - they fire once when played via processCustomCardEffect
+    if (card.type === 'bonus' || card.type === 'mosse') {
+      // Bonus and Mosse cards should not have their effects re-triggered every turn
+      // They fire once when played
+      if ((card as any).effectAlreadyApplied) {
+        console.log(`⚡ Skipping re-trigger for ${cardName} (${card.type}) - effect already applied`);
+        return;
+      }
+      (card as any).effectAlreadyApplied = true;
+    }
+
     // Check for BERSAGLIO: scelta (target choice) - must select targets first
     const bersaglioMatch = combinedText.match(/\[BERSAGLIO:\s*scelta\]/i);
     if (bersaglioMatch) {
@@ -11687,6 +11820,91 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         break;
       
+      case 'fusion':
+      case 'fusion_enemy': {
+        // Fusion effect in activateCustomEffect path
+        const fusionActiveChar = this.getPlayerActiveCharacter(game, playerName);
+        if (!fusionActiveChar) break;
+        
+        const enemyCharsForFusionAce = game.field.filter((c: Card) => 
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        
+        if (enemyCharsForFusionAce.length > 0) {
+          // Auto-select strongest enemy (for CPU or auto-apply)
+          const bestEnemy = enemyCharsForFusionAce.reduce((best: Card, c: Card) => (c.pti || 0) > (best.pti || 0) ? c : best, enemyCharsForFusionAce[0]);
+          const enemyPti = bestEnemy.pti || 0;
+          const enemyStars = bestEnemy.stars || 0;
+          fusionActiveChar.pti = (fusionActiveChar.pti || 0) + enemyPti;
+          fusionActiveChar.stars = (fusionActiveChar.stars || 0) + enemyStars;
+          this.updateCardTextWithPTI(fusionActiveChar);
+          game.field = game.field.filter((c: Card) => c.id !== bestEnemy.id);
+          game.graveyard.push(bestEnemy);
+          console.log(`🔗 FUSION: ${fusionActiveChar.name} absorbed ${bestEnemy.name}! Now ${fusionActiveChar.pti} PTI, ${fusionActiveChar.stars} stars`);
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-fusion`,
+            playerName: 'Sistema',
+            message: `🔗 FUSIONE! ${fusionActiveChar.name} ha assorbito ${bestEnemy.name}! Ora ha ${fusionActiveChar.pti} PTI e ${fusionActiveChar.stars} stelle!`,
+            timestamp: Date.now()
+          });
+        } else {
+          // No enemies - boost own character instead
+          fusionActiveChar.pti = (fusionActiveChar.pti || 0) + 200;
+          this.updateCardTextWithPTI(fusionActiveChar);
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-fusion-boost`,
+            playerName: 'Sistema',
+            message: `🔗 FUSIONE: Nessun nemico disponibile, +200 PTI a ${fusionActiveChar.name}!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      }
+      
+      case 'transform': {
+        // Transform in activateCustomEffect path
+        const transformActiveChar = this.getPlayerActiveCharacter(game, playerName);
+        if (transformActiveChar) {
+          transformActiveChar.pti = (transformActiveChar.pti || 0) + (action.value || 300);
+          transformActiveChar.stars = Math.min(5, (transformActiveChar.stars || 1) + 1);
+          this.updateCardTextWithPTI(transformActiveChar);
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-transform`,
+            playerName: 'Sistema',
+            message: `🦋 ${transformActiveChar.name} si è TRASFORMATO! +${action.value || 300} PTI!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      }
+      
+      case 'clone':
+      case 'clone_self': {
+        // Clone in activateCustomEffect path
+        const cardOnField = game.field.find((c: Card) => c.id === sourceCard.id);
+        if (cardOnField) {
+          const clonedCard: Card = {
+            ...cardOnField,
+            id: `${cardOnField.id}-clone-${Date.now()}`,
+            name: `${cardOnField.name} (Clone)`,
+            owner: playerName
+          };
+          game.field.push(clonedCard);
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-clone`,
+            playerName: 'Sistema',
+            message: `🧬 ${cardOnField.name} è stato CLONATO!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      }
+
+      case 'special':
+        // Generic special - just log, don't error
+        console.log(`🌟 Special effect applied: ${action.description || 'unknown'}`);
+        break;
+
       default:
         console.log(`⚡ Unknown effect type: ${action.type}`);
         break;
