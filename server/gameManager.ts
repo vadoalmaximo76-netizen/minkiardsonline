@@ -3034,8 +3034,11 @@ Rispondi SOLO in JSON:`;
     }
 
     // ============ ABSORB PTI PATTERNS ============
+    const hasFusionKeywords = /fonde|fonder|fusione|unione|unisce|incorpora|fondi/i.test(text) ||
+      (text.includes('assorbe') && (text.includes('personaggio') || text.includes('carte') || text.includes('stelle')));
     if ((text.includes('assorbe') || text.includes('assorbi') || text.includes('ruba')) && 
-        text.includes('pti') && (text.includes('avversario') || text.includes('nemico') || text.includes('aggiunge a te'))) {
+        text.includes('pti') && (text.includes('avversario') || text.includes('nemico') || text.includes('aggiunge a te')) &&
+        !hasFusionKeywords) {
       const value = extractNumber(text, 100);
       actions.push({ type: 'absorb_pti', target: 'enemy_card', value, description: `Assorbe ${value} PTI da un avversario` });
     }
@@ -3345,7 +3348,7 @@ Rispondi SOLO in JSON:`;
     }
 
     // ============ FUSION WITH ENEMY (takes enemy character, combines with yours) ============
-    if ((text.includes('fonde') || text.includes('fonder') || text.includes('fusione') || text.includes('unione') || text.includes('unisce') || text.includes('assorbe') || text.includes('incorpora')) && 
+    if ((text.includes('fonde') || text.includes('fonder') || text.includes('fusione') || text.includes('unione') || text.includes('unisce') || text.includes('assorbe') || text.includes('incorpora') || text.includes('fondi')) && 
         (text.includes('avversario') || text.includes('nemico') || text.includes('avversari') || text.includes('nemici') || text.includes('scelto') || text.includes('scegl'))) {
       // This is a special fusion that takes an enemy character
       actions.push({ type: 'fusion_enemy', target: 'enemy_card', value: 1, description: 'Fusione con personaggio avversario: somma PTI e stelle' });
@@ -3449,7 +3452,8 @@ Rispondi SOLO in JSON:`;
 
     // ============ STEAL PTI ============
     if ((text.includes('ruba') || text.includes('furto')) && (text.includes('pti') || text.includes('punti')) && 
-        !actions.some(a => a.type === 'absorb_pti' || a.type === 'lifesteal' || a.type === 'drain')) {
+        !actions.some(a => a.type === 'absorb_pti' || a.type === 'lifesteal' || a.type === 'drain') &&
+        !hasFusionKeywords) {
       const value = extractNumber(text, 100);
       actions.push({ type: 'absorb_pti', target: 'enemy_card', value, description: `Ruba ${value} PTI` });
     }
