@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Component, ErrorInfo, ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GameBoard } from "./components/GameBoard";
 import { PlayerNameDialog } from "./components/PlayerNameDialog";
@@ -37,6 +37,42 @@ interface AuthUser {
 }
 
 import { TooltipProvider } from "./components/ui/tooltip";
+
+class GameErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('[GameErrorBoundary] Caught error:', error.message, error.stack);
+    console.error('[GameErrorBoundary] Component stack:', errorInfo.componentStack);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="fixed inset-0 bg-gray-900 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-gray-800 rounded-xl border border-red-500/50 p-6 max-w-md text-center">
+            <h2 className="text-red-400 text-xl font-bold mb-3">Errore nel gioco</h2>
+            <p className="text-gray-300 mb-2 text-sm">{this.state.error?.message}</p>
+            <button
+              onClick={() => this.setState({ hasError: false, error: null })}
+              className="mt-4 px-6 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-semibold transition-colors"
+            >
+              Riprova
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function App() {
   const [showAuthDialog, setShowAuthDialog] = useState(true);
@@ -659,23 +695,23 @@ function App() {
             </div>
           )}
           
-          <GameBoard 
-            authenticatedUser={authenticatedUser}
-            onLogout={handleLogout}
-            authToken={localStorage.getItem('authToken')}
-            onBack={() => {
-              // Only reset game-related state, keep player identity
-              setGameId('');
-              setShowRoomDialog(false);
-              setCurrentSection('home');
-              sessionRestoredRef.current = false;
-              window.history.pushState(null, '', window.location.origin);
-            }}
-            onLeaveGame={() => {
-              // Called when user leaves game via handleLeaveGame in GameBoard
-              sessionRestoredRef.current = false; // Reset the ref so active-game-found can work again
-            }}
-          />
+          <GameErrorBoundary>
+            <GameBoard 
+              authenticatedUser={authenticatedUser}
+              onLogout={handleLogout}
+              authToken={localStorage.getItem('authToken')}
+              onBack={() => {
+                setGameId('');
+                setShowRoomDialog(false);
+                setCurrentSection('home');
+                sessionRestoredRef.current = false;
+                window.history.pushState(null, '', window.location.origin);
+              }}
+              onLeaveGame={() => {
+                sessionRestoredRef.current = false;
+              }}
+            />
+          </GameErrorBoundary>
         </div>
       </QueryClientProvider>
     </TooltipProvider>

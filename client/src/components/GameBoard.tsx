@@ -2878,7 +2878,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         {/* Music Player Button */}
         <Button
           onClick={() => setMusicPlayerOpen(!musicPlayerOpen)}
-          className="fixed bottom-36 landscape:bottom-44 md:bottom-44 left-2 landscape:left-4 md:left-4 btn-neon-pink text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
+          className="fixed bottom-48 landscape:bottom-56 md:bottom-56 left-2 landscape:left-4 md:left-4 btn-neon-pink text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 z-50 shadow-lg hover:shadow-xl transition-all duration-200"
           style={{ position: 'fixed' }}
           title="Music Player"
         >
@@ -2891,16 +2891,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             initAudioContext();
             toggleMute();
           }}
-          className="fixed bottom-24 landscape:bottom-32 md:bottom-32 left-2 landscape:left-4 md:left-4 btn-neon-purple text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
+          className="fixed bottom-24 landscape:bottom-32 md:bottom-32 left-2 landscape:left-4 md:left-4 btn-neon-purple text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 z-50 shadow-lg hover:shadow-xl transition-all duration-200"
           style={{ position: 'fixed' }}
           title={isMuted ? "Enable sound" : "Disable sound"}
         >
           {isMuted ? <VolumeX size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" /> : <Volume2 size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />}
         </Button>
 
+        {/* Sound Settings Button */}
         <Button
           onClick={() => setSoundSettingsOpen(!soundSettingsOpen)}
-          className="fixed bottom-36 landscape:bottom-44 md:bottom-44 left-2 landscape:left-4 md:left-4 btn-neon-cyan text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 z-60 shadow-lg hover:shadow-xl transition-all duration-200"
+          className="fixed bottom-36 landscape:bottom-44 md:bottom-44 left-2 landscape:left-4 md:left-4 btn-neon-cyan text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 z-50 shadow-lg hover:shadow-xl transition-all duration-200"
           style={{ position: 'fixed' }}
           title="Impostazioni Audio"
         >
@@ -2909,7 +2910,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
         {soundSettingsOpen && (
           <div 
-            className="fixed bottom-16 landscape:bottom-20 md:bottom-52 right-1 landscape:right-4 md:right-4 w-[calc(100vw-1rem)] max-w-64 landscape:w-72 md:w-80 h-80 landscape:h-96 md:h-[28rem] z-40 animate-in slide-in-from-right-5 fade-in duration-300"
+            className="fixed bottom-16 landscape:bottom-20 md:bottom-52 right-1 landscape:right-4 md:right-4 w-[calc(100vw-1rem)] max-w-64 landscape:w-72 md:w-80 h-80 landscape:h-96 md:h-[28rem] z-50 fade-in duration-300"
             style={{ position: 'fixed' }}
           >
             <SoundSettings onClose={() => setSoundSettingsOpen(false)} />
