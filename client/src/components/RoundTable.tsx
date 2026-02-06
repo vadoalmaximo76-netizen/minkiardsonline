@@ -299,7 +299,7 @@ const RoundTableComponent: React.FC = () => {
         />
 
         {currentTurnPlayer && (
-          <div className={`absolute top-2 left-1/2 -translate-x-1/2 z-20 px-4 py-1.5 rounded-full text-sm font-bold shadow-lg whitespace-nowrap transition-all duration-500 ${
+          <div className={`absolute -top-5 left-1/2 -translate-x-1/2 z-20 px-4 py-1.5 rounded-full text-sm font-bold shadow-lg whitespace-nowrap transition-all duration-500 ${
             isMyTurn 
               ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-black turn-indicator-mine' 
               : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white turn-indicator-other'
