@@ -9509,11 +9509,118 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
   }
 
+  private pendingDeckPicks: Map<string, { cardId: string; deckType: string; timestamp: number }> = new Map();
+
+  setPendingDeckPick(gameId: string, playerName: string, cardId: string, deckType: string): void {
+    const key = `${gameId}:${playerName}`;
+    this.pendingDeckPicks.set(key, { cardId, deckType, timestamp: Date.now() });
+    console.log(`🎴 Set pending deck pick for ${playerName}: deck=${deckType}, card=${cardId}`);
+  }
+
+  getPendingDeckPick(gameId: string, playerName: string): { cardId: string; deckType: string; timestamp: number } | undefined {
+    return this.pendingDeckPicks.get(`${gameId}:${playerName}`);
+  }
+
+  clearPendingDeckPick(gameId: string, playerName: string): void {
+    this.pendingDeckPicks.delete(`${gameId}:${playerName}`);
+  }
+
+  getDeckContentsForSelection(gameId: string, deckType: string, playerName: string): { success: boolean; cards?: Array<{ id: string; name: string; frontImage: string; type: string; pti?: number; stars?: number }>; deckDisplayName?: string; message?: string } {
+    const game = this.games.get(gameId);
+    if (!game) return { success: false };
+
+    let targetDeck: any[] | null = null;
+    let deckDisplayName = '';
+
+    switch (deckType) {
+      case 'personaggi':
+        targetDeck = game.decks.personaggi;
+        deckDisplayName = 'PERSONAGGI';
+        break;
+      case 'mosse':
+        targetDeck = game.decks.mosse;
+        deckDisplayName = 'MOSSE';
+        break;
+      case 'bonus':
+        targetDeck = game.decks.bonus;
+        deckDisplayName = 'BONUS';
+        break;
+      case 'personaggi_speciali':
+        targetDeck = game.decks.personaggi_speciali;
+        deckDisplayName = 'SPECIALI';
+        break;
+    }
+
+    if (!targetDeck || targetDeck.length === 0) {
+      return { success: false, message: `🎴 Il mazzo ${deckDisplayName} è vuoto!` };
+    }
+
+    const cards = targetDeck.map((c: any) => ({
+      id: c.id,
+      name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+      frontImage: c.frontImage || '',
+      type: c.type || deckType,
+      pti: c.pti,
+      stars: c.stars
+    }));
+
+    console.log(`🎴 Sending ${cards.length} cards from ${deckDisplayName} deck to ${playerName} for selection`);
+    return { success: true, cards, deckDisplayName };
+  }
+
+  processSpecificCardSelection(gameId: string, selectedCardId: string, deckType: string, playerName: string): { success: boolean; message?: string } {
+    const game = this.games.get(gameId);
+    if (!game) return { success: false };
+
+    console.log(`🎴 Processing specific card selection: ${selectedCardId} from ${deckType} by ${playerName}`);
+
+    const playerData = game.players[playerName];
+    if (!playerData) return { success: false };
+
+    let targetDeck: any[] | null = null;
+    let deckDisplayName = '';
+
+    switch (deckType) {
+      case 'personaggi':
+        targetDeck = game.decks.personaggi;
+        deckDisplayName = 'PERSONAGGI';
+        break;
+      case 'mosse':
+        targetDeck = game.decks.mosse;
+        deckDisplayName = 'MOSSE';
+        break;
+      case 'bonus':
+        targetDeck = game.decks.bonus;
+        deckDisplayName = 'BONUS';
+        break;
+      case 'personaggi_speciali':
+        targetDeck = game.decks.personaggi_speciali;
+        deckDisplayName = 'SPECIALI';
+        break;
+    }
+
+    if (!targetDeck) return { success: false, message: `Mazzo non trovato` };
+
+    const cardIndex = targetDeck.findIndex((c: any) => c.id === selectedCardId);
+    if (cardIndex === -1) {
+      console.log(`🎴 Card ${selectedCardId} not found in ${deckDisplayName} deck`);
+      return { success: false, message: `Carta non trovata nel mazzo` };
+    }
+
+    const selectedCard = targetDeck.splice(cardIndex, 1)[0];
+    selectedCard.owner = playerName;
+    playerData.hand.push(selectedCard);
+
+    const cardName = selectedCard.name || this.getCardNameFromUrl(selectedCard.frontImage || '');
+    console.log(`🎴 ${playerName} chose ${cardName} from ${deckDisplayName} deck`);
+    return { success: true, message: `🎴 ${playerName} ha scelto ${cardName} dal mazzo ${deckDisplayName}!` };
+  }
+
   processDeckSelectionEffect(gameId: string, cardId: string, deckType: string, playerName: string): { success: boolean; message?: string } {
     const game = this.games.get(gameId);
     if (!game) return { success: false };
 
-    console.log(`🎴 Processing deck selection effect: ${deckType} for card ${cardId} by ${playerName}`);
+    console.log(`🎴 Processing deck selection effect (random draw): ${deckType} for card ${cardId} by ${playerName}`);
 
     const playerData = game.players[playerName];
     if (!playerData) return { success: false };

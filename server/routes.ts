@@ -2570,15 +2570,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
         console.log(`🎴 ${playerName} selected deck: ${deckType} for card ${cardId}`);
-        const result = gameManager.processDeckSelectionEffect(gameId, cardId, deckType, playerName);
+        const deckContents = gameManager.getDeckContentsForSelection(gameId, deckType, playerName);
+        if (deckContents.success && deckContents.cards && deckContents.cards.length > 0) {
+          gameManager.setPendingDeckPick(gameId, playerName, cardId, deckType);
+          socket.emit('show-deck-card-picker', {
+            cardId,
+            deckType,
+            deckDisplayName: deckContents.deckDisplayName,
+            cards: deckContents.cards,
+            playerName
+          });
+        } else {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-deck-empty`,
+            playerName: 'Sistema',
+            message: deckContents.message || `🎴 Il mazzo è vuoto!`,
+            timestamp: Date.now()
+          });
+        }
+      }
+    });
+
+    socket.on('deck-card-pick-confirm', ({ selectedCardId, deckType, cardId, playerName }: { selectedCardId: string, deckType: string, cardId: string, playerName: string }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        const pending = gameManager.getPendingDeckPick(gameId, playerName);
+        if (!pending || pending.deckType !== deckType) {
+          console.log(`🚫 ${playerName} tried deck-card-pick without valid pending selection`);
+          return;
+        }
+        console.log(`🎴 ${playerName} picked specific card ${selectedCardId} from ${deckType}`);
+        const result = gameManager.processSpecificCardSelection(gameId, selectedCardId, deckType, playerName);
+        gameManager.clearPendingDeckPick(gameId, playerName);
         if (result.success) {
           const gameState = gameManager.getSanitizedGameState(gameId);
           emitImmediateGameState(io, gameId, gameState);
           
           io.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-deck-select`,
+            id: `${Date.now()}-deck-pick`,
             playerName: 'Sistema',
-            message: result.message || `🎴 ${playerName} ha selezionato il mazzo ${deckType}!`,
+            message: result.message || `🎴 ${playerName} ha scelto una carta dal mazzo ${deckType}!`,
             timestamp: Date.now()
           });
         }

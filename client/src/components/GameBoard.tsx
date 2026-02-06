@@ -167,6 +167,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     cardName: string;
     effectDescription: string;
   }>({ visible: false, cardId: '', cardName: '', effectDescription: '' });
+  const [deckCardPickerPanel, setDeckCardPickerPanel] = useState<{
+    visible: boolean;
+    cardId: string;
+    deckType: string;
+    deckDisplayName: string;
+    cards: Array<{ id: string; name: string; frontImage: string; type: string; pti?: number; stars?: number }>;
+  }>({ visible: false, cardId: '', deckType: '', deckDisplayName: '', cards: [] });
   const [swapSelectionPanel, setSwapSelectionPanel] = useState<{
     visible: boolean;
     cardId: string;
@@ -803,6 +810,21 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('show-deck-selection', handleShowDeckSelection);
 
+    const handleShowDeckCardPicker = (data: { cardId: string; deckType: string; deckDisplayName: string; cards: Array<{ id: string; name: string; frontImage: string; type: string; pti?: number; stars?: number }>; playerName: string }) => {
+      console.log('📋 Show deck card picker:', data.deckDisplayName, data.cards.length, 'cards');
+      if (data.playerName === playerName) {
+        setDeckSelectionPanel({ visible: false, cardId: '', cardName: '', effectDescription: '' });
+        setDeckCardPickerPanel({
+          visible: true,
+          cardId: data.cardId,
+          deckType: data.deckType,
+          deckDisplayName: data.deckDisplayName,
+          cards: data.cards
+        });
+      }
+    };
+    socket.on('show-deck-card-picker', handleShowDeckCardPicker);
+
     // SWAP SELECTION: Handle baratto/swap panel for selecting player to swap with
     const handleShowSwapSelection = (data: { cardId: string; cardName: string; playerName: string; otherPlayers: string[]; effectDescription: string }) => {
       console.log('🔄 Show swap selection:', data);
@@ -1382,6 +1404,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('show-graveyard-selection', handleShowGraveyardSelection);
       socket.off('show-pti-input-panel', handleShowPtiInputPanel);
       socket.off('show-deck-selection', handleShowDeckSelection);
+      socket.off('show-deck-card-picker', handleShowDeckCardPicker);
       socket.off('show-swap-selection', handleShowSwapSelection);
       socket.off('show-dice-control-panel', handleShowDiceControlPanel);
       socket.off('show-target-selection', handleShowTargetSelection);
@@ -1844,6 +1867,67 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             <div className="text-center">
               <Button
                 onClick={() => setDeckSelectionPanel({ visible: false, cardId: '', cardName: '', effectDescription: '' })}
+                className="bg-gray-600 hover:bg-gray-500 text-white px-6 py-2"
+              >
+                Annulla
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deckCardPickerPanel.visible && (
+        <div className="fixed inset-0 bg-black/85 flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-amber-900 to-amber-700 rounded-lg p-4 w-full max-w-4xl mx-4 border-4 border-amber-400 shadow-[0_0_30px_rgba(217,119,6,0.5)] max-h-[85vh] flex flex-col">
+            <div className="text-center mb-4">
+              <h2 className="text-xl font-bold text-white mb-1" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+                🎴 Scegli una carta dal mazzo {deckCardPickerPanel.deckDisplayName}
+              </h2>
+              <p className="text-amber-200 text-sm">{deckCardPickerPanel.cards.length} carte disponibili</p>
+            </div>
+            <div className="overflow-y-auto flex-1 mb-4">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
+                {deckCardPickerPanel.cards.map((card) => (
+                  <div
+                    key={card.id}
+                    onClick={() => {
+                      socket.emit('deck-card-pick-confirm', {
+                        selectedCardId: card.id,
+                        deckType: deckCardPickerPanel.deckType,
+                        cardId: deckCardPickerPanel.cardId,
+                        playerName
+                      });
+                      setDeckCardPickerPanel({ visible: false, cardId: '', deckType: '', deckDisplayName: '', cards: [] });
+                    }}
+                    className="cursor-pointer rounded-lg border-2 border-amber-600 hover:border-yellow-300 hover:shadow-[0_0_15px_rgba(253,224,71,0.5)] transition-all duration-200 bg-black/30 p-1 flex flex-col items-center"
+                  >
+                    {card.frontImage ? (
+                      <img
+                        src={card.frontImage}
+                        alt={card.name}
+                        className="w-full h-auto rounded object-contain max-h-32"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full h-24 bg-gray-700 rounded flex items-center justify-center text-white text-xs">
+                        {card.name}
+                      </div>
+                    )}
+                    <p className="text-white text-[10px] mt-1 text-center truncate w-full" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                      {card.name}
+                    </p>
+                    {(card.pti != null || card.stars != null) && (
+                      <p className="text-amber-300 text-[9px] text-center">
+                        {card.pti != null ? `PTI: ${card.pti}` : ''}{card.pti != null && card.stars != null ? ' | ' : ''}{card.stars != null ? `⭐${card.stars}` : ''}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="text-center">
+              <Button
+                onClick={() => setDeckCardPickerPanel({ visible: false, cardId: '', deckType: '', deckDisplayName: '', cards: [] })}
                 className="bg-gray-600 hover:bg-gray-500 text-white px-6 py-2"
               >
                 Annulla
