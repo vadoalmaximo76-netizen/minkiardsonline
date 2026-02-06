@@ -852,8 +852,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       methods: ["GET", "POST"]
     },
     maxHttpBufferSize: 10e6, // 10MB limit for large images
-    pingTimeout: 60000, // 60s timeout for slow connections
-    pingInterval: 25000, // 25s ping interval
+    pingTimeout: 120000, // 120s timeout for slow/mobile connections
+    pingInterval: 15000, // 15s ping to keep connection alive through proxies
     upgradeTimeout: 30000, // 30s to upgrade connection
     transports: ['websocket', 'polling'], // Prefer websocket
     allowUpgrades: true,
@@ -938,17 +938,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!authToken) return;
       
       try {
-        // Verify JWT token and extract user info securely (use same secret as auth.ts)
         const decoded = jwt.verify(authToken, jwtSecret) as { userId: number; email: string };
         
         if (decoded && decoded.userId) {
-          // Fetch username from database for verified user
           const userRecord = await db.select().from(users).where(eq(users.id, decoded.userId)).limit(1);
           if (userRecord.length > 0) {
             socket.data = socket.data || {};
             socket.data.userId = decoded.userId;
             socket.data.username = userRecord[0].username;
             console.log(`Socket ${socket.id} securely associated with user ${decoded.userId} (${userRecord[0].username})`);
+            
+            const playerName = userRecord[0].username;
+            const activeGame = gameManager.getActiveGameByPlayerName(playerName);
+            if (activeGame) {
+              const game = gameManager.getGameState(activeGame.gameId);
+              if (game && game.players[playerName]) {
+                const player = game.players[playerName];
+                const oldSocketId = player.socketId;
+                
+                if (!oldSocketId || oldSocketId !== socket.id) {
+                  console.log(`🔄 Auto-rejoining ${playerName} to game ${activeGame.gameId} on set-user-data (old socket: ${oldSocketId}, new: ${socket.id})`);
+                  socket.join(activeGame.gameId);
+                  player.socketId = socket.id;
+                  player.disconnectedAt = undefined;
+                  
+                  gameManager.setPlayerToGame(socket.id, activeGame.gameId);
+                  if (oldSocketId) {
+                    gameManager.cleanupOldSocketMapping(oldSocketId);
+                  }
+                  
+                  const gameState = gameManager.getSanitizedGameState(activeGame.gameId);
+                  socket.emit('game-state-update', gameState);
+                  
+                  if (player.hand && player.hand.length > 0) {
+                    console.log(`🔄 Restoring ${player.hand.length} cards to ${playerName}'s hand after auto-rejoin`);
+                    socket.emit('restore-hand', { playerName, hand: player.hand });
+                  }
+                  
+                  socket.to(activeGame.gameId).emit('player-reconnected', { playerName });
+                }
+              }
+            }
           }
         }
       } catch (error) {
