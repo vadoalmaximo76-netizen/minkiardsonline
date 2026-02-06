@@ -3661,5 +3661,29 @@
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
     "modifiedAt": "2026-02-05T23:58:49.032Z"
+  },
+  {
+    "id": 140,
+    "originalCardId": "bonus-5",
+    "deckType": "bonus",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": "Quando questa carta viene giocata, appare un pannello in cui puoi scegliere un personaggio avversario. Il personaggio scelto si fonde con il tuo creandone uno unico con la somma di PTI e stelle attuali di entrambi. Al personaggio si aggiungono altri 500 PTI e poi il personaggio viene clonato dandone uno in campo a te e uno in campo al tuo avversario [DETTAGLI: input_purpose: Scegliere un personaggio avversario; condition_detail: Se in campo ci sono personaggi avversari; condition_else: Nulla, l'effetto non si attiva]",
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": null,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "mosseCanCounter": false,
+    "mosseCanBeCountered": false,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-06T13:29:50.912Z"
   }
 ]
