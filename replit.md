@@ -35,6 +35,18 @@ User management uses Drizzle ORM with Neon Database (PostgreSQL). Active game st
 ## Card System
 Cards feature images, ownership tracking, and custom annotations. Key mechanics include automatic card actions, an interactive defense system for MOSSE attacks, a CPU attack system, the BAMBOLA VOODOO system for character linking, the DUELLO (Duel) system for turn-based combat, and the OSTAGGIO (Hostage) system for capturing enemy characters. The ASSICURAZIONE (Insurance) system allows players to protect characters from death by insuring them with PTI.
 
+## Defense BONUS Card System
+When attacked, players can use specific BONUS cards to defend. Each has unique behavior:
+- **ALTA SALVA**: Nullifies damage only if > 200 PTI (hidden from selection when damage <= 200)
+- **BOOMERANG / RESPINTA**: Reflects full damage back to attacker
+- **CONTRO SKRAZZKOOM**: Reflects DOUBLE damage to attacker
+- **CONVERSIONE**: Nullifies damage and adds it as PTI to defender's character
+- **DIFESA VIGLIACCA**: Redirects damage to a chosen opponent's character (not the attacker) - shows target selection panel
+- **E NN T MITT SCUORN / E NN T MITT SSCUORN**: Simply nullifies damage
+- **E TAGG TRATTAT**: Halves the damage (defender takes half)
+- **FOLATA DI VENTO**: Nullifies damage, rolls dice (visible to all), even = next player takes damage, odd = previous player takes damage
+CPU players intelligently select appropriate defense cards and handle special behaviors (e.g., skip ALTA SALVA for low damage, auto-select redirect target for DIFESA VIGLIACCA).
+
 ## Interactive Effect Panels
 Custom card effects can trigger interactive panels for player input, such as PTI input, deck selection, and graveyard selection.
 

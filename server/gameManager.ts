@@ -13510,11 +13510,30 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         console.log(`🤖 CPU ${pendingDefense.defender}: No eligible counter MOSSE found (damage too low)`);
       }
 
-      const bonusInHand = defender.hand.find((c: any) => {
+      let bonusInHand: any = defender.hand.find((c: any) => {
         if (c.type !== 'bonus') return false;
         const cardName = getCardName(c);
         return cardName && defenseBonusCards.some(defCard => cardName.includes(defCard));
       });
+
+      if (bonusInHand) {
+        const bonusCardName = getCardName(bonusInHand);
+        
+        if (bonusCardName.includes('ALTA SALVA') && (pendingDefense.damage || 0) <= 200) {
+          console.log(`🤖 CPU ${pendingDefense.defender}: ALTA SALVA skipped - damage ${pendingDefense.damage} <= 200`);
+          const otherBonus = defender.hand.find((c: any) => {
+            if (c.type !== 'bonus') return false;
+            const cn = getCardName(c);
+            if (cn.includes('ALTA SALVA')) return false;
+            return cn && defenseBonusCards.some(defCard => cn.includes(defCard));
+          });
+          if (otherBonus) {
+            bonusInHand = otherBonus;
+          } else {
+            bonusInHand = null;
+          }
+        }
+      }
 
       if (bonusInHand) {
         const bonusCardName = getCardName(bonusInHand);
@@ -13535,10 +13554,26 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const updatedGameState = this.getSanitizedGameState(gameId);
         io.to(gameId).emit('game-state-update', updatedGameState);
 
+        // For DIFESA VIGLIACCA, CPU picks a random opponent character (not attacker) to redirect
+        let cpuRedirectTargetCardId: string | undefined;
+        if (bonusCardName.includes('DIFESA VIGLIACCA')) {
+          const opponentCharacters = game.field.filter((c: any) => 
+            c.owner !== pendingDefense.defender && 
+            c.owner !== pendingDefense.attacker && 
+            (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          );
+          if (opponentCharacters.length > 0) {
+            const randomTarget = opponentCharacters[Math.floor(Math.random() * opponentCharacters.length)];
+            cpuRedirectTargetCardId = randomTarget.id;
+            console.log(`🤖 CPU ${pendingDefense.defender}: DIFESA VIGLIACCA redirecting to ${randomTarget.name || randomTarget.id} (owner: ${randomTarget.owner})`);
+          }
+        }
+
         // ATOMIC RESOLUTION: Set defends=true before calling processDefenseResponse
+        const bonusId = bonusInHand.id;
         setTimeout(async () => {
           console.log(`🤖 CPU ${pendingDefense.defender}: Resolving defense TRUE`);
-          await this.processDefenseResponse(gameId, pendingDefense.attackId, true, io, 'cpu');
+          await this.processDefenseResponse(gameId, pendingDefense.attackId, true, io, 'cpu', undefined, bonusId, cpuRedirectTargetCardId);
         }, 1000);
 
         return true;
@@ -13655,7 +13690,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     defends: boolean, 
     io: any, 
     resolveSource: 'client' | 'cpu' | 'offline' | 'timeout' = 'client',
-    counterAttackOptions?: { counterAttack?: boolean; counterCardId?: string; counterDamage?: number }
+    counterAttackOptions?: { counterAttack?: boolean; counterCardId?: string; counterDamage?: number },
+    defenseCardId?: string,
+    redirectTargetCardId?: string
   ): Promise<boolean> {
     // PRODUCTION-READY: Enhanced validation and atomic guards
     const game = this.games.get(gameId);
@@ -13866,70 +13903,291 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
         }
       } else {
-        // DEFENSE WITHOUT COUNTER-ATTACK: Apply original attack damage back to attacker
-        io.to(gameId).emit('chat-message', {
-          id: `${Date.now()}-defense-success`,
-          playerName: 'Sistema',
-          message: `🛡️ ${defender} ha respinto l'attacco di ${attacker}! (${resolveSource})`,
-          timestamp: Date.now()
-        });
-        
-        // Apply reflected damage to attacker's character (only if damage > 0)
-        const attackerPlayer = game?.players?.[attacker];
-        if (attackerPlayer && damage && damage > 0) {
-          // Find attacker's character on field (prioritize characters with highest PTI)
-          const attackerCharacters = game.field.filter((c: any) => c.owner === attacker && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
-          
-          if (attackerCharacters.length === 0) {
-            console.log(`[DEFENSE-REFLECT] No character found for ${attacker} - reflected damage not applied`);
-          } else {
-            // If multiple characters, use the first one (most recently played)
-            const attackerCharacter = attackerCharacters[0];
-            let currentPti = attackerCharacter.pti || 0;
-            
-            // Parse PTI from text if not set
-            if (!currentPti && attackerCharacter.text) {
-              const ptiMatch = attackerCharacter.text.match(/PTI[:\s]*(\d+)/i);
-              if (ptiMatch) currentPti = parseInt(ptiMatch[1]);
-            }
-            
-            const newPti = Math.max(0, currentPti - damage);
-            attackerCharacter.pti = newPti;
-            
-            // Update text to reflect new PTI
-            if (attackerCharacter.text) {
-              attackerCharacter.text = attackerCharacter.text.replace(/PTI[:\s]*\d+/i, `PTI: ${newPti}`);
-            }
-            
-            const cardName = attackerCharacter.name || 'Personaggio';
-            console.log(`[DEFENSE-REFLECT] ${attacker}'s ${cardName} took ${damage} reflected damage: ${currentPti} → ${newPti} PTI`);
-            
+        // DEFENSE WITHOUT COUNTER-ATTACK: Apply unique behavior based on defense BONUS card
+        const getDefenseCardName = (card: any): string => {
+          if (card.name) return card.name;
+          if (card.frontImage) {
+            const match = card.frontImage.match(/\/([^\/]+)\.(png|jpg|jpeg|gif)$/i);
+            if (match) return match[1].replace(/-/g, ' ').toUpperCase();
+          }
+          return '';
+        };
+
+        let defenseCard: any = null;
+        let defenseCardName = '';
+        if (defenseCardId) {
+          defenseCard = game.field.find((c: any) => c.id === defenseCardId);
+          if (!defenseCard) {
+            defenseCard = game.graveyard.find((c: any) => c.id === defenseCardId);
+          }
+          if (defenseCard) {
+            defenseCardName = getDefenseCardName(defenseCard).toUpperCase();
+          }
+        }
+        if (!defenseCardName) {
+          const bonusOnField = game.field.find((c: any) => c.owner === defender && c.type === 'bonus');
+          if (bonusOnField) {
+            defenseCard = bonusOnField;
+            defenseCardName = getDefenseCardName(bonusOnField).toUpperCase();
+          }
+        }
+
+        console.log(`[DEFENSE-BONUS] Defense card: "${defenseCardName}" (id: ${defenseCardId || 'unknown'})`);
+
+        const applyDamageToCharacter = (targetPlayerName: string, damageAmount: number, reason: string) => {
+          const targetCharacters = game.field.filter((c: any) => c.owner === targetPlayerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+          if (targetCharacters.length === 0) {
+            console.log(`[DEFENSE-BONUS] No character found for ${targetPlayerName} - ${reason} damage not applied`);
+            return;
+          }
+          const targetChar = targetCharacters[0];
+          let currentPti = targetChar.pti || 0;
+          if (!currentPti && targetChar.text) {
+            const ptiMatch = targetChar.text.match(/PTI[:\s]*(\d+)/i);
+            if (ptiMatch) currentPti = parseInt(ptiMatch[1]);
+          }
+          const newPti = Math.max(0, currentPti - damageAmount);
+          targetChar.pti = newPti;
+          if (targetChar.text) {
+            targetChar.text = targetChar.text.replace(/PTI[:\s]*\d+/i, `PTI: ${newPti}`);
+          }
+          const cardName = targetChar.name || 'Personaggio';
+          console.log(`[DEFENSE-BONUS] ${targetPlayerName}'s ${cardName} took ${damageAmount} damage (${reason}): ${currentPti} → ${newPti} PTI`);
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-defense-bonus-damage`,
+            playerName: 'Sistema',
+            message: `💥 ${cardName} di ${targetPlayerName} subisce ${damageAmount} danni (${reason})! PTI: ${currentPti} → ${newPti}`,
+            timestamp: Date.now()
+          });
+          if (newPti <= 0) {
+            console.log(`[DEFENSE-BONUS] ${targetPlayerName}'s ${cardName} DIED from ${reason}!`);
+            targetChar.eliminatedBy = defender;
+            game.graveyard.push(targetChar);
+            game.field = game.field.filter((c: any) => c.id !== targetChar.id);
             io.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-defense-reflect-damage`,
+              id: `${Date.now()}-defense-bonus-kill`,
               playerName: 'Sistema',
-              message: `💥 ${cardName} di ${attacker} subisce ${damage} danni riflessi dalla respinta! PTI: ${currentPti} → ${newPti}`,
+              message: `💀 ${cardName} di ${targetPlayerName} è stato eliminato!`,
               timestamp: Date.now()
             });
-            
-            // Check if attacker's character died
-            if (newPti <= 0) {
-              console.log(`[DEFENSE-REFLECT] ${attacker}'s ${cardName} DIED from reflected damage!`);
-              
-              // Move to graveyard
-              attackerCharacter.eliminatedBy = defender;
-              game.graveyard.push(attackerCharacter);
-              game.field = game.field.filter((c: any) => c.id !== attackerCharacter.id);
-              
-              io.to(gameId).emit('chat-message', {
-                id: `${Date.now()}-defense-reflect-kill`,
-                playerName: 'Sistema',
-                message: `💀 ${cardName} di ${attacker} è stato eliminato dalla respinta di ${defender}!`,
-                timestamp: Date.now()
-              });
-            }
           }
+        };
+
+        const applyDamageToSpecificCard = (cardId: string, damageAmount: number, reason: string) => {
+          const targetChar = game.field.find((c: any) => c.id === cardId && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+          if (!targetChar) {
+            console.log(`[DEFENSE-BONUS] Card ${cardId} not found on field - ${reason} damage not applied`);
+            return;
+          }
+          const targetPlayerName = targetChar.owner || 'Unknown';
+          let currentPti = targetChar.pti || 0;
+          if (!currentPti && targetChar.text) {
+            const ptiMatch = targetChar.text.match(/PTI[:\s]*(\d+)/i);
+            if (ptiMatch) currentPti = parseInt(ptiMatch[1]);
+          }
+          const newPti = Math.max(0, currentPti - damageAmount);
+          targetChar.pti = newPti;
+          if (targetChar.text) {
+            targetChar.text = targetChar.text.replace(/PTI[:\s]*\d+/i, `PTI: ${newPti}`);
+          }
+          const cardName = targetChar.name || 'Personaggio';
+          console.log(`[DEFENSE-BONUS] ${targetPlayerName}'s ${cardName} took ${damageAmount} damage (${reason}): ${currentPti} → ${newPti} PTI`);
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-defense-bonus-damage`,
+            playerName: 'Sistema',
+            message: `💥 ${cardName} di ${targetPlayerName} subisce ${damageAmount} danni (${reason})! PTI: ${currentPti} → ${newPti}`,
+            timestamp: Date.now()
+          });
+          if (newPti <= 0) {
+            console.log(`[DEFENSE-BONUS] ${targetPlayerName}'s ${cardName} DIED from ${reason}!`);
+            targetChar.eliminatedBy = defender;
+            game.graveyard.push(targetChar);
+            game.field = game.field.filter((c: any) => c.id !== targetChar.id);
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-defense-bonus-kill`,
+              playerName: 'Sistema',
+              message: `💀 ${cardName} di ${targetPlayerName} è stato eliminato!`,
+              timestamp: Date.now()
+            });
+          }
+        };
+
+        const addPtiToCharacter = (addTargetCardId: string, amount: number) => {
+          const targetChar = game.field.find((c: any) => c.id === addTargetCardId);
+          if (!targetChar) return;
+          let currentPti = targetChar.pti || 0;
+          if (!currentPti && targetChar.text) {
+            const ptiMatch = targetChar.text.match(/PTI[:\s]*(\d+)/i);
+            if (ptiMatch) currentPti = parseInt(ptiMatch[1]);
+          }
+          const newPti = currentPti + amount;
+          targetChar.pti = newPti;
+          if (targetChar.text) {
+            targetChar.text = targetChar.text.replace(/PTI[:\s]*\d+/i, `PTI: ${newPti}`);
+          }
+          const cardName = targetChar.name || 'Personaggio';
+          console.log(`[DEFENSE-BONUS] ${defender}'s ${cardName} gained ${amount} PTI (conversion): ${currentPti} → ${newPti}`);
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-defense-conversion`,
+            playerName: 'Sistema',
+            message: `✨ ${cardName} di ${defender} guadagna ${amount} PTI dalla conversione! PTI: ${currentPti} → ${newPti}`,
+            timestamp: Date.now()
+          });
+        };
+
+        if (defenseCardName.includes('ALTA SALVA')) {
+          if (damage && damage > 200) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-defense-success`,
+              playerName: 'Sistema',
+              message: `🛡️ ${defender} usa ALTA SALVA per annullare l'attacco di ${attacker}! (danno ${damage} > 200 PTI)`,
+              timestamp: Date.now()
+            });
+            console.log(`[DEFENSE-BONUS] ALTA SALVA: Nullified ${damage} damage (> 200 PTI)`);
+          } else {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-defense-invalid`,
+              playerName: 'Sistema',
+              message: `⚠️ ALTA SALVA non può bloccare danni <= 200 PTI! Danno di ${damage} applicato normalmente.`,
+              timestamp: Date.now()
+            });
+            console.log(`[DEFENSE-BONUS] ALTA SALVA: Server safety - damage ${damage} <= 200, should not have been allowed`);
+          }
+
+        } else if (defenseCardName.includes('BOOMERANG')) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-defense-success`,
+            playerName: 'Sistema',
+            message: `🛡️ ${defender} usa BOOMERANG per riflettere l'attacco di ${attacker}!`,
+            timestamp: Date.now()
+          });
+          if (damage && damage > 0) {
+            applyDamageToCharacter(attacker, damage, 'BOOMERANG');
+          }
+
+        } else if (defenseCardName.includes('CONTRO SKRAZZKOOM')) {
+          const doubleDamage = (damage || 0) * 2;
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-defense-success`,
+            playerName: 'Sistema',
+            message: `🛡️ ${defender} usa CONTRO SKRAZZKOOM! Danno DOPPIO (${doubleDamage}) riflesso su ${attacker}!`,
+            timestamp: Date.now()
+          });
+          if (doubleDamage > 0) {
+            applyDamageToCharacter(attacker, doubleDamage, 'CONTRO SKRAZZKOOM');
+          }
+
+        } else if (defenseCardName.includes('CONVERSIONE')) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-defense-success`,
+            playerName: 'Sistema',
+            message: `🛡️ ${defender} usa CONVERSIONE! I ${damage} danni vengono convertiti in PTI!`,
+            timestamp: Date.now()
+          });
+          if (damage && damage > 0 && targetCardId) {
+            addPtiToCharacter(targetCardId, damage);
+          }
+
+        } else if (defenseCardName.includes('DIFESA VIGLIACCA')) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-defense-success`,
+            playerName: 'Sistema',
+            message: `🛡️ ${defender} usa DIFESA VIGLIACCA per deviare l'attacco!`,
+            timestamp: Date.now()
+          });
+          if (damage && damage > 0 && redirectTargetCardId) {
+            applyDamageToSpecificCard(redirectTargetCardId, damage, 'DIFESA VIGLIACCA');
+          } else if (damage && damage > 0) {
+            console.log(`[DEFENSE-BONUS] DIFESA VIGLIACCA: No redirect target specified, damage nullified`);
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-defense-vigliacca-nullify`,
+              playerName: 'Sistema',
+              message: `🛡️ Nessun bersaglio per la deviazione - danno annullato.`,
+              timestamp: Date.now()
+            });
+          }
+
+        } else if (defenseCardName.includes('E NN T MITT SSCUORN') || defenseCardName.includes('E NN T MITT SCUORN')) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-defense-success`,
+            playerName: 'Sistema',
+            message: `🛡️ ${defender} usa ${defenseCardName.includes('SSCUORN') ? 'E NN T MITT SSCUORN' : 'E NN T MITT SCUORN'} per annullare l'attacco di ${attacker}!`,
+            timestamp: Date.now()
+          });
+          console.log(`[DEFENSE-BONUS] ${defenseCardName}: Damage nullified (no reflection)`);
+
+        } else if (defenseCardName.includes('E TAGG TRATTAT')) {
+          const halvedDamage = Math.floor((damage || 0) / 2);
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-defense-success`,
+            playerName: 'Sistema',
+            message: `🛡️ ${defender} usa E TAGG TRATTAT! Danno dimezzato: ${damage} → ${halvedDamage}`,
+            timestamp: Date.now()
+          });
+          if (halvedDamage > 0 && targetCardId) {
+            applyDamageToSpecificCard(targetCardId, halvedDamage, 'E TAGG TRATTAT (danno dimezzato)');
+          }
+
+        } else if (defenseCardName.includes('FOLATA DI VENTO')) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-defense-success`,
+            playerName: 'Sistema',
+            message: `🛡️ ${defender} usa FOLATA DI VENTO! Il danno viene deviato dal vento!`,
+            timestamp: Date.now()
+          });
+
+          const diceValue = Math.floor(Math.random() * 6) + 1;
+          io.to(gameId).emit('dice-roll', { value: diceValue, playerName: defender, gameId });
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-folata-dice`,
+            playerName: 'Sistema',
+            message: `🎲 ${defender} tira il dado: ${diceValue} (${diceValue % 2 === 0 ? 'pari' : 'dispari'})!`,
+            timestamp: Date.now()
+          });
+
+          const turnOrder = game.turnOrder || [];
+          const defenderIndex = turnOrder.indexOf(defender);
+          if (defenderIndex >= 0 && turnOrder.length > 1 && damage && damage > 0) {
+            let windTargetPlayer: string;
+            if (diceValue % 2 === 0) {
+              let nextIdx = (defenderIndex + 1) % turnOrder.length;
+              if (turnOrder[nextIdx] === defender) nextIdx = (nextIdx + 1) % turnOrder.length;
+              windTargetPlayer = turnOrder[nextIdx];
+            } else {
+              let prevIdx = (defenderIndex - 1 + turnOrder.length) % turnOrder.length;
+              if (turnOrder[prevIdx] === defender) prevIdx = (prevIdx - 1 + turnOrder.length) % turnOrder.length;
+              windTargetPlayer = turnOrder[prevIdx];
+            }
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-folata-target`,
+              playerName: 'Sistema',
+              message: `💨 Il vento porta ${damage} danni verso ${windTargetPlayer}!`,
+              timestamp: Date.now()
+            });
+            applyDamageToCharacter(windTargetPlayer, damage, 'FOLATA DI VENTO');
+          } else {
+            console.log(`[DEFENSE-BONUS] FOLATA DI VENTO: Could not determine wind target (defenderIndex: ${defenderIndex}, turnOrder length: ${turnOrder.length})`);
+          }
+
+        } else if (defenseCardName.includes('RESPINTA')) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-defense-success`,
+            playerName: 'Sistema',
+            message: `🛡️ ${defender} usa RESPINTA per riflettere l'attacco di ${attacker}!`,
+            timestamp: Date.now()
+          });
+          if (damage && damage > 0) {
+            applyDamageToCharacter(attacker, damage, 'RESPINTA');
+          }
+
         } else {
-          console.log(`[DEFENSE-REFLECT] Reflected damage skipped: damage=${damage}, attackerPlayer=${!!attackerPlayer}`);
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-defense-success`,
+            playerName: 'Sistema',
+            message: `🛡️ ${defender} ha respinto l'attacco di ${attacker}! (${resolveSource})`,
+            timestamp: Date.now()
+          });
+          console.log(`[DEFENSE-BONUS] Unknown defense card "${defenseCardName}" - damage nullified (safe fallback)`);
         }
       }
 

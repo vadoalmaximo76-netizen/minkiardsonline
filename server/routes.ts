@@ -4440,11 +4440,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('defense:response', async ({ attackId, defends, gameId: clientGameId, counterAttackOptions }: { 
+    socket.on('defense:response', async ({ attackId, defends, gameId: clientGameId, counterAttackOptions, defenseCardId, redirectTargetCardId }: { 
       attackId: string; 
       defends: boolean; 
       gameId?: string; 
-      counterAttackOptions?: { counterAttack?: boolean; counterCardId?: string; counterDamage?: number } 
+      counterAttackOptions?: { counterAttack?: boolean; counterCardId?: string; counterDamage?: number };
+      defenseCardId?: string;
+      redirectTargetCardId?: string;
     }) => {
       const startTime = Date.now();
       const gameId = gameManager.getPlayerGameId(socket.id) || clientGameId;
@@ -4559,7 +4561,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Process using enhanced GameManager method with 'client' resolve source
-      const success = await gameManager.processDefenseResponse(gameId, attackId, defends, io, 'client', validatedCounterOptions);
+      const success = await gameManager.processDefenseResponse(gameId, attackId, defends, io, 'client', validatedCounterOptions, defenseCardId, redirectTargetCardId);
       
       if (!success) {
         console.warn(`[DEFENSE-RESPONSE] Failed to process defense response`, {

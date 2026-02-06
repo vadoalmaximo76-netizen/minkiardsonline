@@ -261,6 +261,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     isAnimating: boolean;
     animationPhase: 'rolling' | 'result' | 'effects';
   }>({ visible: false, cardName: '', diceResult: 0, effect: '', affectedCharacters: [], isAnimating: false, animationPhase: 'rolling' });
+  // FOLATA DI VENTO: Wind dice roll animation visible to all players
+  const [windDiceRoll, setWindDiceRoll] = useState<{ visible: boolean; value: number; playerName: string }>({ visible: false, value: 0, playerName: '' });
   // CUSTOM TARGET SELECTION: Modal for choosing targets for custom effects with [BERSAGLIO: scelta]
   const [customTargetModal, setCustomTargetModal] = useState<{
     visible: boolean;
@@ -672,6 +674,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('card-show-confirmed', handleCardShowConfirmed);
     socket.on('dice-rolled', handleDiceRoll);
     socket.on('dice-window-opened', handleDiceWindowOpen);
+    
+    const handleWindDiceRoll = (data: { value: number; playerName: string; gameId: string }) => {
+      console.log('🎲 FOLATA DI VENTO dice roll:', data);
+      setWindDiceRoll({ visible: true, value: data.value, playerName: data.playerName });
+      setTimeout(() => setWindDiceRoll({ visible: false, value: 0, playerName: '' }), 4000);
+    };
+    socket.on('dice-roll', handleWindDiceRoll);
     socket.on('graveyard-milestone', handleGraveyardMilestone);
     socket.on('chat-message', handleChatMessage);
     socket.on('scenario-cards-toggled', handleScenarioCardsToggled);
@@ -1331,6 +1340,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('card-shown', handleCardShown);
       socket.off('card-show-confirmed', handleCardShowConfirmed);
       socket.off('dice-rolled', handleDiceRoll);
+      socket.off('dice-roll', handleWindDiceRoll);
       socket.off('dice-window-opened', handleDiceWindowOpen);
       socket.off('graveyard-milestone', handleGraveyardMilestone);
       socket.off('chat-message', handleChatMessage);
@@ -2213,6 +2223,25 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       )}
 
       {/* AUTO DICE RESULT - Animated automatic dice roll display */}
+      {windDiceRoll.visible && (
+        <div className="fixed inset-0 z-[9998] pointer-events-none flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/80" />
+          <div className="relative bg-gradient-to-br from-cyan-900 via-blue-800 to-teal-700 rounded-2xl p-8 border-4 border-cyan-400 shadow-[0_0_80px_rgba(0,200,255,0.6)] max-w-md w-full mx-4">
+            <div className="text-center">
+              <h3 className="text-xl font-bold text-cyan-200 mb-2">FOLATA DI VENTO</h3>
+              <p className="text-gray-300 text-sm mb-4">{windDiceRoll.playerName} tira il dado!</p>
+              <div className="text-8xl mb-4 animate-bounce">🎲</div>
+              <h2 className="text-7xl font-bold text-white mb-4 animate-pulse" style={{textShadow: '4px 4px 8px rgba(0,0,0,0.8)'}}>
+                {windDiceRoll.value}
+              </h2>
+              <div className={`text-2xl font-bold ${windDiceRoll.value % 2 === 0 ? 'text-green-400' : 'text-orange-400'}`}>
+                {windDiceRoll.value % 2 === 0 ? 'PARI - Danno al prossimo giocatore!' : 'DISPARI - Danno al giocatore precedente!'}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {autoDiceResult.visible && (
         <div className="fixed inset-0 z-[9999] pointer-events-none flex items-center justify-center">
           <div className="absolute inset-0 bg-black/80" />

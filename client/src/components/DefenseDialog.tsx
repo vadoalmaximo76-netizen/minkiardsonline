@@ -8,6 +8,12 @@ import { Shield, Swords, Clock, Eye, X, ChevronLeft, Target, Timer } from 'lucid
 import { HandModal } from './HandModal';
 import { Input } from './ui/input';
 
+const DEFENSE_BONUS_CARDS = [
+  "ALTA SALVA", "BOOMERANG", "CONTRO SKRAZZKOOM", "CONVERSIONE",
+  "DIFESA VIGLIACCA", "E NN T MITT SCUORN", "E TAGG TRATTAT",
+  "FOLATA DI VENTO", "RESPINTA", "E NN T MITT SSCUORN"
+];
+
 const evaluateMathExpression = (expr: string): number | null => {
   const cleaned = expr.replace(/\s/g, '');
   if (!/^[\d+\-*/().]+$/.test(cleaned)) return null;
@@ -78,6 +84,8 @@ export const DefenseDialog: React.FC = () => {
   const [showTargetSelect, setShowTargetSelect] = useState<boolean>(false);
   const [showDelayPanel, setShowDelayPanel] = useState<boolean>(false);
   const [delayTurns, setDelayTurns] = useState<string>('');
+  const [showVigliaccaTargetSelect, setShowVigliaccaTargetSelect] = useState<boolean>(false);
+  const [selectedVigliaccaCard, setSelectedVigliaccaCard] = useState<GameCard | null>(null);
   const { playerName, gameId, gameState } = useGameState();
   const { playAttackSound, playDefenseActivated, playAttackBlocked } = useAudio();
 
@@ -140,6 +148,28 @@ export const DefenseDialog: React.FC = () => {
     (card: any) => card.owner === attackerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali')
   );
 
+  // Get all opponent characters for DIFESA VIGLIACCA (exclude attacker AND defender)
+  const vigliaccaTargetCharacters = (gameState?.field || []).filter(
+    (card: any) => card.owner !== attackerName && card.owner !== playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali')
+  );
+
+  // Check if a card is a defense BONUS
+  const isDefenseBonusCard = (card: GameCard): boolean => {
+    if (card.type !== 'bonus') return false;
+    const cardName = card.frontImage ? getCardName(card.frontImage) : '';
+    return DEFENSE_BONUS_CARDS.some(dc => cardName.includes(dc));
+  };
+
+  // Check if a defense card should be hidden (ALTA SALVA with damage <= 200)
+  const isDefenseCardDisabled = (card: GameCard): boolean => {
+    if (card.type !== 'bonus') return false;
+    const cardName = card.frontImage ? getCardName(card.frontImage) : '';
+    if (cardName.includes('ALTA SALVA') && (defenseRequest?.damageValue ?? 0) <= 200) {
+      return true;
+    }
+    return false;
+  };
+
   // Listen for defense requests
   useEffect(() => {
     const handleDefenseRequest = (request: DefenseRequest) => {
@@ -163,6 +193,8 @@ export const DefenseDialog: React.FC = () => {
         setShowTargetSelect(false);
         setShowDelayPanel(false);
         setDelayTurns('');
+        setShowVigliaccaTargetSelect(false);
+        setSelectedVigliaccaCard(null);
       } else {
         console.log('🛡️ Defense request not for this player, ignoring');
       }
@@ -239,22 +271,28 @@ export const DefenseDialog: React.FC = () => {
   };
 
   const handleSelectDefenseCard = (card: GameCard) => {
-    // Check if this is a MOSSE card - if so, start counter-attack flow
     if (card.type === 'mosse') {
       console.log('🛡️ Selected MOSSE for counter-attack:', card.id);
       setSelectedMosseCard(card);
       setShowDefenseCardSelect(false);
       setShowCounterAttackFlow(true);
       
-      // Auto-calculate and pre-fill counter damage if card has mosseDamageValue
       const autoDamage = calculateCounterDamage(card);
       if (autoDamage !== null) {
         setCounterDamage(autoDamage.toString());
         console.log(`🛡️ Auto-calculated counter damage: ${card.mosseDamageValue} × ${defenderStars} stelle = ${autoDamage}`);
       }
     } else {
-      // Regular defense with non-MOSSE card
-      handleDefenseResponse(true, card.id);
+      const cardName = card.frontImage ? getCardName(card.frontImage) : '';
+      
+      if (cardName.includes('DIFESA VIGLIACCA')) {
+        console.log('🛡️ Selected DIFESA VIGLIACCA - showing target selection');
+        setSelectedVigliaccaCard(card);
+        setShowDefenseCardSelect(false);
+        setShowVigliaccaTargetSelect(true);
+      } else {
+        handleDefenseResponse(true, card.id);
+      }
     }
   };
 
@@ -266,6 +304,38 @@ export const DefenseDialog: React.FC = () => {
     setShowTargetSelect(false);
     setShowDelayPanel(false);
     setDelayTurns('');
+    setShowVigliaccaTargetSelect(false);
+    setSelectedVigliaccaCard(null);
+  };
+
+  const handleSelectVigliaccaTarget = (targetCard: any) => {
+    if (!defenseRequest || !selectedVigliaccaCard || isProcessing) return;
+    setIsProcessing(true);
+    console.log(`🛡️ DIFESA VIGLIACCA: Redirecting ${defenseRequest.damageValue} damage to ${targetCard.id}`);
+
+    if (selectedVigliaccaCard) {
+      socket.emit('play-card', {
+        cardId: selectedVigliaccaCard.id,
+        playerName: playerName
+      });
+    }
+
+    socket.emit('defense:response', {
+      gameId: defenseRequest.gameId,
+      attackId: defenseRequest.attackId,
+      defends: true,
+      defenseCardId: selectedVigliaccaCard.id,
+      redirectTargetCardId: targetCard.id
+    });
+
+    playAttackBlocked();
+
+    setTimeout(() => {
+      setDefenseRequest(null);
+      setIsProcessing(false);
+      setShowVigliaccaTargetSelect(false);
+      setSelectedVigliaccaCard(null);
+    }, 500);
   };
 
   const handleDelayDamage = () => {
@@ -363,6 +433,78 @@ export const DefenseDialog: React.FC = () => {
   };
 
   if (!defenseRequest) return null;
+
+  // DIFESA VIGLIACCA: Target selection panel
+  if (showVigliaccaTargetSelect && selectedVigliaccaCard) {
+    return (
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+        <div className="w-full max-w-2xl bg-gradient-to-b from-gray-900 to-gray-800 rounded-lg shadow-2xl border-2 border-purple-500 p-4">
+          <div className="text-center mb-4">
+            <div className="flex items-center justify-center gap-2 text-purple-400 mb-1">
+              <Target className="w-6 h-6" />
+              <h1 className="text-xl font-bold">DIFESA VIGLIACCA</h1>
+              <Target className="w-6 h-6" />
+            </div>
+            <p className="text-gray-300 text-sm">
+              Scegli un personaggio nemico a cui deviare i <span className="text-red-400 font-bold">{defenseRequest.damageValue} PTI</span> di danno
+            </p>
+            <p className="text-gray-400 text-xs mt-1">
+              Non puoi scegliere il personaggio dell'attaccante ({attackerName})
+            </p>
+            <div className="flex items-center justify-center gap-1 text-gray-300 text-sm mt-2">
+              <Clock className="w-4 h-4" />
+              <span className="font-mono font-bold">{timeLeft}s</span>
+            </div>
+          </div>
+
+          {vigliaccaTargetCharacters.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+              {vigliaccaTargetCharacters.map((card: any) => (
+                <div
+                  key={card.id}
+                  onClick={() => handleSelectVigliaccaTarget(card)}
+                  className="cursor-pointer hover:scale-105 transition-transform duration-200 bg-gray-800 rounded-lg border-2 border-gray-600 hover:border-purple-400 p-2 flex flex-col items-center"
+                >
+                  {card.frontImage && (
+                    <img
+                      src={card.frontImage}
+                      alt={getCardName(card.frontImage)}
+                      className="w-20 h-28 object-cover rounded-md mb-2"
+                    />
+                  )}
+                  <div className="text-white text-xs font-bold text-center">
+                    {card.frontImage ? getCardName(card.frontImage) : 'Personaggio'}
+                  </div>
+                  <div className="text-gray-400 text-xs mt-1">
+                    {card.owner}
+                  </div>
+                  {card.text && (
+                    <div className="text-gray-500 text-xs mt-1 text-center line-clamp-1">
+                      {card.text}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center text-gray-400 py-4 mb-4">
+              Nessun personaggio nemico disponibile (escluso attaccante)
+            </div>
+          )}
+
+          <div className="flex justify-center">
+            <Button
+              onClick={handleBackToMain}
+              className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6"
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              INDIETRO
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // DELAY PANEL: Show turn input for delaying damage
   if (showDelayPanel) {
@@ -605,11 +747,25 @@ export const DefenseDialog: React.FC = () => {
           {/* Cards Grid */}
           {playerHand.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-4">
-              {playerHand.map((card) => (
+              {playerHand.filter(card => !isDefenseCardDisabled(card)).map((card) => {
+                const cardNameStr = card.frontImage ? getCardName(card.frontImage) : '';
+                const isBonusDef = isDefenseBonusCard(card);
+                const bonusLabel = isBonusDef ? (
+                  cardNameStr.includes('BOOMERANG') || cardNameStr.includes('RESPINTA') ? 'Riflette danno' :
+                  cardNameStr.includes('CONTRO SKRAZZKOOM') ? 'Riflette x2' :
+                  cardNameStr.includes('CONVERSIONE') ? 'Converte in PTI' :
+                  cardNameStr.includes('DIFESA VIGLIACCA') ? 'Devia su nemico' :
+                  cardNameStr.includes('E NN T MITT') ? 'Annulla danno' :
+                  cardNameStr.includes('E TAGG TRATTAT') ? 'Dimezza danno' :
+                  cardNameStr.includes('FOLATA DI VENTO') ? 'Dado + devia' :
+                  cardNameStr.includes('ALTA SALVA') ? 'Annulla se >200' :
+                  'Difesa'
+                ) : null;
+                return (
                 <div
                   key={card.id}
                   onClick={() => handleSelectDefenseCard(card)}
-                  className="cursor-pointer hover:scale-105 transition-transform duration-200 bg-gray-800 rounded-lg border-2 border-gray-600 hover:border-blue-400 p-2 flex flex-col items-center"
+                  className={`cursor-pointer hover:scale-105 transition-transform duration-200 bg-gray-800 rounded-lg border-2 ${isBonusDef ? 'border-green-500 hover:border-green-300' : 'border-gray-600 hover:border-blue-400'} p-2 flex flex-col items-center relative`}
                 >
                   {card.frontImage ? (
                     <img
@@ -640,8 +796,14 @@ export const DefenseDialog: React.FC = () => {
                       )}
                     </div>
                   )}
+                  {bonusLabel && (
+                    <div className="absolute top-0 right-0 bg-green-600 text-white text-[9px] font-bold px-1 py-0.5 rounded-bl-md rounded-tr-md">
+                      {bonusLabel}
+                    </div>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="text-center text-gray-400 py-8 mb-4">
