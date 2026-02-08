@@ -10311,6 +10311,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
 
     const participant = auction.participants[winner];
+    let newPointsTotal: number | null = null;
     if (!participant.isCPU) {
       try {
         const userId = game.playerUserIds?.get(winner);
@@ -10318,7 +10319,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           await db.execute(
             sql`UPDATE users SET punti_rankiard = GREATEST(0, punti_rankiard - ${winningBid}) WHERE id = ${userId}`
           );
-          console.log(`🔨 ASTA: Deducted ${winningBid} Rankiard points from ${winner} (userId: ${userId})`);
+          const updated = await db.select({ puntiRankiard: users.puntiRankiard }).from(users).where(eq(users.id, userId));
+          if (updated[0]) {
+            newPointsTotal = updated[0].puntiRankiard;
+          }
+          console.log(`🔨 ASTA: Deducted ${winningBid} Rankiard points from ${winner} (userId: ${userId}), new total: ${newPointsTotal}`);
         }
       } catch (error) {
         console.error(`Error deducting Rankiard points for auction:`, error);
@@ -10340,6 +10345,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       cardImage: card.frontImage,
       cardPti: auction.cardPti,
       cardStars: auction.cardStars,
+      newPointsTotal,
       message: `${winner} ha vinto l'asta per ${cardName} con ${winningBid} punti Rankiard!`
     });
 

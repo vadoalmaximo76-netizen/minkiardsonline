@@ -891,6 +891,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
     const handleAuctionEnded = (data: any) => {
       setAuctionResult(data);
+      if (data.winner === playerName && data.newPointsTotal !== null && data.newPointsTotal !== undefined) {
+        setUserRankiardPoints(data.newPointsTotal);
+      }
     };
     socket.on('auction-ended', handleAuctionEnded);
 
