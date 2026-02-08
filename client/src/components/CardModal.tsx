@@ -438,13 +438,13 @@ export const CardModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-      <div className="premium-panel p-6 max-w-lg w-full relative">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-white font-bold text-lg">{cardName}</h3>
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center z-[60] p-0 sm:p-4">
+      <div className="premium-panel p-4 sm:p-6 max-w-lg w-full relative rounded-t-2xl sm:rounded-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-3 sm:mb-4">
+          <h3 className="text-white font-bold text-base sm:text-lg pr-8">{cardName}</h3>
           <Button
             onClick={handleClose}
-            className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-700 text-white rounded-full p-1.5 shadow-lg border-2 border-white/20 z-[70]"
+            className="absolute top-2 right-2 sm:-top-2 sm:-right-2 bg-red-600 hover:bg-red-700 text-white rounded-full p-1.5 shadow-lg border-2 border-white/20 z-[70] min-w-[36px] min-h-[36px]"
             size="sm"
           >
             <X size={20} />
@@ -452,11 +452,11 @@ export const CardModal: React.FC = () => {
         </div>
 
         {/* Large card image */}
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center mb-4 sm:mb-6">
           <img
             src={isEnemyFaceDownCard ? selectedCard.backImage : selectedCard.frontImage}
             alt="Card"
-            className={`w-64 h-80 rounded-lg shadow-lg ${isEnemyFaceDownCard ? 'ring-4 ring-orange-400 ring-opacity-50' : ''}`}
+            className={`w-40 h-52 sm:w-64 sm:h-80 rounded-lg shadow-lg ${isEnemyFaceDownCard ? 'ring-4 ring-orange-400 ring-opacity-50' : ''}`}
           />
         </div>
 
@@ -1048,35 +1048,35 @@ export const CardModal: React.FC = () => {
 
       {/* Modify Stats Panel - Sky Blue Panel for PTI and Stars */}
       {showAddPTIPanel && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[80] p-4">
-          <div className="bg-cyan-600 rounded-lg p-6 max-w-md w-full shadow-xl border-4 border-cyan-400">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-white font-bold text-xl">📊 MODIFICA STATISTICHE</h3>
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[80] p-0 sm:p-4">
+          <div className="bg-cyan-600 rounded-t-2xl sm:rounded-lg p-4 sm:p-6 max-w-md w-full shadow-xl border-4 border-cyan-400 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-3 sm:mb-4">
+              <h3 className="text-white font-bold text-lg sm:text-xl">📊 MODIFICA STATISTICHE</h3>
               <Button
                 onClick={handleCancelAddPTI}
-                className="bg-red-600 hover:bg-red-700 text-white px-2 py-1"
+                className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 min-w-[36px] min-h-[36px]"
                 size="sm"
               >
                 <X size={16} />
               </Button>
             </div>
 
-            <div className="text-center mb-4">
-              <p className="text-white text-lg mb-2">
+            <div className="text-center mb-3 sm:mb-4">
+              <p className="text-white text-base sm:text-lg mb-1 sm:mb-2">
                 Modifica PTI e Stelle di questo personaggio
               </p>
-              <p className="text-cyan-200 text-sm">
+              <p className="text-cyan-200 text-xs sm:text-sm">
                 Usa valori positivi per aggiungere, negativi per sottrarre.
               </p>
             </div>
 
             {/* PTI Section */}
-            <div className="mb-4">
+            <div className="mb-3 sm:mb-4">
               <label className="text-white font-bold text-sm block mb-2">PTI (Punti)</label>
               <div className="flex items-center gap-2">
                 <Button
                   onClick={() => setPtiToAdd(String((parseInt(ptiToAdd) || 0) - 100))}
-                  className="bg-red-500 hover:bg-red-600 text-white font-bold px-3 py-2"
+                  className="bg-red-500 hover:bg-red-600 text-white font-bold px-3 py-3 min-w-[48px] min-h-[44px] text-sm"
                 >
                   -100
                 </Button>
@@ -1085,11 +1085,11 @@ export const CardModal: React.FC = () => {
                   value={ptiToAdd}
                   onChange={(e) => setPtiToAdd(e.target.value)}
                   placeholder="0"
-                  className="flex-1 px-3 py-2 text-xl text-center font-bold rounded-lg bg-white text-cyan-800 border-2 border-cyan-300"
+                  className="flex-1 min-w-0 px-2 sm:px-3 py-2 text-lg sm:text-xl text-center font-bold rounded-lg bg-white text-cyan-800 border-2 border-cyan-300"
                 />
                 <Button
                   onClick={() => setPtiToAdd(String((parseInt(ptiToAdd) || 0) + 100))}
-                  className="bg-green-500 hover:bg-green-600 text-white font-bold px-3 py-2"
+                  className="bg-green-500 hover:bg-green-600 text-white font-bold px-3 py-3 min-w-[48px] min-h-[44px] text-sm"
                 >
                   +100
                 </Button>
@@ -1097,12 +1097,12 @@ export const CardModal: React.FC = () => {
             </div>
 
             {/* Stelle Section */}
-            <div className="mb-6">
+            <div className="mb-4 sm:mb-6">
               <label className="text-white font-bold text-sm block mb-2">⭐ Stelle</label>
               <div className="flex items-center gap-2">
                 <Button
                   onClick={() => setStelleToAdd(String((parseInt(stelleToAdd) || 0) - 1))}
-                  className="bg-red-500 hover:bg-red-600 text-white font-bold px-4 py-2"
+                  className="bg-red-500 hover:bg-red-600 text-white font-bold px-4 py-3 min-w-[48px] min-h-[44px]"
                 >
                   -1
                 </Button>
@@ -1111,28 +1111,28 @@ export const CardModal: React.FC = () => {
                   value={stelleToAdd}
                   onChange={(e) => setStelleToAdd(e.target.value)}
                   placeholder="0"
-                  className="flex-1 px-3 py-2 text-xl text-center font-bold rounded-lg bg-white text-cyan-800 border-2 border-cyan-300"
+                  className="flex-1 min-w-0 px-2 sm:px-3 py-2 text-lg sm:text-xl text-center font-bold rounded-lg bg-white text-cyan-800 border-2 border-cyan-300"
                 />
                 <Button
                   onClick={() => setStelleToAdd(String((parseInt(stelleToAdd) || 0) + 1))}
-                  className="bg-green-500 hover:bg-green-600 text-white font-bold px-4 py-2"
+                  className="bg-green-500 hover:bg-green-600 text-white font-bold px-4 py-3 min-w-[48px] min-h-[44px]"
                 >
                   +1
                 </Button>
               </div>
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex gap-3 sm:gap-4 pb-2">
               <Button
                 onClick={handleCancelAddPTI}
-                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3"
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 min-h-[48px]"
               >
                 ANNULLA
               </Button>
               <Button
                 onClick={handleConfirmAddPTI}
                 disabled={(!ptiToAdd || parseInt(ptiToAdd) === 0) && (!stelleToAdd || parseInt(stelleToAdd) === 0)}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 disabled:opacity-50"
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 min-h-[48px] disabled:opacity-50"
               >
                 ✓ CONFERMA
               </Button>
@@ -1143,24 +1143,24 @@ export const CardModal: React.FC = () => {
 
       {/* Add PR Panel - Orange Panel for Rankiard Points */}
       {showAddPRPanel && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[80] p-4">
-          <div className="bg-amber-600 rounded-lg p-6 max-w-md w-full shadow-xl border-4 border-amber-400">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-white font-bold text-xl">➕ AGGIUNGI PR</h3>
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[80] p-0 sm:p-4">
+          <div className="bg-amber-600 rounded-t-2xl sm:rounded-lg p-4 sm:p-6 max-w-md w-full shadow-xl border-4 border-amber-400 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-3 sm:mb-4">
+              <h3 className="text-white font-bold text-lg sm:text-xl">➕ AGGIUNGI PR</h3>
               <Button
                 onClick={handleCancelAddPR}
-                className="bg-red-600 hover:bg-red-700 text-white px-2 py-1"
+                className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 min-w-[36px] min-h-[36px]"
                 size="sm"
               >
                 <X size={16} />
               </Button>
             </div>
 
-            <div className="text-center mb-4">
-              <div className="bg-amber-700 rounded-lg p-3 mb-4">
-                <p className="text-amber-200 text-sm">I tuoi Punti Rankiard:</p>
-                <p className="text-white text-2xl font-bold">{userRankiardPoints}</p>
-                <p className="text-amber-200 text-sm mt-1">
+            <div className="text-center mb-3 sm:mb-4">
+              <div className="bg-amber-700 rounded-lg p-3 mb-3 sm:mb-4">
+                <p className="text-amber-200 text-xs sm:text-sm">I tuoi Punti Rankiard:</p>
+                <p className="text-white text-xl sm:text-2xl font-bold">{userRankiardPoints}</p>
+                <p className="text-amber-200 text-xs sm:text-sm mt-1">
                   Disponibili questa partita: <span className="text-white font-bold">{availableRankiardPoints}</span>
                 </p>
                 {prSpentThisGame > 0 && (
@@ -1169,15 +1169,15 @@ export const CardModal: React.FC = () => {
                   </p>
                 )}
               </div>
-              <p className="text-white text-lg mb-2">
+              <p className="text-white text-base sm:text-lg mb-1 sm:mb-2">
                 Quanti Punti Rankiard vuoi convertire in PTI?
               </p>
-              <p className="text-amber-200 text-sm">
+              <p className="text-amber-200 text-xs sm:text-sm">
                 I punti si sottraggono solo per questa partita.
               </p>
             </div>
 
-            <div className="mb-6">
+            <div className="mb-4 sm:mb-6">
               <input
                 type="number"
                 value={prToAdd}
@@ -1185,7 +1185,7 @@ export const CardModal: React.FC = () => {
                 placeholder="Inserisci PR..."
                 min="1"
                 max={availableRankiardPoints}
-                className="w-full px-4 py-3 text-2xl text-center font-bold rounded-lg bg-white text-amber-800 border-4 border-amber-300 focus:outline-none focus:border-amber-100"
+                className="w-full px-3 sm:px-4 py-3 text-xl sm:text-2xl text-center font-bold rounded-lg bg-white text-amber-800 border-4 border-amber-300 focus:outline-none focus:border-amber-100"
               />
               {parseInt(prToAdd) > availableRankiardPoints && (
                 <p className="text-red-300 text-sm mt-2 text-center">
@@ -1194,17 +1194,17 @@ export const CardModal: React.FC = () => {
               )}
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex gap-3 sm:gap-4 pb-2">
               <Button
                 onClick={handleCancelAddPR}
-                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3"
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 min-h-[48px]"
               >
                 ANNULLA
               </Button>
               <Button
                 onClick={handleConfirmAddPR}
                 disabled={!prToAdd || parseInt(prToAdd) <= 0 || parseInt(prToAdd) > availableRankiardPoints}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 disabled:opacity-50"
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 min-h-[48px] disabled:opacity-50"
               >
                 ✓ CONFERMA
               </Button>

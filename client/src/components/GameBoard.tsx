@@ -3157,11 +3157,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         
         {/* AUCTION DECK PICKER - for selecting character to auction */}
         {auctionDeckPicker.visible && (
-          <div className="fixed inset-0 z-[9998] flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.85)' }}>
-            <div className="bg-slate-900 border-2 border-amber-500/50 rounded-2xl p-6 max-w-3xl max-h-[80vh] overflow-y-auto">
-              <h2 className="text-2xl font-black text-amber-400 text-center mb-4">🔨 SCEGLI UN PERSONAGGIO PER L'ASTA</h2>
-              <p className="text-amber-200/60 text-center text-sm mb-4">Seleziona il personaggio da mettere all'asta</p>
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+          <div className="fixed inset-0 z-[9998] flex items-end sm:items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.85)' }}>
+            <div className="bg-slate-900 border-2 border-amber-500/50 rounded-t-2xl sm:rounded-2xl p-3 sm:p-6 w-full sm:max-w-3xl max-h-[85vh] overflow-y-auto">
+              <h2 className="text-lg sm:text-2xl font-black text-amber-400 text-center mb-2 sm:mb-4">🔨 SCEGLI UN PERSONAGGIO PER L'ASTA</h2>
+              <p className="text-amber-200/60 text-center text-xs sm:text-sm mb-2 sm:mb-4">Seleziona il personaggio da mettere all'asta</p>
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3">
                 {auctionDeckPicker.cards.filter(c => c.type === 'personaggi' || c.type === 'personaggi_speciali').map(card => (
                   <div
                     key={card.id}
@@ -3169,16 +3169,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                       socket.emit('auction-select-card', { cardId: card.id, playerName });
                       setAuctionDeckPicker({ visible: false, cards: [], initiator: '' });
                     }}
-                    className="cursor-pointer rounded-lg border-2 border-transparent hover:border-amber-400 transition-all hover:scale-105 p-1 bg-black/30"
+                    className="cursor-pointer rounded-lg border-2 border-transparent hover:border-amber-400 active:border-amber-400 active:scale-95 transition-all hover:scale-105 p-1 bg-black/30"
                   >
-                    <img src={card.frontImage} alt={card.name || 'Card'} className="w-full h-28 object-cover rounded" />
+                    <img src={card.frontImage} alt={card.name || 'Card'} className="w-full h-20 sm:h-28 object-cover rounded" />
                     {card.name && <p className="text-white text-[10px] text-center mt-1 truncate">{card.name}</p>}
                   </div>
                 ))}
               </div>
               <button
                 onClick={() => setAuctionDeckPicker({ visible: false, cards: [], initiator: '' })}
-                className="mt-4 w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg"
+                className="mt-3 sm:mt-4 w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 sm:py-2 rounded-lg min-h-[48px]"
               >
                 ANNULLA
               </button>
