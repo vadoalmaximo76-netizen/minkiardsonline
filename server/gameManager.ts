@@ -13727,6 +13727,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const card = cards.find(c => c.id === cardId);
       if (card) {
         card.text = text;
+        // CRITICAL: Sync .pti property from text to ensure damage/effects use current PTI
+        const ptiMatch = text.match(/PTI:\s*(-?\d+)/i);
+        if (ptiMatch) {
+          card.pti = parseInt(ptiMatch[1]);
+        }
         // CRITICAL: Sync .stars property from text to ensure damage calculations use current stars
         const starsMatch = text.match(/[Ss]telle:\s*(-?\d+)/i);
         if (starsMatch) {
