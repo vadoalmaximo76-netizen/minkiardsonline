@@ -1987,12 +1987,29 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
             effectiveEffect || null   // mosseEffect
           );
           
-          if (attackResult.success && attackResult.result?.requiresDefenseResponse) {
-            const pendingDefense = this.gameManager.getPendingDefense(this.gameId);
-            if (pendingDefense) {
-              pendingDefense.damage = suggestedDamage;
-              pendingDefense.mosseCardId = cardId;
-              (pendingDefense as any).starsToRemove = 0;
+          if (attackResult.success) {
+            this.socketEmitter.to(this.gameId).emit('card-attacked', {
+              mosseCardId: cardId,
+              targetCardId: target.cardId,
+              attackerName: this.playerName,
+              targetOwner: target.owner,
+              damageValue: suggestedDamage,
+              timestamp: Date.now()
+            });
+            
+            if (attackResult.result?.requiresDefenseResponse) {
+              const pendingDefense = this.gameManager.getPendingDefense(this.gameId);
+              if (pendingDefense) {
+                pendingDefense.damage = suggestedDamage;
+                pendingDefense.mosseCardId = cardId;
+                (pendingDefense as any).starsToRemove = 0;
+              }
+              
+              const emissionSuccess = await this.gameManager.emitDefenseRequest(this.gameId, this.socketEmitter);
+              if (!emissionSuccess) {
+                console.log(`⚠️ CPU ${this.playerName}: Failed to emit defense request (legacy) - processing damage directly`);
+                await this.gameManager.processMosseDamage(this.gameId, this.playerName, target.cardId, suggestedDamage, cardId, this.socketEmitter, false, false, false, false, 0);
+              }
             }
           }
           
@@ -2131,7 +2148,15 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       if (attackResult.success) {
         console.log(`🎯 CPU ${this.playerName}: AUTO-ATTACK SUCCESS against ${target.name}`);
         
-        // Check if defense is needed
+        this.socketEmitter.to(this.gameId).emit('card-attacked', {
+          mosseCardId: mosseCard.id,
+          targetCardId: target.cardId,
+          attackerName: this.playerName,
+          targetOwner: target.owner,
+          damageValue: suggestedDamage,
+          timestamp: Date.now()
+        });
+        
         if (attackResult.result?.requiresDefenseResponse) {
           console.log(`🛡️ CPU ${this.playerName}: Attack requires defense response from ${target.owner}`);
           const pendingDefense = this.gameManager.getPendingDefense(this.gameId);
@@ -2141,18 +2166,22 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
             (pendingDefense as any).starsToRemove = 0;
             console.log(`📝 CPU stored damage ${suggestedDamage} for pending defense ${pendingDefense.attackId}`);
           }
+          
+          const emissionSuccess = await this.gameManager.emitDefenseRequest(this.gameId, this.socketEmitter);
+          if (!emissionSuccess) {
+            console.log(`⚠️ CPU ${this.playerName}: Failed to emit defense request - processing damage directly`);
+            await this.gameManager.processMosseDamage(this.gameId, this.playerName, target.cardId, suggestedDamage, mosseCard.id, this.socketEmitter, false, false, false, false, 0);
+          }
         }
       } else {
         console.log(`🎯 CPU ${this.playerName}: AUTO-ATTACK FAILED: ${attackResult.error}`);
       }
       
-      // Emit updated game state
       const updatedState = this.gameManager.getSanitizedGameState(this.gameId);
       if (updatedState) {
         this.socketEmitter.to(this.gameId).emit('game-state-update', updatedState);
       }
       
-      // Set flag to wait for attack resolution (defense etc.)
       this.waitingForAttackResolution = true;
       console.log(`🎯 CPU ${this.playerName}: AUTO-ATTACK COMPLETE - waiting for defense resolution`);
       return;
