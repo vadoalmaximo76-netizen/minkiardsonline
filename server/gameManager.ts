@@ -2377,9 +2377,39 @@ Rispondi SOLO in JSON:`;
     const cardIndex = player.hand.findIndex(card => card.id === cardId);
     
     if (cardIndex !== -1) {
-      const card = player.hand.splice(cardIndex, 1)[0];
-      card.faceDown = false; // Ensure face up when played normally
-      card.owner = playerName; // IMPORTANT: Set owner when card is played
+      const card = player.hand[cardIndex];
+      const isPersonaggio = card.type === 'personaggi' || card.type === 'personaggi_speciali';
+      
+      // DITTATURA check: enforce PTI restrictions BEFORE removing card from hand
+      if (isPersonaggio && (game as any).cardPlayRestrictions) {
+        const restrictions = (game as any).cardPlayRestrictions as Array<{type: string; threshold: number; turnsRemaining: number; imposedBy: string}>;
+        for (const restriction of restrictions) {
+          if (restriction.type === 'min_pti' && restriction.turnsRemaining > 0) {
+            const cardNameForCheck = card.name || this.getCardNameFromUrl(card.frontImage);
+            const cachedData = getPersonaggioFromCache(cardNameForCheck);
+            const cardPti = cachedData?.pti || card.pti || 1000;
+            
+            if (cardPti < restriction.threshold) {
+              const io = (global as any).io;
+              if (io) {
+                io.to(gameId).emit('chat-message', {
+                  id: `${Date.now()}-dittatura-block`,
+                  playerName: 'Sistema',
+                  message: `👑 DITTATURA: ${cardNameForCheck} non può essere giocato perché ha solo ${cardPti} PTI (minimo ${restriction.threshold})!`,
+                  timestamp: Date.now()
+                });
+              }
+              console.log(`👑 DITTATURA BLOCKED: ${cardNameForCheck} (${cardPti} PTI) below threshold (${restriction.threshold})`);
+              return {};
+            }
+          }
+        }
+      }
+      
+      // Card is allowed - remove from hand and place on field
+      player.hand.splice(cardIndex, 1);
+      card.faceDown = false;
+      card.owner = playerName;
       
       // If it's a BONUS or MOSSE being placed on the field, initialize turn counter
       if ((card.type === 'bonus' || card.type === 'mosse')) {
@@ -2388,10 +2418,7 @@ Rispondi SOLO in JSON:`;
       }
 
       game.field.push(card);
-      
-      // Check if it's a PERSONAGGI or PERSONAGGI_SPECIALI card
-      const isPersonaggio = card.type === 'personaggi' || card.type === 'personaggi_speciali';
-      
+
       // Auto-analyze cards for ALL players (PERSONAGGI only) - ALWAYS set PTI from cache
       if (isPersonaggio) {
         // Always run sync analysis to ensure PTI values are set
@@ -2696,6 +2723,19 @@ Rispondi SOLO in JSON:`;
       actions.push({ type: 'pti_threshold', target: 'all', value: threshVal, description: `Se supera ${threshVal} PTI, scende a ${dropToVal} PTI e 1 stella` });
     }
 
+    // ============ TIME TRAVEL / REPLAY PATTERN ============
+    if (/viaggio nel tempo|replay|torna indietro.*turni|stato precedente|ripristina.*turno|riavvolg/i.test(text)) {
+      const turnsBack = extractNumber(text, 3);
+      actions.push({ type: 'time_travel', target: 'all', value: turnsBack, description: `Viaggio nel tempo: torna indietro di ${turnsBack} turni` });
+    }
+
+    // ============ DITTATURA / CARD PLAY RESTRICTION PATTERN ============
+    if (/dittatura|non\s+possono\s+giocare\s+personaggi.*meno\s+di\s+\d+\s*pti|personaggi.*meno\s+di\s+\d+\s*pti.*non.*giocare|blocca\s+personaggi.*deboli|restrizione\s+pti/i.test(text)) {
+      const thresholdVal = extractNumberForKeyword(text, ['pti'], 100);
+      const turnsVal = extractNumberForKeyword(text, ['turni', 'turno'], 5);
+      actions.push({ type: 'dittatura', target: 'all', value: thresholdVal, description: `Dittatura: personaggi con meno di ${thresholdVal} PTI non possono essere giocati per ${turnsVal} turni` });
+    }
+
     // ============ DELAYED DEATH PATTERN ============
     if (/dopo\s+\d+\s+turni.*muore/i.test(text) || /morirà.*dopo\s+\d+\s+turni/i.test(text) || /muore.*tra\s+\d+\s+turni/i.test(text) || /morte.*dopo\s+\d+\s+turni/i.test(text) || /morire.*dopo/i.test(text)) {
       const deathTurnsMatch = text.match(/(\d+)\s+turni/i);
@@ -2839,6 +2879,58 @@ Rispondi SOLO in JSON:`;
       actions.push({ type: 'steal', target: target === 'self' ? 'opponents' : target, value, description: `Ruba ${value} carte` });
     }
 
+    // ============ BARATTO / FULL SWAP PATTERN ============
+    if (/baratto|scambi[ao].*tutt[ie].*carte|scambio\s+totale|scambi[ao].*campo.*mano|scambia.*mano.*campo/i.test(text)) {
+      actions.push({ type: 'baratto', target: 'opponents', value: 0, description: 'Scambio totale: scambia tutte le carte (campo e mano) con un avversario' });
+    }
+
+    // ============ CICLONE / CARD ROTATION PATTERN ============
+    if (/ciclone|rotazione.*carte|carte.*ruotano|giro.*carte|passaggio.*catena|carte.*passano.*prossimo|sposta.*tutt[ie].*carte/i.test(text)) {
+      actions.push({ type: 'ciclone', target: 'all', value: 0, description: 'Ciclone: le carte in campo ruotano al giocatore successivo' });
+    }
+
+    // ============ CIMITERO VUOTO / GRAVEYARD BONUS PATTERN ============
+    if (/cimitero\s+vuoto|meno.*cimitero.*raddoppia|chi\s+ha\s+meno\s+mort[ie]|minor.*cimitero|meno\s+carte.*cimitero/i.test(text)) {
+      actions.push({ type: 'cimitero_vuoto', target: 'all', value: 0, description: 'Chi ha meno carte nel cimitero raddoppia i PTI dei propri personaggi' });
+    }
+
+    // ============ COMUNISMO / EQUALIZE/AVERAGE PATTERN ============
+    if (/comunismo|media.*pti.*stelle|stessi.*pti.*stelle|equalizza|tutti.*ugual[ie]|redistribuisc|livella.*pti/i.test(text)) {
+      actions.push({ type: 'comunismo', target: 'all', value: 0, description: 'Comunismo: tutti i personaggi in campo hanno la media dei PTI e delle stelle' });
+    }
+
+    // ============ CONVERSIONE / LAST DAMAGE RECOVERY PATTERN ============  
+    if (/conversione.*ultimo.*danno|aggiung.*pti.*ultimo.*attacco|recupera.*danno.*subito|pti.*dell.*ultimo.*attacco|assorb.*danno.*subit/i.test(text) && !actions.some(a => a.type === 'heal')) {
+      actions.push({ type: 'conversione_danno', target: 'self', value: 0, description: 'Aggiunge PTI pari all\'ultimo danno subito' });
+    }
+
+    // ============ CORRUZIONE / PEACE TURNS PATTERN ============
+    if (/corruzione|dai.*pti.*non.*attacca|pace.*turni|non\s+può\s+attaccar.*per.*turni|tregua|armistizio/i.test(text)) {
+      const ptiVal = extractNumberForKeyword(text, ['pti'], 50);
+      const turnsVal = extractNumberForKeyword(text, ['turni', 'turno'], 3);
+      actions.push({ type: 'corruzione', target: 'opponents', value: ptiVal, description: `Corruzione: dai ${ptiVal} PTI a un avversario, che non può attaccarti per ${turnsVal} turni` });
+    }
+
+    // ============ DEMINKIATORE / HALVE NEXT ATTACK PATTERN ============
+    if (/deminkiatore|dimezza.*prossimo.*attacco|prossimo.*attacco.*dimezzato|dimezza.*danni.*prossim|riduc.*metà.*prossim/i.test(text)) {
+      actions.push({ type: 'deminkiatore', target: 'self', value: 50, description: 'Dimezza i danni del prossimo attacco ricevuto' });
+    }
+
+    // ============ TRASFORMAZIONE DEBOLE / TRANSFORM TO WEAKEST PATTERN ============
+    if (/trasform.*debole|trasform.*più\s+debole|trasform.*carta.*casuale.*debole|diventa.*personaggio.*debole|rimpiazza.*debole/i.test(text) && !actions.some(a => a.type === 'transform')) {
+      actions.push({ type: 'transform_weakest', target: 'opponents', value: 0, description: 'Trasforma un personaggio nemico nel personaggio più debole disponibile' });
+    }
+
+    // ============ AVVOLTOIO / INHERIT DEAD PTI PATTERN ============
+    if (/avvoltoio|eredita.*pti.*morto|guadagna.*pti.*personaggio.*morto|assorb.*pti.*caduto|prend.*pti.*eliminat/i.test(text)) {
+      actions.push({ type: 'avvoltoio', target: 'self', value: 0, description: 'Guadagna i PTI dell\'ultimo personaggio morto' });
+    }
+
+    // ============ BRIAN / RETURN TO HAND ON DEATH PATTERN ============
+    if (/torna.*in\s+mano.*quando\s+muore|quando\s+muore.*torna.*mano|non\s+va.*cimitero|evita.*cimitero|ritorna.*mano.*morte|risurrezione.*automatica.*mano/i.test(text)) {
+      actions.push({ type: 'return_on_death', target: 'self', value: 0, description: 'Quando muore, torna in mano invece del cimitero' });
+    }
+
     // ============ FREEZE PATTERNS ============
     if (text.includes('congela') || text.includes('congelamento') || text.includes('non può agire') ||
         text.includes('ghiaccia') || text.includes('immobilizza') || text.includes('paralizza') ||
@@ -2884,13 +2976,21 @@ Rispondi SOLO in JSON:`;
       actions.push({ type: 'burn', target: target === 'self' ? 'opponents' : target, value, description: `Bruciatura: ${value} danni/turno` });
     }
 
+    // ============ VAMPIRO / LIFESTEAL ENHANCED PATTERN ============
+    if (/vampir[oa]|aggiung.*metà.*danni.*inflitt|succhia.*vita|assorb.*vita|danni.*curano|cura.*danni.*inflitt|ruba.*vita/i.test(text) && !actions.some(a => a.type === 'lifesteal')) {
+      const value = extractNumber(text, 50);
+      actions.push({ type: 'lifesteal', target: 'self', value, description: `Vampiro: i danni inflitti curano questa carta di ${value}%` });
+    }
+
     // ============ LIFESTEAL PATTERNS ============
     if (text.includes('furto vita') || text.includes('vita rubata') || text.includes('assorbe vita') ||
         text.includes('drena vita') || text.includes('vampiro') || text.includes('succhia vita') ||
         text.includes('si cura dei danni') || text.includes('converte in vita') || text.includes('risucchia energia') ||
         (text.includes('danni') && text.includes('cura') && text.includes('stesso'))) {
       const value = getDetailValue(['damage_amount', 'valore'], extractNumber(text));
-      actions.push({ type: 'lifesteal', target: 'self', value, description: `Furto Vita: ${value}` });
+      if (!actions.some(a => a.type === 'lifesteal')) {
+        actions.push({ type: 'lifesteal', target: 'self', value, description: `Furto Vita: ${value}` });
+      }
     }
 
     // ============ SHIELD PATTERNS ============
@@ -3043,11 +3143,18 @@ Rispondi SOLO in JSON:`;
       actions.push({ type: 'return_to_hand', target: 'any', value, description: `Rimanda ${value} carte in mano` });
     }
 
+    // ============ RETURN TO DECK ENHANCED PATTERN ============
+    if (/torna.*nel\s+mazzo|metti.*nel\s+mazzo|rimetti.*mazzo|rimanda.*mazzo|riponi.*mazzo/i.test(text) && !actions.some(a => a.type === 'return_to_deck')) {
+      actions.push({ type: 'return_to_deck', target: 'self', value: 0, description: 'Rimanda la carta nel mazzo' });
+    }
+
     // ============ RETURN TO DECK PATTERNS ============
     if ((text.includes('ritorna') || text.includes('torna') || text.includes('rimetti') || text.includes('rimanda') || text.includes('rimescola')) && 
         (text.includes('mazzo') || text.includes('deck'))) {
       const value = extractNumber(text, 1);
-      actions.push({ type: 'return_to_deck', target: 'any', value, description: `Rimanda ${value} carte nel mazzo` });
+      if (!actions.some(a => a.type === 'return_to_deck')) {
+        actions.push({ type: 'return_to_deck', target: 'any', value, description: `Rimanda ${value} carte nel mazzo` });
+      }
     }
 
     // ============ REVEAL PATTERNS ============
@@ -5092,6 +5199,373 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         break;
 
+      case 'time_travel': {
+        // REPLAY: Restore full game state from N turns ago (atomic rollback)
+        const turnsBack = action.value || 3;
+        const snapshots = (game as any).stateSnapshots || [];
+        const targetIndex = Math.max(0, snapshots.length - turnsBack);
+        const snapshot = snapshots[targetIndex];
+        
+        if (snapshot) {
+          // Restore field
+          game.field = JSON.parse(JSON.stringify(snapshot.field));
+          // Restore hands
+          for (const [pName, hand] of Object.entries(snapshot.hands)) {
+            if (game.players[pName]) {
+              game.players[pName].hand = JSON.parse(JSON.stringify(hand));
+            }
+          }
+          // Restore graveyard
+          game.graveyard = JSON.parse(JSON.stringify(snapshot.graveyard));
+          // Restore turn state
+          if (snapshot.turnOrder) game.turnOrder = [...snapshot.turnOrder];
+          if (snapshot.currentTurnIndex !== undefined) game.currentTurnIndex = snapshot.currentTurnIndex;
+          // Restore delayed deaths
+          if (snapshot.delayedDeaths) game.delayedDeaths = JSON.parse(JSON.stringify(snapshot.delayedDeaths));
+          // Restore restrictions
+          if (snapshot.cardPlayRestrictions) (game as any).cardPlayRestrictions = JSON.parse(JSON.stringify(snapshot.cardPlayRestrictions));
+          else delete (game as any).cardPlayRestrictions;
+          if (snapshot.peaceRestrictions) (game as any).peaceRestrictions = JSON.parse(JSON.stringify(snapshot.peaceRestrictions));
+          else delete (game as any).peaceRestrictions;
+          // Restore decks if available
+          if (snapshot.decks && game.decks) {
+            for (const [key, deck] of Object.entries(snapshot.decks)) {
+              if ((game.decks as any)[key]) (game.decks as any)[key] = JSON.parse(JSON.stringify(deck));
+            }
+          }
+          // Remove snapshots after the restored point
+          (game as any).stateSnapshots = snapshots.slice(0, targetIndex);
+          
+          console.log(`⏰ TIME TRAVEL: Game state restored to ${turnsBack} turns ago (snapshot ${targetIndex})`);
+          
+          const io = (global as any).io;
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-time-travel`,
+              playerName: 'Sistema',
+              message: `⏰ VIAGGIO NEL TEMPO! Il gioco è stato riportato a ${turnsBack} turni fa!`,
+              timestamp: Date.now()
+            });
+            const gameState = this.getSanitizedGameState(gameId);
+            io.to(gameId).emit('game-state-update', gameState);
+          }
+        } else {
+          console.log(`⏰ TIME TRAVEL: No snapshots available for ${turnsBack} turns back`);
+          const io = (global as any).io;
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-time-travel-fail`,
+              playerName: 'Sistema',
+              message: `⏰ Non ci sono abbastanza turni passati per tornare indietro di ${turnsBack} turni!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        break;
+      }
+
+      case 'dittatura': {
+        // DITTATURA: Block playing characters below PTI threshold
+        const ptiThreshold = action.value || 100;
+        const durationTurns = 5; // Default 5 turns
+        
+        // Extract turns from description if available
+        const turnsMatch = action.description?.match(/(\d+)\s*turni/i);
+        const turns = turnsMatch ? parseInt(turnsMatch[1]) : durationTurns;
+        
+        if (!(game as any).cardPlayRestrictions) (game as any).cardPlayRestrictions = [];
+        (game as any).cardPlayRestrictions.push({
+          type: 'min_pti',
+          threshold: ptiThreshold,
+          turnsRemaining: turns,
+          imposedBy: playerName,
+          timestamp: Date.now()
+        });
+        
+        console.log(`👑 DITTATURA: Characters with less than ${ptiThreshold} PTI cannot be played for ${turns} turns`);
+        
+        const io = (global as any).io;
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-dittatura`,
+            playerName: 'Sistema',
+            message: `👑 DITTATURA! I personaggi con meno di ${ptiThreshold} PTI non possono essere giocati per ${turns} turni!`,
+            timestamp: Date.now()
+          });
+          io.to(gameId).emit('dittatura-active', {
+            threshold: ptiThreshold,
+            turnsRemaining: turns,
+            imposedBy: playerName
+          });
+          const gameState = this.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', gameState);
+        }
+        break;
+      }
+
+      case 'baratto': {
+        const opponents = Object.keys(game.players).filter(p => p !== playerName);
+        if (opponents.length > 0) {
+          const targetPlayer = opponents[Math.floor(Math.random() * opponents.length)];
+          const myHand = [...game.players[playerName].hand];
+          const theirHand = [...game.players[targetPlayer].hand];
+          const myFieldCards = game.field.filter((c: Card) => c.owner === playerName);
+          const theirFieldCards = game.field.filter((c: Card) => c.owner === targetPlayer);
+          game.players[playerName].hand = theirHand.map(c => ({ ...c, owner: playerName }));
+          game.players[targetPlayer].hand = myHand.map(c => ({ ...c, owner: targetPlayer }));
+          for (const c of myFieldCards) { c.owner = targetPlayer; }
+          for (const c of theirFieldCards) { c.owner = playerName; }
+          console.log(`🔄 BARATTO: ${playerName} and ${targetPlayer} swapped ALL cards!`);
+          const io = (global as any).io;
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-baratto`,
+              playerName: 'Sistema',
+              message: `🔄 BARATTO! ${playerName} e ${targetPlayer} hanno scambiato TUTTE le loro carte (campo e mano)!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        break;
+      }
+
+      case 'ciclone': {
+        const turnOrder = game.turnOrder;
+        if (turnOrder.length < 2) break;
+        const cardsByOwner: Record<string, Card[]> = {};
+        for (const p of turnOrder) cardsByOwner[p] = [];
+        for (const c of game.field) {
+          if (c.owner && cardsByOwner[c.owner]) cardsByOwner[c.owner].push(c);
+        }
+        for (let i = 0; i < turnOrder.length; i++) {
+          const currentPlayer = turnOrder[i];
+          const nextPlayer = turnOrder[(i + 1) % turnOrder.length];
+          for (const c of cardsByOwner[currentPlayer]) {
+            c.owner = nextPlayer;
+          }
+        }
+        console.log(`🌪️ CICLONE: All field cards rotated to next player!`);
+        const io = (global as any).io;
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-ciclone`,
+            playerName: 'Sistema',
+            message: `🌪️ CICLONE! Tutte le carte in campo sono passate al giocatore successivo!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      }
+
+      case 'cimitero_vuoto': {
+        const graveCounts: Record<string, number> = {};
+        for (const p of game.turnOrder) graveCounts[p] = 0;
+        for (const c of game.graveyard) {
+          const owner = c.owner || c.eliminatedBy || '';
+          if (graveCounts[owner] !== undefined) graveCounts[owner]++;
+        }
+        let minCount = Infinity;
+        let minPlayer = '';
+        for (const [p, count] of Object.entries(graveCounts)) {
+          if (count < minCount) { minCount = count; minPlayer = p; }
+        }
+        if (minPlayer) {
+          for (const c of game.field) {
+            if (c.owner === minPlayer && (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.pti != null) {
+              const oldPti = c.pti;
+              c.pti = c.pti * 2;
+              this.updateCardTextWithPTI(c);
+              console.log(`⚰️ CIMITERO VUOTO: ${c.name} PTI doubled ${oldPti} → ${c.pti}`);
+            }
+          }
+          const io = (global as any).io;
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-cimitero-vuoto`,
+              playerName: 'Sistema',
+              message: `⚰️ CIMITERO VUOTO! ${minPlayer} ha meno carte nel cimitero (${minCount}) - i PTI dei suoi personaggi raddoppiano!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        break;
+      }
+
+      case 'comunismo': {
+        const allChars = game.field.filter((c: Card) => 
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.pti != null
+        );
+        if (allChars.length > 0) {
+          const totalPti = allChars.reduce((sum: number, c: Card) => sum + (c.pti || 0), 0);
+          const totalStars = allChars.reduce((sum: number, c: Card) => sum + (c.stars || 0), 0);
+          const avgPti = Math.floor(totalPti / allChars.length);
+          const avgStars = Math.floor(totalStars / allChars.length);
+          for (const c of allChars) {
+            c.pti = avgPti;
+            c.stars = avgStars;
+            this.updateCardTextWithPTI(c);
+          }
+          console.log(`☭ COMUNISMO: All characters equalized to ${avgPti} PTI, ${avgStars} stars`);
+          const io = (global as any).io;
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-comunismo`,
+              playerName: 'Sistema',
+              message: `☭ COMUNISMO! Tutti i personaggi in campo ora hanno ${avgPti} PTI e ${avgStars} stelle (media calcolata)!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        break;
+      }
+
+      case 'conversione_danno': {
+        const myChar = this.getPlayerActiveCharacter(game, playerName);
+        if (myChar) {
+          const lastDmg = (myChar as any).lastDamageReceived || (game as any).lastDamageDealt || 100;
+          const oldPti = myChar.pti || 0;
+          myChar.pti = oldPti + lastDmg;
+          this.updateCardTextWithPTI(myChar);
+          console.log(`🔄 CONVERSIONE: ${myChar.name} gained ${lastDmg} PTI from last damage (${oldPti} → ${myChar.pti})`);
+          const io = (global as any).io;
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-conversione`,
+              playerName: 'Sistema',
+              message: `🔄 CONVERSIONE! ${myChar.name} recupera ${lastDmg} PTI (l'ultimo danno subito)! (PTI: ${oldPti} → ${myChar.pti})`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        break;
+      }
+
+      case 'corruzione': {
+        const ptiGift = action.value || 50;
+        const peaceTurns = 3;
+        const turnsMatch = action.description?.match(/(\d+)\s*turni/i);
+        const turns = turnsMatch ? parseInt(turnsMatch[1]) : peaceTurns;
+        const enemyChar = game.field.find((c: Card) => 
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.pti != null
+        );
+        if (enemyChar) {
+          enemyChar.pti = (enemyChar.pti || 0) + ptiGift;
+          this.updateCardTextWithPTI(enemyChar);
+          if (!(game as any).peaceRestrictions) (game as any).peaceRestrictions = [];
+          (game as any).peaceRestrictions.push({
+            protectedPlayer: playerName,
+            restrictedPlayer: enemyChar.owner,
+            turnsRemaining: turns,
+            timestamp: Date.now()
+          });
+          console.log(`💰 CORRUZIONE: ${enemyChar.name} gained ${ptiGift} PTI, ${enemyChar.owner} can't attack ${playerName} for ${turns} turns`);
+          const io = (global as any).io;
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-corruzione`,
+              playerName: 'Sistema',
+              message: `💰 CORRUZIONE! ${playerName} ha dato ${ptiGift} PTI a ${enemyChar.name} di ${enemyChar.owner}. ${enemyChar.owner} non può attaccare ${playerName} per ${turns} turni!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        break;
+      }
+
+      case 'deminkiatore': {
+        const myChar = this.getPlayerActiveCharacter(game, playerName);
+        if (myChar) {
+          (myChar as any).halveNextAttack = true;
+          console.log(`🛡️ DEMINKIATORE: ${myChar.name} will take half damage from next attack`);
+          const io = (global as any).io;
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-deminkiatore`,
+              playerName: 'Sistema',
+              message: `🛡️ DEMINKIATORE! ${myChar.name} dimezzerà i danni del prossimo attacco ricevuto!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        break;
+      }
+
+      case 'transform_weakest': {
+        const enemyChars = game.field.filter((c: Card) => 
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.pti != null
+        );
+        if (enemyChars.length > 0) {
+          const target = enemyChars.reduce((max: Card, c: Card) => (c.pti || 0) > (max.pti || 0) ? c : max, enemyChars[0]);
+          const oldName = target.name || this.getCardNameFromUrl(target.frontImage || '');
+          const oldPti = target.pti || 0;
+          target.pti = 50;
+          target.stars = 1;
+          this.updateCardTextWithPTI(target);
+          console.log(`🦋 TRANSFORM WEAKEST: ${oldName} transformed from ${oldPti} PTI to 50 PTI`);
+          const io = (global as any).io;
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-transform-weakest`,
+              playerName: 'Sistema',
+              message: `🦋 TRASFORMAZIONE! ${oldName} è stato trasformato nel personaggio più debole! (PTI: ${oldPti} → 50, Stelle: 1)`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        break;
+      }
+
+      case 'avvoltoio': {
+        const myChar = this.getPlayerActiveCharacter(game, playerName);
+        if (myChar && game.graveyard.length > 0) {
+          const lastDead = [...game.graveyard].reverse().find((c: Card) => 
+            c.type === 'personaggi' || c.type === 'personaggi_speciali'
+          );
+          if (lastDead) {
+            const deadPti = lastDead.pti || this.extractPTIFromNote(lastDead.text || '') || 500;
+            const oldPti = myChar.pti || 0;
+            myChar.pti = oldPti + deadPti;
+            this.updateCardTextWithPTI(myChar);
+            const deadName = lastDead.name || this.getCardNameFromUrl(lastDead.frontImage || '');
+            console.log(`🦅 AVVOLTOIO: ${myChar.name} inherited ${deadPti} PTI from dead ${deadName}`);
+            const io = (global as any).io;
+            if (io) {
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-avvoltoio`,
+                playerName: 'Sistema',
+                message: `🦅 AVVOLTOIO! ${myChar.name} ha ereditato ${deadPti} PTI da ${deadName} (caduto)! (PTI: ${oldPti} → ${myChar.pti})`,
+                timestamp: Date.now()
+              });
+            }
+          }
+        }
+        break;
+      }
+
+      case 'return_on_death': {
+        const myChar = this.getPlayerActiveCharacter(game, playerName);
+        if (myChar) {
+          (myChar as any).returnToHandOnDeath = true;
+          console.log(`🔄 BRIAN: ${myChar.name} will return to hand on death`);
+          const io = (global as any).io;
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-return-on-death`,
+              playerName: 'Sistema',
+              message: `🔄 ${myChar.name} tornerà in mano quando morirà, invece di andare al cimitero!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        break;
+      }
+
+      case 'return_to_deck': {
+        this.returnToDeck(gameId, card.id, playerName);
+        console.log(`📥 RETURN TO DECK: ${card.name || card.id} returned to deck`);
+        break;
+      }
+
       case 'heal_all':
         // Heal all allied characters
         for (const fieldCard of game.field) {
@@ -6703,6 +7177,16 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         return { success: false, error: 'Invalid target: must be a character on field' };
       }
       targetOwnerName = targetCard.owner;
+    }
+
+    // CORRUZIONE peace check: prevent attacks when peace restriction is active
+    if ((game as any).peaceRestrictions) {
+      const peaceList = (game as any).peaceRestrictions as Array<{protectedPlayer: string; restrictedPlayer: string; turnsRemaining: number}>;
+      const blocked = peaceList.find(p => p.restrictedPlayer === attackerName && p.protectedPlayer === targetOwnerName && p.turnsRemaining > 0);
+      if (blocked) {
+        console.log(`💰 CORRUZIONE BLOCK: ${attackerName} cannot attack ${targetOwnerName} for ${blocked.turnsRemaining} more turns`);
+        return { success: false, error: `💰 CORRUZIONE: Non puoi attaccare ${targetOwnerName} per altri ${blocked.turnsRemaining} turni!` };
+      }
     }
 
     const attackTypeLabel = isHandTarget ? '🎯 ATTACCO DISONESTO' : '⚔️ MOSSE';
@@ -9256,6 +9740,29 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         
         return { success: true, insuranceTriggered: true };
+      }
+    }
+
+    // BRIAN / RETURN ON DEATH: Check if card should return to hand instead of graveyard
+    if (cardToCheck && (cardToCheck as any).returnToHandOnDeath) {
+      const cardOwner = cardToCheck.owner || playerName;
+      if (game.players[cardOwner]) {
+        game.field = game.field.filter((c: Card) => c.id !== cardId);
+        delete (cardToCheck as any).returnToHandOnDeath;
+        cardToCheck.pti = cardToCheck.pti || 500;
+        game.players[cardOwner].hand.push(cardToCheck);
+        const cardName = cardToCheck.name || this.getCardNameFromUrl(cardToCheck.frontImage || '');
+        console.log(`🔄 RETURN ON DEATH: ${cardName} returned to ${cardOwner}'s hand instead of graveyard`);
+        const io = (global as any).io;
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-return-on-death-trigger`,
+            playerName: 'Sistema',
+            message: `🔄 ${cardName} torna in mano di ${cardOwner} invece di morire!`,
+            timestamp: Date.now()
+          });
+        }
+        return { success: true };
       }
     }
 
@@ -13804,6 +14311,30 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const gameState = this.games.get(gameId);
     if (!gameState || gameState.turnOrder.length === 0) return null;
 
+    // Save game state snapshot for REPLAY card (full state for atomic rollback)
+    if (!(gameState as any).stateSnapshots) (gameState as any).stateSnapshots = [];
+    const snapshot = {
+      turnNumber: gameState.currentTurnIndex,
+      field: JSON.parse(JSON.stringify(gameState.field)),
+      hands: Object.fromEntries(
+        Object.entries(gameState.players).map(([name, p]) => [name, JSON.parse(JSON.stringify((p as any).hand))])
+      ),
+      graveyard: JSON.parse(JSON.stringify(gameState.graveyard)),
+      currentTurnIndex: gameState.currentTurnIndex,
+      turnOrder: [...gameState.turnOrder],
+      delayedDeaths: gameState.delayedDeaths ? JSON.parse(JSON.stringify(gameState.delayedDeaths)) : [],
+      cardPlayRestrictions: (gameState as any).cardPlayRestrictions ? JSON.parse(JSON.stringify((gameState as any).cardPlayRestrictions)) : undefined,
+      peaceRestrictions: (gameState as any).peaceRestrictions ? JSON.parse(JSON.stringify((gameState as any).peaceRestrictions)) : undefined,
+      decks: gameState.decks ? Object.fromEntries(
+        Object.entries(gameState.decks).map(([key, deck]) => [key, JSON.parse(JSON.stringify(deck))])
+      ) : undefined,
+      timestamp: Date.now()
+    };
+    (gameState as any).stateSnapshots.push(snapshot);
+    if ((gameState as any).stateSnapshots.length > 10) {
+      (gameState as any).stateSnapshots = (gameState as any).stateSnapshots.slice(-10);
+    }
+
     // Process delayed deaths - decrement timers and kill cards when timer reaches 0
     if (gameState.delayedDeaths && gameState.delayedDeaths.length > 0) {
       const deathsToProcess: typeof gameState.delayedDeaths = [];
@@ -13973,6 +14504,48 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
         }
       }
+    }
+
+    // Process DITTATURA countdown
+    if ((gameState as any).cardPlayRestrictions) {
+      const restrictions = (gameState as any).cardPlayRestrictions as Array<{type: string; threshold: number; turnsRemaining: number; imposedBy: string}>;
+      for (const restriction of restrictions) {
+        restriction.turnsRemaining--;
+        if (restriction.turnsRemaining <= 0) {
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-dittatura-ended`,
+              playerName: 'Sistema',
+              message: `👑 La DITTATURA è finita! Tutti i personaggi possono essere giocati di nuovo.`,
+              timestamp: Date.now()
+            });
+            io.to(gameId).emit('dittatura-ended', {});
+          }
+        }
+      }
+      // Remove expired restrictions
+      (gameState as any).cardPlayRestrictions = restrictions.filter(r => r.turnsRemaining > 0);
+      if ((gameState as any).cardPlayRestrictions.length === 0) {
+        delete (gameState as any).cardPlayRestrictions;
+      }
+    }
+
+    // Process CORRUZIONE peace restrictions
+    if ((gameState as any).peaceRestrictions) {
+      const peaceList = (gameState as any).peaceRestrictions as Array<{protectedPlayer: string; restrictedPlayer: string; turnsRemaining: number}>;
+      for (const peace of peaceList) {
+        peace.turnsRemaining--;
+        if (peace.turnsRemaining <= 0 && io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-peace-ended`,
+            playerName: 'Sistema',
+            message: `💰 La corruzione tra ${peace.restrictedPlayer} e ${peace.protectedPlayer} è finita! Possono attaccarsi di nuovo.`,
+            timestamp: Date.now()
+          });
+        }
+      }
+      (gameState as any).peaceRestrictions = peaceList.filter(p => p.turnsRemaining > 0);
+      if ((gameState as any).peaceRestrictions.length === 0) delete (gameState as any).peaceRestrictions;
     }
 
     // Check if there's an active duel
@@ -17193,6 +17766,20 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     // ========== CUSTOM EFFECT INTEGRATION: SHIELD, REFLECT, COUNTER, LIFESTEAL ==========
     let effectiveDamage = damageValue;
+
+    // DEMINKIATORE check: halve damage if target has this flag
+    if ((targetCard as any).halveNextAttack) {
+      effectiveDamage = Math.floor(effectiveDamage / 2);
+      delete (targetCard as any).halveNextAttack;
+      const tName = targetCard.name || '';
+      console.log(`🛡️ DEMINKIATORE: ${tName} halved incoming damage to ${effectiveDamage}`);
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-deminkiatore-trigger`,
+        playerName: 'Sistema',
+        message: `🛡️ DEMINKIATORE! I danni a ${tName} sono stati dimezzati a ${effectiveDamage}!`,
+        timestamp: Date.now()
+      });
+    }
     
     // SHIELD EFFECT: Absorb damage up to shield amount
     if ((targetCard as any).shieldAmount && (targetCard as any).shieldAmount > 0) {
@@ -17365,6 +17952,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     // PRESERVE: Calculate new PTI after damage (using effective damage after shield)
     // If instant death effect, set newPTI to 0
     const newPTI = forceInstantDeath ? 0 : Math.max(0, currentPTI - effectiveDamage);
+
+    // Track last damage for CONVERSIONE effect
+    (targetCard as any).lastDamageReceived = effectiveDamage;
+    if (game) (game as any).lastDamageDealt = effectiveDamage;
     
     // Track damage dealt for missions/achievements (fire-and-forget)
     this.trackPlayerEvent(gameId, attackerName, 'damage_dealt', { amount: effectiveDamage }).catch(() => {});

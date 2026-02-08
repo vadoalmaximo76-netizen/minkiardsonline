@@ -191,6 +191,17 @@ const EFFECT_TYPES = [
   { id: 'split', label: 'Divisione', description: 'Divide una carta in più carte', icon: '✂️', category: 'speciale' },
   { id: 'teleport', label: 'Teletrasporto', description: 'Sposta una carta in una posizione diversa', icon: '🌀', category: 'speciale' },
   { id: 'time_travel', label: 'Viaggio nel Tempo', description: 'Riporta il gioco a uno stato precedente', icon: '⏰', category: 'speciale' },
+  { id: 'baratto', label: 'Baratto', description: 'Scambia tutte le carte (campo e mano) con un avversario', icon: '🔄', category: 'speciale' },
+  { id: 'ciclone', label: 'Ciclone', description: 'Le carte in campo ruotano al giocatore successivo', icon: '🌪️', category: 'speciale' },
+  { id: 'cimitero_vuoto', label: 'Cimitero Vuoto', description: 'Chi ha meno carte nel cimitero raddoppia i PTI', icon: '⚰️', category: 'speciale' },
+  { id: 'comunismo', label: 'Comunismo', description: 'Tutti i personaggi hanno la media dei PTI e stelle', icon: '☭', category: 'speciale' },
+  { id: 'conversione_danno', label: 'Conversione Danno', description: 'Recupera PTI pari all\'ultimo danno subito', icon: '🔄', category: 'supporto' },
+  { id: 'corruzione', label: 'Corruzione', description: 'Dai PTI a un avversario, non può attaccarti per N turni', icon: '💰', category: 'controllo' },
+  { id: 'deminkiatore', label: 'Deminkiatore', description: 'Dimezza i danni del prossimo attacco ricevuto', icon: '🛡️', category: 'difesa' },
+  { id: 'transform_weakest', label: 'Trasforma in Debole', description: 'Trasforma un nemico nel personaggio più debole', icon: '🦋', category: 'attacco' },
+  { id: 'avvoltoio', label: 'Avvoltoio', description: 'Guadagna i PTI dell\'ultimo personaggio morto', icon: '🦅', category: 'speciale' },
+  { id: 'return_on_death', label: 'Ritorno alla Morte', description: 'Quando muore, torna in mano invece del cimitero', icon: '🔄', category: 'difesa' },
+  { id: 'dittatura', label: 'Dittatura', description: 'Personaggi con meno di X PTI non possono essere giocati', icon: '👑', category: 'controllo' },
   
   // === MODIFICHE STATISTICHE ===
   { id: 'halve_pti', label: 'Dimezza PTI', description: 'Dimezza i PTI del bersaglio', icon: '➗', category: 'risorse' },
@@ -559,6 +570,39 @@ function generateEffectDescription(wizard: EffectWizardState): string {
       break;
     case 'time_travel':
       description = `Viaggio nel Tempo: riporta il gioco a ${value || 1} turni fa`;
+      break;
+    case 'baratto':
+      description = `Baratto: scambia tutte le carte (campo e mano) con un avversario`;
+      break;
+    case 'ciclone':
+      description = `Ciclone: le carte in campo ruotano al giocatore successivo`;
+      break;
+    case 'cimitero_vuoto':
+      description = `Cimitero Vuoto: chi ha meno carte nel cimitero raddoppia i PTI dei propri personaggi`;
+      break;
+    case 'comunismo':
+      description = `Comunismo: tutti i personaggi in campo hanno la media dei PTI e delle stelle`;
+      break;
+    case 'conversione_danno':
+      description = `Conversione: recupera PTI pari all'ultimo danno subito`;
+      break;
+    case 'corruzione':
+      description = `Corruzione: dai ${value || 50} PTI a un avversario, che non può attaccarti per ${value2 || 3} turni`;
+      break;
+    case 'deminkiatore':
+      description = `Deminkiatore: dimezza i danni del prossimo attacco ricevuto`;
+      break;
+    case 'transform_weakest':
+      description = `Trasforma un personaggio nemico nel personaggio più debole (50 PTI, 1 stella)`;
+      break;
+    case 'avvoltoio':
+      description = `Avvoltoio: guadagna i PTI dell'ultimo personaggio morto nel cimitero`;
+      break;
+    case 'return_on_death':
+      description = `Quando muore, torna in mano invece del cimitero`;
+      break;
+    case 'dittatura':
+      description = `Dittatura: i personaggi con meno di ${value || 100} PTI non possono essere giocati per ${value2 || 5} turni`;
       break;
     
     // === MODIFICHE STATISTICHE ===
