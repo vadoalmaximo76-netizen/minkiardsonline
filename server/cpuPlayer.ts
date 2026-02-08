@@ -1962,40 +1962,81 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           suggestedDamage = mosseCard.mosseDamageValue * attackerStars;
         }
         
-        // Emit damage request event to the game creator
-        this.socketEmitter.to(this.gameId).emit('cpu-damage-request', {
-          cpuName: this.playerName,
-          cpuCharacterName: this.playerName,
-          mosseCardId: cardId,
-          mosseCardName: mosseCardName,
-          mosseCardImage: mosseCard?.frontImage || '',
-          targetCardId: target.cardId,
-          targetCardName: target.name,
-          targetOwner: target.owner,
-          gameCreator: gameCreator,
-          timestamp: Date.now(),
-          // MOSSE damage auto-fill (with character override applied)
-          mosseDamageValue: effectiveDamageValue,
-          mosseDamageEffect: effectiveEffect,
-          suggestedDamage: suggestedDamage,
-          attackerStars: attackerStars,
-          mosseCharacterOverrides: mosseCard?.mosseCharacterOverrides || null,
-          // Add complete character data
-          attackerCharacter: attackerCard ? {
-            id: attackerCard.id,
-            name: attackerName,
-            image: attackerCard.frontImage,
-            notes: attackerCard.text || ''
-          } : null,
-          defenderCharacter: defenderCard ? {
-            id: defenderCard.id,
-            name: target.name,
-            image: defenderCard.frontImage,
-            notes: defenderCard.text || ''
-          } : null
-        });
-        
-        console.log(`🎯 CPU ${this.playerName}: Damage request emitted to game creator ${gameCreator}`);
+        // AUTO-SUBMIT: If damage is pre-calculated, execute the attack directly
+        if (suggestedDamage !== null && suggestedDamage !== undefined && this.gameManager) {
+          console.log(`🎯 CPU ${this.playerName}: AUTO-SUBMITTING attack (legacy path) with damage ${suggestedDamage}`);
+          
+          this.socketEmitter.to(this.gameId).emit('card-attacked', {
+            mosseCardId: cardId,
+            targetCardId: target.cardId,
+            attackerName: this.playerName,
+            targetOwner: target.owner,
+            damageValue: suggestedDamage,
+            timestamp: Date.now()
+          });
+          
+          const attackResult = await this.gameManager.executeMossaAttack(
+            this.gameId,
+            this.playerName,
+            cardId,
+            target.cardId,
+            suggestedDamage,
+            false,                    // isHandTarget
+            undefined,                // defenseRequestEmitter
+            0,                        // starsToRemove
+            effectiveEffect || null   // mosseEffect
+          );
+          
+          if (attackResult.success && attackResult.result?.requiresDefenseResponse) {
+            const pendingDefense = this.gameManager.getPendingDefense(this.gameId);
+            if (pendingDefense) {
+              pendingDefense.damage = suggestedDamage;
+              pendingDefense.mosseCardId = cardId;
+              (pendingDefense as any).starsToRemove = 0;
+            }
+          }
+          
+          const updatedState = this.gameManager.getSanitizedGameState(this.gameId);
+          if (updatedState) {
+            this.socketEmitter.to(this.gameId).emit('game-state-update', updatedState);
+          }
+          
+          this.waitingForAttackResolution = true;
+        } else {
+          // FALLBACK: No pre-calculated damage - show dialog for manual input
+          this.socketEmitter.to(this.gameId).emit('cpu-damage-request', {
+            cpuName: this.playerName,
+            cpuCharacterName: this.playerName,
+            mosseCardId: cardId,
+            mosseCardName: mosseCardName,
+            mosseCardImage: mosseCard?.frontImage || '',
+            targetCardId: target.cardId,
+            targetCardName: target.name,
+            targetOwner: target.owner,
+            gameCreator: gameCreator,
+            timestamp: Date.now(),
+            mosseDamageValue: effectiveDamageValue,
+            mosseDamageEffect: effectiveEffect,
+            suggestedDamage: suggestedDamage,
+            attackerStars: attackerStars,
+            mosseCharacterOverrides: mosseCard?.mosseCharacterOverrides || null,
+            attackerCharacter: attackerCard ? {
+              id: attackerCard.id,
+              name: attackerName,
+              image: attackerCard.frontImage,
+              notes: attackerCard.text || ''
+            } : null,
+            defenderCharacter: defenderCard ? {
+              id: defenderCard.id,
+              name: target.name,
+              image: defenderCard.frontImage,
+              notes: defenderCard.text || ''
+            } : null
+          });
+          
+          this.waitingForAttackResolution = true;
+          console.log(`🎯 CPU ${this.playerName}: Damage request emitted to game creator ${gameCreator}`);
+        }
       }
     }
 
@@ -2057,7 +2098,68 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       suggestedDamage = mosseCard.mosseDamageValue * attackerStars;
     }
     
-    // Emit damage request event ATOMICALLY with card play
+    // AUTO-SUBMIT: If we have pre-calculated damage, execute the attack directly on the server
+    // without requiring the game creator to manually confirm via the dialog
+    if (suggestedDamage !== null && suggestedDamage !== undefined && this.gameManager) {
+      console.log(`🎯 CPU ${this.playerName}: AUTO-SUBMITTING attack with pre-calculated damage ${suggestedDamage} (${effectiveDamageValue} × ${attackerStars} stars)`);
+      
+      this.sendChatMessage(`Attacco ${target.name} con ${mosseCardName}! Danno: ${suggestedDamage} PTI!`);
+      
+      // Broadcast attack animation to all players
+      this.socketEmitter.to(this.gameId).emit('card-attacked', {
+        mosseCardId: mosseCard.id,
+        targetCardId: target.cardId,
+        attackerName: this.playerName,
+        targetOwner: target.owner,
+        damageValue: suggestedDamage,
+        timestamp: Date.now()
+      });
+      
+      // Execute the attack directly via gameManager (correct parameter order)
+      const attackResult = await this.gameManager.executeMossaAttack(
+        this.gameId,
+        this.playerName,
+        mosseCard.id,
+        target.cardId,
+        suggestedDamage,
+        isHandTarget,           // boolean: is this an ATTACCO DISONESTO (hand target)?
+        undefined,              // defenseRequestEmitter: not needed, defense handled via socket
+        0,                      // starsToRemove
+        effectiveEffect || null // mosseEffect
+      );
+      
+      if (attackResult.success) {
+        console.log(`🎯 CPU ${this.playerName}: AUTO-ATTACK SUCCESS against ${target.name}`);
+        
+        // Check if defense is needed
+        if (attackResult.result?.requiresDefenseResponse) {
+          console.log(`🛡️ CPU ${this.playerName}: Attack requires defense response from ${target.owner}`);
+          const pendingDefense = this.gameManager.getPendingDefense(this.gameId);
+          if (pendingDefense) {
+            pendingDefense.damage = suggestedDamage;
+            pendingDefense.mosseCardId = mosseCard.id;
+            (pendingDefense as any).starsToRemove = 0;
+            console.log(`📝 CPU stored damage ${suggestedDamage} for pending defense ${pendingDefense.attackId}`);
+          }
+        }
+      } else {
+        console.log(`🎯 CPU ${this.playerName}: AUTO-ATTACK FAILED: ${attackResult.error}`);
+      }
+      
+      // Emit updated game state
+      const updatedState = this.gameManager.getSanitizedGameState(this.gameId);
+      if (updatedState) {
+        this.socketEmitter.to(this.gameId).emit('game-state-update', updatedState);
+      }
+      
+      // Set flag to wait for attack resolution (defense etc.)
+      this.waitingForAttackResolution = true;
+      console.log(`🎯 CPU ${this.playerName}: AUTO-ATTACK COMPLETE - waiting for defense resolution`);
+      return;
+    }
+    
+    // FALLBACK: No pre-calculated damage - show dialog to game creator for manual input
+    console.log(`🎯 CPU ${this.playerName}: No pre-calculated damage - requesting from game creator`);
     this.socketEmitter.to(this.gameId).emit('cpu-damage-request', {
       cpuName: this.playerName,
       cpuCharacterName: this.playerName,
@@ -2069,8 +2171,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       targetOwner: target.owner,
       gameCreator: gameCreator,
       timestamp: Date.now(),
-      isHandTarget: isHandTarget,  // NEW: Flag for ATTACCO DISONESTO
-      // MOSSE damage auto-fill (with character override applied)
+      isHandTarget: isHandTarget,
       mosseDamageValue: effectiveDamageValue,
       mosseDamageEffect: effectiveEffect,
       suggestedDamage: suggestedDamage,
@@ -2092,7 +2193,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     
     // Set flag to wait for attack resolution
     this.waitingForAttackResolution = true;
-    console.log(`🎯 CPU ${this.playerName}: ATOMIC EMISSION COMPLETE - waiting for damage input and defense`);
+    console.log(`🎯 CPU ${this.playerName}: DAMAGE REQUEST SENT - waiting for game creator input`);
   }
 
   // CRITICAL FIX: Execute BONUS card action and draw replacement  
