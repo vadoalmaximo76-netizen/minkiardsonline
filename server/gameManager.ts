@@ -2482,8 +2482,21 @@ Rispondi SOLO in JSON:`;
       
       // Process custom card effect if present (works for all cards with effects - custom, permanent, or modified)
       // Check both effect field AND text field for effect descriptions
-      const effectText = card.effect || '';
+      let effectText = card.effect || '';
       const textContent = card.text || '';
+      
+      // Detect known card effects by name when effect text is missing
+      const cardNameLower = (card.name || this.getCardNameFromUrl(card.frontImage || '')).toLowerCase().trim();
+      if (!effectText && !textContent) {
+        const knownNameEffects: Record<string, string> = {
+          'asta': "Parte un'asta tra i partecipanti per un personaggio dal mazzo usando punti Rankiard",
+        };
+        if (knownNameEffects[cardNameLower]) {
+          effectText = knownNameEffects[cardNameLower];
+          card.effect = effectText;
+        }
+      }
+      
       const combinedEffect = effectText || textContent;
       const hasEffect = this.cardHasCustomEffect(effectText, textContent);
       
