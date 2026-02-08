@@ -2877,7 +2877,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
         {/* Left side buttons - hide when any side panel is open */}
         <div
-          className="fixed left-2 landscape:left-4 md:left-4 bottom-0 z-50 flex flex-col gap-0 transition-all duration-300"
+          className="fixed left-2 landscape:left-4 md:left-4 bottom-14 landscape:bottom-16 md:bottom-16 z-50 flex flex-col gap-1 transition-all duration-300"
           style={{
             opacity: (chatOpen || calculatorOpen || gameLogOpen || soundSettingsOpen || musicPlayerOpen) ? 0 : 1,
             pointerEvents: (chatOpen || calculatorOpen || gameLogOpen || soundSettingsOpen || musicPlayerOpen) ? 'none' : 'auto',
