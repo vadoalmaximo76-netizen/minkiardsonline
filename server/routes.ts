@@ -5207,7 +5207,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // RIFUGIO: Restore protection for the next player's characters at start of their turn
         gameManager.restoreRifugioProtection(gameId, nextPlayer, io);
         
-        // OSTAGGIO: Process hostage turn countdown for the player who just ended their turn
+        // OSTAGGIO: Process hostage turn countdown - counts ALL turns (any player ending), not just captor's turns
         gameManager.processHostageTurns(gameId, playerName, io);
         
         // Send game state update after hostage processing

@@ -1476,7 +1476,9 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           } else {
             this.sendChatMessage(`Devo mettere un personaggio in campo!`);
           }
-          this.markActionExecuted('execute'); // This counts as an action
+          // DO NOT mark action as executed - placing a character when you have none usable
+          // is a MANDATORY action, not a strategic turn action. The CPU should still be able
+          // to play MOSSE/BONUS cards after placing the replacement character.
           return {
             type: 'play-card',
             data: {

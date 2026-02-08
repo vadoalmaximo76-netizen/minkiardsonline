@@ -8215,16 +8215,20 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   }
   
   // Process hostage turn countdown (called when captor's turn ends)
-  processHostageTurns(gameId: string, captorPlayerName: string, io: any): void {
+  processHostageTurns(gameId: string, endingPlayerName: string, io: any): void {
     const game = this.games.get(gameId);
     if (!game) return;
     
-    // Find all characters held hostage by this player
-    const hostages = game.field.filter(c => c.isHostage && c.hostagedBy === captorPlayerName);
+    // Process ALL hostages in the game, not just those held by the ending player.
+    // The hostage duration is measured in game turns (any player's turn), not just captor's turns.
+    // This ensures 3 hostage turns = 3 real turns, regardless of number of players.
+    const hostages = game.field.filter(c => c.isHostage);
     
     for (const hostage of hostages) {
       if (hostage.hostageTurnsRemaining && hostage.hostageTurnsRemaining > 0) {
         hostage.hostageTurnsRemaining--;
+        
+        const captorPlayer = hostage.hostagedBy || 'unknown';
         
         // Update OSTAGGIO card text
         const ostaggioCard = game.field.find(c => c.id === hostage.hostageOstaggioCardId);
@@ -8236,10 +8240,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         io.to(gameId).emit('hostage-updated', {
           targetCardId: hostage.id,
           turnsRemaining: hostage.hostageTurnsRemaining,
-          captorPlayer: captorPlayerName
+          captorPlayer
         });
         
-        console.log(`⛓️ OSTAGGIO: ${this.getCardNameFromUrl(hostage.frontImage)} has ${hostage.hostageTurnsRemaining} turns remaining`);
+        console.log(`⛓️ OSTAGGIO: ${this.getCardNameFromUrl(hostage.frontImage)} has ${hostage.hostageTurnsRemaining} turns remaining (turn ended by ${endingPlayerName})`);
         
         // Check if hostage should be released
         if (hostage.hostageTurnsRemaining <= 0) {
@@ -8303,6 +8307,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       originalOwner,
       captorPlayer
     });
+    
+    // Emit game state update so clients reflect the hostage release immediately
+    const updatedGameState = this.getSanitizedGameState(gameId);
+    if (updatedGameState) {
+      io.to(gameId).emit('game-state-update', updatedGameState);
+    }
     
     console.log(`⛓️🔓 OSTAGGIO: ${hostageName} released, returned to ${originalOwner}`);
     return { success: true, message: `${hostageName} è stato liberato!` };
