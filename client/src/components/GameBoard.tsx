@@ -2875,14 +2875,31 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           <Graveyard onClose={() => setGraveyardOpen(false)} />
         )}
 
+        {/* Left side buttons - hide when any side panel is open */}
+        <div
+          className="fixed left-2 landscape:left-4 md:left-4 bottom-0 z-50 flex flex-col gap-0 transition-all duration-300"
+          style={{
+            opacity: (chatOpen || calculatorOpen || gameLogOpen || soundSettingsOpen || musicPlayerOpen) ? 0 : 1,
+            pointerEvents: (chatOpen || calculatorOpen || gameLogOpen || soundSettingsOpen || musicPlayerOpen) ? 'none' : 'auto',
+            transform: (chatOpen || calculatorOpen || gameLogOpen || soundSettingsOpen || musicPlayerOpen) ? 'translateX(-20px)' : 'translateX(0)',
+          }}
+        >
         {/* Music Player Button */}
         <Button
           onClick={() => setMusicPlayerOpen(!musicPlayerOpen)}
-          className="fixed bottom-48 landscape:bottom-56 md:bottom-56 left-2 landscape:left-4 md:left-4 btn-neon-pink text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 z-50 shadow-lg hover:shadow-xl transition-all duration-200"
-          style={{ position: 'fixed' }}
+          className="btn-neon-pink text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200 mb-1"
           title="Music Player"
         >
           <Music size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
+        </Button>
+
+        {/* Sound Settings Button */}
+        <Button
+          onClick={() => setSoundSettingsOpen(!soundSettingsOpen)}
+          className="btn-neon-cyan text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200 mb-1"
+          title="Impostazioni Audio"
+        >
+          <Settings size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
         </Button>
 
         {/* Sound Toggle Button */}
@@ -2891,22 +2908,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             initAudioContext();
             toggleMute();
           }}
-          className="fixed bottom-24 landscape:bottom-32 md:bottom-32 left-2 landscape:left-4 md:left-4 btn-neon-purple text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 z-50 shadow-lg hover:shadow-xl transition-all duration-200"
-          style={{ position: 'fixed' }}
+          className="btn-neon-purple text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200 mb-1"
           title={isMuted ? "Enable sound" : "Disable sound"}
         >
           {isMuted ? <VolumeX size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" /> : <Volume2 size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />}
         </Button>
-
-        {/* Sound Settings Button */}
-        <Button
-          onClick={() => setSoundSettingsOpen(!soundSettingsOpen)}
-          className="fixed bottom-36 landscape:bottom-44 md:bottom-44 left-2 landscape:left-4 md:left-4 btn-neon-cyan text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 z-50 shadow-lg hover:shadow-xl transition-all duration-200"
-          style={{ position: 'fixed' }}
-          title="Impostazioni Audio"
-        >
-          <Settings size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
-        </Button>
+        </div>
 
         <div id="sound-settings-container">
           {soundSettingsOpen && (
@@ -2924,8 +2931,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           onClose={() => setMusicPlayerOpen(false)}
         />
 
-        {/* Game controls */}
-        <div data-tutorial="tools" className="fixed bottom-2 landscape:bottom-4 md:bottom-4 right-2 landscape:right-4 md:right-4 flex flex-col gap-1 landscape:gap-2 md:gap-2 z-50">
+        {/* Game controls - hide when any side panel is open */}
+        <div
+          data-tutorial="tools"
+          className="fixed bottom-2 landscape:bottom-4 md:bottom-4 right-2 landscape:right-4 md:right-4 flex flex-col gap-1 landscape:gap-2 md:gap-2 z-50 transition-all duration-300"
+          style={{
+            opacity: (chatOpen || calculatorOpen || gameLogOpen || soundSettingsOpen || musicPlayerOpen) ? 0 : 1,
+            pointerEvents: (chatOpen || calculatorOpen || gameLogOpen || soundSettingsOpen || musicPlayerOpen) ? 'none' : 'auto',
+            transform: (chatOpen || calculatorOpen || gameLogOpen || soundSettingsOpen || musicPlayerOpen) ? 'translateX(20px)' : 'translateX(0)',
+          }}
+        >
           <Button
             data-tutorial="hand"
             onClick={() => setHandModalOpen(true)}
