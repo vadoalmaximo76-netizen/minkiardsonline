@@ -329,6 +329,20 @@ interface GameState {
     fusionClone?: boolean;
     bonusPti?: number;
   }>; // Pending target selection for custom effects with [BERSAGLIO: scelta]
+  activeAuction?: {
+    auctionId: string;
+    initiatorPlayer: string;
+    card: Card;
+    cardPti: number;
+    cardStars: number;
+    currentBid: number;
+    currentBidder: string | null;
+    participants: Record<string, { maxPoints: number; remainingPoints: number; isCPU: boolean }>;
+    countdownTimer: any;
+    countdownRemaining: number;
+    startedAt: number;
+    ended: boolean;
+  };
   pendingAutoDice?: Map<string, {
     cardId: string;
     cardName: string;
@@ -2884,6 +2898,11 @@ Rispondi SOLO in JSON:`;
       actions.push({ type: 'baratto', target: 'opponents', value: 0, description: 'Scambio totale: scambia tutte le carte (campo e mano) con un avversario' });
     }
 
+    // ============ ASTA / AUCTION PATTERN ============
+    if (/\basta\b|asta.*personaggio|asta.*mazzo|asta.*rankiard|parte.*un'?asta|scambi.*asta/i.test(text)) {
+      actions.push({ type: 'asta', target: 'all', value: 0, description: "Asta: parte un'asta tra i partecipanti per un personaggio dal mazzo usando punti Rankiard" });
+    }
+
     // ============ CICLONE / CARD ROTATION PATTERN ============
     if (/ciclone|rotazione.*carte|carte.*ruotano|giro.*carte|passaggio.*catena|carte.*passano.*prossimo|sposta.*tutt[ie].*carte/i.test(text)) {
       actions.push({ type: 'ciclone', target: 'all', value: 0, description: 'Ciclone: le carte in campo ruotano al giocatore successivo' });
@@ -5299,6 +5318,24 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           });
           const gameState = this.getSanitizedGameState(gameId);
           io.to(gameId).emit('game-state-update', gameState);
+        }
+        break;
+      }
+
+      case 'asta': {
+        const io = (global as any).io;
+        if (io) {
+          io.to(gameId).emit('auction-select-character', {
+            playerName,
+            gameId,
+            timestamp: Date.now()
+          });
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-asta`,
+            playerName: 'Sistema',
+            message: `🔨 ASTA! ${playerName} ha giocato ASTA! Deve scegliere un personaggio dal mazzo da mettere all'asta!`,
+            timestamp: Date.now()
+          });
         }
         break;
       }
@@ -10114,6 +10151,201 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
   getPendingDeckPick(gameId: string, playerName: string): { cardId: string; deckType: string; timestamp: number } | undefined {
     return this.pendingDeckPicks.get(`${gameId}:${playerName}`);
+  }
+
+  // ============ AUCTION SYSTEM ============
+
+  startAuction(gameId: string, card: Card, initiatorPlayer: string, io: any): boolean {
+    const game = this.games.get(gameId);
+    if (!game || game.activeAuction) return false;
+
+    const cardName = card.name || this.getCardNameFromUrl(card.frontImage);
+    const cachedData = getPersonaggioFromCache(cardName);
+    const cardPti = cachedData?.pti || card.pti || 1000;
+    const cardStars = cachedData?.stars || card.stars || 1;
+
+    card.text = `PTI: ${cardPti} | Stelle: ${cardStars} | PTI originali: ${cardPti}`;
+    card.pti = cardPti;
+    card.stars = cardStars;
+    card.name = card.name || cardName;
+
+    const participants: Record<string, { maxPoints: number; remainingPoints: number; isCPU: boolean }> = {};
+    for (const [pName, player] of Object.entries(game.players)) {
+      const isCPU = !!(player as any).isCPU || pName.startsWith('CPU');
+      participants[pName] = {
+        maxPoints: isCPU ? 30 : 0,
+        remainingPoints: isCPU ? 30 : 0,
+        isCPU
+      };
+    }
+
+    const auctionId = `auction-${Date.now()}`;
+    game.activeAuction = {
+      auctionId,
+      initiatorPlayer,
+      card,
+      cardPti,
+      cardStars,
+      currentBid: 0,
+      currentBidder: null,
+      participants,
+      countdownTimer: null,
+      countdownRemaining: 3,
+      startedAt: Date.now(),
+      ended: false
+    };
+
+    console.log(`🔨 ASTA started by ${initiatorPlayer}: ${cardName} (${cardPti} PTI, ${cardStars} stelle)`);
+    return true;
+  }
+
+  placeBid(gameId: string, playerName: string, bidAmount: number, io: any): { success: boolean; message?: string } {
+    const game = this.games.get(gameId);
+    if (!game?.activeAuction || game.activeAuction.ended) {
+      return { success: false, message: 'Nessuna asta attiva' };
+    }
+
+    const auction = game.activeAuction;
+    const participant = auction.participants[playerName];
+    if (!participant) {
+      return { success: false, message: 'Non sei un partecipante' };
+    }
+
+    if (bidAmount <= auction.currentBid) {
+      return { success: false, message: 'L\'offerta deve essere superiore a quella attuale' };
+    }
+
+    if (!participant.isCPU && bidAmount > participant.remainingPoints) {
+      return { success: false, message: 'Non hai abbastanza punti Rankiard' };
+    }
+
+    if (participant.isCPU && bidAmount > participant.remainingPoints) {
+      return { success: false, message: 'CPU non ha abbastanza punti' };
+    }
+
+    auction.currentBid = bidAmount;
+    auction.currentBidder = playerName;
+    auction.countdownRemaining = 3;
+
+    if (auction.countdownTimer) {
+      clearInterval(auction.countdownTimer);
+    }
+
+    this.startAuctionCountdown(gameId, io);
+
+    console.log(`🔨 ASTA: ${playerName} offre ${bidAmount} punti Rankiard`);
+    return { success: true };
+  }
+
+  private startAuctionCountdown(gameId: string, io: any): void {
+    const game = this.games.get(gameId);
+    if (!game?.activeAuction) return;
+
+    const auction = game.activeAuction;
+    auction.countdownRemaining = 3;
+
+    if (auction.countdownTimer) {
+      clearInterval(auction.countdownTimer);
+    }
+
+    auction.countdownTimer = setInterval(() => {
+      if (!game.activeAuction || game.activeAuction.ended) {
+        clearInterval(auction.countdownTimer);
+        return;
+      }
+
+      auction.countdownRemaining--;
+
+      io.to(gameId).emit('auction-countdown', {
+        remaining: auction.countdownRemaining,
+        currentBid: auction.currentBid,
+        currentBidder: auction.currentBidder
+      });
+
+      if (auction.countdownRemaining <= 0) {
+        clearInterval(auction.countdownTimer);
+        this.endAuction(gameId, io);
+      }
+    }, 1000);
+  }
+
+  async endAuction(gameId: string, io: any): Promise<void> {
+    const game = this.games.get(gameId);
+    if (!game?.activeAuction || game.activeAuction.ended) return;
+
+    const auction = game.activeAuction;
+    auction.ended = true;
+
+    if (auction.countdownTimer) {
+      clearInterval(auction.countdownTimer);
+    }
+
+    const winner = auction.currentBidder;
+    const winningBid = auction.currentBid;
+    const card = auction.card;
+    const cardName = card.name || this.getCardNameFromUrl(card.frontImage);
+
+    if (!winner || winningBid <= 0) {
+      io.to(gameId).emit('auction-ended', {
+        winner: null,
+        bid: 0,
+        cardName,
+        cardImage: card.frontImage,
+        message: "Nessuno ha fatto offerte! L'asta è andata deserta."
+      });
+      game.activeAuction = undefined;
+      return;
+    }
+
+    const participant = auction.participants[winner];
+    if (!participant.isCPU) {
+      try {
+        const userId = game.playerUserIds?.get(winner);
+        if (userId) {
+          await db.execute(
+            sql`UPDATE users SET punti_rankiard = GREATEST(0, punti_rankiard - ${winningBid}) WHERE id = ${userId}`
+          );
+          console.log(`🔨 ASTA: Deducted ${winningBid} Rankiard points from ${winner} (userId: ${userId})`);
+        }
+      } catch (error) {
+        console.error(`Error deducting Rankiard points for auction:`, error);
+      }
+    }
+
+    card.owner = winner;
+    card.faceDown = false;
+    game.field.push(card);
+
+    this.autoAnalyzePersonaggioCardSync(card, winner);
+
+    console.log(`🔨 ASTA CONCLUSA: ${winner} ha vinto ${cardName} per ${winningBid} punti Rankiard!`);
+
+    io.to(gameId).emit('auction-ended', {
+      winner,
+      bid: winningBid,
+      cardName,
+      cardImage: card.frontImage,
+      cardPti: auction.cardPti,
+      cardStars: auction.cardStars,
+      message: `${winner} ha vinto l'asta per ${cardName} con ${winningBid} punti Rankiard!`
+    });
+
+    io.to(gameId).emit('chat-message', {
+      id: `${Date.now()}-auction-end`,
+      playerName: 'Sistema',
+      message: `🔨 AGGIUDICATO! ${winner} ha vinto ${cardName} per ${winningBid} punti Rankiard!`,
+      timestamp: Date.now()
+    });
+
+    game.activeAuction = undefined;
+
+    const gameState = this.getSanitizedGameState(gameId);
+    io.to(gameId).emit('game-state-update', gameState);
+  }
+
+  getActiveAuction(gameId: string): any {
+    const game = this.games.get(gameId);
+    return game?.activeAuction || null;
   }
 
   clearPendingDeckPick(gameId: string, playerName: string): void {

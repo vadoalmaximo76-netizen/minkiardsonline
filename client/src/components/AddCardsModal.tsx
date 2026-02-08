@@ -202,6 +202,7 @@ const EFFECT_TYPES = [
   { id: 'avvoltoio', label: 'Avvoltoio', description: 'Guadagna i PTI dell\'ultimo personaggio morto', icon: '🦅', category: 'speciale' },
   { id: 'return_on_death', label: 'Ritorno alla Morte', description: 'Quando muore, torna in mano invece del cimitero', icon: '🔄', category: 'difesa' },
   { id: 'dittatura', label: 'Dittatura', description: 'Personaggi con meno di X PTI non possono essere giocati', icon: '👑', category: 'controllo' },
+  { id: 'asta', label: 'Asta', description: 'Asta tra i giocatori per un personaggio dal mazzo usando punti Rankiard', icon: '🔨', category: 'speciale' },
   
   // === MODIFICHE STATISTICHE ===
   { id: 'halve_pti', label: 'Dimezza PTI', description: 'Dimezza i PTI del bersaglio', icon: '➗', category: 'risorse' },
@@ -604,6 +605,9 @@ function generateEffectDescription(wizard: EffectWizardState): string {
     case 'dittatura':
       description = `Dittatura: i personaggi con meno di ${value || 100} PTI non possono essere giocati per ${value2 || 5} turni`;
       break;
+    case 'asta':
+      description = `Asta: parte un'asta tra i partecipanti per un personaggio dal mazzo. I soldi utilizzati sono i punti Rankiard`;
+      break;
     
     // === MODIFICHE STATISTICHE ===
     case 'halve_pti':
@@ -991,8 +995,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   };
 
   const getStepCount = () => {
-    const noValueEffects = ['protection', 'copy', 'extra_turn', 'nullify', 'summon', 'resurrect'];
-    const noTargetEffects = ['protection', 'custom', 'copy', 'extra_turn', 'skip', 'nullify', 'summon', 'resurrect', 'revenge'];
+    const noValueEffects = ['protection', 'copy', 'extra_turn', 'nullify', 'summon', 'resurrect', 'asta'];
+    const noTargetEffects = ['protection', 'custom', 'copy', 'extra_turn', 'skip', 'nullify', 'summon', 'resurrect', 'revenge', 'asta'];
     
     if (effectWizard.effectType === 'custom') {
       return effectWizard.aiQuestions.length > 0 ? 4 : 3;

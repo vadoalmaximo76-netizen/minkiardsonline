@@ -25,6 +25,7 @@ import { ClashBattle } from "./ClashBattle";
 import { CPUDamageDialog } from "./CPUDamageDialog";
 import { DuelDamageDialog } from "./DuelDamageDialog";
 import { RecursiveDamagePanel } from "./RecursiveDamagePanel";
+import AuctionOverlay from "./AuctionOverlay";
 import { HandModal } from "./HandModal";
 import { MusicPlayer } from "./MusicPlayer";
 import { VoiceChat } from "./VoiceChat";
@@ -298,6 +299,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   }>({ visible: false, autoDiceId: '', cardName: '', defaultEffects: {}, availableCharacters: [], initiatorPlayer: '' });
   const [autoDiceSelectedChars, setAutoDiceSelectedChars] = useState<string[]>([]);
   const [autoDiceCustomEffects, setAutoDiceCustomEffects] = useState<Record<number, string>>({});
+  // AUCTION SYSTEM
+  const [auctionData, setAuctionData] = useState<any>(null);
+  const [auctionBidUpdate, setAuctionBidUpdate] = useState<any>(null);
+  const [auctionCountdownUpdate, setAuctionCountdownUpdate] = useState<any>(null);
+  const [auctionResult, setAuctionResult] = useState<any>(null);
+  const [auctionDeckPicker, setAuctionDeckPicker] = useState<{
+    visible: boolean;
+    cards: Array<{ id: string; name: string; frontImage: string; type: string; pti?: number; stars?: number }>;
+    initiator: string;
+  }>({ visible: false, cards: [], initiator: '' });
   const [lastPlayedCards, setLastPlayedCards] = useState<Array<{
     id: string;
     frontImage: string;
@@ -839,6 +850,49 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       }
     };
     socket.on('show-deck-card-picker', handleShowDeckCardPicker);
+
+    // AUCTION SYSTEM LISTENERS
+    const handleAuctionSelectCharacter = (data: { playerName: string; gameId: string }) => {
+      if (data.playerName === playerName) {
+        socket.emit('get-deck-contents', { deckType: 'personaggi' });
+        const onDeckContents = (deckData: { deckType: string; cards: any[] }) => {
+          if (deckData.deckType === 'personaggi') {
+            setAuctionDeckPicker({
+              visible: true,
+              cards: deckData.cards,
+              initiator: data.playerName
+            });
+            socket.off('deck-contents', onDeckContents);
+          }
+        };
+        socket.on('deck-contents', onDeckContents);
+      }
+    };
+    socket.on('auction-select-character', handleAuctionSelectCharacter);
+
+    const handleAuctionStarted = (data: any) => {
+      setAuctionData(data);
+      setAuctionBidUpdate(null);
+      setAuctionCountdownUpdate(null);
+      setAuctionResult(null);
+      setAuctionDeckPicker({ visible: false, cards: [], initiator: '' });
+    };
+    socket.on('auction-started', handleAuctionStarted);
+
+    const handleAuctionBidUpdate = (data: any) => {
+      setAuctionBidUpdate({ ...data, _ts: Date.now() });
+    };
+    socket.on('auction-bid-update', handleAuctionBidUpdate);
+
+    const handleAuctionCountdown = (data: any) => {
+      setAuctionCountdownUpdate({ ...data, _ts: Date.now() });
+    };
+    socket.on('auction-countdown', handleAuctionCountdown);
+
+    const handleAuctionEnded = (data: any) => {
+      setAuctionResult(data);
+    };
+    socket.on('auction-ended', handleAuctionEnded);
 
     // SWAP SELECTION: Handle baratto/swap panel for selecting player to swap with
     const handleShowSwapSelection = (data: { cardId: string; cardName: string; playerName: string; otherPlayers: string[]; effectDescription: string }) => {
@@ -1432,6 +1486,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('show-pti-input-panel', handleShowPtiInputPanel);
       socket.off('show-deck-selection', handleShowDeckSelection);
       socket.off('show-deck-card-picker', handleShowDeckCardPicker);
+      socket.off('auction-select-character', handleAuctionSelectCharacter);
+      socket.off('auction-started', handleAuctionStarted);
+      socket.off('auction-bid-update', handleAuctionBidUpdate);
+      socket.off('auction-countdown', handleAuctionCountdown);
+      socket.off('auction-ended', handleAuctionEnded);
       socket.off('show-swap-selection', handleShowSwapSelection);
       socket.off('show-dice-control-panel', handleShowDiceControlPanel);
       socket.off('show-target-selection', handleShowTargetSelection);
@@ -3096,6 +3155,50 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           onComplete={() => setCardAnimationVisible(false)}
         />
         
+        {/* AUCTION DECK PICKER - for selecting character to auction */}
+        {auctionDeckPicker.visible && (
+          <div className="fixed inset-0 z-[9998] flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.85)' }}>
+            <div className="bg-slate-900 border-2 border-amber-500/50 rounded-2xl p-6 max-w-3xl max-h-[80vh] overflow-y-auto">
+              <h2 className="text-2xl font-black text-amber-400 text-center mb-4">🔨 SCEGLI UN PERSONAGGIO PER L'ASTA</h2>
+              <p className="text-amber-200/60 text-center text-sm mb-4">Seleziona il personaggio da mettere all'asta</p>
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                {auctionDeckPicker.cards.filter(c => c.type === 'personaggi' || c.type === 'personaggi_speciali').map(card => (
+                  <div
+                    key={card.id}
+                    onClick={() => {
+                      socket.emit('auction-select-card', { cardId: card.id, playerName });
+                      setAuctionDeckPicker({ visible: false, cards: [], initiator: '' });
+                    }}
+                    className="cursor-pointer rounded-lg border-2 border-transparent hover:border-amber-400 transition-all hover:scale-105 p-1 bg-black/30"
+                  >
+                    <img src={card.frontImage} alt={card.name || 'Card'} className="w-full h-28 object-cover rounded" />
+                    {card.name && <p className="text-white text-[10px] text-center mt-1 truncate">{card.name}</p>}
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => setAuctionDeckPicker({ visible: false, cards: [], initiator: '' })}
+                className="mt-4 w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg"
+              >
+                ANNULLA
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* AUCTION OVERLAY */}
+        {auctionData && (
+          <AuctionOverlay
+            auctionData={auctionData}
+            currentPlayerName={playerName}
+            onPlaceBid={(amount) => socket.emit('auction-place-bid', { bidAmount: amount, playerName })}
+            onClose={() => { setAuctionData(null); setAuctionResult(null); }}
+            bidUpdates={auctionBidUpdate}
+            countdownUpdate={auctionCountdownUpdate}
+            auctionResult={auctionResult}
+          />
+        )}
+
         {/* Custom Animation Overlay */}
         {customAnimationVisible && customAnimationData && (
           <CustomAnimationOverlay

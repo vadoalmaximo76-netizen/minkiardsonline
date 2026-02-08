@@ -2666,6 +2666,145 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // ============ AUCTION SYSTEM SOCKET HANDLERS ============
+
+    socket.on('auction-select-card', async ({ cardId, playerName }: { cardId: string, playerName: string }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+
+      const game = gameManager.getGameState(gameId);
+      if (!game) return;
+
+      const deckIndex = game.decks.personaggi.findIndex((c: any) => c.id === cardId);
+      if (deckIndex === -1) return;
+
+      const card = game.decks.personaggi.splice(deckIndex, 1)[0];
+      
+      const success = gameManager.startAuction(gameId, card, playerName, io);
+      if (!success) {
+        game.decks.personaggi.push(card);
+        return;
+      }
+
+      const auction = gameManager.getActiveAuction(gameId);
+      if (!auction) return;
+
+      const playerRankiards: Record<string, number> = {};
+      for (const [pName, participant] of Object.entries(auction.participants)) {
+        if ((participant as any).isCPU) {
+          playerRankiards[pName] = 30;
+        } else {
+          const userId = game.playerUserIds?.get(pName);
+          if (userId) {
+            try {
+              const result = await db.select({ puntiRankiard: users.puntiRankiard }).from(users).where(eq(users.id, userId));
+              if (result[0]) {
+                playerRankiards[pName] = result[0].puntiRankiard;
+                auction.participants[pName].maxPoints = result[0].puntiRankiard;
+                auction.participants[pName].remainingPoints = result[0].puntiRankiard;
+              }
+            } catch (e) {
+              playerRankiards[pName] = 0;
+            }
+          }
+        }
+      }
+
+      io.to(gameId).emit('auction-started', {
+        auctionId: auction.auctionId,
+        cardName: card.name || getCardNameFromImageUrl(card.frontImage),
+        cardImage: card.frontImage,
+        cardPti: auction.cardPti,
+        cardStars: auction.cardStars,
+        initiator: playerName,
+        playerRankiards,
+        currentBid: 0,
+        currentBidder: null,
+        countdown: 3
+      });
+
+      setTimeout(() => {
+        const currentAuction = gameManager.getActiveAuction(gameId);
+        if (currentAuction && !currentAuction.ended) {
+          triggerCPUAuctionBids(gameId, io);
+        }
+      }, 2000);
+    });
+
+    socket.on('auction-place-bid', ({ bidAmount, playerName }: { bidAmount: number, playerName: string }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+
+      const result = gameManager.placeBid(gameId, playerName, bidAmount, io);
+      if (result.success) {
+        const auction = gameManager.getActiveAuction(gameId);
+        if (auction) {
+          io.to(gameId).emit('auction-bid-update', {
+            bidder: playerName,
+            amount: bidAmount,
+            countdown: 3
+          });
+        }
+      } else {
+        socket.emit('auction-bid-error', { message: result.message });
+      }
+    });
+
+    function triggerCPUAuctionBids(gameId: string, io: any) {
+      const auction = gameManager.getActiveAuction(gameId);
+      if (!auction || auction.ended) return;
+
+      const game = gameManager.getGameState(gameId);
+      if (!game) return;
+
+      const cpuParticipants = Object.entries(auction.participants)
+        .filter(([_, p]) => (p as any).isCPU && (p as any).remainingPoints > 0);
+
+      for (const [cpuName, cpuData] of cpuParticipants) {
+        const cpuFieldChars = game.field.filter((c: any) => c.owner === cpuName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+        const cpuMaxPti = cpuFieldChars.reduce((max: number, c: any) => Math.max(max, c.pti || 0), 0);
+
+        const isDesirable = auction.cardPti > cpuMaxPti;
+        const maxBid = (cpuData as any).remainingPoints;
+        const currentBid = auction.currentBid;
+
+        if (currentBid >= maxBid) continue;
+
+        const bidIncrement = isDesirable ? Math.ceil(Math.random() * 5) + 2 : Math.ceil(Math.random() * 3) + 1;
+        const newBid = Math.min(currentBid + bidIncrement, maxBid);
+
+        const delay = isDesirable ? 1500 + Math.random() * 1500 : 2000 + Math.random() * 2500;
+
+        setTimeout(() => {
+          const currentAuction = gameManager.getActiveAuction(gameId);
+          if (!currentAuction || currentAuction.ended) return;
+          if (currentAuction.currentBidder === cpuName) return;
+
+          const actualBid = Math.min(Math.max(currentAuction.currentBid + bidIncrement, newBid), maxBid);
+          if (actualBid <= currentAuction.currentBid) return;
+
+          const bidResult = gameManager.placeBid(gameId, cpuName, actualBid, io);
+          if (bidResult.success) {
+            io.to(gameId).emit('auction-bid-update', {
+              bidder: cpuName,
+              amount: actualBid,
+              countdown: 3
+            });
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-cpu-bid`,
+              playerName: cpuName,
+              message: `Offro ${actualBid} punti Rankiard!`,
+              timestamp: Date.now()
+            });
+
+            if (isDesirable && (cpuData as any).remainingPoints > actualBid) {
+              setTimeout(() => triggerCPUAuctionBids(gameId, io), 3500 + Math.random() * 2000);
+            }
+          }
+        }, delay);
+      }
+    }
+
     // Handle target selection for custom effects (damage/heal to chosen targets)
     socket.on('target-select', ({ targetCardIds, playerName }: { targetCardIds: string[], playerName: string }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);

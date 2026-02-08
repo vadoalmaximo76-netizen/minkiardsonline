@@ -3879,5 +3879,29 @@
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
     "modifiedAt": "2026-02-06T17:50:43.489Z"
+  },
+  {
+    "id": 149,
+    "originalCardId": "personaggi-96",
+    "deckType": "personaggi",
+    "name": null,
+    "imageUrl": null,
+    "pti": 2200,
+    "stars": 3,
+    "effect": null,
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": null,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "mosseCanCounter": false,
+    "mosseCanBeCountered": false,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-08T23:20:36.713Z"
   }
 ]
