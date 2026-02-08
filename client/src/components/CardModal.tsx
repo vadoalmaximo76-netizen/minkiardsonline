@@ -438,8 +438,8 @@ export const CardModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center z-[60] p-0 sm:p-4">
-      <div className="premium-panel p-4 sm:p-6 max-w-lg w-full relative rounded-t-2xl sm:rounded-lg max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-2 sm:p-4">
+      <div className="premium-panel p-4 sm:p-6 max-w-lg w-full relative rounded-lg max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-3 sm:mb-4">
           <h3 className="text-white font-bold text-base sm:text-lg pr-8">{cardName}</h3>
           <Button
@@ -1048,8 +1048,8 @@ export const CardModal: React.FC = () => {
 
       {/* Modify Stats Panel - Sky Blue Panel for PTI and Stars */}
       {showAddPTIPanel && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[80] p-0 sm:p-4">
-          <div className="bg-cyan-600 rounded-t-2xl sm:rounded-lg p-4 sm:p-6 max-w-md w-full shadow-xl border-4 border-cyan-400 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[80] p-2 sm:p-4">
+          <div className="bg-cyan-600 rounded-lg p-4 sm:p-6 max-w-md w-full shadow-xl border-4 border-cyan-400 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-3 sm:mb-4">
               <h3 className="text-white font-bold text-lg sm:text-xl">📊 MODIFICA STATISTICHE</h3>
               <Button
@@ -1143,8 +1143,8 @@ export const CardModal: React.FC = () => {
 
       {/* Add PR Panel - Orange Panel for Rankiard Points */}
       {showAddPRPanel && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[80] p-0 sm:p-4">
-          <div className="bg-amber-600 rounded-t-2xl sm:rounded-lg p-4 sm:p-6 max-w-md w-full shadow-xl border-4 border-amber-400 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[80] p-2 sm:p-4">
+          <div className="bg-amber-600 rounded-lg p-4 sm:p-6 max-w-md w-full shadow-xl border-4 border-amber-400 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-3 sm:mb-4">
               <h3 className="text-white font-bold text-lg sm:text-xl">➕ AGGIUNGI PR</h3>
               <Button
