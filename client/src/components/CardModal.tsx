@@ -332,6 +332,7 @@ export const CardModal: React.FC = () => {
   const handleConfirmAddPR = () => {
     const prValue = parseInt(prToAdd);
     if (!isNaN(prValue) && prValue > 0 && selectedCard && prValue <= availableRankiardPoints) {
+      const pendingAmount = prValue;
       socket.emit('add-pr', {
         cardId: selectedCard.id,
         prAmount: prValue,
@@ -339,8 +340,18 @@ export const CardModal: React.FC = () => {
         userTotalPoints: userRankiardPoints
       });
       
-      // Update store state for PR spent
-      addPRSpent(prValue);
+      const handlePRSuccess = (data: any) => {
+        addPRSpent(pendingAmount);
+        socket.off('pr-spent-update', handlePRSuccess);
+        socket.off('pr-error', handlePRError);
+      };
+      const handlePRError = (data: any) => {
+        console.error('PR add failed:', data.message);
+        socket.off('pr-spent-update', handlePRSuccess);
+        socket.off('pr-error', handlePRError);
+      };
+      socket.on('pr-spent-update', handlePRSuccess);
+      socket.on('pr-error', handlePRError);
       
       setShowAddPRPanel(false);
       setPrToAdd('');

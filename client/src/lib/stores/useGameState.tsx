@@ -145,6 +145,14 @@ export const useGameState = create<GameStateStore>()(
         
         // Apply immediately - no delays
         set({ gameState: newGameState });
+        
+        const currentPlayerName = get().playerName;
+        if (currentPlayerName && (newGameState as any).prSpentThisGame) {
+          const serverSpent = (newGameState as any).prSpentThisGame[currentPlayerName] || 0;
+          if (serverSpent > get().prSpentThisGame) {
+            set({ prSpentThisGame: serverSpent });
+          }
+        }
       });
 
       // Listen for picked cards (private to player)
