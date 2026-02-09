@@ -120,6 +120,20 @@ interface PlayerSkin {
   purchasedAt: string;
 }
 
+interface JsonUser {
+  id: number;
+  username: string;
+  email: string | null;
+  password: string | null;
+  googleId: string | null;
+  avatar: string;
+  puntiRankiard: number;
+  isAdmin: boolean;
+  resetPasswordToken: string | null;
+  resetPasswordExpires: string | null;
+  createdAt: string;
+}
+
 interface JsonData {
   customCards: CustomCard[];
   cardModifications: CardModification[];
@@ -129,6 +143,7 @@ interface JsonData {
   missionTemplates: MissionTemplate[];
   tutorialSteps: TutorialStep[];
   playerSkins: PlayerSkin[];
+  users: JsonUser[];
 }
 
 function ensureDataDir(): void {
@@ -670,6 +685,56 @@ export const jsonStorage = {
     }
   },
 
+  users: {
+    getAll(): JsonUser[] {
+      return readJsonFile<JsonUser>('users');
+    },
+
+    getById(id: number): JsonUser | undefined {
+      return this.getAll().find(u => u.id === id);
+    },
+
+    getByEmail(email: string): JsonUser | undefined {
+      return this.getAll().find(u => u.email?.toLowerCase() === email.toLowerCase());
+    },
+
+    getByUsername(username: string): JsonUser | undefined {
+      return this.getAll().find(u => u.username.toLowerCase() === username.toLowerCase());
+    },
+
+    getByGoogleId(googleId: string): JsonUser | undefined {
+      return this.getAll().find(u => u.googleId === googleId);
+    },
+
+    getByResetToken(token: string): JsonUser | undefined {
+      return this.getAll().find(u => u.resetPasswordToken === token);
+    },
+
+    create(data: Omit<JsonUser, 'id' | 'createdAt'>): JsonUser {
+      const allUsers = this.getAll();
+      const newUser: JsonUser = {
+        ...data,
+        id: getNextId(allUsers),
+        createdAt: new Date().toISOString()
+      };
+      allUsers.push(newUser);
+      writeJsonFile('users', allUsers);
+      console.log(`[JSON] Created user: ${newUser.username} (ID: ${newUser.id})`);
+      return newUser;
+    },
+
+    update(id: number, data: Partial<Omit<JsonUser, 'id' | 'createdAt'>>): JsonUser | null {
+      const allUsers = this.getAll();
+      const index = allUsers.findIndex(u => u.id === id);
+      if (index === -1) return null;
+
+      allUsers[index] = { ...allUsers[index], ...data };
+      writeJsonFile('users', allUsers);
+      console.log(`[JSON] Updated user ID: ${id}`);
+      return allUsers[index];
+    }
+  },
+
   cardVersion: {
     getFilePath(): string {
       return path.join(DATA_DIR, 'cardVersion.json');
@@ -697,4 +762,4 @@ export const jsonStorage = {
   }
 };
 
-export type { CustomCard, CardModification, CardSkin, PersonaggioCache, Achievement, MissionTemplate, TutorialStep, PlayerSkin };
+export type { CustomCard, CardModification, CardSkin, PersonaggioCache, Achievement, MissionTemplate, TutorialStep, PlayerSkin, JsonUser };

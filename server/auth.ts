@@ -1,10 +1,11 @@
 import { Express, Request, Response, NextFunction } from "express";
-import { db } from "./db";
+import { db, isDatabaseAvailable } from "./db";
 import { users, registerUserSchema, loginUserSchema } from "../shared/schema";
 import { eq, or } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
+import { jsonStorage } from "./jsonStorage";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const JWT_SECRET = process.env.JWT_SECRET || "minkiards-secret-key-change-in-production";
@@ -79,43 +80,83 @@ export function registerAuthRoutes(app: Express) {
 
       const { username, email, password, avatar } = validation.data;
 
-      const existingUser = await db.select().from(users).where(
-        or(eq(users.email, email), eq(users.username, username))
-      ).limit(1);
+      if (isDatabaseAvailable() && db) {
+        const existingUser = await db.select().from(users).where(
+          or(eq(users.email, email), eq(users.username, username))
+        ).limit(1);
 
-      if (existingUser.length > 0) {
-        const existing = existingUser[0];
-        if (existing.email === email) {
+        if (existingUser.length > 0) {
+          const existing = existingUser[0];
+          if (existing.email === email) {
+            return res.status(400).json({ error: "Email già registrata" });
+          }
+          if (existing.username === username) {
+            return res.status(400).json({ error: "Nome utente già in uso" });
+          }
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const validAvatar = avatar && VALID_AVATAR_IDS.includes(avatar) ? avatar : 'dragon';
+
+        const [newUser] = await db.insert(users).values({
+          username,
+          email,
+          password: hashedPassword,
+          avatar: validAvatar,
+        }).returning();
+
+        const token = generateToken(newUser.id, newUser.email);
+
+        res.json({
+          success: true,
+          token,
+          user: {
+            id: newUser.id,
+            username: newUser.username,
+            email: newUser.email,
+            avatar: newUser.avatar,
+            puntiRankiard: newUser.puntiRankiard,
+          }
+        });
+      } else {
+        const existingByEmail = jsonStorage.users.getByEmail(email);
+        if (existingByEmail) {
           return res.status(400).json({ error: "Email già registrata" });
         }
-        if (existing.username === username) {
+        const existingByUsername = jsonStorage.users.getByUsername(username);
+        if (existingByUsername) {
           return res.status(400).json({ error: "Nome utente già in uso" });
         }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const validAvatar = avatar && VALID_AVATAR_IDS.includes(avatar) ? avatar : 'dragon';
+
+        const newUser = jsonStorage.users.create({
+          username,
+          email,
+          password: hashedPassword,
+          googleId: null,
+          avatar: validAvatar,
+          puntiRankiard: 0,
+          isAdmin: false,
+          resetPasswordToken: null,
+          resetPasswordExpires: null,
+        });
+
+        const token = generateToken(newUser.id, newUser.email);
+
+        res.json({
+          success: true,
+          token,
+          user: {
+            id: newUser.id,
+            username: newUser.username,
+            email: newUser.email,
+            avatar: newUser.avatar,
+            puntiRankiard: newUser.puntiRankiard,
+          }
+        });
       }
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const validAvatar = avatar && VALID_AVATAR_IDS.includes(avatar) ? avatar : 'dragon';
-
-      const [newUser] = await db.insert(users).values({
-        username,
-        email,
-        password: hashedPassword,
-        avatar: validAvatar,
-      }).returning();
-
-      const token = generateToken(newUser.id, newUser.email);
-
-      res.json({
-        success: true,
-        token,
-        user: {
-          id: newUser.id,
-          username: newUser.username,
-          email: newUser.email,
-          avatar: newUser.avatar,
-          puntiRankiard: newUser.puntiRankiard,
-        }
-      });
     } catch (error) {
       console.error("Registration error:", error);
       res.status(500).json({ error: "Errore durante la registrazione" });
@@ -134,8 +175,81 @@ export function registerAuthRoutes(app: Express) {
 
       const { email, password } = validation.data;
 
-      try {
-        const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      if (isDatabaseAvailable() && db) {
+        try {
+          const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+
+          if (!user) {
+            return res.status(401).json({ error: "Email o password non corretti" });
+          }
+
+          if (!user.password) {
+            return res.status(401).json({ error: "Questo account usa Google per accedere" });
+          }
+
+          const validPassword = await bcrypt.compare(password, user.password);
+          if (!validPassword) {
+            return res.status(401).json({ error: "Email o password non corretti" });
+          }
+
+          const token = generateToken(user.id, user.email);
+
+          res.json({
+            success: true,
+            token,
+            user: {
+              id: user.id,
+              username: user.username,
+              email: user.email,
+              avatar: user.avatar,
+              puntiRankiard: user.puntiRankiard,
+            }
+          });
+        } catch (dbError) {
+          console.error("Database error during login, trying fallback:", dbError);
+          
+          if (email === ADMIN_FALLBACK.email && process.env.ADMIN_FALLBACK_PASSWORD) {
+            if (password === process.env.ADMIN_FALLBACK_PASSWORD) {
+              const token = generateToken(ADMIN_FALLBACK.id, ADMIN_FALLBACK.email);
+              
+              return res.json({
+                success: true,
+                token,
+                user: {
+                  id: ADMIN_FALLBACK.id,
+                  username: ADMIN_FALLBACK.username,
+                  email: ADMIN_FALLBACK.email,
+                  avatar: ADMIN_FALLBACK.avatar,
+                  puntiRankiard: ADMIN_FALLBACK.puntiRankiard,
+                },
+                fallbackMode: true
+              });
+            }
+          }
+          
+          return res.status(503).json({ error: "Database non disponibile. Solo l'admin può accedere." });
+        }
+      } else {
+        if (email === ADMIN_FALLBACK.email && process.env.ADMIN_FALLBACK_PASSWORD) {
+          if (password === process.env.ADMIN_FALLBACK_PASSWORD) {
+            const token = generateToken(ADMIN_FALLBACK.id, ADMIN_FALLBACK.email);
+            
+            return res.json({
+              success: true,
+              token,
+              user: {
+                id: ADMIN_FALLBACK.id,
+                username: ADMIN_FALLBACK.username,
+                email: ADMIN_FALLBACK.email,
+                avatar: ADMIN_FALLBACK.avatar,
+                puntiRankiard: ADMIN_FALLBACK.puntiRankiard,
+              },
+              fallbackMode: true
+            });
+          }
+        }
+
+        const user = jsonStorage.users.getByEmail(email);
 
         if (!user) {
           return res.status(401).json({ error: "Email o password non corretti" });
@@ -163,29 +277,6 @@ export function registerAuthRoutes(app: Express) {
             puntiRankiard: user.puntiRankiard,
           }
         });
-      } catch (dbError) {
-        console.error("Database error during login, trying fallback:", dbError);
-        
-        if (email === ADMIN_FALLBACK.email && process.env.ADMIN_FALLBACK_PASSWORD) {
-          if (password === process.env.ADMIN_FALLBACK_PASSWORD) {
-            const token = generateToken(ADMIN_FALLBACK.id, ADMIN_FALLBACK.email);
-            
-            return res.json({
-              success: true,
-              token,
-              user: {
-                id: ADMIN_FALLBACK.id,
-                username: ADMIN_FALLBACK.username,
-                email: ADMIN_FALLBACK.email,
-                avatar: ADMIN_FALLBACK.avatar,
-                puntiRankiard: ADMIN_FALLBACK.puntiRankiard,
-              },
-              fallbackMode: true
-            });
-          }
-        }
-        
-        return res.status(503).json({ error: "Database non disponibile. Solo l'admin può accedere." });
       }
     } catch (error) {
       console.error("Login error:", error);
@@ -215,49 +306,96 @@ export function registerAuthRoutes(app: Express) {
       const email = payload.email;
       const name = payload.name || email?.split("@")[0] || "Giocatore";
 
-      let [user] = await db.select().from(users).where(eq(users.googleId, googleId)).limit(1);
+      if (isDatabaseAvailable() && db) {
+        let [user] = await db.select().from(users).where(eq(users.googleId, googleId)).limit(1);
 
-      if (!user && email) {
-        const [existingEmailUser] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-        
-        if (existingEmailUser) {
-          [user] = await db.update(users)
-            .set({ googleId })
-            .where(eq(users.id, existingEmailUser.id))
-            .returning();
+        if (!user && email) {
+          const [existingEmailUser] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+          
+          if (existingEmailUser) {
+            [user] = await db.update(users)
+              .set({ googleId })
+              .where(eq(users.id, existingEmailUser.id))
+              .returning();
+          }
         }
+
+        if (!user) {
+          let username = name.replace(/\s+/g, "_").substring(0, 20);
+          const [existingUsername] = await db.select().from(users).where(eq(users.username, username)).limit(1);
+          if (existingUsername) {
+            username = `${username}_${Date.now().toString(36)}`.substring(0, 20);
+          }
+
+          const validAvatar = avatar && VALID_AVATAR_IDS.includes(avatar) ? avatar : 'dragon';
+
+          [user] = await db.insert(users).values({
+            username,
+            email: email || undefined,
+            googleId,
+            avatar: validAvatar,
+          }).returning();
+        }
+
+        const token = generateToken(user.id, user.email);
+
+        res.json({
+          success: true,
+          token,
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            avatar: user.avatar,
+            puntiRankiard: user.puntiRankiard,
+          }
+        });
+      } else {
+        let user = jsonStorage.users.getByGoogleId(googleId);
+
+        if (!user && email) {
+          const existingEmailUser = jsonStorage.users.getByEmail(email);
+          if (existingEmailUser) {
+            user = jsonStorage.users.update(existingEmailUser.id, { googleId }) || undefined;
+          }
+        }
+
+        if (!user) {
+          let username = name.replace(/\s+/g, "_").substring(0, 20);
+          const existingUsername = jsonStorage.users.getByUsername(username);
+          if (existingUsername) {
+            username = `${username}_${Date.now().toString(36)}`.substring(0, 20);
+          }
+
+          const validAvatar = avatar && VALID_AVATAR_IDS.includes(avatar) ? avatar : 'dragon';
+
+          user = jsonStorage.users.create({
+            username,
+            email: email || null,
+            password: null,
+            googleId,
+            avatar: validAvatar,
+            puntiRankiard: 0,
+            isAdmin: false,
+            resetPasswordToken: null,
+            resetPasswordExpires: null,
+          });
+        }
+
+        const token = generateToken(user.id, user.email);
+
+        res.json({
+          success: true,
+          token,
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            avatar: user.avatar,
+            puntiRankiard: user.puntiRankiard,
+          }
+        });
       }
-
-      if (!user) {
-        let username = name.replace(/\s+/g, "_").substring(0, 20);
-        const [existingUsername] = await db.select().from(users).where(eq(users.username, username)).limit(1);
-        if (existingUsername) {
-          username = `${username}_${Date.now().toString(36)}`.substring(0, 20);
-        }
-
-        const validAvatar = avatar && VALID_AVATAR_IDS.includes(avatar) ? avatar : 'dragon';
-
-        [user] = await db.insert(users).values({
-          username,
-          email: email || undefined,
-          googleId,
-          avatar: validAvatar,
-        }).returning();
-      }
-
-      const token = generateToken(user.id, user.email);
-
-      res.json({
-        success: true,
-        token,
-        user: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          avatar: user.avatar,
-          puntiRankiard: user.puntiRankiard,
-        }
-      });
     } catch (error) {
       console.error("Google auth error:", error);
       res.status(500).json({ error: "Errore durante l'autenticazione con Google" });
@@ -275,21 +413,51 @@ export function registerAuthRoutes(app: Express) {
         return res.status(403).json({ error: "Accesso non autorizzato" });
       }
 
-      const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      if (isDatabaseAvailable() && db) {
+        const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
 
-      if (!user) {
-        return res.status(404).json({ error: "Utente non trovato" });
-      }
-
-      res.json({
-        user: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          avatar: user.avatar,
-          puntiRankiard: user.puntiRankiard,
+        if (!user) {
+          return res.status(404).json({ error: "Utente non trovato" });
         }
-      });
+
+        res.json({
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            avatar: user.avatar,
+            puntiRankiard: user.puntiRankiard,
+          }
+        });
+      } else {
+        if (userId === ADMIN_FALLBACK.id) {
+          return res.json({
+            user: {
+              id: ADMIN_FALLBACK.id,
+              username: ADMIN_FALLBACK.username,
+              email: ADMIN_FALLBACK.email,
+              avatar: ADMIN_FALLBACK.avatar,
+              puntiRankiard: ADMIN_FALLBACK.puntiRankiard,
+            }
+          });
+        }
+
+        const user = jsonStorage.users.getById(userId);
+
+        if (!user) {
+          return res.status(404).json({ error: "Utente non trovato" });
+        }
+
+        res.json({
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            avatar: user.avatar,
+            puntiRankiard: user.puntiRankiard,
+          }
+        });
+      }
     } catch (error) {
       console.error("Get user error:", error);
       res.status(500).json({ error: "Errore nel recupero utente" });
@@ -327,11 +495,33 @@ export function registerAuthRoutes(app: Express) {
         });
       }
 
-      try {
-        const [user] = await db.select().from(users).where(eq(users.id, decoded.userId)).limit(1);
+      if (isDatabaseAvailable() && db) {
+        try {
+          const [user] = await db.select().from(users).where(eq(users.id, decoded.userId)).limit(1);
+
+          if (!user) {
+            return res.status(404).json({ error: "Utente non trovato" });
+          }
+
+          res.json({
+            user: {
+              id: user.id,
+              username: user.username,
+              email: user.email,
+              avatar: user.avatar,
+              puntiRankiard: user.puntiRankiard,
+            },
+            guestMode: false
+          });
+        } catch (dbError) {
+          console.error("Database error in /api/auth/me:", dbError);
+          res.json({ user: null, guestMode: true, dbError: true });
+        }
+      } else {
+        const user = jsonStorage.users.getById(decoded.userId);
 
         if (!user) {
-          return res.status(404).json({ error: "Utente non trovato" });
+          return res.json({ user: null, guestMode: true, dbError: true });
         }
 
         res.json({
@@ -344,9 +534,6 @@ export function registerAuthRoutes(app: Express) {
           },
           guestMode: false
         });
-      } catch (dbError) {
-        console.error("Database error in /api/auth/me:", dbError);
-        res.json({ user: null, guestMode: true, dbError: true });
       }
     } catch (error) {
       console.error("Get current user error:", error);
@@ -371,23 +558,40 @@ export function registerAuthRoutes(app: Express) {
         return res.status(400).json({ error: "Avatar non valido" });
       }
 
-      const [updatedUser] = await db.update(users)
-        .set({ avatar })
-        .where(eq(users.id, userId))
-        .returning();
+      if (isDatabaseAvailable() && db) {
+        const [updatedUser] = await db.update(users)
+          .set({ avatar })
+          .where(eq(users.id, userId))
+          .returning();
 
-      if (!updatedUser) {
-        return res.status(404).json({ error: "Utente non trovato" });
-      }
-
-      res.json({
-        success: true,
-        user: {
-          id: updatedUser.id,
-          username: updatedUser.username,
-          avatar: updatedUser.avatar,
+        if (!updatedUser) {
+          return res.status(404).json({ error: "Utente non trovato" });
         }
-      });
+
+        res.json({
+          success: true,
+          user: {
+            id: updatedUser.id,
+            username: updatedUser.username,
+            avatar: updatedUser.avatar,
+          }
+        });
+      } else {
+        const updatedUser = jsonStorage.users.update(userId, { avatar });
+
+        if (!updatedUser) {
+          return res.status(404).json({ error: "Utente non trovato" });
+        }
+
+        res.json({
+          success: true,
+          user: {
+            id: updatedUser.id,
+            username: updatedUser.username,
+            avatar: updatedUser.avatar,
+          }
+        });
+      }
     } catch (error) {
       console.error("Update avatar error:", error);
       res.status(500).json({ error: "Errore nell'aggiornamento avatar" });
@@ -398,7 +602,6 @@ export function registerAuthRoutes(app: Express) {
     res.json({ success: true, message: "Logout effettuato" });
   });
 
-  // Request password reset - generates token and stores it
   app.post("/api/auth/forgot-password", async (req: Request, res: Response) => {
     try {
       const { email } = req.body;
@@ -407,63 +610,103 @@ export function registerAuthRoutes(app: Express) {
         return res.status(400).json({ error: "Email richiesta" });
       }
 
-      const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-      
-      // Always return success to prevent email enumeration
-      if (!user) {
-        return res.json({ success: true, message: "Se l'email esiste, riceverai le istruzioni per il recupero password" });
-      }
-
-      // Generate a random token
-      const crypto = await import('crypto');
-      const resetToken = crypto.randomBytes(32).toString('hex');
-      const resetExpires = new Date(Date.now() + 3600000); // 1 hour from now
-
-      // Store token in database
-      await db.update(users)
-        .set({ 
-          resetPasswordToken: resetToken,
-          resetPasswordExpires: resetExpires
-        })
-        .where(eq(users.id, user.id));
-
-      // Try to send email using Resend integration
-      try {
-        const { getUncachableResendClient } = await import('./resendClient');
-        const { client, fromEmail } = await getUncachableResendClient();
+      if (isDatabaseAvailable() && db) {
+        const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
         
-        const resetUrl = `${req.protocol}://${req.get('host')}/?token=${resetToken}`;
-        
-        await client.emails.send({
-          from: fromEmail || 'MINKIARDS <onboarding@resend.dev>',
-          to: email,
-          subject: 'Recupero Password MINKIARDS',
-          html: `
-            <h1>Recupero Password</h1>
-            <p>Hai richiesto il recupero della password per il tuo account MINKIARDS.</p>
-            <p>Clicca sul link seguente per reimpostare la password:</p>
-            <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #7c3aed; color: white; text-decoration: none; border-radius: 6px;">Reimposta Password</a>
-            <p>Il link scadrà tra 1 ora.</p>
-            <p>Se non hai richiesto il recupero password, ignora questa email.</p>
-          `
+        if (!user) {
+          return res.json({ success: true, message: "Se l'email esiste, riceverai le istruzioni per il recupero password" });
+        }
+
+        const crypto = await import('crypto');
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const resetExpires = new Date(Date.now() + 3600000);
+
+        await db.update(users)
+          .set({ 
+            resetPasswordToken: resetToken,
+            resetPasswordExpires: resetExpires
+          })
+          .where(eq(users.id, user.id));
+
+        try {
+          const { getUncachableResendClient } = await import('./resendClient');
+          const { client, fromEmail } = await getUncachableResendClient();
+          
+          const resetUrl = `${req.protocol}://${req.get('host')}/?token=${resetToken}`;
+          
+          await client.emails.send({
+            from: fromEmail || 'MINKIARDS <onboarding@resend.dev>',
+            to: email,
+            subject: 'Recupero Password MINKIARDS',
+            html: `
+              <h1>Recupero Password</h1>
+              <p>Hai richiesto il recupero della password per il tuo account MINKIARDS.</p>
+              <p>Clicca sul link seguente per reimpostare la password:</p>
+              <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #7c3aed; color: white; text-decoration: none; border-radius: 6px;">Reimposta Password</a>
+              <p>Il link scadrà tra 1 ora.</p>
+              <p>Se non hai richiesto il recupero password, ignora questa email.</p>
+            `
+          });
+          console.log("Password reset email sent to:", email);
+        } catch (emailError) {
+          console.error("Error sending reset email:", emailError);
+        }
+
+        res.json({ 
+          success: true, 
+          message: "Se l'email esiste, riceverai le istruzioni per il recupero password"
         });
-        console.log("Password reset email sent to:", email);
-      } catch (emailError) {
-        console.error("Error sending reset email:", emailError);
-        // Continue even if email fails - user can still use the token
-      }
+      } else {
+        const user = jsonStorage.users.getByEmail(email);
+        
+        if (!user) {
+          return res.json({ success: true, message: "Se l'email esiste, riceverai le istruzioni per il recupero password" });
+        }
 
-      res.json({ 
-        success: true, 
-        message: "Se l'email esiste, riceverai le istruzioni per il recupero password"
-      });
+        const crypto = await import('crypto');
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const resetExpires = new Date(Date.now() + 3600000).toISOString();
+
+        jsonStorage.users.update(user.id, {
+          resetPasswordToken: resetToken,
+          resetPasswordExpires: resetExpires,
+        });
+
+        try {
+          const { getUncachableResendClient } = await import('./resendClient');
+          const { client, fromEmail } = await getUncachableResendClient();
+          
+          const resetUrl = `${req.protocol}://${req.get('host')}/?token=${resetToken}`;
+          
+          await client.emails.send({
+            from: fromEmail || 'MINKIARDS <onboarding@resend.dev>',
+            to: email,
+            subject: 'Recupero Password MINKIARDS',
+            html: `
+              <h1>Recupero Password</h1>
+              <p>Hai richiesto il recupero della password per il tuo account MINKIARDS.</p>
+              <p>Clicca sul link seguente per reimpostare la password:</p>
+              <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #7c3aed; color: white; text-decoration: none; border-radius: 6px;">Reimposta Password</a>
+              <p>Il link scadrà tra 1 ora.</p>
+              <p>Se non hai richiesto il recupero password, ignora questa email.</p>
+            `
+          });
+          console.log("Password reset email sent to:", email);
+        } catch (emailError) {
+          console.error("Error sending reset email:", emailError);
+        }
+
+        res.json({ 
+          success: true, 
+          message: "Se l'email esiste, riceverai le istruzioni per il recupero password"
+        });
+      }
     } catch (error) {
       console.error("Forgot password error:", error);
       res.status(500).json({ error: "Errore durante il recupero password" });
     }
   });
 
-  // Reset password with token
   app.post("/api/auth/reset-password", async (req: Request, res: Response) => {
     try {
       const { token, newPassword } = req.body;
@@ -476,30 +719,51 @@ export function registerAuthRoutes(app: Express) {
         return res.status(400).json({ error: "La password deve essere di almeno 6 caratteri" });
       }
 
-      const [user] = await db.select().from(users)
-        .where(eq(users.resetPasswordToken, token))
-        .limit(1);
+      if (isDatabaseAvailable() && db) {
+        const [user] = await db.select().from(users)
+          .where(eq(users.resetPasswordToken, token))
+          .limit(1);
 
-      if (!user) {
-        return res.status(400).json({ error: "Token non valido o scaduto" });
-      }
+        if (!user) {
+          return res.status(400).json({ error: "Token non valido o scaduto" });
+        }
 
-      if (user.resetPasswordExpires && user.resetPasswordExpires < new Date()) {
-        return res.status(400).json({ error: "Token scaduto, richiedi un nuovo recupero password" });
-      }
+        if (user.resetPasswordExpires && user.resetPasswordExpires < new Date()) {
+          return res.status(400).json({ error: "Token scaduto, richiedi un nuovo recupero password" });
+        }
 
-      // Hash new password and clear reset token
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-      
-      await db.update(users)
-        .set({ 
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        
+        await db.update(users)
+          .set({ 
+            password: hashedPassword,
+            resetPasswordToken: null,
+            resetPasswordExpires: null
+          })
+          .where(eq(users.id, user.id));
+
+        res.json({ success: true, message: "Password reimpostata con successo" });
+      } else {
+        const user = jsonStorage.users.getByResetToken(token);
+
+        if (!user) {
+          return res.status(400).json({ error: "Token non valido o scaduto" });
+        }
+
+        if (user.resetPasswordExpires && new Date(user.resetPasswordExpires) < new Date()) {
+          return res.status(400).json({ error: "Token scaduto, richiedi un nuovo recupero password" });
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        jsonStorage.users.update(user.id, {
           password: hashedPassword,
           resetPasswordToken: null,
-          resetPasswordExpires: null
-        })
-        .where(eq(users.id, user.id));
+          resetPasswordExpires: null,
+        });
 
-      res.json({ success: true, message: "Password reimpostata con successo" });
+        res.json({ success: true, message: "Password reimpostata con successo" });
+      }
     } catch (error) {
       console.error("Reset password error:", error);
       res.status(500).json({ error: "Errore durante il reset della password" });
