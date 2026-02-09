@@ -5441,19 +5441,29 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if (this.isPlayerCPU(gameId, playerName)) {
           const allDecks = game.decks;
           let bestCard: Card | null = null;
+          let bestDeckKey: string | null = null;
+          let bestCardIndex: number = -1;
           if (allDecks) {
             const deckKeys = Object.keys(allDecks);
             for (const key of deckKeys) {
               const deck = (allDecks as any)[key] as Card[];
               const personaggi = deck.filter((c: Card) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
               for (const p of personaggi) {
-                if (!bestCard || (p.pti || 0) > (bestCard.pti || 0)) bestCard = p;
+                if (!bestCard || (p.pti || 0) > (bestCard.pti || 0)) {
+                  bestCard = p;
+                  bestDeckKey = key;
+                  bestCardIndex = deck.indexOf(p);
+                }
               }
             }
           }
-          if (bestCard && ioAsta) {
+          if (bestCard && ioAsta && bestDeckKey && bestCardIndex >= 0) {
+            (allDecks as any)[bestDeckKey].splice(bestCardIndex, 1);
             console.log(`🔨 ASTA (CPU): ${playerName} selected ${bestCard.name || bestCard.id} for auction`);
-            this.startAuction(gameId, bestCard, playerName, ioAsta);
+            const success = this.startAuction(gameId, bestCard, playerName, ioAsta);
+            if (success) {
+              this.emitAuctionStartedEvent(gameId, bestCard, playerName, ioAsta);
+            }
           }
           break;
         }
@@ -10683,6 +10693,120 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     console.log(`🔨 ASTA started by ${initiatorPlayer}: ${cardName} (${cardPti} PTI, ${cardStars} stelle)`);
     return true;
+  }
+
+  async emitAuctionStartedEvent(gameId: string, card: Card, initiatorPlayer: string, io: any): Promise<void> {
+    const game = this.games.get(gameId);
+    if (!game?.activeAuction) return;
+
+    const auction = game.activeAuction;
+    const cardName = card.name || this.getCardNameFromUrl(card.frontImage);
+
+    const playerRankiards: Record<string, number> = {};
+    for (const [pName, participant] of Object.entries(auction.participants)) {
+      if (participant.isCPU) {
+        playerRankiards[pName] = participant.remainingPoints;
+      } else {
+        const userId = game.playerUserIds?.get(pName);
+        if (userId) {
+          try {
+            const result = await db.select({ puntiRankiard: users.puntiRankiard }).from(users).where(eq(users.id, userId));
+            if (result[0]) {
+              const sessionSpent = this.getPRSpentThisGame(gameId, pName);
+              const available = Math.max(0, result[0].puntiRankiard - sessionSpent);
+              playerRankiards[pName] = available;
+              auction.participants[pName].maxPoints = available;
+              auction.participants[pName].remainingPoints = available;
+            }
+          } catch (e) {
+            playerRankiards[pName] = 0;
+          }
+        }
+      }
+    }
+
+    io.to(gameId).emit('auction-started', {
+      auctionId: auction.auctionId,
+      cardName,
+      cardImage: card.frontImage,
+      cardPti: auction.cardPti,
+      cardStars: auction.cardStars,
+      initiator: initiatorPlayer,
+      playerRankiards,
+      currentBid: 0,
+      currentBidder: null,
+      countdown: 3
+    });
+
+    io.to(gameId).emit('chat-message', {
+      id: `${Date.now()}-asta-started`,
+      playerName: 'Sistema',
+      message: `🔨 ASTA! ${initiatorPlayer} mette all'asta ${cardName} (${auction.cardPti} PTI, ${auction.cardStars} stelle)! Fate le vostre offerte!`,
+      timestamp: Date.now()
+    });
+
+    setTimeout(() => {
+      const currentAuction = this.getActiveAuction(gameId);
+      if (currentAuction && !currentAuction.ended) {
+        this.triggerCPUAuctionBids(gameId, io);
+      }
+    }, 2000);
+  }
+
+  triggerCPUAuctionBids(gameId: string, io: any): void {
+    const auction = this.getActiveAuction(gameId);
+    if (!auction || auction.ended) return;
+
+    const game = this.games.get(gameId);
+    if (!game) return;
+
+    const cpuParticipants = Object.entries(auction.participants)
+      .filter(([_, p]) => p.isCPU && p.remainingPoints > 0);
+
+    for (const [cpuName, cpuData] of cpuParticipants) {
+      const cpuFieldChars = game.field.filter((c: Card) => c.owner === cpuName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+      const cpuMaxPti = cpuFieldChars.reduce((max: number, c: Card) => Math.max(max, c.pti || 0), 0);
+
+      const isDesirable = auction.cardPti > cpuMaxPti;
+      const maxBid = cpuData.remainingPoints;
+      const currentBid = auction.currentBid;
+
+      if (currentBid >= maxBid) continue;
+
+      const bidIncrement = isDesirable ? Math.ceil(Math.random() * 5) + 2 : Math.ceil(Math.random() * 3) + 1;
+      const newBid = Math.min(currentBid + bidIncrement, maxBid);
+
+      const delay = isDesirable ? 1500 + Math.random() * 1500 : 2000 + Math.random() * 2500;
+
+      setTimeout(() => {
+        const currentAuction = this.getActiveAuction(gameId);
+        if (!currentAuction || currentAuction.ended) return;
+        if (currentAuction.currentBidder === cpuName) return;
+
+        const actualBid = Math.min(Math.max(currentAuction.currentBid + bidIncrement, newBid), maxBid);
+        if (actualBid <= currentAuction.currentBid) return;
+
+        const bidResult = this.placeBid(gameId, cpuName, actualBid, io);
+        if (bidResult.success) {
+          io.to(gameId).emit('auction-bid-update', {
+            bidder: cpuName,
+            amount: actualBid,
+            countdown: 3
+          });
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-cpu-bid`,
+            playerName: 'Sistema',
+            message: `🔨 ${cpuName} offre ${actualBid} punti Rankiard!`,
+            timestamp: Date.now()
+          });
+
+          const nextAuction = this.getActiveAuction(gameId);
+          if (nextAuction && !nextAuction.ended) {
+            setTimeout(() => this.triggerCPUAuctionBids(gameId, io), 3500 + Math.random() * 2000);
+          }
+        }
+      }, delay);
+    }
   }
 
   placeBid(gameId: string, playerName: string, bidAmount: number, io: any): { success: boolean; message?: string } {
