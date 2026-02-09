@@ -39,7 +39,7 @@ const AuctionOverlay: React.FC<AuctionOverlayProps> = ({
   const [showGavel, setShowGavel] = useState(false);
   const [gavelPhase, setGavelPhase] = useState(0);
   const [ended, setEnded] = useState(false);
-  const [myRankiard, setMyRankiard] = useState(auctionData.playerRankiards[currentPlayerName] || 0);
+  const myRankiard = auctionData.playerRankiards[currentPlayerName] || 0;
   const historyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

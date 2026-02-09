@@ -2699,9 +2699,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             try {
               const result = await db.select({ puntiRankiard: users.puntiRankiard }).from(users).where(eq(users.id, userId));
               if (result[0]) {
-                playerRankiards[pName] = result[0].puntiRankiard;
-                auction.participants[pName].maxPoints = result[0].puntiRankiard;
-                auction.participants[pName].remainingPoints = result[0].puntiRankiard;
+                const sessionSpent = gameManager.getPRSpentThisGame(gameId, pName);
+                const available = Math.max(0, result[0].puntiRankiard - sessionSpent);
+                playerRankiards[pName] = available;
+                auction.participants[pName].maxPoints = available;
+                auction.participants[pName].remainingPoints = available;
               }
             } catch (e) {
               playerRankiards[pName] = 0;

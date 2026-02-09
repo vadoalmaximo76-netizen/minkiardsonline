@@ -317,7 +317,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     timestamp: number;
     cardType: string;
   }>>([]);
-    const { selectedCard, gameId, playerName, gameState, setGameId, setUserRankiardPoints, resetPRSpent, clearSession } = useGameState();
+    const { selectedCard, gameId, playerName, gameState, setGameId, setUserRankiardPoints, addPRSpent, prSpentThisGame, resetPRSpent, clearSession } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted, playAttackSound, playDeathSound, playCardPickup, playCardPlay, playTurnChange, playBonusActivated, playMyTurn, playDeckShuffle, playEffectActivate, playHostageApplied, playHostageReleased, playPersonaggioEnter, playCardReveal, playErrorSound, playPlayerEliminated, playSorosActivation, playFusionSound, playCardPlayedToField, playVictory, playDefeat } = useAudio();
 
 
@@ -891,8 +891,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
     const handleAuctionEnded = (data: any) => {
       setAuctionResult(data);
-      if (data.winner === playerName && data.newPointsTotal !== null && data.newPointsTotal !== undefined) {
-        setUserRankiardPoints(data.newPointsTotal);
+      if (data.winner === playerName && data.bid > 0) {
+        addPRSpent(data.bid);
       }
     };
     socket.on('auction-ended', handleAuctionEnded);
