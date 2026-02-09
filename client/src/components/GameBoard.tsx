@@ -181,7 +181,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     cardId: string;
     cardName: string;
     effectDescription: string;
-  }>({ visible: false, cardId: '', cardName: '', effectDescription: '' });
+    excludeSpeciali?: boolean;
+  }>({ visible: false, cardId: '', cardName: '', effectDescription: '', excludeSpeciali: false });
   const [deckCardPickerPanel, setDeckCardPickerPanel] = useState<{
     visible: boolean;
     cardId: string;
@@ -857,14 +858,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('show-pti-distribution-panel', handleShowPtiDistribution);
 
     // DECK SELECTION PANEL: Handle custom card effect that requires deck selection
-    const handleShowDeckSelection = (data: { cardId: string; cardName: string; playerName: string; effectDescription: string }) => {
+    const handleShowDeckSelection = (data: { cardId: string; cardName: string; playerName: string; effectDescription: string; excludeSpeciali?: boolean }) => {
       console.log('📋 Show deck selection panel:', data);
       if (data.playerName === playerName) {
         setDeckSelectionPanel({
           visible: true,
           cardId: data.cardId,
           cardName: data.cardName,
-          effectDescription: data.effectDescription
+          effectDescription: data.effectDescription,
+          excludeSpeciali: data.excludeSpeciali ?? false
         });
       }
     };
@@ -873,7 +875,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     const handleShowDeckCardPicker = (data: { cardId: string; deckType: string; deckDisplayName: string; cards: Array<{ id: string; name: string; frontImage: string; type: string; pti?: number; stars?: number }>; playerName: string }) => {
       console.log('📋 Show deck card picker:', data.deckDisplayName, data.cards.length, 'cards');
       if (data.playerName === playerName) {
-        setDeckSelectionPanel({ visible: false, cardId: '', cardName: '', effectDescription: '' });
+        setDeckSelectionPanel({ visible: false, cardId: '', cardName: '', effectDescription: '', excludeSpeciali: false });
         setDeckCardPickerPanel({
           visible: true,
           cardId: data.cardId,
@@ -2027,7 +2029,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                     deckType: 'personaggi',
                     playerName
                   });
-                  setDeckSelectionPanel({ visible: false, cardId: '', cardName: '', effectDescription: '' });
+                  setDeckSelectionPanel({ visible: false, cardId: '', cardName: '', effectDescription: '', excludeSpeciali: false });
                 }}
                 className="bg-red-600 hover:bg-red-500 text-white py-4"
               >
@@ -2040,7 +2042,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                     deckType: 'mosse',
                     playerName
                   });
-                  setDeckSelectionPanel({ visible: false, cardId: '', cardName: '', effectDescription: '' });
+                  setDeckSelectionPanel({ visible: false, cardId: '', cardName: '', effectDescription: '', excludeSpeciali: false });
                 }}
                 className="bg-blue-600 hover:bg-blue-500 text-white py-4"
               >
@@ -2053,29 +2055,31 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                     deckType: 'bonus',
                     playerName
                   });
-                  setDeckSelectionPanel({ visible: false, cardId: '', cardName: '', effectDescription: '' });
+                  setDeckSelectionPanel({ visible: false, cardId: '', cardName: '', effectDescription: '', excludeSpeciali: false });
                 }}
                 className="bg-green-600 hover:bg-green-500 text-white py-4"
               >
                 BONUS
               </Button>
-              <Button
-                onClick={() => {
-                  socket.emit('deck-selection-confirm', {
-                    cardId: deckSelectionPanel.cardId,
-                    deckType: 'personaggi_speciali',
-                    playerName
-                  });
-                  setDeckSelectionPanel({ visible: false, cardId: '', cardName: '', effectDescription: '' });
-                }}
-                className="bg-purple-600 hover:bg-purple-500 text-white py-4"
-              >
-                SPECIALI
-              </Button>
+              {!deckSelectionPanel.excludeSpeciali && (
+                <Button
+                  onClick={() => {
+                    socket.emit('deck-selection-confirm', {
+                      cardId: deckSelectionPanel.cardId,
+                      deckType: 'personaggi_speciali',
+                      playerName
+                    });
+                    setDeckSelectionPanel({ visible: false, cardId: '', cardName: '', effectDescription: '', excludeSpeciali: false });
+                  }}
+                  className="bg-purple-600 hover:bg-purple-500 text-white py-4"
+                >
+                  SPECIALI
+                </Button>
+              )}
             </div>
             <div className="text-center">
               <Button
-                onClick={() => setDeckSelectionPanel({ visible: false, cardId: '', cardName: '', effectDescription: '' })}
+                onClick={() => setDeckSelectionPanel({ visible: false, cardId: '', cardName: '', effectDescription: '', excludeSpeciali: false })}
                 className="bg-gray-600 hover:bg-gray-500 text-white px-6 py-2"
               >
                 Annulla

@@ -6852,24 +6852,26 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         break;
 
-      case 'show_deck_selection':
-        // Check if CPU - auto-apply with random deck
+      case 'show_deck_selection': {
+        const excludeSpeciali = !action.description.toLowerCase().includes('speciali');
         const ioDeckAuto = (global as any).io;
-        if (this.cpuAutoApplyEffect(gameId, playerName, 'deck_selection', card.id, ioDeckAuto)) {
-          break; // CPU handled it
+        if (this.cpuAutoApplyEffect(gameId, playerName, 'deck_selection', card.id, ioDeckAuto, excludeSpeciali)) {
+          break;
         }
         
-        console.log(`📋 Showing deck selection for ${playerName} (applyEffectToCard)`);
+        console.log(`📋 Showing deck selection for ${playerName} (applyEffectToCard), excludeSpeciali=${excludeSpeciali}`);
         const ioDeck = (global as any).io;
         if (ioDeck) {
           ioDeck.to(gameId).emit('show-deck-selection', {
             cardId: card.id,
             cardName: card.name || this.getCardNameFromUrl(card.frontImage),
             playerName,
-            effectDescription: action.description
+            effectDescription: action.description,
+            excludeSpeciali
           });
         }
         break;
+      }
 
       // ============ INTERACTIVE EFFECTS THAT REQUIRE PANEL OR AUTO-APPLY FOR CPU ============
       
@@ -6972,17 +6974,19 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
       
       case 'show_deck_selection': {
+        const excludeSpecialiInner = !action.description.toLowerCase().includes('speciali');
         const io = (global as any).io;
-        if (this.cpuAutoApplyEffect(gameId, playerName, 'deck_selection', card.id, io)) {
-          break; // CPU handled it
+        if (this.cpuAutoApplyEffect(gameId, playerName, 'deck_selection', card.id, io, excludeSpecialiInner)) {
+          break;
         }
-        console.log(`📋 Showing deck selection for ${playerName}`);
+        console.log(`📋 Showing deck selection for ${playerName}, excludeSpeciali=${excludeSpecialiInner}`);
         if (io) {
           io.to(gameId).emit('show-deck-selection', {
             cardId: card.id,
             cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
             playerName,
-            effectDescription: action.description
+            effectDescription: action.description,
+            excludeSpeciali: excludeSpecialiInner
           });
         }
         break;
@@ -11376,7 +11380,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   }
 
   // CPU automatically applies effect with random value - returns true if handled
-  cpuAutoApplyEffect(gameId: string, playerName: string, effectType: string, cardId: string, io: any): boolean {
+  cpuAutoApplyEffect(gameId: string, playerName: string, effectType: string, cardId: string, io: any, excludeSpeciali: boolean = false): boolean {
     if (!this.isPlayerCPU(gameId, playerName)) {
       return false; // Not a CPU player, let frontend handle it
     }
@@ -11405,8 +11409,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
 
       case 'deck_selection': {
-        // Random deck type
-        const deckTypes = ['PERSONAGGI', 'MOSSE', 'BONUS', 'PERSONAGGI SPECIALI'];
+        const deckTypes = excludeSpeciali 
+          ? ['PERSONAGGI', 'MOSSE', 'BONUS']
+          : ['PERSONAGGI', 'MOSSE', 'BONUS', 'PERSONAGGI SPECIALI'];
         const randomDeck = deckTypes[Math.floor(Math.random() * deckTypes.length)];
         console.log(`🤖 CPU ${playerName} auto-selected deck: ${randomDeck}`);
         const result = this.processDeckSelectionEffect(gameId, cardId, randomDeck, playerName);
@@ -13347,20 +13352,21 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         });
         break;
       
-      case 'show_deck_selection':
-        // Check if CPU - auto-apply with random deck
-        if (this.cpuAutoApplyEffect(gameId, playerName, 'deck_selection', sourceCard.id, io)) {
-          break; // CPU handled it
+      case 'show_deck_selection': {
+        const excludeSpec = !action.description.toLowerCase().includes('speciali');
+        if (this.cpuAutoApplyEffect(gameId, playerName, 'deck_selection', sourceCard.id, io, excludeSpec)) {
+          break;
         }
-        // Emit event to show deck selection panel
-        console.log(`📋 Showing deck selection panel for ${playerName}`);
+        console.log(`📋 Showing deck selection panel for ${playerName}, excludeSpeciali=${excludeSpec}`);
         io.to(gameId).emit('show-deck-selection', {
           cardId: sourceCard.id,
           cardName: sourceCard.name || this.getCardNameFromUrl(sourceCard.frontImage || ''),
           playerName,
-          effectDescription: action.description
+          effectDescription: action.description,
+          excludeSpeciali: excludeSpec
         });
         break;
+      }
       
       case 'clone_self':
         // Clone the source card onto the field
