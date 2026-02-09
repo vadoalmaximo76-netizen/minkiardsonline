@@ -2553,7 +2553,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "Si attiva dopo 5 turni [DETTAGLI: target: Un personaggio nemico a scelta; effect_summary: Si usa la mossa, ma i danni non vengono inflitti subito. Dopo 5 turni la mossa si attiva e attacca l'avversario; effect_goal: Danneggiare nemici]",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": 1000,
@@ -2565,7 +2565,9 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-01T11:32:15.095Z"
+    "modifiedAt": "2026-02-09T11:04:58.493Z",
+    "mosseCanCounter": false,
+    "mosseCanBeCountered": false
   },
   {
     "id": 102,
