@@ -570,8 +570,9 @@ export class GameManager {
     if (mod.pti !== null && mod.pti !== undefined) card.pti = mod.pti;
     if (mod.stars !== null && mod.stars !== undefined) card.stars = mod.stars;
     if (mod.effect) card.effect = mod.effect;
-    // Always update audioUrl (including clearing it if null/undefined)
+    // Always update audioUrl and youtubeUrl (including clearing if null/undefined)
     card.audioUrl = mod.audioUrl || undefined;
+    card.youtubeUrl = mod.youtubeUrl || undefined;
     // MOSSE-specific fields for damage auto-fill
     if (mod.mosseDamageValue !== null && mod.mosseDamageValue !== undefined) {
       card.mosseDamageValue = mod.mosseDamageValue;
