@@ -189,6 +189,16 @@ interface PersistentDamage {
   lastTickTurn?: number;
 }
 
+interface TimedEffect {
+  id: string;
+  sourcePlayer: string;
+  sourceCardId: string;
+  sourceCardName: string;
+  turnsRemaining: number;
+  actions: Array<{ type: string; target: string; value: number; description: string }>;
+  createdAt: number;
+}
+
 interface DelayedDamage {
   id: string;
   attackerName: string;
@@ -283,6 +293,7 @@ interface GameState {
   rifugioProtections: RifugioProtection[]; // RIFUGIO shelter protection tracking
   barrieraShields: BarrieraShield[]; // BARRIERA shield protection tracking
   delayedDamages: DelayedDamage[]; // Delayed damage effects from defense
+  timedEffects: TimedEffect[]; // Generic delayed effects from Wizard cards (trigger after X turns)
   playerDeathModifiers: Map<string, number>; // Per-player death limit modifiers (+/- deaths)
   requiresApproval?: boolean; // Whether new players need creator approval to join
   creatorName?: string; // Name of the room creator
@@ -787,6 +798,7 @@ export class GameManager {
       rifugioProtections: [],
       barrieraShields: [],
       delayedDamages: [],
+      timedEffects: [],
       playerDeathModifiers: new Map<string, number>()
     };
 
@@ -1972,7 +1984,14 @@ Rispondi SOLO in JSON:`;
       spectators: gameState.spectators,
       characterLimit: gameState.characterLimit,
       eliminatedPlayers: Array.from(gameState.eliminatedPlayers),
-      voodooLinks: gameState.voodooLinks || []
+      voodooLinks: gameState.voodooLinks || [],
+      timedEffects: (gameState.timedEffects || []).map(te => ({
+        id: te.id,
+        sourcePlayer: te.sourcePlayer,
+        sourceCardName: te.sourceCardName,
+        turnsRemaining: te.turnsRemaining,
+        description: te.actions.map(a => a.description).join(', ')
+      }))
     };
 
     // Sanitize players by removing cpuInstance references
@@ -2030,6 +2049,7 @@ Rispondi SOLO in JSON:`;
         rifugioProtections: game.rifugioProtections,
         barrieraShields: game.barrieraShields,
         delayedDamages: game.delayedDamages,
+        timedEffects: game.timedEffects || [],
         playerDeathModifiers: game.playerDeathModifiers ? Object.fromEntries(game.playerDeathModifiers) : {},
         extraTurnPlayer: game.extraTurnPlayer,
         skipTurnPlayers: game.skipTurnPlayers,
@@ -2174,6 +2194,7 @@ Rispondi SOLO in JSON:`;
             rifugioProtections: state.rifugioProtections || [],
             barrieraShields: state.barrieraShields || [],
             delayedDamages: state.delayedDamages || [],
+            timedEffects: state.timedEffects || [],
             playerDeathModifiers: new Map(Object.entries(state.playerDeathModifiers || {})),
             prSpentThisGame: new Map(Object.entries(state.prSpentThisGame || {})),
             extraTurnPlayer: state.extraTurnPlayer,
@@ -2699,6 +2720,25 @@ Rispondi SOLO in JSON:`;
       }
       return defaultVal;
     };
+
+    // ============ DELAYED/TIMED EFFECT DETECTION ============
+    // Detect "dopo X turni" / "tra X turni" / "ritardo X turni" patterns
+    let delayTurns = 0;
+    const delayPatterns = [
+      /dopo\s+(\d+)\s+turni?\b/i,
+      /tra\s+(\d+)\s+turni?\b/i,
+      /ritardo\s+(?:di\s+)?(\d+)\s+turni?\b/i,
+      /effetto\s+ritardato\s+(?:di\s+)?(\d+)\s+turni?\b/i,
+      /si\s+attiva\s+(?:dopo|tra)\s+(\d+)\s+turni?\b/i,
+      /attivazione\s+(?:dopo|tra|in)\s+(\d+)\s+turni?\b/i,
+    ];
+    for (const dp of delayPatterns) {
+      const dm = text.match(dp);
+      if (dm) {
+        delayTurns = parseInt(dm[1], 10);
+        break;
+      }
+    }
 
     // ============ GAMBLING/SCOMMESSA PATTERN ============
     if (/scommessa|scommetti/i.test(text) || (/50%/.test(text) && (/guadagn|perd|pti|roulette|dado/i.test(text)))) {
@@ -3814,6 +3854,22 @@ Rispondi SOLO in JSON:`;
     // ============ SPECIAL/GENERIC PATTERNS (fallback) ============
     if (actions.length === 0 && text.length > 5) {
       actions.push({ type: 'special', target: 'self', value: 0, description: effectText });
+    }
+
+    // ============ WRAP DELAYED EFFECTS ============
+    // If "dopo X turni" was detected, wrap all parsed actions into a single timed_effect
+    if (delayTurns > 0 && actions.length > 0) {
+      const wrappedActions = [...actions];
+      const descriptions = wrappedActions.map(a => a.description).join(', ');
+      console.log(`⏳ TIMED EFFECT: Wrapping ${wrappedActions.length} actions with ${delayTurns} turn delay: ${descriptions}`);
+      actions.length = 0;
+      actions.push({
+        type: 'timed_effect',
+        target: 'self',
+        value: delayTurns,
+        description: `Effetto ritardato (${delayTurns} turni): ${descriptions}`,
+        _delayedActions: wrappedActions
+      } as any);
     }
 
     console.log(`🎴 Parsed "${effectText.substring(0, 50)}..." → ${actions.length} actions: ${actions.map(a => a.type).join(', ')}`);
@@ -5356,8 +5412,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           // Restore turn state
           if (snapshot.turnOrder) game.turnOrder = [...snapshot.turnOrder];
           if (snapshot.currentTurnIndex !== undefined) game.currentTurnIndex = snapshot.currentTurnIndex;
-          // Restore delayed deaths
+          // Restore delayed deaths and timed effects
           if (snapshot.delayedDeaths) game.delayedDeaths = JSON.parse(JSON.stringify(snapshot.delayedDeaths));
+          if (snapshot.timedEffects) game.timedEffects = JSON.parse(JSON.stringify(snapshot.timedEffects));
           // Restore restrictions
           if (snapshot.cardPlayRestrictions) (game as any).cardPlayRestrictions = JSON.parse(JSON.stringify(snapshot.cardPlayRestrictions));
           else delete (game as any).cardPlayRestrictions;
@@ -7609,6 +7666,36 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               id: `${Date.now()}-delayed-death`,
               playerName: 'Sistema',
               message: `☠️ ${deathChar.name} morirà tra ${deathTurns} turni!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        break;
+      }
+
+      case 'timed_effect': {
+        const delayValue = action.value || 3;
+        const delayedActions = (action as any)._delayedActions || [];
+        if (delayedActions.length > 0) {
+          if (!game.timedEffects) game.timedEffects = [];
+          const timedEffect: TimedEffect = {
+            id: `timed-${Date.now()}-${playerName}`,
+            sourcePlayer: playerName,
+            sourceCardId: card?.id || '',
+            sourceCardName: card?.name || 'Carta sconosciuta',
+            turnsRemaining: delayValue,
+            actions: delayedActions,
+            createdAt: Date.now()
+          };
+          game.timedEffects.push(timedEffect);
+          console.log(`⏳ TIMED EFFECT REGISTERED: ${delayedActions.length} actions from ${playerName}, triggers in ${delayValue} turns`);
+          const io = (global as any).io;
+          if (io) {
+            const actionDescs = delayedActions.map((a: any) => a.description).join(', ');
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-timed-effect`,
+              playerName: 'Sistema',
+              message: `⏳ Effetto ritardato attivato da ${playerName}! Si attiverà tra ${delayValue} turni: ${actionDescs}`,
               timestamp: Date.now()
             });
           }
@@ -15363,6 +15450,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       currentTurnIndex: gameState.currentTurnIndex,
       turnOrder: [...gameState.turnOrder],
       delayedDeaths: gameState.delayedDeaths ? JSON.parse(JSON.stringify(gameState.delayedDeaths)) : [],
+      timedEffects: gameState.timedEffects ? JSON.parse(JSON.stringify(gameState.timedEffects)) : [],
       cardPlayRestrictions: (gameState as any).cardPlayRestrictions ? JSON.parse(JSON.stringify((gameState as any).cardPlayRestrictions)) : undefined,
       peaceRestrictions: (gameState as any).peaceRestrictions ? JSON.parse(JSON.stringify((gameState as any).peaceRestrictions)) : undefined,
       decks: gameState.decks ? Object.fromEntries(
@@ -15413,6 +15501,55 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       
       // Remove processed deaths from list
       gameState.delayedDeaths = gameState.delayedDeaths.filter(dd => dd.turnsRemaining > 0);
+    }
+
+    // Process timed effects (generic delayed effects from Wizard cards)
+    // Decrement only effects belonging to the player whose turn is ending
+    if (gameState.timedEffects && gameState.timedEffects.length > 0) {
+      const effectsToTrigger: TimedEffect[] = [];
+      
+      for (const te of gameState.timedEffects) {
+        if (te.sourcePlayer === playerName) {
+          te.turnsRemaining--;
+          console.log(`⏳ TIMED EFFECT: ${te.sourceCardName} by ${te.sourcePlayer} - ${te.turnsRemaining} turni rimanenti`);
+          
+          if (te.turnsRemaining <= 0) {
+            effectsToTrigger.push(te);
+          }
+        }
+      }
+      
+      for (const te of effectsToTrigger) {
+        console.log(`⏳💥 TIMED EFFECT TRIGGERED: ${te.actions.length} actions from ${te.sourceCardName} (${te.sourcePlayer})`);
+        const io = (global as any).io;
+        if (io) {
+          const actionDescs = te.actions.map(a => a.description).join(', ');
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-timed-effect-trigger`,
+            playerName: 'Sistema',
+            message: `⏳💥 EFFETTO RITARDATO ATTIVATO! ${te.sourceCardName} di ${te.sourcePlayer}: ${actionDescs}`,
+            timestamp: Date.now()
+          });
+        }
+        
+        // Resolve source card from field for context
+        const sourceCard = gameState.field.find(c => c.id === te.sourceCardId) || null;
+        
+        for (const action of te.actions) {
+          try {
+            this.executeCustomAction(gameId, te.sourcePlayer, action, gameState, sourceCard);
+          } catch (err) {
+            console.error(`⏳ Error executing timed action ${action.type}:`, err);
+          }
+        }
+        
+        if (io) {
+          const updatedState = this.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', updatedState);
+        }
+      }
+      
+      gameState.timedEffects = gameState.timedEffects.filter(te => te.turnsRemaining > 0);
     }
 
     // Verify it's the current player's turn
