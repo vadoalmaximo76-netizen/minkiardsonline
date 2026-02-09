@@ -227,7 +227,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": "Trasforma una carta nemica in una carta casuale più debole",
+    "effect": "Il tuo personaggio si trasforma [DETTAGLI: effect_summary: Il tuo personaggio effettua una trasformazione; effect_goal: Curare/potenziare alleati; duration: Permanente]",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -239,7 +239,13 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-27T15:20:42.201Z"
+    "modifiedAt": "2026-02-09T19:36:47.519Z",
+    "mosseCanCounter": false,
+    "mosseCanBeCountered": false,
+    "evolvesInto": null,
+    "transformsInto": null,
+    "transformsFrom": null,
+    "cheatsInto": null
   },
   {
     "id": 9,
@@ -635,7 +641,13 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-30T12:01:25.062Z"
+    "modifiedAt": "2026-02-09T19:37:34.414Z",
+    "mosseCanCounter": false,
+    "mosseCanBeCountered": false,
+    "evolvesInto": null,
+    "transformsInto": "personaggi_speciali-29",
+    "transformsFrom": "personaggi_speciali-78",
+    "cheatsInto": null
   },
   {
     "id": 5,

@@ -4893,6 +4893,106 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               message: `${emoji} ${typeLabel}! ${oldName} si è ${type === 'evolution' ? 'evoluto' : type === 'transformation' ? 'trasformato' : 'taroccato'} in ${replacementCard.name}!`,
               timestamp: Date.now()
             });
+
+            const cardName = replacementCard.name || this.getCardNameFromUrl(replacementCard.frontImage || '');
+
+            if (replacementCard.type === 'personaggi' || replacementCard.type === 'personaggi_speciali') {
+              const dramaticMessages = [
+                "È PRONTO A FARE BRUTTO",
+                "ENTRA IN SCENA", 
+                "ARRIVA PER SPACCARVI IL CULO",
+                "SI UNISCE ALLA ZUFFA"
+              ];
+              const selectedMessage = dramaticMessages[Math.floor(Math.random() * dramaticMessages.length)];
+              io.to(gameId).emit('personaggio-enters', {
+                cardName,
+                message: selectedMessage,
+                playerName,
+                cardImage: replacementCard.frontImage
+              });
+
+              const cName = cardName.toLowerCase();
+              let soundType: string | null = 'human_voice';
+              if (cName.includes('ape') || cName.includes('bee')) soundType = 'bee';
+              else if (cName.includes('cane') || cName.includes('dog') || cName.includes('bull')) soundType = 'animal_dog';
+              else if (cName.includes('gatto') || cName.includes('cat')) soundType = 'animal_cat';
+              else if (cName.includes('uccello') || cName.includes('bird') || cName.includes('pollo') || cName.includes('gallo')) soundType = 'animal_bird';
+              else if (cName.includes('robot') || cName.includes('cyber') || cName.includes('meccanico') || cName.includes('terminator')) soundType = 'robot_mechanical';
+              else if (cName.includes('mago') || cName.includes('strega') || cName.includes('wizard') || cName.includes('magic') || cName.includes('fatata')) soundType = 'magic_spell';
+              else if (cName.includes('bomba') || cName.includes('esplosivo') || cName.includes('dynamite') || cName.includes('cannone')) soundType = 'explosion';
+              if (soundType) {
+                io.to(gameId).emit('character-sound', { cardName, playerName, soundType });
+              }
+            }
+
+            io.to(gameId).emit('card-played', {
+              cardId: replacementCard.id,
+              cardType: replacementCard.type,
+              frontImage: replacementCard.frontImage,
+              cardName,
+              playerName,
+              gameId
+            });
+
+            let youtubeUrl = replacementCard.youtubeUrl;
+            if (!youtubeUrl) {
+              try {
+                const lookupName = replacementCard.name || cardName;
+                const customCards = jsonStorage.customCards.getAll();
+                const customCardMatch = customCards.find(c => c.name === lookupName);
+                if (customCardMatch && customCardMatch.youtubeUrl) {
+                  youtubeUrl = customCardMatch.youtubeUrl;
+                }
+                if (!youtubeUrl) {
+                  const modYt = jsonStorage.cardModifications.getByOriginalCardId(replacementCard.id);
+                  if (modYt && modYt.youtubeUrl) {
+                    youtubeUrl = modYt.youtubeUrl;
+                  }
+                }
+              } catch (ytError) {
+                console.error(`[${typeLabel}] Error checking JSON storage for youtubeUrl:`, ytError);
+              }
+            }
+            if (youtubeUrl) {
+              console.log(`📺 ${typeLabel}: Emitting show-youtube-video for ${cardName}: ${youtubeUrl}`);
+              io.to(gameId).emit('show-youtube-video', {
+                cardId: replacementCard.id,
+                playerName,
+                youtubeUrl,
+                cardName,
+                cardType: replacementCard.type
+              });
+            }
+
+            const cardsWithAnimations = [
+              'BAMBOLA VOODOO', 'BAMBOLA-VOODOO', 'UNA TEMPESTA BABY', 'ACCETTATA',
+              'ACCHIAPPT CHESSA', 'AGO DI PINO', 'ATTACCO KAMIKAZE', 'BOMBA SENZA DETONATORE',
+              'BOMBA', 'CANZONE NEOMELODICA', 'CIAVATTA', 'DUELLO', 'ESPLOSIONE ATOMICA',
+              'FUCILE A POMPA', 'FURTO', 'INFLUENZA', 'LU TRATTORE', 'MAZZA DA BASEBALL',
+              'MINA VAGANTE', 'MOTOSEGA', 'OMBELICO LANCIAFIAMME', 'ONDA ENERGETICA',
+              'PADELLATA IN FACCIA', 'PARTITA DI TENNIS', 'PIOGGIA DI METEORITI', 'PRETA',
+              'PUGNO', 'ROULETTE RUSSA', 'SAETTA'
+            ];
+            if (cardsWithAnimations.some(animCard => cardName.toUpperCase().includes(animCard))) {
+              io.to(gameId).emit('card-animation-trigger', {
+                cardName,
+                playerName,
+                cardId: replacementCard.id
+              });
+            }
+
+            if (replacementCard.effect) {
+              const animationMatch = replacementCard.effect.match(/\[ANIMAZIONE:\s*([^\]]+)\]/i);
+              if (animationMatch) {
+                io.to(gameId).emit('custom-animation-trigger', {
+                  cardId: replacementCard.id,
+                  cardName,
+                  playerName,
+                  animationDescription: animationMatch[1].trim()
+                });
+              }
+            }
+
             const gameState = this.getSanitizedGameState(gameId);
             io.to(gameId).emit('game-state-update', gameState);
           }
