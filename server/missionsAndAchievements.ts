@@ -1,4 +1,4 @@
-import { db } from "./db";
+import { db, isDatabaseAvailable } from "./db";
 import { playerAchievements, playerDailyMissions, users } from "../shared/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { jsonStorage } from "./jsonStorage";
@@ -23,6 +23,8 @@ function getTodayDateString(): string {
 }
 
 export async function getPlayerDailyMissions(usernameOrEmail: string) {
+  if (!isDatabaseAvailable()) return [];
+  
   const today = getTodayDateString();
   
   const playerMissions = await db.select()
@@ -59,6 +61,8 @@ export async function getPlayerDailyMissions(usernameOrEmail: string) {
 }
 
 async function assignDailyMissions(usernameOrEmail: string) {
+  if (!isDatabaseAvailable()) return;
+  
   const today = getTodayDateString();
   
   const allTemplates = jsonStorage.missionTemplates.getAll();
@@ -87,6 +91,8 @@ async function assignDailyMissions(usernameOrEmail: string) {
 }
 
 export async function getPlayerAchievements(usernameOrEmail: string) {
+  if (!isDatabaseAvailable()) return [];
+  
   const allAchievements = jsonStorage.achievements.getAll();
   
   const playerProgress = await db.select()
@@ -104,6 +110,8 @@ export async function getPlayerAchievements(usernameOrEmail: string) {
 }
 
 export async function updateMissionProgress(usernameOrEmail: string, type: string, amount: number = 1) {
+  if (!isDatabaseAvailable()) return [];
+  
   const today = getTodayDateString();
   
   const playerMissions = await db.select()
@@ -147,6 +155,8 @@ export async function updateMissionProgress(usernameOrEmail: string, type: strin
 }
 
 export async function updateAchievementProgress(usernameOrEmail: string, code: string, amount: number = 1, setAbsolute: boolean = false) {
+  if (!isDatabaseAvailable()) return null;
+  
   const achievement = jsonStorage.achievements.getByCode(code);
   if (!achievement) return null;
   
@@ -196,6 +206,8 @@ export async function updateAchievementProgress(usernameOrEmail: string, code: s
 }
 
 export async function claimMissionReward(usernameOrEmail: string, missionId: number) {
+  if (!isDatabaseAvailable()) return { success: false, error: 'Database non disponibile' };
+  
   const mission = await db.select()
     .from(playerDailyMissions)
     .where(and(
@@ -223,6 +235,8 @@ export async function claimMissionReward(usernameOrEmail: string, missionId: num
 }
 
 export async function claimAchievementReward(usernameOrEmail: string, achievementId: number) {
+  if (!isDatabaseAvailable()) return { success: false, error: 'Database non disponibile' };
+  
   const playerAch = await db.select()
     .from(playerAchievements)
     .where(and(

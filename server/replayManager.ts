@@ -1,4 +1,4 @@
-import { db } from './db';
+import { db, isDatabaseAvailable } from './db';
 import { matches, gameEvents } from '../shared/schema';
 import type { Match, GameEvent } from '../shared/schema';
 import { desc, eq } from 'drizzle-orm';
@@ -19,6 +19,8 @@ export interface ReplayState {
 
 export class ReplayManager {
   async getMatchHistory(limit = 10): Promise<Match[]> {
+    if (!isDatabaseAvailable()) return [];
+    
     try {
       const matchList = await db.select().from(matches)
         .orderBy(desc(matches.startedAt))
@@ -31,6 +33,8 @@ export class ReplayManager {
   }
 
   async getMatchDetails(matchId: number): Promise<{ match: Match | null, events: GameEvent[] }> {
+    if (!isDatabaseAvailable()) return { match: null, events: [] };
+    
     try {
       const [match] = await db.select().from(matches).where(eq(matches.id, matchId));
       

@@ -1,5 +1,5 @@
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from '../client/src/lib/cardData';
-import { db } from './db';
+import { db, isDatabaseAvailable } from './db';
 import { matches, gameEvents, personaggi, customCards, cardModifications, users, gameStates, cardSkins, tournamentMatches, tournaments, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
 import { eq, ilike, sql, and } from 'drizzle-orm';
 import { CPUPlayer } from './cpuPlayer';
@@ -392,6 +392,9 @@ export class GameManager {
     if (cached) return cached;
     
     try {
+      if (!isDatabaseAvailable()) {
+        return null;
+      }
       const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
       const email = user[0]?.email || null;
       if (email) {
@@ -1611,7 +1614,7 @@ Rispondi SOLO in JSON:`;
       const playerList = Object.keys(game.players);
 
       // Only update database if matchId exists
-      if (game.matchId) {
+      if (game.matchId && isDatabaseAvailable()) {
         await db.update(matches)
           .set({
             endedAt: new Date(),
@@ -1647,6 +1650,7 @@ Rispondi SOLO in JSON:`;
   private async updateTournamentMatch(gameId: string, winnerPlayer?: string): Promise<void> {
     try {
       if (!winnerPlayer) return;
+      if (!isDatabaseAvailable()) return;
 
       const game = this.games.get(gameId);
       if (!game) {
@@ -9471,6 +9475,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     try {
       console.log(`🔍 Cache miss, looking up ${cardName} in PERSONAGGI database...`);
       
+      if (!isDatabaseAvailable()) {
+        return null;
+      }
       // First try exact match
       let result = await db.select().from(personaggi).where(eq(personaggi.name, cardName.toUpperCase())).limit(1);
       
@@ -10710,13 +10717,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const userId = game.playerUserIds?.get(pName);
         if (userId) {
           try {
-            const result = await db.select({ puntiRankiard: users.puntiRankiard }).from(users).where(eq(users.id, userId));
-            if (result[0]) {
-              const sessionSpent = this.getPRSpentThisGame(gameId, pName);
-              const available = Math.max(0, result[0].puntiRankiard - sessionSpent);
-              playerRankiards[pName] = available;
-              auction.participants[pName].maxPoints = available;
-              auction.participants[pName].remainingPoints = available;
+            if (!isDatabaseAvailable()) {
+              playerRankiards[pName] = 0;
+            } else {
+              const result = await db.select({ puntiRankiard: users.puntiRankiard }).from(users).where(eq(users.id, userId));
+              if (result[0]) {
+                const sessionSpent = this.getPRSpentThisGame(gameId, pName);
+                const available = Math.max(0, result[0].puntiRankiard - sessionSpent);
+                playerRankiards[pName] = available;
+                auction.participants[pName].maxPoints = available;
+                auction.participants[pName].remainingPoints = available;
+              }
             }
           } catch (e) {
             playerRankiards[pName] = 0;

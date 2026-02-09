@@ -5,6 +5,7 @@ import { GameManager } from "./gameManager";
 import OpenAI from "openai";
 import jwt from "jsonwebtoken";
 import { db } from "./db";
+import { isDatabaseAvailable } from "./db";
 import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions } from "../shared/schema";
 import { jsonStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray } from "drizzle-orm";
@@ -20,6 +21,10 @@ async function checkAdminAccess(user: { userId: number; email: string | null }):
   
   if (user.email?.toLowerCase() === ADMIN_FALLBACK.email.toLowerCase()) {
     return true;
+  }
+  
+  if (!isDatabaseAvailable()) {
+    return user.email?.toLowerCase() === ADMIN_FALLBACK.email.toLowerCase();
   }
   
   try {
@@ -603,6 +608,10 @@ async function getPersonaggioFromDatabase(cardName: string): Promise<{ pti: numb
   const cached = getPersonaggioFromCache(cardName);
   if (cached) return cached;
   
+  if (!isDatabaseAvailable()) {
+    return null;
+  }
+  
   try {
     console.log(`🔍 Looking up ${cardName} in PERSONAGGI database...`);
     
@@ -908,9 +917,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           socket.emit('no-active-game');
           return;
         }
-        
         // Get username from database
-        const userRecord = await db.select().from(users).where(eq(users.id, decoded.userId)).limit(1);
+        let userRecord: any[] = [];
+        if (isDatabaseAvailable()) {
+          userRecord = await db.select().from(users).where(eq(users.id, decoded.userId)).limit(1);
+        } else {
+          const jsonUser = jsonStorage.users.getAll().find((u: any) => u.id === decoded.userId);
+          if (jsonUser) userRecord = [jsonUser];
+        }
         if (userRecord.length === 0) {
           socket.emit('no-active-game');
           return;
@@ -941,7 +955,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const decoded = jwt.verify(authToken, jwtSecret) as { userId: number; email: string };
         
         if (decoded && decoded.userId) {
-          const userRecord = await db.select().from(users).where(eq(users.id, decoded.userId)).limit(1);
+          let userRecord: any[] = [];
+          if (isDatabaseAvailable()) {
+            userRecord = await db.select().from(users).where(eq(users.id, decoded.userId)).limit(1);
+          } else {
+            const jsonUser = jsonStorage.users.getAll().find((u: any) => u.id === decoded.userId);
+            if (jsonUser) userRecord = [jsonUser];
+          }
           if (userRecord.length > 0) {
             socket.data = socket.data || {};
             socket.data.userId = decoded.userId;
@@ -996,7 +1016,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (authToken) {
         try {
           const decoded = jwt.verify(authToken, jwtSecret) as { email: string };
-          const userRecord = await db.select().from(users).where(eq(users.email, decoded.email)).limit(1);
+          let userRecord: any[] = [];
+          if (isDatabaseAvailable()) {
+            userRecord = await db.select().from(users).where(eq(users.email, decoded.email)).limit(1);
+          } else {
+            const jsonUser = jsonStorage.users.getAll().find((u: any) => u.email === decoded.email);
+            if (jsonUser) userRecord = [jsonUser];
+          }
           if (userRecord.length > 0) {
             (socket as any).data = { userId: userRecord[0].id };
             console.log(`Socket ${socket.id} registered for user ${userRecord[0].id} (${userRecord[0].username})`);
@@ -1023,7 +1049,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             socket.data.userId = decoded.userId;
             
             // Get username from database for the validated user
-            const userRecord = await db.select().from(users).where(eq(users.id, decoded.userId)).limit(1);
+            let userRecord: any[] = [];
+            if (isDatabaseAvailable()) {
+              userRecord = await db.select().from(users).where(eq(users.id, decoded.userId)).limit(1);
+            } else {
+              const jsonUser = jsonStorage.users.getAll().find((u: any) => u.id === decoded.userId);
+              if (jsonUser) userRecord = [jsonUser];
+            }
             if (userRecord.length > 0) {
               validatedUsername = userRecord[0].username;
               socket.data.username = validatedUsername;
@@ -1131,7 +1163,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               socket.data = socket.data || {};
               socket.data.userId = decoded.userId;
               
-              const userRecord = await db.select().from(users).where(eq(users.id, decoded.userId)).limit(1);
+              let userRecord: any[] = [];
+              if (isDatabaseAvailable()) {
+                userRecord = await db.select().from(users).where(eq(users.id, decoded.userId)).limit(1);
+              } else {
+                const jsonUser = jsonStorage.users.getAll().find((u: any) => u.id === decoded.userId);
+                if (jsonUser) userRecord = [jsonUser];
+              }
               if (userRecord.length > 0) {
                 validatedUsername = userRecord[0].username;
                 socket.data.username = validatedUsername;
@@ -6999,6 +7037,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Claim mission reward
   app.post('/api/missions/claim', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
       const user = (req as any).user;
       const { missionId } = req.body;
       const result = await claimMissionReward(user.email, missionId);
@@ -7022,6 +7063,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Claim achievement reward
   app.post('/api/achievements/claim', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
       const user = (req as any).user;
       const { achievementId } = req.body;
       const result = await claimAchievementReward(user.email, achievementId);
@@ -7238,6 +7282,11 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Get Rankiard leaderboard - public endpoint
   app.get('/api/leaderboard', async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        const allUsers = jsonStorage.users.getAll();
+        const leaderboard = allUsers.map((u: any) => ({ id: u.id, username: u.username, avatar: u.avatar, puntiRankiard: u.puntiRankiard || 0, gamesPlayed: 0, gamesWon: 0, minutesPlayed: 0 })).sort((a: any, b: any) => (b.puntiRankiard || 0) - (a.puntiRankiard || 0)).slice(0, 100);
+        return res.json({ success: true, leaderboard });
+      }
       const leaderboard = await db
         .select({
           id: users.id,
@@ -7262,6 +7311,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Get user profile with aggregated stats
   app.get('/api/profile', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
       const user = (req as any).user;
       const userRecord = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
       
@@ -7322,6 +7374,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Get all matches for replays
   app.get('/api/matches', async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
       const matchesList = await db.select().from(matches)
         .orderBy(desc(matches.startedAt))
         .limit(50);
@@ -7336,6 +7391,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Get match events for replay
   app.get('/api/matches/:id/events', async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
       const matchId = parseInt(req.params.id);
       
       const eventsList = await db.select().from(gameEvents)
@@ -7354,6 +7412,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Get all seasonal events
   app.get('/api/seasonal-events', async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
       const eventsList = await db.select().from(seasonalEvents)
         .orderBy(desc(seasonalEvents.startDate));
       
@@ -7367,6 +7428,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Get cards for a seasonal event
   app.get('/api/seasonal-events/:id/cards', async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
       const eventId = parseInt(req.params.id);
       
       const cardsList = await db.select().from(seasonalCards)
@@ -7384,6 +7448,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Create a new seasonal event (admin only)
   app.post('/api/admin/seasonal-events', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
       const user = (req as any).user;
       const isAdmin = await checkAdminAccess(user);
       
@@ -7416,6 +7483,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Update a seasonal event (admin only)
   app.put('/api/admin/seasonal-events/:id', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const eventId = parseInt(req.params.id);
       const isAdmin = await checkAdminAccess(user);
@@ -7452,6 +7523,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Delete a seasonal event (admin only)
   app.delete('/api/admin/seasonal-events/:id', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const eventId = parseInt(req.params.id);
       const isAdmin = await checkAdminAccess(user);
@@ -7474,6 +7549,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Add a card to a seasonal event (admin only)
   app.post('/api/admin/seasonal-events/:id/cards', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
       const user = (req as any).user;
       const eventId = parseInt(req.params.id);
       const isAdmin = await checkAdminAccess(user);
@@ -7509,6 +7587,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Delete a seasonal card (admin only)
   app.delete('/api/admin/seasonal-cards/:id', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const cardId = parseInt(req.params.id);
       const isAdmin = await checkAdminAccess(user);
@@ -7615,6 +7697,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Get player's owned skins
   app.get('/api/card-skins/owned', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
       if (!currentUser.length) {
@@ -7634,6 +7720,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Purchase a skin
   app.post('/api/card-skins/purchase', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const { skinId } = req.body;
       
@@ -7678,6 +7768,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Equip a skin
   app.post('/api/card-skins/equip', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const { skinId } = req.body;
       
@@ -7808,6 +7902,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Get active seasonal pass
   app.get('/api/seasonal-pass/active', async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const activePasses = await db.select().from(seasonalPasses)
         .where(eq(seasonalPasses.isActive, true))
         .limit(1);
@@ -7826,6 +7924,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Get pass rewards
   app.get('/api/seasonal-pass/:id/rewards', async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const passId = parseInt(req.params.id);
       
       const rewardsList = await db.select().from(passRewards)
@@ -7842,6 +7944,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Get player's pass progress
   app.get('/api/seasonal-pass/:id/progress', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const passId = parseInt(req.params.id);
       
@@ -7873,6 +7979,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Claim a pass reward
   app.post('/api/seasonal-pass/claim', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const { rewardId } = req.body;
       
@@ -7921,6 +8031,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Get all seasonal passes (admin only)
   app.get('/api/admin/seasonal-passes', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const isAdmin = await checkAdminAccess(user);
       
@@ -7941,6 +8055,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Create a new seasonal pass (admin only)
   app.post('/api/admin/seasonal-passes', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const isAdmin = await checkAdminAccess(user);
       
@@ -7973,6 +8091,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Update a seasonal pass (admin only)
   app.put('/api/admin/seasonal-passes/:id', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const passId = parseInt(req.params.id);
       const isAdmin = await checkAdminAccess(user);
@@ -8009,6 +8131,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Delete a seasonal pass (admin only)
   app.delete('/api/admin/seasonal-passes/:id', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const passId = parseInt(req.params.id);
       const isAdmin = await checkAdminAccess(user);
@@ -8031,6 +8157,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Add a reward to a seasonal pass (admin only)
   app.post('/api/admin/seasonal-passes/:id/rewards', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const passId = parseInt(req.params.id);
       const isAdmin = await checkAdminAccess(user);
@@ -8063,6 +8193,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Delete a pass reward (admin only)
   app.delete('/api/admin/pass-rewards/:id', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const rewardId = parseInt(req.params.id);
       const isAdmin = await checkAdminAccess(user);
@@ -8084,6 +8218,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Get all clans (with optional search)
   app.get('/api/clans', async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const search = req.query.search as string;
       
       let clansList;
@@ -8111,6 +8249,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Get a specific clan with members
   app.get('/api/clans/:id', async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const clanId = parseInt(req.params.id);
       
       const clan = await db.select().from(clans).where(eq(clans.id, clanId)).limit(1);
@@ -8144,6 +8286,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Create a new clan
   app.post('/api/clans', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const { name, tag, description, emblem, isPublic } = req.body;
       
@@ -8207,6 +8353,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Join a clan
   app.post('/api/clans/:id/join', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const clanId = parseInt(req.params.id);
       
@@ -8266,6 +8416,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Leave a clan
   app.post('/api/clans/leave', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       
       const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
@@ -8325,6 +8479,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Get user's clan
   app.get('/api/my-clan', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       
       const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
@@ -8358,6 +8516,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Get all tournaments
   app.get('/api/tournaments', async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const status = req.query.status as string;
       
       let query = db.select().from(tournaments).orderBy(desc(tournaments.createdAt)).limit(20);
@@ -8378,6 +8540,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Get a specific tournament with participants
   app.get('/api/tournaments/:id', async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const tournamentId = parseInt(req.params.id);
       
       const tournament = await db.select().from(tournaments).where(eq(tournaments.id, tournamentId)).limit(1);
@@ -8416,6 +8582,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Create a new tournament
   app.post('/api/tournaments', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const { name, description, type, maxParticipants, prizePool, entryFee } = req.body;
       
@@ -8448,6 +8618,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Join a tournament
   app.post('/api/tournaments/:id/join', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const tournamentId = parseInt(req.params.id);
       
@@ -8512,6 +8686,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Close tournament registration (organizer only)
   app.post('/api/tournaments/:id/close-registration', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const tournamentId = parseInt(req.params.id);
 
@@ -8551,6 +8729,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Start a tournament (organizer only)
   app.post('/api/tournaments/:id/start', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const tournamentId = parseInt(req.params.id);
       
@@ -8623,6 +8805,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Join a tournament match (creates the game room if needed)
   app.post('/api/tournaments/matches/:matchId/join', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const matchId = parseInt(req.params.matchId);
       
@@ -8687,6 +8873,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Report tournament match result
   app.post('/api/tournaments/matches/:matchId/report', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const matchId = parseInt(req.params.matchId);
       const { winnerId } = req.body;
@@ -8790,6 +8980,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Search users by username
   app.get('/api/users/search', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const query = req.query.q as string;
       
@@ -8826,6 +9020,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Get friends list
   app.get('/api/friends', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
       
@@ -8871,6 +9069,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Get pending friend requests
   app.get('/api/friends/requests', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
       
@@ -8910,6 +9112,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Send friend request
   app.post('/api/friends/requests', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const { addresseeId, message } = req.body;
       
@@ -8972,6 +9178,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Respond to friend request
   app.patch('/api/friends/requests/:id', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const requestId = parseInt(req.params.id);
       const { accept } = req.body;
@@ -9024,6 +9234,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Invite friend to game
   app.post('/api/friends/invite', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const { friendId, gameId } = req.body;
       
@@ -9105,6 +9319,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // ============ TRAINING TIPS API ============
   app.get('/api/training-tips', async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const tips = await db.select().from(trainingTips);
       res.json(tips);
     } catch (error) {
@@ -9115,6 +9333,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
 
   app.post('/api/training-tips', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
       
@@ -9140,6 +9362,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
 
   app.put('/api/training-tips/:id', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
       
@@ -9164,6 +9390,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
 
   app.delete('/api/training-tips/:id', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
       
@@ -9194,6 +9424,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
 
   app.post('/api/tutorial-steps', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
       
@@ -9221,6 +9455,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
 
   app.put('/api/tutorial-steps/:id', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
       
@@ -9253,6 +9491,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
 
   app.delete('/api/tutorial-steps/:id', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
       
@@ -9276,6 +9518,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
 
   app.post('/api/tutorial-steps/initialize', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
       
@@ -9314,6 +9560,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // ============ PROFILE UPDATE API ============
   app.put('/api/auth/update-profile', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const { username, avatar } = req.body;
       
@@ -9335,6 +9585,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
 
   app.put('/api/auth/change-password', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const { currentPassword, newPassword } = req.body;
       
@@ -9379,6 +9633,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
 
   app.get('/api/user-stats/:userId', async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const userId = parseInt(req.params.userId);
       const [userRecord] = await db.select().from(users).where(eq(users.id, userId));
       
@@ -9400,6 +9658,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // ============ USER SEARCH API ============
   app.get('/api/search-users', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const query = req.query.query as string;
       if (!query || query.length < 2) {
         return res.json([]);
@@ -9426,6 +9688,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Get all conversations for a user
   app.get('/api/messages/conversations', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const [currentUser] = await db.select().from(users).where(eq(users.email, user.email));
       
@@ -9478,6 +9744,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Get messages for a specific conversation
   app.get('/api/messages/conversation/:conversationId', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const [currentUser] = await db.select().from(users).where(eq(users.email, user.email));
       const conversationId = parseInt(req.params.conversationId);
@@ -9515,6 +9785,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Start a new conversation or get existing one
   app.post('/api/messages/conversation', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const { recipientId } = req.body;
       const [currentUser] = await db.select().from(users).where(eq(users.email, user.email));
@@ -9559,6 +9833,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Send a message
   app.post('/api/messages/send', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const { conversationId, content } = req.body;
       const [currentUser] = await db.select().from(users).where(eq(users.email, user.email));
@@ -9609,6 +9887,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Get unread message count
   app.get('/api/messages/unread-count', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const [currentUser] = await db.select().from(users).where(eq(users.email, user.email));
       
@@ -9650,6 +9932,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Subscribe to push notifications
   app.post('/api/push/subscribe', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const { subscription } = req.body;
       const [currentUser] = await db.select().from(users).where(eq(users.email, user.email));
@@ -9689,6 +9975,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Unsubscribe from push notifications
   app.post('/api/push/unsubscribe', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const user = (req as any).user;
       const { endpoint } = req.body;
       const [currentUser] = await db.select().from(users).where(eq(users.email, user.email));
@@ -9799,6 +10089,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // Publish card update (increment version and notify all users)
   app.post('/api/admin/publish-card-update', authMiddleware, async (req, res) => {
     try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
       const userEmail = (req as any).user?.email;
       if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
         return res.status(403).json({ error: 'Access denied' });
