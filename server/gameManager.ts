@@ -4065,28 +4065,30 @@ Rispondi SOLO in JSON:`;
       if (this.isPlayerCPU(gameId, playerName)) {
         console.log(`🤖 CPU ${playerName} auto-selecting targets for BERSAGLIO effect`);
         
-        // CPU selects 1-2 random targets (prefer enemies if available)
         const ownChars = allFieldChars.filter((c: Card) => c.owner === playerName);
         const enemyChars = allFieldChars.filter((c: Card) => c.owner !== playerName);
         
         let selectedTargets: Card[] = [];
         
-        // Prefer selecting both own and enemy character for "gamble" style effects
-        if (ownChars.length > 0 && enemyChars.length > 0) {
-          const ownTarget = ownChars[Math.floor(Math.random() * ownChars.length)];
+        const effectLower = (card.effect || '').toLowerCase();
+        const isAttackEffect = /dado|roulette|danno|danni|damage|morte|muore|uccid|dimezza|attacc|pierce|explosion/i.test(effectLower);
+        const isHealEffect = /cura|heal|rigenera|protez|scudo|buff|potenzia/i.test(effectLower) && !isAttackEffect;
+        
+        if (isAttackEffect && enemyChars.length > 0) {
           const enemyTarget = enemyChars[Math.floor(Math.random() * enemyChars.length)];
-          selectedTargets = [ownTarget, enemyTarget];
-        } else if (enemyChars.length >= 2) {
-          // Select 2 random enemies
-          const shuffled = [...enemyChars].sort(() => Math.random() - 0.5);
-          selectedTargets = shuffled.slice(0, 2);
-        } else if (allFieldChars.length >= 2) {
-          // Select 2 random from all
-          const shuffled = [...allFieldChars].sort(() => Math.random() - 0.5);
-          selectedTargets = shuffled.slice(0, 2);
+          selectedTargets = [enemyTarget];
+          console.log(`🎯 CPU ${playerName} targeting ENEMY (attack effect): ${enemyTarget.name || enemyTarget.id}`);
+        } else if (isHealEffect && ownChars.length > 0) {
+          const ownTarget = ownChars[Math.floor(Math.random() * ownChars.length)];
+          selectedTargets = [ownTarget];
+          console.log(`🎯 CPU ${playerName} targeting OWN (heal effect): ${ownTarget.name || ownTarget.id}`);
+        } else if (enemyChars.length > 0) {
+          const enemyTarget = enemyChars[Math.floor(Math.random() * enemyChars.length)];
+          selectedTargets = [enemyTarget];
+          console.log(`🎯 CPU ${playerName} targeting ENEMY (default): ${enemyTarget.name || enemyTarget.id}`);
         } else {
-          // Just pick 1
           selectedTargets = [allFieldChars[Math.floor(Math.random() * allFieldChars.length)]];
+          console.log(`🎯 CPU ${playerName} targeting any available: ${selectedTargets[0]?.name || selectedTargets[0]?.id}`);
         }
         
         const selectedTargetIds = selectedTargets.map(c => c.id);
