@@ -888,25 +888,18 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     // AUCTION SYSTEM LISTENERS
     const handleAuctionSelectCharacter = (data: { playerName: string; gameId: string }) => {
       if (data.playerName === playerName) {
-        const collectedCards: any[] = [];
-        let decksReceived = 0;
+        socket.emit('get-deck-contents', { deckType: 'personaggi' });
         const onDeckContents = (deckData: { deckType: string; cards: any[] }) => {
-          if (deckData.deckType === 'personaggi' || deckData.deckType === 'personaggi_speciali') {
-            collectedCards.push(...deckData.cards);
-            decksReceived++;
-            if (decksReceived >= 2) {
-              setAuctionDeckPicker({
-                visible: true,
-                cards: collectedCards,
-                initiator: data.playerName
-              });
-              socket.off('deck-contents', onDeckContents);
-            }
+          if (deckData.deckType === 'personaggi') {
+            setAuctionDeckPicker({
+              visible: true,
+              cards: deckData.cards.filter(c => c.type === 'personaggi'),
+              initiator: data.playerName
+            });
+            socket.off('deck-contents', onDeckContents);
           }
         };
         socket.on('deck-contents', onDeckContents);
-        socket.emit('get-deck-contents', { deckType: 'personaggi' });
-        socket.emit('get-deck-contents', { deckType: 'personaggi_speciali' });
       }
     };
     socket.on('auction-select-character', handleAuctionSelectCharacter);

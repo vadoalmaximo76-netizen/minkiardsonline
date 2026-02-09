@@ -5439,26 +5439,22 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const ioAsta = (global as any).io;
         
         if (this.isPlayerCPU(gameId, playerName)) {
-          const allDecks = game.decks;
+          const personaggiDeck = game.decks.personaggi;
           let bestCard: Card | null = null;
-          let bestDeckKey: string | null = null;
           let bestCardIndex: number = -1;
-          if (allDecks) {
-            const deckKeys = Object.keys(allDecks);
-            for (const key of deckKeys) {
-              const deck = (allDecks as any)[key] as Card[];
-              const personaggi = deck.filter((c: Card) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
-              for (const p of personaggi) {
+          if (personaggiDeck) {
+            for (let i = 0; i < personaggiDeck.length; i++) {
+              const p = personaggiDeck[i];
+              if (p.type === 'personaggi') {
                 if (!bestCard || (p.pti || 0) > (bestCard.pti || 0)) {
                   bestCard = p;
-                  bestDeckKey = key;
-                  bestCardIndex = deck.indexOf(p);
+                  bestCardIndex = i;
                 }
               }
             }
           }
-          if (bestCard && ioAsta && bestDeckKey && bestCardIndex >= 0) {
-            (allDecks as any)[bestDeckKey].splice(bestCardIndex, 1);
+          if (bestCard && ioAsta && bestCardIndex >= 0) {
+            personaggiDeck.splice(bestCardIndex, 1);
             console.log(`🔨 ASTA (CPU): ${playerName} selected ${bestCard.name || bestCard.id} for auction`);
             const success = this.startAuction(gameId, bestCard, playerName, ioAsta);
             if (success) {
