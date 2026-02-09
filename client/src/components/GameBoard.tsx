@@ -309,6 +309,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   }>({ visible: false, autoDiceId: '', cardName: '', defaultEffects: {}, availableCharacters: [], initiatorPlayer: '' });
   const [autoDiceSelectedChars, setAutoDiceSelectedChars] = useState<string[]>([]);
   const [autoDiceCustomEffects, setAutoDiceCustomEffects] = useState<Record<number, string>>({});
+  // REVEAL: Modal showing revealed opponent cards
+  const [revealedCards, setRevealedCards] = useState<{
+    visible: boolean;
+    revealedBy: string;
+    hands: Record<string, Array<{id: string; name: string; frontImage: string; type: string; pti: number | null; stars: number | null}>>;
+  }>({ visible: false, revealedBy: '', hands: {} });
   // AUCTION SYSTEM
   const [auctionData, setAuctionData] = useState<any>(null);
   const [auctionBidUpdate, setAuctionBidUpdate] = useState<any>(null);
@@ -1120,6 +1126,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('show-custom-target-selection', handleShowCustomTargetSelection);
 
+    // REVEAL: Handler for showing revealed cards
+    const handleCardsRevealed = (data: { revealedBy: string; hands: Record<string, Array<{id: string; name: string; frontImage: string; type: string; pti: number | null; stars: number | null}>> }) => {
+      console.log('👁️ Cards revealed:', data);
+      if (data.revealedBy === playerName) {
+        setRevealedCards({
+          visible: true,
+          revealedBy: data.revealedBy,
+          hands: data.hands
+        });
+      }
+    };
+    socket.on('cards-revealed', handleCardsRevealed);
+
     // AUTO DICE SETUP: Handler for automatic dice configuration
     const handleShowAutoDiceSetup = (data: {
       autoDiceId: string;
@@ -1527,6 +1546,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('show-dice-control-panel', handleShowDiceControlPanel);
       socket.off('show-target-selection', handleShowTargetSelection);
       socket.off('show-custom-target-selection', handleShowCustomTargetSelection);
+      socket.off('cards-revealed', handleCardsRevealed);
       socket.off('show-auto-dice-setup', handleShowAutoDiceSetup);
       socket.off('show-dice-character-select', handleShowDiceCharacterSelect);
       socket.off('show-dice-selection', handleShowDiceSelection);
@@ -2659,6 +2679,43 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 }`}
               >
                 🎯 Conferma ({customSelectedTargets.length} selezionati)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* REVEAL MODAL - Show revealed opponent cards */}
+      {revealedCards.visible && (
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/80" onClick={() => setRevealedCards({ visible: false, revealedBy: '', hands: {} })}>
+          <div className="bg-gradient-to-br from-indigo-900 via-purple-800 to-blue-900 rounded-2xl p-4 sm:p-6 border-4 border-cyan-400 shadow-[0_0_60px_rgba(34,211,238,0.6)] max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <h2 className="text-xl sm:text-2xl font-black text-cyan-400 text-center mb-4" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+              👁️ CARTE RIVELATE
+            </h2>
+            {Object.entries(revealedCards.hands).map(([pName, cards]) => (
+              <div key={pName} className="mb-4">
+                <h3 className="text-lg font-bold text-amber-400 mb-2">🃏 Mano di {pName} ({cards.length} carte)</h3>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                  {cards.map(card => (
+                    <div key={card.id} className="bg-black/40 rounded-lg p-2 border border-cyan-500/30 text-center">
+                      {card.frontImage && (
+                        <img src={card.frontImage} alt={card.name} className="w-full h-24 sm:h-32 object-contain rounded mb-1" />
+                      )}
+                      <p className="text-xs sm:text-sm text-white font-bold truncate">{card.name}</p>
+                      <p className="text-xs text-cyan-300">{card.type}</p>
+                      {card.pti !== null && <p className="text-xs text-amber-400">PTI: {card.pti}</p>}
+                      {card.stars !== null && <p className="text-xs text-yellow-300">{'⭐'.repeat(card.stars)}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <div className="text-center mt-4">
+              <button
+                onClick={() => setRevealedCards({ visible: false, revealedBy: '', hands: {} })}
+                className="px-6 py-3 bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-lg shadow-[0_0_20px_rgba(34,211,238,0.6)] transition-all"
+              >
+                ✓ Chiudi
               </button>
             </div>
           </div>

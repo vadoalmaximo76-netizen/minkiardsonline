@@ -4724,6 +4724,29 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const game = this.games.get(gameId);
     if (!game) return;
 
+    // Apply TRIPLE multiplier if active for this player
+    if (game.tripleNextEffect === playerName && action.type !== 'triple') {
+      const numericTypes = ['damage', 'heal', 'powerup', 'steal_pti', 'draw', 'pti_boost', 'star_boost', 'poison', 'burn', 'chain', 'mill', 'random_effect'];
+      if (numericTypes.includes(action.type) && action.value != null) {
+        const originalValue = action.value;
+        action.value = action.value * 3;
+        console.log(`3️⃣ TRIPLE MULTIPLIER applied! ${action.type} value tripled: ${originalValue} → ${action.value}`);
+        const ioTripleMul = (global as any).io;
+        if (ioTripleMul) {
+          ioTripleMul.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-triple-applied`,
+            playerName: 'Sistema',
+            message: `3️⃣ TRIPLO applicato! L'effetto ${action.type} è stato TRIPLICATO: ${originalValue} → ${action.value}!`,
+            timestamp: Date.now()
+          });
+        }
+        delete game.tripleNextEffect;
+      } else if (!numericTypes.includes(action.type)) {
+        // Non-numeric effect, keep triple for next applicable effect
+        console.log(`3️⃣ TRIPLE: Skipping non-numeric effect ${action.type}, keeping multiplier for next effect`);
+      }
+    }
+
     console.log(`🎴 Executing custom effect action: ${action.type} - ${action.description}`);
 
     switch (action.type) {
@@ -5413,14 +5436,35 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
 
       case 'asta': {
-        const io = (global as any).io;
-        if (io) {
-          io.to(gameId).emit('auction-select-character', {
+        const ioAsta = (global as any).io;
+        
+        if (this.isPlayerCPU(gameId, playerName)) {
+          const allDecks = game.decks;
+          let bestCard: Card | null = null;
+          if (allDecks) {
+            const deckKeys = Object.keys(allDecks);
+            for (const key of deckKeys) {
+              const deck = (allDecks as any)[key] as Card[];
+              const personaggi = deck.filter((c: Card) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+              for (const p of personaggi) {
+                if (!bestCard || (p.pti || 0) > (bestCard.pti || 0)) bestCard = p;
+              }
+            }
+          }
+          if (bestCard && ioAsta) {
+            console.log(`🔨 ASTA (CPU): ${playerName} selected ${bestCard.name || bestCard.id} for auction`);
+            this.startAuction(gameId, bestCard, playerName, ioAsta);
+          }
+          break;
+        }
+        
+        if (ioAsta) {
+          ioAsta.to(gameId).emit('auction-select-character', {
             playerName,
             gameId,
             timestamp: Date.now()
           });
-          io.to(gameId).emit('chat-message', {
+          ioAsta.to(gameId).emit('chat-message', {
             id: `${Date.now()}-asta`,
             playerName: 'Sistema',
             message: `🔨 ASTA! ${playerName} ha giocato ASTA! Deve scegliere un personaggio dal mazzo da mettere all'asta!`,
@@ -6081,14 +6125,41 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         break;
 
-      case 'reveal':
-        // Reveal opponent's hand (logged only)
+      case 'reveal': {
+        const revealedHands: Record<string, Array<{id: string; name: string; frontImage: string; type: string; pti: number | null; stars: number | null}>> = {};
         for (const [pName, player] of Object.entries(game.players)) {
           if (pName !== playerName) {
-            console.log(`👁️ Custom effect: ${pName}'s hand revealed: ${(player as any).hand.map((c: any) => c.name || c.id).join(', ')}`);
+            const hand = (player as any).hand as Card[];
+            revealedHands[pName] = hand.map((c: Card) => ({
+              id: c.id,
+              name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+              frontImage: c.frontImage || '',
+              type: c.type || '',
+              pti: c.pti ?? null,
+              stars: c.stars ?? null
+            }));
+            console.log(`👁️ Custom effect: ${pName}'s hand revealed: ${hand.map((c: any) => c.name || c.id).join(', ')}`);
           }
         }
+        const ioReveal = (global as any).io;
+        if (ioReveal) {
+          const revealerSocketId = this.getPlayerSocketId(gameId, playerName);
+          if (revealerSocketId) {
+            ioReveal.to(revealerSocketId).emit('cards-revealed', {
+              revealedBy: playerName,
+              hands: revealedHands,
+              timestamp: Date.now()
+            });
+          }
+          ioReveal.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-reveal`,
+            playerName: 'Sistema',
+            message: `👁️ ${playerName} ha rivelato le carte degli avversari!`,
+            timestamp: Date.now()
+          });
+        }
         break;
+      }
 
       case 'shuffle':
         // Shuffle cards back into deck (simplified - just log)
@@ -6127,11 +6198,20 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         break;
 
-      case 'triple':
-        // Triple next effect
+      case 'triple': {
         game.tripleNextEffect = playerName;
         console.log(`3️⃣ Custom effect: Next effect will be TRIPLED!`);
+        const ioTriple = (global as any).io;
+        if (ioTriple) {
+          ioTriple.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-triple`,
+            playerName: 'Sistema',
+            message: `3️⃣ TRIPLO! Il prossimo effetto di ${playerName} sarà TRIPLICATO!`,
+            timestamp: Date.now()
+          });
+        }
         break;
+      }
 
       case 'clone':
         // Create copy of this card
@@ -6163,12 +6243,97 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         console.log(`🎰 Custom effect: COMBO bonus activated!`);
         break;
 
-      case 'random_effect':
-        // Apply random effect
-        const randomEffects = ['damage', 'heal', 'draw', 'powerup'];
-        const randEffect = randomEffects[Math.floor(Math.random() * randomEffects.length)];
-        console.log(`🎲 Custom effect: Random effect triggered: ${randEffect}!`);
+      case 'random_effect': {
+        const randomEffectPool = [
+          { type: 'damage', value: 150, desc: 'Danno' },
+          { type: 'heal', value: 200, desc: 'Cura' },
+          { type: 'draw', value: 2, desc: 'Pesca carte' },
+          { type: 'powerup', value: 100, desc: 'Potenziamento' },
+          { type: 'steal_pti', value: 100, desc: 'Ruba PTI' },
+          { type: 'shield', value: 1, desc: 'Scudo' },
+          { type: 'extra_turn', value: 1, desc: 'Turno extra' },
+          { type: 'poison', value: 30, desc: 'Veleno' },
+          { type: 'freeze', value: 2, desc: 'Congelamento' },
+          { type: 'star_boost', value: 1, desc: 'Stella extra' },
+        ];
+        const chosenEffect = randomEffectPool[Math.floor(Math.random() * randomEffectPool.length)];
+        console.log(`🎲 RANDOM EFFECT: Rolled ${chosenEffect.type} (${chosenEffect.desc})!`);
+        
+        const ioRand = (global as any).io;
+        const randChar = this.getPlayerActiveCharacter(game, playerName);
+        
+        switch (chosenEffect.type) {
+          case 'damage': {
+            const enemies = game.field.filter(c => c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.pti != null);
+            if (enemies.length > 0) {
+              const target = enemies[Math.floor(Math.random() * enemies.length)];
+              target.pti = Math.max(0, (target.pti || 0) - chosenEffect.value);
+              this.updateCardTextWithPTI(target);
+              if (target.pti <= 0) this.moveToGraveyard(gameId, target.id, target.owner || '', 'EFFETTO_CASUALE');
+            }
+            break;
+          }
+          case 'heal':
+            if (randChar && randChar.pti != null) { randChar.pti += chosenEffect.value; this.updateCardTextWithPTI(randChar); }
+            break;
+          case 'draw':
+            for (let i = 0; i < chosenEffect.value; i++) this.pickCard(gameId, Math.random() > 0.5 ? 'personaggi' : 'mosse', playerName);
+            break;
+          case 'powerup':
+            if (randChar && randChar.pti != null) { randChar.pti += chosenEffect.value; this.updateCardTextWithPTI(randChar); }
+            break;
+          case 'steal_pti': {
+            const stealTargets = game.field.filter(c => c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.pti != null);
+            if (stealTargets.length > 0 && randChar && randChar.pti != null) {
+              const stealTarget = stealTargets[Math.floor(Math.random() * stealTargets.length)];
+              const stolen = Math.min(stealTarget.pti || 0, chosenEffect.value);
+              stealTarget.pti = (stealTarget.pti || 0) - stolen;
+              randChar.pti += stolen;
+              this.updateCardTextWithPTI(stealTarget);
+              this.updateCardTextWithPTI(randChar);
+            }
+            break;
+          }
+          case 'shield':
+            if (randChar) (randChar as any).hasShield = true;
+            break;
+          case 'extra_turn':
+            game.extraTurnPlayer = playerName;
+            console.log(`🔁 RANDOM EFFECT extra turn: ${playerName} gets an extra turn!`);
+            break;
+          case 'poison': {
+            const poisonTargets = game.field.filter(c => c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+            if (poisonTargets.length > 0) {
+              const pt = poisonTargets[Math.floor(Math.random() * poisonTargets.length)];
+              pt.poisonDamage = chosenEffect.value;
+            }
+            break;
+          }
+          case 'freeze': {
+            const freezeTargets = game.field.filter(c => c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+            if (freezeTargets.length > 0) {
+              const ft = freezeTargets[Math.floor(Math.random() * freezeTargets.length)];
+              ft.frozenTurns = chosenEffect.value;
+            }
+            break;
+          }
+          case 'star_boost':
+            if (randChar) { randChar.stars = Math.min(5, (randChar.stars || 1) + chosenEffect.value); this.updateCardTextWithPTI(randChar); }
+            break;
+        }
+        
+        if (ioRand) {
+          ioRand.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-random-effect`,
+            playerName: 'Sistema',
+            message: `🎲 EFFETTO CASUALE: ${chosenEffect.desc}! (${chosenEffect.type})`,
+            timestamp: Date.now()
+          });
+          const gameState = this.getSanitizedGameState(gameId);
+          ioRand.to(gameId).emit('game-state-update', gameState);
+        }
         break;
+      }
 
       case 'conditional':
       case 'triggered':
@@ -6371,23 +6536,36 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         break;
 
-      case 'transform':
-        // Transform card - change stats and potentially type
-        const transformCard = game.field.find(c => c.id === card.id);
-        if (transformCard) {
-          // Boost stats significantly
-          transformCard.pti = (transformCard.pti || 0) + (action.value || 300);
-          transformCard.stars = Math.min(5, (transformCard.stars || 1) + 1);
-          transformCard.name = `${transformCard.name || 'Carta'} (Trasformato)`;
-          // Clear negative effects
-          transformCard.frozenTurns = 0;
-          transformCard.isStunned = false;
-          transformCard.poisonDamage = 0;
-          transformCard.isCursed = false;
-          transformCard.isSilenced = false;
-          console.log(`🦋 Custom effect: TRANSFORMED! ${transformCard.name} now has ${transformCard.pti} PTI and ${transformCard.stars} stars!`);
+      case 'transform': {
+        const transformChar = game.field.find(c => c.id === card.id) || this.getPlayerActiveCharacter(game, playerName);
+        if (transformChar) {
+          const boostPti = action.value || 300;
+          transformChar.pti = (transformChar.pti || 0) + boostPti;
+          transformChar.stars = Math.min(5, (transformChar.stars || 1) + 1);
+          transformChar.name = `${transformChar.name || 'Carta'} (Trasformato)`;
+          transformChar.frozenTurns = 0;
+          transformChar.isStunned = false;
+          transformChar.poisonDamage = 0;
+          transformChar.isCursed = false;
+          transformChar.isSilenced = false;
+          (transformChar as any).burnDamage = 0;
+          (transformChar as any).hasShield = true;
+          this.updateCardTextWithPTI(transformChar);
+          console.log(`🦋 TRANSFORM: ${transformChar.name} now has ${transformChar.pti} PTI and ${transformChar.stars} stars!`);
+          const ioTransform = (global as any).io;
+          if (ioTransform) {
+            ioTransform.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-transform`,
+              playerName: 'Sistema',
+              message: `🦋 TRASFORMAZIONE! ${transformChar.name} si è trasformato! +${boostPti} PTI, +1 stella, tutti gli effetti negativi rimossi e scudo attivato!`,
+              timestamp: Date.now()
+            });
+            const gameState = this.getSanitizedGameState(gameId);
+            ioTransform.to(gameId).emit('game-state-update', gameState);
+          }
         }
         break;
+      }
 
       case 'split':
         // Create a copy of the card
@@ -6424,22 +6602,58 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         break;
 
-      case 'copy':
-        // Copy enemy card stats
-        const copySource = game.field.find(c => 
+      case 'copy': {
+        const copyEnemies = game.field.filter(c => 
           c.owner !== playerName && 
           (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
           c.pti != null
         );
-        if (copySource) {
-          const copyDest = game.field.find(c => c.id === card.id);
+        if (copyEnemies.length === 0) break;
+        
+        if (this.isPlayerCPU(gameId, playerName)) {
+          const bestCopy = copyEnemies.reduce((best, c) => (c.pti || 0) > (best.pti || 0) ? c : best, copyEnemies[0]);
+          const copyDest = game.field.find(c => c.id === card.id) || this.getPlayerActiveCharacter(game, playerName);
           if (copyDest) {
-            copyDest.pti = copySource.pti;
-            copyDest.stars = copySource.stars;
-            console.log(`📋 Custom effect: COPIED stats from ${copySource.name || copySource.id}!`);
+            copyDest.pti = bestCopy.pti;
+            copyDest.stars = bestCopy.stars;
+            this.updateCardTextWithPTI(copyDest);
+            console.log(`📋 COPY (CPU): Copied stats from ${bestCopy.name || bestCopy.id}!`);
           }
+          break;
+        }
+        
+        const copySelId = `copy-${Date.now()}`;
+        if (!game.pendingTargetSelections) game.pendingTargetSelections = new Map();
+        (game.pendingTargetSelections as any).set(copySelId, {
+          cardId: card.id,
+          cardName: card.name || 'Copia',
+          effectText: 'copy',
+          owner: playerName,
+          timestamp: Date.now()
+        });
+        
+        const ioCopy = (global as any).io;
+        if (ioCopy) {
+          ioCopy.to(gameId).emit('show-custom-target-selection', {
+            selectionId: copySelId,
+            cardId: card.id,
+            cardName: card.name || 'Copia',
+            owner: playerName,
+            availableTargets: copyEnemies.map(c => ({
+              id: c.id,
+              name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+              owner: c.owner || '',
+              frontImage: c.frontImage || '',
+              pti: c.pti,
+              stars: c.stars || null
+            })),
+            maxSelections: 1,
+            title: '📋 COPIA - Scegli il personaggio da copiare',
+            subtitle: 'Copierai i PTI e le stelle del bersaglio'
+          });
         }
         break;
+      }
 
       case 'sacrifice':
         // Sacrifice: destroy own character to deal massive damage
@@ -6466,20 +6680,60 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         break;
 
-      case 'swap':
-        // Swap PTI with target
-        const swapCard = game.field.find(c => c.id === card.id);
-        const swapTarget = game.field.find(c => 
+      case 'swap': {
+        const swapEnemies = game.field.filter(c => 
           c.owner !== playerName && 
-          (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+          c.pti != null
         );
-        if (swapCard && swapTarget && swapCard.pti != null && swapTarget.pti != null) {
-          const temp = swapCard.pti;
-          swapCard.pti = swapTarget.pti;
-          swapTarget.pti = temp;
-          console.log(`🔄 Custom effect: SWAPPED PTI with ${swapTarget.name || swapTarget.id}!`);
+        if (swapEnemies.length === 0) break;
+        
+        if (this.isPlayerCPU(gameId, playerName)) {
+          const myChar = game.field.find(c => c.id === card.id) || this.getPlayerActiveCharacter(game, playerName);
+          const bestSwap = swapEnemies.reduce((best, c) => (c.pti || 0) > (best.pti || 0) ? c : best, swapEnemies[0]);
+          if (myChar && myChar.pti != null && bestSwap.pti != null && bestSwap.pti > (myChar.pti || 0)) {
+            const temp = myChar.pti;
+            myChar.pti = bestSwap.pti;
+            bestSwap.pti = temp;
+            this.updateCardTextWithPTI(myChar);
+            this.updateCardTextWithPTI(bestSwap);
+            console.log(`🔄 SWAP (CPU): Swapped PTI with ${bestSwap.name || bestSwap.id}!`);
+          }
+          break;
+        }
+        
+        const swapSelId = `swap-${Date.now()}`;
+        if (!game.pendingTargetSelections) game.pendingTargetSelections = new Map();
+        (game.pendingTargetSelections as any).set(swapSelId, {
+          cardId: card.id,
+          cardName: card.name || 'Scambio',
+          effectText: 'swap',
+          owner: playerName,
+          timestamp: Date.now()
+        });
+        
+        const ioSwap = (global as any).io;
+        if (ioSwap) {
+          ioSwap.to(gameId).emit('show-custom-target-selection', {
+            selectionId: swapSelId,
+            cardId: card.id,
+            cardName: card.name || 'Scambio',
+            owner: playerName,
+            availableTargets: swapEnemies.map(c => ({
+              id: c.id,
+              name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+              owner: c.owner || '',
+              frontImage: c.frontImage || '',
+              pti: c.pti,
+              stars: c.stars || null
+            })),
+            maxSelections: 1,
+            title: '🔄 SCAMBIO - Scegli il bersaglio',
+            subtitle: 'Scambierai i PTI del tuo personaggio con quelli del bersaglio'
+          });
         }
         break;
+      }
 
       case 'destroy':
         // Destroy target card
@@ -7135,19 +7389,22 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
 
       case 'all_attack_target': {
-        const enemyChars = game.field.filter(c => 
-          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        const allAttackEnemies = game.field.filter(c => 
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.pti != null
         );
-        if (enemyChars.length > 0) {
-          const targetChar = enemyChars[0];
+        if (allAttackEnemies.length === 0) break;
+        
+        const executeAllAttack = (targetChar: Card) => {
           let totalDamage = 0;
+          const attackDetails: string[] = [];
           for (const pName of game.turnOrder) {
-            if (pName !== playerName && !game.eliminatedPlayers.has(pName)) {
+            if (!game.eliminatedPlayers.has(pName)) {
               const attackerChar = this.getPlayerActiveCharacter(game, pName);
               if (attackerChar) {
                 const stars = attackerChar.stars || this.extractStarsFromNote(attackerChar.text || '');
                 const damage = stars * 50;
                 totalDamage += damage;
+                attackDetails.push(`${attackerChar.name} (${pName}): ${damage}`);
                 console.log(`🎯 ALL ATTACK: ${attackerChar.name} (${pName}) attacks ${targetChar.name} for ${damage}`);
               }
             }
@@ -7156,19 +7413,63 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             targetChar.pti = Math.max(0, targetChar.pti - totalDamage);
             this.updateCardTextWithPTI(targetChar);
             console.log(`🎯 ALL ATTACK TOTAL: ${targetChar.name} took ${totalDamage} total damage → ${targetChar.pti} PTI`);
-            const io = (global as any).io;
-            if (io) {
-              io.to(gameId).emit('chat-message', {
+            const ioAll = (global as any).io;
+            if (ioAll) {
+              ioAll.to(gameId).emit('chat-message', {
                 id: `${Date.now()}-all-attack`,
                 playerName: 'Sistema',
-                message: `🎯 Tutti attaccano ${targetChar.name}! Danno totale: ${totalDamage} PTI!`,
+                message: `🎯 ATTACCO SIMULTANEO su ${targetChar.name || 'bersaglio'}! Tutti i personaggi attaccano! Danno totale: ${totalDamage} PTI!`,
                 timestamp: Date.now()
               });
+              const gameState = this.getSanitizedGameState(gameId);
+              ioAll.to(gameId).emit('game-state-update', gameState);
             }
             if (targetChar.pti <= 0) {
               this.moveToGraveyard(gameId, targetChar.id, targetChar.owner || '', 'ATTACCO_SIMULTANEO');
             }
           }
+        };
+        
+        if (this.isPlayerCPU(gameId, playerName)) {
+          const bestTarget = allAttackEnemies.reduce((best, c) => (c.pti || 0) > (best.pti || 0) ? c : best, allAttackEnemies[0]);
+          executeAllAttack(bestTarget);
+          break;
+        }
+        
+        if (allAttackEnemies.length === 1) {
+          executeAllAttack(allAttackEnemies[0]);
+          break;
+        }
+        
+        const allAtkSelId = `all-attack-${Date.now()}`;
+        if (!game.pendingTargetSelections) game.pendingTargetSelections = new Map();
+        (game.pendingTargetSelections as any).set(allAtkSelId, {
+          cardId: card.id,
+          cardName: card.name || 'Attacco Simultaneo',
+          effectText: 'all_attack_target',
+          owner: playerName,
+          timestamp: Date.now()
+        });
+        
+        const ioAllAtk = (global as any).io;
+        if (ioAllAtk) {
+          ioAllAtk.to(gameId).emit('show-custom-target-selection', {
+            selectionId: allAtkSelId,
+            cardId: card.id,
+            cardName: card.name || 'Attacco Simultaneo',
+            owner: playerName,
+            availableTargets: allAttackEnemies.map(c => ({
+              id: c.id,
+              name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+              owner: c.owner || '',
+              frontImage: c.frontImage || '',
+              pti: c.pti,
+              stars: c.stars || null
+            })),
+            maxSelections: 1,
+            title: '🎯 ATTACCO SIMULTANEO - Scegli il bersaglio',
+            subtitle: 'Tutti i personaggi in campo attaccheranno il bersaglio scelto!'
+          });
         }
         break;
       }
@@ -11352,6 +11653,125 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       io.to(gameId).emit('game-state-update', gameState);
       
       return { success: true, message: `Fusione e clone completati!` };
+    }
+
+    // ============ COPY HANDLER ============
+    if (selectionId.startsWith('copy-') || selection.effectText === 'copy') {
+      const copyTarget = targetCards[0];
+      if (!copyTarget) {
+        game.pendingTargetSelections.delete(selectionId);
+        return { success: false, message: 'Nessun bersaglio selezionato' };
+      }
+      if (copyTarget.owner === playerName) {
+        game.pendingTargetSelections.delete(selectionId);
+        return { success: false, message: 'Non puoi copiare un tuo personaggio!' };
+      }
+      if (!game.field.find((c: Card) => c.id === copyTarget.id)) {
+        game.pendingTargetSelections.delete(selectionId);
+        return { success: false, message: 'Il bersaglio non è più in campo' };
+      }
+      const myChar = game.field.find((c: Card) => c.id === selection.cardId) || this.getPlayerActiveCharacter(game, playerName);
+      if (myChar) {
+        myChar.pti = copyTarget.pti;
+        myChar.stars = copyTarget.stars;
+        this.updateCardTextWithPTI(myChar);
+        const copyTargetName = copyTarget.name || this.getCardNameFromUrl(copyTarget.frontImage || '');
+        console.log(`📋 COPY: ${playerName} copied stats from ${copyTargetName}! PTI: ${myChar.pti}, Stars: ${myChar.stars}`);
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-copy`,
+          playerName: 'Sistema',
+          message: `📋 COPIA! ${playerName} ha copiato le statistiche di ${copyTargetName}! PTI: ${myChar.pti}, Stelle: ${myChar.stars}`,
+          timestamp: Date.now()
+        });
+      }
+      game.pendingTargetSelections.delete(selectionId);
+      const gameState = this.getSanitizedGameState(gameId);
+      io.to(gameId).emit('game-state-update', gameState);
+      return { success: true };
+    }
+
+    // ============ SWAP HANDLER ============
+    if (selectionId.startsWith('swap-') || selection.effectText === 'swap') {
+      const swapTarget = targetCards[0];
+      if (!swapTarget) {
+        game.pendingTargetSelections.delete(selectionId);
+        return { success: false, message: 'Nessun bersaglio selezionato' };
+      }
+      if (swapTarget.owner === playerName) {
+        game.pendingTargetSelections.delete(selectionId);
+        return { success: false, message: 'Non puoi scambiare PTI con un tuo personaggio!' };
+      }
+      if (!game.field.find((c: Card) => c.id === swapTarget.id)) {
+        game.pendingTargetSelections.delete(selectionId);
+        return { success: false, message: 'Il bersaglio non è più in campo' };
+      }
+      const mySwapChar = game.field.find((c: Card) => c.id === selection.cardId) || this.getPlayerActiveCharacter(game, playerName);
+      if (mySwapChar && mySwapChar.pti != null && swapTarget.pti != null) {
+        const tempPti = mySwapChar.pti;
+        mySwapChar.pti = swapTarget.pti;
+        swapTarget.pti = tempPti;
+        this.updateCardTextWithPTI(mySwapChar);
+        this.updateCardTextWithPTI(swapTarget);
+        const swapTargetName = swapTarget.name || this.getCardNameFromUrl(swapTarget.frontImage || '');
+        console.log(`🔄 SWAP: ${playerName} swapped PTI with ${swapTargetName}! My: ${mySwapChar.pti}, Target: ${swapTarget.pti}`);
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-swap`,
+          playerName: 'Sistema',
+          message: `🔄 SCAMBIO! ${playerName} ha scambiato i PTI con ${swapTargetName}!`,
+          timestamp: Date.now()
+        });
+      }
+      game.pendingTargetSelections.delete(selectionId);
+      const gameState = this.getSanitizedGameState(gameId);
+      io.to(gameId).emit('game-state-update', gameState);
+      return { success: true };
+    }
+
+    // ============ ALL ATTACK TARGET HANDLER ============
+    if (selectionId.startsWith('all-attack-') || selection.effectText === 'all_attack_target') {
+      const attackTarget = targetCards[0];
+      if (!attackTarget) {
+        game.pendingTargetSelections.delete(selectionId);
+        return { success: false, message: 'Nessun bersaglio selezionato' };
+      }
+      if (attackTarget.owner === playerName) {
+        game.pendingTargetSelections.delete(selectionId);
+        return { success: false, message: 'Non puoi attaccare il tuo personaggio!' };
+      }
+      if (!game.field.find((c: Card) => c.id === attackTarget.id)) {
+        game.pendingTargetSelections.delete(selectionId);
+        return { success: false, message: 'Il bersaglio non è più in campo' };
+      }
+      let totalDamage = 0;
+      for (const pName of game.turnOrder) {
+        if (!game.eliminatedPlayers.has(pName)) {
+          const attackerChar = this.getPlayerActiveCharacter(game, pName);
+          if (attackerChar) {
+            const stars = attackerChar.stars || this.extractStarsFromNote(attackerChar.text || '');
+            const damage = stars * 50;
+            totalDamage += damage;
+            console.log(`🎯 ALL ATTACK: ${attackerChar.name} (${pName}) attacks ${attackTarget.name} for ${damage}`);
+          }
+        }
+      }
+      if (totalDamage > 0 && attackTarget.pti != null) {
+        attackTarget.pti = Math.max(0, attackTarget.pti - totalDamage);
+        this.updateCardTextWithPTI(attackTarget);
+        const targetName = attackTarget.name || this.getCardNameFromUrl(attackTarget.frontImage || '');
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-all-attack`,
+          playerName: 'Sistema',
+          message: `🎯 ATTACCO SIMULTANEO su ${targetName}! Danno totale: ${totalDamage} PTI!`,
+          timestamp: Date.now()
+        });
+        if (attackTarget.pti <= 0) {
+          this.moveToGraveyard(gameId, attackTarget.id, attackTarget.owner || '', 'ATTACCO_SIMULTANEO');
+        }
+      }
+      game.pendingTargetSelections.delete(selectionId);
+      const gameState = this.getSanitizedGameState(gameId);
+      io.to(gameId).emit('game-state-update', gameState);
+      return { success: true };
     }
 
     // ============ FUSION ENEMY HANDLER (proper Fondi) ============
