@@ -1650,6 +1650,36 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           }
         }
         
+        // Check if this MOSSE card has a custom effect that was already processed
+        // during playCard() (e.g., [BERSAGLIO: scelta], [DADO:], timed effects, etc.)
+        // If so, the effect IS the card's action - do NOT also try a regular MOSSE attack
+        const cardEffect = cardToPlay.effect || '';
+        const hasCustomEffect = cardEffect && (
+          /\[BERSAGLIO:/i.test(cardEffect) ||
+          /\[DADO[_:]?/i.test(cardEffect) ||
+          /\[DADO_AUTOMATICO:/i.test(cardEffect) ||
+          /scommessa/i.test(cardEffect) ||
+          /roulette/i.test(cardEffect) ||
+          /dopo\s+\d+\s+turni/i.test(cardEffect) ||
+          /tra\s+\d+\s+turni/i.test(cardEffect)
+        );
+        const hasDamageValue = cardToPlay.mosseDamageValue !== null && cardToPlay.mosseDamageValue !== undefined && cardToPlay.mosseDamageValue > 0;
+        
+        if (hasCustomEffect && !hasDamageValue) {
+          console.log(`🎯 CPU ${this.playerName}: MOSSE card has custom effect (no damage value) - effect already processed, skipping regular attack`);
+          this.markActionExecuted('execute');
+          this.turnState.phase = 'turn_end';
+          
+          if (this.socketEmitter && this.gameManager) {
+            const updatedState = this.gameManager.getSanitizedGameState(this.gameId);
+            this.socketEmitter.to(this.gameId).emit('game-state-update', updatedState);
+          }
+          
+          this.sendChatMessage(`Effetto della mossa attivato!`);
+          this.resetTurnState();
+          return { type: 'end-turn', data: { playerName: this.playerName } };
+        }
+        
         // Check if this is ATTACCO DISONESTO (index 6 in mosse array)
         const isAtcaccoDisonesto = cardToPlay.frontImage === 'https://i.ibb.co/PZR61NhJ/attacco-disonesto.png';
         
