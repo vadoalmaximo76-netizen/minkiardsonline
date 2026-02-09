@@ -2806,6 +2806,29 @@ Rispondi SOLO in JSON:`;
       actions.push({ type: 'heal', target: target === 'opponents' ? 'self' : target, value, description: `Cura ${value} PTI` });
     }
 
+    // ============ SUMMON NAMED CHARACTER PATTERN ============
+    // Detect "pesca automaticamente il personaggio speciale X" or draw_type: Speciali with a named character
+    {
+      const namedCharMatch = effectText.match(/personaggio\s+speciale\s*"([^"]+)"/i) ||
+                              effectText.match(/personaggio\s+speciale\s+([A-Z][A-Z\s]+)/i) ||
+                              effectText.match(/metti\s+in\s+campo\s*"([^"]+)"/i) ||
+                              effectText.match(/metti\s+in\s+campo\s+il\s+personaggio\s+(?:speciale\s+)?([A-Z][A-Z\s]+)/i) ||
+                              effectText.match(/evoca\s*"([^"]+)"/i);
+      const drawTypeSpeciali = detailsData['draw_type']?.toLowerCase().includes('speciali');
+      const effectSummary = detailsData['effect_summary'] || '';
+      const summaryNameMatch = effectSummary.match(/personaggio\s+speciale\s*"([^"]+)"/i) ||
+                                effectSummary.match(/personaggio\s+speciale\s+([A-Z][A-Z\s]+)/i);
+      
+      const finalNameMatch = namedCharMatch || summaryNameMatch;
+      
+      if (finalNameMatch && (drawTypeSpeciali || /speciale|personaggi_speciali/i.test(effectText))) {
+        const charName = finalNameMatch[1].trim().replace(/\s+$/, '');
+        console.log(`🎭 SUMMON NAMED pattern detected: "${charName}" from personaggi_speciali`);
+        actions.push({ type: 'summon_named', target: 'self', value: 1, description: `Evoca ${charName} dal mazzo Speciali` });
+        return actions;
+      }
+    }
+
     // ============ DRAW PATTERNS ============
     if (text.includes('pesca') || text.includes('prendi carta') || text.includes('estrai') || 
         text.includes('prendere carta') || text.includes('pescare') || text.includes('tira una carta') ||
@@ -3799,6 +3822,45 @@ Rispondi SOLO in JSON:`;
     if (!game || !card.effect) return {};
 
     console.log(`🎴 Processing custom card effect for ${card.name || card.id}: "${card.effect}"`);
+    
+    // ============ PTI DISTRIBUTION PATTERN (Giovanni Muciaccia) ============
+    // When a personaggi_speciali card with PTI/stelle distribution effect is played directly
+    if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && 
+        card.effect && /decidi.*pti.*stelle|distribui.*pti.*stelle|1000\s*pti.*stelle|pti.*convertit.*stelle/i.test(card.effect)) {
+      console.log(`🎭 PTI DISTRIBUTION: "${card.name}" has PTI/stelle distribution effect`);
+      const io = (global as any).io;
+      if (io) {
+        const isCPU = this.isPlayerCPU(gameId, playerName);
+        if (isCPU) {
+          const cpuPti = 500 + Math.floor(Math.random() * 6) * 100;
+          const cpuStelle = Math.floor((1000 - cpuPti) / 100);
+          card.pti = cpuPti;
+          card.stars = cpuStelle;
+          const fieldCard = game.field.find((c: Card) => c.id === card.id);
+          if (fieldCard) {
+            fieldCard.pti = cpuPti;
+            fieldCard.stars = cpuStelle;
+          }
+          console.log(`🤖 CPU ${playerName} auto-distributed: ${cpuPti} PTI, ${cpuStelle} stelle`);
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-cpu-distribute-direct`,
+            playerName: 'Sistema',
+            message: `🤖 ${playerName} assegna a ${card.name}: ${cpuPti} PTI e ${cpuStelle} stelle!`,
+            timestamp: Date.now()
+          });
+        } else {
+          io.to(gameId).emit('show-pti-distribution-panel', {
+            cardId: card.id,
+            cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+            cardImage: card.frontImage,
+            playerName,
+            totalBudget: 1000,
+            ptiPerStar: 100
+          });
+        }
+      }
+      return {};
+    }
     
     // ============ FUSION + CLONE PATTERN ============
     // Detect complex fusion-clone effects: choose opponent character, fuse, add PTI, clone to both
@@ -6719,6 +6781,85 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           summonedCard.owner = playerName;
           game.field.push(summonedCard);
           console.log(`🌟 SUMMON: ${playerName} summoned ${summonedCard.name || summonedCard.id} to the field!`);
+        }
+        break;
+      }
+
+      case 'summon_named': {
+        const summonNameMatch = action.description.match(/Evoca\s+(.+?)\s+dal\s+mazzo/i) ||
+                                card.effect?.match(/personaggio\s+speciale\s*"([^"]+)"/i) ||
+                                card.effect?.match(/metti\s+in\s+campo\s*"([^"]+)"/i);
+        const targetCharName = summonNameMatch ? summonNameMatch[1].trim().toUpperCase() : '';
+        
+        if (!targetCharName) {
+          console.log(`❌ SUMMON_NAMED: Could not extract character name from description`);
+          break;
+        }
+        
+        console.log(`🎭 SUMMON_NAMED: Looking for "${targetCharName}" in personaggi_speciali deck`);
+        
+        const specDeck = game.decks.personaggi_speciali;
+        const namedIdx = specDeck.findIndex((c: Card) => {
+          const cName = (c.name || this.getCardNameFromUrl(c.frontImage || '')).toUpperCase().trim();
+          return cName.includes(targetCharName) || targetCharName.includes(cName);
+        });
+        
+        if (namedIdx === -1) {
+          console.log(`❌ SUMMON_NAMED: "${targetCharName}" not found in personaggi_speciali deck (${specDeck.length} cards)`);
+          const ioSummon = (global as any).io;
+          if (ioSummon) {
+            ioSummon.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-summon-not-found`,
+              playerName: 'Sistema',
+              message: `❌ "${targetCharName}" non trovato nel mazzo Speciali! Potrebbe essere già in campo o nel cimitero.`,
+              timestamp: Date.now()
+            });
+          }
+          break;
+        }
+        
+        const summonedNamedCard = specDeck.splice(namedIdx, 1)[0];
+        summonedNamedCard.owner = playerName;
+        game.field.push(summonedNamedCard);
+        
+        console.log(`🎭 SUMMON_NAMED: ${playerName} summoned "${summonedNamedCard.name || targetCharName}" to field!`);
+        
+        const ioSummonNamed = (global as any).io;
+        if (ioSummonNamed) {
+          ioSummonNamed.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-summon-named`,
+            playerName: 'Sistema',
+            message: `🎭 ${playerName} evoca "${summonedNamedCard.name || targetCharName}" in campo dal mazzo Speciali!`,
+            timestamp: Date.now()
+          });
+          
+          if (summonedNamedCard.effect && /decidi.*pti.*stelle|distribui.*pti.*stelle|1000\s*pti.*stelle|pti.*convertit.*stelle/i.test(summonedNamedCard.effect)) {
+            console.log(`🎭 SUMMON_NAMED: "${summonedNamedCard.name}" has PTI distribution effect - showing panel`);
+            
+            const isCPUSummon = this.isPlayerCPU(gameId, playerName);
+            if (isCPUSummon) {
+              const cpuPti = 500 + Math.floor(Math.random() * 6) * 100;
+              const cpuStelle = Math.floor((1000 - cpuPti) / 100);
+              summonedNamedCard.pti = cpuPti;
+              summonedNamedCard.stars = cpuStelle;
+              console.log(`🤖 CPU ${playerName} auto-distributed: ${cpuPti} PTI, ${cpuStelle} stelle`);
+              ioSummonNamed.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-cpu-distribute`,
+                playerName: 'Sistema',
+                message: `🤖 ${playerName} assegna a ${summonedNamedCard.name}: ${cpuPti} PTI e ${cpuStelle} stelle!`,
+                timestamp: Date.now()
+              });
+            } else {
+              ioSummonNamed.to(gameId).emit('show-pti-distribution-panel', {
+                cardId: summonedNamedCard.id,
+                cardName: summonedNamedCard.name || targetCharName,
+                cardImage: summonedNamedCard.frontImage,
+                playerName,
+                totalBudget: 1000,
+                ptiPerStar: 100
+              });
+            }
+          }
         }
         break;
       }

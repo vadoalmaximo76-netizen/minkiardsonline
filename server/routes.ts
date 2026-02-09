@@ -2595,6 +2595,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // Handle PTI distribution panel confirmation (Giovanni Muciaccia effect)
+    socket.on('pti-distribution-confirm', ({ cardId, ptiValue, starsValue, playerName }: { cardId: string, ptiValue: number, starsValue: number, playerName: string }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (gameId) {
+        console.log(`🎭 ${playerName} confirmed PTI distribution: ${ptiValue} PTI, ${starsValue} stelle for card ${cardId}`);
+        const game = gameManager.getGame(gameId);
+        if (game) {
+          const fieldCard = game.field.find((c: any) => c.id === cardId);
+          if (fieldCard) {
+            const safePti = Math.max(0, Math.floor(ptiValue || 0));
+            const safeStars = Math.max(0, Math.floor(starsValue || 0));
+            const totalUsed = safePti + (safeStars * 100);
+            if (totalUsed !== 1000) {
+              socket.emit('chat-message', {
+                id: `${Date.now()}-distribute-error`,
+                playerName: 'Sistema',
+                message: `❌ Il budget deve essere esattamente 1000! Hai usato ${totalUsed}/1000. Riprova.`,
+                timestamp: Date.now()
+              });
+              return;
+            }
+            fieldCard.pti = safePti;
+            fieldCard.stars = safeStars;
+            
+            const gameState = gameManager.getSanitizedGameState(gameId);
+            emitImmediateGameState(io, gameId, gameState);
+            
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-pti-distributed`,
+              playerName: 'Sistema',
+              message: `🎭 ${playerName} assegna a ${fieldCard.name || 'Giovanni Muciaccia'}: ${ptiValue} PTI e ${starsValue} stelle!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+      }
+    });
+
     // Handle deck selection panel confirmation
     socket.on('deck-selection-confirm', ({ cardId, deckType, playerName }: { cardId: string, deckType: string, playerName: string }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);

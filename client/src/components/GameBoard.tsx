@@ -166,6 +166,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     effectDescription: string;
   }>({ visible: false, cardId: '', cardName: '', effectDescription: '' });
   const [ptiInputValue, setPtiInputValue] = useState<string>('');
+  const [ptiDistributionPanel, setPtiDistributionPanel] = useState<{
+    visible: boolean;
+    cardId: string;
+    cardName: string;
+    cardImage: string;
+    totalBudget: number;
+    ptiPerStar: number;
+  }>({ visible: false, cardId: '', cardName: '', cardImage: '', totalBudget: 1000, ptiPerStar: 100 });
+  const [distributionPti, setDistributionPti] = useState<number>(1000);
+  const [distributionStars, setDistributionStars] = useState<number>(0);
   const [deckSelectionPanel, setDeckSelectionPanel] = useState<{
     visible: boolean;
     cardId: string;
@@ -821,6 +831,24 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       }
     };
     socket.on('show-pti-input-panel', handleShowPtiInputPanel);
+
+    // PTI DISTRIBUTION PANEL: Handle Giovanni Muciaccia-style PTI/stelle distribution
+    const handleShowPtiDistribution = (data: { cardId: string; cardName: string; cardImage: string; playerName: string; totalBudget: number; ptiPerStar: number }) => {
+      console.log('🎭 Show PTI distribution panel:', data);
+      if (data.playerName === playerName) {
+        setPtiDistributionPanel({
+          visible: true,
+          cardId: data.cardId,
+          cardName: data.cardName,
+          cardImage: data.cardImage || '',
+          totalBudget: data.totalBudget || 1000,
+          ptiPerStar: data.ptiPerStar || 100
+        });
+        setDistributionPti(data.totalBudget || 1000);
+        setDistributionStars(0);
+      }
+    };
+    socket.on('show-pti-distribution-panel', handleShowPtiDistribution);
 
     // DECK SELECTION PANEL: Handle custom card effect that requires deck selection
     const handleShowDeckSelection = (data: { cardId: string; cardName: string; playerName: string; effectDescription: string }) => {
@@ -1487,6 +1515,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('player-choosing-notification', handlePlayerChoosingNotification);
       socket.off('show-graveyard-selection', handleShowGraveyardSelection);
       socket.off('show-pti-input-panel', handleShowPtiInputPanel);
+      socket.off('show-pti-distribution-panel', handleShowPtiDistribution);
       socket.off('show-deck-selection', handleShowDeckSelection);
       socket.off('show-deck-card-picker', handleShowDeckCardPicker);
       socket.off('auction-select-character', handleAuctionSelectCharacter);
@@ -1876,6 +1905,77 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               </Button>
               <Button
                 onClick={() => setPtiInputPanel({ visible: false, cardId: '', cardName: '', effectDescription: '' })}
+                className="bg-gray-600 hover:bg-gray-500 text-white px-6 py-2"
+              >
+                Annulla
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PTI DISTRIBUTION PANEL - Giovanni Muciaccia style PTI/stelle allocation */}
+      {ptiDistributionPanel.visible && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-purple-900 to-indigo-700 rounded-lg p-6 w-full max-w-md mx-4 border-4 border-purple-400 shadow-[0_0_30px_rgba(147,51,234,0.5)]">
+            <div className="text-center mb-4">
+              <h2 className="text-2xl font-bold text-white mb-2" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>
+                🎭 {ptiDistributionPanel.cardName}
+              </h2>
+              <p className="text-purple-100 text-sm" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                Distribuisci {ptiDistributionPanel.totalBudget} punti tra PTI e Stelle. Ogni stella costa {ptiDistributionPanel.ptiPerStar} PTI.
+              </p>
+            </div>
+            {ptiDistributionPanel.cardImage && (
+              <div className="flex justify-center mb-4">
+                <img src={ptiDistributionPanel.cardImage} alt={ptiDistributionPanel.cardName} className="w-24 h-32 object-cover rounded border-2 border-purple-300" />
+              </div>
+            )}
+            <div className="bg-black/30 rounded-lg p-4 mb-4">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-white font-bold text-lg">PTI: {distributionPti}</span>
+                <span className="text-yellow-300 font-bold text-lg">Stelle: {distributionStars} {'⭐'.repeat(distributionStars)}</span>
+              </div>
+              <div className="mb-3">
+                <label className="text-purple-200 text-xs block mb-1">Stelle (ogni stella = {ptiDistributionPanel.ptiPerStar} PTI)</label>
+                <input
+                  type="range"
+                  min="0"
+                  max={Math.floor(ptiDistributionPanel.totalBudget / ptiDistributionPanel.ptiPerStar)}
+                  value={distributionStars}
+                  onChange={(e) => {
+                    const stars = parseInt(e.target.value);
+                    setDistributionStars(stars);
+                    setDistributionPti(ptiDistributionPanel.totalBudget - (stars * ptiDistributionPanel.ptiPerStar));
+                  }}
+                  className="w-full accent-purple-500"
+                />
+                <div className="flex justify-between text-purple-300 text-xs mt-1">
+                  <span>0 stelle</span>
+                  <span>{Math.floor(ptiDistributionPanel.totalBudget / ptiDistributionPanel.ptiPerStar)} stelle</span>
+                </div>
+              </div>
+              <div className="text-center text-purple-200 text-sm">
+                Budget usato: {distributionPti + (distributionStars * ptiDistributionPanel.ptiPerStar)}/{ptiDistributionPanel.totalBudget}
+              </div>
+            </div>
+            <div className="flex gap-4 justify-center">
+              <Button
+                onClick={() => {
+                  socket.emit('pti-distribution-confirm', {
+                    cardId: ptiDistributionPanel.cardId,
+                    ptiValue: distributionPti,
+                    starsValue: distributionStars,
+                    playerName
+                  });
+                  setPtiDistributionPanel({ visible: false, cardId: '', cardName: '', cardImage: '', totalBudget: 1000, ptiPerStar: 100 });
+                }}
+                className="bg-green-600 hover:bg-green-500 text-white px-6 py-2"
+              >
+                Conferma
+              </Button>
+              <Button
+                onClick={() => setPtiDistributionPanel({ visible: false, cardId: '', cardName: '', cardImage: '', totalBudget: 1000, ptiPerStar: 100 })}
                 className="bg-gray-600 hover:bg-gray-500 text-white px-6 py-2"
               >
                 Annulla
