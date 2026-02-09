@@ -4611,6 +4611,7 @@ Rispondi SOLO in JSON:`;
             console.log(`⚠️ No enemy characters available for target selection`);
           }
           
+          (card as any).effectAlreadyApplied = true;
           return { customAnimation };
         }
         
@@ -13083,13 +13084,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     // GUARD: Don't re-trigger effects for BONUS cards - they fire once when played via processCustomCardEffect
     if (card.type === 'bonus' || card.type === 'mosse') {
-      // Bonus and Mosse cards should not have their effects re-triggered every turn
-      // They fire once when played
       if ((card as any).effectAlreadyApplied) {
         console.log(`⚡ Skipping re-trigger for ${cardName} (${card.type}) - effect already applied`);
         return;
       }
       (card as any).effectAlreadyApplied = true;
+    }
+
+    // GUARD: If this card already has a timed effect registered, don't re-process
+    if (game.timedEffects && game.timedEffects.some(te => te.sourceCardId === cardId && te.sourcePlayer === playerName)) {
+      console.log(`⏳ Skipping re-trigger for ${cardName} by ${playerName} - timed effect already registered`);
+      return;
     }
 
     // Check for BERSAGLIO: scelta (target choice) - must select targets first
@@ -14249,8 +14254,32 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
       }
 
+      case 'timed_effect': {
+        const delayVal = action.value || 3;
+        const delayedActs = (action as any)._delayedActions || [];
+        if (delayedActs.length > 0) {
+          if (!game.timedEffects) game.timedEffects = [];
+          game.timedEffects.push({
+            id: `timed-${Date.now()}-${playerName}`,
+            sourcePlayer: playerName,
+            sourceCardId: sourceCard?.id || '',
+            sourceCardName: sourceCard?.name || 'Carta sconosciuta',
+            turnsRemaining: delayVal,
+            actions: delayedActs,
+            createdAt: Date.now()
+          });
+          console.log(`⏳ TIMED EFFECT (applyParsed): Registered ${delayedActs.length} actions, triggers in ${delayVal} turns`);
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-timed-effect`,
+            playerName: 'Sistema',
+            message: `⏳ Effetto ritardato attivato da ${playerName}! Si attiverà tra ${delayVal} turni`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      }
+
       case 'special':
-        // Generic special - just log, don't error
         console.log(`🌟 Special effect applied: ${action.description || 'unknown'}`);
         break;
 

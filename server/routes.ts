@@ -4533,6 +4533,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
           gameManager.breakRifugioProtection(gameId, protectedChar.id, io);
         }
 
+        // CHECK: If the MOSSE card has a timed effect registered, defer damage instead of attacking now
+        const fullGame = gameManager.getGameState(gameId);
+        if (fullGame) {
+          if (!fullGame.timedEffects) fullGame.timedEffects = [];
+          const timedForThisCard = fullGame.timedEffects.find(
+            (te: any) => te.sourceCardId === mosseCardId && te.sourcePlayer === attackerName
+          );
+          if (timedForThisCard) {
+            // Idempotency: check if damage was already deferred for this card
+            if ((timedForThisCard as any).damageDeferred) {
+              console.log(`⏳ MOSSE DELAYED: ${mosseCardId} damage already deferred - skipping duplicate`);
+              return;
+            }
+            (timedForThisCard as any).damageDeferred = true;
+            
+            console.log(`⏳ MOSSE DELAYED: ${attackerName}'s ${mosseCardId} has a timed effect - deferring ${damageValue} damage for ${timedForThisCard.turnsRemaining} turns`);
+            
+            // Replace placeholder actions with real damage
+            timedForThisCard.actions = timedForThisCard.actions.filter(
+              (a: any) => a.type !== 'special'
+            );
+            timedForThisCard.actions.push({
+              type: 'damage',
+              target: 'opponents',
+              value: damageValue,
+              description: `Danno ritardato: ${damageValue} PTI`
+            });
+            if (starsToRemove && starsToRemove > 0) {
+              timedForThisCard.actions.push({
+                type: 'remove_stars',
+                target: 'opponents',
+                value: starsToRemove,
+                description: `Rimuovi ${starsToRemove} stelle`
+              });
+            }
+            
+            // Move MOSSE card to graveyard
+            gameManager.moveToGraveyard(gameId, mosseCardId, attackerName, 'MOSSE_RITARDATA');
+            
+            // Auto-draw replacement
+            const drawnSuccess = await gameManager.pickCard(gameId, 'mosse', attackerName);
+            if (drawnSuccess) {
+              console.log(`[AUTO-DRAW] ${attackerName} drew replacement MOSSE after delayed attack`);
+            }
+            
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-mosse-delayed`,
+              playerName: 'Sistema',
+              message: `⏳ ${attackerName} ha usato una mossa ritardata! ${damageValue} PTI di danno verranno inflitti tra ${timedForThisCard.turnsRemaining} turni!`,
+              timestamp: Date.now()
+            });
+            
+            const updatedState = gameManager.getSanitizedGameState(gameId);
+            io.to(gameId).emit('game-state-update', updatedState);
+            return;
+          }
+          
+          // FALLBACK: Check if MOSSE card has delay pattern in its effect but timed effect wasn't registered yet
+          const mosseFieldCard = fullGame.field?.find((c: any) => c.id === mosseCardId);
+          const mosseEffectText = mosseFieldCard?.effect || '';
+          const delayMatch = mosseEffectText.match(/(?:dopo|tra)\s+(\d+)\s+turni?/i) || 
+                             mosseEffectText.match(/si\s+attiva\s+(?:dopo|tra)\s+(\d+)\s+turni?/i);
+          if (delayMatch) {
+            const delayTurns = parseInt(delayMatch[1], 10);
+            console.log(`⏳ MOSSE DELAYED (fallback): Creating timed effect for ${mosseCardId} with ${delayTurns} turn delay`);
+            
+            const timedActions: any[] = [{
+              type: 'damage',
+              target: 'opponents',
+              value: damageValue,
+              description: `Danno ritardato: ${damageValue} PTI`
+            }];
+            if (starsToRemove && starsToRemove > 0) {
+              timedActions.push({
+                type: 'remove_stars',
+                target: 'opponents',
+                value: starsToRemove,
+                description: `Rimuovi ${starsToRemove} stelle`
+              });
+            }
+            
+            const fallbackTimedEffect = {
+              id: `timed-${Date.now()}-${attackerName}`,
+              sourcePlayer: attackerName,
+              sourceCardId: mosseCardId,
+              sourceCardName: mosseFieldCard?.name || (mosseFieldCard?.frontImage || '').split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/-/g, ' ') || 'Mossa',
+              turnsRemaining: delayTurns,
+              actions: timedActions,
+              createdAt: Date.now(),
+              damageDeferred: true
+            } as any;
+            fullGame.timedEffects.push(fallbackTimedEffect);
+            
+            gameManager.moveToGraveyard(gameId, mosseCardId, attackerName, 'MOSSE_RITARDATA');
+            const drawnFallback = await gameManager.pickCard(gameId, 'mosse', attackerName);
+            if (drawnFallback) console.log(`[AUTO-DRAW] ${attackerName} drew replacement MOSSE after delayed attack`);
+            
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-mosse-delayed`,
+              playerName: 'Sistema',
+              message: `⏳ ${attackerName} ha usato una mossa ritardata! ${damageValue} PTI di danno verranno inflitti tra ${delayTurns} turni!`,
+              timestamp: Date.now()
+            });
+            
+            const updatedState = gameManager.getSanitizedGameState(gameId);
+            io.to(gameId).emit('game-state-update', updatedState);
+            return;
+          }
+        }
+
         // NEW: Execute defense-enabled MOSSE attack (unified emission)
         const attackResult = await gameManager.executeMossaAttack(
           gameId, 
