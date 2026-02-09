@@ -15647,7 +15647,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         
         for (const action of te.actions) {
           try {
-            this.executeCustomEffectAction(gameId, te.sourcePlayer, action, gameState, sourceCard)
+            this.executeCustomEffectAction(gameId, action, te.sourcePlayer, sourceCard || ({} as any))
               .catch(err => console.error(`⏳ Async error executing timed action ${action.type}:`, err));
           } catch (err) {
             console.error(`⏳ Error executing timed action ${action.type}:`, err);
@@ -15997,6 +15997,68 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     if (!currentPlayerName) return null;
 
     console.log(`🔨 Force ending turn for ${currentPlayerName} (bypassing validation)`);
+
+    // Process delayed damages (from defense-delay BONUS cards)
+    if (gameState.delayedDamages && gameState.delayedDamages.length > 0) {
+      const io = (global as any).io;
+      if (io) {
+        const result = this.processDelayedDamages(gameId, currentPlayerName, io);
+        if (result.appliedDamages.length > 0) {
+          console.log(`⏳ DELAYED DAMAGE (forceEnd): Applied ${result.appliedDamages.length} delayed damages for ${currentPlayerName}`);
+          const updatedState = this.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', updatedState);
+        }
+      }
+    }
+
+    // Process timed effects (generic delayed effects from Wizard cards)
+    if (gameState.timedEffects && gameState.timedEffects.length > 0) {
+      const effectsToTrigger: TimedEffect[] = [];
+      
+      for (const te of gameState.timedEffects) {
+        if (te.sourcePlayer === currentPlayerName) {
+          te.turnsRemaining--;
+          console.log(`⏳ TIMED EFFECT (forceEnd): ${te.sourceCardName} by ${te.sourcePlayer} - ${te.turnsRemaining} turni rimanenti`);
+          
+          if (te.turnsRemaining <= 0) {
+            effectsToTrigger.push(te);
+          }
+        }
+      }
+      
+      for (const te of effectsToTrigger) {
+        console.log(`⏳💥 TIMED EFFECT TRIGGERED (forceEnd): ${te.actions.length} actions from ${te.sourceCardName} (${te.sourcePlayer})`);
+        const io = (global as any).io;
+        if (io) {
+          const actionDescs = te.actions.map(a => a.description).join(', ');
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-timed-effect-trigger`,
+            playerName: 'Sistema',
+            message: `⏳💥 EFFETTO RITARDATO ATTIVATO! ${te.sourceCardName} di ${te.sourcePlayer}: ${actionDescs}`,
+            timestamp: Date.now()
+          });
+        }
+        
+        const sourceCard = gameState.field.find(c => c.id === te.sourceCardId) || null;
+        
+        for (const action of te.actions) {
+          try {
+            this.executeCustomEffectAction(gameId, action, te.sourcePlayer, sourceCard || ({} as any))
+              .catch(err => console.error(`⏳ Async error executing timed action (forceEnd) ${action.type}:`, err));
+          } catch (err) {
+            console.error(`⏳ Error executing timed action (forceEnd) ${action.type}:`, err);
+          }
+        }
+        
+        const io2 = (global as any).io;
+        if (io2) {
+          const updatedState = this.getSanitizedGameState(gameId);
+          io2.to(gameId).emit('game-state-update', updatedState);
+        }
+      }
+      
+      gameState.timedEffects = gameState.timedEffects.filter(te => te.turnsRemaining > 0);
+    }
 
     // Reset usedCardsThisTurn and usedMosseOnBarrieraThisTurn for the current player when their turn ends
     if (gameState.players[currentPlayerName]) {

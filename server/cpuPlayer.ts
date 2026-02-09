@@ -1667,6 +1667,11 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         
         if (hasCustomEffect && !hasDamageValue) {
           console.log(`🎯 CPU ${this.playerName}: MOSSE card has custom effect (no damage value) - effect already processed, skipping regular attack`);
+          
+          if (this.gameManager) {
+            this.gameManager.markCardTypeAsUsed(this.gameId, cardToPlay.frontImage || cardToPlay.id, this.playerName);
+          }
+          
           this.markActionExecuted('execute');
           this.turnState.phase = 'turn_end';
           
