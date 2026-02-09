@@ -15633,6 +15633,30 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       
       // Check if player is eliminated
       if (!gameState.eliminatedPlayers.has(nextPlayer)) {
+        // Decrement blockedMosse for all characters of the next player (BEFORE skip check so it counts down even on skipped turns)
+        const nextPlayerCards = gameState.field.filter((c: Card) => 
+          c.owner === nextPlayer && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        for (const npc of nextPlayerCards) {
+          if ((npc as any).blockedMosse && (npc as any).blockedMosse > 0) {
+            (npc as any).blockedMosse--;
+            console.log(`🫧 BLOCK MOSSE: ${npc.name} (${nextPlayer}) - ${(npc as any).blockedMosse} turni rimanenti`);
+            if ((npc as any).blockedMosse <= 0) {
+              delete (npc as any).blockedMosse;
+              console.log(`🫧 BLOCK MOSSE EXPIRED: ${npc.name} can use MOSSE again!`);
+              const expiredIo = (global as any).io;
+              if (expiredIo) {
+                expiredIo.to(gameId).emit('chat-message', {
+                  id: `${Date.now()}-block-mosse-expired`,
+                  playerName: 'Sistema',
+                  message: `🫧 ${npc.name} può di nuovo usare carte MOSSE!`,
+                  timestamp: Date.now()
+                });
+              }
+            }
+          }
+        }
+
         // Check if next player should skip their turn
         if (gameState.skipTurnPlayers && gameState.skipTurnPlayers.includes(nextPlayer)) {
           const skipIdx = gameState.skipTurnPlayers.indexOf(nextPlayer);
@@ -15658,10 +15682,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           if ((card.type === 'bonus' || card.type === 'mosse') && card.placedBy === nextPlayer) {
             card.turnCounter = (card.turnCounter || 0) + 1;
             
-            // Update the card text to include turn count
-            // Remove previous turn count if it exists (e.g., " | 1 TURNO", " | 2 TURNI", etc.)
             let cleanText = (card.text || '').replace(/\s\|\s\d+\sTURN[IO]/gi, '').trim();
-            // Handle the case where the text IS just the turn count
             if (/^\d+\sTURN[IO]$/i.test(cleanText)) {
               cleanText = '';
             }
@@ -15669,20 +15690,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             card.text = cleanText ? `${cleanText} | ${suffix}` : suffix;
           }
         });
-        
-        // Decrement blockedMosse for all characters of the next player
-        const nextPlayerCards = gameState.field.filter((c: Card) => 
-          c.owner === nextPlayer && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
-        );
-        for (const npc of nextPlayerCards) {
-          if ((npc as any).blockedMosse && (npc as any).blockedMosse > 0) {
-            (npc as any).blockedMosse--;
-            if ((npc as any).blockedMosse <= 0) {
-              delete (npc as any).blockedMosse;
-              console.log(`🫧 BLOCK MOSSE EXPIRED: ${npc.name} can use MOSSE again!`);
-            }
-          }
-        }
 
         // Check PTI thresholds for all characters on field
         if (gameState.ptiThresholds && gameState.ptiThresholds.length > 0) {
