@@ -10718,7 +10718,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if (userId) {
           try {
             if (!isDatabaseAvailable()) {
-              playerRankiards[pName] = 0;
+              const jsonUser = jsonStorage.users.getById(userId);
+              const fallbackPR = jsonUser?.puntiRankiard || 0;
+              const sessionSpent = this.getPRSpentThisGame(gameId, pName);
+              const available = Math.max(0, fallbackPR - sessionSpent);
+              playerRankiards[pName] = available;
+              auction.participants[pName].maxPoints = available;
+              auction.participants[pName].remainingPoints = available;
             } else {
               const result = await db.select({ puntiRankiard: users.puntiRankiard }).from(users).where(eq(users.id, userId));
               if (result[0]) {
