@@ -93,6 +93,10 @@ export const cardModifications = pgTable("card_modifications", {
   mosseTargetCount: integer("mosse_target_count"), // Number of targets when mosseTargetingMode='specific_count'
   mosseCanCounter: boolean("mosse_can_counter").default(false), // Can be used to counter attacks
   mosseCanBeCountered: boolean("mosse_can_be_countered").default(false), // Can be countered by other moves
+  evolvesInto: text("evolves_into"), // Card ID that this character evolves into (e.g., personaggi_speciali-5)
+  transformsInto: text("transforms_into"), // Card ID that this character transforms into
+  transformsFrom: text("transforms_from"), // Card ID that this character transforms from (for taroccata)
+  cheatsInto: text("cheats_into"), // Card ID for taroccata transformation
   isDeleted: boolean("is_deleted").default(false), // Hide card from game
   modifiedBy: text("modified_by"), // Admin email who modified
   modifiedAt: timestamp("modified_at").notNull().defaultNow(),

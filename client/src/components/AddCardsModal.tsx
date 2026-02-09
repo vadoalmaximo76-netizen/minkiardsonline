@@ -818,6 +818,10 @@ interface ExistingCard {
   mosseTargetCount: number | null;
   mosseCanCounter: boolean | null;
   mosseCanBeCountered: boolean | null;
+  evolvesInto: string | null;
+  transformsInto: string | null;
+  transformsFrom: string | null;
+  cheatsInto: string | null;
   isDeleted: boolean;
   isModified: boolean;
 }
@@ -856,7 +860,11 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     mosseTargetingMode: '',
     mosseTargetCount: '',
     mosseCanCounter: false,
-    mosseCanBeCountered: false
+    mosseCanBeCountered: false,
+    evolvesInto: '',
+    transformsInto: '',
+    transformsFrom: '',
+    cheatsInto: ''
   });
   const [pendingChanges, setPendingChanges] = useState<Map<string, {card: ExistingCard, formData: typeof existingEditForm}>>(new Map());
   const [isBulkSaving, setIsBulkSaving] = useState(false);
@@ -864,6 +872,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   
   // Available characters for MOSSE character-specific settings
   const [availableCharacters, setAvailableCharacters] = useState<{id: string, name: string, imageUrl: string}[]>([]);
+  const [allCharacterCards, setAllCharacterCards] = useState<{cardId: string, name: string, deckType: string}[]>([]);
   
   // Effect Wizard state
   const [showEffectWizard, setShowEffectWizard] = useState(false);
@@ -1199,10 +1208,36 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     }
   };
 
+  const fetchAllCharacterCards = async () => {
+    try {
+      const [persRes, specRes] = await Promise.all([
+        fetch(`/api/admin/existing-cards?deckType=personaggi`, { headers: getAuthHeaders() }),
+        fetch(`/api/admin/existing-cards?deckType=personaggi_speciali`, { headers: getAuthHeaders() })
+      ]);
+      const [persData, specData] = await Promise.all([persRes.json(), specRes.json()]);
+      const cards: {cardId: string, name: string, deckType: string}[] = [];
+      if (persData.success) {
+        persData.cards.filter((c: any) => !c.isDeleted).forEach((c: any) => {
+          cards.push({ cardId: c.id, name: c.name || c.originalName, deckType: 'personaggi' });
+        });
+      }
+      if (specData.success) {
+        specData.cards.filter((c: any) => !c.isDeleted).forEach((c: any) => {
+          cards.push({ cardId: c.id, name: c.name || c.originalName, deckType: 'personaggi_speciali' });
+        });
+      }
+      cards.sort((a, b) => a.name.localeCompare(b.name));
+      setAllCharacterCards(cards);
+    } catch (error) {
+      console.error('Error fetching character cards:', error);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       fetchPermanentCards();
       fetchAvailableCharacters();
+      fetchAllCharacterCards();
     }
   }, [isOpen]);
 
@@ -1463,7 +1498,11 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
         mosseTargetingMode: card.mosseTargetingMode || '',
         mosseTargetCount: card.mosseTargetCount?.toString() || '',
         mosseCanCounter: card.mosseCanCounter || false,
-        mosseCanBeCountered: card.mosseCanBeCountered || false
+        mosseCanBeCountered: card.mosseCanBeCountered || false,
+        evolvesInto: card.evolvesInto || '',
+        transformsInto: card.transformsInto || '',
+        transformsFrom: card.transformsFrom || '',
+        cheatsInto: card.cheatsInto || ''
       });
     }
     setEditingExistingCard(card.id);
@@ -1513,7 +1552,11 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
         mosseTargetingMode: formData.mosseTargetingMode || null,
         mosseTargetCount: formData.mosseTargetCount ? parseInt(formData.mosseTargetCount) : null,
         mosseCanCounter: formData.mosseCanCounter || false,
-        mosseCanBeCountered: formData.mosseCanBeCountered || false
+        mosseCanBeCountered: formData.mosseCanBeCountered || false,
+        evolvesInto: formData.evolvesInto || null,
+        transformsInto: formData.transformsInto || null,
+        transformsFrom: formData.transformsFrom || null,
+        cheatsInto: formData.cheatsInto || null
       }));
       
       const response = await fetch('/api/admin/card-modifications-bulk', {
@@ -2766,6 +2809,73 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                                 className="bg-gray-600 text-white border-gray-500"
                               />
                             </div>
+                            
+                            {(card.deckType === 'personaggi' || card.deckType === 'personaggi_speciali') && (
+                              <div className="p-3 bg-emerald-900/30 rounded-lg border border-emerald-500/50">
+                                <div className="text-emerald-400 text-sm font-bold mb-2">🔄 EVOLUZIONI E TRASFORMAZIONI</div>
+                                <p className="text-gray-400 text-xs mb-3">
+                                  Configura le trasformazioni di questo personaggio. Quando un BONUS con la dicitura corrispondente viene usato, il personaggio viene sostituito.
+                                </p>
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div>
+                                    <label className="text-white text-xs mb-1 block">Si evolve in</label>
+                                    <select
+                                      value={existingEditForm.evolvesInto || ''}
+                                      onChange={(e) => setExistingEditForm(prev => ({ ...prev, evolvesInto: e.target.value }))}
+                                      className="w-full bg-gray-600 text-white border border-gray-500 rounded px-2 py-2 text-xs"
+                                    >
+                                      <option value="">Nessuna evoluzione</option>
+                                      {allCharacterCards.map(c => (
+                                        <option key={c.cardId} value={c.cardId}>{c.name} ({c.deckType === 'personaggi_speciali' ? 'Speciale' : 'Personaggio'})</option>
+                                      ))}
+                                    </select>
+                                    <p className="text-gray-500 text-xs mt-1">BONUS: "Si evolve" / "Effettua l'evoluzione"</p>
+                                  </div>
+                                  <div>
+                                    <label className="text-white text-xs mb-1 block">Si trasforma in</label>
+                                    <select
+                                      value={existingEditForm.transformsInto || ''}
+                                      onChange={(e) => setExistingEditForm(prev => ({ ...prev, transformsInto: e.target.value }))}
+                                      className="w-full bg-gray-600 text-white border border-gray-500 rounded px-2 py-2 text-xs"
+                                    >
+                                      <option value="">Nessuna trasformazione</option>
+                                      {allCharacterCards.map(c => (
+                                        <option key={c.cardId} value={c.cardId}>{c.name} ({c.deckType === 'personaggi_speciali' ? 'Speciale' : 'Personaggio'})</option>
+                                      ))}
+                                    </select>
+                                    <p className="text-gray-500 text-xs mt-1">BONUS: "Si trasforma" / "Effettua la trasformazione"</p>
+                                  </div>
+                                  <div>
+                                    <label className="text-white text-xs mb-1 block">Si trasforma da</label>
+                                    <select
+                                      value={existingEditForm.transformsFrom || ''}
+                                      onChange={(e) => setExistingEditForm(prev => ({ ...prev, transformsFrom: e.target.value }))}
+                                      className="w-full bg-gray-600 text-white border border-gray-500 rounded px-2 py-2 text-xs"
+                                    >
+                                      <option value="">Nessuna</option>
+                                      {allCharacterCards.map(c => (
+                                        <option key={c.cardId} value={c.cardId}>{c.name} ({c.deckType === 'personaggi_speciali' ? 'Speciale' : 'Personaggio'})</option>
+                                      ))}
+                                    </select>
+                                    <p className="text-gray-500 text-xs mt-1">BONUS: "Si tarocca" / "Effettua la taroccata"</p>
+                                  </div>
+                                  <div>
+                                    <label className="text-white text-xs mb-1 block">Si tarocca in</label>
+                                    <select
+                                      value={existingEditForm.cheatsInto || ''}
+                                      onChange={(e) => setExistingEditForm(prev => ({ ...prev, cheatsInto: e.target.value }))}
+                                      className="w-full bg-gray-600 text-white border border-gray-500 rounded px-2 py-2 text-xs"
+                                    >
+                                      <option value="">Nessuna taroccata</option>
+                                      {allCharacterCards.map(c => (
+                                        <option key={c.cardId} value={c.cardId}>{c.name} ({c.deckType === 'personaggi_speciali' ? 'Speciale' : 'Personaggio'})</option>
+                                      ))}
+                                    </select>
+                                    <p className="text-gray-500 text-xs mt-1">BONUS: "Si tarocca" / "Effettua la taroccata"</p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                             
                             {/* MOSSE Damage Settings */}
                             {card.deckType === 'mosse' && (

@@ -40,6 +40,10 @@ interface Card {
   // Audio for custom cards
   audioUrl?: string; // URL to audio file to play when card is placed on field
   youtubeUrl?: string; // URL to YouTube video to show when card is played
+  evolvesInto?: string; // Card ID this character evolves into
+  transformsInto?: string; // Card ID this character transforms into
+  transformsFrom?: string; // Card ID for taroccata (transforms from)
+  cheatsInto?: string; // Card ID for taroccata (cheats into)
   // POTERI system - copied powers
   copiedPower?: string; // Name of character whose power was copied (e.g., 'CIMICE', 'PARASSITA')
   // RIFUGIO shelter protection system
@@ -601,6 +605,19 @@ export class GameManager {
     }
     if (mod.mosseCanBeCountered !== undefined) {
       card.mosseCanBeCountered = mod.mosseCanBeCountered;
+    }
+    // Evolution/Transformation properties
+    if (mod.evolvesInto !== undefined) {
+      card.evolvesInto = mod.evolvesInto || undefined;
+    }
+    if (mod.transformsInto !== undefined) {
+      card.transformsInto = mod.transformsInto || undefined;
+    }
+    if (mod.transformsFrom !== undefined) {
+      card.transformsFrom = mod.transformsFrom || undefined;
+    }
+    if (mod.cheatsInto !== undefined) {
+      card.cheatsInto = mod.cheatsInto || undefined;
     }
   }
 
@@ -3211,9 +3228,23 @@ Rispondi SOLO in JSON:`;
       actions.push({ type: 'swap', target: 'any', value: 1, description: 'Scambia con un\'altra carta' });
     }
 
-    // ============ TRANSFORM PATTERNS ============
-    if ((text.includes('trasforma') || text.includes('si trasforma') || text.includes('metamorfosi') || text.includes('evolve')) &&
-        !text.includes('fonde') && !text.includes('fusione') && !text.includes('fondere') && !text.includes('unione')) {
+    // ============ EVOLUTION / TRANSFORMATION / TAROCCATA PATTERNS ============
+    if ((text.includes('si evolve') || text.includes('effettua l\'evoluzione') || text.includes('effettua l evoluzione') || 
+         text.includes('evoluzione')) &&
+        !text.includes('fonde') && !text.includes('fusione') && !actions.some(a => a.type === 'evolution')) {
+      actions.push({ type: 'evolution', target: 'self', value: 1, description: 'Si evolve in un personaggio speciale' });
+    }
+    else if ((text.includes('si tarocca') || text.includes('effettua la taroccata') || text.includes('taroccata')) &&
+        !text.includes('fonde') && !text.includes('fusione') && !actions.some(a => a.type === 'taroccata')) {
+      actions.push({ type: 'taroccata', target: 'self', value: 1, description: 'Taroccata: sostituzione personaggio' });
+    }
+    else if ((text.includes('si trasforma') || text.includes('effettua la trasformazione') || text.includes('metamorfosi') || text.includes('trasformazione')) &&
+        !text.includes('fonde') && !text.includes('fusione') && !text.includes('debole') && !actions.some(a => a.type === 'transformation') && !actions.some(a => a.type === 'transform_weakest')) {
+      actions.push({ type: 'transformation', target: 'self', value: 1, description: 'Si trasforma in un personaggio speciale' });
+    }
+    else if ((text.includes('trasforma') || text.includes('evolve')) &&
+        !text.includes('fonde') && !text.includes('fusione') && !text.includes('fondere') && !text.includes('unione') && !text.includes('debole') &&
+        !actions.some(a => a.type === 'evolution') && !actions.some(a => a.type === 'transformation') && !actions.some(a => a.type === 'taroccata') && !actions.some(a => a.type === 'transform') && !actions.some(a => a.type === 'transform_weakest')) {
       actions.push({ type: 'transform', target: 'self', value: 1, description: 'Si trasforma in un\'altra carta' });
     }
 
@@ -4781,6 +4812,144 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
     
     return undefined;
+  }
+
+  private handleEvolutionTransformation(game: GameState, gameId: string, playerName: string, type: 'evolution' | 'transformation' | 'taroccata'): void {
+    const activeChar = this.getPlayerActiveCharacter(game, playerName);
+    if (!activeChar) {
+      console.log(`🔄 ${type}: No active character for ${playerName}`);
+      return;
+    }
+
+    const io = (global as any).io;
+    const oldName = activeChar.name || activeChar.id;
+    const originalPti = activeChar.pti || 0;
+    const originalStars = activeChar.stars || 1;
+
+    let targetCardId: string | undefined;
+
+    if (type === 'evolution') {
+      targetCardId = activeChar.evolvesInto;
+    } else if (type === 'transformation') {
+      targetCardId = activeChar.transformsInto;
+    } else if (type === 'taroccata') {
+      targetCardId = activeChar.transformsFrom || activeChar.cheatsInto;
+    }
+
+    if (targetCardId) {
+      const targetDeckType = targetCardId.startsWith('personaggi_speciali') ? 'personaggi_speciali' : 'personaggi';
+      const deckData = CARD_DATA[targetDeckType as keyof typeof CARD_DATA];
+      const indexStr = targetCardId.split('-').pop();
+      const cardIndex = indexStr ? parseInt(indexStr) : -1;
+
+      if (deckData && cardIndex >= 0 && cardIndex < deckData.length) {
+        const newFrontImage = deckData[cardIndex];
+        const backImage = DECK_BACK_IMAGES[targetDeckType as keyof typeof DECK_BACK_IMAGES];
+
+        const urlParts = newFrontImage.split('/');
+        const filename = urlParts[urlParts.length - 1];
+        const newName = decodeURIComponent(filename)
+          .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+          .replace(/[-_]/g, ' ')
+          .trim()
+          .toUpperCase();
+
+        const fieldIndex = game.field.findIndex(c => c.id === activeChar.id);
+        if (fieldIndex >= 0) {
+          const mod = jsonStorage.cardModifications.getByOriginalCardId(targetCardId);
+          
+          const replacementCard: Card = {
+            id: targetCardId,
+            type: targetDeckType as any,
+            frontImage: mod?.imageUrl || newFrontImage,
+            backImage: backImage,
+            owner: activeChar.owner,
+            text: '',
+            name: mod?.name || newName,
+            pti: mod?.pti ?? originalPti,
+            stars: mod?.stars ?? originalStars,
+            placedBy: activeChar.placedBy || playerName,
+            audioUrl: mod?.audioUrl || undefined,
+            youtubeUrl: mod?.youtubeUrl || undefined,
+            effect: mod?.effect || undefined,
+            evolvesInto: mod?.evolvesInto || undefined,
+            transformsInto: mod?.transformsInto || undefined,
+            transformsFrom: mod?.transformsFrom || undefined,
+            cheatsInto: mod?.cheatsInto || undefined
+          };
+
+          game.field[fieldIndex] = replacementCard;
+          this.updateCardTextWithPTI(replacementCard);
+
+          const typeLabel = type === 'evolution' ? 'EVOLUZIONE' : type === 'transformation' ? 'TRASFORMAZIONE' : 'TAROCCATA';
+          const emoji = type === 'evolution' ? '🌟' : type === 'transformation' ? '🦋' : '🃏';
+
+          console.log(`${emoji} ${typeLabel}: ${oldName} → ${replacementCard.name} (PTI: ${replacementCard.pti}, Stelle: ${replacementCard.stars})`);
+
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-${type}`,
+              playerName: 'Sistema',
+              message: `${emoji} ${typeLabel}! ${oldName} si è ${type === 'evolution' ? 'evoluto' : type === 'transformation' ? 'trasformato' : 'taroccato'} in ${replacementCard.name}!`,
+              timestamp: Date.now()
+            });
+            const gameState = this.getSanitizedGameState(gameId);
+            io.to(gameId).emit('game-state-update', gameState);
+          }
+          return;
+        }
+      }
+    }
+
+    if (type === 'transformation') {
+      activeChar.pti = originalPti * 2;
+      activeChar.stars = originalStars * 2;
+      this.updateCardTextWithPTI(activeChar);
+      console.log(`🦋 TRASFORMAZIONE FALLBACK: ${oldName} raddoppia PTI (${originalPti} → ${activeChar.pti}) e stelle (${originalStars} → ${activeChar.stars})`);
+      if (io) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-transform-fallback`,
+          playerName: 'Sistema',
+          message: `🦋 TRASFORMAZIONE! ${oldName} non ha una trasformazione assegnata: raddoppia PTI (${activeChar.pti}) e stelle (${activeChar.stars})!`,
+          timestamp: Date.now()
+        });
+        const gameState = this.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', gameState);
+      }
+    } else if (type === 'evolution') {
+      const halfPti = Math.floor(originalPti / 2);
+      const halfStars = Math.floor(originalStars / 2);
+      activeChar.pti = originalPti + halfPti;
+      activeChar.stars = originalStars + halfStars;
+      this.updateCardTextWithPTI(activeChar);
+      console.log(`🌟 EVOLUZIONE FALLBACK: ${oldName} +50% PTI (${originalPti} → ${activeChar.pti}) e stelle (${originalStars} → ${activeChar.stars})`);
+      if (io) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-evolution-fallback`,
+          playerName: 'Sistema',
+          message: `🌟 EVOLUZIONE! ${oldName} non ha un'evoluzione assegnata: +50% PTI (${activeChar.pti}) e stelle (${activeChar.stars})!`,
+          timestamp: Date.now()
+        });
+        const gameState = this.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', gameState);
+      }
+    } else if (type === 'taroccata') {
+      activeChar.pti = Math.floor(originalPti / 2);
+      activeChar.stars = Math.floor(originalStars / 2);
+      if (activeChar.stars < 1) activeChar.stars = 1;
+      this.updateCardTextWithPTI(activeChar);
+      console.log(`🃏 TAROCCATA FALLBACK: ${oldName} dimezza PTI (${originalPti} → ${activeChar.pti}) e stelle (${originalStars} → ${activeChar.stars})`);
+      if (io) {
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-taroccata-fallback`,
+          playerName: 'Sistema',
+          message: `🃏 TAROCCATA! ${oldName} non ha una taroccata assegnata: dimezza PTI (${activeChar.pti}) e stelle (${activeChar.stars})!`,
+          timestamp: Date.now()
+        });
+        const gameState = this.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', gameState);
+      }
+    }
   }
 
   // Execute a single action from custom card effect
@@ -6703,6 +6872,21 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             ioTransform.to(gameId).emit('game-state-update', gameState);
           }
         }
+        break;
+      }
+
+      case 'evolution': {
+        this.handleEvolutionTransformation(game, gameId, playerName, 'evolution');
+        break;
+      }
+
+      case 'transformation': {
+        this.handleEvolutionTransformation(game, gameId, playerName, 'transformation');
+        break;
+      }
+
+      case 'taroccata': {
+        this.handleEvolutionTransformation(game, gameId, playerName, 'taroccata');
         break;
       }
 
@@ -14303,7 +14487,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
       
       case 'transform': {
-        // Transform in activateCustomEffect path
         const transformActiveChar = this.getPlayerActiveCharacter(game, playerName);
         if (transformActiveChar) {
           transformActiveChar.pti = (transformActiveChar.pti || 0) + (action.value || 300);
@@ -14316,6 +14499,21 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             timestamp: Date.now()
           });
         }
+        break;
+      }
+
+      case 'evolution': {
+        this.handleEvolutionTransformation(game, gameId, playerName, 'evolution');
+        break;
+      }
+
+      case 'transformation': {
+        this.handleEvolutionTransformation(game, gameId, playerName, 'transformation');
+        break;
+      }
+
+      case 'taroccata': {
+        this.handleEvolutionTransformation(game, gameId, playerName, 'taroccata');
         break;
       }
       

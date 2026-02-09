@@ -6937,6 +6937,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             mosseTargetCount: mod?.mosseTargetCount || null,
             mosseCanCounter: mod?.mosseCanCounter || false,
             mosseCanBeCountered: mod?.mosseCanBeCountered || false,
+            evolvesInto: mod?.evolvesInto || null,
+            transformsInto: mod?.transformsInto || null,
+            transformsFrom: mod?.transformsFrom || null,
+            cheatsInto: mod?.cheatsInto || null,
             isDeleted: mod?.isDeleted || false,
             isModified: !!mod
           });
@@ -6958,7 +6962,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ success: false, error: 'Unauthorized' });
       }
 
-      const { originalCardId, deckType, name, imageUrl, pti, stars, effect, audioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect, mosseCharacterOverrides, mosseRestrictedFrom, mosseRestrictedAgainst, mosseTargetingMode, mosseTargetCount, mosseCanCounter, mosseCanBeCountered } = req.body;
+      const { originalCardId, deckType, name, imageUrl, pti, stars, effect, audioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect, mosseCharacterOverrides, mosseRestrictedFrom, mosseRestrictedAgainst, mosseTargetingMode, mosseTargetCount, mosseCanCounter, mosseCanBeCountered, evolvesInto, transformsInto, transformsFrom, cheatsInto } = req.body;
 
       // Helper to safely parse integer values (handles NaN, empty strings, undefined)
       const safeParseInt = (value: any): number | null => {
@@ -6986,6 +6990,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mosseTargetCount: safeParseInt(mosseTargetCount),
         mosseCanCounter: !!mosseCanCounter,
         mosseCanBeCountered: !!mosseCanBeCountered,
+        evolvesInto: evolvesInto || null,
+        transformsInto: transformsInto || null,
+        transformsFrom: transformsFrom || null,
+        cheatsInto: cheatsInto || null,
         modifiedBy: userEmail || null
       });
       
@@ -7043,6 +7051,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           mosseTargetCount: safeParseInt(mod.mosseTargetCount),
           mosseCanCounter: !!mod.mosseCanCounter,
           mosseCanBeCountered: !!mod.mosseCanBeCountered,
+          evolvesInto: mod.evolvesInto || null,
+          transformsInto: mod.transformsInto || null,
+          transformsFrom: mod.transformsFrom || null,
+          cheatsInto: mod.cheatsInto || null,
           modifiedBy: userEmail || null
         });
       }

@@ -46,6 +46,10 @@ interface CardModification {
   mosseTargetCount: number | null;
   mosseCanCounter: boolean;
   mosseCanBeCountered: boolean;
+  evolvesInto: string | null;
+  transformsInto: string | null;
+  transformsFrom: string | null;
+  cheatsInto: string | null;
   isDeleted: boolean;
   modifiedBy: string | null;
   modifiedAt: string;
