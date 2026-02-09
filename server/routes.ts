@@ -4287,18 +4287,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('place-super-dice-card', async ({ gameId, playerName, cardData }) => {
       const playerGameId = gameManager.getPlayerGameId(socket.id);
       if (playerGameId === gameId) {
-        // Create a card object for the rolled card and place it on the field
         const result = await gameManager.placeSuperDiceCard(gameId, playerName, cardData);
         
         if (result.success) {
           const gameState = gameManager.getSanitizedGameState(gameId);
-          emitThrottledGameState(io, gameId, gameState);
+          emitImmediateGameState(io, gameId, gameState);
+
+          const realCardName = result.cardId 
+            ? (gameState?.field?.find((c: any) => c.id === result.cardId)?.name || cardData.name)
+            : cardData.name;
+          const realCardImage = result.cardId
+            ? (gameState?.field?.find((c: any) => c.id === result.cardId)?.frontImage || cardData.image)
+            : cardData.image;
           
-          // Emit notification that the super dice card was placed
           io.to(gameId).emit('super-dice-card-placed', {
             playerName,
-            cardName: cardData.name,
-            cardImage: cardData.image,
+            cardName: realCardName,
+            cardImage: realCardImage,
+            timestamp: Date.now()
+          });
+
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-super-dice-placed`,
+            playerName: 'Sistema',
+            message: `🎲 SUPER DADO: ${playerName} ha pescato ${realCardName} dal mazzo e l'ha piazzata in campo!`,
             timestamp: Date.now()
           });
         }

@@ -15169,34 +15169,87 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
   }
 
-  async placeSuperDiceCard(gameId: string, playerName: string, cardData: { name: string, image: string, type: string }): Promise<{ success: boolean }> {
+  async placeSuperDiceCard(gameId: string, playerName: string, cardData: { name: string, image: string, type: string }): Promise<{ success: boolean; cardId?: string }> {
     const game = this.games.get(gameId);
     if (!game) return { success: false };
 
     try {
-      // Create a new card object for the super dice card
-      const newCard = {
-        id: `super-dice-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        frontImage: cardData.image,
-        backImage: this.getBackImageForType(cardData.type),
-        owner: playerName,
-        type: cardData.type as 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali',
-        faceDown: false,
-        text: ''
-      };
+      const deckType = cardData.type as keyof typeof game.decks;
+      const deck = game.decks[deckType];
+      if (!deck) {
+        console.error(`🎲 Super Dice: deck type "${deckType}" not found`);
+        return { success: false };
+      }
 
-      // Add the card directly to the field
-      game.field.push(newCard);
+      let cardIndex = deck.findIndex((c: Card) => c.frontImage === cardData.image);
 
-      // Record the super dice placement event
+      if (cardIndex === -1) {
+        const searchName = cardData.name.toLowerCase().replace(/[\s\-]+/g, '');
+        cardIndex = deck.findIndex((c: Card) => {
+          const deckCardName = (c.name || this.getCardNameFromUrl(c.frontImage)).toLowerCase().replace(/[\s\-]+/g, '');
+          return deckCardName === searchName;
+        });
+      }
+
+      if (cardIndex === -1 && deck.length > 0) {
+        console.log(`🎲 Super Dice: exact card "${cardData.name}" not found in ${deckType} deck, using first available card`);
+        cardIndex = 0;
+      }
+
+      if (cardIndex === -1 || deck.length === 0) {
+        console.error(`🎲 Super Dice: ${deckType} deck is empty, cannot draw card`);
+        return { success: false };
+      }
+
+      const realCard = deck.splice(cardIndex, 1)[0];
+      const realCardName = realCard.name || this.getCardNameFromUrl(realCard.frontImage);
+      console.log(`🎲 Super Dice: drew real card "${realCardName}" (id: ${realCard.id}) from ${deckType} deck`);
+
+      const player = game.players[playerName];
+      if (!player) {
+        deck.push(realCard);
+        return { success: false };
+      }
+      player.hand.push(realCard);
+
+      const playResult = await this.playCard(gameId, realCard.id, playerName);
+
+      if (!playResult.card) {
+        const stillInHand = player.hand.findIndex(c => c.id === realCard.id);
+        if (stillInHand !== -1) {
+          player.hand.splice(stillInHand, 1);
+        }
+        realCard.faceDown = false;
+        realCard.owner = playerName;
+        if (realCard.type === 'bonus' || realCard.type === 'mosse') {
+          realCard.turnCounter = 0;
+          realCard.placedBy = playerName;
+        }
+        const isPersonaggio = realCard.type === 'personaggi' || realCard.type === 'personaggi_speciali';
+        if (isPersonaggio) {
+          this.autoAnalyzePersonaggioCardSync(realCard, playerName);
+        }
+        game.field.push(realCard);
+        console.log(`🎲 Super Dice: playCard was blocked, force-placed "${realCardName}" on field`);
+
+        const io = (global as any).io;
+        if (io) {
+          try {
+            await this.processCustomCardEffect(gameId, realCard, playerName);
+          } catch (e) {
+            console.log(`🎲 Super Dice: effect processing error for "${realCardName}":`, e);
+          }
+        }
+      }
+
       await this.recordEvent(gameId, 'place-super-dice-card', {
-        cardId: newCard.id,
-        cardName: cardData.name,
+        cardId: realCard.id,
+        cardName: realCardName,
         cardType: cardData.type,
-        frontImage: cardData.image
+        frontImage: realCard.frontImage
       }, playerName);
 
-      return { success: true };
+      return { success: true, cardId: realCard.id };
     } catch (error) {
       console.error('Error placing super dice card:', error);
       return { success: false };
