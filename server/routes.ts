@@ -2716,14 +2716,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const game = gameManager.getGameState(gameId);
       if (!game) return;
 
-      const deckIndex = game.decks.personaggi.findIndex((c: any) => c.id === cardId);
-      if (deckIndex === -1) return;
-
-      const card = game.decks.personaggi.splice(deckIndex, 1)[0];
+      let card: any = null;
+      let sourceDeck: string = 'personaggi';
+      let deckIndex = game.decks.personaggi.findIndex((c: any) => c.id === cardId);
+      if (deckIndex !== -1) {
+        card = game.decks.personaggi.splice(deckIndex, 1)[0];
+        sourceDeck = 'personaggi';
+      } else {
+        deckIndex = game.decks.personaggi_speciali.findIndex((c: any) => c.id === cardId);
+        if (deckIndex !== -1) {
+          card = game.decks.personaggi_speciali.splice(deckIndex, 1)[0];
+          sourceDeck = 'personaggi_speciali';
+        }
+      }
+      if (!card) return;
       
       const success = gameManager.startAuction(gameId, card, playerName, io);
       if (!success) {
-        game.decks.personaggi.push(card);
+        (game.decks as any)[sourceDeck].push(card);
         return;
       }
 
