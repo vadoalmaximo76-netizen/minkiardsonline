@@ -24,7 +24,7 @@ declare global {
 
 export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onSuccess }) => {
   const [mode, setMode] = useState<"login" | "register" | "guest" | "forgot-password">("login");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() => localStorage.getItem("lastEmail") || "");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
   const [guestName, setGuestName] = useState("");
@@ -104,6 +104,7 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onSuccess }) => {
       localStorage.setItem("userId", data.user.id.toString());
       localStorage.setItem("userEmail", data.user.email || "");
       localStorage.setItem("userAvatar", data.user.avatar || "dragon");
+      if (data.user.email) localStorage.setItem("lastEmail", data.user.email);
       
       onSuccess(data.user);
     } catch (err) {
@@ -140,6 +141,7 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onSuccess }) => {
       localStorage.setItem("userId", data.user.id.toString());
       localStorage.setItem("userEmail", data.user.email || "");
       localStorage.setItem("userAvatar", data.user.avatar || "dragon");
+      localStorage.setItem("lastEmail", email);
       
       onSuccess(data.user);
     } catch (err) {
