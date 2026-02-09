@@ -32,6 +32,15 @@ The system supports email/password and Google OAuth authentication. Passwords ar
 ## Data Storage
 User management uses Drizzle ORM with Neon Database (PostgreSQL). Active game state is maintained in memory.
 
+## Offline Mode (No Database)
+The game supports running without a database connection. When DATABASE_URL is missing or the database is unreachable:
+- **Authentication**: Users can register/login using JSON-based storage (server/data/users.json). Admin fallback (lucaforte94@gmail.com) always works with ADMIN_FALLBACK_PASSWORD.
+- **Card System**: All card data, modifications, custom cards, and skins are read from JSON files in server/data/ (cardModifications.json, customCards.json, personaggiCache.json, etc.).
+- **Gameplay**: All game logic, effects, and mechanics work fully offline since game state is in-memory.
+- **Rankiard Points**: Managed per-session from JSON user storage. Points are tracked but not permanently saved to a DB.
+- **Unavailable Features**: Admin panel routes for seasonal events, tournaments, clans, friends, private messages, and push notifications return 503 errors.
+- **Security**: JWT_SECRET is auto-generated randomly per server restart if not set as env variable.
+
 ## Card System
 Cards feature images, ownership tracking, and custom annotations. Key mechanics include automatic card actions, an interactive defense system for MOSSE attacks, a CPU attack system, the BAMBOLA VOODOO system for character linking, the DUELLO (Duel) system for turn-based combat, and the OSTAGGIO (Hostage) system for capturing enemy characters. The ASSICURAZIONE (Insurance) system allows players to protect characters from death by insuring them with PTI.
 

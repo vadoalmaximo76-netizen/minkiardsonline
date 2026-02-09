@@ -10,9 +10,9 @@ import { personaggi, customCards, cardModifications, users, friendRequests, frie
 import { jsonStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray } from "drizzle-orm";
 import { CARD_DATA } from "../client/src/lib/cardData";
-import { authMiddleware, ADMIN_FALLBACK } from "./auth";
+import { authMiddleware, ADMIN_FALLBACK, JWT_SECRET } from "./auth";
 
-const jwtSecret = process.env.JWT_SECRET || "minkiards-secret-key-change-in-production";
+const jwtSecret = JWT_SECRET;
 
 async function checkAdminAccess(user: { userId: number; email: string | null }): Promise<boolean> {
   if (user.userId === ADMIN_FALLBACK.id && user.email === ADMIN_FALLBACK.email) {
