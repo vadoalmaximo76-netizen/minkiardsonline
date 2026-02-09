@@ -12209,6 +12209,107 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       
       const targetChar = targetCards[0];
       if (targetChar) {
+        // CPU AUTONOMOUS HANDLING: Auto-roll dice and apply effect immediately
+        if (this.isPlayerCPU(gameId, playerName)) {
+          console.log(`🤖 CPU ${playerName} auto-handling DADO effect on ${targetChar.name || this.getCardNameFromUrl(targetChar.frontImage || '')}`);
+          
+          const diceControl = this.checkDiceControlEffect(gameId, playerName);
+          
+          if (diceControl.hasDiceControl && diceControl.controllingPlayer !== playerName) {
+            console.log(`🎲 DICE CONTROL ACTIVE: ${diceControl.controllingPlayer} controls the dice`);
+            if (!game.pendingControlledDice) game.pendingControlledDice = new Map();
+            const pendingId = `controlled-dice-${Date.now()}`;
+            game.pendingControlledDice.set(pendingId, {
+              rollingPlayer: playerName,
+              controllingPlayer: diceControl.controllingPlayer!,
+              cardId: sourceCard.id,
+              selectedCharId: targetChar.id,
+              selectedCharName: targetChar.name || this.getCardNameFromUrl(targetChar.frontImage || ''),
+              correctEffect,
+              wrongEffect,
+              cpuGuess: Math.floor(Math.random() * 6) + 1,
+              timestamp: Date.now()
+            });
+            
+            io.to(gameId).emit('show-dice-control-panel', {
+              pendingId,
+              rollingPlayer: playerName,
+              controllingPlayer: diceControl.controllingPlayer,
+              controllingCardId: diceControl.cardId,
+              controllingCardName: diceControl.cardName,
+              targetCharName: targetChar.name || this.getCardNameFromUrl(targetChar.frontImage || '')
+            });
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-dice-control`,
+              playerName: 'Sistema',
+              message: `🎲 ${playerName} sta per lanciare il dado, ma ${diceControl.controllingPlayer} (con ${diceControl.cardName}) può controllare il risultato!`,
+              timestamp: Date.now()
+            });
+          } else {
+            const diceRoll = Math.floor(Math.random() * 6) + 1;
+            const cpuGuess = Math.floor(Math.random() * 6) + 1;
+            const isCorrect = diceRoll === cpuGuess;
+            const effectToApply = isCorrect ? correctEffect : wrongEffect;
+            const selectedCharName = targetChar.name || this.getCardNameFromUrl(targetChar.frontImage || '');
+            
+            console.log(`🎲 CPU ${playerName}: Rolled ${diceRoll}, guessed ${cpuGuess}, ${isCorrect ? 'CORRECT!' : 'WRONG!'} → "${effectToApply}"`);
+            
+            io.to(gameId).emit('dice-rolled', { result: diceRoll, playerName });
+            
+            const fieldTarget = game.field.find((c: Card) => c.id === targetChar.id);
+            if (fieldTarget) {
+              const effectLower = effectToApply.toLowerCase();
+              if (effectLower.includes('raddoppia')) {
+                if (effectLower.includes('pti')) fieldTarget.pti = (fieldTarget.pti || 0) * 2;
+                if (effectLower.includes('stelle')) fieldTarget.stars = (fieldTarget.stars || 0) * 2;
+                console.log(`🎲 Applied: ${selectedCharName} doubled stats to ${fieldTarget.pti} PTI, ${fieldTarget.stars} stars`);
+              } else if (effectLower.includes('dimezza')) {
+                if (effectLower.includes('pti')) fieldTarget.pti = Math.floor((fieldTarget.pti || 0) / 2);
+                if (effectLower.includes('stelle')) fieldTarget.stars = Math.floor((fieldTarget.stars || 0) / 2);
+                console.log(`🎲 Applied: ${selectedCharName} halved stats to ${fieldTarget.pti} PTI, ${fieldTarget.stars} stars`);
+              } else if (effectLower.includes('morte') || effectLower.includes('muore') || effectLower.includes('uccide')) {
+                fieldTarget.pti = 0;
+                this.moveToGraveyard(gameId, fieldTarget.id, fieldTarget.owner || '', playerName);
+                console.log(`🎲 Applied: ${selectedCharName} died from dice effect`);
+              } else if (effectLower.includes('nulla') || effectLower.includes('niente') || effectLower.includes('nessun')) {
+                console.log(`🎲 Applied: No effect on ${selectedCharName}`);
+              } else {
+                const damageMatch = effectToApply.match(/[-−]?\s*(\d+)\s*(?:pti|danni|danno)/i);
+                if (damageMatch) {
+                  const dmg = parseInt(damageMatch[1], 10);
+                  fieldTarget.pti = Math.max(0, (fieldTarget.pti || 0) - dmg);
+                  console.log(`🎲 Applied: ${dmg} damage to ${selectedCharName}, PTI now ${fieldTarget.pti}`);
+                  if (fieldTarget.pti <= 0) {
+                    this.moveToGraveyard(gameId, fieldTarget.id, fieldTarget.owner || '', playerName);
+                  }
+                }
+                const healMatch = effectToApply.match(/\+\s*(\d+)\s*(?:pti)/i);
+                if (healMatch) {
+                  const heal = parseInt(healMatch[1], 10);
+                  fieldTarget.pti = (fieldTarget.pti || 0) + heal;
+                  console.log(`🎲 Applied: +${heal} PTI to ${selectedCharName}, PTI now ${fieldTarget.pti}`);
+                }
+              }
+              this.updateCardTextWithPTI(fieldTarget);
+            }
+            
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-cpu-dice-target`,
+              playerName: 'Sistema',
+              message: `🎲 ${playerName} ha lanciato il dado! Risultato: ${diceRoll}, ha scelto ${cpuGuess} - ${isCorrect ? '✅ Indovinato!' : '❌ Sbagliato!'} Effetto: "${effectToApply}" applicato a ${targetChar.name || this.getCardNameFromUrl(targetChar.frontImage || '')}`,
+              timestamp: Date.now()
+            });
+            
+            this.returnToDeck(gameId, sourceCard.id, playerName);
+          }
+          
+          game.pendingTargetSelections.delete(selectionId);
+          const gameState = this.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', gameState);
+          return { success: true, message: `CPU dado completato` };
+        }
+        
+        // Human player: show dice UI
         const diceEffectId = `dice-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         
         if (!game.pendingDiceEffects) game.pendingDiceEffects = new Map();
