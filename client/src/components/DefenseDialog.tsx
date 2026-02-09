@@ -47,6 +47,7 @@ interface DefenseRequest {
 interface GameCard {
   id: string;
   text?: string;
+  effect?: string;
   type?: string;
   frontImage?: string;
   backImage?: string;
@@ -153,11 +154,28 @@ export const DefenseDialog: React.FC = () => {
     (card: any) => card.owner !== attackerName && card.owner !== playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali')
   );
 
+  const DELAY_DEFENSE_PATTERN = /ritard[ai].*dann[oi]|dann[oi].*ritardat[oi]|(?:dopo|tra)\s+\d+\s+turni?.*dann[oi]|assorb[ei].*dann[oi].*(?:dopo|tra)\s+\d+/i;
+
+  const getDelayTurnsFromCard = (card: GameCard): number | null => {
+    const cardText = `${card.text || ''} ${card.effect || ''}`;
+    const match = cardText.match(/(?:dopo|tra)\s+(\d+)\s+turni?/i) || cardText.match(/ritard[ai].*?(\d+)\s+turni?/i);
+    if (match) return parseInt(match[1], 10);
+    return null;
+  };
+
+  const isDelayDefenseCard = (card: GameCard): boolean => {
+    if (card.type !== 'bonus') return false;
+    const cardText = `${card.text || ''} ${card.effect || ''}`;
+    return DELAY_DEFENSE_PATTERN.test(cardText);
+  };
+
   // Check if a card is a defense BONUS
   const isDefenseBonusCard = (card: GameCard): boolean => {
     if (card.type !== 'bonus') return false;
     const cardName = card.frontImage ? getCardName(card.frontImage) : '';
-    return DEFENSE_BONUS_CARDS.some(dc => cardName.includes(dc));
+    if (DEFENSE_BONUS_CARDS.some(dc => cardName.includes(dc))) return true;
+    if (isDelayDefenseCard(card)) return true;
+    return false;
   };
 
   // Check if a defense card should be hidden (ALTA SALVA with damage <= 200)
@@ -290,6 +308,38 @@ export const DefenseDialog: React.FC = () => {
         setSelectedVigliaccaCard(card);
         setShowDefenseCardSelect(false);
         setShowVigliaccaTargetSelect(true);
+      } else if (isDelayDefenseCard(card)) {
+        const turns = getDelayTurnsFromCard(card);
+        if (turns && defenseRequest) {
+          console.log(`⏳ Selected delay defense card: delaying ${defenseRequest.damageValue} damage by ${turns} turns`);
+          setIsProcessing(true);
+          
+          socket.emit('play-card', {
+            cardId: card.id,
+            playerName: playerName
+          });
+          
+          socket.emit('defense:delay', {
+            gameId: defenseRequest.gameId,
+            attackId: defenseRequest.attackId,
+            delayTurns: turns,
+            targetCardId: defenseRequest.targetCardId,
+            damageValue: defenseRequest.damageValue,
+            attackerName: defenseRequest.attackerName,
+            defenderName: defenseRequest.defenderName,
+            mosseCardId: defenseRequest.mosseCardId
+          });
+          
+          playAttackBlocked();
+          
+          setTimeout(() => {
+            setDefenseRequest(null);
+            setIsProcessing(false);
+            setShowDefenseCardSelect(false);
+          }, 500);
+        } else {
+          handleDefenseResponse(true, card.id);
+        }
       } else {
         handleDefenseResponse(true, card.id);
       }
@@ -753,7 +803,9 @@ export const DefenseDialog: React.FC = () => {
                 const isMosseCard = card.type === 'mosse';
                 const mosseCannotRepel = isMosseCard && !canRepelAttack(card);
                 const mosseCounterDmg = isMosseCard ? calculateCounterDamage(card) : null;
+                const delayTurnsVal = isDelayDefenseCard(card) ? getDelayTurnsFromCard(card) : null;
                 const bonusLabel = isBonusDef ? (
+                  delayTurnsVal ? `Ritarda ${delayTurnsVal} turni` :
                   cardNameStr.includes('BOOMERANG') || cardNameStr.includes('RESPINTA') ? 'Riflette danno' :
                   cardNameStr.includes('CONTRO SKRAZZKOOM') ? 'Riflette x2' :
                   cardNameStr.includes('CONVERSIONE') ? 'Converte in PTI' :

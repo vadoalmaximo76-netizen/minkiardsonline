@@ -17016,6 +17016,71 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
       }
 
+      // CPU: Check for custom BONUS cards with delay defense pattern
+      if (!bonusInHand) {
+        const delayDefensePattern = /ritard[ai].*dann[oi]|dann[oi].*ritardat[oi]|(?:dopo|tra)\s+\d+\s+turni?.*dann[oi]|assorb[ei].*dann[oi].*(?:dopo|tra)\s+\d+/i;
+        const delayBonus = defender.hand.find((c: any) => {
+          if (c.type !== 'bonus') return false;
+          const cardText = `${c.text || ''} ${c.effect || ''}`;
+          return delayDefensePattern.test(cardText);
+        });
+        if (delayBonus) {
+          const cardText = `${delayBonus.text || ''} ${delayBonus.effect || ''}`;
+          const delayMatch = cardText.match(/(?:dopo|tra)\s+(\d+)\s+turni?/i) || cardText.match(/ritard[ai].*?(\d+)\s+turni?/i);
+          const delayTurns = delayMatch ? parseInt(delayMatch[1], 10) : 2;
+          const delayCardName = getCardName(delayBonus);
+          
+          // CPU strategy: only use delay if they have enough PTI to survive
+          const defenderChar = game.field.find((c: any) => c.id === pendingDefense.targetCardId);
+          const defenderPti = defenderChar?.pti || 0;
+          const attackDamage = pendingDefense.damage || 0;
+          
+          if (defenderPti > attackDamage * 1.5) {
+            console.log(`🤖 CPU ${pendingDefense.defender}: Using delay defense card "${delayCardName}" - delaying ${attackDamage} damage by ${delayTurns} turns`);
+            
+            const cardToField = { ...delayBonus, owner: pendingDefense.defender, isFaceUp: true };
+            game.field.push(cardToField);
+            defender.hand = defender.hand.filter((c: any) => c.id !== delayBonus.id);
+            
+            io.to(gameId).emit('chat-message', {
+              playerName: 'Sistema',
+              message: `🤖 ${pendingDefense.defender} (CPU) usa ${delayCardName} per ritardare il danno di ${delayTurns} turni!`,
+              timestamp: Date.now()
+            });
+            
+            // Clear pending defense
+            this.clearPendingDefense(gameId);
+            
+            // Register delayed damage
+            this.addDelayedDamage(
+              gameId,
+              pendingDefense.attacker,
+              pendingDefense.defender,
+              pendingDefense.targetCardId,
+              attackDamage,
+              pendingDefense.mosseCardId,
+              delayTurns
+            );
+            
+            // Return MOSSE card to deck
+            this.returnToDeck(gameId, pendingDefense.mosseCardId, pendingDefense.attacker);
+            
+            // End turn
+            const nextPlayer = this.endTurn(gameId, pendingDefense.attacker);
+            if (nextPlayer) {
+              io.to(gameId).emit('next-turn', { nextPlayer });
+            }
+            
+            const updatedGameState = this.getSanitizedGameState(gameId);
+            io.to(gameId).emit('game-state-update', updatedGameState);
+            
+            return true;
+          } else {
+            console.log(`🤖 CPU ${pendingDefense.defender}: Delay defense card "${delayCardName}" available but PTI (${defenderPti}) too low to safely delay ${attackDamage} damage`);
+          }
+        }
+      }
+
       if (bonusInHand) {
         const bonusCardName = getCardName(bonusInHand);
         console.log(`🤖 CPU defender ${pendingDefense.defender} HAS defense BONUS: ${bonusCardName} - auto-defending!`);
@@ -17822,13 +17887,32 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
 
         } else {
-          io.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-defense-success`,
-            playerName: 'Sistema',
-            message: `🛡️ ${defender} ha respinto l'attacco di ${attacker}! (${resolveSource})`,
-            timestamp: Date.now()
-          });
-          console.log(`[DEFENSE-BONUS] Unknown defense card "${defenseCardName}" - damage nullified (safe fallback)`);
+          // Check if this is a custom BONUS card with delay defense pattern
+          const defCardText = `${defenseCard?.text || ''} ${defenseCard?.effect || ''}`;
+          const delayDefPattern = /ritard[ai].*dann[oi]|dann[oi].*ritardat[oi]|(?:dopo|tra)\s+\d+\s+turni?.*dann[oi]|assorb[ei].*dann[oi].*(?:dopo|tra)\s+\d+/i;
+          const delayDefMatch = defCardText.match(/(?:dopo|tra)\s+(\d+)\s+turni?/i) || defCardText.match(/ritard[ai].*?(\d+)\s+turni?/i);
+          
+          if (delayDefPattern.test(defCardText) && delayDefMatch && damage && damage > 0 && targetCardId) {
+            const delayTurns = parseInt(delayDefMatch[1], 10);
+            console.log(`[DEFENSE-BONUS] Custom delay defense: "${defenseCardName}" - delaying ${damage} damage by ${delayTurns} turns`);
+            
+            this.addDelayedDamage(gameId, attacker, defender, targetCardId, damage, mosseCardId, delayTurns);
+            
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-defense-delay`,
+              playerName: 'Sistema',
+              message: `⏳ ${defender} usa ${defenseCardName || 'BONUS'} per ritardare il danno di ${damage} PTI! Si attiverà tra ${delayTurns} turni.`,
+              timestamp: Date.now()
+            });
+          } else {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-defense-success`,
+              playerName: 'Sistema',
+              message: `🛡️ ${defender} ha respinto l'attacco di ${attacker}! (${resolveSource})`,
+              timestamp: Date.now()
+            });
+            console.log(`[DEFENSE-BONUS] Unknown defense card "${defenseCardName}" - damage nullified (safe fallback)`);
+          }
         }
       }
 

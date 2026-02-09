@@ -115,6 +115,7 @@ const EFFECT_TYPES = [
   { id: 'immunity', label: 'Immunità', description: 'Immune a certi tipi di effetti', icon: '🔒', category: 'difesa' },
   { id: 'shield', label: 'Scudo', description: 'Assorbe una certa quantità di danni', icon: '🔰', category: 'difesa' },
   { id: 'barrier', label: 'Barriera', description: 'Blocca il primo attacco completamente', icon: '🧱', category: 'difesa' },
+  { id: 'delay_defense', label: 'Ritarda Danno', description: 'Quando attaccato, ritarda il danno di X turni su di te', icon: '⏳', category: 'difesa' },
   { id: 'counter', label: 'Contrattacco', description: 'Infligge danni quando viene attaccato', icon: '↩️', category: 'difesa' },
   { id: 'reflect', label: 'Rifletti Danno', description: 'Restituisce parte del danno ricevuto', icon: '🪞', category: 'difesa' },
   { id: 'dodge', label: 'Schivata', description: 'Possibilità di evitare attacchi', icon: '💨', category: 'difesa' },
@@ -355,6 +356,9 @@ function generateEffectDescription(wizard: EffectWizardState): string {
       break;
     case 'barrier':
       description = `Barriera: blocca completamente il primo attacco ricevuto`;
+      break;
+    case 'delay_defense':
+      description = `Ritarda il danno di ${value || 3} turni su di te quando vieni attaccato`;
       break;
     case 'counter':
       description = `Contrattacco: quando viene attaccato, infligge ${value || 50} danni all'attaccante`;
@@ -3309,6 +3313,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                   {effectWizard.effectType === 'freeze' && 'Per quanti turni congelare?'}
                   {effectWizard.effectType === 'lifesteal' && 'Quanti danni (che curano)?'}
                   {effectWizard.effectType === 'sacrifice' && 'Quanti PTI sacrificare?'}
+                  {effectWizard.effectType === 'delay_defense' && 'Di quanti turni ritardare il danno?'}
                   {effectWizard.effectType === 'shield' && 'Quanti danni assorbire?'}
                   {effectWizard.effectType === 'drain' && 'Quanto assorbire?'}
                   {effectWizard.effectType === 'revenge' && 'Quanti danni alla morte?'}
