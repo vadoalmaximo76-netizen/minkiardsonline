@@ -195,7 +195,7 @@ interface TimedEffect {
   sourceCardId: string;
   sourceCardName: string;
   turnsRemaining: number;
-  actions: Array<{ type: string; target: string; value: number; description: string }>;
+  actions: Array<{ type: string; target: string; value: number; description: string; targetCardId?: string }>;
   createdAt: number;
 }
 
@@ -4813,24 +4813,92 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     switch (action.type) {
       case 'damage':
         if (action.target === 'choice') {
-          // Store pending effect for target selection
           if (!game.pendingEffects) game.pendingEffects = new Map();
           game.pendingEffects.set(playerName, {
             type: 'target_choice_damage',
-            cardId: card.id,
+            cardId: card?.id || '',
             value: action.value || 100,
             maxTargets: action.maxTargets || 3,
             timestamp: Date.now()
           });
           console.log(`🎯 Custom effect: Awaiting target selection for ${action.value} damage (max ${action.maxTargets || 3} targets)`);
         } else if (action.target === 'all' || action.target === 'opponents') {
-          // Apply damage to all opponent characters
-          for (const fieldCard of game.field) {
-            if (fieldCard.owner !== playerName && 
-                (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') &&
-                fieldCard.pti != null) {
-              fieldCard.pti = Math.max(0, fieldCard.pti - (action.value || 0));
-              console.log(`💥 Custom effect: ${fieldCard.name || fieldCard.id} took ${action.value} damage, now at ${fieldCard.pti} PTI`);
+          const damageValue = action.value || 0;
+          const killedCards: Card[] = [];
+          const specificTargetId = (action as any).targetCardId;
+          
+          if (specificTargetId) {
+            const specificTarget = game.field.find((c: Card) => c.id === specificTargetId);
+            if (specificTarget && specificTarget.pti != null) {
+              const oldPti = specificTarget.pti;
+              specificTarget.pti = Math.max(0, specificTarget.pti - damageValue);
+              this.updateCardTextWithPTI(specificTarget);
+              console.log(`💥 Custom effect (targeted): ${specificTarget.name || specificTarget.id} took ${damageValue} damage, ${oldPti} → ${specificTarget.pti} PTI`);
+              const io = (global as any).io;
+              if (io) {
+                io.to(gameId).emit('chat-message', {
+                  id: `${Date.now()}-custom-damage-${specificTarget.id}`,
+                  playerName: 'Sistema',
+                  message: `💥 ${specificTarget.name || this.getCardNameFromUrl(specificTarget.frontImage || '')} subisce ${damageValue} danni ritardati! (PTI: ${oldPti} → ${specificTarget.pti})`,
+                  timestamp: Date.now()
+                });
+              }
+              if (specificTarget.pti <= 0) {
+                killedCards.push(specificTarget);
+              }
+            } else {
+              console.log(`⏳ Targeted card ${specificTargetId} not found on field - applying to all opponents`);
+            }
+          }
+          
+          if (!specificTargetId || !game.field.find((c: Card) => c.id === specificTargetId)) {
+            for (const fieldCard of game.field) {
+              if (fieldCard.owner !== playerName && 
+                  (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') &&
+                  fieldCard.pti != null) {
+                const oldPti = fieldCard.pti;
+                fieldCard.pti = Math.max(0, fieldCard.pti - damageValue);
+                this.updateCardTextWithPTI(fieldCard);
+                console.log(`💥 Custom effect: ${fieldCard.name || fieldCard.id} took ${damageValue} damage, ${oldPti} → ${fieldCard.pti} PTI`);
+                const io = (global as any).io;
+                if (io) {
+                  io.to(gameId).emit('chat-message', {
+                    id: `${Date.now()}-custom-damage-${fieldCard.id}`,
+                    playerName: 'Sistema',
+                    message: `💥 ${fieldCard.name || this.getCardNameFromUrl(fieldCard.frontImage || '')} subisce ${damageValue} danni! (PTI: ${oldPti} → ${fieldCard.pti})`,
+                    timestamp: Date.now()
+                  });
+                }
+                if (fieldCard.pti <= 0) {
+                  killedCards.push(fieldCard);
+                }
+              }
+            }
+          }
+          for (const deadCard of killedCards) {
+            this.moveToGraveyard(gameId, deadCard.id, deadCard.owner || '', playerName);
+          }
+        } else if (action.target === 'self') {
+          const selfChar = this.getPlayerActiveCharacter(game, playerName);
+          if (selfChar && selfChar.pti != null) {
+            const oldPti = selfChar.pti;
+            selfChar.pti = Math.max(0, selfChar.pti - (action.value || 0));
+            this.updateCardTextWithPTI(selfChar);
+            console.log(`💥 Custom effect: ${selfChar.name || selfChar.id} (self) took ${action.value} damage, ${oldPti} → ${selfChar.pti} PTI`);
+            if (selfChar.pti <= 0) {
+              this.moveToGraveyard(gameId, selfChar.id, playerName, 'SELF_DAMAGE');
+            }
+          }
+        } else if (action.target === 'enemy_card' || action.target === 'random') {
+          const enemies = game.field.filter((c: Card) => c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.pti != null);
+          if (enemies.length > 0) {
+            const target = enemies[Math.floor(Math.random() * enemies.length)];
+            const oldPti = target.pti || 0;
+            target.pti = Math.max(0, oldPti - (action.value || 0));
+            this.updateCardTextWithPTI(target);
+            console.log(`💥 Custom effect: ${target.name || target.id} took ${action.value} damage (random), ${oldPti} → ${target.pti} PTI`);
+            if (target.pti! <= 0) {
+              this.moveToGraveyard(gameId, target.id, target.owner || '', playerName);
             }
           }
         }
@@ -15532,6 +15600,19 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       gameState.delayedDeaths = gameState.delayedDeaths.filter(dd => dd.turnsRemaining > 0);
     }
 
+    // Process delayed damages (from defense-delay BONUS cards)
+    if (gameState.delayedDamages && gameState.delayedDamages.length > 0) {
+      const io = (global as any).io;
+      if (io) {
+        const result = this.processDelayedDamages(gameId, playerName, io);
+        if (result.appliedDamages.length > 0) {
+          console.log(`⏳ DELAYED DAMAGE: Applied ${result.appliedDamages.length} delayed damages to ${playerName}`);
+          const updatedState = this.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', updatedState);
+        }
+      }
+    }
+
     // Process timed effects (generic delayed effects from Wizard cards)
     // Decrement only effects belonging to the player whose turn is ending
     if (gameState.timedEffects && gameState.timedEffects.length > 0) {
@@ -15566,7 +15647,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         
         for (const action of te.actions) {
           try {
-            this.executeCustomAction(gameId, te.sourcePlayer, action, gameState, sourceCard);
+            this.executeCustomEffectAction(gameId, te.sourcePlayer, action, gameState, sourceCard)
+              .catch(err => console.error(`⏳ Async error executing timed action ${action.type}:`, err));
           } catch (err) {
             console.error(`⏳ Error executing timed action ${action.type}:`, err);
           }

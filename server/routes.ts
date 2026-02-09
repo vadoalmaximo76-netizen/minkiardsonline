@@ -4550,7 +4550,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             console.log(`⏳ MOSSE DELAYED: ${attackerName}'s ${mosseCardId} has a timed effect - deferring ${damageValue} damage for ${timedForThisCard.turnsRemaining} turns`);
             
-            // Replace placeholder actions with real damage
+            // Replace placeholder actions with real damage targeting the specific card
             timedForThisCard.actions = timedForThisCard.actions.filter(
               (a: any) => a.type !== 'special'
             );
@@ -4558,7 +4558,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               type: 'damage',
               target: 'opponents',
               value: damageValue,
-              description: `Danno ritardato: ${damageValue} PTI`
+              description: `Danno ritardato: ${damageValue} PTI`,
+              targetCardId: targetCardId
             });
             if (starsToRemove && starsToRemove > 0) {
               timedForThisCard.actions.push({
@@ -4590,11 +4591,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return;
           }
           
-          // FALLBACK: Check if MOSSE card has delay pattern in its effect but timed effect wasn't registered yet
+          // FALLBACK: Check if MOSSE card has delay pattern in its effect/text but timed effect wasn't registered yet
           const mosseFieldCard = fullGame.field?.find((c: any) => c.id === mosseCardId);
-          const mosseEffectText = mosseFieldCard?.effect || '';
+          const mosseEffectText = (mosseFieldCard?.effect || '') + ' ' + (mosseFieldCard?.text || '') + ' ' + (mosseFieldCard?.name || '');
           const delayMatch = mosseEffectText.match(/(?:dopo|tra)\s+(\d+)\s+turni?/i) || 
-                             mosseEffectText.match(/si\s+attiva\s+(?:dopo|tra)\s+(\d+)\s+turni?/i);
+                             mosseEffectText.match(/si\s+attiva\s+(?:dopo|tra)\s+(\d+)\s+turni?/i) ||
+                             mosseEffectText.match(/ritard[oa].*?(\d+)\s+turni?/i);
           if (delayMatch) {
             const delayTurns = parseInt(delayMatch[1], 10);
             console.log(`⏳ MOSSE DELAYED (fallback): Creating timed effect for ${mosseCardId} with ${delayTurns} turn delay`);
@@ -4603,6 +4605,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               type: 'damage',
               target: 'opponents',
               value: damageValue,
+              targetCardId: targetCardId,
               description: `Danno ritardato: ${damageValue} PTI`
             }];
             if (starsToRemove && starsToRemove > 0) {

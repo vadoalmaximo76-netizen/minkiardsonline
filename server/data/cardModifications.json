@@ -3444,7 +3444,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "Quando questa carta viene giocata, il danno viene applicato dopo 2 turni [DETTAGLI: condition_detail: Se si gioca questa carta; condition_else: Nulla, l'effetto non si attiva; target: Tutti i personaggi in campo]",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": 50,
@@ -3456,7 +3456,9 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-01T11:48:16.940Z"
+    "modifiedAt": "2026-02-09T11:27:24.136Z",
+    "mosseCanCounter": false,
+    "mosseCanBeCountered": false
   },
   {
     "id": 133,
@@ -3953,5 +3955,29 @@
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
     "modifiedAt": "2026-02-09T08:12:45.487Z"
+  },
+  {
+    "id": 152,
+    "originalCardId": "bonus-71",
+    "deckType": "bonus",
+    "name": null,
+    "imageUrl": null,
+    "pti": null,
+    "stars": null,
+    "effect": "Se usata come respinta, ritarda di 3 turni il danno dell'attacco [DETTAGLI: condition_detail: Se vieni attaccato; condition_else: Nulla, l'effetto non si attiva; target: Il mio personaggio attivo]",
+    "audioUrl": null,
+    "youtubeUrl": null,
+    "mosseDamageValue": null,
+    "mosseDamageEffect": null,
+    "mosseCharacterOverrides": null,
+    "mosseRestrictedFrom": null,
+    "mosseRestrictedAgainst": null,
+    "mosseTargetingMode": null,
+    "mosseTargetCount": null,
+    "mosseCanCounter": false,
+    "mosseCanBeCountered": false,
+    "isDeleted": false,
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-09T11:26:14.825Z"
   }
 ]
