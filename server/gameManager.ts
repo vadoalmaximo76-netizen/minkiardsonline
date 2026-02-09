@@ -3827,6 +3827,14 @@ Rispondi SOLO in JSON:`;
     // When a personaggi_speciali card with PTI/stelle distribution effect is played directly
     if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && 
         card.effect && /decidi.*pti.*stelle|distribui.*pti.*stelle|1000\s*pti.*stelle|pti.*convertit.*stelle/i.test(card.effect)) {
+      
+      const fieldCard = game.field.find((c: Card) => c.id === card.id);
+      const existingCard = fieldCard || card;
+      if ((existingCard as any).ptiDistributed) {
+        console.log(`🎭 PTI DISTRIBUTION: "${card.name}" already has ${existingCard.pti} PTI and ${existingCard.stars} stelle - skipping panel`);
+        return {};
+      }
+      
       console.log(`🎭 PTI DISTRIBUTION: "${card.name}" has PTI/stelle distribution effect`);
       const io = (global as any).io;
       if (io) {
@@ -3836,10 +3844,15 @@ Rispondi SOLO in JSON:`;
           const cpuStelle = Math.floor((1000 - cpuPti) / 100);
           card.pti = cpuPti;
           card.stars = cpuStelle;
-          const fieldCard = game.field.find((c: Card) => c.id === card.id);
+          (card as any).ptiDistributed = true;
+          (card as any).originalPti = cpuPti;
+          card.text = `PTI: ${cpuPti} | Stelle: ${cpuStelle} | PTI originali: ${cpuPti}`;
           if (fieldCard) {
             fieldCard.pti = cpuPti;
             fieldCard.stars = cpuStelle;
+            (fieldCard as any).ptiDistributed = true;
+            (fieldCard as any).originalPti = cpuPti;
+            fieldCard.text = `PTI: ${cpuPti} | Stelle: ${cpuStelle} | PTI originali: ${cpuPti}`;
           }
           console.log(`🤖 CPU ${playerName} auto-distributed: ${cpuPti} PTI, ${cpuStelle} stelle`);
           io.to(gameId).emit('chat-message', {
@@ -3848,6 +3861,8 @@ Rispondi SOLO in JSON:`;
             message: `🤖 ${playerName} assegna a ${card.name}: ${cpuPti} PTI e ${cpuStelle} stelle!`,
             timestamp: Date.now()
           });
+          const gameState = this.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', gameState);
         } else {
           io.to(gameId).emit('show-pti-distribution-panel', {
             cardId: card.id,
@@ -6834,30 +6849,39 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           });
           
           if (summonedNamedCard.effect && /decidi.*pti.*stelle|distribui.*pti.*stelle|1000\s*pti.*stelle|pti.*convertit.*stelle/i.test(summonedNamedCard.effect)) {
-            console.log(`🎭 SUMMON_NAMED: "${summonedNamedCard.name}" has PTI distribution effect - showing panel`);
-            
-            const isCPUSummon = this.isPlayerCPU(gameId, playerName);
-            if (isCPUSummon) {
-              const cpuPti = 500 + Math.floor(Math.random() * 6) * 100;
-              const cpuStelle = Math.floor((1000 - cpuPti) / 100);
-              summonedNamedCard.pti = cpuPti;
-              summonedNamedCard.stars = cpuStelle;
-              console.log(`🤖 CPU ${playerName} auto-distributed: ${cpuPti} PTI, ${cpuStelle} stelle`);
-              ioSummonNamed.to(gameId).emit('chat-message', {
-                id: `${Date.now()}-cpu-distribute`,
-                playerName: 'Sistema',
-                message: `🤖 ${playerName} assegna a ${summonedNamedCard.name}: ${cpuPti} PTI e ${cpuStelle} stelle!`,
-                timestamp: Date.now()
-              });
+            if ((summonedNamedCard as any).ptiDistributed) {
+              console.log(`🎭 SUMMON_NAMED: "${summonedNamedCard.name}" already has ${summonedNamedCard.pti} PTI - skipping distribution`);
             } else {
-              ioSummonNamed.to(gameId).emit('show-pti-distribution-panel', {
-                cardId: summonedNamedCard.id,
-                cardName: summonedNamedCard.name || targetCharName,
-                cardImage: summonedNamedCard.frontImage,
-                playerName,
-                totalBudget: 1000,
-                ptiPerStar: 100
-              });
+              console.log(`🎭 SUMMON_NAMED: "${summonedNamedCard.name}" has PTI distribution effect - showing panel`);
+              
+              const isCPUSummon = this.isPlayerCPU(gameId, playerName);
+              if (isCPUSummon) {
+                const cpuPti = 500 + Math.floor(Math.random() * 6) * 100;
+                const cpuStelle = Math.floor((1000 - cpuPti) / 100);
+                summonedNamedCard.pti = cpuPti;
+                summonedNamedCard.stars = cpuStelle;
+                (summonedNamedCard as any).ptiDistributed = true;
+                (summonedNamedCard as any).originalPti = cpuPti;
+                summonedNamedCard.text = `PTI: ${cpuPti} | Stelle: ${cpuStelle} | PTI originali: ${cpuPti}`;
+                console.log(`🤖 CPU ${playerName} auto-distributed: ${cpuPti} PTI, ${cpuStelle} stelle`);
+                ioSummonNamed.to(gameId).emit('chat-message', {
+                  id: `${Date.now()}-cpu-distribute`,
+                  playerName: 'Sistema',
+                  message: `🤖 ${playerName} assegna a ${summonedNamedCard.name}: ${cpuPti} PTI e ${cpuStelle} stelle!`,
+                  timestamp: Date.now()
+                });
+                const gameStateSummon = this.getSanitizedGameState(gameId);
+                ioSummonNamed.to(gameId).emit('game-state-update', gameStateSummon);
+              } else {
+                ioSummonNamed.to(gameId).emit('show-pti-distribution-panel', {
+                  cardId: summonedNamedCard.id,
+                  cardName: summonedNamedCard.name || targetCharName,
+                  cardImage: summonedNamedCard.frontImage,
+                  playerName,
+                  totalBudget: 1000,
+                  ptiPerStar: 100
+                });
+              }
             }
           }
         }
@@ -9573,6 +9597,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   // AUTO-ANALYZE PERSONAGGI CARDS FOR ALL PLAYERS (using cache - synchronous)
   private autoAnalyzePersonaggioCardSync(card: any, playerName: string): void {
     try {
+      // DISTRIBUTED CARDS: If card has already had PTI/stelle distributed (Giovanni Muciaccia style), preserve them
+      if (card.ptiDistributed && card.pti != null && card.stars != null) {
+        console.log(`✅ Card ${card.id} keeping distributed stats: pti=${card.pti}, stars=${card.stars}`);
+        card.text = `PTI: ${card.pti} | Stelle: ${card.stars} | PTI originali: ${card.originalPti || card.pti}`;
+        return;
+      }
+      
       // PERMANENT/CUSTOM CARDS: If card already has PTI, stars, and name set (from loadPermanentCardsIntoDeck), preserve them
       const isPermanentCard = card.id?.startsWith('permanent-');
       if (isPermanentCard && card.pti != null && card.stars != null) {

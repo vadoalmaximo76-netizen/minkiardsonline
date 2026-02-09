@@ -2618,6 +2618,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
             fieldCard.pti = safePti;
             fieldCard.stars = safeStars;
+            (fieldCard as any).ptiDistributed = true;
+            (fieldCard as any).originalPti = safePti;
+            fieldCard.text = `PTI: ${safePti} | Stelle: ${safeStars} | PTI originali: ${safePti}`;
             
             const gameState = gameManager.getSanitizedGameState(gameId);
             emitImmediateGameState(io, gameId, gameState);
