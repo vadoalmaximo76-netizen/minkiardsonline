@@ -4871,6 +4871,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               handCard.transformsInto = mod?.transformsInto || undefined;
               handCard.transformsFrom = mod?.transformsFrom || undefined;
               handCard.cheatsInto = mod?.cheatsInto || undefined;
+              if (mod?.specialCategory) {
+                (handCard as any).specialCategory = mod.specialCategory;
+              }
+              if (mod?.evolvedMoves) {
+                (handCard as any).evolvedMoves = mod.evolvedMoves;
+              }
+              if (mod?.superAttacco) {
+                (handCard as any).superAttacco = mod.superAttacco;
+              }
               this.updateCardTextWithPTI(handCard);
               
               const typeLabel = type === 'evolution' ? 'EVOLUZIONE' : type === 'transformation' ? 'TRASFORMAZIONE' : 'TAROCCATA';
@@ -4996,6 +5005,16 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             transformsFrom: mod?.transformsFrom || undefined,
             cheatsInto: mod?.cheatsInto || undefined
           };
+
+          if (mod?.specialCategory) {
+            (replacementCard as any).specialCategory = mod.specialCategory;
+          }
+          if (mod?.evolvedMoves) {
+            (replacementCard as any).evolvedMoves = mod.evolvedMoves;
+          }
+          if (mod?.superAttacco) {
+            (replacementCard as any).superAttacco = mod.superAttacco;
+          }
 
           game.field[fieldIndex] = replacementCard;
           this.updateCardTextWithPTI(replacementCard);
@@ -13030,6 +13049,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           message: `⏭️ ${skipOwner} non può giocare per ${skipCount} turni!`,
           timestamp: Date.now()
         });
+        break;
+      }
+
+      case 'taroccata': {
+        const taroccataOwner = targetCard.owner || '';
+        console.log(`🃏 TAROCCATA via applyEffectToCard: applying to ${targetCard.name || targetCard.id} owned by ${taroccataOwner}`);
+        this.handleEvolutionTransformation(game, gameId, taroccataOwner, 'taroccata', targetCard.id);
         break;
       }
 
