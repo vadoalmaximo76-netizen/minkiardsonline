@@ -12,6 +12,7 @@ import { CardModal } from "./CardModal";
 import { DiceModal } from "./DiceModal";
 import { FullScreenNotification } from "./FullScreenNotification";
 import { PersonaggioNotification } from "./PersonaggioNotification";
+import { EvolutionAnimation } from "./EvolutionAnimation";
 import { CardAnimation } from "./CardAnimation";
 import { CustomAnimationOverlay } from "./CustomAnimationOverlay";
 import { AddCardsModal } from "./AddCardsModal";
@@ -147,6 +148,18 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     attackerName: string;
     category: string | null;
   }>({ visible: false, moveName: '', damage: 0, attackerName: '', category: null });
+  const [evolutionAnim, setEvolutionAnim] = useState<{
+    visible: boolean;
+    key: number;
+    type: 'evolution' | 'transformation' | 'taroccata';
+    oldName: string;
+    newName: string;
+    oldImage: string;
+    newImage: string;
+    playerName: string;
+    pti?: number;
+    stars?: number;
+  }>({ visible: false, key: 0, type: 'evolution', oldName: '', newName: '', oldImage: '', newImage: '', playerName: '' });
   const [cardAnimationVisible, setCardAnimationVisible] = useState(false);
   const [cardAnimationName, setCardAnimationName] = useState<string>("");
   const [customAnimationVisible, setCustomAnimationVisible] = useState(false);
@@ -664,6 +677,32 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       }, 4000);
     };
 
+    const handleEvolutionAnimation = (data: {
+      type: 'evolution' | 'transformation' | 'taroccata';
+      oldName: string;
+      newName: string;
+      oldImage: string;
+      newImage: string;
+      playerName: string;
+      pti?: number;
+      stars?: number;
+      timestamp?: number;
+    }) => {
+      console.log(`🌟 Evolution animation: ${data.oldName} → ${data.newName} (${data.type})`);
+      setEvolutionAnim({
+        visible: true,
+        key: Date.now(),
+        type: data.type,
+        oldName: data.oldName,
+        newName: data.newName,
+        oldImage: data.oldImage,
+        newImage: data.newImage,
+        playerName: data.playerName,
+        pti: data.pti,
+        stars: data.stars
+      });
+    };
+
     const handleCardPlayed = ({ cardId, cardType, frontImage, cardName, playerName }: { 
       cardId: string, 
       cardType: string, 
@@ -767,6 +806,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('card-animation-trigger', handleCardAnimationTrigger);
     socket.on('custom-animation-trigger', handleCustomAnimationTrigger);
     socket.on('special-move-overlay', handleSpecialMoveOverlay);
+    socket.on('evolution-animation', handleEvolutionAnimation);
     socket.on('card-played', handleCardPlayed);
     socket.on('card-played-face-down', handleCardPlayedFaceDown);
     socket.on('card-revealed', handleCardRevealed);
@@ -1538,6 +1578,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('bee-sound', handleBeeSound);
       socket.off('character-sound', handleCharacterSound);
       socket.off('special-move-overlay', handleSpecialMoveOverlay);
+      socket.off('evolution-animation', handleEvolutionAnimation);
       socket.off('card-played', handleCardPlayed);
       socket.off('card-played-face-down', handleCardPlayedFaceDown);
       socket.off('card-revealed', handleCardRevealed);
@@ -3326,6 +3367,21 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             </div>
           </div>
         )}
+
+        {/* Evolution/Transformation Animation */}
+        <EvolutionAnimation
+          key={evolutionAnim.key}
+          isVisible={evolutionAnim.visible}
+          type={evolutionAnim.type}
+          oldName={evolutionAnim.oldName}
+          newName={evolutionAnim.newName}
+          oldImage={evolutionAnim.oldImage}
+          newImage={evolutionAnim.newImage}
+          playerName={evolutionAnim.playerName}
+          pti={evolutionAnim.pti}
+          stars={evolutionAnim.stars}
+          onComplete={() => setEvolutionAnim(prev => ({ ...prev, visible: false }))}
+        />
 
         {/* PERSONAGGI Enter Notification */}
         <PersonaggioNotification

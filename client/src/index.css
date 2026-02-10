@@ -1477,3 +1477,115 @@ input:focus, select:focus {
   60% { transform: scale(1.3); opacity: 1; }
   100% { transform: scale(1); opacity: 1; }
 }
+
+/* Evolution/Transformation Animation System */
+@keyframes evoBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes evoParticleFloat {
+  0% { transform: translateY(0) scale(1); opacity: 0.8; }
+  25% { transform: translateY(-30px) scale(1.3); opacity: 1; }
+  50% { transform: translateY(-60px) scale(0.8); opacity: 0.6; }
+  75% { transform: translateY(-90px) scale(1.1); opacity: 0.4; }
+  100% { transform: translateY(-120px) scale(0.5); opacity: 0; }
+}
+
+@keyframes evoLightning {
+  0% { opacity: 0; }
+  10% { opacity: 1; }
+  20% { opacity: 0.3; }
+  30% { opacity: 0.9; }
+  50% { opacity: 0; }
+  100% { opacity: 0; }
+}
+
+@keyframes evoRingPulse {
+  0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.3; }
+  50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.3; }
+}
+
+@keyframes evoShockwave {
+  0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+  50% { transform: translate(-50%, -50%) scale(2); opacity: 0.5; }
+  100% { transform: translate(-50%, -50%) scale(4); opacity: 0; }
+}
+
+@keyframes evoSlideIn {
+  0% { transform: translateY(-60px) scale(0.5); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes evoFadeUp {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-40px); opacity: 0; }
+}
+
+@keyframes evoPulseGlow {
+  0% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+  100% { opacity: 0.3; }
+}
+
+@keyframes evoArrowPulse {
+  0% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.8; }
+}
+
+@keyframes evoNewCharReveal {
+  0% { transform: scale(0) rotateY(180deg); opacity: 0; }
+  50% { transform: scale(1.2) rotateY(90deg); opacity: 0.8; }
+  70% { transform: scale(1.1) rotateY(20deg); opacity: 1; }
+  100% { transform: scale(1) rotateY(0deg); opacity: 1; }
+}
+
+@keyframes evoFadeOut {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.9); }
+}
+
+@keyframes evoAuraSpin {
+  from { transform: scale(1.3) rotate(0deg); }
+  to { transform: scale(1.3) rotate(360deg); }
+}
+
+@keyframes evoCardFloat {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes evoOuterRing {
+  0% { transform: scale(0.8); opacity: 0; }
+  50% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.8; }
+}
+
+@keyframes evoNameShine {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes evoStatsReveal {
+  0% { transform: translateY(20px) scale(0.5); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes evoFadeInSlow {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes evoScanline {
+  0% { transform: scaleX(0); }
+  100% { transform: scaleX(1); }
+}
+
+@keyframes evoFlashBurst {
+  0% { opacity: 0.8; }
+  100% { opacity: 0; }
+}

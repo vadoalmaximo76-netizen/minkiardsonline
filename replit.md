@@ -77,6 +77,9 @@ Players can select from 24 emoji-based avatars, with server-side validation and 
 ## Voice Chat System
 Real-time WebRTC peer-to-peer voice communication with STUN servers for NAT traversal, using Socket.IO for signaling.
 
+## Evolution/Transformation Animation System
+Spectacular full-screen animation triggered when characters evolve, transform, or get taroccata'd. The EvolutionAnimation component features a 6-phase sequence: backdrop entry, old character display with energy particles, lightning bolts and verb text, new character card-flip reveal with spinning conic-gradient aura, PTI/stars badge reveal, and fade out. Type-specific theming: gold for evolution, purple for transformation, red for taroccata. Includes 40 energy particles, 8 lightning bolts, 24 ring particles, shockwave ring, and scanline effects. Server emits 'evolution-animation' socket event; the 'personaggio-enters' event is delayed 5.5s to play after the evolution animation completes.
+
 ## Turn Transition Animation
 Cinematic full-screen overlay animation when turns change. Different styling for your turn (golden/crown icons, "È IL TUO TURNO!") vs opponent's turn (blue/purple, "Turno di [PLAYER]"). Uses phase-based CSS animations with slide-in, glow pulse, icon spin, and auto-dismiss after 2.5 seconds.
 

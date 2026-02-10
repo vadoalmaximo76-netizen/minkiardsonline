@@ -4951,6 +4951,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     const io = (global as any).io;
     const oldName = activeChar.name || activeChar.id;
+    const oldImage = activeChar.frontImage || '';
     const originalPti = activeChar.pti || 0;
     const originalStars = activeChar.stars || 1;
 
@@ -5034,6 +5035,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
             const cardName = replacementCard.name || this.getCardNameFromUrl(replacementCard.frontImage || '');
 
+            io.to(gameId).emit('evolution-animation', {
+              type,
+              oldName,
+              newName: cardName,
+              newImage: replacementCard.frontImage,
+              oldImage,
+              playerName,
+              pti: replacementCard.pti,
+              stars: replacementCard.stars,
+              timestamp: Date.now()
+            });
+
             if (replacementCard.type === 'personaggi' || replacementCard.type === 'personaggi_speciali') {
               const dramaticMessages = [
                 "È PRONTO A FARE BRUTTO",
@@ -5042,12 +5055,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
                 "SI UNISCE ALLA ZUFFA"
               ];
               const selectedMessage = dramaticMessages[Math.floor(Math.random() * dramaticMessages.length)];
-              io.to(gameId).emit('personaggio-enters', {
-                cardName,
-                message: selectedMessage,
-                playerName,
-                cardImage: replacementCard.frontImage
-              });
+              setTimeout(() => {
+                io.to(gameId).emit('personaggio-enters', {
+                  cardName,
+                  message: selectedMessage,
+                  playerName,
+                  cardImage: replacementCard.frontImage
+                });
+              }, 5500);
 
               const cName = cardName.toLowerCase();
               let soundType: string | null = 'human_voice';
@@ -5145,6 +5160,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       this.updateCardTextWithPTI(activeChar);
       console.log(`🦋 TRASFORMAZIONE FALLBACK: ${oldName} raddoppia PTI (${originalPti} → ${activeChar.pti}) e stelle (${originalStars} → ${activeChar.stars})`);
       if (io) {
+        io.to(gameId).emit('evolution-animation', {
+          type, oldName, newName: oldName, newImage: oldImage, oldImage, playerName,
+          pti: activeChar.pti, stars: activeChar.stars, timestamp: Date.now()
+        });
         io.to(gameId).emit('chat-message', {
           id: `${Date.now()}-transform-fallback`,
           playerName: 'Sistema',
@@ -5162,6 +5181,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       this.updateCardTextWithPTI(activeChar);
       console.log(`🌟 EVOLUZIONE FALLBACK: ${oldName} +50% PTI (${originalPti} → ${activeChar.pti}) e stelle (${originalStars} → ${activeChar.stars})`);
       if (io) {
+        io.to(gameId).emit('evolution-animation', {
+          type, oldName, newName: oldName, newImage: oldImage, oldImage, playerName,
+          pti: activeChar.pti, stars: activeChar.stars, timestamp: Date.now()
+        });
         io.to(gameId).emit('chat-message', {
           id: `${Date.now()}-evolution-fallback`,
           playerName: 'Sistema',
@@ -5178,6 +5201,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       this.updateCardTextWithPTI(activeChar);
       console.log(`🃏 TAROCCATA FALLBACK: ${oldName} dimezza PTI (${originalPti} → ${activeChar.pti}) e stelle (${originalStars} → ${activeChar.stars})`);
       if (io) {
+        io.to(gameId).emit('evolution-animation', {
+          type, oldName, newName: oldName, newImage: oldImage, oldImage, playerName,
+          pti: activeChar.pti, stars: activeChar.stars, timestamp: Date.now()
+        });
         io.to(gameId).emit('chat-message', {
           id: `${Date.now()}-taroccata-fallback`,
           playerName: 'Sistema',
