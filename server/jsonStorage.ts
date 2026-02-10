@@ -50,6 +50,9 @@ interface CardModification {
   transformsInto: string | null;
   transformsFrom: string | null;
   cheatsInto: string | null;
+  specialCategory: string | null;
+  evolvedMoves: any | null;
+  superAttacco: any | null;
   isDeleted: boolean;
   modifiedBy: string | null;
   modifiedAt: string;
@@ -305,6 +308,13 @@ export const jsonStorage = {
           mosseTargetCount: data.mosseTargetCount ?? null,
           mosseCanCounter: data.mosseCanCounter ?? false,
           mosseCanBeCountered: data.mosseCanBeCountered ?? false,
+          evolvesInto: data.evolvesInto || null,
+          transformsInto: data.transformsInto || null,
+          transformsFrom: data.transformsFrom || null,
+          cheatsInto: data.cheatsInto || null,
+          specialCategory: data.specialCategory || null,
+          evolvedMoves: data.evolvedMoves || null,
+          superAttacco: data.superAttacco || null,
           isDeleted: data.isDeleted ?? false,
           modifiedBy: data.modifiedBy || null,
           modifiedAt: new Date().toISOString()

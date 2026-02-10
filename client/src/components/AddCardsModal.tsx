@@ -822,6 +822,9 @@ interface ExistingCard {
   transformsInto: string | null;
   transformsFrom: string | null;
   cheatsInto: string | null;
+  specialCategory: string | null;
+  evolvedMoves: any | null;
+  superAttacco: any | null;
   isDeleted: boolean;
   isModified: boolean;
 }
@@ -864,7 +867,10 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     evolvesInto: '',
     transformsInto: '',
     transformsFrom: '',
-    cheatsInto: ''
+    cheatsInto: '',
+    specialCategory: '',
+    evolvedMoves: { range1: { name: '', damage: '' }, range2: { name: '', damage: '' } },
+    superAttacco: { name: '', damage: '' }
   });
   const [pendingChanges, setPendingChanges] = useState<Map<string, {card: ExistingCard, formData: typeof existingEditForm}>>(new Map());
   const [isBulkSaving, setIsBulkSaving] = useState(false);
@@ -1502,7 +1508,10 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
         evolvesInto: card.evolvesInto || '',
         transformsInto: card.transformsInto || '',
         transformsFrom: card.transformsFrom || '',
-        cheatsInto: card.cheatsInto || ''
+        cheatsInto: card.cheatsInto || '',
+        specialCategory: card.specialCategory || '',
+        evolvedMoves: card.evolvedMoves || { range1: { name: '', damage: '' }, range2: { name: '', damage: '' } },
+        superAttacco: card.superAttacco || { name: '', damage: '' }
       });
     }
     setEditingExistingCard(card.id);
@@ -1556,7 +1565,10 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
         evolvesInto: formData.evolvesInto || null,
         transformsInto: formData.transformsInto || null,
         transformsFrom: formData.transformsFrom || null,
-        cheatsInto: formData.cheatsInto || null
+        cheatsInto: formData.cheatsInto || null,
+        specialCategory: formData.specialCategory || null,
+        evolvedMoves: (formData.evolvedMoves?.range1?.name || formData.evolvedMoves?.range1?.damage || formData.evolvedMoves?.range2?.name || formData.evolvedMoves?.range2?.damage) ? formData.evolvedMoves : null,
+        superAttacco: (formData.superAttacco?.name || formData.superAttacco?.damage) ? formData.superAttacco : null
       }));
       
       const response = await fetch('/api/admin/card-modifications-bulk', {
@@ -2872,6 +2884,159 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                                       ))}
                                     </select>
                                     <p className="text-gray-500 text-xs mt-1">BONUS: "Si tarocca" / "Effettua la taroccata"</p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {card.deckType === 'personaggi_speciali' && (
+                              <div className="p-3 bg-yellow-900/30 rounded-lg border border-yellow-500/50">
+                                <div className="text-yellow-400 text-sm font-bold mb-2">⭐ CATEGORIA SPECIALE</div>
+                                <p className="text-gray-400 text-xs mb-3">
+                                  Seleziona la categoria di questo personaggio speciale.
+                                </p>
+                                <div className="flex gap-3 flex-wrap">
+                                  {['', 'supremi', 'super', 'evoluti', 'tarocchi'].map(cat => (
+                                    <label key={cat || 'none'} className="flex items-center gap-1 cursor-pointer">
+                                      <input
+                                        type="radio"
+                                        name={`specialCategory-${card.id}`}
+                                        value={cat}
+                                        checked={existingEditForm.specialCategory === cat}
+                                        onChange={() => setExistingEditForm(prev => ({ ...prev, specialCategory: cat }))}
+                                        className="accent-yellow-500"
+                                      />
+                                      <span className="text-white text-xs font-bold">
+                                        {cat === '' ? 'Nessuna' : cat.toUpperCase()}
+                                      </span>
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {card.deckType === 'personaggi_speciali' && (
+                              <div className="p-3 bg-purple-900/30 rounded-lg border border-purple-500/50">
+                                <div className="text-purple-400 text-sm font-bold mb-2">🔥 MOSSE SPECIALI EVOLUTE</div>
+                                <p className="text-gray-400 text-xs mb-3">
+                                  Configura nomi e danni personalizzati per le mosse in base al range di danno base. Il danno assegnato verrà moltiplicato per le stelle attuali del personaggio.
+                                </p>
+                                
+                                <div className="space-y-3">
+                                  <div className="p-2 bg-gray-800/50 rounded border border-purple-500/30">
+                                    <div className="text-purple-300 text-xs font-bold mb-2">DA 1 A 150 PTI</div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div>
+                                        <label className="text-white text-xs mb-1 block">Nome mossa</label>
+                                        <input
+                                          type="text"
+                                          value={existingEditForm.evolvedMoves?.range1?.name || ''}
+                                          onChange={(e) => setExistingEditForm(prev => ({
+                                            ...prev,
+                                            evolvedMoves: {
+                                              ...prev.evolvedMoves,
+                                              range1: { ...prev.evolvedMoves?.range1, name: e.target.value }
+                                            }
+                                          }))}
+                                          placeholder="Es: KAMEHAMEHA"
+                                          className="w-full bg-gray-600 text-white border border-gray-500 rounded px-2 py-1 text-xs"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="text-white text-xs mb-1 block">Danno PTI</label>
+                                        <input
+                                          type="number"
+                                          value={existingEditForm.evolvedMoves?.range1?.damage || ''}
+                                          onChange={(e) => setExistingEditForm(prev => ({
+                                            ...prev,
+                                            evolvedMoves: {
+                                              ...prev.evolvedMoves,
+                                              range1: { ...prev.evolvedMoves?.range1, damage: e.target.value }
+                                            }
+                                          }))}
+                                          placeholder="Es: 100"
+                                          className="w-full bg-gray-600 text-white border border-gray-500 rounded px-2 py-1 text-xs"
+                                        />
+                                      </div>
+                                    </div>
+                                    <p className="text-gray-500 text-xs mt-1">Quando usa una mossa con danno base 1-150, viene sostituita con questo nome e danno × stelle</p>
+                                  </div>
+                                  
+                                  <div className="p-2 bg-gray-800/50 rounded border border-purple-500/30">
+                                    <div className="text-purple-300 text-xs font-bold mb-2">DA 151 A 300 PTI</div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div>
+                                        <label className="text-white text-xs mb-1 block">Nome mossa</label>
+                                        <input
+                                          type="text"
+                                          value={existingEditForm.evolvedMoves?.range2?.name || ''}
+                                          onChange={(e) => setExistingEditForm(prev => ({
+                                            ...prev,
+                                            evolvedMoves: {
+                                              ...prev.evolvedMoves,
+                                              range2: { ...prev.evolvedMoves?.range2, name: e.target.value }
+                                            }
+                                          }))}
+                                          placeholder="Es: GENKIDAMA"
+                                          className="w-full bg-gray-600 text-white border border-gray-500 rounded px-2 py-1 text-xs"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="text-white text-xs mb-1 block">Danno PTI</label>
+                                        <input
+                                          type="number"
+                                          value={existingEditForm.evolvedMoves?.range2?.damage || ''}
+                                          onChange={(e) => setExistingEditForm(prev => ({
+                                            ...prev,
+                                            evolvedMoves: {
+                                              ...prev.evolvedMoves,
+                                              range2: { ...prev.evolvedMoves?.range2, damage: e.target.value }
+                                            }
+                                          }))}
+                                          placeholder="Es: 250"
+                                          className="w-full bg-gray-600 text-white border border-gray-500 rounded px-2 py-1 text-xs"
+                                        />
+                                      </div>
+                                    </div>
+                                    <p className="text-gray-500 text-xs mt-1">Quando usa una mossa con danno base 151-300, viene sostituita con questo nome e danno × stelle</p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {card.deckType === 'personaggi_speciali' && (
+                              <div className="p-3 bg-orange-900/30 rounded-lg border border-orange-500/50">
+                                <div className="text-orange-400 text-sm font-bold mb-2">💥 SUPER ATTACCO</div>
+                                <p className="text-gray-400 text-xs mb-3">
+                                  Configura un attacco speciale che si attiva quando questo personaggio usa la mossa "ATTACCO". Il danno verrà moltiplicato per le stelle attuali.
+                                </p>
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div>
+                                    <label className="text-white text-xs mb-1 block">Nome attacco speciale</label>
+                                    <input
+                                      type="text"
+                                      value={existingEditForm.superAttacco?.name || ''}
+                                      onChange={(e) => setExistingEditForm(prev => ({
+                                        ...prev,
+                                        superAttacco: { ...prev.superAttacco, name: e.target.value }
+                                      }))}
+                                      placeholder="Es: FINAL FLASH"
+                                      className="w-full bg-gray-600 text-white border border-gray-500 rounded px-2 py-2 text-xs"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-white text-xs mb-1 block">Danno PTI base</label>
+                                    <input
+                                      type="number"
+                                      value={existingEditForm.superAttacco?.damage || ''}
+                                      onChange={(e) => setExistingEditForm(prev => ({
+                                        ...prev,
+                                        superAttacco: { ...prev.superAttacco, damage: e.target.value }
+                                      }))}
+                                      placeholder="Es: 200"
+                                      className="w-full bg-gray-600 text-white border border-gray-500 rounded px-2 py-2 text-xs"
+                                    />
+                                    <p className="text-gray-500 text-xs mt-1">Sarà moltiplicato per le stelle attuali</p>
                                   </div>
                                 </div>
                               </div>

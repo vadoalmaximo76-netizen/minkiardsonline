@@ -97,6 +97,9 @@ export const cardModifications = pgTable("card_modifications", {
   transformsInto: text("transforms_into"), // Card ID that this character transforms into
   transformsFrom: text("transforms_from"), // Card ID that this character transforms from (for taroccata)
   cheatsInto: text("cheats_into"), // Card ID for taroccata transformation
+  specialCategory: text("special_category"), // 'supremi', 'super', 'evoluti', 'tarocchi' for PERSONAGGI_SPECIALI
+  evolvedMoves: jsonb("evolved_moves"), // JSON: {range1: {name, damage}, range2: {name, damage}} for MOSSE SPECIALI EVOLUTE
+  superAttacco: jsonb("super_attacco"), // JSON: {name, damage} for SUPER ATTACCO override
   isDeleted: boolean("is_deleted").default(false), // Hide card from game
   modifiedBy: text("modified_by"), // Admin email who modified
   modifiedAt: timestamp("modified_at").notNull().defaultNow(),

@@ -619,6 +619,15 @@ export class GameManager {
     if (mod.cheatsInto !== undefined) {
       card.cheatsInto = mod.cheatsInto || undefined;
     }
+    if (mod.specialCategory !== undefined) {
+      (card as any).specialCategory = mod.specialCategory || undefined;
+    }
+    if (mod.evolvedMoves !== undefined) {
+      (card as any).evolvedMoves = mod.evolvedMoves || undefined;
+    }
+    if (mod.superAttacco !== undefined) {
+      (card as any).superAttacco = mod.superAttacco || undefined;
+    }
   }
 
   // Refresh card metadata for all active games (called after admin modifications)
@@ -19641,6 +19650,72 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         targetCardFrontImage: targetCard?.frontImage
       });
     }
+
+    // ========== PERSONAGGI SPECIALI: MOSSE SPECIALI EVOLUTE & SUPER ATTACCO ==========
+    const attackerCharForSpecial = game?.field.find((c: Card) => c.owner === attackerName && c.type === 'personaggi_speciali');
+    let specialMoveName: string | null = null;
+    let specialMoveFinalDamage: number | null = null;
+    
+    if (attackerCharForSpecial && !isPersistentTick && !isVoodooReflection) {
+      const mosseCard = game?.field.find((c: Card) => c.id === mosseCardId);
+      const mosseCardName = mosseCard ? this.getCardNameFromUrl(mosseCard.frontImage || '').toUpperCase().trim() : '';
+      const attackerStars = this.extractStarsFromNote(attackerCharForSpecial.text || '') || (attackerCharForSpecial.stars || 1);
+      
+      const superAttaccoConfig = (attackerCharForSpecial as any).superAttacco;
+      const evolvedMovesConfig = (attackerCharForSpecial as any).evolvedMoves;
+      
+      if (superAttaccoConfig && superAttaccoConfig.name && superAttaccoConfig.damage && mosseCardName === 'ATTACCO') {
+        const baseDmg = parseInt(superAttaccoConfig.damage);
+        if (!isNaN(baseDmg) && baseDmg > 0) {
+          specialMoveName = superAttaccoConfig.name;
+          specialMoveFinalDamage = baseDmg * attackerStars;
+          damageValue = specialMoveFinalDamage;
+          console.log(`💥 SUPER ATTACCO: ${attackerCharForSpecial.name || 'Personaggio Speciale'} usa "${specialMoveName}" - Danno: ${baseDmg} × ${attackerStars} stelle = ${specialMoveFinalDamage} PTI`);
+        }
+      } else if (evolvedMovesConfig && !specialMoveName) {
+        const baseMosseDamage = damageValue;
+        
+        if (evolvedMovesConfig.range1 && evolvedMovesConfig.range1.name && evolvedMovesConfig.range1.damage && baseMosseDamage >= 1 && baseMosseDamage <= 150) {
+          const evoBaseDmg = parseInt(evolvedMovesConfig.range1.damage);
+          if (!isNaN(evoBaseDmg) && evoBaseDmg > 0) {
+            specialMoveName = evolvedMovesConfig.range1.name;
+            specialMoveFinalDamage = evoBaseDmg * attackerStars;
+            damageValue = specialMoveFinalDamage;
+            console.log(`🔥 MOSSA SPECIALE EVOLUTA (Range 1-150): ${attackerCharForSpecial.name || 'Personaggio Speciale'} usa "${specialMoveName}" - Danno: ${evoBaseDmg} × ${attackerStars} stelle = ${specialMoveFinalDamage} PTI`);
+          }
+        } else if (evolvedMovesConfig.range2 && evolvedMovesConfig.range2.name && evolvedMovesConfig.range2.damage && baseMosseDamage >= 151 && baseMosseDamage <= 300) {
+          const evoBaseDmg = parseInt(evolvedMovesConfig.range2.damage);
+          if (!isNaN(evoBaseDmg) && evoBaseDmg > 0) {
+            specialMoveName = evolvedMovesConfig.range2.name;
+            specialMoveFinalDamage = evoBaseDmg * attackerStars;
+            damageValue = specialMoveFinalDamage;
+            console.log(`🔥 MOSSA SPECIALE EVOLUTA (Range 151-300): ${attackerCharForSpecial.name || 'Personaggio Speciale'} usa "${specialMoveName}" - Danno: ${evoBaseDmg} × ${attackerStars} stelle = ${specialMoveFinalDamage} PTI`);
+          }
+        }
+      }
+      
+      if (specialMoveName && specialMoveFinalDamage) {
+        const charName = attackerCharForSpecial.name || this.getCardNameFromUrl(attackerCharForSpecial.frontImage || '');
+        const category = (attackerCharForSpecial as any).specialCategory;
+        
+        io.to(gameId).emit('special-move-overlay', {
+          moveName: specialMoveName,
+          damage: specialMoveFinalDamage,
+          attackerName: charName,
+          playerName: attackerName,
+          category: category || null,
+          timestamp: Date.now()
+        });
+        
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-special-move`,
+          playerName: 'Sistema',
+          message: `💥 ${charName} usa ${specialMoveName}! Danno: ${specialMoveFinalDamage} PTI!`,
+          timestamp: Date.now()
+        });
+      }
+    }
+    // ========== END PERSONAGGI SPECIALI SPECIAL MOVES ==========
 
     // ========== CUSTOM EFFECT INTEGRATION: SHIELD, REFLECT, COUNTER, LIFESTEAL ==========
     let effectiveDamage = damageValue;

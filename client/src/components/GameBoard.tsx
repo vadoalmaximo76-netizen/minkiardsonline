@@ -140,6 +140,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     player: string;
   }>({ visible: false, player: '' });
   const { handModalOpen, setHandModalOpen } = useGameState();
+  const [specialMoveOverlay, setSpecialMoveOverlay] = useState<{
+    visible: boolean;
+    moveName: string;
+    damage: number;
+    attackerName: string;
+    category: string | null;
+  }>({ visible: false, moveName: '', damage: 0, attackerName: '', category: null });
   const [cardAnimationVisible, setCardAnimationVisible] = useState(false);
   const [cardAnimationName, setCardAnimationName] = useState<string>("");
   const [customAnimationVisible, setCustomAnimationVisible] = useState(false);
@@ -643,6 +650,20 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       }, 4000);
     };
 
+    const handleSpecialMoveOverlay = (data: { moveName: string; damage: number; attackerName: string; playerName: string; category: string | null }) => {
+      console.log(`💥 Special move overlay: ${data.attackerName} uses ${data.moveName} for ${data.damage} damage`);
+      setSpecialMoveOverlay({
+        visible: true,
+        moveName: data.moveName,
+        damage: data.damage,
+        attackerName: data.attackerName,
+        category: data.category
+      });
+      setTimeout(() => {
+        setSpecialMoveOverlay(prev => ({ ...prev, visible: false }));
+      }, 4000);
+    };
+
     const handleCardPlayed = ({ cardId, cardType, frontImage, cardName, playerName }: { 
       cardId: string, 
       cardType: string, 
@@ -745,6 +766,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('character-sound', handleCharacterSound);
     socket.on('card-animation-trigger', handleCardAnimationTrigger);
     socket.on('custom-animation-trigger', handleCustomAnimationTrigger);
+    socket.on('special-move-overlay', handleSpecialMoveOverlay);
     socket.on('card-played', handleCardPlayed);
     socket.on('card-played-face-down', handleCardPlayedFaceDown);
     socket.on('card-revealed', handleCardRevealed);
@@ -1515,6 +1537,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('cards-added', handleCardsAdded);
       socket.off('bee-sound', handleBeeSound);
       socket.off('character-sound', handleCharacterSound);
+      socket.off('special-move-overlay', handleSpecialMoveOverlay);
       socket.off('card-played', handleCardPlayed);
       socket.off('card-played-face-down', handleCardPlayedFaceDown);
       socket.off('card-revealed', handleCardRevealed);
@@ -3374,6 +3397,49 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               setCustomAnimationData(null);
             }}
           />
+        )}
+
+        {specialMoveOverlay.visible && (
+          <div 
+            className="fixed inset-0 z-[9999] flex items-center justify-center pointer-events-none"
+            style={{ animation: 'fadeIn 0.3s ease-out' }}
+          >
+            <div className="absolute inset-0 bg-black/70" style={{ animation: 'fadeIn 0.2s ease-out' }} />
+            <div className="relative flex flex-col items-center gap-4" style={{ animation: 'specialMoveEntry 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>
+              {specialMoveOverlay.category && (
+                <div className="text-yellow-400 text-lg font-bold uppercase tracking-widest" style={{ textShadow: '0 0 20px rgba(234, 179, 8, 0.8)' }}>
+                  {specialMoveOverlay.category}
+                </div>
+              )}
+              <div className="text-white text-2xl font-bold tracking-wide" style={{ textShadow: '0 0 15px rgba(255, 255, 255, 0.5)' }}>
+                {specialMoveOverlay.attackerName}
+              </div>
+              <div 
+                className="text-transparent bg-clip-text font-black uppercase tracking-wider text-center px-8"
+                style={{ 
+                  fontSize: 'clamp(2.5rem, 8vw, 5rem)',
+                  backgroundImage: 'linear-gradient(135deg, #ff6b35, #ff0844, #fffc00, #ff6b35)',
+                  backgroundSize: '300% 300%',
+                  animation: 'specialMoveGlow 1.5s ease-in-out infinite',
+                  WebkitTextStroke: '1px rgba(255, 100, 0, 0.3)',
+                  filter: 'drop-shadow(0 0 30px rgba(255, 68, 0, 0.8)) drop-shadow(0 0 60px rgba(255, 0, 68, 0.4))',
+                  lineHeight: 1.1
+                }}
+              >
+                {specialMoveOverlay.moveName}
+              </div>
+              <div 
+                className="text-red-100 font-black text-center"
+                style={{ 
+                  fontSize: 'clamp(1.8rem, 5vw, 3.5rem)',
+                  textShadow: '0 0 30px rgba(255, 0, 0, 0.9), 0 0 60px rgba(255, 0, 0, 0.5)',
+                  animation: 'specialMoveDamage 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both'
+                }}
+              >
+                {specialMoveOverlay.damage} PTI
+              </div>
+            </div>
+          </div>
         )}
 
         <CharacterEffects

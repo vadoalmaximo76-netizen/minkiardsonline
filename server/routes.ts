@@ -6941,6 +6941,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             transformsInto: mod?.transformsInto || null,
             transformsFrom: mod?.transformsFrom || null,
             cheatsInto: mod?.cheatsInto || null,
+            specialCategory: mod?.specialCategory || null,
+            evolvedMoves: mod?.evolvedMoves || null,
+            superAttacco: mod?.superAttacco || null,
             isDeleted: mod?.isDeleted || false,
             isModified: !!mod
           });
@@ -6962,7 +6965,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ success: false, error: 'Unauthorized' });
       }
 
-      const { originalCardId, deckType, name, imageUrl, pti, stars, effect, audioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect, mosseCharacterOverrides, mosseRestrictedFrom, mosseRestrictedAgainst, mosseTargetingMode, mosseTargetCount, mosseCanCounter, mosseCanBeCountered, evolvesInto, transformsInto, transformsFrom, cheatsInto } = req.body;
+      const { originalCardId, deckType, name, imageUrl, pti, stars, effect, audioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect, mosseCharacterOverrides, mosseRestrictedFrom, mosseRestrictedAgainst, mosseTargetingMode, mosseTargetCount, mosseCanCounter, mosseCanBeCountered, evolvesInto, transformsInto, transformsFrom, cheatsInto, specialCategory, evolvedMoves, superAttacco } = req.body;
 
       // Helper to safely parse integer values (handles NaN, empty strings, undefined)
       const safeParseInt = (value: any): number | null => {
@@ -6994,6 +6997,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         transformsInto: transformsInto || null,
         transformsFrom: transformsFrom || null,
         cheatsInto: cheatsInto || null,
+        specialCategory: specialCategory || null,
+        evolvedMoves: evolvedMoves || null,
+        superAttacco: superAttacco || null,
         modifiedBy: userEmail || null
       });
       
@@ -7055,6 +7061,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           transformsInto: mod.transformsInto || null,
           transformsFrom: mod.transformsFrom || null,
           cheatsInto: mod.cheatsInto || null,
+          specialCategory: mod.specialCategory || null,
+          evolvedMoves: mod.evolvedMoves || null,
+          superAttacco: mod.superAttacco || null,
           modifiedBy: userEmail || null
         });
       }
