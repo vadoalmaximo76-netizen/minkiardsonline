@@ -160,6 +160,7 @@ interface PendingDefense {
   mosseCanBeCountered?: boolean; // Whether this attack can be countered (respinta)
   mosseDamageValue?: number; // Base PTI damage of the attacking MOSSE (for auto-calc)
   attackerStars?: number; // Attacker's current stars (for auto-calc)
+  originalMosseDamage?: number; // Raw MOSSE damage before special move enhancement (for range checks)
   createdAt: Date;
   timeoutId?: NodeJS.Timeout;
 }
@@ -8536,12 +8537,43 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         attackerStars = parseInt(starsMatch[1]);
       }
     }
+
+    // PRE-CALCULATE SPECIAL MOVE DAMAGE: So defense reflections use the correct enhanced damage
+    let finalDamageForDefense = damageValue;
+    if (attackerCharacter.type === 'personaggi_speciali') {
+      const mosseCardNameUpper = mosseCardName.toUpperCase().trim();
+      const superAttaccoConfig = (attackerCharacter as any).superAttacco;
+      const evolvedMovesConfig = (attackerCharacter as any).evolvedMoves;
+
+      if (superAttaccoConfig && superAttaccoConfig.name && superAttaccoConfig.damage && mosseCardNameUpper === 'ATTACCO') {
+        const baseDmg = parseInt(superAttaccoConfig.damage);
+        if (!isNaN(baseDmg) && baseDmg > 0) {
+          finalDamageForDefense = baseDmg * attackerStars;
+          console.log(`💥 PRE-DEFENSE SUPER ATTACCO: ${attackerCharacterName} → "${superAttaccoConfig.name}" - Danno: ${baseDmg} × ${attackerStars} stelle = ${finalDamageForDefense} PTI (original MOSSE: ${damageValue})`);
+        }
+      } else if (evolvedMovesConfig) {
+        const baseMosseDamage = damageValue;
+        if (evolvedMovesConfig.range1 && evolvedMovesConfig.range1.name && evolvedMovesConfig.range1.damage && baseMosseDamage >= 1 && baseMosseDamage <= 150) {
+          const evoBaseDmg = parseInt(evolvedMovesConfig.range1.damage);
+          if (!isNaN(evoBaseDmg) && evoBaseDmg > 0) {
+            finalDamageForDefense = evoBaseDmg * attackerStars;
+            console.log(`🔥 PRE-DEFENSE MOSSA EVOLUTA (R1): ${attackerCharacterName} → "${evolvedMovesConfig.range1.name}" - Danno: ${evoBaseDmg} × ${attackerStars} stelle = ${finalDamageForDefense} PTI (original MOSSE: ${damageValue})`);
+          }
+        } else if (evolvedMovesConfig.range2 && evolvedMovesConfig.range2.name && evolvedMovesConfig.range2.damage && baseMosseDamage >= 151 && baseMosseDamage <= 300) {
+          const evoBaseDmg = parseInt(evolvedMovesConfig.range2.damage);
+          if (!isNaN(evoBaseDmg) && evoBaseDmg > 0) {
+            finalDamageForDefense = evoBaseDmg * attackerStars;
+            console.log(`🔥 PRE-DEFENSE MOSSA EVOLUTA (R2): ${attackerCharacterName} → "${evolvedMovesConfig.range2.name}" - Danno: ${evoBaseDmg} × ${attackerStars} stelle = ${finalDamageForDefense} PTI (original MOSSE: ${damageValue})`);
+          }
+        }
+      }
+    }
     
     const defenseCreated = this.setPendingDefense(gameId, {
       attackId,
       attacker: attackerName,
       defender: targetOwnerName,
-      damage: damageValue, // Proper damage value from attacker input
+      damage: finalDamageForDefense, // Use special move damage if applicable
       targetCardId: targetCardId, // Character being attacked
       mosseCardId: mosseCardId, // MOSSE card used for attack
       isHandTarget: isHandTarget as boolean, // NEW: Pass isHandTarget flag
@@ -8550,7 +8582,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       mosseEffect: mosseEffect || undefined,
       mosseCanBeCountered: (mosseCard as any).mosseCanBeCountered === true,
       mosseDamageValue: (mosseCard as any).mosseDamageValue ?? null,
-      attackerStars: attackerStars
+      attackerStars: attackerStars,
+      originalMosseDamage: damageValue
     });
 
     if (!defenseCreated) {
@@ -17914,7 +17947,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     game.pendingDefense = undefined;
 
     // Retain local copy for processing
-    const { attacker, defender, targetCardId, mosseCardId, damage, isHandTarget, starsToRemove = 0, isFurtoAttack = false, mosseEffect } = pendingDefense;
+    const { attacker, defender, targetCardId, mosseCardId, damage, isHandTarget, starsToRemove = 0, isFurtoAttack = false, mosseEffect, originalMosseDamage } = pendingDefense;
 
     // STRUCTURED LOGGING: Log resolution details
     console.log(`[DEFENSE-RESOLVE] Processing defense resolution`, {
@@ -18629,7 +18662,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       });
 
       // Apply damage using existing processMosseDamage to targetCardId owned by defender
-      await this.processMosseDamage(gameId, attacker, targetCardId, damage, mosseCardId, io, false, isHandTarget || false, isFurtoAttack, false, starsToRemove, mosseEffect);
+      // Use originalMosseDamage (raw MOSSE input) so special move range checks work correctly
+      // processMosseDamage will internally recalculate the enhanced special move damage
+      const damageForProcessing = originalMosseDamage !== undefined ? originalMosseDamage : damage;
+      await this.processMosseDamage(gameId, attacker, targetCardId, damageForProcessing, mosseCardId, io, false, isHandTarget || false, isFurtoAttack, false, starsToRemove, mosseEffect);
       
       // DUELLO: Switch turn to opponent after attack is accepted
       if (game.activeDuel && game.activeDuel.active) {
