@@ -3229,9 +3229,17 @@ Rispondi SOLO in JSON:`;
     }
 
     // ============ EVOLUTION / TRANSFORMATION / TAROCCATA PATTERNS ============
-    if ((text.includes('si evolve') || text.includes('effettua l\'evoluzione') || text.includes('effettua l evoluzione') || 
+    // Multi-target: "ogni tuo personaggio si evolve" / "personaggi in mano" (EVOLUZIONE ARCOBALENO)
+    if ((text.includes('ogni') || text.includes('tutti')) && 
+        (text.includes('si evolve') || text.includes('evoluzione') || text.includes('effettua l\'evoluzione')) &&
+        (text.includes('in mano') || text.includes('in campo')) &&
+        !actions.some(a => a.type === 'evolution_all')) {
+      const includeHand = text.includes('in mano');
+      actions.push({ type: 'evolution_all', target: 'self', value: includeHand ? 1 : 0, description: 'Tutti i personaggi si evolvono (campo + mano)' });
+    }
+    else if ((text.includes('si evolve') || text.includes('effettua l\'evoluzione') || text.includes('effettua l evoluzione') || 
          text.includes('evoluzione')) &&
-        !text.includes('fonde') && !text.includes('fusione') && !actions.some(a => a.type === 'evolution')) {
+        !text.includes('fonde') && !text.includes('fusione') && !actions.some(a => a.type === 'evolution') && !actions.some(a => a.type === 'evolution_all')) {
       actions.push({ type: 'evolution', target: 'self', value: 1, description: 'Si evolve in un personaggio speciale' });
     }
     else if ((text.includes('si tarocca') || text.includes('effettua la taroccata') || text.includes('taroccata')) &&
@@ -3244,7 +3252,7 @@ Rispondi SOLO in JSON:`;
     }
     else if ((text.includes('trasforma') || text.includes('evolve')) &&
         !text.includes('fonde') && !text.includes('fusione') && !text.includes('fondere') && !text.includes('unione') && !text.includes('debole') &&
-        !actions.some(a => a.type === 'evolution') && !actions.some(a => a.type === 'transformation') && !actions.some(a => a.type === 'taroccata') && !actions.some(a => a.type === 'transform') && !actions.some(a => a.type === 'transform_weakest')) {
+        !actions.some(a => a.type === 'evolution') && !actions.some(a => a.type === 'evolution_all') && !actions.some(a => a.type === 'transformation') && !actions.some(a => a.type === 'taroccata') && !actions.some(a => a.type === 'transform') && !actions.some(a => a.type === 'transform_weakest')) {
       actions.push({ type: 'transform', target: 'self', value: 1, description: 'Si trasforma in un\'altra carta' });
     }
 
@@ -4445,32 +4453,8 @@ Rispondi SOLO in JSON:`;
               io.to(gameId).emit('dice-rolled', { result: diceRoll, playerName: cardOwner });
             }
             
-            // Apply effect
-            const targetCard = game.field.find((c: Card) => c.id === selectedChar.id);
-            if (targetCard) {
-              const effectLower = effectToApply.toLowerCase();
-              if (effectLower.includes('morte') || effectLower.includes('muore')) {
-                const turnsMatch = effectToApply.match(/(\d+)\s*turn/i);
-                if (turnsMatch) {
-                  const turns = parseInt(turnsMatch[1]);
-                  (targetCard as any).deathCountdown = turns;
-                  console.log(`🎲 Applied: ${selectedChar.name} will die in ${turns} turns`);
-                } else {
-                  targetCard.pti = 0;
-                  this.moveToGraveyard(gameId, targetCard.id, targetCard.owner || '', cardOwner);
-                  console.log(`🎲 Applied: ${selectedChar.name} died from auto dice effect`);
-                }
-              } else if (effectLower.includes('dimezza')) {
-                if (effectLower.includes('pti')) targetCard.pti = Math.floor((targetCard.pti || 0) / 2);
-                if (effectLower.includes('stelle')) targetCard.stars = Math.floor((targetCard.stars || 0) / 2);
-              } else if (effectLower.includes('perde')) {
-                const ptiMatch = effectToApply.match(/(\d+)\s*pti/i);
-                const starMatch = effectToApply.match(/(\d+)\s*stell/i);
-                if (ptiMatch) targetCard.pti = Math.max(0, (targetCard.pti || 0) - parseInt(ptiMatch[1]));
-                if (starMatch) targetCard.stars = Math.max(0, (targetCard.stars || 0) - parseInt(starMatch[1]));
-              }
-              this.updateCardTextWithPTI(targetCard);
-            }
+            // Apply effect using centralized handler
+            this.applyDiceConsequence(gameId, selectedChar.id, effectToApply, true);
             
             if (io) {
               io.to(gameId).emit('chat-message', {
@@ -4814,8 +4798,134 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     return undefined;
   }
 
-  private handleEvolutionTransformation(game: GameState, gameId: string, playerName: string, type: 'evolution' | 'transformation' | 'taroccata'): void {
-    const activeChar = this.getPlayerActiveCharacter(game, playerName);
+  private handleMultiEvolution(game: GameState, gameId: string, playerName: string, type: 'evolution' | 'transformation' | 'taroccata', includeHand: boolean = false): void {
+    const io = (global as any).io;
+    
+    const playerFieldChars = game.field.filter(c => 
+      c.owner === playerName && 
+      (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+    );
+    
+    console.log(`🌈 Multi-${type}: Processing ${playerFieldChars.length} field characters for ${playerName}`);
+    
+    for (const char of playerFieldChars) {
+      this.handleEvolutionTransformation(game, gameId, playerName, type, char.id);
+    }
+    
+    if (includeHand) {
+      const playerHand = game.hands?.[playerName];
+      if (playerHand) {
+        const allHandCards = [
+          ...(playerHand.personaggi || []),
+          ...(playerHand.personaggi_speciali || [])
+        ];
+        
+        console.log(`🌈 Multi-${type}: Processing ${allHandCards.length} hand characters for ${playerName}`);
+        
+        for (const handCard of allHandCards) {
+          const targetCardId = type === 'evolution' ? handCard.evolvesInto : 
+                               type === 'transformation' ? handCard.transformsInto : 
+                               (handCard.transformsFrom || handCard.cheatsInto);
+          
+          if (targetCardId) {
+            const targetDeckType = targetCardId.startsWith('personaggi_speciali') ? 'personaggi_speciali' : 'personaggi';
+            const deckData = CARD_DATA[targetDeckType as keyof typeof CARD_DATA];
+            const indexStr = targetCardId.split('-').pop();
+            const cardIndex = indexStr ? parseInt(indexStr) : -1;
+            
+            if (deckData && cardIndex >= 0 && cardIndex < deckData.length) {
+              const newFrontImage = deckData[cardIndex];
+              const backImage = DECK_BACK_IMAGES[targetDeckType as keyof typeof DECK_BACK_IMAGES];
+              const mod = jsonStorage.cardModifications.getByOriginalCardId(targetCardId);
+              
+              const urlParts = newFrontImage.split('/');
+              const filename = urlParts[urlParts.length - 1];
+              const newName = decodeURIComponent(filename)
+                .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+                .replace(/[-_]/g, ' ')
+                .trim()
+                .toUpperCase();
+              
+              const oldName = handCard.name || handCard.id;
+              
+              handCard.id = targetCardId;
+              handCard.type = targetDeckType as any;
+              handCard.frontImage = mod?.imageUrl || newFrontImage;
+              handCard.backImage = backImage;
+              handCard.name = mod?.name || newName;
+              handCard.pti = mod?.pti ?? handCard.pti;
+              handCard.stars = mod?.stars ?? handCard.stars;
+              handCard.audioUrl = mod?.audioUrl || undefined;
+              handCard.youtubeUrl = mod?.youtubeUrl || undefined;
+              handCard.effect = mod?.effect || undefined;
+              handCard.evolvesInto = mod?.evolvesInto || undefined;
+              handCard.transformsInto = mod?.transformsInto || undefined;
+              handCard.transformsFrom = mod?.transformsFrom || undefined;
+              handCard.cheatsInto = mod?.cheatsInto || undefined;
+              this.updateCardTextWithPTI(handCard);
+              
+              const typeLabel = type === 'evolution' ? 'EVOLUZIONE' : type === 'transformation' ? 'TRASFORMAZIONE' : 'TAROCCATA';
+              const emoji = type === 'evolution' ? '🌟' : type === 'transformation' ? '🦋' : '🃏';
+              
+              console.log(`${emoji} ${typeLabel} IN MANO: ${oldName} → ${handCard.name}`);
+              
+              if (io) {
+                io.to(gameId).emit('chat-message', {
+                  id: `${Date.now()}-${type}-hand-${handCard.id}`,
+                  playerName: 'Sistema',
+                  message: `${emoji} ${typeLabel} IN MANO! ${oldName} di ${playerName} si è ${type === 'evolution' ? 'evoluto' : type === 'transformation' ? 'trasformato' : 'taroccato'} in ${handCard.name}!`,
+                  timestamp: Date.now()
+                });
+              }
+            }
+          } else {
+            const typeLabel = type === 'evolution' ? 'EVOLUZIONE' : type === 'transformation' ? 'TRASFORMAZIONE' : 'TAROCCATA';
+            const emoji = type === 'evolution' ? '🌟' : type === 'transformation' ? '🦋' : '🃏';
+            const oldName = handCard.name || handCard.id;
+            const originalPti = handCard.pti || 0;
+            const originalStars = handCard.stars || 1;
+            
+            if (type === 'evolution') {
+              handCard.pti = originalPti + Math.floor(originalPti / 2);
+              handCard.stars = originalStars + Math.floor(originalStars / 2);
+            } else if (type === 'transformation') {
+              handCard.pti = originalPti * 2;
+              handCard.stars = originalStars * 2;
+            } else {
+              handCard.pti = Math.floor(originalPti / 2);
+              handCard.stars = Math.max(1, Math.floor(originalStars / 2));
+            }
+            this.updateCardTextWithPTI(handCard);
+            
+            console.log(`${emoji} ${typeLabel} IN MANO (fallback): ${oldName} PTI ${originalPti} → ${handCard.pti}`);
+            
+            if (io) {
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-${type}-hand-fallback-${handCard.id}`,
+                playerName: 'Sistema',
+                message: `${emoji} ${typeLabel} IN MANO! ${oldName} di ${playerName}: PTI ${handCard.pti}, Stelle ${handCard.stars}!`,
+                timestamp: Date.now()
+              });
+            }
+          }
+        }
+      }
+    }
+    
+    if (io) {
+      const gameState = this.getSanitizedGameState(gameId);
+      io.to(gameId).emit('game-state-update', gameState);
+    }
+  }
+
+  private handleEvolutionTransformation(game: GameState, gameId: string, playerName: string, type: 'evolution' | 'transformation' | 'taroccata', targetCharId?: string): void {
+    let activeChar: Card | undefined;
+    if (targetCharId) {
+      activeChar = game.field.find(c => c.id === targetCharId);
+    }
+    if (!activeChar) {
+      activeChar = this.getPlayerActiveCharacter(game, playerName);
+    }
     if (!activeChar) {
       console.log(`🔄 ${type}: No active character for ${playerName}`);
       return;
@@ -6977,6 +7087,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       case 'evolution': {
         this.handleEvolutionTransformation(game, gameId, playerName, 'evolution');
+        break;
+      }
+
+      case 'evolution_all': {
+        const includeHand = action.value === 1;
+        this.handleMultiEvolution(game, gameId, playerName, 'evolution', includeHand);
         break;
       }
 
@@ -11760,32 +11876,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       charsToAffect = selectedCharacters;
     }
     
-    // Apply effect to all affected characters
+    // Apply effect to all affected characters using centralized handler
     const affectedNames: string[] = [];
     for (const targetCard of charsToAffect) {
       const charName = targetCard.name || this.getCardNameFromUrl(targetCard.frontImage || '');
       affectedNames.push(charName);
-      
-      if (effectLower.includes('morte') || effectLower.includes('muore')) {
-        const turnsMatch = effectToApply.match(/(\d+)\s*turn/i);
-        if (turnsMatch) {
-          const turns = parseInt(turnsMatch[1]);
-          (targetCard as any).deathCountdown = turns;
-          console.log(`🎲 Applied: ${charName} will die in ${turns} turns`);
-        } else {
-          console.log(`🎲💀 ${charName} dies from controlled dice effect`);
-          this.moveToGraveyard(gameId, targetCard.id, targetCard.owner || '', rollingPlayer);
-        }
-      } else if (effectLower.includes('dimezza')) {
-        if (effectLower.includes('pti')) targetCard.pti = Math.floor((targetCard.pti || 0) / 2);
-        if (effectLower.includes('stelle')) targetCard.stars = Math.floor((targetCard.stars || 0) / 2);
-      } else if (effectLower.includes('perde')) {
-        const ptiMatch = effectToApply.match(/(\d+)\s*pti/i);
-        const starMatch = effectToApply.match(/(\d+)\s*stell/i);
-        if (ptiMatch) targetCard.pti = Math.max(0, (targetCard.pti || 0) - parseInt(ptiMatch[1]));
-        if (starMatch) targetCard.stars = Math.max(0, (targetCard.stars || 0) - parseInt(starMatch[1]));
-      }
-      this.updateCardTextWithPTI(targetCard);
+      this.applyDiceConsequence(gameId, targetCard.id, effectToApply, true);
     }
     
     // Emit dice animation to all players
@@ -13420,6 +13516,24 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       return;
     }
 
+    if (effectLower.includes('si evolve') || effectLower.includes('evoluzione') || effectLower.includes('effettua l\'evoluzione')) {
+      console.log(`🎲🌟 ${cardName} evolves from dice effect!`);
+      this.handleEvolutionTransformation(game, gameId, card.owner || '', 'evolution', characterId);
+      return;
+    }
+
+    if (effectLower.includes('si trasforma') || effectLower.includes('trasformazione') || effectLower.includes('effettua la trasformazione')) {
+      console.log(`🎲🦋 ${cardName} transforms from dice effect!`);
+      this.handleEvolutionTransformation(game, gameId, card.owner || '', 'transformation', characterId);
+      return;
+    }
+
+    if (effectLower.includes('si tarocca') || effectLower.includes('taroccata') || effectLower.includes('effettua la taroccata')) {
+      console.log(`🎲🃏 ${cardName} taroccata from dice effect!`);
+      this.handleEvolutionTransformation(game, gameId, card.owner || '', 'taroccata', characterId);
+      return;
+    }
+
     // If effect is "Nessun effetto" or unrecognized
     if (effectLower.includes('nessun effetto') || effectLower === 'none') {
       console.log(`🎲 No effect applied to ${cardName}`);
@@ -14604,6 +14718,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       case 'evolution': {
         this.handleEvolutionTransformation(game, gameId, playerName, 'evolution');
+        break;
+      }
+
+      case 'evolution_all': {
+        const includeHandActivate = action.value === 1;
+        this.handleMultiEvolution(game, gameId, playerName, 'evolution', includeHandActivate);
         break;
       }
 
