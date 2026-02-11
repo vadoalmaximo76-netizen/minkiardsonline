@@ -1244,7 +1244,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
             value={cardText}
             onChange={handleTextChange}
             placeholder="Add note..."
-            className={`w-14 sm:w-16 md:w-20 lg:w-24 h-12 sm:h-14 md:h-16 text-[10px] sm:text-xs p-1 rounded resize-none neon-text-area neon-${card.type}`}
+            className={`w-14 sm:w-16 md:w-20 lg:w-24 h-14 sm:h-16 md:h-18 text-[8px] sm:text-[9px] md:text-[10px] p-1 rounded resize-none neon-text-area neon-${card.type} leading-tight`}
             disabled={!isOwner && location === 'hand'}
           />
         </div>
