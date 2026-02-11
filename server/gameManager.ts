@@ -16478,9 +16478,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       card.eliminatedBy = playerName;
       game.graveyard.push(card);
       
-      // Count PERSONAGGI cards in graveyard for this player (only personaggi count for elimination)
       const graveyardCount = game.graveyard.filter(
-        graveyardCard => graveyardCard.eliminatedBy === playerName && graveyardCard.type === 'personaggi'
+        graveyardCard => graveyardCard.eliminatedBy === playerName && (graveyardCard.type === 'personaggi' || graveyardCard.type === 'personaggi_speciali')
       ).length;
 
       // Check if player should be eliminated (only if it's a personaggi card)

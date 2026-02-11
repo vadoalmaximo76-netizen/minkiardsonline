@@ -1521,16 +1521,24 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       // NEW OPTIMIZED TURN LOGIC: Execute ALL phases in one turn
       console.log(`CPU ${this.playerName} executing complete turn in one go`);
       
-      // Phase 1: Draw if needed
-      const drawAction = this.handleDrawPhase(cpuPlayer, gameState);
-      if (drawAction && drawAction.type === 'pick-card') {
-        // Execute the draw immediately
-        if (this.gameManager) {
-          await this.gameManager.pickCard(this.gameId, drawAction.data.deckType, this.playerName);
-          // Refresh game state after draw
-          const updatedState = this.gameManager.getSanitizedGameState(this.gameId);
-          cpuPlayer = updatedState.players[this.playerName];
+      // Phase 1: Draw ALL missing card types (not just one)
+      if (this.gameManager) {
+        let needsMoreDraws = true;
+        let drawAttempts = 0;
+        while (needsMoreDraws && drawAttempts < 3) {
+          drawAttempts++;
+          const currentState = this.gameManager.getSanitizedGameState(this.gameId);
+          cpuPlayer = currentState.players[this.playerName];
+          const drawAction = this.handleDrawPhase(cpuPlayer, currentState);
+          if (drawAction && drawAction.type === 'pick-card') {
+            await this.gameManager.pickCard(this.gameId, drawAction.data.deckType, this.playerName);
+          } else {
+            needsMoreDraws = false;
+          }
         }
+        const finalState = this.gameManager.getSanitizedGameState(this.gameId);
+        cpuPlayer = finalState.players[this.playerName];
+        gameState = finalState;
       }
       
       // Phase 2: Play a card
@@ -2307,7 +2315,6 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
   // Select which card to play based on strategic priorities
   // ONE CARD PER TURN RULE: CPU can only play one action card (MOSSE or BONUS) per turn
   selectCardToPlay(cpuPlayer: any, gameState: any): any {
-    // ONE CARD PER TURN: If already played an action card this turn, don't select another
     if (this.turnState.playedThisTurn) {
       console.log(`CPU ${this.playerName}: Already played a card this turn - ONE CARD PER TURN rule`);
       return null;
@@ -2317,24 +2324,22 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     const myCharacter = gameState.field.find((card: any) => card.owner === this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali'));
     const enemies = gameState.field.filter((card: any) => card.owner !== this.playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali'));
     
-    // Check what cards I already have on field to avoid duplicates
     const myFieldCards = gameState.field.filter((card: any) => card.owner === this.playerName);
     const hasPersonaggioOnField = myFieldCards.some((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
-    const hasMosseOnField = myFieldCards.some((c: any) => c.type === 'mosse');  
-    const hasBonusOnField = myFieldCards.some((c: any) => c.type === 'bonus');
     
-    console.log(`CPU ${this.playerName} field check: PERSONAGGI=${hasPersonaggioOnField}, MOSSE=${hasMosseOnField}, BONUS=${hasBonusOnField}`);
+    const mosseInHand = hand.filter((c: any) => c.type === 'mosse');
+    const bonusInHand = hand.filter((c: any) => c.type === 'bonus');
+    const personaggiInHand = hand.filter((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
     
-    // Priority 1: If no character on field, play PERSONAGGI first
+    console.log(`CPU ${this.playerName} hand: PERSONAGGI=${personaggiInHand.length}, MOSSE=${mosseInHand.length}, BONUS=${bonusInHand.length}`);
+    
     if (!hasPersonaggioOnField) {
-      const personaggio = hand.find((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
-      if (personaggio) {
+      if (personaggiInHand.length > 0) {
         console.log(`CPU ${this.playerName} playing PERSONAGGI (no character on field)`);
-        return personaggio;
+        return personaggiInHand[0];
       }
     }
 
-    // Priority 1.5: If character has 0 stars/PTI, play a new PERSONAGGI to replace it
     if (myCharacter) {
       const characterText = myCharacter.notes || myCharacter.text || '';
       const starsMatch = characterText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
@@ -2343,29 +2348,21 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100;
 
       if (currentStars <= 0 || currentPTI <= 0 || characterText === "0") {
-        // Find a replacement that actually HAS stars/PTI
-        const replacement = hand.find((c: any) => {
-          if (c.type !== 'personaggi' && c.type !== 'personaggi_speciali') return false;
-          
-          // Check if hand card has notes/text indicating it's also 0
+        const replacement = personaggiInHand.find((c: any) => {
           const replacementText = c.text || '';
           const rStarsMatch = replacementText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
-          const rStars = rStarsMatch ? parseInt(rStarsMatch[1]) : 1; // Default to 1 if not specified
+          const rStars = rStarsMatch ? parseInt(rStarsMatch[1]) : 1;
           const rPtiMatch = replacementText.match(/PTI[:\s]*(\d+)/i);
-          const rPti = rPtiMatch ? parseInt(rPtiMatch[1]) : 100; // Default to 100
-          
+          const rPti = rPtiMatch ? parseInt(rPtiMatch[1]) : 100;
           return rStars > 0 && rPti > 0 && replacementText !== "0";
         });
 
         if (replacement) {
           console.log(`CPU ${this.playerName} replacing character with 0 stars/PTI`);
           this.sendChatMessage(`Il mio personaggio non ha più stelle o PTI! Lo sostituisco con ${this.getCardNameFromUrl(replacement.frontImage)}.`);
-          
-          // Return the old character to hand via gameManager
           if (this.gameManager) {
             this.gameManager.returnToHand(this.gameId, myCharacter.id, this.playerName);
           }
-          
           return replacement;
         } else {
           console.log(`CPU ${this.playerName} character has 0 stars/PTI, but NO valid replacement in hand`);
@@ -2373,146 +2370,41 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       }
     }
     
-    // Priority 2: If character is low on PTI and no BONUS on field, play BONUS to heal
-    if (myCharacter && !hasBonusOnField) {
-      const characterText = myCharacter.notes || myCharacter.text || '';
-      const ptiMatch = characterText.match(/PTI[:\s]*(\d+)/i);
-      const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100;
-      
-      if (currentPTI <= 200) {
-        const bonus = hand.find((c: any) => c.type === 'bonus');
-        if (bonus) {
-          console.log(`CPU ${this.playerName} playing BONUS (low PTI: ${currentPTI})`);
-          return bonus;
-        }
-      }
-    }
-    
-    // Priority 3: If enemies present, can attack, and no MOSSE on field, play MOSSE
-    if (enemies.length > 0 && myCharacter && !hasMosseOnField) {
-      const characterText = myCharacter.notes || myCharacter.text || '';
-      const starsMatch = characterText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
-      const currentStars = starsMatch ? parseInt(starsMatch[1]) : 0;
-      
-      const ptiMatch = characterText.match(/PTI[:\s]*(\d+)/i);
-      const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100;
-      
-      // Also check if it's a special character which might have different star rules
-      const isSpecial = myCharacter.type === 'personaggi_speciali';
-      const hasStars = currentStars > 0 || isSpecial; // Special characters might not follow standard star rules, but let's stick to the prompt's 0 star rule for now if they have stars specified
-      
-      if (currentStars > 0 && currentPTI > 0 && characterText !== "0") {
-        const mosse = hand.find((c: any) => c.type === 'mosse');
-        if (mosse) {
-          console.log(`CPU ${this.playerName} playing MOSSE (can attack with ${currentStars} stars, ${currentPTI} PTI)`);
-          return mosse;
-        }
-      } else {
-        console.log(`CPU ${this.playerName} skipping MOSSE play priority (0 stars/PTI)`);
-        
-        // NEW: Play BONUS if unable to attack
-        const bonus = hand.find((c: any) => c.type === 'bonus');
-        if (bonus) {
-          console.log(`CPU ${this.playerName} unable to attack (0 stars/PTI), playing BONUS instead`);
-          return bonus;
-        }
-      }
-    }
-    
-    // Priority 4: Play any card to maintain flow, but avoid field duplicates
-    if (!hasBonusOnField) {
-      const bonus = hand.find((c: any) => c.type === 'bonus');
-      if (bonus) {
-        console.log(`CPU ${this.playerName} playing BONUS (no BONUS on field)`);
-        return bonus;
-      }
-    }
-
-    // New Priority 4.5: If character has 0 stars/PTI and no replacement personaggio in hand, play BONUS
-    // A character with 0 stars CAN still use BONUS cards.
     if (myCharacter) {
       const characterText = myCharacter.notes || myCharacter.text || '';
       const starsMatch = characterText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
       const currentStars = starsMatch ? parseInt(starsMatch[1]) : 0;
       const ptiMatch = characterText.match(/PTI[:\s]*(\d+)/i);
       const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100;
-
-      if (currentStars <= 0 || currentPTI <= 0 || characterText === "0") {
-        const bonus = hand.find((c: any) => c.type === 'bonus');
-        if (bonus) {
-          console.log(`CPU ${this.playerName} character has 0 stars/PTI, playing BONUS (allowed)`);
-          return bonus;
-        }
+      
+      if (currentPTI <= 200 && bonusInHand.length > 0) {
+        console.log(`CPU ${this.playerName} playing BONUS from hand (low PTI: ${currentPTI})`);
+        return bonusInHand[0];
+      }
+      
+      if (enemies.length > 0 && currentStars > 0 && currentPTI > 0 && characterText !== "0" && mosseInHand.length > 0) {
+        console.log(`CPU ${this.playerName} playing MOSSE from hand (can attack with ${currentStars} stars, ${currentPTI} PTI)`);
+        return mosseInHand[0];
+      }
+      
+      if (bonusInHand.length > 0) {
+        console.log(`CPU ${this.playerName} playing BONUS from hand`);
+        return bonusInHand[0];
+      }
+      
+      if (mosseInHand.length > 0 && currentStars > 0 && currentPTI > 0 && characterText !== "0") {
+        console.log(`CPU ${this.playerName} playing MOSSE from hand (fallback)`);
+        return mosseInHand[0];
       }
     }
     
-    if (!hasMosseOnField && myCharacter) {
-      // Check if character has stars before playing MOSSE
-      const characterText = myCharacter.notes || myCharacter.text || '';
-      const starsMatch = characterText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
-      const currentStars = starsMatch ? parseInt(starsMatch[1]) : 0;
-      
-      const ptiMatch = characterText.match(/PTI[:\s]*(\d+)/i);
-      const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100;
-      
-      if (currentStars > 0 && currentPTI > 0 && characterText !== "0") {
-        const mosse = hand.find((c: any) => c.type === 'mosse');
-        if (mosse) {
-          console.log(`CPU ${this.playerName} playing MOSSE (no MOSSE on field, ${currentStars} stars, ${currentPTI} PTI available)`);
-          return mosse;
-        }
-      } else {
-        console.log(`CPU ${this.playerName} skipping MOSSE play (character has 0 stars or 0 PTI)`);
-      }
-    }
-    
-    // Priority 5: If all types are on field, prefer using existing cards instead of playing new ones
-    // This handles the case where CPU has all card types on field and in hand
-    
-    // First, try to use MOSSE if there are enemies and we have MOSSE on field
-    if (enemies.length > 0 && hasMosseOnField && myCharacter) {
-      const characterText = myCharacter.notes || myCharacter.text || '';
-      const starsMatch = characterText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
-      const currentStars = starsMatch ? parseInt(starsMatch[1]) : 0;
-      
-      const ptiMatch = characterText.match(/PTI[:\s]*(\d+)/i);
-      const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100;
-      
-      if (currentStars > 0 && currentPTI > 0 && characterText !== "0") {
-        // Find existing MOSSE card on field to use
-        const existingMosse = myFieldCards.find((c: any) => c.type === 'mosse');
-        if (existingMosse) {
-          console.log(`CPU ${this.playerName} using existing MOSSE on field to attack (${currentStars} stars, ${currentPTI} PTI)`);
-          return existingMosse; // Return existing card to use it
-        }
-      }
-    }
-    
-    // Second, try to use BONUS if character needs healing and we have BONUS on field
-    if (myCharacter && hasBonusOnField) {
-      const characterText = myCharacter.notes || myCharacter.text || '';
-      const ptiMatch = characterText.match(/PTI[:\s]*(\d+)/i);
-      const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100;
-      
-      if (currentPTI <= 300) {
-        // Find existing BONUS card on field to use
-        const existingBonus = myFieldCards.find((c: any) => c.type === 'bonus');
-        if (existingBonus) {
-          console.log(`CPU ${this.playerName} using existing BONUS on field to heal (PTI: ${currentPTI})`);
-          return existingBonus; // Return existing card to use it
-        }
-      }
-    }
-    
-    // Final fallback: play ANY card if we have space, even if it creates "duplicates"
-    // In MINKIARDS, cards get used and returned to deck, so duplicates are temporary
     const anyCard = hand.find((c: any) => c.type === 'mosse' || c.type === 'bonus');
     if (anyCard) {
-      console.log(`CPU ${this.playerName} playing ${anyCard.type} card (maintenance turn)`);
+      console.log(`CPU ${this.playerName} playing ${anyCard.type} card from hand (final fallback)`);
       return anyCard;
     }
     
-    console.log(`CPU ${this.playerName} has no actionable cards this turn`);
+    console.log(`CPU ${this.playerName} has no actionable cards in hand this turn`);
     return null;
   }
 
