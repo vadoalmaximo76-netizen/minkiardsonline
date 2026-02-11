@@ -6530,7 +6530,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       case 'clone_self':
         // Clone the player's active character on the field (not the bonus card)
-        const cloneSelfActiveChar = this.getActiveCharacterForPlayer(game, playerName);
+        const cloneSelfPlayerChars = game.field.filter(c => 
+          c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        const cloneSelfActiveChar = cloneSelfPlayerChars.length > 0 ? cloneSelfPlayerChars[0] : null;
         if (cloneSelfActiveChar) {
           const clonedCard: Card = {
             ...cloneSelfActiveChar,
