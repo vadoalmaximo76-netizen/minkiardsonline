@@ -2626,7 +2626,8 @@ Rispondi SOLO in JSON:`;
         .trim();
       
       // Don't split complex descriptions that describe a single multi-step effect
-      const isComplexSingleEffect = /fonde|fonder|fusione|unione|unisce|combina.*con|assorb.*personaggio/i.test(tagFreeText);
+      const isComplexSingleEffect = /fonde|fonder|fusione|unione|unisce|combina.*con|assorb.*personaggio/i.test(tagFreeText) ||
+        /kebab/i.test(tagFreeText);
       
       if (!isComplexSingleEffect && tagFreeText.includes('; ')) {
         // Semicolons are safer to split on
@@ -2706,7 +2707,7 @@ Rispondi SOLO in JSON:`;
     
     // Use COMPORTAMENTO content as primary parsing source, fallback to cleaned text
     const textToParse = comportamentoContent || cleanText;
-    const text = textToParse.toLowerCase();
+    const text = textToParse.toLowerCase().replace(/\n/g, ' ').replace(/\s+/g, ' ');
     
     // Extract all numbers from text (for multi-value effects)
     const extractNumber = (str: string, defaultVal: number = 100): number => {
@@ -2885,7 +2886,12 @@ Rispondi SOLO in JSON:`;
     }
 
     // ============ HEAL PATTERNS ============
-    if (text.includes('cura') || text.includes('guarisce') || text.includes('ripristina pti') || 
+    // Pre-detect complex effect patterns that handle PTI internally to avoid double-counting
+    const isKebabText = /kebab.*raddoppi|raddoppi.*kebab|mossa.*kebab.*vale.*per/i.test(text);
+    const isMirrorText = /ogni.*bonus.*mossa.*effetto.*anche.*personaggio.*scelta|ha\s+effetto\s+anche\s+su.*personaggio.*scelta/i.test(text);
+    // Skip when kebab_buff or mirror_effect text detected (avoids double-counting conditional PTI values)
+    if (!isKebabText && !isMirrorText && !actions.some(a => a.type === 'kebab_buff' || a.type === 'mirror_effect') &&
+        (text.includes('cura') || text.includes('guarisce') || text.includes('ripristina pti') || 
         text.includes('rigenera') || text.includes('recupera') || text.includes('guadagna pti') ||
         text.includes('ottiene pti') || text.includes('vita +') || text.includes('+ pti') ||
         text.includes('aggiunge pti') || text.includes('riguadagna') || text.includes('riacquista') ||
@@ -2893,7 +2899,7 @@ Rispondi SOLO in JSON:`;
         text.includes('pti in più') || text.includes('guadagna vita') || text.includes('ripara') ||
         text.includes('risana') || text.includes('ristabilisce') || text.includes('rinvigorisce') ||
         text.includes('rivitalizza') || text.includes('sana') || text.includes('medica') ||
-        text.includes('salva') || text.includes('guarigione') || text.includes('terapia')) {
+        text.includes('salva') || text.includes('guarigione') || text.includes('terapia'))) {
       const value = getDetailValue(['heal_amount', 'cura', 'guarigione', 'valore'], extractNumber(text));
       const target = determineTarget(text);
       actions.push({ type: 'heal', target: target === 'opponents' ? 'self' : target, value, description: `Cura ${value} PTI` });
@@ -2950,7 +2956,9 @@ Rispondi SOLO in JSON:`;
     }
 
     // ============ STARS PATTERNS ============
-    if (text.includes('stella') || text.includes('stelle') || text.includes('star')) {
+    // Skip when mirror_effect text detected (bonus-27 mentions "stelle" in descriptive context only)
+    if (!isMirrorText && !actions.some(a => a.type === 'mirror_effect') &&
+        (text.includes('stella') || text.includes('stelle') || text.includes('star'))) {
       const value = extractNumber(text, 1);
       if (text.includes('guadagna') || text.includes('ottiene') || text.includes('+') || text.includes('aggiunge') || text.includes('riceve')) {
         actions.push({ type: 'modify_stars', target: 'self', value, description: `Guadagna ${value} stelle` });
@@ -2960,7 +2968,7 @@ Rispondi SOLO in JSON:`;
     }
 
     // ============ PTI MODIFICATION PATTERNS ============
-    if ((text.includes('pti') || text.includes('punti')) && !actions.some(a => a.type === 'damage' || a.type === 'heal')) {
+    if ((text.includes('pti') || text.includes('punti')) && !isKebabText && !isMirrorText && !actions.some(a => a.type === 'damage' || a.type === 'heal' || a.type === 'kebab_buff' || a.type === 'mirror_effect')) {
       const value = extractNumber(text);
       if (text.includes('aumenta') || text.includes('+') || text.includes('guadagna') || text.includes('aggiunge') || text.includes('bonus')) {
         actions.push({ type: 'heal', target: 'self', value, description: `Aumenta PTI di ${value}` });
@@ -3236,8 +3244,11 @@ Rispondi SOLO in JSON:`;
     }
 
     // ============ DOUBLE PATTERNS ============
-    if (text.includes('raddoppia') || text.includes('doppio') || text.includes('x2') ||
-        text.includes('duplica') || text.includes('moltiplica per 2') || text.includes('effetto doppio')) {
+    // Exclude "duplica" when it's in context of clonazione/funzione (bonus-26 Clonazione card)
+    const hasDoubleKeyword = text.includes('raddoppia') || text.includes('doppio') || text.includes('x2') ||
+        text.includes('moltiplica per 2') || text.includes('effetto doppio') ||
+        (text.includes('duplica') && !text.includes('clonazione') && !text.includes('clona') && !text.includes('funzione'));
+    if (hasDoubleKeyword && !isKebabText && !actions.some(a => a.type === 'kebab_buff')) {
       actions.push({ type: 'double', target: 'self', value: 2, description: 'Raddoppia effetto' });
     }
 
@@ -3248,8 +3259,10 @@ Rispondi SOLO in JSON:`;
     }
 
     // ============ COPY PATTERNS ============
-    if (text.includes('copia') || text.includes('imita') || text.includes('clone') ||
-        text.includes('duplica effetto') || text.includes('replica') || text.includes('mima')) {
+    // Use word boundary for "clone" to avoid matching "clonazione" (which is clone_self)
+    if ((text.includes('copia') || text.includes('imita') || /\bclone\b/.test(text) ||
+        text.includes('duplica effetto') || text.includes('replica') || text.includes('mima')) &&
+        !actions.some(a => a.type === 'clone_self')) {
       actions.push({ type: 'copy', target: 'any', value: 1, description: 'Copia effetto di un\'altra carta' });
     }
 
@@ -3425,7 +3438,7 @@ Rispondi SOLO in JSON:`;
       const target = text.includes('avversario') || text.includes('nemico') || text.includes('bersaglio') ? 'enemy_card' : 'self';
       actions.push({ type: 'halve_stars', target, value: 50, description: 'Dimezza le stelle' });
     }
-    if (text.includes('raddoppia') && text.includes('pti')) {
+    if (text.includes('raddoppia') && text.includes('pti') && !isKebabText) {
       const target = text.includes('avversario') || text.includes('nemico') || text.includes('bersaglio') ? 'enemy_card' : 'self';
       actions.push({ type: 'double_pti', target, value: 200, description: 'Raddoppia i PTI' });
     }
@@ -3565,8 +3578,9 @@ Rispondi SOLO in JSON:`;
     // ============ CONDITIONAL PATTERNS ============
     if ((text.includes('se ') || text.includes('quando ') || text.includes('ogni volta che')) &&
         !text.includes('pannello') && !text.includes('inserire') &&
-        !actions.some(a => a.type === 'cycle_cards')) {
-      // Mark as conditional for special handling (but not if it's a panel effect or cycle effect)
+        !isKebabText && !isMirrorText &&
+        !actions.some(a => a.type === 'cycle_cards' || a.type === 'kebab_buff' || a.type === 'mirror_effect' || a.type === 'conditional_taroccata' || a.type === 'block_then_evolve')) {
+      // Mark as conditional for special handling (but not if it's a panel effect, cycle effect, or already-handled complex effect)
       actions.push({ type: 'conditional', target: 'self', value: 0, description: effectText });
     }
 
@@ -6515,18 +6529,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
 
       case 'clone_self':
-        // Clone the card that triggered this effect
-        const cloneSelfSource = game.field.find(c => c.id === card.id);
-        if (cloneSelfSource) {
+        // Clone the player's active character on the field (not the bonus card)
+        const cloneSelfActiveChar = this.getActiveCharacterForPlayer(game, playerName);
+        if (cloneSelfActiveChar) {
           const clonedCard: Card = {
-            ...cloneSelfSource,
-            id: `${cloneSelfSource.id}-clone-${Date.now()}`,
-            name: `${cloneSelfSource.name} (Clone)`,
+            ...cloneSelfActiveChar,
+            id: `${cloneSelfActiveChar.id}-clone-${Date.now()}`,
+            name: `${cloneSelfActiveChar.name} (Clone)`,
           };
           game.field.push(clonedCard);
-          console.log(`🧬 CLONE SELF: Created clone of ${cloneSelfSource.name} on the field!`);
+          console.log(`🧬 CLONE SELF: Created clone of ${cloneSelfActiveChar.name} on the field!`);
         } else {
-          console.log(`🧬 CLONE SELF: Source card not found on field`);
+          console.log(`🧬 CLONE SELF: No active character found for ${playerName}`);
         }
         break;
 
