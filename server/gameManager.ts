@@ -2502,6 +2502,27 @@ Rispondi SOLO in JSON:`;
         }
       }
       
+      // Apply INHERITANCE DATA if available (from inherit_to_next bonus)
+      if (isPersonaggio && game.inheritanceData && game.inheritanceData[playerName]) {
+        const inheritance = game.inheritanceData[playerName];
+        const oldPti = card.pti || 0;
+        const oldStars = card.stars || 1;
+        card.pti = (card.pti || 0) + (inheritance.pti || 0);
+        card.stars = (card.stars || 1) + (inheritance.stars || 0);
+        this.updateCardTextWithPTI(card);
+        console.log(`🧬 INHERITANCE APPLIED: ${card.name || card.id} inherited ${inheritance.pti} PTI and ${inheritance.stars} stelle (${oldPti}→${card.pti} PTI, ${oldStars}→${card.stars} stelle)`);
+        const ioInherit = (global as any).io;
+        if (ioInherit) {
+          ioInherit.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-inheritance-applied`,
+            playerName: 'Sistema',
+            message: `🧬 Eredità! ${card.name || this.getCardNameFromUrl(card.frontImage || '')} eredita +${inheritance.pti} PTI e +${inheritance.stars} stelle dal personaggio precedente!`,
+            timestamp: Date.now()
+          });
+        }
+        delete game.inheritanceData[playerName];
+      }
+
       // Use card.name for custom cards if available, otherwise extract from URL
       const cardName = card.name || this.getCardNameFromUrl(card.frontImage);
       const cardsWithAnimations = [
@@ -2783,7 +2804,7 @@ Rispondi SOLO in JSON:`;
     }
 
     // ============ ALL-ATTACK-ONE PATTERN ============
-    if (/tutti.*giocatori.*attacca/i.test(text) || /tutti.*attaccano/i.test(text) || /attacco\s+simultaneo/i.test(text) || /attacco\s+coordinato/i.test(text)) {
+    if (/tutti.*giocatori.*attacca/i.test(text) || /tutti.*attaccano/i.test(text) || /attacco\s+simultaneo/i.test(text) || /attacco\s+coordinato/i.test(text) || /tutti.*partecipanti.*obbligat.*attacca/i.test(text) || /obbligat.*attaccare.*avversario.*scelta/i.test(text)) {
       actions.push({ type: 'all_attack_target', target: 'choose_target', value: 0, description: 'Tutti i giocatori attaccano un bersaglio' });
     }
 
@@ -3238,6 +3259,70 @@ Rispondi SOLO in JSON:`;
       actions.push({ type: 'swap', target: 'any', value: 1, description: 'Scambia con un\'altra carta' });
     }
 
+    // ============ CONDITIONAL TAROCCATA PATTERN ============
+    if (/se\s+la\s+usano.*si\s+tarocca/i.test(text) || /se.*usano.*tarocc.*altrimenti/i.test(text)) {
+      const ptiMatch = text.match(/aggiunge\s+(\d+)\s+pti/i);
+      const fallbackPti = ptiMatch ? parseInt(ptiMatch[1], 10) : 30;
+      const namesMatch = effectText.match(/"([^"]+)"/g);
+      const charNames = namesMatch ? namesMatch.map(n => n.replace(/"/g, '').trim().toUpperCase()) : [];
+      actions.push({ type: 'conditional_taroccata', target: 'self', value: fallbackPti, description: `Taroccata condizionale (${charNames.join(', ')}) o +${fallbackPti} PTI` });
+      if (actions.length > 0) {
+        (actions[actions.length - 1] as any).charNames = charNames;
+      }
+    }
+
+    // ============ KEBAB DOUBLER BUFF PATTERN ============
+    if (/kebab.*raddoppi|raddoppi.*kebab/i.test(text) || /mossa.*kebab.*vale.*per/i.test(text)) {
+      const multiplierMatch = text.match(/vale\s+per\s+(\d+)/i);
+      const specialMultiplier = multiplierMatch ? parseInt(multiplierMatch[1], 10) : 4;
+      const normalPtiMatch = text.match(/aggiunge\s+(\d+)\s+pti/i);
+      const normalPti = normalPtiMatch ? parseInt(normalPtiMatch[1], 10) : 10;
+      const specialPtiMatch = text.match(/aggiunge\s+(\d+)\s+pti/ig);
+      const specialPti = specialPtiMatch && specialPtiMatch.length > 1 ? parseInt(specialPtiMatch[1].match(/(\d+)/)?.[1] || '500', 10) : 500;
+      actions.push({ type: 'kebab_buff', target: 'self', value: normalPti, description: `Buff KEBAB: raddoppia danno (x${specialMultiplier} con Mohamed). +${normalPti} PTI (+${specialPti} con Mohamed)` });
+      (actions[actions.length - 1] as any).specialMultiplier = specialMultiplier;
+      (actions[actions.length - 1] as any).specialPti = specialPti;
+    }
+
+    // ============ INHERIT TO NEXT CHARACTER PATTERN ============
+    if (/punti.*stelle.*aggiunti.*prossimo.*personaggio|verranno.*aggiunti.*prossimo|eredit.*prossimo.*personaggio/i.test(text)) {
+      actions.push({ type: 'inherit_to_next', target: 'self', value: 0, description: 'PTI e stelle verranno aggiunti al prossimo personaggio' });
+    }
+
+    // ============ BLOCK THEN EVOLVE PATTERN ============
+    if (/bloccato.*turni.*evolve|rest[ai].*bloccato.*evolv/i.test(text)) {
+      const blockTurns = extractNumberForKeyword(text, ['turni', 'turno'], 3);
+      const evolveCount = extractNumberForKeyword(text, ['volte', 'volta'], 2);
+      actions.push({ type: 'block_then_evolve', target: 'self', value: blockTurns, description: `Bloccato per ${blockTurns} turni, poi si evolve ${evolveCount} volte` });
+      (actions[actions.length - 1] as any).evolveCount = evolveCount;
+    }
+
+    // ============ STEAL CHARACTER PATTERN ============
+    if (/ruba.*personaggio.*avversario.*schiera/i.test(text) || /ruba.*personaggio.*contemporaneamente/i.test(text)) {
+      actions.push({ type: 'steal_character', target: 'opponents', value: 1, description: 'Ruba un personaggio avversario e lo schiera' });
+    }
+
+    // ============ REMOVE BOMBS PATTERN ============
+    if (/annulla.*bomb[ae]|rimuov.*bomb[ae]|disinnesc.*bomb[ae]|neutralizza.*bomb[ae]/i.test(text) || 
+        /sveglia\s+palestinese|bomba\s+senza\s+detonatore|mina\s+vagante/i.test(text)) {
+      actions.push({ type: 'remove_bombs', target: 'all', value: 0, description: 'Rimuove tutte le bombe dal campo' });
+    }
+
+    // ============ SWAP CARD WITH DECK PATTERN ============
+    if (/rimet.*carta.*mazzo.*pesca.*stesso.*tipo|consente.*rimettere.*mazzo.*pesca/i.test(text)) {
+      actions.push({ type: 'swap_card_with_deck', target: 'self', value: 1, description: 'Rimetti una carta nel mazzo e pesca una dello stesso tipo' });
+    }
+
+    // ============ MIRROR EFFECT PATTERN ============
+    if (/ogni.*bonus.*mossa.*effetto.*anche.*personaggio.*scelta|ha\s+effetto\s+anche\s+su.*personaggio.*scelta/i.test(text)) {
+      actions.push({ type: 'mirror_effect', target: 'choose_target', value: 0, description: 'Ogni modifica PTI/stelle si applica anche a un altro personaggio scelto' });
+    }
+
+    // ============ DIVIDI FUNCTION PATTERN ============
+    if (/funzione.*dividi|dividi.*personaggio.*avversario|usa.*dividi/i.test(text)) {
+      actions.push({ type: 'dividi', target: 'choose_target', value: 0, description: 'Dimezza PTI e stelle di un personaggio avversario (Dividi)' });
+    }
+
     // ============ EVOLUTION / TRANSFORMATION / TAROCCATA PATTERNS ============
     // Multi-target: "ogni tuo personaggio si evolve" / "personaggi in mano" (EVOLUZIONE ARCOBALENO)
     if ((text.includes('ogni') || text.includes('tutti')) && 
@@ -3253,7 +3338,7 @@ Rispondi SOLO in JSON:`;
       actions.push({ type: 'evolution', target: 'self', value: 1, description: 'Si evolve in un personaggio speciale' });
     }
     else if ((text.includes('si tarocca') || text.includes('effettua la taroccata') || text.includes('taroccata')) &&
-        !text.includes('fonde') && !text.includes('fusione') && !actions.some(a => a.type === 'taroccata')) {
+        !text.includes('fonde') && !text.includes('fusione') && !actions.some(a => a.type === 'taroccata') && !actions.some(a => a.type === 'conditional_taroccata')) {
       actions.push({ type: 'taroccata', target: 'self', value: 1, description: 'Taroccata: sostituzione personaggio' });
     }
     else if ((text.includes('si trasforma') || text.includes('effettua la trasformazione') || text.includes('metamorfosi') || text.includes('trasformazione')) &&
@@ -3327,7 +3412,7 @@ Rispondi SOLO in JSON:`;
 
     // ============ CLONE SELF PATTERNS ============
     if (text.includes('si clona') || text.includes('clona se stesso') || text.includes('si duplica') ||
-        text.includes('crea una copia di se') || text.includes('crea un clone') || text.includes('si sdoppia')) {
+        text.includes('crea una copia di se') || text.includes('crea un clone') || text.includes('si sdoppia') || text.includes('clonazione')) {
       actions.push({ type: 'clone_self', target: 'self', value: 1, description: 'Si clona sul campo' });
     }
 
@@ -8231,6 +8316,356 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
       }
 
+      case 'conditional_taroccata': {
+        const activeChar = this.getPlayerActiveCharacter(game, playerName);
+        if (!activeChar) break;
+        const charName = (activeChar.name || this.getCardNameFromUrl(activeChar.frontImage || '')).toUpperCase().trim();
+        const eligibleNames: string[] = (action as any).charNames || [];
+        const isEligible = eligibleNames.some((n: string) => charName.includes(n) || n.includes(charName));
+        const io = (global as any).io;
+        if (isEligible) {
+          console.log(`🃏 CONDITIONAL TAROCCATA: ${charName} is eligible for taroccata!`);
+          this.handleEvolutionTransformation(game, gameId, activeChar.owner || playerName, 'taroccata', activeChar.id);
+        } else {
+          const fallbackPti = action.value || 30;
+          const oldPti = activeChar.pti || 0;
+          activeChar.pti = oldPti + fallbackPti;
+          this.updateCardTextWithPTI(activeChar);
+          console.log(`💚 CONDITIONAL TAROCCATA fallback: ${charName} not eligible, +${fallbackPti} PTI (${oldPti} → ${activeChar.pti})`);
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-conditional-taroccata-fallback`,
+              playerName: 'Sistema',
+              message: `💚 ${charName} non è idoneo alla taroccata. +${fallbackPti} PTI! (${oldPti} → ${activeChar.pti})`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        break;
+      }
+
+      case 'kebab_buff': {
+        const activeChar = this.getPlayerActiveCharacter(game, playerName);
+        if (!activeChar) break;
+        const charName = (activeChar.name || this.getCardNameFromUrl(activeChar.frontImage || '')).toUpperCase().trim();
+        const isMohamed = charName.includes('MOHAMED') || charName.includes('KEBABBARO');
+        const io = (global as any).io;
+        const ptiBonus = isMohamed ? ((action as any).specialPti || 500) : (action.value || 10);
+        const oldPti = activeChar.pti || 0;
+        activeChar.pti = oldPti + ptiBonus;
+        this.updateCardTextWithPTI(activeChar);
+        const multiplier = isMohamed ? ((action as any).specialMultiplier || 4) : 2;
+        if (!(game as any).kebabMultiplier) (game as any).kebabMultiplier = {};
+        (game as any).kebabMultiplier[playerName] = multiplier;
+        console.log(`🥙 KEBAB BUFF: ${charName} gets +${ptiBonus} PTI and next KEBAB x${multiplier}`);
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-kebab-buff`,
+            playerName: 'Sistema',
+            message: `🥙 Buff KEBAB attivato! ${charName} +${ptiBonus} PTI (${oldPti} → ${activeChar.pti}). Prossima mossa KEBAB: x${multiplier}!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      }
+
+      case 'inherit_to_next': {
+        const activeChar = this.getPlayerActiveCharacter(game, playerName);
+        if (!activeChar) break;
+        const currentPti = activeChar.pti || 0;
+        const currentStars = activeChar.stars || this.extractStarsFromNote(activeChar.text || '') || 1;
+        if (!(game as any).inheritanceData) (game as any).inheritanceData = {};
+        (game as any).inheritanceData[playerName] = { pti: currentPti, stars: currentStars };
+        const io = (global as any).io;
+        console.log(`🧬 INHERIT TO NEXT: ${playerName}'s next character will inherit ${currentPti} PTI and ${currentStars} stelle`);
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-inherit-to-next`,
+            playerName: 'Sistema',
+            message: `🧬 Eredità attivata! Il prossimo personaggio di ${playerName} erediterà ${currentPti} PTI e ${currentStars} stelle!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      }
+
+      case 'block_then_evolve': {
+        const activeChar = this.getPlayerActiveCharacter(game, playerName);
+        if (!activeChar) break;
+        const blockTurns = action.value || 3;
+        const evolveCount = (action as any).evolveCount || 2;
+        (activeChar as any).frozenTurns = blockTurns;
+        if (!(game as any).pendingEvolutions) (game as any).pendingEvolutions = [];
+        (game as any).pendingEvolutions.push({
+          playerName,
+          cardId: activeChar.id,
+          turnsRemaining: blockTurns,
+          evolveCount: evolveCount
+        });
+        const io = (global as any).io;
+        const charName = activeChar.name || this.getCardNameFromUrl(activeChar.frontImage || '');
+        console.log(`🔒 BLOCK THEN EVOLVE: ${charName} frozen for ${blockTurns} turns, then evolves ${evolveCount} times`);
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-block-then-evolve`,
+            playerName: 'Sistema',
+            message: `🔒 ${charName} è bloccato per ${blockTurns} turni! Allo scadere, si evolverà ${evolveCount} volte!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      }
+
+      case 'steal_character': {
+        const io = (global as any).io;
+        const enemyChars = game.field.filter((c: Card) => 
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (enemyChars.length === 0) {
+          console.log('🚫 STEAL CHARACTER: No enemy characters on field');
+          break;
+        }
+        const isCPU = this.isPlayerCPU(gameId, playerName);
+        if (isCPU) {
+          const target = enemyChars.reduce((weakest: Card, c: Card) => (c.pti || 0) < (weakest.pti || 0) ? c : weakest, enemyChars[0]);
+          const prevOwner = target.owner;
+          target.owner = playerName;
+          console.log(`🏴‍☠️ STEAL CHARACTER: CPU ${playerName} stole ${target.name || target.id} from ${prevOwner}`);
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-steal-character`,
+              playerName: 'Sistema',
+              message: `🏴‍☠️ ${playerName} ha rubato ${target.name || this.getCardNameFromUrl(target.frontImage || '')} a ${prevOwner}!`,
+              timestamp: Date.now()
+            });
+          }
+        } else if (io) {
+          const selectionId = `steal-char-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          if (!game.pendingTargetSelections) game.pendingTargetSelections = new Map();
+          game.pendingTargetSelections.set(selectionId, {
+            cardId: card.id,
+            cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+            owner: playerName,
+            effectText: 'Scegli un personaggio avversario da rubare',
+            targetType: 'enemy',
+            maxTargets: 1,
+            availableTargets: enemyChars.map((c: Card) => c.id),
+            customAction: 'steal_character',
+            timestamp: Date.now()
+          } as any);
+          io.to(gameId).emit('show-custom-target-selection', {
+            selectionId,
+            cardId: card.id,
+            cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+            owner: playerName,
+            availableTargets: enemyChars.map((c: Card) => ({
+              id: c.id,
+              name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+              owner: c.owner,
+              frontImage: c.frontImage || '',
+              pti: c.pti,
+              stars: c.stars
+            })),
+            maxSelections: 1,
+            title: 'Ruba un personaggio avversario',
+            subtitle: 'Scegli un personaggio da rubare e schierare insieme al tuo'
+          });
+          console.log(`🏴‍☠️ STEAL CHARACTER: Showing target selection for ${playerName}`);
+        }
+        break;
+      }
+
+      case 'remove_bombs': {
+        const io = (global as any).io;
+        const bombNames = ['SVEGLIA PALESTINESE', 'BOMBA SENZA DETONATORE', 'MINA VAGANTE'];
+        const bombs = game.field.filter((c: Card) => {
+          const cardName = (c.name || this.getCardNameFromUrl(c.frontImage || '')).toUpperCase();
+          return c.type === 'bonus' && bombNames.some(b => cardName.includes(b));
+        });
+        let removedCount = 0;
+        for (const bomb of bombs) {
+          game.field = game.field.filter(c => c.id !== bomb.id);
+          game.graveyard.push(bomb);
+          removedCount++;
+          console.log(`💣 REMOVE BOMBS: Removed ${bomb.name || this.getCardNameFromUrl(bomb.frontImage || '')} from field`);
+        }
+        if ((game as any).delayedDamageEffects) {
+          (game as any).delayedDamageEffects = (game as any).delayedDamageEffects.filter((e: any) => {
+            const mosseName = (e.mosseName || '').toUpperCase();
+            return !bombNames.some(b => mosseName.includes(b));
+          });
+        }
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-remove-bombs`,
+            playerName: 'Sistema',
+            message: removedCount > 0 
+              ? `💣 ${removedCount} bomba/e disinnescata/e e rimossa/e dal campo!` 
+              : `💣 Nessuna bomba presente sul campo.`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      }
+
+      case 'swap_card_with_deck': {
+        const io = (global as any).io;
+        const player = game.players[playerName];
+        if (!player || player.hand.length === 0) {
+          console.log('🔄 SWAP CARD: No cards in hand to swap');
+          break;
+        }
+        const isCPU = this.isPlayerCPU(gameId, playerName);
+        if (isCPU) {
+          const randomIdx = Math.floor(Math.random() * player.hand.length);
+          const cardToReturn = player.hand.splice(randomIdx, 1)[0];
+          const deckType = cardToReturn.type as keyof typeof game.decks;
+          if (game.decks[deckType]) {
+            game.decks[deckType].push(cardToReturn);
+            await this.pickCard(gameId, deckType as keyof GameState['decks'], playerName);
+            console.log(`🔄 SWAP CARD: CPU ${playerName} returned ${cardToReturn.name || cardToReturn.id} to ${deckType} deck and drew a new card`);
+          }
+        } else if (io) {
+          const handCards = player.hand.map((c: Card) => ({
+            id: c.id,
+            name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+            type: c.type,
+            frontImage: c.frontImage || ''
+          }));
+          const selectionId = `swap-card-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          if (!game.pendingTargetSelections) game.pendingTargetSelections = new Map();
+          game.pendingTargetSelections.set(selectionId, {
+            cardId: card.id,
+            cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+            owner: playerName,
+            effectText: 'Scegli una carta da rimettere nel mazzo (ne pescherai una dello stesso tipo)',
+            targetType: 'own_hand',
+            maxTargets: 1,
+            availableTargets: handCards.map((c: any) => c.id),
+            customAction: 'swap_card_with_deck',
+            timestamp: Date.now()
+          } as any);
+          io.to(gameId).emit('show-custom-target-selection', {
+            selectionId,
+            cardId: card.id,
+            cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+            owner: playerName,
+            availableTargets: handCards,
+            maxSelections: 1,
+            title: 'Scegli una carta da rimettere nel mazzo',
+            subtitle: 'Pescherai una nuova carta dello stesso tipo'
+          });
+          console.log(`🔄 SWAP CARD: Showing card selection for ${playerName}`);
+        }
+        break;
+      }
+
+      case 'mirror_effect': {
+        const io = (global as any).io;
+        const enemyChars = game.field.filter((c: Card) =>
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (enemyChars.length === 0) break;
+        const isCPU = this.isPlayerCPU(gameId, playerName);
+        if (isCPU) {
+          const target = enemyChars[Math.floor(Math.random() * enemyChars.length)];
+          if (!(game as any).mirrorEffects) (game as any).mirrorEffects = {};
+          (game as any).mirrorEffects[playerName] = target.id;
+          console.log(`🪞 MIRROR EFFECT: CPU ${playerName} mirrors effects to ${target.name || target.id}`);
+        } else if (io) {
+          const selectionId = `mirror-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          if (!game.pendingTargetSelections) game.pendingTargetSelections = new Map();
+          game.pendingTargetSelections.set(selectionId, {
+            cardId: card.id,
+            cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+            owner: playerName,
+            effectText: 'Scegli un personaggio: ogni modifica ai tuoi PTI/stelle si applicherà anche a lui',
+            targetType: 'enemy',
+            maxTargets: 1,
+            availableTargets: enemyChars.map((c: Card) => c.id),
+            customAction: 'mirror_effect',
+            timestamp: Date.now()
+          } as any);
+          io.to(gameId).emit('show-custom-target-selection', {
+            selectionId,
+            cardId: card.id,
+            cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+            owner: playerName,
+            availableTargets: enemyChars.map((c: Card) => ({
+              id: c.id,
+              name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+              owner: c.owner,
+              frontImage: c.frontImage || '',
+              pti: c.pti,
+              stars: c.stars
+            })),
+            maxSelections: 1,
+            title: 'Scegli il personaggio bersaglio',
+            subtitle: 'Ogni modifica ai tuoi PTI/stelle si applicherà anche a questo personaggio'
+          });
+          console.log(`🪞 MIRROR EFFECT: Showing target selection for ${playerName}`);
+        }
+        break;
+      }
+
+      case 'dividi': {
+        const io = (global as any).io;
+        const enemyChars = game.field.filter((c: Card) =>
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (enemyChars.length === 0) break;
+        const isCPU = this.isPlayerCPU(gameId, playerName);
+        if (isCPU) {
+          const target = enemyChars.reduce((strongest: Card, c: Card) => (c.pti || 0) > (strongest.pti || 0) ? c : strongest, enemyChars[0]);
+          const oldPti = target.pti || 0;
+          const oldStars = target.stars || this.extractStarsFromNote(target.text || '') || 1;
+          target.pti = Math.floor(oldPti / 2);
+          target.stars = Math.max(1, Math.floor(oldStars / 2));
+          this.updateCardTextWithPTI(target);
+          console.log(`✂️ DIVIDI: CPU ${playerName} halved ${target.name || target.id}: PTI ${oldPti}→${target.pti}, Stars ${oldStars}→${target.stars}`);
+          if (io) {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-dividi`,
+              playerName: 'Sistema',
+              message: `✂️ DIVIDI! ${target.name || this.getCardNameFromUrl(target.frontImage || '')} dimezzato: PTI ${oldPti}→${target.pti}, Stelle ${oldStars}→${target.stars}`,
+              timestamp: Date.now()
+            });
+          }
+        } else if (io) {
+          const selectionId = `dividi-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          if (!game.pendingTargetSelections) game.pendingTargetSelections = new Map();
+          game.pendingTargetSelections.set(selectionId, {
+            cardId: card.id,
+            cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+            owner: playerName,
+            effectText: 'Scegli un personaggio avversario: i suoi PTI e stelle verranno dimezzati',
+            targetType: 'enemy',
+            maxTargets: 1,
+            availableTargets: enemyChars.map((c: Card) => c.id),
+            customAction: 'dividi',
+            timestamp: Date.now()
+          } as any);
+          io.to(gameId).emit('show-custom-target-selection', {
+            selectionId,
+            cardId: card.id,
+            cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+            owner: playerName,
+            availableTargets: enemyChars.map((c: Card) => ({
+              id: c.id,
+              name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+              owner: c.owner,
+              frontImage: c.frontImage || '',
+              pti: c.pti,
+              stars: c.stars
+            })),
+            maxSelections: 1,
+            title: 'Funzione DIVIDI',
+            subtitle: 'Scegli un personaggio avversario: i suoi PTI e stelle verranno dimezzati'
+          });
+        }
+        break;
+      }
+
       default:
         console.log(`❓ Unknown custom effect type: ${action.type}`);
     }
@@ -8569,6 +9004,28 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
     
+    // KEBAB MULTIPLIER: Apply if active for this attacker
+    if ((game as any).kebabMultiplier && (game as any).kebabMultiplier[attackerName]) {
+      const mosseName = mosseCardName.toUpperCase().trim();
+      if (mosseName.includes('KEBAB')) {
+        const multiplier = (game as any).kebabMultiplier[attackerName];
+        const oldDamage = finalDamageForDefense;
+        finalDamageForDefense = finalDamageForDefense * multiplier;
+        damageValue = damageValue * multiplier;
+        console.log(`🥙 KEBAB MULTIPLIER x${multiplier}: ${mosseCardName} damage ${oldDamage} → ${finalDamageForDefense}`);
+        const ioKebab = (global as any).io;
+        if (ioKebab) {
+          ioKebab.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-kebab-multiplier`,
+            playerName: 'Sistema',
+            message: `🥙 KEBAB potenziato x${multiplier}! Danno: ${oldDamage} → ${finalDamageForDefense}!`,
+            timestamp: Date.now()
+          });
+        }
+        delete (game as any).kebabMultiplier[attackerName];
+      }
+    }
+
     const defenseCreated = this.setPendingDefense(gameId, {
       attackId,
       attacker: attackerName,
@@ -12603,6 +13060,123 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       return { success: result.success, message: result.message };
     }
 
+    // ============ STEAL CHARACTER HANDLER ============
+    if (selectionId.startsWith('steal-char-') || (selection as any).customAction === 'steal_character') {
+      const targetChar = targetCards[0];
+      if (!targetChar) {
+        game.pendingTargetSelections.delete(selectionId);
+        return { success: false, message: 'Nessun bersaglio selezionato' };
+      }
+      if (targetChar.owner === playerName) {
+        game.pendingTargetSelections.delete(selectionId);
+        return { success: false, message: 'Non puoi rubare un tuo personaggio!' };
+      }
+      const prevOwner = targetChar.owner;
+      const targetCharName = targetChar.name || this.getCardNameFromUrl(targetChar.frontImage || '');
+      targetChar.owner = playerName;
+      console.log(`🏴‍☠️ STEAL CHARACTER: ${playerName} stole ${targetCharName} from ${prevOwner}`);
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-steal-character`,
+        playerName: 'Sistema',
+        message: `🏴‍☠️ ${playerName} ha rubato ${targetCharName} a ${prevOwner}!`,
+        timestamp: Date.now()
+      });
+      game.pendingTargetSelections.delete(selectionId);
+      const gameState = this.getSanitizedGameState(gameId);
+      io.to(gameId).emit('game-state-update', gameState);
+      return { success: true, message: `Rubato ${targetCharName}!` };
+    }
+
+    // ============ SWAP CARD WITH DECK HANDLER ============
+    if (selectionId.startsWith('swap-card-') || (selection as any).customAction === 'swap_card_with_deck') {
+      const selectedCard = selectedTargetIds[0];
+      if (!selectedCard) {
+        game.pendingTargetSelections.delete(selectionId);
+        return { success: false, message: 'Nessuna carta selezionata' };
+      }
+      const player = game.players[playerName];
+      if (!player) {
+        game.pendingTargetSelections.delete(selectionId);
+        return { success: false, message: 'Giocatore non trovato' };
+      }
+      const cardIdx = player.hand.findIndex((c: Card) => c.id === selectedCard);
+      if (cardIdx === -1) {
+        game.pendingTargetSelections.delete(selectionId);
+        return { success: false, message: 'Carta non trovata nella mano' };
+      }
+      const cardToReturn = player.hand.splice(cardIdx, 1)[0];
+      const cardName = cardToReturn.name || this.getCardNameFromUrl(cardToReturn.frontImage || '');
+      const deckType = cardToReturn.type as keyof GameState['decks'];
+      if (game.decks[deckType]) {
+        game.decks[deckType].push(cardToReturn);
+        await this.pickCard(gameId, deckType, playerName);
+        console.log(`🔄 SWAP CARD: ${playerName} returned ${cardName} to ${deckType} deck and drew a new card`);
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-swap-card-deck`,
+          playerName: 'Sistema',
+          message: `🔄 ${playerName} ha rimesso ${cardName} nel mazzo ${deckType} e ha pescato una nuova carta!`,
+          timestamp: Date.now()
+        });
+      }
+      game.pendingTargetSelections.delete(selectionId);
+      const gameState = this.getSanitizedGameState(gameId);
+      io.to(gameId).emit('game-state-update', gameState);
+      return { success: true, message: `Carta scambiata con il mazzo!` };
+    }
+
+    // ============ MIRROR EFFECT HANDLER ============
+    if (selectionId.startsWith('mirror-') || (selection as any).customAction === 'mirror_effect') {
+      const targetChar = targetCards[0];
+      if (!targetChar) {
+        game.pendingTargetSelections.delete(selectionId);
+        return { success: false, message: 'Nessun bersaglio selezionato' };
+      }
+      if (!game.mirrorEffects) game.mirrorEffects = {};
+      game.mirrorEffects[playerName] = targetChar.id;
+      const targetCharName = targetChar.name || this.getCardNameFromUrl(targetChar.frontImage || '');
+      console.log(`🪞 MIRROR EFFECT: ${playerName} mirrors effects to ${targetCharName}`);
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-mirror-effect`,
+        playerName: 'Sistema',
+        message: `🪞 Effetto Specchio attivato! Ogni modifica ai PTI/stelle di ${playerName} si applicherà anche a ${targetCharName}!`,
+        timestamp: Date.now()
+      });
+      game.pendingTargetSelections.delete(selectionId);
+      const gameState = this.getSanitizedGameState(gameId);
+      io.to(gameId).emit('game-state-update', gameState);
+      return { success: true, message: `Effetto specchio attivato su ${targetCharName}!` };
+    }
+
+    // ============ DIVIDI HANDLER ============
+    if (selectionId.startsWith('dividi-') || (selection as any).customAction === 'dividi') {
+      const targetChar = targetCards[0];
+      if (!targetChar) {
+        game.pendingTargetSelections.delete(selectionId);
+        return { success: false, message: 'Nessun bersaglio selezionato' };
+      }
+      if (targetChar.owner === playerName) {
+        game.pendingTargetSelections.delete(selectionId);
+        return { success: false, message: 'Non puoi dividere un tuo personaggio!' };
+      }
+      const targetCharName = targetChar.name || this.getCardNameFromUrl(targetChar.frontImage || '');
+      const oldPti = targetChar.pti || 0;
+      const oldStars = targetChar.stars || this.extractStarsFromNote(targetChar.text || '') || 1;
+      targetChar.pti = Math.floor(oldPti / 2);
+      targetChar.stars = Math.max(1, Math.floor(oldStars / 2));
+      this.updateCardTextWithPTI(targetChar);
+      console.log(`✂️ DIVIDI: ${playerName} halved ${targetCharName}: PTI ${oldPti}→${targetChar.pti}, Stars ${oldStars}→${targetChar.stars}`);
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-dividi`,
+        playerName: 'Sistema',
+        message: `✂️ DIVIDI! ${targetCharName} dimezzato: PTI ${oldPti}→${targetChar.pti}, Stelle ${oldStars}→${targetChar.stars}`,
+        timestamp: Date.now()
+      });
+      game.pendingTargetSelections.delete(selectionId);
+      const gameState = this.getSanitizedGameState(gameId);
+      io.to(gameId).emit('game-state-update', gameState);
+      return { success: true, message: `Dividi applicato a ${targetCharName}!` };
+    }
+
     // Check if effect contains DADO_AUTOMATICO - if so, trigger auto dice with pre-selected targets
     const autoDiceMatch = selection.effectText.match(/\[DADO_AUTOMATICO:\s*([^\]]+)\]/i);
     if (autoDiceMatch) {
@@ -16294,6 +16868,30 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
       }
       
+      // Process PENDING EVOLUTIONS (from block_then_evolve)
+      if (gameState.pendingEvolutions && gameState.pendingEvolutions.length > 0) {
+        const cardEvolutions = gameState.pendingEvolutions.filter((pe: any) => pe.cardId === card.id && pe.playerName === playerName);
+        for (const pe of cardEvolutions) {
+          pe.turnsRemaining--;
+          if (pe.turnsRemaining <= 0) {
+            const charName = card.name || this.getCardNameFromUrl(card.frontImage || '');
+            console.log(`🔓 BLOCK_THEN_EVOLVE: ${charName} is now free! Triggering ${pe.evolveCount} evolution(s)`);
+            if (io) {
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-block-evolve-trigger`,
+                playerName: 'Sistema',
+                message: `🔓 ${charName} è libero! Si evolve ${pe.evolveCount} volta/e!`,
+                timestamp: Date.now()
+              });
+            }
+            for (let i = 0; i < (pe.evolveCount || 1); i++) {
+              this.handleEvolutionTransformation(gameState, gameId, playerName, 'evolution', card.id);
+            }
+            gameState.pendingEvolutions = gameState.pendingEvolutions.filter((p: any) => p !== pe);
+          }
+        }
+      }
+
       // Process STUN (remove after turn)
       if ((card as any).isStunned) {
         delete (card as any).isStunned;

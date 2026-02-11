@@ -60,7 +60,18 @@ CPU players intelligently select appropriate defense cards and handle special be
 Custom card effects can trigger interactive panels for player input, such as PTI input, deck selection, and graveyard selection.
 
 ## Custom Card Effect System
-The game supports a wide range of custom card effects through `[COMPORTAMENTO: ...]` tags, including status effects (Poison, Burn, Freeze, Stun, Protection), combat effects (Shield, Reflect, Counter, Lifesteal, Revenge), and other effects like draw, discard, powerup, and resurrection.
+The game supports a wide range of custom card effects through `[COMPORTAMENTO: ...]` tags, including status effects (Poison, Burn, Freeze, Stun, Protection), combat effects (Shield, Reflect, Counter, Lifesteal, Revenge), and other effects like draw, discard, powerup, and resurrection. Advanced bonus effects include:
+- **Conditional Taroccata** (bonus-22): Named characters get taroccata, others get PTI bonus
+- **KEBAB Buff** (bonus-25): Doubles next KEBAB move damage (x4 with Mohamed), conditional PTI
+- **Inherit to Next** (bonus-48): Current PTI/stars transfer to next played character
+- **Block then Evolve** (bonus-33): Freezes character for N turns, then evolves M times
+- **Steal Character** (bonus-34): Steals an opponent's character to your field
+- **Remove Bombs** (bonus-38): Removes unexploded bomb cards from field
+- **Swap Card with Deck** (bonus-43): Return a hand card to deck, draw same type
+- **Mirror Effect** (bonus-27): PTI/star changes mirror to a chosen enemy character
+- **Dividi** (bonus-41): Halves target enemy's PTI and stars
+- **Clone Self** (bonus-26): Duplicates character via "Duplica" function
+- **All Attack Target** (bonus-21): Forces all players to attack chosen target
 
 ## Audio System
 A comprehensive sound effect system uses the Web Audio API for in-game events, character actions, and special card animations. Features per-category sound toggles (turn change, attack, defense, death, card play, bonus, dice, chat, my turn) with localStorage persistence and a dedicated SoundSettings panel. Global mute and per-category toggles work together.
