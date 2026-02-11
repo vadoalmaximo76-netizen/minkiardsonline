@@ -3758,7 +3758,8 @@ Rispondi SOLO in JSON:`;
     }
 
     // ============ NEW SPECIAL PATTERNS ============
-    if (text.includes('clone') || text.includes('clona') || text.includes('crea copia')) {
+    if ((text.includes('clone') || text.includes('clona') || text.includes('crea copia')) &&
+        !actions.some(a => a.type === 'clone_self')) {
       actions.push({ type: 'clone', target: 'self', value: 1, description: 'Clona' });
     }
 
