@@ -344,6 +344,12 @@ interface GameState {
     timestamp: number;
     fusionClone?: boolean;
     bonusPti?: number;
+    targetType?: string;
+    maxTargets?: number;
+    availableTargets?: string[];
+    customAction?: string;
+    leaderCharId?: string;
+    preSelectedTarget?: string;
   }>; // Pending target selection for custom effects with [BERSAGLIO: scelta]
   activeAuction?: {
     auctionId: string;
@@ -387,6 +393,16 @@ interface GameState {
     autoEffects: Record<number, string>;
     timestamp: number;
   }>; // Pending auto dice rolls controlled by dice_control effect
+  inheritanceData?: Record<string, { pti: number; stars: number }>;
+  mirrorEffects?: Record<string, string>;
+  pendingEvolutions?: Array<{
+    playerName: string;
+    cardId: string;
+    turnsRemaining: number;
+    evolveCount: number;
+  }>;
+  kebabMultiplier?: Record<string, number>;
+  hands?: Record<string, Record<string, Card[]>>;
 }
 
 export class GameManager {
@@ -11899,7 +11915,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const game = this.games.get(gameId);
     if (!game) return;
 
-    const cpuParticipants = Object.entries(auction.participants)
+    const cpuParticipants = (Object.entries(auction.participants) as [string, { maxPoints: number; remainingPoints: number; isCPU: boolean }][])
       .filter(([_, p]) => p.isCPU && p.remainingPoints > 0);
 
     for (const [cpuName, cpuData] of cpuParticipants) {
@@ -13282,10 +13298,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           correctEffect,
           wrongEffect,
           involvedCharacters: [{ id: targetChar.id, name: targetCharName, owner: targetChar.owner, frontImage: targetChar.frontImage || '' }],
-          selectedCharacters: [targetChar.id],
+          selectedCharacters: [{ id: targetChar.id, name: targetCharName, owner: targetChar.owner, frontImage: targetChar.frontImage || '' }],
           choices: new Map<string, string>(),
           initiatorPlayer: playerName,
-          preSelectedTarget: targetChar.id,
           timestamp: Date.now()
         });
         
@@ -16260,7 +16275,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   async addCustomCards(
     gameId: string, 
     deckType: string, 
-    cards: Array<{ name: string, data: string, pti: number | null, stars: number | null, effect?: string | null, audioUrl?: string | null, youtubeUrl?: string | null, isPermanent: boolean, mosseDamageValue?: number | null, mosseDamageEffect?: string | null, mosseCharacterOverrides?: any[] | null, mosseRestrictedFrom?: string[] | null, mosseRestrictedAgainst?: string[] | null, mosseTargetingMode?: string | null, mosseTargetCount?: number | null }>,
+    cards: Array<{ name: string, data: string, pti: number | null, stars: number | null, effect?: string | null, audioUrl?: string | null, youtubeUrl?: string | null, isPermanent: boolean, mosseDamageValue?: number | null, mosseDamageEffect?: string | null, mosseCharacterOverrides?: any[] | null, mosseRestrictedFrom?: string[] | null, mosseRestrictedAgainst?: string[] | null, mosseTargetingMode?: string | null, mosseTargetCount?: number | null, mosseCanCounter?: boolean, mosseCanBeCountered?: boolean }>,
     playerName: string
   ): Promise<{ success: boolean }> {
     const game = this.games.get(gameId);
