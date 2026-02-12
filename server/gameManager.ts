@@ -41,6 +41,7 @@ interface Card {
   audioUrl?: string; // URL to audio file to play when card is placed on field
   youtubeUrl?: string; // URL to YouTube video to show when card is played
   evolvesInto?: string; // Card ID this character evolves into
+  evolutionVariants?: { [key: string]: string }; // Dice-based evolution: { "1": cardId, "2": cardId, ... "6": cardId }
   transformsInto?: string; // Card ID this character transforms into
   transformsFrom?: string; // Card ID for taroccata (transforms from)
   cheatsInto?: string; // Card ID for taroccata (cheats into)
@@ -626,6 +627,9 @@ export class GameManager {
     // Evolution/Transformation properties
     if (mod.evolvesInto !== undefined) {
       card.evolvesInto = mod.evolvesInto || undefined;
+    }
+    if (mod.evolutionVariants !== undefined) {
+      card.evolutionVariants = mod.evolutionVariants || undefined;
     }
     if (mod.transformsInto !== undefined) {
       card.transformsInto = mod.transformsInto || undefined;
@@ -4949,9 +4953,23 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         console.log(`🌈 Multi-${type}: Processing ${allHandCards.length} hand characters for ${playerName}`);
         
         for (const handCard of allHandCards) {
-          const targetCardId = type === 'evolution' ? handCard.evolvesInto : 
-                               type === 'transformation' ? handCard.transformsInto : 
-                               (handCard.transformsFrom || handCard.cheatsInto);
+          let targetCardId: string | undefined;
+          
+          if (type === 'evolution' && handCard.evolutionVariants) {
+            const handDiceRoll = Math.floor(Math.random() * 6) + 1;
+            targetCardId = handCard.evolutionVariants[String(handDiceRoll)];
+            const oldHandName = handCard.name || handCard.id;
+            console.log(`🎲 VARIANTI EVOLUZIONE MANO: ${oldHandName} - Dado: ${handDiceRoll} → ${targetCardId || 'nessuno'}`);
+            if (io) {
+              io.to(gameId).emit('dice-roll', { playerName, result: handDiceRoll, reason: `Variante di evoluzione per ${oldHandName} (mano)` });
+              io.to(gameId).emit('chat-message', { id: `${Date.now()}-evolution-dice-hand-${handCard.id}`, playerName: 'Sistema', message: `🎲 DADO EVOLUZIONE! ${oldHandName} in mano di ${playerName} lancia il dado... esce ${handDiceRoll}!`, timestamp: Date.now() });
+            }
+            if (!targetCardId) continue;
+          } else {
+            targetCardId = type === 'evolution' ? handCard.evolvesInto : 
+                           type === 'transformation' ? handCard.transformsInto : 
+                           (handCard.transformsFrom || handCard.cheatsInto);
+          }
           
           if (targetCardId) {
             const targetDeckType = targetCardId.startsWith('personaggi_speciali') ? 'personaggi_speciali' : 'personaggi';
@@ -4985,6 +5003,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               handCard.youtubeUrl = mod?.youtubeUrl || undefined;
               handCard.effect = mod?.effect || undefined;
               handCard.evolvesInto = mod?.evolvesInto || undefined;
+              handCard.evolutionVariants = mod?.evolutionVariants || undefined;
               handCard.transformsInto = mod?.transformsInto || undefined;
               handCard.transformsFrom = mod?.transformsFrom || undefined;
               handCard.cheatsInto = mod?.cheatsInto || undefined;
@@ -5073,8 +5092,40 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const originalStars = activeChar.stars || 1;
 
     let targetCardId: string | undefined;
+    let diceRoll: number | undefined;
 
-    if (type === 'evolution') {
+    if (type === 'evolution' && activeChar.evolutionVariants) {
+      diceRoll = Math.floor(Math.random() * 6) + 1;
+      targetCardId = activeChar.evolutionVariants[String(diceRoll)];
+      console.log(`🎲 VARIANTI DI EVOLUZIONE: ${oldName} - Dado: ${diceRoll} → evoluzione in ${targetCardId || 'nessuno'}`);
+      
+      if (io) {
+        io.to(gameId).emit('dice-roll', {
+          playerName,
+          result: diceRoll,
+          reason: `Variante di evoluzione per ${oldName}`
+        });
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-evolution-dice`,
+          playerName: 'Sistema',
+          message: `🎲 DADO EVOLUZIONE! ${oldName} di ${playerName} lancia il dado... esce ${diceRoll}!`,
+          timestamp: Date.now()
+        });
+      }
+      
+      if (!targetCardId) {
+        console.log(`🎲 Nessuna evoluzione configurata per dado ${diceRoll} - evoluzione annullata`);
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-evolution-dice-fail`,
+            playerName: 'Sistema',
+            message: `❌ Nessuna evoluzione configurata per il numero ${diceRoll}. Evoluzione annullata!`,
+            timestamp: Date.now()
+          });
+        }
+        return;
+      }
+    } else if (type === 'evolution') {
       targetCardId = activeChar.evolvesInto;
     } else if (type === 'transformation') {
       targetCardId = activeChar.transformsInto;
@@ -5119,6 +5170,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             youtubeUrl: mod?.youtubeUrl || undefined,
             effect: mod?.effect || undefined,
             evolvesInto: mod?.evolvesInto || undefined,
+            evolutionVariants: mod?.evolutionVariants || undefined,
             transformsInto: mod?.transformsInto || undefined,
             transformsFrom: mod?.transformsFrom || undefined,
             cheatsInto: mod?.cheatsInto || undefined

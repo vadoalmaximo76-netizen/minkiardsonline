@@ -47,6 +47,7 @@ interface CardModification {
   mosseCanCounter: boolean;
   mosseCanBeCountered: boolean;
   evolvesInto: string | null;
+  evolutionVariants: { [key: string]: string } | null;
   transformsInto: string | null;
   transformsFrom: string | null;
   cheatsInto: string | null;
@@ -309,6 +310,7 @@ export const jsonStorage = {
           mosseCanCounter: data.mosseCanCounter ?? false,
           mosseCanBeCountered: data.mosseCanBeCountered ?? false,
           evolvesInto: data.evolvesInto || null,
+          evolutionVariants: data.evolutionVariants || null,
           transformsInto: data.transformsInto || null,
           transformsFrom: data.transformsFrom || null,
           cheatsInto: data.cheatsInto || null,

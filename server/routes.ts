@@ -6866,6 +6866,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             mosseCanCounter: mod?.mosseCanCounter || false,
             mosseCanBeCountered: mod?.mosseCanBeCountered || false,
             evolvesInto: mod?.evolvesInto || null,
+            evolutionVariants: mod?.evolutionVariants || null,
             transformsInto: mod?.transformsInto || null,
             transformsFrom: mod?.transformsFrom || null,
             cheatsInto: mod?.cheatsInto || null,
@@ -6893,7 +6894,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ success: false, error: 'Unauthorized' });
       }
 
-      const { originalCardId, deckType, name, imageUrl, pti, stars, effect, audioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect, mosseCharacterOverrides, mosseRestrictedFrom, mosseRestrictedAgainst, mosseTargetingMode, mosseTargetCount, mosseCanCounter, mosseCanBeCountered, evolvesInto, transformsInto, transformsFrom, cheatsInto, specialCategory, evolvedMoves, superAttacco } = req.body;
+      const { originalCardId, deckType, name, imageUrl, pti, stars, effect, audioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect, mosseCharacterOverrides, mosseRestrictedFrom, mosseRestrictedAgainst, mosseTargetingMode, mosseTargetCount, mosseCanCounter, mosseCanBeCountered, evolvesInto, evolutionVariants, transformsInto, transformsFrom, cheatsInto, specialCategory, evolvedMoves, superAttacco } = req.body;
 
       // Helper to safely parse integer values (handles NaN, empty strings, undefined)
       const safeParseInt = (value: any): number | null => {
@@ -6922,6 +6923,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mosseCanCounter: !!mosseCanCounter,
         mosseCanBeCountered: !!mosseCanBeCountered,
         evolvesInto: evolvesInto || null,
+        evolutionVariants: evolutionVariants || null,
         transformsInto: transformsInto || null,
         transformsFrom: transformsFrom || null,
         cheatsInto: cheatsInto || null,
@@ -6986,6 +6988,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           mosseCanCounter: !!mod.mosseCanCounter,
           mosseCanBeCountered: !!mod.mosseCanBeCountered,
           evolvesInto: mod.evolvesInto || null,
+          evolutionVariants: mod.evolutionVariants || null,
           transformsInto: mod.transformsInto || null,
           transformsFrom: mod.transformsFrom || null,
           cheatsInto: mod.cheatsInto || null,

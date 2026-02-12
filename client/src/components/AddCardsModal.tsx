@@ -819,6 +819,7 @@ interface ExistingCard {
   mosseCanCounter: boolean | null;
   mosseCanBeCountered: boolean | null;
   evolvesInto: string | null;
+  evolutionVariants: { [key: string]: string } | null;
   transformsInto: string | null;
   transformsFrom: string | null;
   cheatsInto: string | null;
@@ -865,6 +866,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     mosseCanCounter: false,
     mosseCanBeCountered: false,
     evolvesInto: '',
+    evolutionVariants: null as { [key: string]: string } | null,
     transformsInto: '',
     transformsFrom: '',
     cheatsInto: '',
@@ -1506,6 +1508,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
         mosseCanCounter: card.mosseCanCounter || false,
         mosseCanBeCountered: card.mosseCanBeCountered || false,
         evolvesInto: card.evolvesInto || '',
+        evolutionVariants: card.evolutionVariants || null,
         transformsInto: card.transformsInto || '',
         transformsFrom: card.transformsFrom || '',
         cheatsInto: card.cheatsInto || '',
@@ -1563,6 +1566,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
         mosseCanCounter: formData.mosseCanCounter || false,
         mosseCanBeCountered: formData.mosseCanBeCountered || false,
         evolvesInto: formData.evolvesInto || null,
+        evolutionVariants: formData.evolutionVariants || null,
         transformsInto: formData.transformsInto || null,
         transformsFrom: formData.transformsFrom || null,
         cheatsInto: formData.cheatsInto || null,
@@ -2842,7 +2846,63 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                                       ))}
                                     </select>
                                     <p className="text-gray-500 text-xs mt-1">BONUS: "Si evolve" / "Effettua l'evoluzione"</p>
+                                    
+                                    <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={!!existingEditForm.evolutionVariants}
+                                        onChange={(e) => {
+                                          if (e.target.checked) {
+                                            setExistingEditForm(prev => ({
+                                              ...prev,
+                                              evolutionVariants: { '1': '', '2': '', '3': '', '4': '', '5': '', '6': '' },
+                                              evolvesInto: ''
+                                            }));
+                                          } else {
+                                            setExistingEditForm(prev => ({
+                                              ...prev,
+                                              evolutionVariants: null
+                                            }));
+                                          }
+                                        }}
+                                        className="accent-emerald-500"
+                                      />
+                                      <span className="text-emerald-300 text-xs font-bold">Varianti di evoluzione (dado)</span>
+                                    </label>
                                   </div>
+                                  
+                                  {existingEditForm.evolutionVariants && (
+                                    <div className="col-span-2 p-3 bg-emerald-800/20 rounded-lg border border-emerald-400/40">
+                                      <div className="text-emerald-300 text-xs font-bold mb-2">🎲 VARIANTI DI EVOLUZIONE</div>
+                                      <p className="text-gray-400 text-xs mb-3">
+                                        Quando questo personaggio si evolve, viene lanciato automaticamente un dado. In base al numero uscito, si evolverà nel personaggio corrispondente.
+                                      </p>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        {[1, 2, 3, 4, 5, 6].map(num => (
+                                          <div key={num}>
+                                            <label className="text-white text-xs mb-1 block">Se esce {num} 🎲</label>
+                                            <select
+                                              value={existingEditForm.evolutionVariants?.[String(num)] || ''}
+                                              onChange={(e) => setExistingEditForm(prev => ({
+                                                ...prev,
+                                                evolutionVariants: {
+                                                  ...prev.evolutionVariants!,
+                                                  [String(num)]: e.target.value
+                                                }
+                                              }))}
+                                              className="w-full bg-gray-600 text-white border border-gray-500 rounded px-2 py-1.5 text-xs"
+                                            >
+                                              <option value="">-- Nessuno --</option>
+                                              {allCharacterCards.map(c => (
+                                                <option key={c.cardId} value={c.cardId}>{c.name} ({c.deckType === 'personaggi_speciali' ? 'Speciale' : 'Personaggio'})</option>
+                                              ))}
+                                            </select>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
                                   <div>
                                     <label className="text-white text-xs mb-1 block">Si trasforma in</label>
                                     <select
