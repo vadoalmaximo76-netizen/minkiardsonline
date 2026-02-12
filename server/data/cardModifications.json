@@ -173,13 +173,17 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-10T10:26:30.475Z",
+    "modifiedAt": "2026-02-12T23:39:38.560Z",
     "mosseCanCounter": false,
     "mosseCanBeCountered": false,
     "evolvesInto": "personaggi_speciali-0",
     "transformsInto": null,
     "transformsFrom": null,
-    "cheatsInto": null
+    "cheatsInto": null,
+    "evolutionVariants": null,
+    "specialCategory": null,
+    "evolvedMoves": null,
+    "superAttacco": null
   },
   {
     "id": 6,
@@ -4165,11 +4169,22 @@
     "mosseCanBeCountered": false,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-10T10:54:42.567Z",
-    "evolvesInto": "personaggi_speciali-6",
+    "modifiedAt": "2026-02-12T23:39:38.595Z",
+    "evolvesInto": null,
     "transformsInto": null,
     "transformsFrom": null,
-    "cheatsInto": null
+    "cheatsInto": null,
+    "evolutionVariants": {
+      "1": "personaggi_speciali-6",
+      "2": "personaggi_speciali-6",
+      "3": "personaggi_speciali-7",
+      "4": "personaggi_speciali-7",
+      "5": "personaggi_speciali-8",
+      "6": "personaggi_speciali-8"
+    },
+    "specialCategory": null,
+    "evolvedMoves": null,
+    "superAttacco": null
   },
   {
     "id": 155,
@@ -4193,11 +4208,15 @@
     "mosseCanBeCountered": false,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-10T10:26:30.478Z",
+    "modifiedAt": "2026-02-12T23:39:38.566Z",
     "evolvesInto": "personaggi_speciali-2",
     "transformsInto": null,
     "transformsFrom": null,
-    "cheatsInto": null
+    "cheatsInto": null,
+    "evolutionVariants": null,
+    "specialCategory": null,
+    "evolvedMoves": null,
+    "superAttacco": null
   },
   {
     "id": 156,
@@ -4445,11 +4464,22 @@
     "mosseCanBeCountered": false,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-10T11:01:36.925Z",
-    "evolvesInto": "personaggi_speciali-45",
+    "modifiedAt": "2026-02-12T23:37:57.822Z",
+    "evolvesInto": null,
     "transformsInto": "personaggi_speciali-28",
     "transformsFrom": "personaggi_speciali-16",
-    "cheatsInto": "personaggi_speciali-16"
+    "cheatsInto": "personaggi_speciali-16",
+    "evolutionVariants": {
+      "1": "personaggi_speciali-26",
+      "2": "personaggi_speciali-17",
+      "3": "personaggi_speciali-36",
+      "4": "personaggi_speciali-45",
+      "5": "personaggi_speciali-3",
+      "6": "personaggi_speciali-46"
+    },
+    "specialCategory": null,
+    "evolvedMoves": null,
+    "superAttacco": null
   },
   {
     "id": 165,
@@ -4741,7 +4771,22 @@
     "mosseCanBeCountered": false,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-10T11:01:37.243Z"
+    "modifiedAt": "2026-02-12T23:37:57.827Z",
+    "evolvesInto": null,
+    "evolutionVariants": {
+      "1": "personaggi_speciali-41",
+      "2": "personaggi_speciali-42",
+      "3": "personaggi_speciali-39",
+      "4": "personaggi_speciali-37",
+      "5": "personaggi_speciali-38",
+      "6": "personaggi_speciali-40"
+    },
+    "transformsInto": "personaggi_speciali-43",
+    "transformsFrom": null,
+    "cheatsInto": null,
+    "specialCategory": null,
+    "evolvedMoves": null,
+    "superAttacco": null
   },
   {
     "id": 176,
@@ -5717,7 +5762,8 @@
     "superAttacco": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-02-10T12:34:25.659Z"
+    "modifiedAt": "2026-02-12T23:39:38.582Z",
+    "evolutionVariants": null
   },
   {
     "id": 207,

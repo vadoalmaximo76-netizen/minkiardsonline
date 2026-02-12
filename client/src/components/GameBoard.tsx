@@ -306,6 +306,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   }>({ visible: false, cardName: '', diceResult: 0, effect: '', affectedCharacters: [], isAnimating: false, animationPhase: 'rolling' });
   // FOLATA DI VENTO: Wind dice roll animation visible to all players
   const [windDiceRoll, setWindDiceRoll] = useState<{ visible: boolean; value: number; playerName: string }>({ visible: false, value: 0, playerName: '' });
+  // EVOLUTION DICE ROLL: Dice-based evolution variant animation
+  const [evolutionDiceRoll, setEvolutionDiceRoll] = useState<{ visible: boolean; characterName: string; playerName: string; diceResult: number; evolutionTarget: string | null; animationPhase: 'rolling' | 'result' }>({ visible: false, characterName: '', playerName: '', diceResult: 0, evolutionTarget: null, animationPhase: 'rolling' });
   // CUSTOM TARGET SELECTION: Modal for choosing targets for custom effects with [BERSAGLIO: scelta]
   const [customTargetModal, setCustomTargetModal] = useState<{
     visible: boolean;
@@ -793,6 +795,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       setTimeout(() => setWindDiceRoll({ visible: false, value: 0, playerName: '' }), 4000);
     };
     socket.on('dice-roll', handleWindDiceRoll);
+    
+    const handleEvolutionDiceRoll = (data: { playerName: string; characterName: string; diceResult: number; evolutionTarget: string | null; evolutionTargetId: string | null }) => {
+      console.log('🎲 EVOLUTION DICE ROLL:', data);
+      setEvolutionDiceRoll({ visible: true, characterName: data.characterName, playerName: data.playerName, diceResult: data.diceResult, evolutionTarget: data.evolutionTarget, animationPhase: 'rolling' });
+      setTimeout(() => {
+        setEvolutionDiceRoll(prev => ({ ...prev, animationPhase: 'result' }));
+      }, 1500);
+      setTimeout(() => {
+        setEvolutionDiceRoll({ visible: false, characterName: '', playerName: '', diceResult: 0, evolutionTarget: null, animationPhase: 'rolling' });
+      }, 5500);
+    };
+    socket.on('evolution-dice-roll', handleEvolutionDiceRoll);
+    
     socket.on('graveyard-milestone', handleGraveyardMilestone);
     socket.on('chat-message', handleChatMessage);
     socket.on('scenario-cards-toggled', handleScenarioCardsToggled);
@@ -1566,6 +1581,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('card-show-confirmed', handleCardShowConfirmed);
       socket.off('dice-rolled', handleDiceRoll);
       socket.off('dice-roll', handleWindDiceRoll);
+      socket.off('evolution-dice-roll', handleEvolutionDiceRoll);
       socket.off('dice-window-opened', handleDiceWindowOpen);
       socket.off('graveyard-milestone', handleGraveyardMilestone);
       socket.off('chat-message', handleChatMessage);
@@ -2606,6 +2622,43 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               <div className={`text-2xl font-bold ${windDiceRoll.value % 2 === 0 ? 'text-green-400' : 'text-orange-400'}`}>
                 {windDiceRoll.value % 2 === 0 ? 'PARI - Danno al prossimo giocatore!' : 'DISPARI - Danno al giocatore precedente!'}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {evolutionDiceRoll.visible && (
+        <div className="fixed inset-0 z-[9998] pointer-events-none flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/80" />
+          <div className="relative bg-gradient-to-br from-red-900 via-orange-800 to-yellow-700 rounded-2xl p-8 border-4 border-red-400 shadow-[0_0_80px_rgba(239,68,68,0.6)] max-w-md w-full mx-4">
+            <div className="text-center">
+              <h3 className="text-xl font-bold text-yellow-200 mb-2">🎲 DADO EVOLUZIONE</h3>
+              <p className="text-gray-200 text-sm mb-3">{evolutionDiceRoll.playerName} lancia il dado per {evolutionDiceRoll.characterName}!</p>
+              
+              {evolutionDiceRoll.animationPhase === 'rolling' && (
+                <div className="animate-pulse">
+                  <div className="text-8xl mb-4 animate-spin" style={{animationDuration: '0.5s'}}>🎲</div>
+                  <p className="text-2xl text-yellow-300 font-bold">Lancio del dado...</p>
+                </div>
+              )}
+              
+              {evolutionDiceRoll.animationPhase === 'result' && (
+                <>
+                  <div className="text-8xl mb-2">🎲</div>
+                  <h2 className="text-7xl font-bold text-white mb-3 animate-pulse" style={{textShadow: '4px 4px 8px rgba(0,0,0,0.8)'}}>
+                    {evolutionDiceRoll.diceResult}
+                  </h2>
+                  {evolutionDiceRoll.evolutionTarget ? (
+                    <div className="text-2xl font-bold text-green-400 animate-pulse">
+                      🌟 Si evolve in: {evolutionDiceRoll.evolutionTarget}!
+                    </div>
+                  ) : (
+                    <div className="text-xl font-bold text-red-400">
+                      ❌ Nessuna evoluzione per questo numero!
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>

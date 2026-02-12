@@ -4959,10 +4959,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             const handDiceRoll = Math.floor(Math.random() * 6) + 1;
             targetCardId = handCard.evolutionVariants[String(handDiceRoll)];
             const oldHandName = handCard.name || handCard.id;
+            const handVariantName = targetCardId ? this.getCardNameFromCardId(targetCardId) : null;
             console.log(`🎲 VARIANTI EVOLUZIONE MANO: ${oldHandName} - Dado: ${handDiceRoll} → ${targetCardId || 'nessuno'}`);
             if (io) {
-              io.to(gameId).emit('dice-roll', { playerName, result: handDiceRoll, reason: `Variante di evoluzione per ${oldHandName} (mano)` });
-              io.to(gameId).emit('chat-message', { id: `${Date.now()}-evolution-dice-hand-${handCard.id}`, playerName: 'Sistema', message: `🎲 DADO EVOLUZIONE! ${oldHandName} in mano di ${playerName} lancia il dado... esce ${handDiceRoll}!`, timestamp: Date.now() });
+              io.to(gameId).emit('evolution-dice-roll', { playerName, characterName: oldHandName, diceResult: handDiceRoll, evolutionTarget: handVariantName, evolutionTargetId: targetCardId || null });
+              io.to(gameId).emit('chat-message', { id: `${Date.now()}-evolution-dice-hand-${handCard.id}`, playerName: 'Sistema', message: targetCardId ? `🎲 DADO EVOLUZIONE! ${oldHandName} in mano di ${playerName} lancia il dado... esce ${handDiceRoll}! Si evolve in ${handVariantName}!` : `🎲 DADO EVOLUZIONE! ${oldHandName} in mano di ${playerName} lancia il dado... esce ${handDiceRoll}! Nessuna evoluzione configurata.`, timestamp: Date.now() });
             }
             if (!targetCardId) continue;
           } else {
@@ -5099,30 +5100,28 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       targetCardId = activeChar.evolutionVariants[String(diceRoll)];
       console.log(`🎲 VARIANTI DI EVOLUZIONE: ${oldName} - Dado: ${diceRoll} → evoluzione in ${targetCardId || 'nessuno'}`);
       
+      const variantTargetName = targetCardId ? this.getCardNameFromCardId(targetCardId) : null;
+      
       if (io) {
-        io.to(gameId).emit('dice-roll', {
+        io.to(gameId).emit('evolution-dice-roll', {
           playerName,
-          result: diceRoll,
-          reason: `Variante di evoluzione per ${oldName}`
+          characterName: oldName,
+          diceResult: diceRoll,
+          evolutionTarget: variantTargetName || null,
+          evolutionTargetId: targetCardId || null
         });
         io.to(gameId).emit('chat-message', {
           id: `${Date.now()}-evolution-dice`,
           playerName: 'Sistema',
-          message: `🎲 DADO EVOLUZIONE! ${oldName} di ${playerName} lancia il dado... esce ${diceRoll}!`,
+          message: targetCardId 
+            ? `🎲 DADO EVOLUZIONE! ${oldName} di ${playerName} lancia il dado... esce ${diceRoll}! Si evolve in ${variantTargetName}!`
+            : `🎲 DADO EVOLUZIONE! ${oldName} di ${playerName} lancia il dado... esce ${diceRoll}! Nessuna evoluzione configurata.`,
           timestamp: Date.now()
         });
       }
       
       if (!targetCardId) {
         console.log(`🎲 Nessuna evoluzione configurata per dado ${diceRoll} - evoluzione annullata`);
-        if (io) {
-          io.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-evolution-dice-fail`,
-            playerName: 'Sistema',
-            message: `❌ Nessuna evoluzione configurata per il numero ${diceRoll}. Evoluzione annullata!`,
-            timestamp: Date.now()
-          });
-        }
         return;
       }
     } else if (type === 'evolution') {
@@ -5195,26 +5194,34 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           console.log(`${emoji} ${typeLabel}: ${oldName} → ${replacementCard.name} (PTI: ${replacementCard.pti}, Stelle: ${replacementCard.stars})`);
 
           if (io) {
-            io.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-${type}`,
-              playerName: 'Sistema',
-              message: `${emoji} ${typeLabel}! ${oldName} si è ${type === 'evolution' ? 'evoluto' : type === 'transformation' ? 'trasformato' : 'taroccato'} in ${replacementCard.name}!`,
-              timestamp: Date.now()
-            });
-
             const cardName = replacementCard.name || this.getCardNameFromUrl(replacementCard.frontImage || '');
+            
+            const emitEvolutionEvents = () => {
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-${type}`,
+                playerName: 'Sistema',
+                message: `${emoji} ${typeLabel}! ${oldName} si è ${type === 'evolution' ? 'evoluto' : type === 'transformation' ? 'trasformato' : 'taroccato'} in ${replacementCard.name}!`,
+                timestamp: Date.now()
+              });
 
-            io.to(gameId).emit('evolution-animation', {
-              type,
-              oldName,
-              newName: cardName,
-              newImage: replacementCard.frontImage,
-              oldImage,
-              playerName,
-              pti: replacementCard.pti,
-              stars: replacementCard.stars,
-              timestamp: Date.now()
-            });
+              io.to(gameId).emit('evolution-animation', {
+                type,
+                oldName,
+                newName: cardName,
+                newImage: replacementCard.frontImage,
+                oldImage,
+                playerName,
+                pti: replacementCard.pti,
+                stars: replacementCard.stars,
+                timestamp: Date.now()
+              });
+            };
+            
+            if (diceRoll !== undefined) {
+              setTimeout(emitEvolutionEvents, 5500);
+            } else {
+              emitEvolutionEvents();
+            }
 
             if (replacementCard.type === 'personaggi' || replacementCard.type === 'personaggi_speciali') {
               const dramaticMessages = [
@@ -9232,6 +9239,22 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       .split(' ')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
+  }
+
+  private getCardNameFromCardId(cardId: string): string {
+    const mod = jsonStorage.cardModifications.getByOriginalCardId(cardId);
+    if (mod?.name) return mod.name;
+    
+    const deckType = cardId.startsWith('personaggi_speciali') ? 'personaggi_speciali' : 'personaggi';
+    const deckData = CARD_DATA[deckType as keyof typeof CARD_DATA];
+    const indexStr = cardId.split('-').pop();
+    const cardIndex = indexStr ? parseInt(indexStr) : -1;
+    
+    if (deckData && cardIndex >= 0 && cardIndex < deckData.length) {
+      const imageUrl = deckData[cardIndex];
+      return this.getCardNameFromUrl(imageUrl);
+    }
+    return cardId;
   }
 
   // RIFUGIO SHELTER PROTECTION SYSTEM
