@@ -18070,6 +18070,48 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     return true;
   }
 
+  processEliminationAfterDeath(gameId: string, playerName: string, io: any, source: string = ''): boolean {
+    const game = this.games.get(gameId);
+    if (!game) return false;
+    if (game.characterLimit === 'unlimited') return false;
+    if (game.eliminatedPlayers.has(playerName)) return false;
+
+    const graveyardCount = game.graveyard.filter(
+      (c: Card) => c.eliminatedBy === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+    ).length;
+
+    const baseLimit = parseInt(game.characterLimit);
+    if (isNaN(baseLimit) || baseLimit <= 0) {
+      console.log(`⚠️ processEliminationAfterDeath: Invalid characterLimit "${game.characterLimit}" - skipping`);
+      return false;
+    }
+    const playerModifier = game.playerDeathModifiers.get(playerName) || 0;
+    const effectiveLimit = Math.max(1, baseLimit + playerModifier);
+
+    if (graveyardCount >= effectiveLimit) {
+      console.log(`💀 Player ${playerName} reached character limit (${graveyardCount}/${effectiveLimit}) via ${source} - eliminating`);
+      const eliminationSuccess = this.markPlayerEliminated(gameId, playerName);
+      if (eliminationSuccess) {
+        io.to(gameId).emit('player-eliminated', { playerName });
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-auto-elimination`,
+          playerName: 'Sistema',
+          message: `💀 ${playerName} è stato eliminato! Ha perso tutti i suoi personaggi.`,
+          timestamp: Date.now()
+        });
+
+        const winner = this.checkForGameVictory(gameId);
+        if (winner) {
+          console.log(`🏆 Game won by: ${winner}`);
+          io.to(gameId).emit('game-victory', { winner });
+          this.completeMatch(gameId, winner);
+        }
+        return true;
+      }
+    }
+    return false;
+  }
+
   // Remove player from game and return their cards to decks
   removePlayerFromGame(gameId: string, playerName: string): boolean {
     const game = this.games.get(gameId);
@@ -19903,7 +19945,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       for (const affected of affectedCards) {
         if (affected.newPTI <= 0) {
           console.log(`💀 ${affected.name} killed by CIMICE attack effect!`);
-          this.moveToGraveyard(gameId, affected.id, affected.owner, targetOwner);
+          const cimiceResult = this.moveToGraveyard(gameId, affected.id, affected.owner, targetOwner);
+          if (cimiceResult.eliminationCheck) {
+            this.processEliminationAfterDeath(gameId, affected.owner, io, 'CIMICE');
+          }
         }
       }
       
@@ -20034,7 +20079,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         
         // Move eliminated character to graveyard
         if (eliminatedCharId && eliminatedOwner && eliminatedBy) {
-          this.moveToGraveyard(gameId, eliminatedCharId, eliminatedOwner, eliminatedBy);
+          const sempResult = this.moveToGraveyard(gameId, eliminatedCharId, eliminatedOwner, eliminatedBy);
+          if (sempResult.eliminationCheck) {
+            this.processEliminationAfterDeath(gameId, eliminatedOwner, io, 'SEMPAFAAGARA');
+          }
         }
         
         // Sync state
@@ -20120,7 +20168,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         
         // Move eliminated character to graveyard
         if (eliminatedCharId && eliminatedOwner && eliminatedBy) {
-          this.moveToGraveyard(gameId, eliminatedCharId, eliminatedOwner, eliminatedBy);
+          const tennisResult = this.moveToGraveyard(gameId, eliminatedCharId, eliminatedOwner, eliminatedBy);
+          if (tennisResult.eliminationCheck) {
+            this.processEliminationAfterDeath(gameId, eliminatedOwner, io, 'PARTITA_DI_TENNIS');
+          }
         }
         
         // Sync state
@@ -20260,9 +20311,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             const handCardIndex = player.hand.findIndex((c: Card) => c.id === targetCardId);
             if (handCardIndex !== -1) {
               const deadCard = player.hand.splice(handCardIndex, 1)[0];
-              deadCard.eliminatedBy = attackerName;
+              deadCard.eliminatedBy = targetOwner;
               game?.graveyard?.push(deadCard);
               console.log(`⭐ FURTO LETALE: ${targetCard.frontImage} di ${targetOwner} è morto (stelle < 0) e va nel cimitero`);
+              this.processEliminationAfterDeath(gameId, targetOwner, io, 'FURTO_HAND');
             }
           }
         } else {
@@ -20278,10 +20330,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
           
           if (result.eliminationCheck) {
-            const eliminationSuccess = this.markPlayerEliminated(gameId, targetOwner);
-            if (eliminationSuccess) {
-              console.log(`Player ${targetOwner} automatically eliminated due to character limit (FURTO)`);
-            }
+            this.processEliminationAfterDeath(gameId, targetOwner, io, 'FURTO');
           }
         }
         
@@ -20500,7 +20549,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           
           // Check if attacker died from reflected damage
           if (newAttackerPTI <= 0) {
-            this.moveToGraveyard(gameId, attackerChar.id, attackerName, targetOwner);
+            const reflectResult = this.moveToGraveyard(gameId, attackerChar.id, attackerName, targetOwner);
+            if (reflectResult.eliminationCheck) {
+              this.processEliminationAfterDeath(gameId, attackerName, io, 'REFLECT');
+            }
           }
         }
       }
@@ -20530,7 +20582,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         
         // Check if attacker died from counter damage
         if (newAttackerPTI <= 0) {
-          this.moveToGraveyard(gameId, attackerChar.id, attackerName, targetOwner);
+          const counterResult = this.moveToGraveyard(gameId, attackerChar.id, attackerName, targetOwner);
+          if (counterResult.eliminationCheck) {
+            this.processEliminationAfterDeath(gameId, attackerName, io, 'COUNTER');
+          }
         }
       }
     }
@@ -20752,13 +20807,16 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           // If linked card dies, it should also be eliminated
           if (linkedNewPTI <= 0) {
             setTimeout(() => {
-              this.moveToGraveyard(gameId, linkedCardId, linkedCard.owner);
+              const voodooResult = this.moveToGraveyard(gameId, linkedCardId, linkedCard.owner);
               io.to(gameId).emit('chat-message', {
                 id: `${Date.now()}-voodoo-death`,
                 playerName: 'Sistema',
                 message: `🔮💀 BAMBOLA VOODOO! Il personaggio di ${linkedCard.owner} muore insieme a quello di ${targetCard.owner}!`,
                 timestamp: Date.now()
               });
+              if (voodooResult.eliminationCheck) {
+                this.processEliminationAfterDeath(gameId, linkedCard.owner, io, 'VOODOO');
+              }
               const updatedGameState = this.getSanitizedGameState(gameId);
               io.to(gameId).emit('game-state-update', updatedGameState);
             }, 1500);
@@ -20781,45 +20839,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           const handCardIndex = player.hand.findIndex((c: Card) => c.id === targetCardId);
           if (handCardIndex !== -1) {
             const deadCard = player.hand.splice(handCardIndex, 1)[0];
-            // CRITICAL FIX: eliminatedBy should be the OWNER (victim), not the attacker
-            // Deaths count against the player who owned the card, not who killed it
             deadCard.eliminatedBy = targetOwner;
             game?.graveyard?.push(deadCard);
-            console.log(`🎯 ATTACCO DISONESTO: ${targetCard.frontImage} di ${targetOwner} è morto e va nel cimitero (morte contata per ${targetOwner})`);
+            console.log(`🎯 ATTACCO DISONESTO: ${targetCard.frontImage} di ${targetOwner} è morto e va nel cimitero`);
             
-            // Check for player elimination after ATTACCO DISONESTO kill
-            const graveyardCount = game?.graveyard?.filter(
-              (c: Card) => c.eliminatedBy === targetOwner && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
-            ).length || 0;
-            
-            if (game && game.characterLimit !== 'unlimited') {
-              const baseLimit = parseInt(game.characterLimit);
-              const playerModifier = game.playerDeathModifiers.get(targetOwner) || 0;
-              const effectiveLimit = Math.max(1, baseLimit + playerModifier); // Minimum 1 death required
-              if (graveyardCount >= effectiveLimit && !game.eliminatedPlayers.has(targetOwner)) {
-                console.log(`Player ${targetOwner} has reached character limit via ATTACCO DISONESTO - automatically eliminating`);
-                
-                const eliminationSuccess = this.markPlayerEliminated(gameId, targetOwner);
-                if (eliminationSuccess) {
-                  console.log(`Player ${targetOwner} automatically eliminated due to character limit (ATTACCO DISONESTO)`);
-                  io.to(gameId).emit('player-eliminated', { playerName: targetOwner });
-                  
-                  io.to(gameId).emit('chat-message', {
-                    id: `${Date.now()}-auto-elimination-disonesto`,
-                    playerName: 'Sistema',
-                    message: `${targetOwner} è stato eliminato! Ha perso tutti i suoi personaggi per ATTACCO DISONESTO.`,
-                    timestamp: Date.now()
-                  });
-                  
-                  const winner = this.checkForGameVictory(gameId);
-                  if (winner) {
-                    console.log(`Game won by: ${winner}`);
-                    io.to(gameId).emit('game-victory', { winner });
-                    this.completeMatch(gameId, winner);
-                  }
-                }
-              }
-            }
+            this.processEliminationAfterDeath(gameId, targetOwner, io, 'ATTACCO_DISONESTO');
             
     // Track elimination count for SOROS activation (attacker gets credit)
     const attackerPlayer = game?.players?.[attackerName];
@@ -20863,30 +20887,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         
         // CHECK FOR PLAYER ELIMINATION after character death
         if (result.eliminationCheck) {
-          console.log(`Player ${targetOwner} has reached character limit via MOSSE damage - automatically eliminating`);
-          
-          const eliminationSuccess = this.markPlayerEliminated(gameId, targetOwner);
-          if (eliminationSuccess) {
-            console.log(`Player ${targetOwner} automatically eliminated due to character limit`);
-            io.to(gameId).emit('player-eliminated', { playerName: targetOwner });
-            
-            // Send elimination message
-            io.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-auto-elimination`,
-              playerName: 'Sistema',
-              message: `${targetOwner} è stato eliminato! Ha perso tutti i suoi personaggi.`,
-              timestamp: Date.now()
-            });
-            
-            // Check for game victory
-            const winner = this.checkForGameVictory(gameId);
-            if (winner) {
-              console.log(`Game won by: ${winner}`);
-              io.to(gameId).emit('game-victory', { winner });
-              // Award Rankiard points
-              this.completeMatch(gameId, winner);
-            }
-          }
+          this.processEliminationAfterDeath(gameId, targetOwner, io, 'MOSSE_DAMAGE');
         }
       }
       
