@@ -1785,16 +1785,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         <div className="absolute w-[300px] h-[300px] rounded-full blur-[60px] animate-bg-float-3 dynamic-bg-transition" style={{ background: `radial-gradient(circle, ${bgColors.orb3}, transparent 70%)`, opacity: bgColors.opacity3, top: '50%', left: '60%' }} />
       </div>
 
-      {/* Back to Home button */}
-      {onBack && (
-        <button
-          onClick={onBack}
-          className="fixed top-4 left-4 z-40 px-3 py-1.5 rounded-xl text-white/80 hover:text-white text-sm font-medium transition-all duration-200 flex items-center gap-1.5 border border-white/10 hover:border-white/20 hover:bg-white/5"
-          style={{ background: 'rgba(10, 8, 30, 0.6)', backdropFilter: 'blur(12px)' }}
-        >
-          ← Indietro
-        </button>
-      )}
+      {/* Back to Home button - hidden since back is in header menu */}
 
       {/* Portrait mode message - only show on mobile portrait if not dismissed */}
       {showRotationWarning && (
@@ -3185,11 +3176,21 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       )}
 
       {/* Game content */}
-      <div className="relative z-10">
-        {/* Header - Compact glassmorphism bar */}
-        <div className="flex items-center justify-between mb-3 gap-2 px-1">
-          {/* Left: Logo + Room */}
+      <div className="relative z-10 pt-14 landscape:pt-12 md:pt-14">
+        {/* Header - Compact glassmorphism bar - fixed at top */}
+        <div className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between gap-2 px-3 py-2"
+          style={{ background: 'rgba(10, 8, 30, 0.85)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}
+        >
+          {/* Left: Back + Logo + Room */}
           <div className="flex items-center gap-2 min-w-0">
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="text-white/60 hover:text-white transition-colors text-sm"
+              >
+                ←
+              </button>
+            )}
             <h1 className="text-lg landscape:text-2xl md:text-2xl font-black text-white tracking-tight whitespace-nowrap" style={{textShadow: '0 2px 8px rgba(0,0,0,0.6)'}}>MINKIARDS</h1>
             {gameId && gameId.startsWith('room-') && (
               <span className="text-white/50 text-[10px] landscape:text-xs md:text-xs bg-white/5 px-2 py-0.5 rounded-full border border-white/10 whitespace-nowrap">
