@@ -96,7 +96,7 @@ Cinematic full-screen overlay animation when turns change. Different styling for
 
 ## UI Layout
 - **Compact Header**: Single-line header with MINKIARDS logo, room code, primary actions (COMINCIA, CPU), user info badge, and a glassmorphism dropdown menu (MoreVertical icon) containing secondary actions (Regolamento, Invita Amici, Missioni, Trofei, Rankiard, Nuova/Ricomincia Partita).
-- **Unified Bottom Toolbar**: All game controls merged into a single centered glassmorphism bar at the bottom: Hand, End Turn | Chat, Game Log | Dice, Calculator, Graveyard, Shuffle | Audio controls, Music, Settings, VoiceChat. Dividers separate logical groups.
+- **Right-side Game Tools**: Compact glassmorphism toolbar fixed at the bottom-right with game action buttons: Hand, End Turn | Chat, Game Log | Dice, Calculator, Graveyard, Shuffle, VoiceChat. Dividers separate logical groups. Audio/Music/Settings controls moved to header dropdown menu to avoid overlap with other game elements.
 - **Animated Background**: CSS gradient background with 3 floating radial gradient orbs (purple, blue, cyan) that drift slowly for subtle depth. No external image dependency.
 
 ## Persistent Turn Indicator

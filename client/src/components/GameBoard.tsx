@@ -3212,6 +3212,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                         <RotateCcw size={16} className="flex-shrink-0" />
                         Ricomincia Partita
                       </button>
+                      <div className="my-1 border-t border-white/10" />
+                      <button onClick={() => { initAudioContext(); toggleMute(); setHeaderMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors">
+                        {isMuted ? <VolumeX size={16} className="text-violet-400 flex-shrink-0" /> : <Volume2 size={16} className="text-violet-400 flex-shrink-0" />}
+                        {isMuted ? 'Attiva Audio' : 'Disattiva Audio'}
+                      </button>
+                      <button onClick={() => { setSoundSettingsOpen(!soundSettingsOpen); setHeaderMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors">
+                        <Settings size={16} className="text-cyan-400 flex-shrink-0" />
+                        Impostazioni Audio
+                      </button>
+                      <button onClick={() => { setMusicPlayerOpen(!musicPlayerOpen); setHeaderMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors">
+                        <Music size={16} className="text-pink-400 flex-shrink-0" />
+                        Musica
+                      </button>
                     </div>
                   </div>
                 </>
@@ -3237,28 +3250,26 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           <Graveyard onClose={() => setGraveyardOpen(false)} />
         )}
 
-        {/* Unified Bottom Toolbar */}
+        {/* Right-side Game Tools */}
         <div
           data-tutorial="tools"
-          className="fixed bottom-3 landscape:bottom-4 md:bottom-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-300"
+          className="fixed bottom-3 landscape:bottom-4 md:bottom-4 right-2 landscape:right-3 md:right-4 z-30 transition-all duration-300"
           style={{
             opacity: (chatOpen || calculatorOpen || gameLogOpen || soundSettingsOpen || musicPlayerOpen) ? 0 : 1,
             pointerEvents: (chatOpen || calculatorOpen || gameLogOpen || soundSettingsOpen || musicPlayerOpen) ? 'none' : 'auto',
-            transform: `translateX(-50%) ${(chatOpen || calculatorOpen || gameLogOpen || soundSettingsOpen || musicPlayerOpen) ? 'translateY(20px)' : 'translateY(0)'}`,
           }}
         >
           <div
-            className="flex items-center gap-1 landscape:gap-1.5 md:gap-1.5 px-2 landscape:px-3 md:px-3 py-1.5 landscape:py-2 md:py-2 rounded-2xl border border-white/15 shadow-2xl shadow-black/50"
-            style={{ background: 'rgba(10, 8, 30, 0.85)', backdropFilter: 'blur(20px)' }}
+            className="flex items-center gap-1 px-1.5 py-1 rounded-2xl border border-white/15 shadow-2xl shadow-black/50"
+            style={{ background: 'rgba(10, 8, 30, 0.8)', backdropFilter: 'blur(16px)' }}
           >
-            {/* Hand button */}
             <button
               data-tutorial="hand"
               onClick={() => setHandModalOpen(true)}
-              className="relative p-2 landscape:p-2.5 md:p-2.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 hover:text-purple-200 transition-all duration-200"
+              className="relative p-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 hover:text-purple-200 transition-all duration-200"
               title="Carte in Mano"
             >
-              <Hand size={16} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" />
+              <Hand size={16} />
               {gameState?.players?.[playerName]?.hand?.length ? (
                 <span className="absolute -top-1 -right-1 bg-cyan-500 text-white rounded-full text-[9px] w-4 h-4 flex items-center justify-center font-bold">
                   {gameState.players[playerName].hand.length}
@@ -3266,25 +3277,22 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               ) : null}
             </button>
 
-            {/* End Turn */}
             <button
               onClick={() => socket.emit('force-end-turn', { gameId })}
-              className="p-2 landscape:p-2.5 md:p-2.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-300 hover:text-cyan-200 transition-all duration-200"
+              className="p-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-300 hover:text-cyan-200 transition-all duration-200"
               title="Fine Turno"
             >
-              <SkipForward size={16} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" />
+              <SkipForward size={16} />
             </button>
 
-            {/* Divider */}
-            <div className="w-px h-6 bg-white/10 mx-0.5" />
+            <div className="w-px h-5 bg-white/10" />
 
-            {/* Chat */}
             <button
               onClick={() => { if (chatOpen) { handleCloseChat(); } else { handleOpenChat(); } }}
-              className="relative p-2 landscape:p-2.5 md:p-2.5 rounded-xl bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 hover:text-blue-200 transition-all duration-200"
+              className="relative p-2 rounded-xl bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 hover:text-blue-200 transition-all duration-200"
               title="Chat"
             >
-              <MessageCircle size={16} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" />
+              <MessageCircle size={16} />
               {unreadMessages > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-[9px] w-4 h-4 flex items-center justify-center font-bold">
                   {unreadMessages > 9 ? '9+' : unreadMessages}
@@ -3292,46 +3300,40 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               )}
             </button>
 
-            {/* Game Log */}
             <button
               onClick={() => setGameLogOpen(!gameLogOpen)}
-              className="p-2 landscape:p-2.5 md:p-2.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 hover:text-purple-200 transition-all duration-200"
+              className="p-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 hover:text-purple-200 transition-all duration-200"
               title="Game Log"
             >
-              <ScrollText size={16} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" />
+              <ScrollText size={16} />
             </button>
 
-            {/* Divider */}
-            <div className="w-px h-6 bg-white/10 mx-0.5" />
+            <div className="w-px h-5 bg-white/10" />
 
-            {/* Dice */}
             <button
               onClick={() => setDiceOpen(true)}
-              className="p-2 landscape:p-2.5 md:p-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 hover:text-amber-200 transition-all duration-200"
+              className="p-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 hover:text-amber-200 transition-all duration-200"
               title="Dado"
             >
-              <Dice6 size={16} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" />
+              <Dice6 size={16} />
             </button>
 
-            {/* Calculator */}
             <button
               onClick={() => setCalculatorOpen(!calculatorOpen)}
-              className="p-2 landscape:p-2.5 md:p-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 hover:text-emerald-200 transition-all duration-200"
+              className="p-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 hover:text-emerald-200 transition-all duration-200"
               title="Calcolatrice"
             >
-              <CalcIcon size={16} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" />
+              <CalcIcon size={16} />
             </button>
 
-            {/* Graveyard */}
             <button
               onClick={() => setGraveyardOpen(true)}
-              className="p-2 landscape:p-2.5 md:p-2.5 rounded-xl bg-gray-500/20 hover:bg-gray-500/40 text-gray-300 hover:text-gray-200 transition-all duration-200"
+              className="p-2 rounded-xl bg-gray-500/20 hover:bg-gray-500/40 text-gray-300 hover:text-gray-200 transition-all duration-200"
               title="Cimitero"
             >
-              <Skull size={16} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" />
+              <Skull size={16} />
             </button>
 
-            {/* Shuffle */}
             <button
               onClick={() => {
                 playDeckShuffle();
@@ -3340,43 +3342,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   socket.emit('shuffle-deck', { deckType });
                 });
               }}
-              className="p-2 landscape:p-2.5 md:p-2.5 rounded-xl bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 hover:text-blue-200 transition-all duration-200"
+              className="p-2 rounded-xl bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 hover:text-blue-200 transition-all duration-200"
               title="Mischia Mazzi"
             >
-              <Shuffle size={16} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" />
+              <Shuffle size={16} />
             </button>
 
-            {/* Divider */}
-            <div className="w-px h-6 bg-white/10 mx-0.5" />
-
-            {/* Audio controls */}
-            <button
-              onClick={() => { initAudioContext(); toggleMute(); }}
-              className="p-2 landscape:p-2.5 md:p-2.5 rounded-xl bg-violet-500/20 hover:bg-violet-500/40 text-violet-300 hover:text-violet-200 transition-all duration-200"
-              title={isMuted ? "Attiva Audio" : "Disattiva Audio"}
-            >
-              {isMuted ? <VolumeX size={16} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" /> : <Volume2 size={16} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" />}
-            </button>
-
-            {/* Music */}
-            <button
-              onClick={() => setMusicPlayerOpen(!musicPlayerOpen)}
-              className="p-2 landscape:p-2.5 md:p-2.5 rounded-xl bg-pink-500/20 hover:bg-pink-500/40 text-pink-300 hover:text-pink-200 transition-all duration-200"
-              title="Musica"
-            >
-              <Music size={16} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" />
-            </button>
-
-            {/* Sound Settings */}
-            <button
-              onClick={() => setSoundSettingsOpen(!soundSettingsOpen)}
-              className="p-2 landscape:p-2.5 md:p-2.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-300 hover:text-cyan-200 transition-all duration-200"
-              title="Impostazioni Audio"
-            >
-              <Settings size={16} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" />
-            </button>
-
-            {/* Voice Chat */}
             <VoiceChat />
           </div>
         </div>
@@ -3385,7 +3356,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         <div id="sound-settings-container">
           {soundSettingsOpen && (
             <div 
-              className="fixed bottom-20 landscape:bottom-24 md:bottom-24 left-1/2 -translate-x-1/2 w-[calc(100vw-2rem)] max-w-80 h-80 landscape:h-96 md:h-[28rem] z-50 fade-in duration-300"
+              className="fixed bottom-4 right-2 landscape:right-4 md:right-4 w-[calc(100vw-2rem)] max-w-80 h-80 landscape:h-96 md:h-[28rem] z-50 fade-in duration-300"
               style={{ position: 'fixed' }}
             >
               <SoundSettings onClose={() => setSoundSettingsOpen(false)} />
@@ -3401,7 +3372,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         {/* Calculator */}
         {calculatorOpen && (
           <div 
-            className="fixed bottom-20 landscape:bottom-24 md:bottom-24 left-1/2 -translate-x-1/2 w-[calc(100vw-2rem)] max-w-80 z-40 animate-in slide-in-from-bottom-5 fade-in duration-300"
+            className="fixed bottom-4 right-2 landscape:right-4 md:right-4 w-[calc(100vw-2rem)] max-w-80 z-40 animate-in slide-in-from-bottom-5 fade-in duration-300"
             style={{ position: 'fixed' }}
           >
             <Calculator onClose={() => setCalculatorOpen(false)} />
