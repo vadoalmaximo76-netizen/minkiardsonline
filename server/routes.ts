@@ -1637,6 +1637,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     targetCardId: currentAction.data.targetCardId,
                     attackerName: currentAction.data.attackerName,
                     targetOwner: currentAction.data.targetOwner,
+                    damageValue: currentAction.data.damageValue || 0,
                     timestamp: Date.now()
                   });
                   
@@ -1864,6 +1865,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     targetCardId: currentAction.data.targetCardId,
                     attackerName: currentAction.data.attackerName,
                     targetOwner: currentAction.data.targetOwner,
+                    damageValue: currentAction.data.damageValue || 0,
                     timestamp: Date.now()
                   });
                   break;
@@ -5277,6 +5279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   targetCardId: target.id,
                   attackerName: playerName,
                   targetOwner: target.owner,
+                  damageValue: 0,
                   timestamp: Date.now()
                 });
                 
@@ -5794,6 +5797,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       targetCardId: cpuAction.data.targetCardId,
                       attackerName: cpuAction.data.attackerName,
                       targetOwner: cpuAction.data.targetOwner,
+                      damageValue: cpuAction.data.damageValue || 0,
                       timestamp: Date.now()
                     });
                     
@@ -6330,7 +6334,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         io.to(gameId).emit('card-attacked', {
                           targetCardName: targetCardName,
                           fromPlayer: cpuAction.data.playerName,
-                          toPlayer: cpuAction.data.targetOwner
+                          toPlayer: cpuAction.data.targetOwner,
+                          attackerName: cpuAction.data.playerName,
+                          targetOwner: cpuAction.data.targetOwner,
+                          damageValue: 0
                         });
                       } else {
                         console.error(`CPU ${nextPlayer} MOSSE attack failed: ${attackResult.error}`);

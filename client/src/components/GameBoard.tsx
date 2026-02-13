@@ -591,15 +591,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       setScenarioCardsActive(active);
     };
 
-    const handleCardAttacked = ({ targetCardName, fromPlayer, toPlayer }: { targetCardName: string, fromPlayer: string, toPlayer: string }) => {
-      console.log(`${fromPlayer} attacked ${toPlayer}'s ${targetCardName}`);
-      setAttackedCharacterName(targetCardName);
+    const handleCardAttacked = ({ targetCardName, fromPlayer, toPlayer, damageValue, attackerName, targetOwner }: { targetCardName?: string, fromPlayer?: string, toPlayer?: string, damageValue?: number, attackerName?: string, targetOwner?: string }) => {
+      const attacker = fromPlayer || attackerName || '???';
+      const defender = toPlayer || targetOwner || '???';
+      const target = targetCardName || defender;
+      const dmg = damageValue || 0;
+      console.log(`${attacker} attacked ${defender}'s ${target} for ${dmg} damage`);
+      setAttackedCharacterName(target);
       setAttackEffectVisible(false);
       setTimeout(() => {
         setAttackEffectKey(prev => prev + 1);
         setAttackEffectVisible(true);
       }, 10);
-      setAttackSlash3D({ visible: true, attackerName: fromPlayer, targetName: targetCardName, damage: 0 });
+      setAttackSlash3D({ visible: true, attackerName: attacker, targetName: target, damage: dmg });
       playAttackSound();
       playDamageSound();
     };

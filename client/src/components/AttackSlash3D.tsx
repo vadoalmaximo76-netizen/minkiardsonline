@@ -187,11 +187,33 @@ export const AttackSlash3D: React.FC<AttackSlash3DProps> = ({
           pointer-events: none;
         }
 
-        .damage-number {
+        .damage-info {
           position: absolute;
           top: 50%;
           left: 50%;
           transform: translate(-50%, -50%);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 2px;
+          animation: damage-float 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.5s forwards;
+          pointer-events: none;
+          white-space: nowrap;
+          z-index: 10;
+        }
+
+        .attacker-name {
+          font-size: 1.1rem;
+          font-weight: 800;
+          color: #ffaa00;
+          text-shadow: 
+            0 0 8px rgba(255, 170, 0, 0.8),
+            2px 2px 0 rgba(0, 0, 0, 0.9);
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+
+        .damage-number {
           font-size: 4rem;
           font-weight: 900;
           color: #ff4444;
@@ -199,10 +221,27 @@ export const AttackSlash3D: React.FC<AttackSlash3DProps> = ({
             0 0 10px rgba(255, 68, 68, 0.8),
             0 0 20px rgba(255, 100, 0, 0.6),
             2px 2px 0 rgba(0, 0, 0, 0.8);
-          animation: damage-float 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.5s forwards;
-          pointer-events: none;
-          white-space: nowrap;
-          z-index: 10;
+          line-height: 1;
+        }
+
+        .target-label {
+          font-size: 0.85rem;
+          font-weight: 700;
+          color: rgba(255, 255, 255, 0.7);
+          text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.9);
+          letter-spacing: 2px;
+          text-transform: uppercase;
+        }
+
+        .target-name {
+          font-size: 1.1rem;
+          font-weight: 800;
+          color: #66bbff;
+          text-shadow: 
+            0 0 8px rgba(102, 187, 255, 0.8),
+            2px 2px 0 rgba(0, 0, 0, 0.9);
+          text-transform: uppercase;
+          letter-spacing: 1px;
         }
       `}</style>
 
@@ -241,9 +280,12 @@ export const AttackSlash3D: React.FC<AttackSlash3DProps> = ({
           );
         })}
 
-        {/* Damage number */}
-        <div className="damage-number">
-          {damage}
+        {/* Damage info with attacker, damage value, and target */}
+        <div className="damage-info">
+          <div className="attacker-name">{attackerName}</div>
+          <div className="damage-number">{damage}</div>
+          <div className="target-label">SU</div>
+          <div className="target-name">{targetName}</div>
         </div>
       </div>
     </>
