@@ -51,6 +51,7 @@ import { EmojiReactions } from "./EmojiReactions";
 import { JoinRequestDialog } from "./JoinRequestDialog";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
+import { useBackgroundEffect } from "../lib/stores/useBackgroundEffect";
 import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
@@ -1659,6 +1660,63 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
   }, []);
 
+  const { triggerEvent: triggerBgEvent, colors: bgColors } = useBackgroundEffect();
+
+  useEffect(() => {
+    const onAttack = () => triggerBgEvent('attack');
+    const onDeath = () => triggerBgEvent('death');
+    const onEvolution = () => triggerBgEvent('evolution');
+    const onCardPlayed = (data: any) => {
+      if (data?.cardType === 'bonus') {
+        triggerBgEvent('bonus');
+      } else {
+        triggerBgEvent('card-played');
+      }
+    };
+    const onDice = () => triggerBgEvent('dice');
+    const onSpecialMove = () => triggerBgEvent('special-move');
+    const onNextTurn = (data: any) => {
+      if (data?.nextPlayer === playerName) {
+        triggerBgEvent('my-turn');
+      } else {
+        triggerBgEvent('opponent-turn');
+      }
+    };
+    const onClash = () => triggerBgEvent('clash');
+    const onHostage = () => triggerBgEvent('hostage');
+    const onDefense = () => triggerBgEvent('defense');
+
+    socket.on('card-attacked', onAttack);
+    socket.on('card-to-graveyard', onDeath);
+    socket.on('evolution-animation', onEvolution);
+    socket.on('card-played', onCardPlayed);
+    socket.on('dice-rolled', onDice);
+    socket.on('dice-roll', onDice);
+    socket.on('evolution-dice-roll', onDice);
+    socket.on('special-move-overlay', onSpecialMove);
+    socket.on('next-turn', onNextTurn);
+    socket.on('clash-battle-start', onClash);
+    socket.on('hostage-applied', onHostage);
+    socket.on('defense-card-used', onDefense);
+    socket.on('attack-blocked', onDefense);
+
+    return () => {
+      socket.off('card-attacked', onAttack);
+      socket.off('card-to-graveyard', onDeath);
+      socket.off('evolution-animation', onEvolution);
+      socket.off('card-played', onCardPlayed);
+      socket.off('dice-rolled', onDice);
+      socket.off('dice-roll', onDice);
+      socket.off('evolution-dice-roll', onDice);
+      socket.off('special-move-overlay', onSpecialMove);
+      socket.off('next-turn', onNextTurn);
+      socket.off('clash-battle-start', onClash);
+      socket.off('hostage-applied', onHostage);
+      socket.off('defense-card-used', onDefense);
+      socket.off('attack-blocked', onDefense);
+    };
+  }, [triggerBgEvent, playerName]);
+
   return (
     <div className="min-h-screen bg-arena-deep text-slate-100 p-4 relative">
       {/* Connection Status Banner */}
@@ -1707,12 +1765,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         gameId={gameId || ''}
       />
       
-      {/* Animated gradient background */}
-      <div className="fixed inset-0 game-bg-gradient pointer-events-none" />
+      {/* Animated gradient background - dynamic colors based on game events */}
+      <div className="fixed inset-0 pointer-events-none dynamic-bg-transition" style={{ background: bgColors.gradient }} />
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute w-[500px] h-[500px] rounded-full opacity-[0.07] blur-[100px] animate-bg-float-1" style={{ background: 'radial-gradient(circle, #9333ea, transparent 70%)', top: '10%', left: '20%' }} />
-        <div className="absolute w-[400px] h-[400px] rounded-full opacity-[0.05] blur-[80px] animate-bg-float-2" style={{ background: 'radial-gradient(circle, #3b82f6, transparent 70%)', bottom: '20%', right: '15%' }} />
-        <div className="absolute w-[300px] h-[300px] rounded-full opacity-[0.04] blur-[60px] animate-bg-float-3" style={{ background: 'radial-gradient(circle, #06b6d4, transparent 70%)', top: '50%', left: '60%' }} />
+        <div className="absolute w-[500px] h-[500px] rounded-full blur-[100px] animate-bg-float-1 dynamic-bg-transition" style={{ background: `radial-gradient(circle, ${bgColors.orb1}, transparent 70%)`, opacity: bgColors.opacity1, top: '10%', left: '20%' }} />
+        <div className="absolute w-[400px] h-[400px] rounded-full blur-[80px] animate-bg-float-2 dynamic-bg-transition" style={{ background: `radial-gradient(circle, ${bgColors.orb2}, transparent 70%)`, opacity: bgColors.opacity2, bottom: '20%', right: '15%' }} />
+        <div className="absolute w-[300px] h-[300px] rounded-full blur-[60px] animate-bg-float-3 dynamic-bg-transition" style={{ background: `radial-gradient(circle, ${bgColors.orb3}, transparent 70%)`, opacity: bgColors.opacity3, top: '50%', left: '60%' }} />
       </div>
 
       {/* Back to Home button */}

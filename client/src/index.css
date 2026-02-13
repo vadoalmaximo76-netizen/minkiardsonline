@@ -352,6 +352,10 @@
 .animate-bg-float-2 { animation: bg-float-2 25s ease-in-out infinite; }
 .animate-bg-float-3 { animation: bg-float-3 18s ease-in-out infinite; }
 
+.dynamic-bg-transition {
+  transition: background 2.5s ease-in-out, opacity 2s ease-in-out;
+}
+
 .bg-royal-blue {
   background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
   border: 1px solid rgba(147, 51, 234, 0.2);
