@@ -176,6 +176,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   const [showHoverPreview, setShowHoverPreview] = useState(false);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
   const [damageFlash, setDamageFlash] = useState(false);
+  const [isLowHealth, setIsLowHealth] = useState(false);
   const [cardTilt, setCardTilt] = useState({ rotateX: 0, rotateY: 0, glareX: 50, glareY: 50 });
   const [isHovered, setIsHovered] = useState(false);
   
@@ -241,7 +242,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   const isMyTurn = currentTurnPlayer === playerName;
   const isPlayable = location === 'hand' && isMyTurn;
 
-  const { playPointGain, playPointLoss, playStarGain, playStarLoss, playCardPlay } = useAudio();
+  const { playPointGain, playPointLoss, playStarGain, playStarLoss, playCardPlay, registerLowHealthCard, unregisterLowHealthCard } = useAudio();
 
   // Detect PTI and Star changes to trigger visual/audio effects
   useEffect(() => {
@@ -312,6 +313,45 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       playCardPlay();
     }
   }, []);
+
+  useEffect(() => {
+    const isPersonaggioCard = card.type === 'personaggi' || card.type === 'personaggi_speciali';
+    if (!isPersonaggioCard || location !== 'field' || card.faceDown) {
+      if (isLowHealth) {
+        setIsLowHealth(false);
+        unregisterLowHealthCard(card.id);
+      }
+      return;
+    }
+
+    const currentPTI = parsePTI(card.text);
+    const originalPTI = originalPTIRef.current || parseOriginalPTI(card.text) || currentPTI || 1000;
+
+    if (currentPTI === null || originalPTI === null || currentPTI <= 0) {
+      if (isLowHealth) {
+        setIsLowHealth(false);
+        unregisterLowHealthCard(card.id);
+      }
+      return;
+    }
+
+    const healthPercent = getHealthPercentage(currentPTI, originalPTI);
+
+    if (healthPercent > 0 && healthPercent < 20 && !isLowHealth) {
+      setIsLowHealth(true);
+      registerLowHealthCard(card.id);
+    } else if ((healthPercent >= 20 || healthPercent <= 0) && isLowHealth) {
+      setIsLowHealth(false);
+      unregisterLowHealthCard(card.id);
+    }
+  }, [card.text, card.type, card.faceDown, card.id, location, isLowHealth, registerLowHealthCard, unregisterLowHealthCard]);
+
+  useEffect(() => {
+    const cardId = card.id;
+    return () => {
+      unregisterLowHealthCard(cardId);
+    };
+  }, [card.id, unregisterLowHealthCard]);
 
   const getCardName = (cardData: any) => {
     // First check if the card has a custom name property
@@ -1231,7 +1271,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         
         {/* Card image - immediately clickable */}
         <div 
-          className="relative cursor-pointer"
+          className={`relative cursor-pointer ${isLowHealth && location === 'field' ? 'low-health-critical' : ''}`}
           onClick={handleCardClick}
         >
           <img
@@ -1262,6 +1302,9 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                 transition: 'background 0.1s ease-out',
               }}
             />
+          )}
+          {isLowHealth && location === 'field' && (
+            <div className="absolute inset-0 low-health-critical-overlay rounded-xl" />
           )}
           {appliedSkinUrl && !showBack && !card.faceDown && (
             <div className="absolute -top-1 -right-1 bg-violet-500 rounded-full p-0.5 z-10">

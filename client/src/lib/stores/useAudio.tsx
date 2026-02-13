@@ -73,9 +73,10 @@ interface AudioState {
   playPopupAppear: () => void;
   playCountdown: () => void;
   playLevelUp: () => void;
-  startLowHealthAlarm: () => (() => void) | null;
-  stopLowHealthAlarm: () => void;
+  registerLowHealthCard: (cardId: string) => void;
+  unregisterLowHealthCard: (cardId: string) => void;
   _lowHealthAlarmNodes: { oscillators: OscillatorNode[]; gains: GainNode[]; lfo: OscillatorNode | null; active: boolean } | null;
+  _lowHealthCardIds: Set<string>;
   soundSettings: {
     turnChange: boolean;
     attack: boolean;
@@ -97,6 +98,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   isMuted: false,
   audioContext: null,
   _lowHealthAlarmNodes: null,
+  _lowHealthCardIds: new Set<string>(),
   soundSettings: (() => {
     try {
       const saved = typeof window !== 'undefined' ? localStorage.getItem('minkiards-sound-settings') : null;
@@ -2071,76 +2073,77 @@ export const useAudio = create<AudioState>((set, get) => ({
     });
   },
 
-  startLowHealthAlarm: () => {
-    const { isMuted, audioContext, _lowHealthAlarmNodes } = get();
-    if (isMuted || !audioContext) return null;
-    if (_lowHealthAlarmNodes?.active) return null;
+  registerLowHealthCard: (cardId: string) => {
+    const { _lowHealthCardIds, _lowHealthAlarmNodes, isMuted, audioContext } = get();
+    const newSet = new Set(_lowHealthCardIds);
+    newSet.add(cardId);
+    set({ _lowHealthCardIds: newSet });
 
-    const masterGain = audioContext.createGain();
-    masterGain.gain.setValueAtTime(0.06, audioContext.currentTime);
-    masterGain.connect(audioContext.destination);
+    if (!_lowHealthAlarmNodes?.active && !isMuted && audioContext) {
+      const masterGain = audioContext.createGain();
+      masterGain.gain.setValueAtTime(0.06, audioContext.currentTime);
+      masterGain.connect(audioContext.destination);
 
-    const osc1 = audioContext.createOscillator();
-    const gain1 = audioContext.createGain();
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(660, audioContext.currentTime);
-    gain1.gain.setValueAtTime(0.7, audioContext.currentTime);
-    osc1.connect(gain1);
-    gain1.connect(masterGain);
+      const osc1 = audioContext.createOscillator();
+      const gain1 = audioContext.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(660, audioContext.currentTime);
+      gain1.gain.setValueAtTime(0.7, audioContext.currentTime);
+      osc1.connect(gain1);
+      gain1.connect(masterGain);
 
-    const osc2 = audioContext.createOscillator();
-    const gain2 = audioContext.createGain();
-    osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(550, audioContext.currentTime);
-    gain2.gain.setValueAtTime(0.5, audioContext.currentTime);
-    osc2.connect(gain2);
-    gain2.connect(masterGain);
+      const osc2 = audioContext.createOscillator();
+      const gain2 = audioContext.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(550, audioContext.currentTime);
+      gain2.gain.setValueAtTime(0.5, audioContext.currentTime);
+      osc2.connect(gain2);
+      gain2.connect(masterGain);
 
-    const lfo = audioContext.createOscillator();
-    const lfoGain = audioContext.createGain();
-    lfo.type = 'sine';
-    lfo.frequency.setValueAtTime(1.8, audioContext.currentTime);
-    lfoGain.gain.setValueAtTime(110, audioContext.currentTime);
-    lfo.connect(lfoGain);
-    lfoGain.connect(osc1.frequency);
-    lfoGain.connect(osc2.frequency);
+      const lfo = audioContext.createOscillator();
+      const lfoGain = audioContext.createGain();
+      lfo.type = 'sine';
+      lfo.frequency.setValueAtTime(1.8, audioContext.currentTime);
+      lfoGain.gain.setValueAtTime(110, audioContext.currentTime);
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc1.frequency);
+      lfoGain.connect(osc2.frequency);
 
-    const ampLfo = audioContext.createOscillator();
-    const ampLfoGain = audioContext.createGain();
-    ampLfo.type = 'sine';
-    ampLfo.frequency.setValueAtTime(3.5, audioContext.currentTime);
-    ampLfoGain.gain.setValueAtTime(0.03, audioContext.currentTime);
-    ampLfo.connect(ampLfoGain);
-    ampLfoGain.connect(masterGain.gain);
+      const ampLfo = audioContext.createOscillator();
+      const ampLfoGain = audioContext.createGain();
+      ampLfo.type = 'sine';
+      ampLfo.frequency.setValueAtTime(3.5, audioContext.currentTime);
+      ampLfoGain.gain.setValueAtTime(0.03, audioContext.currentTime);
+      ampLfo.connect(ampLfoGain);
+      ampLfoGain.connect(masterGain.gain);
 
-    osc1.start(audioContext.currentTime);
-    osc2.start(audioContext.currentTime);
-    lfo.start(audioContext.currentTime);
-    ampLfo.start(audioContext.currentTime);
+      osc1.start(audioContext.currentTime);
+      osc2.start(audioContext.currentTime);
+      lfo.start(audioContext.currentTime);
+      ampLfo.start(audioContext.currentTime);
 
-    const nodes = { oscillators: [osc1, osc2, ampLfo], gains: [gain1, gain2, masterGain, lfoGain, ampLfoGain], lfo, active: true };
-    set({ _lowHealthAlarmNodes: nodes });
-
-    const stopFn = () => {
-      get().stopLowHealthAlarm();
-    };
-    return stopFn;
+      set({ _lowHealthAlarmNodes: { oscillators: [osc1, osc2, ampLfo], gains: [gain1, gain2, masterGain, lfoGain, ampLfoGain], lfo, active: true } });
+    }
   },
 
-  stopLowHealthAlarm: () => {
-    const { _lowHealthAlarmNodes, audioContext } = get();
-    if (!_lowHealthAlarmNodes?.active || !audioContext) return;
+  unregisterLowHealthCard: (cardId: string) => {
+    const { _lowHealthCardIds, _lowHealthAlarmNodes, audioContext } = get();
+    const newSet = new Set(_lowHealthCardIds);
+    newSet.delete(cardId);
+    set({ _lowHealthCardIds: newSet });
 
-    const now = audioContext.currentTime;
-    _lowHealthAlarmNodes.gains.forEach(g => {
-      try { g.gain.cancelScheduledValues(now); g.gain.linearRampToValueAtTime(0, now + 0.3); } catch {}
-    });
+    if (newSet.size === 0 && _lowHealthAlarmNodes?.active && audioContext) {
+      const now = audioContext.currentTime;
+      _lowHealthAlarmNodes.gains.forEach(g => {
+        try { g.gain.cancelScheduledValues(now); g.gain.linearRampToValueAtTime(0, now + 0.3); } catch {}
+      });
 
-    setTimeout(() => {
-      _lowHealthAlarmNodes.oscillators.forEach(o => { try { o.stop(); } catch {} });
-      if (_lowHealthAlarmNodes.lfo) { try { _lowHealthAlarmNodes.lfo.stop(); } catch {} }
-    }, 400);
+      setTimeout(() => {
+        _lowHealthAlarmNodes.oscillators.forEach(o => { try { o.stop(); } catch {} });
+        if (_lowHealthAlarmNodes.lfo) { try { _lowHealthAlarmNodes.lfo.stop(); } catch {} }
+      }, 400);
 
-    set({ _lowHealthAlarmNodes: { ..._lowHealthAlarmNodes, active: false } });
+      set({ _lowHealthAlarmNodes: { ..._lowHealthAlarmNodes, active: false } });
+    }
   }
 }));
