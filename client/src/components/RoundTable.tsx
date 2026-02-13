@@ -272,7 +272,24 @@ const RoundTableComponent: React.FC = () => {
 
   return (
     <div className="mb-4 md:mb-8">
-      <h2 className="text-white font-bold text-lg landscape:text-2xl md:text-2xl mb-2 landscape:mb-4 md:mb-4 text-center" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>TAVOLO DA GIOCO</h2>
+      <div className="flex flex-wrap items-center justify-center gap-2 mb-2 landscape:mb-4 md:mb-4">
+        <h2 className="text-white font-bold text-lg landscape:text-2xl md:text-2xl text-center" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>TAVOLO DA GIOCO</h2>
+        {currentTurnPlayer && (
+          <div className={`px-3 py-1 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-500 border ${
+            isMyTurn 
+              ? 'border-yellow-400/40 text-yellow-100 turn-indicator-mine' 
+              : 'border-blue-400/30 text-blue-100 turn-indicator-other'
+          }`} style={{
+            background: isMyTurn 
+              ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(234, 179, 8, 0.15) 100%)'
+              : 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%)',
+            backdropFilter: 'blur(12px)',
+            textShadow: isMyTurn ? '0 0 12px rgba(250, 204, 21, 0.5)' : '0 0 8px rgba(147, 197, 253, 0.4)',
+          }}>
+            {isMyTurn ? '👑 TOCCA A TE!' : `⏳ Turno di ${currentTurnPlayer}`}
+          </div>
+        )}
+      </div>
       
       {/* Rectangular Table Container */}
       <div 
@@ -292,22 +309,6 @@ const RoundTableComponent: React.FC = () => {
           className="absolute inset-0 bg-black opacity-40 rounded-lg"
           style={{ borderRadius: '16px' }}
         />
-
-        {currentTurnPlayer && (
-          <div className={`absolute -top-6 left-1/2 -translate-x-1/2 z-20 px-5 py-2 rounded-2xl text-sm font-bold whitespace-nowrap transition-all duration-500 border ${
-            isMyTurn 
-              ? 'border-yellow-400/40 text-yellow-100 turn-indicator-mine' 
-              : 'border-blue-400/30 text-blue-100 turn-indicator-other'
-          }`} style={{
-            background: isMyTurn 
-              ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(234, 179, 8, 0.15) 100%)'
-              : 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%)',
-            backdropFilter: 'blur(12px)',
-            textShadow: isMyTurn ? '0 0 12px rgba(250, 204, 21, 0.5)' : '0 0 8px rgba(147, 197, 253, 0.4)',
-          }}>
-            {isMyTurn ? '👑 TOCCA A TE!' : `⏳ Turno di ${currentTurnPlayer}`}
-          </div>
-        )}
         
         {/* Center Area - Decks with protection zone - centered vertically */}
         <div className="absolute top-[45%] sm:top-[45%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
