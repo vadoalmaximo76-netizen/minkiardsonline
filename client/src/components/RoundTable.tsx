@@ -133,18 +133,24 @@ const RoundTableComponent: React.FC = () => {
     // Check if mobile portrait mode (narrow screen)
     const isMobile = window.innerWidth < 768;
     const isPortrait = window.innerHeight > window.innerWidth;
+    const isLandscape = window.innerWidth > window.innerHeight;
     const mobileBuffer = isMobile && isPortrait ? 6 : 0; // Extra buffer for mobile portrait
     
+    const topY = isLandscape ? 8 : Math.max(10, 15 - mobileBuffer);
+    const topCornerY = isLandscape ? 10 : Math.max(12, 18 - mobileBuffer);
+    const sideUpperY = isLandscape ? 50 : 35 + mobileBuffer;
+    const sideLowerY = isLandscape ? 75 : 60 + mobileBuffer;
+    
     const positions = [
-      // Top positions (moved slightly down to be closer to decks)
-      { x: 50, y: Math.max(10, 15 - mobileBuffer), angle: -90 },    // Top center
-      { x: 18 + mobileBuffer, y: Math.max(12, 18 - mobileBuffer), angle: -135 },  // Top left
-      { x: 82 - mobileBuffer, y: Math.max(12, 18 - mobileBuffer), angle: -45 },   // Top right
+      // Top positions (moved higher in landscape to avoid deck overlap)
+      { x: 50, y: topY, angle: -90 },    // Top center
+      { x: 18 + mobileBuffer, y: topCornerY, angle: -135 },  // Top left
+      { x: 82 - mobileBuffer, y: topCornerY, angle: -45 },   // Top right
       // Side positions with much more spacing and buffer from center
-      { x: Math.max(4, 8 - mobileBuffer), y: 35 + mobileBuffer, angle: 180 },    // Left side upper
-      { x: Math.min(96, 92 + mobileBuffer), y: 35 + mobileBuffer, angle: 0 },     // Right side upper
-      { x: Math.max(4, 8 - mobileBuffer), y: 60 + mobileBuffer, angle: 180 },    // Left side lower  
-      { x: Math.min(96, 92 + mobileBuffer), y: 60 + mobileBuffer, angle: 0 },     // Right side lower
+      { x: Math.max(4, 8 - mobileBuffer), y: sideUpperY, angle: 180 },    // Left side upper
+      { x: Math.min(96, 92 + mobileBuffer), y: sideUpperY, angle: 0 },     // Right side upper
+      { x: Math.max(4, 8 - mobileBuffer), y: sideLowerY, angle: 180 },    // Left side lower  
+      { x: Math.min(96, 92 + mobileBuffer), y: sideLowerY, angle: 0 },     // Right side lower
     ];
     
     // For different player counts, select optimal positions
@@ -225,9 +231,10 @@ const RoundTableComponent: React.FC = () => {
     
     const isMobile = window.innerWidth < 640;
     const isTablet = window.innerWidth >= 640 && window.innerWidth < 1024;
+    const isLandscape = window.innerWidth > window.innerHeight;
     
     // Position cards at bottom center - moved down to avoid overlap with decks
-    const bottomY = isMobile ? 85 : 82;
+    const bottomY = isLandscape ? 88 : isMobile ? 85 : 82;
     const centerX = 50;
     
     if (cardCount === 1) {
@@ -315,8 +322,8 @@ const RoundTableComponent: React.FC = () => {
         )}
         
         {/* Center Area - Decks with protection zone - centered vertically */}
-        <div className="absolute top-[45%] sm:top-[45%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
-          <div data-tutorial="decks" className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-3 md:gap-4 items-start justify-center zone-decks rounded-lg sm:rounded-xl p-2 sm:p-3 md:p-4 backdrop-blur-sm">
+        <div className="absolute top-[45%] landscape:top-[30%] sm:top-[45%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
+          <div data-tutorial="decks" className="grid grid-cols-2 landscape:grid-cols-4 gap-2 landscape:gap-1 sm:flex sm:flex-row sm:gap-3 md:gap-4 items-start justify-center zone-decks rounded-lg sm:rounded-xl p-2 landscape:p-1 sm:p-3 md:p-4 backdrop-blur-sm">
             <Deck
               name="PERSONAGGI"
               backImage="https://i.imgur.com/r1rfUAB.png"

@@ -211,7 +211,7 @@ const DeckComponent: React.FC<DeckProps> = ({ name, backImage, type }) => {
   };
 
   return (
-    <div className="flex flex-col items-center gap-1 sm:gap-1.5 md:gap-2 w-[70px] sm:w-[80px] md:w-auto">
+    <div className="flex flex-col items-center gap-1 sm:gap-1.5 md:gap-2 w-[70px] landscape:w-[60px] sm:w-[80px] md:w-auto">
       <h3 className="text-white font-bold text-[9px] sm:text-xs md:text-sm lg:text-base leading-tight text-center truncate w-full" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
         <span className="sm:hidden">{getShortName(name)}</span>
         <span className="hidden sm:inline">{name}</span>
