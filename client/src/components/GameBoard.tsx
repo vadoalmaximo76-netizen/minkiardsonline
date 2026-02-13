@@ -1977,10 +1977,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           setGameEndRewards(prev => ({ ...prev, visible: false }));
           clearSession();
           onLeaveGame?.();
+          onBack?.();
         }}
         onNewGame={() => {
           setGameEndRewards(prev => ({ ...prev, visible: false }));
           clearSession();
+          onLeaveGame?.();
           onBack?.();
         }}
       />
