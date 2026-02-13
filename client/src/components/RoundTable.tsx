@@ -136,8 +136,8 @@ const RoundTableComponent: React.FC = () => {
     const isLandscape = window.innerWidth > window.innerHeight;
     const mobileBuffer = isMobile && isPortrait ? 6 : 0; // Extra buffer for mobile portrait
     
-    const topY = isLandscape ? 12 : (isMobile ? 18 : Math.max(10, 15 - mobileBuffer));
-    const topCornerY = isLandscape ? 14 : (isMobile ? 20 : Math.max(12, 18 - mobileBuffer));
+    const topY = isLandscape ? 12 : (isMobile ? 14 : Math.max(10, 15 - mobileBuffer));
+    const topCornerY = isLandscape ? 14 : (isMobile ? 16 : Math.max(12, 18 - mobileBuffer));
     const sideUpperY = isLandscape ? 50 : 35 + mobileBuffer;
     const sideLowerY = isLandscape ? 75 : 60 + mobileBuffer;
     
@@ -233,8 +233,7 @@ const RoundTableComponent: React.FC = () => {
     const isTablet = window.innerWidth >= 640 && window.innerWidth < 1024;
     const isLandscape = window.innerWidth > window.innerHeight;
     
-    // Position cards at bottom center - moved down to avoid overlap with decks
-    const bottomY = isLandscape ? 88 : isMobile ? 85 : 82;
+    const bottomY = isLandscape ? 85 : isMobile ? 82 : 82;
     const centerX = 50;
     
     if (cardCount === 1) {
@@ -261,14 +260,12 @@ const RoundTableComponent: React.FC = () => {
     }));
   };
 
-  // Calculate card size based on number of players and screen size
   const getCardScale = (playerCount: number) => {
-    // Mobile portrait bigger for visibility, landscape same as desktop
     const mobileScales = {
-      2: 'scale-[0.6] landscape:scale-[0.65] sm:scale-75 md:scale-85 lg:scale-95',
-      4: 'scale-[0.45] landscape:scale-[0.55] sm:scale-65 md:scale-75 lg:scale-85', 
-      6: 'scale-[0.35] landscape:scale-[0.45] sm:scale-55 md:scale-65 lg:scale-75',
-      8: 'scale-[0.3] landscape:scale-[0.4] sm:scale-45 md:scale-55 lg:scale-65'
+      2: 'scale-[0.85] landscape:scale-[0.75] sm:scale-75 md:scale-85 lg:scale-95',
+      4: 'scale-[0.65] landscape:scale-[0.6] sm:scale-65 md:scale-75 lg:scale-85', 
+      6: 'scale-[0.5] landscape:scale-[0.5] sm:scale-55 md:scale-65 lg:scale-75',
+      8: 'scale-[0.4] landscape:scale-[0.45] sm:scale-45 md:scale-55 lg:scale-65'
     };
     
     if (playerCount <= 2) return mobileScales[2];
@@ -278,9 +275,6 @@ const RoundTableComponent: React.FC = () => {
   };
 
   const cardScale = getCardScale(allPlayerNames.length);
-
-  // Use the same scale as field cards for consistency
-  const deckScale = cardScale;
 
   return (
     <div className="mb-4 md:mb-8">
@@ -323,9 +317,9 @@ const RoundTableComponent: React.FC = () => {
           style={{ borderRadius: '16px' }}
         />
         
-        {/* Center Area - Decks with protection zone - centered vertically */}
-        <div className="absolute top-[48%] landscape:top-[42%] sm:top-[45%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
-          <div data-tutorial="decks" className="grid grid-cols-2 landscape:grid-cols-4 gap-2 landscape:gap-1 sm:flex sm:flex-row sm:gap-3 md:gap-4 items-start justify-center zone-decks rounded-lg sm:rounded-xl p-2 landscape:p-1 sm:p-3 md:p-4 backdrop-blur-sm">
+        {/* Center Area - Decks - always single row, compact on mobile */}
+        <div className="absolute top-[50%] landscape:top-[50%] sm:top-[48%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
+          <div data-tutorial="decks" className="grid grid-cols-4 gap-1 sm:gap-3 md:gap-4 items-start justify-center zone-decks rounded-lg sm:rounded-xl p-1.5 sm:p-3 md:p-4 backdrop-blur-sm">
             <Deck
               name="PERSONAGGI"
               backImage="https://i.imgur.com/r1rfUAB.png"
