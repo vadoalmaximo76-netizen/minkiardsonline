@@ -28,7 +28,7 @@ const resultRotations: Record<number, { x: number; y: number }> = {
 
 const DiceFace: React.FC<{ value: number; size: number }> = ({ value, size }) => {
   const pips = pipLayouts[value] || [];
-  const pipSize = Math.max(size * 0.14, 8);
+  const pipSize = Math.max(size * 0.15, 8);
 
   return (
     <div
@@ -36,10 +36,10 @@ const DiceFace: React.FC<{ value: number; size: number }> = ({ value, size }) =>
         position: 'absolute',
         width: `${size}px`,
         height: `${size}px`,
-        background: 'linear-gradient(145deg, #ffffff, #e6e6e6)',
-        borderRadius: `${size * 0.1}px`,
-        border: '1px solid rgba(0,0,0,0.08)',
-        boxShadow: 'inset 0 1px 3px rgba(255,255,255,0.6), inset 0 -1px 3px rgba(0,0,0,0.1)',
+        background: 'linear-gradient(145deg, #dc2626, #991b1b)',
+        borderRadius: `${size * 0.12}px`,
+        border: '2px solid rgba(0,0,0,0.3)',
+        boxShadow: 'inset 0 2px 6px rgba(255,255,255,0.25), inset 0 -2px 6px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.4)',
         backfaceVisibility: 'hidden',
       }}
     >
@@ -51,8 +51,8 @@ const DiceFace: React.FC<{ value: number; size: number }> = ({ value, size }) =>
             width: `${pipSize}px`,
             height: `${pipSize}px`,
             borderRadius: '50%',
-            background: 'radial-gradient(circle at 35% 35%, #444, #111)',
-            boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.2), 0 1px 2px rgba(0,0,0,0.3)',
+            background: 'radial-gradient(circle at 35% 35%, #ffffff, #e8e8e8)',
+            boxShadow: 'inset 0 -1px 2px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.4)',
             left: `${pos[0]}%`,
             top: `${pos[1]}%`,
             transform: 'translate(-50%, -50%)',
@@ -122,6 +122,10 @@ export const Dice3D: React.FC<Dice3DProps> = ({
         @keyframes ${sid}-roll-z {
           0% { transform: rotateZ(0deg); }
           100% { transform: rotateZ(720deg); }
+        }
+        @keyframes ${sid}-bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-8px); }
         }
       `}</style>
       <div

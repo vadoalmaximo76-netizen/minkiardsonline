@@ -2586,7 +2586,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           <div className="absolute inset-0 bg-black/70" />
           <div className="relative bg-gradient-to-br from-amber-900 to-amber-600 rounded-xl p-8 border-4 border-amber-300 shadow-[0_0_50px_rgba(251,191,36,0.8)] animate-bounce-once">
             <div className="text-center">
-              <div className="text-8xl mb-4 animate-spin-slow">🎲</div>
+              <div className="w-[80px] h-[80px] mx-auto mb-4">
+                <Dice3D isRolling={false} result={diceRollResult.result} size={80} />
+              </div>
               <h2 className="text-4xl font-bold text-white mb-2" style={{textShadow: '3px 3px 6px rgba(0,0,0,0.8)'}}>
                 RISULTATO: {diceRollResult.result}
               </h2>
@@ -2624,7 +2626,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             <div className="text-center">
               <h3 className="text-xl font-bold text-cyan-200 mb-2">FOLATA DI VENTO</h3>
               <p className="text-gray-300 text-sm mb-4">{windDiceRoll.playerName} tira il dado!</p>
-              <div className="text-8xl mb-4 animate-bounce">🎲</div>
+              <div className="w-[90px] h-[90px] mx-auto mb-4">
+                <Dice3D isRolling={false} result={windDiceRoll.value} size={90} />
+              </div>
               <h2 className="text-7xl font-bold text-white mb-4 animate-pulse" style={{textShadow: '4px 4px 8px rgba(0,0,0,0.8)'}}>
                 {windDiceRoll.value}
               </h2>
@@ -2698,16 +2702,20 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               
               {/* Rolling animation phase */}
               {autoDiceResult.animationPhase === 'rolling' && (
-                <div className="animate-pulse">
-                  <div className="text-8xl mb-4 animate-spin">🎲</div>
-                  <p className="text-2xl text-purple-300 font-bold">Lancio del dado...</p>
+                <div>
+                  <div className="w-[100px] h-[100px] mx-auto mb-4">
+                    <Dice3D isRolling={true} size={100} />
+                  </div>
+                  <p className="text-2xl text-purple-300 font-bold animate-pulse">Lancio del dado...</p>
                 </div>
               )}
               
               {/* Result phase */}
               {(autoDiceResult.animationPhase === 'result' || autoDiceResult.animationPhase === 'effects') && (
                 <>
-                  <div className="text-8xl mb-4 animate-bounce">🎲</div>
+                  <div className="w-[100px] h-[100px] mx-auto mb-4">
+                    <Dice3D isRolling={false} result={autoDiceResult.diceResult} size={100} />
+                  </div>
                   <h2 className="text-6xl font-bold text-white mb-4 animate-pulse" style={{textShadow: '4px 4px 8px rgba(0,0,0,0.8)'}}>
                     {autoDiceResult.diceResult}
                   </h2>

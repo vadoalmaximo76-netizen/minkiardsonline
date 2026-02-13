@@ -68,13 +68,13 @@ export const DiceModal: React.FC<DiceModalProps> = ({
           </Button>
         </div>
 
-        <div className="mb-6 h-[250px] relative">
+        <div className="mb-6 h-[250px] relative flex items-center justify-center">
           <div className="absolute inset-0 bg-gradient-radial from-red-500/20 via-transparent to-transparent rounded-full blur-xl" />
           <Dice3D 
             isRolling={isRolling} 
             finalValue={finalValue}
             onRollComplete={handleRollComplete}
-            size={1.5}
+            size={120}
           />
         </div>
         
