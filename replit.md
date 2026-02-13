@@ -94,8 +94,13 @@ Spectacular full-screen animation triggered when characters evolve, transform, o
 ## Turn Transition Animation
 Cinematic full-screen overlay animation when turns change. Different styling for your turn (golden/crown icons, "È IL TUO TURNO!") vs opponent's turn (blue/purple, "Turno di [PLAYER]"). Uses phase-based CSS animations with slide-in, glow pulse, icon spin, and auto-dismiss after 2.5 seconds.
 
+## UI Layout
+- **Compact Header**: Single-line header with MINKIARDS logo, room code, primary actions (COMINCIA, CPU), user info badge, and a glassmorphism dropdown menu (MoreVertical icon) containing secondary actions (Regolamento, Invita Amici, Missioni, Trofei, Rankiard, Nuova/Ricomincia Partita).
+- **Unified Bottom Toolbar**: All game controls merged into a single centered glassmorphism bar at the bottom: Hand, End Turn | Chat, Game Log | Dice, Calculator, Graveyard, Shuffle | Audio controls, Music, Settings, VoiceChat. Dividers separate logical groups.
+- **Animated Background**: CSS gradient background with 3 floating radial gradient orbs (purple, blue, cyan) that drift slowly for subtle depth. No external image dependency.
+
 ## Persistent Turn Indicator
-A persistent banner at the top of the game table shows whose turn it is ("👑 TOCCA A TE!" or "⏳ Turno di [PLAYER]"). Active player name labels glow green with pulsing ring animation. CARTE IN CAMPO section highlights the active player with green text and 🟢 indicator.
+A glassmorphism banner at the top of the round table shows whose turn it is ("👑 TOCCA A TE!" or "⏳ Turno di [PLAYER]") with glow animations. Gold-themed for your turn, blue/purple for opponents. Active player name labels glow green with pulsing ring animation.
 
 ## Visual Zone Distinction
 Game areas are visually differentiated: hand zone has blue gradient border, deck zone has radial purple gradient, field zone has purple border styling. Each zone has subtle background effects to improve spatial clarity.

@@ -299,11 +299,17 @@ const RoundTableComponent: React.FC = () => {
         />
 
         {currentTurnPlayer && (
-          <div className={`absolute -top-5 left-1/2 -translate-x-1/2 z-20 px-4 py-1.5 rounded-full text-sm font-bold shadow-lg whitespace-nowrap transition-all duration-500 ${
+          <div className={`absolute -top-6 left-1/2 -translate-x-1/2 z-20 px-5 py-2 rounded-2xl text-sm font-bold whitespace-nowrap transition-all duration-500 border ${
             isMyTurn 
-              ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-black turn-indicator-mine' 
-              : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white turn-indicator-other'
-          }`} style={{textShadow: isMyTurn ? 'none' : '1px 1px 2px rgba(0,0,0,0.8)'}}>
+              ? 'border-yellow-400/40 text-yellow-100 turn-indicator-mine' 
+              : 'border-blue-400/30 text-blue-100 turn-indicator-other'
+          }`} style={{
+            background: isMyTurn 
+              ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(234, 179, 8, 0.15) 100%)'
+              : 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%)',
+            backdropFilter: 'blur(12px)',
+            textShadow: isMyTurn ? '0 0 12px rgba(250, 204, 21, 0.5)' : '0 0 8px rgba(147, 197, 253, 0.4)',
+          }}>
             {isMyTurn ? '👑 TOCCA A TE!' : `⏳ Turno di ${currentTurnPlayer}`}
           </div>
         )}

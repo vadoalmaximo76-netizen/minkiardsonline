@@ -54,7 +54,7 @@ import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
-import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star, Hand, Music, Shuffle, User, LogOut, Target, Trophy, SkipForward, ScrollText, Settings } from "lucide-react";
+import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star, Hand, Music, Shuffle, User, LogOut, Target, Trophy, SkipForward, ScrollText, Settings, MoreVertical, BookOpen, UserPlus, RotateCcw, PlusCircle, ChevronDown } from "lucide-react";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 
@@ -115,6 +115,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [leavingPlayer, setLeavingPlayer] = useState<string>("");
   const [superDiceOpen, setSuperDiceOpen] = useState(false);
   const [showCpuControls, setShowCpuControls] = useState(false);
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [chatNotifications, setChatNotifications] = useState<Array<{
     id: string;
     message: string;
@@ -1706,19 +1707,20 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         gameId={gameId || ''}
       />
       
-      {/* Background image */}
-      <div 
-        className="fixed inset-0 bg-cover bg-center opacity-50"
-        style={{
-          backgroundImage: 'url(https://files.123freevectors.com/wp-content/original/113342-royal-blue-blurred-background-vector.jpg)'
-        }}
-      />
+      {/* Animated gradient background */}
+      <div className="fixed inset-0 game-bg-gradient" />
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute w-[500px] h-[500px] rounded-full opacity-[0.07] blur-[100px] animate-bg-float-1" style={{ background: 'radial-gradient(circle, #9333ea, transparent 70%)', top: '10%', left: '20%' }} />
+        <div className="absolute w-[400px] h-[400px] rounded-full opacity-[0.05] blur-[80px] animate-bg-float-2" style={{ background: 'radial-gradient(circle, #3b82f6, transparent 70%)', bottom: '20%', right: '15%' }} />
+        <div className="absolute w-[300px] h-[300px] rounded-full opacity-[0.04] blur-[60px] animate-bg-float-3" style={{ background: 'radial-gradient(circle, #06b6d4, transparent 70%)', top: '50%', left: '60%' }} />
+      </div>
 
       {/* Back to Home button */}
       {onBack && (
         <button
           onClick={onBack}
-          className="fixed top-4 left-4 z-40 px-4 py-2 bg-slate-800/90 hover:bg-slate-700 rounded-xl text-white font-medium transition-colors backdrop-blur-sm flex items-center gap-2"
+          className="fixed top-4 left-4 z-40 px-3 py-1.5 rounded-xl text-white/80 hover:text-white text-sm font-medium transition-all duration-200 flex items-center gap-1.5 border border-white/10 hover:border-white/20 hover:bg-white/5"
+          style={{ background: 'rgba(10, 8, 30, 0.6)', backdropFilter: 'blur(12px)' }}
         >
           ← Indietro
         </button>
@@ -3106,114 +3108,114 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
       {/* Game content */}
       <div className="relative z-10">
-        {/* Header */}
-        <div className="flex flex-col landscape:flex-row md:flex-row justify-between items-center mb-4 md:mb-6 gap-4">
-          <div className="text-center landscape:text-left md:text-left">
-            <div className="flex items-center gap-2 landscape:gap-4 md:gap-4">
-              <h1 className="text-2xl landscape:text-4xl md:text-4xl font-bold text-white" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>MINKIARDS</h1>
-              {authenticatedUser && (
-                <div className="flex items-center gap-1 bg-purple-900/70 px-2 py-1 rounded-lg cursor-pointer hover:bg-purple-800/70 transition-colors" onClick={() => setProfileOpen(true)} title="Apri Profilo">
-                  <User size={14} className="text-blue-400" />
-                  <span className="text-white/80 text-xs" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
-                    {authenticatedUser.username}
-                  </span>
-                  <span className="text-yellow-400 text-xs font-bold" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
-                    {authenticatedUser.puntiRankiard || 0} PR
-                  </span>
-                  {onLogout && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onLogout(); }}
-                      className="ml-1 text-red-400 hover:text-red-300 transition-colors"
-                      title="Esci"
-                    >
-                      <LogOut size={14} />
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
+        {/* Header - Compact glassmorphism bar */}
+        <div className="flex items-center justify-between mb-3 gap-2 px-1">
+          {/* Left: Logo + Room */}
+          <div className="flex items-center gap-2 min-w-0">
+            <h1 className="text-lg landscape:text-2xl md:text-2xl font-black text-white tracking-tight whitespace-nowrap" style={{textShadow: '0 2px 8px rgba(0,0,0,0.6)'}}>MINKIARDS</h1>
             {gameId && gameId.startsWith('room-') && (
-              <p className="text-white/80 text-xs landscape:text-sm md:text-sm mt-1" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
-                Stanza: {gameId.replace('room-', '')}
-              </p>
+              <span className="text-white/50 text-[10px] landscape:text-xs md:text-xs bg-white/5 px-2 py-0.5 rounded-full border border-white/10 whitespace-nowrap">
+                {gameId.replace('room-', '')}
+              </span>
             )}
           </div>
-          <div className="flex flex-col gap-2">
-            {/* First row: REGOLAMENTO, CPU BETA and COMINCIA */}
-            <div className="flex gap-1 landscape:gap-2 md:gap-2 justify-center landscape:justify-end md:justify-end">
-              <Button
-                onClick={() => window.open('https://minkiards.wixsite.com/minkiards/post/regolamento-ufficiale', '_blank')}
-                className="btn-neon-blue text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
-                style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
+
+          {/* Center: Primary actions */}
+          <div className="flex items-center gap-1.5 landscape:gap-2 md:gap-2">
+            <Button
+              onClick={handleStartGame}
+              className="bg-emerald-500/90 hover:bg-emerald-400 text-white font-bold text-[11px] landscape:text-sm md:text-sm px-3 landscape:px-5 md:px-5 py-1.5 landscape:py-2 md:py-2 rounded-xl shadow-lg shadow-emerald-500/25 border border-emerald-400/30 transition-all duration-200"
+            >
+              COMINCIA
+            </Button>
+            <Button
+              onClick={() => setShowCpuControls(!showCpuControls)}
+              className={`${showCpuControls ? 'bg-purple-500/90 border-purple-400/30 shadow-purple-500/25' : 'bg-white/10 border-white/10 shadow-none'} text-white font-bold text-[11px] landscape:text-sm md:text-sm px-3 landscape:px-4 md:px-4 py-1.5 landscape:py-2 md:py-2 rounded-xl shadow-lg border transition-all duration-200 hover:bg-purple-500/70`}
+            >
+              CPU
+            </Button>
+          </div>
+
+          {/* Right: User info + Menu */}
+          <div className="flex items-center gap-1.5">
+            {authenticatedUser && (
+              <div
+                className="flex items-center gap-1.5 bg-white/5 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-white/10 cursor-pointer hover:bg-white/10 transition-all duration-200"
+                onClick={() => setProfileOpen(true)}
+                title="Apri Profilo"
               >
-                REGOLAMENTO
-              </Button>
-              <Button
-                onClick={() => setShowCpuControls(!showCpuControls)}
-                className={`${showCpuControls ? 'btn-neon-purple' : 'btn-neon-gray'} text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2`}
-                style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
+                <User size={13} className="text-blue-400 flex-shrink-0" />
+                <span className="text-white/80 text-[11px] landscape:text-xs md:text-xs truncate max-w-[60px] landscape:max-w-[100px] md:max-w-[100px]">
+                  {authenticatedUser.username}
+                </span>
+                <span className="text-yellow-400 text-[11px] landscape:text-xs md:text-xs font-bold whitespace-nowrap">
+                  {authenticatedUser.puntiRankiard || 0}
+                </span>
+                {onLogout && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onLogout(); }}
+                    className="text-red-400/60 hover:text-red-400 transition-colors ml-0.5"
+                    title="Esci"
+                  >
+                    <LogOut size={12} />
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Dropdown menu for secondary actions */}
+            <div className="relative">
+              <button
+                onClick={() => setHeaderMenuOpen(!headerMenuOpen)}
+                className="p-2 rounded-xl bg-white/5 backdrop-blur-md border border-white/10 hover:bg-white/15 transition-all duration-200 text-white/70 hover:text-white"
               >
-                GIOCA CONTRO CPU (BETA)
-              </Button>
-              <Button
-                onClick={handleStartGame}
-                className="btn-neon-green text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
-                style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
-              >
-                COMINCIA
-              </Button>
-            </div>
-            
-            {/* Second row: INVITA AMICI, MISSIONI, TROFEI, RANKIARD, NUOVA PARTITA and RICOMINCIA PARTITA */}
-            <div className="flex gap-1 landscape:gap-2 md:gap-2 justify-center landscape:justify-end md:justify-end flex-wrap">
-              <Button
-                onClick={() => authenticatedUser ? setProfileOpen(true) : shareInviteLink()}
-                className="btn-neon-blue text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
-                style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
-              >
-                INVITA AMICI
-              </Button>
-              {authenticatedUser && (
+                <MoreVertical size={18} />
+              </button>
+
+              {headerMenuOpen && (
                 <>
-                  <Button
-                    onClick={() => setMissionsOpen(true)}
-                    className="btn-neon-cyan text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
-                    style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
+                  <div className="fixed inset-0 z-40" onClick={() => setHeaderMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 z-50 w-56 rounded-2xl overflow-hidden shadow-2xl shadow-black/40 border border-white/15"
+                    style={{ background: 'rgba(15, 10, 40, 0.92)', backdropFilter: 'blur(20px)' }}
                   >
-                    <Target size={14} className="mr-1" />
-                    MISSIONI
-                  </Button>
-                  <Button
-                    onClick={() => setAchievementsOpen(true)}
-                    className="btn-neon-purple text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
-                    style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
-                  >
-                    <Trophy size={14} className="mr-1" />
-                    TROFEI
-                  </Button>
+                    <div className="py-1.5">
+                      <button onClick={() => { window.open('https://minkiards.wixsite.com/minkiards/post/regolamento-ufficiale', '_blank'); setHeaderMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors">
+                        <BookOpen size={16} className="text-blue-400 flex-shrink-0" />
+                        Regolamento
+                      </button>
+                      <button onClick={() => { authenticatedUser ? setProfileOpen(true) : shareInviteLink(); setHeaderMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors">
+                        <UserPlus size={16} className="text-cyan-400 flex-shrink-0" />
+                        Invita Amici
+                      </button>
+                      {authenticatedUser && (
+                        <>
+                          <button onClick={() => { setMissionsOpen(true); setHeaderMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors">
+                            <Target size={16} className="text-emerald-400 flex-shrink-0" />
+                            Missioni
+                          </button>
+                          <button onClick={() => { setAchievementsOpen(true); setHeaderMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors">
+                            <Trophy size={16} className="text-yellow-400 flex-shrink-0" />
+                            Trofei
+                          </button>
+                        </>
+                      )}
+                      <button onClick={() => { setRankiardOpen(!rankiardOpen); setHeaderMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors">
+                        <Star size={16} className="text-amber-400 flex-shrink-0" />
+                        Rankiard
+                      </button>
+                      <div className="my-1 border-t border-white/10" />
+                      <button onClick={() => { handleNewGame(); setHeaderMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors">
+                        <PlusCircle size={16} className="text-purple-400 flex-shrink-0" />
+                        Nuova Partita
+                      </button>
+                      <button onClick={() => { handleResetGame(); setHeaderMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400/80 hover:bg-red-500/10 hover:text-red-400 transition-colors">
+                        <RotateCcw size={16} className="flex-shrink-0" />
+                        Ricomincia Partita
+                      </button>
+                    </div>
+                  </div>
                 </>
               )}
-              <Button
-                onClick={() => setRankiardOpen(!rankiardOpen)}
-                className="btn-neon-yellow text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
-                style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
-              >
-                RANKIARD
-              </Button>
-              <Button
-                onClick={handleNewGame}
-                className="btn-neon-purple text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
-                style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
-              >
-                NUOVA PARTITA
-              </Button>
-              <Button
-                onClick={handleResetGame}
-                className="btn-neon-red text-white font-bold text-xs landscape:text-sm md:text-sm px-2 landscape:px-4 md:px-4 py-1 landscape:py-2 md:py-2"
-                style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
-              >
-                RICOMINCIA PARTITA
-              </Button>
             </div>
           </div>
         </div>
@@ -3235,50 +3237,155 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           <Graveyard onClose={() => setGraveyardOpen(false)} />
         )}
 
-        {/* Left side buttons - hide when any side panel is open */}
+        {/* Unified Bottom Toolbar */}
         <div
-          className="fixed left-2 landscape:left-4 md:left-4 bottom-14 landscape:bottom-16 md:bottom-16 z-50 flex flex-col gap-1 transition-all duration-300"
+          data-tutorial="tools"
+          className="fixed bottom-3 landscape:bottom-4 md:bottom-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-300"
           style={{
             opacity: (chatOpen || calculatorOpen || gameLogOpen || soundSettingsOpen || musicPlayerOpen) ? 0 : 1,
             pointerEvents: (chatOpen || calculatorOpen || gameLogOpen || soundSettingsOpen || musicPlayerOpen) ? 'none' : 'auto',
-            transform: (chatOpen || calculatorOpen || gameLogOpen || soundSettingsOpen || musicPlayerOpen) ? 'translateX(-20px)' : 'translateX(0)',
+            transform: `translateX(-50%) ${(chatOpen || calculatorOpen || gameLogOpen || soundSettingsOpen || musicPlayerOpen) ? 'translateY(20px)' : 'translateY(0)'}`,
           }}
         >
-        {/* Music Player Button */}
-        <Button
-          onClick={() => setMusicPlayerOpen(!musicPlayerOpen)}
-          className="btn-neon-pink text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200 mb-1"
-          title="Music Player"
-        >
-          <Music size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
-        </Button>
+          <div
+            className="flex items-center gap-1 landscape:gap-1.5 md:gap-1.5 px-2 landscape:px-3 md:px-3 py-1.5 landscape:py-2 md:py-2 rounded-2xl border border-white/15 shadow-2xl shadow-black/50"
+            style={{ background: 'rgba(10, 8, 30, 0.85)', backdropFilter: 'blur(20px)' }}
+          >
+            {/* Hand button */}
+            <button
+              data-tutorial="hand"
+              onClick={() => setHandModalOpen(true)}
+              className="relative p-2 landscape:p-2.5 md:p-2.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 hover:text-purple-200 transition-all duration-200"
+              title="Carte in Mano"
+            >
+              <Hand size={16} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" />
+              {gameState?.players?.[playerName]?.hand?.length ? (
+                <span className="absolute -top-1 -right-1 bg-cyan-500 text-white rounded-full text-[9px] w-4 h-4 flex items-center justify-center font-bold">
+                  {gameState.players[playerName].hand.length}
+                </span>
+              ) : null}
+            </button>
 
-        {/* Sound Settings Button */}
-        <Button
-          onClick={() => setSoundSettingsOpen(!soundSettingsOpen)}
-          className="btn-neon-cyan text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200 mb-1"
-          title="Impostazioni Audio"
-        >
-          <Settings size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
-        </Button>
+            {/* End Turn */}
+            <button
+              onClick={() => socket.emit('force-end-turn', { gameId })}
+              className="p-2 landscape:p-2.5 md:p-2.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-300 hover:text-cyan-200 transition-all duration-200"
+              title="Fine Turno"
+            >
+              <SkipForward size={16} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" />
+            </button>
 
-        {/* Sound Toggle Button */}
-        <Button
-          onClick={() => {
-            initAudioContext();
-            toggleMute();
-          }}
-          className="btn-neon-purple text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200 mb-1"
-          title={isMuted ? "Enable sound" : "Disable sound"}
-        >
-          {isMuted ? <VolumeX size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" /> : <Volume2 size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />}
-        </Button>
+            {/* Divider */}
+            <div className="w-px h-6 bg-white/10 mx-0.5" />
+
+            {/* Chat */}
+            <button
+              onClick={() => { if (chatOpen) { handleCloseChat(); } else { handleOpenChat(); } }}
+              className="relative p-2 landscape:p-2.5 md:p-2.5 rounded-xl bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 hover:text-blue-200 transition-all duration-200"
+              title="Chat"
+            >
+              <MessageCircle size={16} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" />
+              {unreadMessages > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-[9px] w-4 h-4 flex items-center justify-center font-bold">
+                  {unreadMessages > 9 ? '9+' : unreadMessages}
+                </span>
+              )}
+            </button>
+
+            {/* Game Log */}
+            <button
+              onClick={() => setGameLogOpen(!gameLogOpen)}
+              className="p-2 landscape:p-2.5 md:p-2.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 hover:text-purple-200 transition-all duration-200"
+              title="Game Log"
+            >
+              <ScrollText size={16} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" />
+            </button>
+
+            {/* Divider */}
+            <div className="w-px h-6 bg-white/10 mx-0.5" />
+
+            {/* Dice */}
+            <button
+              onClick={() => setDiceOpen(true)}
+              className="p-2 landscape:p-2.5 md:p-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 hover:text-amber-200 transition-all duration-200"
+              title="Dado"
+            >
+              <Dice6 size={16} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" />
+            </button>
+
+            {/* Calculator */}
+            <button
+              onClick={() => setCalculatorOpen(!calculatorOpen)}
+              className="p-2 landscape:p-2.5 md:p-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 hover:text-emerald-200 transition-all duration-200"
+              title="Calcolatrice"
+            >
+              <CalcIcon size={16} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" />
+            </button>
+
+            {/* Graveyard */}
+            <button
+              onClick={() => setGraveyardOpen(true)}
+              className="p-2 landscape:p-2.5 md:p-2.5 rounded-xl bg-gray-500/20 hover:bg-gray-500/40 text-gray-300 hover:text-gray-200 transition-all duration-200"
+              title="Cimitero"
+            >
+              <Skull size={16} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" />
+            </button>
+
+            {/* Shuffle */}
+            <button
+              onClick={() => {
+                playDeckShuffle();
+                const deckTypes = ['personaggi', 'mosse', 'bonus', 'personaggi_speciali'];
+                deckTypes.forEach(deckType => {
+                  socket.emit('shuffle-deck', { deckType });
+                });
+              }}
+              className="p-2 landscape:p-2.5 md:p-2.5 rounded-xl bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 hover:text-blue-200 transition-all duration-200"
+              title="Mischia Mazzi"
+            >
+              <Shuffle size={16} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" />
+            </button>
+
+            {/* Divider */}
+            <div className="w-px h-6 bg-white/10 mx-0.5" />
+
+            {/* Audio controls */}
+            <button
+              onClick={() => { initAudioContext(); toggleMute(); }}
+              className="p-2 landscape:p-2.5 md:p-2.5 rounded-xl bg-violet-500/20 hover:bg-violet-500/40 text-violet-300 hover:text-violet-200 transition-all duration-200"
+              title={isMuted ? "Attiva Audio" : "Disattiva Audio"}
+            >
+              {isMuted ? <VolumeX size={16} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" /> : <Volume2 size={16} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" />}
+            </button>
+
+            {/* Music */}
+            <button
+              onClick={() => setMusicPlayerOpen(!musicPlayerOpen)}
+              className="p-2 landscape:p-2.5 md:p-2.5 rounded-xl bg-pink-500/20 hover:bg-pink-500/40 text-pink-300 hover:text-pink-200 transition-all duration-200"
+              title="Musica"
+            >
+              <Music size={16} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" />
+            </button>
+
+            {/* Sound Settings */}
+            <button
+              onClick={() => setSoundSettingsOpen(!soundSettingsOpen)}
+              className="p-2 landscape:p-2.5 md:p-2.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-300 hover:text-cyan-200 transition-all duration-200"
+              title="Impostazioni Audio"
+            >
+              <Settings size={16} className="landscape:w-5 landscape:h-5 md:w-5 md:h-5" />
+            </button>
+
+            {/* Voice Chat */}
+            <VoiceChat />
+          </div>
         </div>
 
+        {/* Sound Settings Panel */}
         <div id="sound-settings-container">
           {soundSettingsOpen && (
             <div 
-              className="fixed bottom-16 landscape:bottom-20 md:bottom-52 right-1 landscape:right-4 md:right-4 w-[calc(100vw-1rem)] max-w-64 landscape:w-72 md:w-80 h-80 landscape:h-96 md:h-[28rem] z-50 fade-in duration-300"
+              className="fixed bottom-20 landscape:bottom-24 md:bottom-24 left-1/2 -translate-x-1/2 w-[calc(100vw-2rem)] max-w-80 h-80 landscape:h-96 md:h-[28rem] z-50 fade-in duration-300"
               style={{ position: 'fixed' }}
             >
               <SoundSettings onClose={() => setSoundSettingsOpen(false)} />
@@ -3291,112 +3398,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           onClose={() => setMusicPlayerOpen(false)}
         />
 
-        {/* Game controls - hide when any side panel is open */}
-        <div
-          data-tutorial="tools"
-          className="fixed bottom-2 landscape:bottom-4 md:bottom-4 right-2 landscape:right-4 md:right-4 flex flex-col gap-1 landscape:gap-2 md:gap-2 z-50 transition-all duration-300"
-          style={{
-            opacity: (chatOpen || calculatorOpen || gameLogOpen || soundSettingsOpen || musicPlayerOpen) ? 0 : 1,
-            pointerEvents: (chatOpen || calculatorOpen || gameLogOpen || soundSettingsOpen || musicPlayerOpen) ? 'none' : 'auto',
-            transform: (chatOpen || calculatorOpen || gameLogOpen || soundSettingsOpen || musicPlayerOpen) ? 'translateX(20px)' : 'translateX(0)',
-          }}
-        >
-          <Button
-            data-tutorial="hand"
-            onClick={() => setHandModalOpen(true)}
-            className="btn-neon-purple text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200 relative"
-            title="Carte in Mano"
-          >
-            <Hand size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
-            {gameState?.players?.[playerName]?.hand?.length ? (
-              <span className="absolute -top-1 landscape:-top-2 md:-top-2 -right-1 landscape:-right-2 md:-right-2 bg-cyan-500 text-white rounded-full text-xs w-4 h-4 landscape:w-6 landscape:h-6 md:w-6 md:h-6 flex items-center justify-center font-bold">
-                {gameState.players[playerName].hand.length}
-              </span>
-            ) : null}
-          </Button>
-
-          <Button
-            onClick={() => socket.emit('force-end-turn', { gameId })}
-            className="btn-neon-cyan text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
-            title="Fine Turno"
-          >
-            <SkipForward size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
-          </Button>
-          
-          <Button
-            onClick={() => {
-              if (chatOpen) {
-                handleCloseChat();
-              } else {
-                handleOpenChat();
-              }
-            }}
-            className="btn-neon-blue text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200 relative"
-            title="Chat"
-          >
-            <MessageCircle size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
-            {unreadMessages > 0 && (
-              <span className="absolute -top-1 landscape:-top-2 md:-top-2 -right-1 landscape:-right-2 md:-right-2 bg-red-500 text-white rounded-full text-xs w-4 h-4 landscape:w-6 landscape:h-6 md:w-6 md:h-6 flex items-center justify-center font-bold">
-                {unreadMessages > 9 ? '9+' : unreadMessages}
-              </span>
-            )}
-          </Button>
-
-          <Button
-            onClick={() => setGameLogOpen(!gameLogOpen)}
-            className="btn-neon-purple text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
-            title="Game Log"
-          >
-            <ScrollText size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
-          </Button>
-          
-          <Button
-            onClick={() => setCalculatorOpen(!calculatorOpen)}
-            className="btn-neon-green text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
-            title="Calculator"
-          >
-            <CalcIcon size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
-          </Button>
-          
-          <Button
-            onClick={() => setDiceOpen(true)}
-            className="btn-neon-orange text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
-            title="Roll Dice"
-          >
-            <Dice6 size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
-          </Button>
-          
-          <Button
-            onClick={() => setGraveyardOpen(true)}
-            className="btn-neon-gray text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
-            title="Graveyard"
-          >
-            <Skull size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
-          </Button>
-          
-          {/* Voice Chat Controls */}
-          <VoiceChat />
-          
-          <Button
-            onClick={() => {
-              playDeckShuffle();
-              const deckTypes = ['personaggi', 'mosse', 'bonus', 'personaggi_speciali'];
-              deckTypes.forEach(deckType => {
-                socket.emit('shuffle-deck', { deckType });
-              });
-            }}
-            className="btn-neon-blue text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
-            title="Mischia tutti i mazzi"
-          >
-            <Shuffle size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
-          </Button>
-          
-          </div>
-
         {/* Calculator */}
         {calculatorOpen && (
           <div 
-            className="fixed bottom-16 landscape:bottom-20 md:bottom-52 right-1 landscape:right-4 md:right-4 w-[calc(100vw-1rem)] max-w-64 landscape:w-72 md:w-80 z-40 animate-in slide-in-from-right-5 fade-in duration-300"
+            className="fixed bottom-20 landscape:bottom-24 md:bottom-24 left-1/2 -translate-x-1/2 w-[calc(100vw-2rem)] max-w-80 z-40 animate-in slide-in-from-bottom-5 fade-in duration-300"
             style={{ position: 'fixed' }}
           >
             <Calculator onClose={() => setCalculatorOpen(false)} />

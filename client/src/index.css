@@ -324,8 +324,33 @@
 }
 
 .bg-arena-deep {
-  background: linear-gradient(180deg, #0a0f1a 0%, #0d1526 50%, #0a1020 100%);
+  background: linear-gradient(180deg, #050810 0%, #0a0f1e 40%, #0d1228 70%, #080c18 100%);
 }
+
+.game-bg-gradient {
+  background: radial-gradient(ellipse at 30% 20%, rgba(88, 28, 135, 0.15) 0%, transparent 50%),
+              radial-gradient(ellipse at 70% 80%, rgba(30, 58, 138, 0.12) 0%, transparent 50%),
+              radial-gradient(ellipse at 50% 50%, rgba(6, 182, 212, 0.05) 0%, transparent 60%),
+              linear-gradient(180deg, #050810 0%, #0a0f1e 40%, #0d1228 70%, #080c18 100%);
+}
+
+@keyframes bg-float-1 {
+  0%, 100% { transform: translate(0, 0); }
+  33% { transform: translate(30px, -40px); }
+  66% { transform: translate(-20px, 20px); }
+}
+@keyframes bg-float-2 {
+  0%, 100% { transform: translate(0, 0); }
+  33% { transform: translate(-40px, 30px); }
+  66% { transform: translate(25px, -25px); }
+}
+@keyframes bg-float-3 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(35px, 35px); }
+}
+.animate-bg-float-1 { animation: bg-float-1 20s ease-in-out infinite; }
+.animate-bg-float-2 { animation: bg-float-2 25s ease-in-out infinite; }
+.animate-bg-float-3 { animation: bg-float-3 18s ease-in-out infinite; }
 
 .bg-royal-blue {
   background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
@@ -1390,11 +1415,14 @@ input:focus, select:focus {
   animation: turn-glow-pulse 2s ease-in-out infinite;
 }
 .turn-indicator-mine {
-  animation: turn-glow-pulse 1.5s ease-in-out infinite;
-  box-shadow: 0 0 20px rgba(245, 158, 11, 0.6);
+  animation: turn-indicator-glow 2s ease-in-out infinite;
 }
 .turn-indicator-other {
-  box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.2), 0 0 30px rgba(139, 92, 246, 0.1);
+}
+@keyframes turn-indicator-glow {
+  0%, 100% { box-shadow: 0 0 15px rgba(245, 158, 11, 0.3), 0 0 30px rgba(234, 179, 8, 0.15); }
+  50% { box-shadow: 0 0 25px rgba(245, 158, 11, 0.5), 0 0 50px rgba(234, 179, 8, 0.25), 0 0 80px rgba(245, 158, 11, 0.1); }
 }
 .turn-text-glow {
   text-shadow: 0 0 8px rgba(74, 222, 128, 0.8), 1px 1px 2px rgba(0,0,0,0.8) !important;
