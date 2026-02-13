@@ -1281,7 +1281,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
             decoding="async"
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
-            className={`w-14 h-auto aspect-[2/3] sm:w-16 md:w-20 lg:w-24 card-master object-cover rounded-xl bg-slate-700
+            className={`w-20 h-auto aspect-[2/3] sm:w-20 md:w-20 lg:w-24 card-master object-cover rounded-xl bg-slate-700
               ${getEntryAnimationClass()}
               ${card.type === 'personaggi' ? 'card-border-personaggi' : ''}
               ${card.type === 'mosse' ? 'card-border-mosse' : ''}
@@ -1334,7 +1334,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
             value={cardText}
             onChange={handleTextChange}
             placeholder="Add note..."
-            className={`w-14 sm:w-16 md:w-20 lg:w-24 h-14 sm:h-16 md:h-18 text-[8px] sm:text-[9px] md:text-[10px] p-1 rounded resize-none neon-text-area neon-${card.type} leading-tight`}
+            className={`w-20 sm:w-20 md:w-20 lg:w-24 h-18 sm:h-18 md:h-18 text-[8px] sm:text-[9px] md:text-[10px] p-1 rounded resize-none neon-text-area neon-${card.type} leading-tight`}
             disabled={!isOwner && location === 'hand'}
           />
         </div>
