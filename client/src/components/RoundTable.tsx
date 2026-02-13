@@ -277,13 +277,13 @@ const RoundTableComponent: React.FC = () => {
       {/* Rectangular Table Container */}
       <div 
         data-tutorial="field"
-        className="relative w-[85vw] h-[95vh] landscape:w-[95vw] landscape:h-[95vh] sm:w-[90vw] sm:h-[90vh] md:w-[95vw] md:h-[95vh] lg:w-[98vw] lg:h-[95vh] xl:w-[98vw] xl:h-[98vh] max-w-[1600px] max-h-[1400px] min-w-[320px] min-h-[500px] mx-auto border-4 landscape:border-8 md:border-8 border-purple-500/30 game-field bg-no-repeat overflow-visible touch-manipulation"
+        className="relative w-[85vw] h-[95vh] landscape:w-[95vw] landscape:h-[95vh] sm:w-[90vw] sm:h-[90vh] md:w-[95vw] md:h-[95vh] lg:w-[98vw] lg:h-[95vh] xl:w-[98vw] xl:h-[98vh] max-w-[1600px] max-h-[1400px] min-w-[320px] min-h-[500px] mx-auto border-4 landscape:border-8 md:border-8 border-purple-500/30 game-field bg-no-repeat overflow-visible"
         style={{
           borderRadius: '24px',
           backgroundImage: `url('https://i.ibb.co/Y4bv4xwz/sfondo-minkiards.png')`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          touchAction: 'pinch-zoom',
+          touchAction: 'pan-y pinch-zoom',
           boxShadow: '0 0 40px rgba(147, 51, 234, 0.4)'
         }}
       >
