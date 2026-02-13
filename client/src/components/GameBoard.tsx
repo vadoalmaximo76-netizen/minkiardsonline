@@ -52,6 +52,9 @@ import { RankiardLeaderboard } from "./RankiardLeaderboard";
 import { ProfilePanel } from "./ProfilePanel";
 import { EmojiReactions } from "./EmojiReactions";
 import { JoinRequestDialog } from "./JoinRequestDialog";
+import CardTrailParticles from "./CardTrailParticles";
+import VictoryDefeatAnimation from "./VictoryDefeatAnimation";
+import { useScreenShake } from "../lib/useScreenShake";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { useBackgroundEffect } from "../lib/stores/useBackgroundEffect";
@@ -143,6 +146,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [victoryDialogOpen, setVictoryDialogOpen] = useState(false);
   const [victoryPlayer, setVictoryPlayer] = useState<string>('');
   const [showInterstitialAd, setShowInterstitialAd] = useState(false);
+  const [cardTrailParticles, setCardTrailParticles] = useState<{ visible: boolean; cardType: string; x: number; y: number }>({ visible: false, cardType: '', x: 0, y: 0 });
+  const [victoryDefeatAnim, setVictoryDefeatAnim] = useState<{ visible: boolean; type: 'victory' | 'defeat'; playerName: string }>({ visible: false, type: 'victory', playerName: '' });
+  const { shake } = useScreenShake();
   const [removePlayerDialogOpen, setRemovePlayerDialogOpen] = useState(false);
   const [playerEliminationNotification, setPlayerEliminationNotification] = useState<{
     visible: boolean;
@@ -604,11 +610,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         setAttackEffectVisible(true);
       }, 10);
       setAttackSlash3D({ visible: true, attackerName: attacker, targetName: target, damage: dmg });
+      shake(dmg > 50 ? 'heavy' : dmg > 20 ? 'medium' : 'light');
       playAttackSound();
       playDamageSound();
     };
 
     const handleCardToGraveyard = ({ cardName, cardType }: { cardName: string, cardType?: string }) => {
+      shake('medium');
       setCiaoCardName(cardName);
       setCiaoNotificationVisible(true);
       playCardToGraveyard();
@@ -729,6 +737,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       playerName: string 
     }) => {
       playCardPlayedToField();
+      const cx = window.innerWidth / 2 + (Math.random() - 0.5) * 200;
+      const cy = window.innerHeight / 2 + (Math.random() - 0.5) * 100;
+      setCardTrailParticles({ visible: true, cardType: cardType || '', x: cx, y: cy });
       setLastPlayedCards(prev => {
         const newCard = {
           id: cardId,
@@ -886,6 +897,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       winner: string | null;
       isTie: boolean;
     }) => {
+      shake('heavy');
       console.log(`⚡ CLASH BATTLE ended: winner=${winner}, tie=${isTie}`);
       setTimeout(() => {
         setClashBattleData(null);
@@ -1559,15 +1571,18 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
 
     const handleGameVictory = ({ winner }: { winner: string }) => {
-      if (winner === playerName) {
+      const isWinner = winner === playerName;
+      if (isWinner) {
         playVictory();
+        shake('extreme');
       } else {
         playDefeat();
+        shake('heavy');
       }
       setVictoryPlayer(winner);
+      setVictoryDefeatAnim({ visible: true, type: isWinner ? 'victory' : 'defeat', playerName: winner });
       setVictoryDialogOpen(true);
       setTimeout(() => setShowInterstitialAd(true), 3000);
-      // Note: clearSession and onLeaveGame are called when user closes victory dialog
     };
 
     const handleFusionError = ({ message }: { message: string }) => {
@@ -1732,7 +1747,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   }, [triggerBgEvent, playerName, addToast, triggerTooltipFn]);
 
   return (
-    <div className="min-h-screen bg-arena-deep text-slate-100 p-4 relative">
+    <div id="game-root" className="min-h-screen bg-arena-deep text-slate-100 p-4 relative">
       <GameToastContainer />
       <ContextualTooltipLoader />
       <ContextualTooltipDisplay />
@@ -1781,6 +1796,22 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         gameId={gameId || ''}
       />
       
+      {/* Card Trail Particles */}
+      <CardTrailParticles
+        visible={cardTrailParticles.visible}
+        cardType={cardTrailParticles.cardType}
+        startX={cardTrailParticles.x}
+        startY={cardTrailParticles.y}
+        onComplete={() => setCardTrailParticles(prev => ({ ...prev, visible: false }))}
+      />
+
+      {/* Victory/Defeat Animation */}
+      <VictoryDefeatAnimation
+        visible={victoryDefeatAnim.visible}
+        type={victoryDefeatAnim.type}
+        playerName={victoryDefeatAnim.playerName}
+      />
+
       {/* Animated gradient background - dynamic colors based on game events */}
       <div className="fixed inset-0 pointer-events-none dynamic-bg-transition animate-color-shift" style={{ background: bgColors.gradient }} />
       <div className="fixed inset-0 overflow-hidden pointer-events-none">

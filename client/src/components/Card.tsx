@@ -1037,6 +1037,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
 
   const handleMouseEnter = useCallback((e: React.MouseEvent) => {
     setIsHovered(true);
+    try { useAudio.getState().playCardHover(); } catch {}
     if (location !== 'field') return;
     const rect = (e.target as HTMLElement).getBoundingClientRect();
     const viewportWidth = window.innerWidth;
