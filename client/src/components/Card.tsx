@@ -167,6 +167,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   const [prevStars, setPrevStars] = useState<number | null>(null);
   const [statGlowEffect, setStatGlowEffect] = useState<'pti-up' | 'pti-down' | 'star-up' | 'star-down' | null>(null);
   const [isNewlyPlaced, setIsNewlyPlaced] = useState(location === 'field');
+  const [isNewlyDrawn, setIsNewlyDrawn] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(true); // Start as true for immediate interaction
   const originalPTIRef = useRef<number | null>(null);
   const prevLocationRef = useRef<string>(location);
@@ -175,6 +176,8 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   const [showHoverPreview, setShowHoverPreview] = useState(false);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
   const [damageFlash, setDamageFlash] = useState(false);
+  const [cardTilt, setCardTilt] = useState({ rotateX: 0, rotateY: 0, glareX: 50, glareY: 50 });
+  const [isHovered, setIsHovered] = useState(false);
   
   // Use skin from card's game state (persisted) instead of local state
   const appliedSkinUrl = card.appliedSkinUrl || null;
@@ -200,8 +203,10 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   // Trigger animation when card moves to field
   useEffect(() => {
     if (location === 'field' && prevLocationRef.current !== 'field') {
-      console.log(`🎬 Card ${card.id} entering field - triggering animation`);
       setIsNewlyPlaced(true);
+    }
+    if (location === 'hand' && prevLocationRef.current !== 'hand') {
+      setIsNewlyDrawn(true);
     }
     prevLocationRef.current = location;
   }, [location, card.id]);
@@ -213,6 +218,13 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       return () => clearTimeout(timer);
     }
   }, [isNewlyPlaced]);
+
+  useEffect(() => {
+    if (isNewlyDrawn) {
+      const timer = setTimeout(() => setIsNewlyDrawn(false), 800);
+      return () => clearTimeout(timer);
+    }
+  }, [isNewlyDrawn]);
   const { 
     setSelectedCard, 
     playerName, 
@@ -1020,6 +1032,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   };
 
   const handleMouseEnter = useCallback((e: React.MouseEvent) => {
+    setIsHovered(true);
     if (location !== 'field') return;
     const rect = (e.target as HTMLElement).getBoundingClientRect();
     const viewportWidth = window.innerWidth;
@@ -1038,12 +1051,31 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
 
   const handleMouseLeave = useCallback(() => {
     setShowHoverPreview(false);
+    setIsHovered(false);
+    setCardTilt({ rotateX: 0, rotateY: 0, glareX: 50, glareY: 50 });
   }, []);
+
+  const handleMouseMove3D = useCallback((e: React.MouseEvent) => {
+    if (!cardRef.current || location !== 'field') return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    const tiltX = (y - 0.5) * -20;
+    const tiltY = (x - 0.5) * 20;
+    setCardTilt({ rotateX: tiltX, rotateY: tiltY, glareX: x * 100, glareY: y * 100 });
+  }, [location]);
 
   return (
     <div 
       ref={cardRef}
-      className={`relative flex flex-col gap-2 card-play-transition ${damageFlash ? 'card-damage-flash' : ''} ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? getEntryAnimationClass() : ''}`}
+      onMouseMove={handleMouseMove3D}
+      className={`relative flex flex-col gap-2 card-play-transition card-3d-tilt ${damageFlash ? 'card-damage-flash' : ''} ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? getEntryAnimationClass() : ''}`}
+      style={{
+        perspective: location === 'field' ? '800px' : undefined,
+        transformStyle: location === 'field' ? 'preserve-3d' as any : undefined,
+        transform: location === 'field' && isHovered ? `rotateX(${cardTilt.rotateX}deg) rotateY(${cardTilt.rotateY}deg) scale3d(1.05, 1.05, 1.05)` : undefined,
+        transition: location === 'field' ? (isHovered ? 'transform 0.1s ease-out' : 'transform 0.4s ease-out') : undefined,
+      }}
     >
       {/* Floating Numbers */}
       {floatingNumbers.map(num => (
@@ -1214,8 +1246,18 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
               ${isShaking && !isEliminated ? 'animate-shake' : ''} 
               ${isMosseSelected ? 'ring-4 ring-purple-500 ring-opacity-70' : ''}
               ${card.faceDown ? 'ring-2 ring-orange-400 ring-opacity-50' : ''}
+              ${isNewlyDrawn && location === 'hand' ? 'card-draw-enter' : ''}
               ${skinAnimation || ''}`}
           />
+          {isHovered && location === 'field' && !card.faceDown && !showBack && (
+            <div 
+              className="absolute inset-0 rounded-xl pointer-events-none"
+              style={{
+                background: `radial-gradient(circle at ${cardTilt.glareX}% ${cardTilt.glareY}%, rgba(255,255,255,0.25) 0%, transparent 60%)`,
+                transition: 'background 0.1s ease-out',
+              }}
+            />
+          )}
           {appliedSkinUrl && !showBack && !card.faceDown && (
             <div className="absolute -top-1 -right-1 bg-violet-500 rounded-full p-0.5 z-10">
               <Palette className="w-3 h-3 text-white" />

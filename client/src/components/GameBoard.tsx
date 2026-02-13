@@ -28,6 +28,9 @@ import { DuelDamageDialog } from "./DuelDamageDialog";
 import { RecursiveDamagePanel } from "./RecursiveDamagePanel";
 import AuctionOverlay from "./AuctionOverlay";
 import { HandModal } from "./HandModal";
+import { Dice3D } from "./Dice3D";
+import { CardShatter3D } from "./CardShatter3D";
+import { AttackSlash3D } from "./AttackSlash3D";
 import { MusicPlayer } from "./MusicPlayer";
 import { VoiceChat } from "./VoiceChat";
 import { YouTubeVideoModal } from "./YouTubeVideoModal";
@@ -168,6 +171,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [sorosData, setSorosData] = useState<{ activator: string; cardImage: string } | null>(null);
   const [attackEffectVisible, setAttackEffectVisible] = useState(false);
   const [attackedCharacterName, setAttackedCharacterName] = useState<string>("");
+  const [attackSlash3D, setAttackSlash3D] = useState<{ visible: boolean; attackerName: string; targetName: string; damage: number }>({ visible: false, attackerName: '', targetName: '', damage: 0 });
+  const [cardShatter3D, setCardShatter3D] = useState<{ visible: boolean; cardImage: string; cardName: string }>({ visible: false, cardImage: '', cardName: '' });
   const [attackEffectKey, setAttackEffectKey] = useState(0);
   const [deathEffectVisible, setDeathEffectVisible] = useState(false);
   const [deadCharacterName, setDeadCharacterName] = useState<string>("");
@@ -589,6 +594,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         setAttackEffectKey(prev => prev + 1);
         setAttackEffectVisible(true);
       }, 10);
+      setAttackSlash3D({ visible: true, attackerName: fromPlayer, targetName: targetCardName, damage: 0 });
       playAttackSound();
       playDamageSound();
     };
@@ -605,6 +611,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           setDeathEffectKey(prev => prev + 1);
           setDeathEffectVisible(true);
         }, 10);
+        setCardShatter3D({ visible: true, cardImage: '', cardName });
         playDeathSound();
       }
       
@@ -2629,38 +2636,51 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
       {evolutionDiceRoll.visible && (
         <div className="fixed inset-0 z-[9998] pointer-events-none flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/80" />
-          <div className="relative bg-gradient-to-br from-red-900 via-orange-800 to-yellow-700 rounded-2xl p-8 border-4 border-red-400 shadow-[0_0_80px_rgba(239,68,68,0.6)] max-w-md w-full mx-4">
-            <div className="text-center">
-              <h3 className="text-xl font-bold text-yellow-200 mb-2">🎲 DADO EVOLUZIONE</h3>
-              <p className="text-gray-200 text-sm mb-3">{evolutionDiceRoll.playerName} lancia il dado per {evolutionDiceRoll.characterName}!</p>
-              
-              {evolutionDiceRoll.animationPhase === 'rolling' && (
-                <div className="animate-pulse">
-                  <div className="text-8xl mb-4 animate-spin" style={{animationDuration: '0.5s'}}>🎲</div>
-                  <p className="text-2xl text-yellow-300 font-bold">Lancio del dado...</p>
-                </div>
-              )}
-              
-              {evolutionDiceRoll.animationPhase === 'result' && (
-                <>
-                  <div className="text-8xl mb-2">🎲</div>
-                  <h2 className="text-7xl font-bold text-white mb-3 animate-pulse" style={{textShadow: '4px 4px 8px rgba(0,0,0,0.8)'}}>
-                    {evolutionDiceRoll.diceResult}
-                  </h2>
-                  {evolutionDiceRoll.evolutionTarget ? (
-                    <div className="text-2xl font-bold text-green-400 animate-pulse">
+          <div className="absolute inset-0 bg-black/85" style={{ animation: 'evo-dice-backdrop 0.4s ease-out' }} />
+          <div className="relative flex flex-col items-center gap-4" style={{ animation: 'evo-dice-panel-enter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>
+            <h3 className="text-2xl font-black text-yellow-200 tracking-widest" style={{ textShadow: '0 0 30px rgba(255,215,0,0.6)' }}>
+              DADO EVOLUZIONE
+            </h3>
+            <p className="text-gray-300 text-sm">{evolutionDiceRoll.playerName} lancia il dado per <span className="text-yellow-300 font-bold">{evolutionDiceRoll.characterName}</span></p>
+            
+            <div className="my-4">
+              <Dice3D 
+                isRolling={evolutionDiceRoll.animationPhase === 'rolling'} 
+                result={evolutionDiceRoll.animationPhase === 'result' ? evolutionDiceRoll.diceResult : null} 
+                size={120} 
+              />
+            </div>
+            
+            {evolutionDiceRoll.animationPhase === 'result' && (
+              <div style={{ animation: 'evo-dice-result-reveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>
+                {evolutionDiceRoll.evolutionTarget ? (
+                  <div className="text-center">
+                    <div className="text-5xl font-black text-white mb-2" style={{ textShadow: '0 0 40px rgba(255,215,0,0.8)' }}>
+                      {evolutionDiceRoll.diceResult}
+                    </div>
+                    <div className="text-xl font-bold text-green-400" style={{ textShadow: '0 0 20px rgba(74,222,128,0.6)', animation: 'evo-dice-glow 1.5s ease-in-out infinite' }}>
                       🌟 Si evolve in: {evolutionDiceRoll.evolutionTarget}!
                     </div>
-                  ) : (
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <div className="text-5xl font-black text-white mb-2" style={{ textShadow: '0 0 40px rgba(239,68,68,0.8)' }}>
+                      {evolutionDiceRoll.diceResult}
+                    </div>
                     <div className="text-xl font-bold text-red-400">
                       ❌ Nessuna evoluzione per questo numero!
                     </div>
-                  )}
-                </>
-              )}
-            </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
+          <style>{`
+            @keyframes evo-dice-backdrop { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes evo-dice-panel-enter { from { opacity: 0; transform: scale(0.5) translateY(40px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+            @keyframes evo-dice-result-reveal { from { opacity: 0; transform: scale(0.3); } to { opacity: 1; transform: scale(1); } }
+            @keyframes evo-dice-glow { 0%, 100% { text-shadow: 0 0 20px rgba(74,222,128,0.6); } 50% { text-shadow: 0 0 40px rgba(74,222,128,1), 0 0 80px rgba(74,222,128,0.4); } }
+          `}</style>
         </div>
       )}
 
@@ -3566,6 +3586,25 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           characterName={deadCharacterName}
           onComplete={() => setDeathEffectVisible(false)}
         />
+
+        {attackSlash3D.visible && (
+          <AttackSlash3D
+            isVisible={attackSlash3D.visible}
+            attackerName={attackSlash3D.attackerName}
+            targetName={attackSlash3D.targetName}
+            damage={attackSlash3D.damage}
+            onComplete={() => setAttackSlash3D({ visible: false, attackerName: '', targetName: '', damage: 0 })}
+          />
+        )}
+
+        {cardShatter3D.visible && (
+          <CardShatter3D
+            isVisible={cardShatter3D.visible}
+            cardImage={cardShatter3D.cardImage || undefined}
+            cardName={cardShatter3D.cardName}
+            onComplete={() => setCardShatter3D({ visible: false, cardImage: '', cardName: '' })}
+          />
+        )}
 
         {/* Player Order Notification */}
         <PlayerOrderNotification

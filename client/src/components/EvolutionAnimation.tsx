@@ -122,7 +122,21 @@ export const EvolutionAnimation: React.FC<EvolutionAnimationProps> = ({
   if (!isVisible || phase === 0) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] pointer-events-none" style={{ perspective: '1000px' }}>
+    <>
+      <style>{`
+        @keyframes evo3dFlipOut {
+          0% { transform: perspective(1000px) rotateY(0deg) scale(1); }
+          50% { transform: perspective(1000px) rotateY(90deg) scale(1.2); filter: brightness(3); }
+          100% { transform: perspective(1000px) rotateY(180deg) scale(0.8); opacity: 0; }
+        }
+        @keyframes evo3dFlipIn {
+          0% { transform: perspective(1000px) rotateY(-180deg) scale(0.5); opacity: 0; }
+          40% { transform: perspective(1000px) rotateY(-90deg) scale(1.1); }
+          70% { transform: perspective(1000px) rotateY(-10deg) scale(1.05); }
+          100% { transform: perspective(1000px) rotateY(0deg) scale(1); opacity: 1; }
+        }
+      `}</style>
+      <div className="fixed inset-0 z-[9999] pointer-events-none" style={{ perspective: '1000px' }}>
       <div
         className="absolute inset-0"
         style={{
@@ -229,15 +243,23 @@ export const EvolutionAnimation: React.FC<EvolutionAnimationProps> = ({
             </div>
 
             {oldImage && (
-              <div className="relative mx-auto" style={{ width: '140px', height: '200px' }}>
+              <div
+                className="relative mx-auto"
+                style={{
+                  width: '140px',
+                  height: '200px',
+                  perspective: '1000px',
+                  transformStyle: 'preserve-3d'
+                }}
+              >
                 <img
                   src={oldImage}
                   alt={oldName}
                   className="w-full h-full object-contain rounded-lg"
                   style={{
-                    filter: phase >= 2 ? 'brightness(2) saturate(0.3)' : 'none',
-                    transition: 'filter 0.5s ease',
-                    boxShadow: `0 0 30px ${config.glowColor}`
+                    animation: phase >= 2 ? 'evo3dFlipOut 1s ease-in-out forwards' : 'none',
+                    boxShadow: `0 0 30px ${config.glowColor}`,
+                    transformStyle: 'preserve-3d'
                   }}
                 />
                 {phase >= 2 && (
@@ -288,7 +310,15 @@ export const EvolutionAnimation: React.FC<EvolutionAnimationProps> = ({
             }}
           >
             {newImage && (
-              <div className="relative mx-auto" style={{ width: '180px', height: '260px' }}>
+              <div
+                className="relative mx-auto"
+                style={{
+                  width: '180px',
+                  height: '260px',
+                  perspective: '1000px',
+                  transformStyle: 'preserve-3d'
+                }}
+              >
                 <div
                   className="absolute inset-0 rounded-xl"
                   style={{
@@ -305,7 +335,8 @@ export const EvolutionAnimation: React.FC<EvolutionAnimationProps> = ({
                   className="relative w-full h-full object-contain rounded-xl"
                   style={{
                     boxShadow: `0 0 40px ${config.glowColor}, 0 0 80px ${config.glowColor}`,
-                    animation: 'evoCardFloat 2s ease-in-out infinite'
+                    animation: phase >= 3 ? 'evo3dFlipIn 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, evoCardFloat 2s ease-in-out infinite' : 'none',
+                    transformStyle: 'preserve-3d'
                   }}
                 />
                 {phase >= 4 && (
@@ -414,6 +445,7 @@ export const EvolutionAnimation: React.FC<EvolutionAnimationProps> = ({
           }}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 };

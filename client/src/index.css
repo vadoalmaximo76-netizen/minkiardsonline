@@ -698,24 +698,27 @@ textarea.card-text:focus {
     inset 0 0 10px rgba(251, 191, 36, 0.1);
 }
 
-/* DRAMATIC CARD ENTRY ANIMATIONS */
+/* 3D DRAMATIC CARD ENTRY ANIMATIONS */
 @keyframes card-epic-enter {
   0% { 
     opacity: 0; 
-    transform: scale(0.1) rotateY(180deg) translateY(-200px);
+    transform: perspective(1000px) scale(0.1) rotateY(180deg) rotateX(30deg) translateY(-200px) translateZ(-500px);
     filter: blur(20px) brightness(3);
   }
-  50% {
+  40% {
     opacity: 1;
-    transform: scale(1.3) rotateY(0deg) translateY(-20px);
+    transform: perspective(1000px) scale(1.3) rotateY(10deg) rotateX(-5deg) translateY(-30px) translateZ(50px);
     filter: blur(0px) brightness(1.5);
   }
-  70% {
-    transform: scale(0.95) rotateY(0deg) translateY(10px);
+  60% {
+    transform: perspective(1000px) scale(1.1) rotateY(-5deg) rotateX(3deg) translateY(10px) translateZ(20px);
+  }
+  80% {
+    transform: perspective(1000px) scale(0.97) rotateY(2deg) rotateX(-1deg) translateY(-5px) translateZ(5px);
   }
   100% { 
     opacity: 1; 
-    transform: scale(1) rotateY(0deg) translateY(0);
+    transform: perspective(1000px) scale(1) rotateY(0deg) rotateX(0deg) translateY(0) translateZ(0);
     filter: blur(0px) brightness(1);
   }
 }
@@ -723,19 +726,22 @@ textarea.card-text:focus {
 @keyframes card-slam {
   0% { 
     opacity: 0; 
-    transform: scale(3) translateY(-300px) rotateX(45deg);
+    transform: perspective(1000px) scale(3) translateY(-400px) translateZ(200px) rotateX(60deg);
     filter: blur(10px);
   }
-  60% {
+  50% {
     opacity: 1;
-    transform: scale(1.1) translateY(20px) rotateX(-10deg);
+    transform: perspective(1000px) scale(1.15) translateY(15px) translateZ(-20px) rotateX(-12deg);
   }
-  80% {
-    transform: scale(0.95) translateY(-5px) rotateX(5deg);
+  70% {
+    transform: perspective(1000px) scale(0.97) translateY(-8px) translateZ(10px) rotateX(6deg);
+  }
+  85% {
+    transform: perspective(1000px) scale(1.02) translateY(3px) translateZ(-5px) rotateX(-2deg);
   }
   100% { 
     opacity: 1; 
-    transform: scale(1) translateY(0) rotateX(0deg);
+    transform: perspective(1000px) scale(1) translateY(0) translateZ(0) rotateX(0deg);
     filter: blur(0);
   }
 }
@@ -743,15 +749,19 @@ textarea.card-text:focus {
 @keyframes card-spin-in {
   0% { 
     opacity: 0; 
-    transform: scale(0) rotate(-720deg);
+    transform: perspective(1000px) scale(0) rotate(-720deg) rotateY(180deg) translateZ(-300px);
     filter: blur(15px) brightness(2);
   }
+  50% {
+    opacity: 0.8;
+    transform: perspective(1000px) scale(1.1) rotate(45deg) rotateY(20deg) translateZ(30px);
+  }
   70% {
-    transform: scale(1.2) rotate(30deg);
+    transform: perspective(1000px) scale(1.15) rotate(-10deg) rotateY(-5deg) translateZ(10px);
   }
   100% { 
     opacity: 1; 
-    transform: scale(1) rotate(0deg);
+    transform: perspective(1000px) scale(1) rotate(0deg) rotateY(0deg) translateZ(0);
     filter: blur(0) brightness(1);
   }
 }
@@ -1428,30 +1438,34 @@ input:focus, select:focus {
   transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
 }
 
-/* Damage flash effect */
-@keyframes damage-flash {
-  0% { filter: brightness(1); }
-  15% { filter: brightness(2) saturate(0) sepia(1) hue-rotate(-50deg); }
-  30% { filter: brightness(1.5) saturate(2) hue-rotate(-10deg); }
-  50% { filter: brightness(1); }
-  65% { filter: brightness(1.8) saturate(0) sepia(1) hue-rotate(-50deg); }
-  80% { filter: brightness(1); }
-  100% { filter: brightness(1); }
+/* 3D Damage flash effect with shake */
+@keyframes damage-flash-3d {
+  0% { filter: brightness(1); transform: perspective(800px) rotateX(0) rotateZ(0) scale(1); }
+  10% { filter: brightness(2.5) saturate(0) sepia(1) hue-rotate(-50deg); transform: perspective(800px) rotateX(8deg) rotateZ(-3deg) scale(1.08); }
+  20% { filter: brightness(1.5) saturate(2) hue-rotate(-10deg); transform: perspective(800px) rotateX(-6deg) rotateZ(4deg) scale(1.05); }
+  30% { filter: brightness(2); transform: perspective(800px) rotateX(5deg) rotateZ(-2deg) scale(1.03); }
+  45% { filter: brightness(1); transform: perspective(800px) rotateX(-3deg) rotateZ(2deg) scale(1.01); }
+  60% { filter: brightness(1.8) saturate(0) sepia(1) hue-rotate(-50deg); transform: perspective(800px) rotateX(2deg) rotateZ(-1deg) scale(1); }
+  80% { filter: brightness(1); transform: perspective(800px) rotateX(-1deg) rotateZ(0.5deg) scale(1); }
+  100% { filter: brightness(1); transform: perspective(800px) rotateX(0) rotateZ(0) scale(1); }
 }
 .card-damage-flash {
-  animation: damage-flash 0.6s ease-out;
+  animation: damage-flash-3d 0.7s ease-out;
+  transform-style: preserve-3d;
 }
 
-/* Attack lunge animation */
-@keyframes attack-lunge {
-  0% { transform: translateY(0) scale(1); }
-  30% { transform: translateY(-20px) scale(1.1); }
-  50% { transform: translateY(-30px) scale(1.15); }
-  70% { transform: translateY(-20px) scale(1.1); }
-  100% { transform: translateY(0) scale(1); }
+/* 3D Attack lunge animation */
+@keyframes attack-lunge-3d {
+  0% { transform: perspective(800px) translateY(0) translateZ(0) rotateX(0) scale(1); }
+  20% { transform: perspective(800px) translateY(-15px) translateZ(30px) rotateX(-10deg) scale(1.15); }
+  40% { transform: perspective(800px) translateY(-30px) translateZ(60px) rotateX(-15deg) scale(1.25); }
+  60% { transform: perspective(800px) translateY(10px) translateZ(20px) rotateX(5deg) scale(1.1); }
+  80% { transform: perspective(800px) translateY(-5px) translateZ(10px) rotateX(-2deg) scale(1.03); }
+  100% { transform: perspective(800px) translateY(0) translateZ(0) rotateX(0) scale(1); }
 }
 .card-attack-lunge {
-  animation: attack-lunge 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: attack-lunge-3d 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-style: preserve-3d;
 }
 
 /* Special Move Overlay Animations */
@@ -1588,4 +1602,113 @@ input:focus, select:focus {
 @keyframes evoFlashBurst {
   0% { opacity: 0.8; }
   100% { opacity: 0; }
+}
+
+/* 3D Card Shatter on Death */
+@keyframes card-shatter-piece {
+  0% {
+    opacity: 1;
+    transform: perspective(800px) translate(0, 0) rotateX(0) rotateY(0) rotateZ(0) scale(1);
+  }
+  30% {
+    opacity: 1;
+    transform: perspective(800px) translate(var(--shatter-tx), var(--shatter-ty)) rotateX(var(--shatter-rx)) rotateY(var(--shatter-ry)) rotateZ(var(--shatter-rz)) scale(0.9);
+  }
+  100% {
+    opacity: 0;
+    transform: perspective(800px) translate(calc(var(--shatter-tx) * 3), calc(var(--shatter-ty) * 3 - 100px)) rotateX(calc(var(--shatter-rx) * 2)) rotateY(calc(var(--shatter-ry) * 2)) rotateZ(calc(var(--shatter-rz) * 2)) scale(0);
+  }
+}
+
+@keyframes card-shatter-flash {
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* 3D Card Draw from Deck */
+@keyframes card-draw-3d {
+  0% {
+    opacity: 0;
+    transform: perspective(1000px) rotateY(-180deg) translateZ(-100px) scale(0.5);
+  }
+  40% {
+    opacity: 1;
+    transform: perspective(1000px) rotateY(-90deg) translateZ(0) scale(0.8);
+  }
+  70% {
+    transform: perspective(1000px) rotateY(-20deg) translateZ(30px) scale(1.1);
+  }
+  85% {
+    transform: perspective(1000px) rotateY(5deg) translateZ(10px) scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(1000px) rotateY(0deg) translateZ(0) scale(1);
+  }
+}
+
+.card-draw-enter {
+  animation: card-draw-3d 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-style: preserve-3d;
+}
+
+/* 3D Attack Slash Effect */
+@keyframes attack-slash-3d {
+  0% {
+    opacity: 0;
+    transform: perspective(800px) translateX(-100vw) rotateZ(-45deg) scaleX(0.3);
+  }
+  30% {
+    opacity: 1;
+    transform: perspective(800px) translateX(0) rotateZ(-45deg) scaleX(1.2);
+  }
+  50% {
+    opacity: 0.8;
+    transform: perspective(800px) translateX(30vw) rotateZ(-45deg) scaleX(1);
+  }
+  100% {
+    opacity: 0;
+    transform: perspective(800px) translateX(100vw) rotateZ(-45deg) scaleX(0.5);
+  }
+}
+
+@keyframes energy-projectile-3d {
+  0% {
+    transform: perspective(800px) translateX(-50vw) translateZ(-200px) scale(0.3) rotateY(0deg);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+    transform: perspective(800px) translateX(-20vw) translateZ(0) scale(1) rotateY(180deg);
+  }
+  80% {
+    opacity: 0.8;
+    transform: perspective(800px) translateX(30vw) translateZ(50px) scale(1.2) rotateY(540deg);
+  }
+  100% {
+    opacity: 0;
+    transform: perspective(800px) translateX(50vw) translateZ(100px) scale(0.5) rotateY(720deg);
+  }
+}
+
+/* Floating particles for card shatter effect */
+@keyframes float-down {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(500px) translateX(30px);
+    opacity: 0;
+  }
+}
+
+@keyframes fade-out {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }

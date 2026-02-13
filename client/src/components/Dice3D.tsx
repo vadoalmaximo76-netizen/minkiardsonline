@@ -1,210 +1,165 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { RoundedBox, Text, Environment } from '@react-three/drei';
-import * as THREE from 'three';
+import React, { useEffect, useRef, useState } from 'react';
 
 interface Dice3DProps {
   isRolling: boolean;
+  result?: number | null;
   finalValue?: number;
-  onRollComplete?: () => void;
   size?: number;
+  onRollComplete?: () => void;
 }
 
-const DiceFace: React.FC<{ position: [number, number, number]; rotation: [number, number, number]; dots: number; size: number }> = ({ position, rotation, dots, size }) => {
-  const dotPositions: { [key: number]: [number, number][] } = {
-    1: [[0, 0]],
-    2: [[-0.25, -0.25], [0.25, 0.25]],
-    3: [[-0.25, -0.25], [0, 0], [0.25, 0.25]],
-    4: [[-0.25, -0.25], [0.25, -0.25], [-0.25, 0.25], [0.25, 0.25]],
-    5: [[-0.25, -0.25], [0.25, -0.25], [0, 0], [-0.25, 0.25], [0.25, 0.25]],
-    6: [[-0.25, -0.3], [0.25, -0.3], [-0.25, 0], [0.25, 0], [-0.25, 0.3], [0.25, 0.3]]
-  };
+const pipLayouts: Record<number, [number, number][]> = {
+  1: [[50, 50]],
+  2: [[25, 25], [75, 75]],
+  3: [[25, 25], [50, 50], [75, 75]],
+  4: [[25, 25], [75, 25], [25, 75], [75, 75]],
+  5: [[25, 25], [75, 25], [50, 50], [25, 75], [75, 75]],
+  6: [[25, 20], [75, 20], [25, 50], [75, 50], [25, 80], [75, 80]],
+};
 
-  const positions = dotPositions[dots] || [];
-  const dotSize = size * 0.08;
+const resultRotations: Record<number, { x: number; y: number }> = {
+  1: { x: 0, y: 0 },
+  2: { x: 0, y: -90 },
+  3: { x: -90, y: 0 },
+  4: { x: 90, y: 0 },
+  5: { x: 0, y: 90 },
+  6: { x: 0, y: 180 },
+};
+
+const DiceFace: React.FC<{ value: number; size: number }> = ({ value, size }) => {
+  const pips = pipLayouts[value] || [];
+  const pipSize = Math.max(size * 0.14, 8);
 
   return (
-    <group position={position} rotation={rotation}>
-      {positions.map((pos, idx) => (
-        <mesh key={idx} position={[pos[0] * size, pos[1] * size, 0.01]}>
-          <circleGeometry args={[dotSize, 32]} />
-          <meshStandardMaterial color="white" />
-        </mesh>
+    <div
+      style={{
+        position: 'absolute',
+        width: `${size}px`,
+        height: `${size}px`,
+        background: 'linear-gradient(145deg, #ffffff, #e6e6e6)',
+        borderRadius: `${size * 0.1}px`,
+        border: '1px solid rgba(0,0,0,0.08)',
+        boxShadow: 'inset 0 1px 3px rgba(255,255,255,0.6), inset 0 -1px 3px rgba(0,0,0,0.1)',
+        backfaceVisibility: 'hidden',
+      }}
+    >
+      {pips.map((pos, i) => (
+        <div
+          key={i}
+          style={{
+            position: 'absolute',
+            width: `${pipSize}px`,
+            height: `${pipSize}px`,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle at 35% 35%, #444, #111)',
+            boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.2), 0 1px 2px rgba(0,0,0,0.3)',
+            left: `${pos[0]}%`,
+            top: `${pos[1]}%`,
+            transform: 'translate(-50%, -50%)',
+          }}
+        />
       ))}
-    </group>
+    </div>
   );
 };
 
-const AnimatedDice: React.FC<{ isRolling: boolean; finalValue?: number; onRollComplete?: () => void; size?: number }> = ({ 
-  isRolling, 
-  finalValue = 1, 
+export const Dice3D: React.FC<Dice3DProps> = ({
+  isRolling,
+  result,
+  finalValue,
+  size = 120,
   onRollComplete,
-  size = 1 
 }) => {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const [rollPhase, setRollPhase] = useState<'idle' | 'rolling' | 'settling'>('idle');
-  const [targetRotation, setTargetRotation] = useState<[number, number, number]>([0, 0, 0]);
-  const rollStartTime = useRef(0);
-  const rollDuration = 1.5;
-
-  const faceRotations: { [key: number]: [number, number, number] } = {
-    1: [0, 0, 0],
-    2: [0, 0, Math.PI / 2],
-    3: [-Math.PI / 2, 0, 0],
-    4: [Math.PI / 2, 0, 0],
-    5: [0, 0, -Math.PI / 2],
-    6: [Math.PI, 0, 0]
-  };
+  const effectiveResult = result ?? finalValue ?? null;
+  const wasRolling = useRef(false);
+  const styleId = useRef(`dice3d-${Math.random().toString(36).slice(2, 8)}`);
 
   useEffect(() => {
     if (isRolling) {
-      setRollPhase('rolling');
-      rollStartTime.current = Date.now();
-    }
-  }, [isRolling]);
-
-  useEffect(() => {
-    if (!isRolling && rollPhase === 'rolling') {
-      setRollPhase('settling');
-      setTargetRotation(faceRotations[finalValue] || [0, 0, 0]);
-    }
-  }, [isRolling, rollPhase, finalValue]);
-
-  useFrame((state, delta) => {
-    if (!meshRef.current) return;
-
-    if (rollPhase === 'rolling') {
-      const elapsed = (Date.now() - rollStartTime.current) / 1000;
-      const speed = Math.max(1, 15 - elapsed * 10);
-      
-      meshRef.current.rotation.x += delta * speed * 3;
-      meshRef.current.rotation.y += delta * speed * 2;
-      meshRef.current.rotation.z += delta * speed * 1.5;
-
-      const bounceHeight = Math.sin(elapsed * 8) * 0.3 * Math.max(0, 1 - elapsed / rollDuration);
-      meshRef.current.position.y = bounceHeight;
-
-      if (elapsed > rollDuration) {
-        setRollPhase('settling');
-        setTargetRotation(faceRotations[finalValue] || [0, 0, 0]);
-      }
-    } else if (rollPhase === 'settling') {
-      const lerpSpeed = 8;
-      meshRef.current.rotation.x = THREE.MathUtils.lerp(meshRef.current.rotation.x, targetRotation[0], delta * lerpSpeed);
-      meshRef.current.rotation.y = THREE.MathUtils.lerp(meshRef.current.rotation.y, targetRotation[1], delta * lerpSpeed);
-      meshRef.current.rotation.z = THREE.MathUtils.lerp(meshRef.current.rotation.z, targetRotation[2], delta * lerpSpeed);
-      meshRef.current.position.y = THREE.MathUtils.lerp(meshRef.current.position.y, 0, delta * lerpSpeed);
-
-      const rotDiff = Math.abs(meshRef.current.rotation.x - targetRotation[0]) +
-                      Math.abs(meshRef.current.rotation.y - targetRotation[1]) +
-                      Math.abs(meshRef.current.rotation.z - targetRotation[2]);
-
-      if (rotDiff < 0.01) {
-        setRollPhase('idle');
-        meshRef.current.rotation.set(...targetRotation);
-        meshRef.current.position.y = 0;
+      wasRolling.current = true;
+    } else if (wasRolling.current) {
+      wasRolling.current = false;
+      const timer = setTimeout(() => {
         onRollComplete?.();
-      }
+      }, 800);
+      return () => clearTimeout(timer);
     }
-  });
+  }, [isRolling, onRollComplete]);
+
+  const rot = effectiveResult != null ? resultRotations[effectiveResult] : { x: 0, y: 0 };
+
+  let cubeTransform: string;
+  if (isRolling) {
+    cubeTransform = '';
+  } else {
+    cubeTransform = `rotateX(${rot.x}deg) rotateY(${rot.y}deg)`;
+  }
+
+  const half = size / 2;
+
+  const faces: { value: number; transform: string }[] = [
+    { value: 1, transform: `rotateY(0deg) translateZ(${half}px)` },
+    { value: 6, transform: `rotateY(180deg) translateZ(${half}px)` },
+    { value: 2, transform: `rotateY(90deg) translateZ(${half}px)` },
+    { value: 5, transform: `rotateY(-90deg) translateZ(${half}px)` },
+    { value: 3, transform: `rotateX(90deg) translateZ(${half}px)` },
+    { value: 4, transform: `rotateX(-90deg) translateZ(${half}px)` },
+  ];
+
+  const sid = styleId.current;
 
   return (
-    <mesh ref={meshRef} castShadow receiveShadow>
-      <RoundedBox args={[size, size, size]} radius={0.1} smoothness={4}>
-        <meshStandardMaterial color="#dc2626" metalness={0.3} roughness={0.4} />
-      </RoundedBox>
-      
-      <DiceFace position={[0, size / 2 + 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} dots={1} size={size} />
-      <DiceFace position={[0, -size / 2 - 0.01, 0]} rotation={[Math.PI / 2, 0, 0]} dots={6} size={size} />
-      <DiceFace position={[size / 2 + 0.01, 0, 0]} rotation={[0, Math.PI / 2, 0]} dots={2} size={size} />
-      <DiceFace position={[-size / 2 - 0.01, 0, 0]} rotation={[0, -Math.PI / 2, 0]} dots={5} size={size} />
-      <DiceFace position={[0, 0, size / 2 + 0.01]} rotation={[0, 0, 0]} dots={3} size={size} />
-      <DiceFace position={[0, 0, -size / 2 - 0.01]} rotation={[0, Math.PI, 0]} dots={4} size={size} />
-    </mesh>
-  );
-};
-
-const Particles: React.FC<{ isActive: boolean }> = ({ isActive }) => {
-  const particlesRef = useRef<THREE.Points>(null);
-  const particleCount = 50;
-
-  const positions = React.useMemo(() => {
-    const pos = new Float32Array(particleCount * 3);
-    for (let i = 0; i < particleCount; i++) {
-      pos[i * 3] = (Math.random() - 0.5) * 4;
-      pos[i * 3 + 1] = (Math.random() - 0.5) * 4;
-      pos[i * 3 + 2] = (Math.random() - 0.5) * 4;
-    }
-    return pos;
-  }, []);
-
-  useFrame((state, delta) => {
-    if (!particlesRef.current || !isActive) return;
-    particlesRef.current.rotation.y += delta * 0.5;
-    particlesRef.current.rotation.x += delta * 0.3;
-  });
-
-  if (!isActive) return null;
-
-  return (
-    <points ref={particlesRef}>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={particleCount}
-          array={positions}
-          itemSize={3}
-        />
-      </bufferGeometry>
-      <pointsMaterial size={0.05} color="#fbbf24" transparent opacity={0.8} />
-    </points>
-  );
-};
-
-export const Dice3D: React.FC<Dice3DProps> = ({ isRolling, finalValue = 1, onRollComplete, size = 1 }) => {
-  return (
-    <div className="w-full h-full min-h-[200px]">
-      <Canvas
-        camera={{ position: [0, 2, 4], fov: 45 }}
-        shadows
-        style={{ background: 'transparent' }}
+    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <style>{`
+        @keyframes ${sid}-roll-x {
+          0% { transform: rotateX(0deg); }
+          100% { transform: rotateX(1080deg); }
+        }
+        @keyframes ${sid}-roll-y {
+          0% { transform: rotateY(0deg); }
+          100% { transform: rotateY(900deg); }
+        }
+        @keyframes ${sid}-roll-z {
+          0% { transform: rotateZ(0deg); }
+          100% { transform: rotateZ(720deg); }
+        }
+      `}</style>
+      <div
+        style={{
+          perspective: `${size * 5}px`,
+          width: `${size}px`,
+          height: `${size}px`,
+        }}
       >
-        <ambientLight intensity={1.2} />
-        <spotLight
-          position={[3, 8, 3]}
-          angle={0.4}
-          penumbra={0.5}
-          intensity={3}
-          castShadow
-          shadow-mapSize-width={1024}
-          shadow-mapSize-height={1024}
-          color="#ffffff"
-        />
-        <spotLight
-          position={[-3, 6, -3]}
-          angle={0.5}
-          penumbra={1}
-          intensity={2}
-          color="#ffaa00"
-        />
-        <pointLight position={[-4, 4, -4]} intensity={1.5} color="#ff6b6b" />
-        <pointLight position={[4, 4, 4]} intensity={1.5} color="#4ecdc4" />
-        <pointLight position={[0, 5, 0]} intensity={2} color="#ffffff" />
-        
-        <AnimatedDice 
-          isRolling={isRolling} 
-          finalValue={finalValue} 
-          onRollComplete={onRollComplete}
-          size={size}
-        />
-        
-        <Particles isActive={isRolling} />
-        
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1, 0]} receiveShadow>
-          <planeGeometry args={[10, 10]} />
-          <shadowMaterial transparent opacity={0.3} />
-        </mesh>
-      </Canvas>
+        <div
+          style={{
+            width: `${size}px`,
+            height: `${size}px`,
+            position: 'relative',
+            transformStyle: 'preserve-3d',
+            animation: isRolling
+              ? `${sid}-roll-x 0.6s linear infinite, ${sid}-roll-y 0.8s linear infinite, ${sid}-roll-z 1.0s linear infinite`
+              : 'none',
+            transform: !isRolling ? cubeTransform : undefined,
+            transition: !isRolling ? 'transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none',
+          }}
+        >
+          {faces.map((face) => (
+            <div
+              key={face.value}
+              style={{
+                position: 'absolute',
+                width: `${size}px`,
+                height: `${size}px`,
+                transform: face.transform,
+                backfaceVisibility: 'hidden',
+              }}
+            >
+              <DiceFace value={face.value} size={size} />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };
@@ -215,160 +170,81 @@ export const SuperDice3D: React.FC<{
   currentIndex: number;
   onRollComplete?: () => void;
 }> = ({ isRolling, diceCards, currentIndex, onRollComplete }) => {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const [rollPhase, setRollPhase] = useState<'idle' | 'rolling' | 'settling'>('idle');
-  const rollStartTime = useRef(0);
+  const [displayIndex, setDisplayIndex] = useState(currentIndex);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (isRolling) {
-      setRollPhase('rolling');
-      rollStartTime.current = Date.now();
-    } else if (rollPhase === 'rolling') {
-      setRollPhase('settling');
-    }
-  }, [isRolling]);
-
-  return (
-    <div className="w-full h-full min-h-[200px]">
-      <Canvas
-        camera={{ position: [0, 2, 4], fov: 45 }}
-        shadows
-        style={{ background: 'transparent' }}
-      >
-        <ambientLight intensity={1.2} />
-        <spotLight
-          position={[3, 8, 3]}
-          angle={0.4}
-          penumbra={0.5}
-          intensity={3}
-          castShadow
-          color="#ffffff"
-        />
-        <spotLight
-          position={[-3, 6, -3]}
-          angle={0.5}
-          penumbra={1}
-          intensity={2}
-          color="#cc88ff"
-        />
-        <pointLight position={[-4, 4, -4]} intensity={2} color="#a855f7" />
-        <pointLight position={[4, 4, 4]} intensity={2} color="#ec4899" />
-        <pointLight position={[0, 5, 0]} intensity={2.5} color="#ffffff" />
-
-        <SuperDiceMesh 
-          isRolling={isRolling}
-          rollPhase={rollPhase}
-          setRollPhase={setRollPhase}
-          rollStartTime={rollStartTime}
-          onRollComplete={onRollComplete}
-        />
-
-        <Particles isActive={isRolling} />
-
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.5, 0]} receiveShadow>
-          <planeGeometry args={[10, 10]} />
-          <shadowMaterial transparent opacity={0.3} />
-        </mesh>
-      </Canvas>
-    </div>
-  );
-};
-
-const SuperDiceMesh: React.FC<{
-  isRolling: boolean;
-  rollPhase: 'idle' | 'rolling' | 'settling';
-  setRollPhase: (phase: 'idle' | 'rolling' | 'settling') => void;
-  rollStartTime: React.MutableRefObject<number>;
-  onRollComplete?: () => void;
-}> = ({ isRolling, rollPhase, setRollPhase, rollStartTime, onRollComplete }) => {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const rollDuration = 1.0;
-
-  useFrame((state, delta) => {
-    if (!meshRef.current) return;
-
-    if (rollPhase === 'rolling') {
-      const elapsed = (Date.now() - rollStartTime.current) / 1000;
-      const speed = Math.max(1, 20 - elapsed * 15);
-      
-      meshRef.current.rotation.x += delta * speed * 4;
-      meshRef.current.rotation.y += delta * speed * 3;
-      meshRef.current.rotation.z += delta * speed * 2;
-
-      const bounceHeight = Math.sin(elapsed * 10) * 0.4 * Math.max(0, 1 - elapsed / rollDuration);
-      meshRef.current.position.y = bounceHeight;
-
-      if (!isRolling && elapsed > 0.5) {
-        setRollPhase('settling');
+    if (isRolling && diceCards.length > 0) {
+      intervalRef.current = setInterval(() => {
+        setDisplayIndex((prev) => (prev + 1) % diceCards.length);
+      }, 150);
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
-    } else if (rollPhase === 'settling') {
-      const lerpSpeed = 10;
-      meshRef.current.rotation.x = THREE.MathUtils.lerp(meshRef.current.rotation.x, 0, delta * lerpSpeed);
-      meshRef.current.rotation.y = THREE.MathUtils.lerp(meshRef.current.rotation.y, 0, delta * lerpSpeed);
-      meshRef.current.rotation.z = THREE.MathUtils.lerp(meshRef.current.rotation.z, 0, delta * lerpSpeed);
-      meshRef.current.position.y = THREE.MathUtils.lerp(meshRef.current.position.y, 0, delta * lerpSpeed);
-
-      const rotDiff = Math.abs(meshRef.current.rotation.x) +
-                      Math.abs(meshRef.current.rotation.y) +
-                      Math.abs(meshRef.current.rotation.z);
-
-      if (rotDiff < 0.05) {
-        setRollPhase('idle');
-        meshRef.current.rotation.set(0, 0, 0);
-        meshRef.current.position.y = 0;
+      setDisplayIndex(currentIndex);
+      if (!isRolling) {
         onRollComplete?.();
       }
     }
-  });
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [isRolling, diceCards.length, currentIndex]);
+
+  const card = diceCards[displayIndex] || diceCards[0];
+  if (!card) return null;
+
+  const size = 150;
 
   return (
-    <mesh ref={meshRef} castShadow>
-      <RoundedBox args={[1.2, 1.2, 1.2]} radius={0.15} smoothness={4}>
-        <meshStandardMaterial 
-          color="#9333ea" 
-          metalness={0.4} 
-          roughness={0.3}
-          emissive="#4c1d95"
-          emissiveIntensity={0.2}
-        />
-      </RoundedBox>
-      
-      {[...Array(6)].map((_, i) => {
-        const positions: [number, number, number][] = [
-          [0, 0, 0.61],
-          [0, 0, -0.61],
-          [0.61, 0, 0],
-          [-0.61, 0, 0],
-          [0, 0.61, 0],
-          [0, -0.61, 0]
-        ];
-        const rotations: [number, number, number][] = [
-          [0, 0, 0],
-          [0, Math.PI, 0],
-          [0, Math.PI / 2, 0],
-          [0, -Math.PI / 2, 0],
-          [-Math.PI / 2, 0, 0],
-          [Math.PI / 2, 0, 0]
-        ];
-        return (
-          <group key={i} position={positions[i]} rotation={rotations[i]}>
-            <mesh>
-              <circleGeometry args={[0.35, 32]} />
-              <meshStandardMaterial color="#fbbf24" metalness={0.5} roughness={0.3} />
-            </mesh>
-            <Text
-              position={[0, 0, 0.01]}
-              fontSize={0.3}
-              color="#1e1b4b"
-              anchorX="center"
-              anchorY="middle"
-              font={undefined}
-            >
-              {i + 1}
-            </Text>
-          </group>
-        );
-      })}
-    </mesh>
+    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <style>{`
+        @keyframes super-dice-spin {
+          0% { transform: rotateY(0deg) rotateX(0deg); }
+          100% { transform: rotateY(720deg) rotateX(360deg); }
+        }
+      `}</style>
+      <div style={{ perspective: `${size * 5}px` }}>
+        <div
+          style={{
+            width: `${size}px`,
+            height: `${size}px`,
+            position: 'relative',
+            transformStyle: 'preserve-3d',
+            animation: isRolling ? 'super-dice-spin 0.8s linear infinite' : 'none',
+            transition: !isRolling ? 'transform 0.5s ease-out' : 'none',
+          }}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              width: `${size}px`,
+              height: `${size}px`,
+              background: 'linear-gradient(135deg, #9333ea, #7c3aed)',
+              borderRadius: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 8px 32px rgba(147,51,234,0.4), inset 0 1px 2px rgba(255,255,255,0.2)',
+              transform: `translateZ(${size / 2}px)`,
+              backfaceVisibility: 'hidden',
+            }}
+          >
+            <img
+              src={card.image}
+              alt={card.name}
+              style={{
+                width: '80%',
+                height: '80%',
+                objectFit: 'contain',
+                borderRadius: '8px',
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
