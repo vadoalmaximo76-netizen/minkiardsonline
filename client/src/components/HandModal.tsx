@@ -40,7 +40,7 @@ export const HandModal: React.FC<HandModalProps> = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-      <div className="bg-slate-950 border border-purple-500/30 rounded-3xl p-8 w-full max-w-6xl max-h-[90vh] overflow-y-auto shadow-2xl shadow-purple-900/20">
+      <div className="bg-slate-950 border border-purple-500/30 rounded-3xl p-8 w-full max-w-6xl max-h-[90vh] overflow-y-auto shadow-2xl shadow-purple-900/20 animate-panel-slide-up">
         {/* Header */}
         <div className="flex items-center justify-between mb-8 border-b border-purple-500/20 pb-6">
           <div className="flex items-center gap-6">
@@ -75,14 +75,15 @@ export const HandModal: React.FC<HandModalProps> = ({ onClose }) => {
         </div>
 
         {/* Cards Grid */}
-        <div className="flex flex-wrap gap-4 justify-center">
+        <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory md:flex-wrap md:justify-center md:overflow-x-visible scrollbar-thin" style={{ WebkitOverflowScrolling: 'touch' }}>
           {playerCards.map((card) => (
-            <Card
-              key={card.id}
-              card={card}
-              location="hand"
-              onCardPlayed={onClose}
-            />
+            <div key={card.id} className="snap-center flex-shrink-0 md:flex-shrink">
+              <Card
+                card={card}
+                location="hand"
+                onCardPlayed={onClose}
+              />
+            </div>
           ))}
           {playerCards.length === 0 && (
             <p className="text-white/70 italic text-center w-full py-8">

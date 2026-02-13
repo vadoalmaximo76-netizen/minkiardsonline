@@ -664,7 +664,7 @@ function App() {
   return (
     <TooltipProvider>
       <QueryClientProvider client={queryClient}>
-        <div className="min-h-screen bg-arena-deep overflow-auto">
+        <div className="min-h-screen bg-arena-deep overflow-auto animate-view-enter">
           {/* Card Update Notification */}
           <UpdateNotification />
           

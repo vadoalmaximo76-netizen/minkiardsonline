@@ -39,7 +39,7 @@ export const Graveyard: React.FC<GraveyardProps> = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="premium-panel p-6 max-w-4xl w-full max-h-[80vh] overflow-y-auto">
+      <div className="premium-panel p-6 max-w-4xl w-full max-h-[80vh] overflow-y-auto animate-panel-slide-up">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-white font-bold text-2xl">CIMITERO</h2>
           <Button

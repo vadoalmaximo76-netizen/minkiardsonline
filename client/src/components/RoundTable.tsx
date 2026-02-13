@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, Zap } from "lucide-react";
 import { socket } from "../lib/socket";
 import { Checkbox } from "./ui/checkbox";
 import { getAvatarEmoji } from "../lib/avatars";
+import { AmbientParticles } from "./AmbientParticles";
 
 // Check if a card has custom activatable effects
 const hasCustomEffect = (card: any): boolean => {
@@ -309,6 +310,8 @@ const RoundTableComponent: React.FC = () => {
           className="absolute inset-0 bg-black opacity-40 rounded-lg"
           style={{ borderRadius: '16px' }}
         />
+        
+        <AmbientParticles />
         
         {/* Center Area - Decks with protection zone - centered vertically */}
         <div className="absolute top-[45%] sm:top-[45%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">

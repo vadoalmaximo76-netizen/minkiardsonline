@@ -237,6 +237,10 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     removeShakingCard 
   } = useGameState();
 
+  const currentTurnPlayer = gameState?.turnOrder?.[gameState?.currentTurnIndex ?? -1];
+  const isMyTurn = currentTurnPlayer === playerName;
+  const isPlayable = location === 'hand' && isMyTurn;
+
   const { playPointGain, playPointLoss, playStarGain, playStarLoss, playCardPlay } = useAudio();
 
   // Detect PTI and Star changes to trigger visual/audio effects
@@ -1069,7 +1073,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     <div 
       ref={cardRef}
       onMouseMove={handleMouseMove3D}
-      className={`relative flex flex-col gap-2 card-play-transition card-3d-tilt ${damageFlash ? 'card-damage-flash' : ''} ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? getEntryAnimationClass() : ''}`}
+      className={`relative flex flex-col gap-2 card-play-transition card-3d-tilt ${damageFlash ? 'card-damage-flash' : ''} ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? getEntryAnimationClass() : ''} ${isPlayable ? 'card-playable-glow' : ''}`}
       style={{
         perspective: location === 'field' ? '800px' : undefined,
         transformStyle: location === 'field' ? 'preserve-3d' as any : undefined,

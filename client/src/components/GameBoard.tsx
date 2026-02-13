@@ -40,6 +40,9 @@ import { CharacterEffects } from "./CharacterEffects";
 import { TutorialOverlay } from "./TutorialOverlay";
 import { AdBanner, InterstitialAd } from "./AdBanner";
 import { ConnectionStatus } from "./ConnectionStatus";
+import { GameToastContainer, useGameToast } from "./GameToast";
+import { ContextualTooltipLoader, ContextualTooltipDisplay, useTooltipStore } from "./ContextualTooltip";
+import { haptic } from "../lib/haptic";
 import { SoundSettings } from "./SoundSettings";
 import { LastPlayedCards } from "./LastPlayedCards";
 import { GameLog } from "./GameLog";
@@ -1661,23 +1664,30 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   }, []);
 
   const { triggerEvent: triggerBgEvent, colors: bgColors } = useBackgroundEffect();
+  const addToast = useGameToast(state => state.addToast);
+  const triggerTooltipFn = useTooltipStore(state => state.triggerTooltip);
 
   useEffect(() => {
-    const onAttack = () => triggerBgEvent('attack');
-    const onDeath = () => triggerBgEvent('death');
-    const onEvolution = () => triggerBgEvent('evolution');
+    const onAttack = () => { triggerBgEvent('attack'); haptic.attack(); addToast('Attacco in corso!', 'attack'); };
+    const onDeath = () => { triggerBgEvent('death'); haptic.death(); addToast('Personaggio eliminato!', 'death'); triggerTooltipFn('card_died'); };
+    const onEvolution = () => { triggerBgEvent('evolution'); haptic.evolution(); addToast('Evoluzione!', 'evolution', 4000); };
     const onCardPlayed = (data: any) => {
       if (data?.cardType === 'bonus') {
         triggerBgEvent('bonus');
       } else {
         triggerBgEvent('card-played');
       }
+      haptic.cardPlay();
+      triggerTooltipFn('card_drawn');
     };
-    const onDice = () => triggerBgEvent('dice');
+    const onDice = () => { triggerBgEvent('dice'); haptic.dice(); triggerTooltipFn('dice_rolled'); };
     const onSpecialMove = () => triggerBgEvent('special-move');
     const onNextTurn = (data: any) => {
       if (data?.nextPlayer === playerName) {
         triggerBgEvent('my-turn');
+        haptic.myTurn();
+        addToast('Tocca a te!', 'turn');
+        triggerTooltipFn('turn_started');
       } else {
         triggerBgEvent('opponent-turn');
       }
@@ -1715,11 +1725,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('defense-card-used', onDefense);
       socket.off('attack-blocked', onDefense);
     };
-  }, [triggerBgEvent, playerName]);
+  }, [triggerBgEvent, playerName, addToast, triggerTooltipFn]);
 
   return (
     <div className="min-h-screen bg-arena-deep text-slate-100 p-4 relative">
-      {/* Connection Status Banner */}
+      <GameToastContainer />
+      <ContextualTooltipLoader />
+      <ContextualTooltipDisplay />
       <ConnectionStatus />
       
       {/* Last Played Cards History */}

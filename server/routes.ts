@@ -4,6 +4,8 @@ import { Server as SocketServer } from "socket.io";
 import { GameManager } from "./gameManager";
 import OpenAI from "openai";
 import jwt from "jsonwebtoken";
+import fs from "fs";
+import path from "path";
 import { db } from "./db";
 import { isDatabaseAvailable } from "./db";
 import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions } from "../shared/schema";
@@ -10218,6 +10220,104 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     } catch (error) {
       console.error('Error publishing update:', error);
       res.status(500).json({ error: 'Failed to publish update' });
+    }
+  });
+
+  app.get('/api/contextual-tooltips', async (req, res) => {
+    try {
+      const tooltipsPath = path.join(process.cwd(), 'server', 'data', 'contextualTooltips.json');
+      if (fs.existsSync(tooltipsPath)) {
+        const data = JSON.parse(fs.readFileSync(tooltipsPath, 'utf-8'));
+        res.json({ success: true, tooltips: data.filter((t: any) => t.isActive) });
+      } else {
+        res.json({ success: true, tooltips: [] });
+      }
+    } catch (error) {
+      res.json({ success: true, tooltips: [] });
+    }
+  });
+
+  app.get('/api/admin/contextual-tooltips', authMiddleware, async (req, res) => {
+    try {
+      const userEmail = req.user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ success: false, error: 'Unauthorized' });
+      }
+      const tooltipsPath = path.join(process.cwd(), 'server', 'data', 'contextualTooltips.json');
+      if (fs.existsSync(tooltipsPath)) {
+        const data = JSON.parse(fs.readFileSync(tooltipsPath, 'utf-8'));
+        res.json({ success: true, tooltips: data });
+      } else {
+        res.json({ success: true, tooltips: [] });
+      }
+    } catch (error) {
+      res.status(500).json({ success: false, error: 'Failed to load tooltips' });
+    }
+  });
+
+  app.put('/api/admin/contextual-tooltips', authMiddleware, async (req, res) => {
+    try {
+      const userEmail = req.user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ success: false, error: 'Unauthorized' });
+      }
+      const { tooltips } = req.body;
+      if (!Array.isArray(tooltips)) {
+        return res.status(400).json({ success: false, error: 'Invalid data' });
+      }
+      const tooltipsPath = path.join(process.cwd(), 'server', 'data', 'contextualTooltips.json');
+      fs.writeFileSync(tooltipsPath, JSON.stringify(tooltips, null, 2));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ success: false, error: 'Failed to save tooltips' });
+    }
+  });
+
+  app.post('/api/admin/contextual-tooltips', authMiddleware, async (req, res) => {
+    try {
+      const userEmail = req.user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ success: false, error: 'Unauthorized' });
+      }
+      const { tooltip } = req.body;
+      if (!tooltip || !tooltip.id || !tooltip.trigger || !tooltip.title || !tooltip.message) {
+        return res.status(400).json({ success: false, error: 'Missing required fields' });
+      }
+      const tooltipsPath = path.join(process.cwd(), 'server', 'data', 'contextualTooltips.json');
+      let tooltips: any[] = [];
+      if (fs.existsSync(tooltipsPath)) {
+        tooltips = JSON.parse(fs.readFileSync(tooltipsPath, 'utf-8'));
+      }
+      const existingIndex = tooltips.findIndex((t: any) => t.id === tooltip.id);
+      if (existingIndex >= 0) {
+        tooltips[existingIndex] = { ...tooltips[existingIndex], ...tooltip };
+      } else {
+        tooltips.push(tooltip);
+      }
+      fs.writeFileSync(tooltipsPath, JSON.stringify(tooltips, null, 2));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ success: false, error: 'Failed to save tooltip' });
+    }
+  });
+
+  app.delete('/api/admin/contextual-tooltips/:id', authMiddleware, async (req, res) => {
+    try {
+      const userEmail = req.user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ success: false, error: 'Unauthorized' });
+      }
+      const tooltipId = req.params.id;
+      const tooltipsPath = path.join(process.cwd(), 'server', 'data', 'contextualTooltips.json');
+      let tooltips: any[] = [];
+      if (fs.existsSync(tooltipsPath)) {
+        tooltips = JSON.parse(fs.readFileSync(tooltipsPath, 'utf-8'));
+      }
+      tooltips = tooltips.filter((t: any) => t.id !== tooltipId);
+      fs.writeFileSync(tooltipsPath, JSON.stringify(tooltips, null, 2));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ success: false, error: 'Failed to delete tooltip' });
     }
   });
 

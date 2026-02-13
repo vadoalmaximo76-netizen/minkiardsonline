@@ -1,0 +1,74 @@
+[
+  {
+    "id": "first-draw",
+    "trigger": "card_drawn",
+    "title": "Hai pescato una carta!",
+    "message": "Apri la mano per vedere le tue carte e giocale sul campo.",
+    "position": "bottom",
+    "isActive": true,
+    "priority": 1
+  },
+  {
+    "id": "first-attack",
+    "trigger": "first_attack_opportunity",
+    "title": "Puoi attaccare!",
+    "message": "Premi ATTACCA sotto il tuo personaggio, scegli il bersaglio e inserisci il danno.",
+    "position": "top",
+    "isActive": true,
+    "priority": 2
+  },
+  {
+    "id": "defense-available",
+    "trigger": "defense_prompt",
+    "title": "Puoi difenderti!",
+    "message": "Hai carte BONUS di difesa! Usale per bloccare o riflettere il danno.",
+    "position": "center",
+    "isActive": true,
+    "priority": 3
+  },
+  {
+    "id": "evolution-hint",
+    "trigger": "evolution_available",
+    "title": "Evoluzione disponibile!",
+    "message": "Il tuo personaggio può evolversi! Tira il dado per tentare l'evoluzione.",
+    "position": "top",
+    "isActive": true,
+    "priority": 4
+  },
+  {
+    "id": "bonus-cards",
+    "trigger": "bonus_in_hand",
+    "title": "Carte BONUS",
+    "message": "Le carte BONUS potenziano i tuoi personaggi. Giocale per aumentare PTI o stelle!",
+    "position": "bottom",
+    "isActive": true,
+    "priority": 5
+  },
+  {
+    "id": "end-turn",
+    "trigger": "turn_started",
+    "title": "Il tuo turno!",
+    "message": "Pesca, gioca carte e attacca. Quando hai finito, premi FINE TURNO.",
+    "position": "top",
+    "isActive": true,
+    "priority": 6
+  },
+  {
+    "id": "graveyard-info",
+    "trigger": "card_died",
+    "title": "Cimitero",
+    "message": "I personaggi eliminati vanno al cimitero. Puoi vederli premendo l'icona teschio.",
+    "position": "bottom",
+    "isActive": true,
+    "priority": 7
+  },
+  {
+    "id": "special-characters",
+    "trigger": "special_drawn",
+    "title": "Personaggio Speciale!",
+    "message": "I personaggi speciali hanno abilità uniche. Leggi la descrizione per scoprirle!",
+    "position": "center",
+    "isActive": true,
+    "priority": 8
+  }
+]

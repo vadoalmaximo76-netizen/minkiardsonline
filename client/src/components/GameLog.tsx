@@ -139,7 +139,7 @@ export const GameLog: React.FC<GameLogProps> = ({ onClose }) => {
   ];
 
   return (
-    <div className="premium-panel h-full flex flex-col">
+    <div className="premium-panel h-full flex flex-col animate-panel-slide-up">
       <div className="flex justify-between items-center p-3 border-b border-gray-600">
         <h3 className="text-white font-semibold text-sm">📜 Game Log</h3>
         <Button
