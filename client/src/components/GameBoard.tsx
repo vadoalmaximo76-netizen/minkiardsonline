@@ -1708,7 +1708,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       />
       
       {/* Animated gradient background */}
-      <div className="fixed inset-0 game-bg-gradient" />
+      <div className="fixed inset-0 game-bg-gradient pointer-events-none" />
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute w-[500px] h-[500px] rounded-full opacity-[0.07] blur-[100px] animate-bg-float-1" style={{ background: 'radial-gradient(circle, #9333ea, transparent 70%)', top: '10%', left: '20%' }} />
         <div className="absolute w-[400px] h-[400px] rounded-full opacity-[0.05] blur-[80px] animate-bg-float-2" style={{ background: 'radial-gradient(circle, #3b82f6, transparent 70%)', bottom: '20%', right: '15%' }} />
