@@ -133,24 +133,16 @@ const RoundTableComponent: React.FC = () => {
     // Check if mobile portrait mode (narrow screen)
     const isMobile = window.innerWidth < 768;
     const isPortrait = window.innerHeight > window.innerWidth;
-    const isLandscape = window.innerWidth > window.innerHeight;
-    const mobileBuffer = isMobile && isPortrait ? 6 : 0; // Extra buffer for mobile portrait
-    
-    const topY = isLandscape ? 12 : (isMobile ? 14 : Math.max(10, 15 - mobileBuffer));
-    const topCornerY = isLandscape ? 14 : (isMobile ? 16 : Math.max(12, 18 - mobileBuffer));
-    const sideUpperY = isLandscape ? 50 : 35 + mobileBuffer;
-    const sideLowerY = isLandscape ? 75 : 60 + mobileBuffer;
+    const mobileBuffer = isMobile && isPortrait ? 6 : 0;
     
     const positions = [
-      // Top positions (moved higher in landscape to avoid deck overlap)
-      { x: 50, y: topY, angle: -90 },    // Top center
-      { x: 18 + mobileBuffer, y: topCornerY, angle: -135 },  // Top left
-      { x: 82 - mobileBuffer, y: topCornerY, angle: -45 },   // Top right
-      // Side positions with much more spacing and buffer from center
-      { x: Math.max(4, 8 - mobileBuffer), y: sideUpperY, angle: 180 },    // Left side upper
-      { x: Math.min(96, 92 + mobileBuffer), y: sideUpperY, angle: 0 },     // Right side upper
-      { x: Math.max(4, 8 - mobileBuffer), y: sideLowerY, angle: 180 },    // Left side lower  
-      { x: Math.min(96, 92 + mobileBuffer), y: sideLowerY, angle: 0 },     // Right side lower
+      { x: 50, y: Math.max(10, 15 - mobileBuffer), angle: -90 },    // Top center
+      { x: 18 + mobileBuffer, y: Math.max(12, 18 - mobileBuffer), angle: -135 },  // Top left
+      { x: 82 - mobileBuffer, y: Math.max(12, 18 - mobileBuffer), angle: -45 },   // Top right
+      { x: Math.max(4, 8 - mobileBuffer), y: 35 + mobileBuffer, angle: 180 },    // Left side upper
+      { x: Math.min(96, 92 + mobileBuffer), y: 35 + mobileBuffer, angle: 0 },     // Right side upper
+      { x: Math.max(4, 8 - mobileBuffer), y: 60 + mobileBuffer, angle: 180 },    // Left side lower  
+      { x: Math.min(96, 92 + mobileBuffer), y: 60 + mobileBuffer, angle: 0 },     // Right side lower
     ];
     
     // For different player counts, select optimal positions
@@ -233,7 +225,7 @@ const RoundTableComponent: React.FC = () => {
     const isTablet = window.innerWidth >= 640 && window.innerWidth < 1024;
     const isLandscape = window.innerWidth > window.innerHeight;
     
-    const bottomY = isLandscape ? 85 : isMobile ? 82 : 82;
+    const bottomY = isMobile ? 85 : 82;
     const centerX = 50;
     
     if (cardCount === 1) {
@@ -262,10 +254,10 @@ const RoundTableComponent: React.FC = () => {
 
   const getCardScale = (playerCount: number) => {
     const mobileScales = {
-      2: 'scale-[0.85] landscape:scale-[0.75] sm:scale-75 md:scale-85 lg:scale-95',
-      4: 'scale-[0.65] landscape:scale-[0.6] sm:scale-65 md:scale-75 lg:scale-85', 
-      6: 'scale-[0.5] landscape:scale-[0.5] sm:scale-55 md:scale-65 lg:scale-75',
-      8: 'scale-[0.4] landscape:scale-[0.45] sm:scale-45 md:scale-55 lg:scale-65'
+      2: 'scale-45 landscape:scale-95 sm:scale-75 md:scale-85 lg:scale-95',
+      4: 'scale-35 landscape:scale-85 sm:scale-65 md:scale-75 lg:scale-85', 
+      6: 'scale-25 landscape:scale-75 sm:scale-55 md:scale-65 lg:scale-75',
+      8: 'scale-20 landscape:scale-65 sm:scale-45 md:scale-55 lg:scale-65'
     };
     
     if (playerCount <= 2) return mobileScales[2];
@@ -276,32 +268,16 @@ const RoundTableComponent: React.FC = () => {
 
   const cardScale = getCardScale(allPlayerNames.length);
 
+  const deckScale = cardScale;
+
   return (
     <div className="mb-4 md:mb-8">
-      {/* Turn indicator - OUTSIDE the table to never overlap cards */}
-      <div className="flex items-center justify-center gap-3 landscape:gap-2 mb-1 landscape:mb-0.5 md:mb-2">
-        <h2 className="text-white font-bold text-sm landscape:text-base md:text-2xl text-center" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>TAVOLO DA GIOCO</h2>
-        {currentTurnPlayer && (
-          <div className={`px-3 py-1 landscape:px-2 landscape:py-0.5 rounded-2xl text-xs landscape:text-[11px] sm:text-sm font-bold whitespace-nowrap border ${
-            isMyTurn 
-              ? 'border-yellow-400/40 text-yellow-100 turn-indicator-mine' 
-              : 'border-blue-400/30 text-blue-100 turn-indicator-other'
-          }`} style={{
-            background: isMyTurn 
-              ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(234, 179, 8, 0.15) 100%)'
-              : 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%)',
-            backdropFilter: 'blur(12px)',
-            textShadow: isMyTurn ? '0 0 12px rgba(250, 204, 21, 0.5)' : '0 0 8px rgba(147, 197, 253, 0.4)',
-          }}>
-            {isMyTurn ? '👑 TOCCA A TE!' : `⏳ ${currentTurnPlayer}`}
-          </div>
-        )}
-      </div>
+      <h2 className="text-white font-bold text-lg landscape:text-2xl md:text-2xl mb-2 landscape:mb-4 md:mb-4 text-center" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>TAVOLO DA GIOCO</h2>
       
       {/* Rectangular Table Container */}
       <div 
         data-tutorial="field"
-        className="relative w-[95vw] h-[85vh] landscape:w-[95vw] landscape:h-[88vh] sm:w-[90vw] sm:h-[90vh] md:w-[95vw] md:h-[95vh] lg:w-[98vw] lg:h-[95vh] xl:w-[98vw] xl:h-[98vh] max-w-[1600px] max-h-[1400px] min-w-[320px] min-h-[400px] mx-auto border-4 landscape:border-4 md:border-8 border-purple-500/30 game-field bg-no-repeat overflow-visible touch-manipulation"
+        className="relative w-[85vw] h-[95vh] landscape:w-[95vw] landscape:h-[95vh] sm:w-[90vw] sm:h-[90vh] md:w-[95vw] md:h-[95vh] lg:w-[98vw] lg:h-[95vh] xl:w-[98vw] xl:h-[98vh] max-w-[1600px] max-h-[1400px] min-w-[320px] min-h-[500px] mx-auto border-4 landscape:border-8 md:border-8 border-purple-500/30 game-field bg-no-repeat overflow-visible touch-manipulation"
         style={{
           borderRadius: '24px',
           backgroundImage: `url('https://i.ibb.co/Y4bv4xwz/sfondo-minkiards.png')`,
@@ -316,10 +292,26 @@ const RoundTableComponent: React.FC = () => {
           className="absolute inset-0 bg-black opacity-40 rounded-lg"
           style={{ borderRadius: '16px' }}
         />
+
+        {currentTurnPlayer && (
+          <div className={`absolute -top-6 left-1/2 -translate-x-1/2 z-20 px-5 py-2 rounded-2xl text-sm font-bold whitespace-nowrap transition-all duration-500 border ${
+            isMyTurn 
+              ? 'border-yellow-400/40 text-yellow-100 turn-indicator-mine' 
+              : 'border-blue-400/30 text-blue-100 turn-indicator-other'
+          }`} style={{
+            background: isMyTurn 
+              ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(234, 179, 8, 0.15) 100%)'
+              : 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%)',
+            backdropFilter: 'blur(12px)',
+            textShadow: isMyTurn ? '0 0 12px rgba(250, 204, 21, 0.5)' : '0 0 8px rgba(147, 197, 253, 0.4)',
+          }}>
+            {isMyTurn ? '👑 TOCCA A TE!' : `⏳ Turno di ${currentTurnPlayer}`}
+          </div>
+        )}
         
-        {/* Center Area - Decks - always single row, compact on mobile */}
-        <div className="absolute top-[50%] landscape:top-[50%] sm:top-[48%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
-          <div data-tutorial="decks" className="grid grid-cols-4 gap-1 sm:gap-3 md:gap-4 items-start justify-center zone-decks rounded-lg sm:rounded-xl p-1.5 sm:p-3 md:p-4 backdrop-blur-sm">
+        {/* Center Area - Decks with protection zone - centered vertically */}
+        <div className="absolute top-[45%] sm:top-[45%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
+          <div data-tutorial="decks" className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-3 md:gap-4 items-start justify-center zone-decks rounded-lg sm:rounded-xl p-2 sm:p-3 md:p-4 backdrop-blur-sm">
             <Deck
               name="PERSONAGGI"
               backImage="https://i.imgur.com/r1rfUAB.png"

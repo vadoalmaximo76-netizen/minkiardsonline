@@ -211,8 +211,8 @@ const DeckComponent: React.FC<DeckProps> = ({ name, backImage, type }) => {
   };
 
   return (
-    <div className="flex flex-col items-center gap-0.5 sm:gap-1.5 md:gap-2 w-[60px] sm:w-[80px] md:w-auto">
-      <h3 className="text-white font-bold text-[8px] sm:text-xs md:text-sm lg:text-base leading-tight text-center truncate w-full" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+    <div className="flex flex-col items-center gap-1 sm:gap-1.5 md:gap-2 w-[70px] sm:w-[80px] md:w-auto">
+      <h3 className="text-white font-bold text-[9px] sm:text-xs md:text-sm lg:text-base leading-tight text-center truncate w-full" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
         <span className="sm:hidden">{getShortName(name)}</span>
         <span className="hidden sm:inline">{name}</span>
       </h3>
@@ -221,18 +221,18 @@ const DeckComponent: React.FC<DeckProps> = ({ name, backImage, type }) => {
         <img
           src={backImage}
           alt={`${name} back`}
-          className={`w-10 sm:w-16 md:w-20 lg:w-24 aspect-[2/3] object-cover rounded-md sm:rounded-lg md:rounded-xl cursor-pointer deck-3d shadow-lg transition-all duration-150 ${isShuffling ? 'animate-shuffle' : ''} ${isPicking ? 'scale-95 opacity-70' : 'hover:scale-105'}`}
+          className={`w-14 sm:w-16 md:w-20 lg:w-24 aspect-[2/3] object-cover rounded-md sm:rounded-lg md:rounded-xl cursor-pointer deck-3d shadow-lg transition-all duration-150 ${isShuffling ? 'animate-shuffle' : ''} ${isPicking ? 'scale-95 opacity-70' : 'hover:scale-105'}`}
           onClick={handlePickCard}
         />
         
-        <div className="absolute -bottom-0.5 -right-0.5 sm:-bottom-1 sm:-right-1 bg-white text-black rounded-full w-3.5 h-3.5 sm:w-5 sm:h-5 md:w-6 md:h-6 flex items-center justify-center font-bold text-[7px] sm:text-[10px] md:text-xs">
+        <div className="absolute -bottom-0.5 -right-0.5 sm:-bottom-1 sm:-right-1 bg-white text-black rounded-full w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 flex items-center justify-center font-bold text-[8px] sm:text-[10px] md:text-xs">
           {remainingCards}
         </div>
       </div>
 
       <Button
         onClick={handleChooseCard}
-        className="bg-green-600 hover:bg-green-700 text-white font-bold px-1 sm:px-2 md:px-3 py-0 sm:py-1 text-[7px] sm:text-[10px] md:text-xs rounded w-full h-5 sm:h-auto"
+        className="bg-green-600 hover:bg-green-700 text-white font-bold px-1.5 sm:px-2 md:px-3 py-0.5 sm:py-1 text-[8px] sm:text-[10px] md:text-xs rounded w-full"
         style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
       >
         SCEGLI
