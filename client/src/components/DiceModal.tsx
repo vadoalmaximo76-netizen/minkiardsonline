@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
+import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
 import { X } from "lucide-react";
 import { Dice3D } from "./Dice3D";
@@ -23,6 +24,13 @@ export const DiceModal: React.FC<DiceModalProps> = ({
   const [showResult, setShowResult] = useState(false);
   const pendingRollRef = useRef<number | null>(null);
   const { playerName, gameId } = useGameState();
+  const { playModalOpen, playButtonClick } = useAudio();
+
+  useEffect(() => {
+    if (isOpen) {
+      playModalOpen();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (currentRoll) {
@@ -46,6 +54,7 @@ export const DiceModal: React.FC<DiceModalProps> = ({
   if (!isOpen) return null;
 
   const handleRollDice = () => {
+    playButtonClick();
     setIsRolling(true);
     setShowResult(false);
     pendingRollRef.current = null;

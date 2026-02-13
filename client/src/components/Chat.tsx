@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
+import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
 import { X, Send, Smile } from "lucide-react";
 
@@ -23,6 +24,7 @@ export const Chat: React.FC<ChatProps> = ({ onClose }) => {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [emojiCooldown, setEmojiCooldown] = useState(false);
   const { playerName, gameId } = useGameState();
+  const { playButtonClick } = useAudio();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const sendEmoji = (emoji: string) => {
@@ -87,6 +89,7 @@ export const Chat: React.FC<ChatProps> = ({ onClose }) => {
   }, [messages]);
 
   const handleSendMessage = () => {
+    playButtonClick();
     if (inputValue.trim()) {
       socket.emit('send-chat-message', {
         message: inputValue.trim(),

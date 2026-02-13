@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { History, X } from "lucide-react";
 import { Button } from "./ui/button";
+import { useAudio } from "../lib/stores/useAudio";
 
 interface PlayedCard {
   id: string;
@@ -21,12 +22,21 @@ export const LastPlayedCards: React.FC<LastPlayedCardsProps> = ({
   maxCards = 5 
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const { playButtonClick, playPanelOpen, playPanelClose } = useAudio();
   const recentCards = cards.slice(-maxCards).reverse();
 
   return (
     <>
       <Button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          playButtonClick();
+          if (!isOpen) {
+            playPanelOpen();
+          } else {
+            playPanelClose();
+          }
+          setIsOpen(!isOpen);
+        }}
         className="fixed bottom-2 landscape:bottom-4 md:bottom-4 left-2 landscape:left-4 md:left-4 btn-neon-cyan text-white font-bold rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200 relative pointer-events-auto"
         style={{ position: 'fixed', zIndex: 9999 }}
         title="Ultime carte giocate"
@@ -47,7 +57,7 @@ export const LastPlayedCards: React.FC<LastPlayedCardsProps> = ({
               <span className="text-sm text-white font-medium">Ultime carte giocate</span>
             </div>
             <button 
-              onClick={() => setIsOpen(false)}
+              onClick={() => { playPanelClose(); setIsOpen(false); }}
               className="text-white/60 hover:text-white transition-colors"
             >
               <X size={16} />

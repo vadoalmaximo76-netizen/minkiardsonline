@@ -3,6 +3,7 @@ import { Target, Gift, Clock, CheckCircle, Loader2, X, ChevronRight } from "luci
 import { Button } from "./ui/button";
 import { Progress } from "./ui/progress";
 import { CoinAnimation } from "./CoinAnimation";
+import { useAudio } from "../lib/stores/useAudio";
 
 interface Mission {
   id: number;
@@ -35,6 +36,13 @@ export const MissionsPanel: React.FC<MissionsPanelProps> = ({
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState<number | null>(null);
   const [coinAnimation, setCoinAnimation] = useState<{ active: boolean; points: number }>({ active: false, points: 0 });
+  const { playPanelOpen, playButtonClick } = useAudio();
+
+  useEffect(() => {
+    if (isOpen) {
+      playPanelOpen();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && authToken) {
@@ -63,6 +71,7 @@ export const MissionsPanel: React.FC<MissionsPanelProps> = ({
   };
 
   const claimReward = async (missionId: number) => {
+    playButtonClick();
     if (!authToken) return;
     
     try {

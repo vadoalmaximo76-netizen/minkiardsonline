@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAudio } from "../lib/stores/useAudio";
 
 interface FullScreenNotificationProps {
   isVisible: boolean;
@@ -17,6 +18,13 @@ export const FullScreenNotification: React.FC<FullScreenNotificationProps> = ({
   onClose
 }) => {
   const [countdown, setCountdown] = useState(5);
+  const { playNotification } = useAudio();
+
+  useEffect(() => {
+    if (isVisible) {
+      playNotification();
+    }
+  }, [isVisible]);
 
   useEffect(() => {
     if (!isVisible) {

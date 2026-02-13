@@ -88,7 +88,7 @@ export const DefenseDialog: React.FC = () => {
   const [showVigliaccaTargetSelect, setShowVigliaccaTargetSelect] = useState<boolean>(false);
   const [selectedVigliaccaCard, setSelectedVigliaccaCard] = useState<GameCard | null>(null);
   const { playerName, gameId, gameState } = useGameState();
-  const { playAttackSound, playDefenseActivated, playAttackBlocked } = useAudio();
+  const { playAttackSound, playDefenseActivated, playAttackBlocked, playModalOpen, playButtonClick } = useAudio();
 
   // Get player's hand
   const playerHand: GameCard[] = gameState?.players?.[playerName]?.hand || [];
@@ -200,6 +200,7 @@ export const DefenseDialog: React.FC = () => {
       // Only show dialog if this player is the defender
       if (request.defenderName === playerName) {
         console.log('🛡️ SHOWING DEFENSE DIALOG!');
+        playModalOpen();
         playAttackSound(); // Play attack incoming sound
         setDefenseRequest(request);
         setTimeLeft(30); // Reset timer
@@ -289,6 +290,7 @@ export const DefenseDialog: React.FC = () => {
   };
 
   const handleSelectDefenseCard = (card: GameCard) => {
+    playButtonClick();
     if (card.type === 'mosse') {
       console.log('🛡️ Selected MOSSE for counter-attack:', card.id);
       setSelectedMosseCard(card);

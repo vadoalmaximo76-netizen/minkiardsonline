@@ -3,6 +3,7 @@ import { Button } from "./ui/button";
 import { X } from "lucide-react";
 import { AVATARS } from "../lib/avatars";
 import { useGameState } from "../lib/stores/useGameState";
+import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
 
 interface AvatarSelectorProps {
@@ -12,10 +13,13 @@ interface AvatarSelectorProps {
 
 export const AvatarSelector: React.FC<AvatarSelectorProps> = ({ isOpen, onClose }) => {
   const { playerName, gameState } = useGameState();
+  const { playButtonClick, playConfirm } = useAudio();
   
   const currentAvatar = gameState?.players?.[playerName]?.avatar;
 
   const handleSelectAvatar = (avatarId: string) => {
+    playButtonClick();
+    playConfirm();
     socket.emit('set-avatar', { avatarId });
     onClose();
   };

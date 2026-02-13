@@ -57,6 +57,21 @@ interface AudioState {
   playSorosActivation: () => void;
   playFusionSound: () => void;
   playCardPlayedToField: () => void;
+  playButtonClick: () => void;
+  playPanelOpen: () => void;
+  playPanelClose: () => void;
+  playModalOpen: () => void;
+  playModalClose: () => void;
+  playToggleOn: () => void;
+  playToggleOff: () => void;
+  playTabSwitch: () => void;
+  playNotification: () => void;
+  playConfirm: () => void;
+  playCancel: () => void;
+  playHoverTick: () => void;
+  playPopupAppear: () => void;
+  playCountdown: () => void;
+  playLevelUp: () => void;
   soundSettings: {
     turnChange: boolean;
     attack: boolean;
@@ -1632,5 +1647,292 @@ export const useAudio = create<AudioState>((set, get) => ({
     gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
     osc.start(audioContext.currentTime);
     osc.stop(audioContext.currentTime + 0.2);
+  },
+
+  playButtonClick: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.frequency.setValueAtTime(900, audioContext.currentTime);
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0, audioContext.currentTime);
+    gain.gain.linearRampToValueAtTime(0.06, audioContext.currentTime + 0.005);
+    gain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.03);
+    osc.start(audioContext.currentTime);
+    osc.stop(audioContext.currentTime + 0.03);
+  },
+
+  playPanelOpen: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.frequency.setValueAtTime(300, audioContext.currentTime);
+    osc.frequency.linearRampToValueAtTime(800, audioContext.currentTime + 0.15);
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0, audioContext.currentTime);
+    gain.gain.linearRampToValueAtTime(0.08, audioContext.currentTime + 0.01);
+    gain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.15);
+    osc.start(audioContext.currentTime);
+    osc.stop(audioContext.currentTime + 0.15);
+  },
+
+  playPanelClose: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.frequency.setValueAtTime(600, audioContext.currentTime);
+    osc.frequency.linearRampToValueAtTime(200, audioContext.currentTime + 0.12);
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0, audioContext.currentTime);
+    gain.gain.linearRampToValueAtTime(0.06, audioContext.currentTime + 0.01);
+    gain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.12);
+    osc.start(audioContext.currentTime);
+    osc.stop(audioContext.currentTime + 0.12);
+  },
+
+  playModalOpen: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const osc1 = audioContext.createOscillator();
+    const osc2 = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(audioContext.destination);
+    osc1.frequency.setValueAtTime(523, audioContext.currentTime);
+    osc2.frequency.setValueAtTime(784, audioContext.currentTime);
+    osc1.type = 'sine';
+    osc2.type = 'sine';
+    gain.gain.setValueAtTime(0, audioContext.currentTime);
+    gain.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.02);
+    gain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.2);
+    osc1.start(audioContext.currentTime);
+    osc2.start(audioContext.currentTime);
+    osc1.stop(audioContext.currentTime + 0.2);
+    osc2.stop(audioContext.currentTime + 0.2);
+  },
+
+  playModalClose: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.frequency.setValueAtTime(400, audioContext.currentTime);
+    osc.frequency.linearRampToValueAtTime(200, audioContext.currentTime + 0.15);
+    osc.type = 'triangle';
+    gain.gain.setValueAtTime(0, audioContext.currentTime);
+    gain.gain.linearRampToValueAtTime(0.06, audioContext.currentTime + 0.01);
+    gain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.15);
+    osc.start(audioContext.currentTime);
+    osc.stop(audioContext.currentTime + 0.15);
+  },
+
+  playToggleOn: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.frequency.setValueAtTime(600, audioContext.currentTime);
+    osc.frequency.linearRampToValueAtTime(1000, audioContext.currentTime + 0.08);
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0, audioContext.currentTime);
+    gain.gain.linearRampToValueAtTime(0.08, audioContext.currentTime + 0.005);
+    gain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.08);
+    osc.start(audioContext.currentTime);
+    osc.stop(audioContext.currentTime + 0.08);
+  },
+
+  playToggleOff: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.frequency.setValueAtTime(800, audioContext.currentTime);
+    osc.frequency.linearRampToValueAtTime(400, audioContext.currentTime + 0.08);
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0, audioContext.currentTime);
+    gain.gain.linearRampToValueAtTime(0.06, audioContext.currentTime + 0.005);
+    gain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.08);
+    osc.start(audioContext.currentTime);
+    osc.stop(audioContext.currentTime + 0.08);
+  },
+
+  playTabSwitch: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.frequency.setValueAtTime(700, audioContext.currentTime);
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0, audioContext.currentTime);
+    gain.gain.linearRampToValueAtTime(0.05, audioContext.currentTime + 0.005);
+    gain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.04);
+    osc.start(audioContext.currentTime);
+    osc.stop(audioContext.currentTime + 0.04);
+  },
+
+  playNotification: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const notes = [659, 880, 1047];
+    notes.forEach((freq, i) => {
+      setTimeout(() => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0, audioContext.currentTime);
+        gain.gain.linearRampToValueAtTime(0.12, audioContext.currentTime + 0.005);
+        gain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.08);
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + 0.08);
+      }, i * 140);
+    });
+  },
+
+  playConfirm: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const notes = [523, 784];
+    notes.forEach((freq, i) => {
+      setTimeout(() => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0, audioContext.currentTime);
+        gain.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.005);
+        gain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.1);
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + 0.1);
+      }, i * 150);
+    });
+  },
+
+  playCancel: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const notes = [400, 300];
+    notes.forEach((freq, i) => {
+      setTimeout(() => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        osc.type = 'triangle';
+        gain.gain.setValueAtTime(0, audioContext.currentTime);
+        gain.gain.linearRampToValueAtTime(0.06, audioContext.currentTime + 0.005);
+        gain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.08);
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + 0.08);
+      }, i * 120);
+    });
+  },
+
+  playHoverTick: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.frequency.setValueAtTime(1200, audioContext.currentTime);
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0, audioContext.currentTime);
+    gain.gain.linearRampToValueAtTime(0.03, audioContext.currentTime + 0.002);
+    gain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.015);
+    osc.start(audioContext.currentTime);
+    osc.stop(audioContext.currentTime + 0.015);
+  },
+
+  playPopupAppear: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.frequency.setValueAtTime(500, audioContext.currentTime);
+    osc.frequency.linearRampToValueAtTime(800, audioContext.currentTime + 0.05);
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0, audioContext.currentTime);
+    gain.gain.linearRampToValueAtTime(0.08, audioContext.currentTime + 0.01);
+    gain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.15);
+    osc.start(audioContext.currentTime);
+    osc.stop(audioContext.currentTime + 0.15);
+  },
+
+  playCountdown: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.frequency.setValueAtTime(880, audioContext.currentTime);
+    osc.type = 'square';
+    gain.gain.setValueAtTime(0, audioContext.currentTime);
+    gain.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.005);
+    gain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.05);
+    osc.start(audioContext.currentTime);
+    osc.stop(audioContext.currentTime + 0.05);
+  },
+
+  playLevelUp: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+
+    const notes = [523, 659, 784, 1047, 1319];
+    notes.forEach((freq, i) => {
+      setTimeout(() => {
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        osc.type = 'triangle';
+        gain.gain.setValueAtTime(0, audioContext.currentTime);
+        gain.gain.linearRampToValueAtTime(0.15, audioContext.currentTime + 0.005);
+        gain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.08);
+        osc.start(audioContext.currentTime);
+        osc.stop(audioContext.currentTime + 0.08);
+      }, i * 140);
+    });
   }
 }));

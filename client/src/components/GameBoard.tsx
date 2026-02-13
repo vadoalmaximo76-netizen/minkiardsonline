@@ -363,7 +363,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     cardType: string;
   }>>([]);
     const { selectedCard, gameId, playerName, gameState, setGameId, setUserRankiardPoints, addPRSpent, prSpentThisGame, resetPRSpent, clearSession } = useGameState();
-  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted, playAttackSound, playDeathSound, playCardPickup, playCardPlay, playTurnChange, playBonusActivated, playMyTurn, playDeckShuffle, playEffectActivate, playHostageApplied, playHostageReleased, playPersonaggioEnter, playCardReveal, playErrorSound, playPlayerEliminated, playSorosActivation, playFusionSound, playCardPlayedToField, playVictory, playDefeat } = useAudio();
+  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted, playAttackSound, playDeathSound, playCardPickup, playCardPlay, playTurnChange, playBonusActivated, playMyTurn, playDeckShuffle, playEffectActivate, playHostageApplied, playHostageReleased, playPersonaggioEnter, playCardReveal, playErrorSound, playPlayerEliminated, playSorosActivation, playFusionSound, playCardPlayedToField, playVictory, playDefeat, playButtonClick, playPanelOpen, playPanelClose, playModalOpen, playModalClose, playConfirm } = useAudio();
 
 
   const shareInviteLink = () => {
@@ -3131,13 +3131,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           {/* Center: Primary actions */}
           <div className="flex items-center gap-1.5 landscape:gap-2 md:gap-2">
             <Button
-              onClick={handleStartGame}
+              onClick={() => { playConfirm(); handleStartGame(); }}
               className="bg-emerald-500/90 hover:bg-emerald-400 text-white font-bold text-[11px] landscape:text-sm md:text-sm px-3 landscape:px-5 md:px-5 py-1.5 landscape:py-2 md:py-2 rounded-xl shadow-lg shadow-emerald-500/25 border border-emerald-400/30 transition-all duration-200"
             >
               COMINCIA
             </Button>
             <Button
-              onClick={() => setShowCpuControls(!showCpuControls)}
+              onClick={() => { playButtonClick(); setShowCpuControls(!showCpuControls); }}
               className={`${showCpuControls ? 'bg-purple-500/90 border-purple-400/30 shadow-purple-500/25' : 'bg-white/10 border-white/10 shadow-none'} text-white font-bold text-[11px] landscape:text-sm md:text-sm px-3 landscape:px-4 md:px-4 py-1.5 landscape:py-2 md:py-2 rounded-xl shadow-lg border transition-all duration-200 hover:bg-purple-500/70`}
             >
               CPU
@@ -3174,7 +3174,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             {/* Dropdown menu for secondary actions */}
             <div className="relative">
               <button
-                onClick={() => setHeaderMenuOpen(!headerMenuOpen)}
+                onClick={() => { playButtonClick(); setHeaderMenuOpen(!headerMenuOpen); }}
                 className="p-2 rounded-xl bg-white/5 backdrop-blur-md border border-white/10 hover:bg-white/15 transition-all duration-200 text-white/70 hover:text-white"
               >
                 <MoreVertical size={18} />
@@ -3225,7 +3225,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                         {isMuted ? <VolumeX size={16} className="text-violet-400 flex-shrink-0" /> : <Volume2 size={16} className="text-violet-400 flex-shrink-0" />}
                         {isMuted ? 'Attiva Audio' : 'Disattiva Audio'}
                       </button>
-                      <button onClick={() => { setSoundSettingsOpen(!soundSettingsOpen); setHeaderMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors">
+                      <button onClick={() => { playButtonClick(); if (soundSettingsOpen) { playPanelClose(); } else { playPanelOpen(); } setSoundSettingsOpen(!soundSettingsOpen); setHeaderMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors">
                         <Settings size={16} className="text-cyan-400 flex-shrink-0" />
                         Impostazioni Audio
                       </button>
@@ -3273,7 +3273,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           >
             <button
               data-tutorial="hand"
-              onClick={() => setHandModalOpen(true)}
+              onClick={() => { playButtonClick(); playModalOpen(); setHandModalOpen(true); }}
               className="relative p-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 hover:text-purple-200 transition-all duration-200"
               title="Carte in Mano"
             >
@@ -3286,7 +3286,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             </button>
 
             <button
-              onClick={() => socket.emit('force-end-turn', { gameId })}
+              onClick={() => { playButtonClick(); socket.emit('force-end-turn', { gameId }); }}
               className="p-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-300 hover:text-cyan-200 transition-all duration-200"
               title="Fine Turno"
             >
@@ -3296,7 +3296,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             <div className="w-px h-5 bg-white/10" />
 
             <button
-              onClick={() => { if (chatOpen) { handleCloseChat(); } else { handleOpenChat(); } }}
+              onClick={() => { playButtonClick(); if (chatOpen) { playPanelClose(); handleCloseChat(); } else { playPanelOpen(); handleOpenChat(); } }}
               className="relative p-2 rounded-xl bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 hover:text-blue-200 transition-all duration-200"
               title="Chat"
             >
@@ -3309,7 +3309,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             </button>
 
             <button
-              onClick={() => setGameLogOpen(!gameLogOpen)}
+              onClick={() => { playButtonClick(); if (gameLogOpen) { playPanelClose(); } else { playPanelOpen(); } setGameLogOpen(!gameLogOpen); }}
               className="p-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 hover:text-purple-200 transition-all duration-200"
               title="Game Log"
             >
@@ -3319,7 +3319,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             <div className="w-px h-5 bg-white/10" />
 
             <button
-              onClick={() => setDiceOpen(true)}
+              onClick={() => { playButtonClick(); playModalOpen(); setDiceOpen(true); }}
               className="p-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 hover:text-amber-200 transition-all duration-200"
               title="Dado"
             >
@@ -3327,7 +3327,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             </button>
 
             <button
-              onClick={() => setCalculatorOpen(!calculatorOpen)}
+              onClick={() => { playButtonClick(); if (calculatorOpen) { playPanelClose(); } else { playPanelOpen(); } setCalculatorOpen(!calculatorOpen); }}
               className="p-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 hover:text-emerald-200 transition-all duration-200"
               title="Calcolatrice"
             >
@@ -3335,7 +3335,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             </button>
 
             <button
-              onClick={() => setGraveyardOpen(true)}
+              onClick={() => { playButtonClick(); playModalOpen(); setGraveyardOpen(true); }}
               className="p-2 rounded-xl bg-gray-500/20 hover:bg-gray-500/40 text-gray-300 hover:text-gray-200 transition-all duration-200"
               title="Cimitero"
             >
@@ -3344,6 +3344,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
             <button
               onClick={() => {
+                playButtonClick();
                 playDeckShuffle();
                 const deckTypes = ['personaggi', 'mosse', 'bonus', 'personaggi_speciali'];
                 deckTypes.forEach(deckType => {
@@ -3367,7 +3368,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               className="fixed bottom-4 right-2 landscape:right-4 md:right-4 w-[calc(100vw-2rem)] max-w-80 h-80 landscape:h-96 md:h-[28rem] z-50 fade-in duration-300"
               style={{ position: 'fixed' }}
             >
-              <SoundSettings onClose={() => setSoundSettingsOpen(false)} />
+              <SoundSettings onClose={() => { playPanelClose(); setSoundSettingsOpen(false); }} />
             </div>
           )}
         </div>
@@ -3383,7 +3384,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             className="fixed bottom-4 right-2 landscape:right-4 md:right-4 w-[calc(100vw-2rem)] max-w-80 z-40 animate-in slide-in-from-bottom-5 fade-in duration-300"
             style={{ position: 'fixed' }}
           >
-            <Calculator onClose={() => setCalculatorOpen(false)} />
+            <Calculator onClose={() => { playPanelClose(); setCalculatorOpen(false); }} />
           </div>
         )}
 
@@ -3402,7 +3403,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             className="fixed bottom-16 landscape:bottom-20 md:bottom-52 right-1 landscape:right-4 md:right-4 w-[calc(100vw-1rem)] max-w-80 landscape:w-96 md:w-[28rem] h-80 landscape:h-96 md:h-[28rem] z-40 animate-in slide-in-from-right-5 fade-in duration-300"
             style={{ position: 'fixed' }}
           >
-            <GameLog onClose={() => setGameLogOpen(false)} />
+            <GameLog onClose={() => { playPanelClose(); setGameLogOpen(false); }} />
           </div>
         )}
 
@@ -3411,7 +3412,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
         {/* Hand Modal */}
         {handModalOpen && (
-          <HandModal onClose={() => setHandModalOpen(false)} />
+          <HandModal onClose={() => { playModalClose(); setHandModalOpen(false); }} />
         )}
 
         {/* Ciao Ciao Notification */}
@@ -3671,7 +3672,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         {/* Dice Modal */}
         <DiceModal 
           isOpen={diceOpen}
-          onClose={() => setDiceOpen(false)}
+          onClose={() => { playModalClose(); setDiceOpen(false); }}
           currentRoll={diceResult}
           playerWhoRolled={playerWhoRolled}
         />

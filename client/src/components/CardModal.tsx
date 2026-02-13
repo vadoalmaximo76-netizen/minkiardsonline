@@ -25,7 +25,7 @@ export const CardModal: React.FC = () => {
   const [showSkinPanel, setShowSkinPanel] = useState(false);
   const [appliedSkinUrl, setAppliedSkinUrl] = useState<string | null>(null);
   const { selectedCard, setSelectedCard, playerName, gameState, gameId, setSelectedMosseCard, userRankiardPoints, prSpentThisGame, addPRSpent, setHandModalOpen } = useGameState();
-  const { playFusionSound } = useAudio();
+  const { playFusionSound, playModalOpen, playModalClose, playButtonClick } = useAudio();
   
   // Calculate available Rankiard points (total from authenticated user minus spent this game)
   const availableRankiardPoints = userRankiardPoints - prSpentThisGame;
@@ -82,6 +82,7 @@ export const CardModal: React.FC = () => {
   const isInGraveyard = gameState?.graveyard?.some(card => card.id === selectedCard.id);
 
   const handleClose = () => {
+    playModalClose();
     setSelectedCard(null);
   };
 
@@ -116,6 +117,7 @@ export const CardModal: React.FC = () => {
   };
 
   const handleAttacca = () => {
+    playButtonClick();
     // Check if player's character has 0 stars
     const playerCharacter = gameState?.field?.find(
       card => card.owner === effectivePlayerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali')
@@ -145,6 +147,7 @@ export const CardModal: React.FC = () => {
   };
 
   const handlePlay = () => {
+    playButtonClick();
     socket.emit('play-card', { cardId: selectedCard.id, playerName: effectivePlayerName });
     setSelectedCard(null);
     setHandModalOpen(false);

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { AVATARS } from "../lib/avatars";
+import { useAudio } from "../lib/stores/useAudio";
 
 interface AuthDialogProps {
   open: boolean;
@@ -23,6 +24,7 @@ declare global {
 }
 
 export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onSuccess }) => {
+  const { playModalOpen, playButtonClick, playConfirm } = useAudio();
   const [mode, setMode] = useState<"login" | "register" | "guest" | "forgot-password">("login");
   const [email, setEmail] = useState(() => localStorage.getItem("lastEmail") || "");
   const [password, setPassword] = useState("");
@@ -33,6 +35,12 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onSuccess }) => {
   const [successMessage, setSuccessMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleClientId, setGoogleClientId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      playModalOpen();
+    }
+  }, [open]);
 
   useEffect(() => {
     fetch("/api/auth/config")
@@ -116,6 +124,7 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onSuccess }) => {
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    playButtonClick();
     setLoading(true);
     setError("");
 
@@ -143,6 +152,7 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onSuccess }) => {
       localStorage.setItem("userAvatar", data.user.avatar || "dragon");
       localStorage.setItem("lastEmail", email);
       
+      playConfirm();
       onSuccess(data.user);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Errore sconosciuto");

@@ -3,6 +3,7 @@ import { Button } from './ui/button';
 import { X } from 'lucide-react';
 import { socket } from '../lib/socket';
 import { SuperDice3D } from './Dice3D';
+import { useAudio } from '../lib/stores/useAudio';
 
 interface SuperDiceProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface SuperDiceProps {
 }
 
 export const SuperDice: React.FC<SuperDiceProps> = ({ isOpen, onClose, gameId, playerName }) => {
+  const { playModalOpen, playButtonClick } = useAudio();
   const [isRolling, setIsRolling] = useState(false);
   const [rolledCard, setRolledCard] = useState<{image: string, name: string, type: string} | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -89,6 +91,12 @@ export const SuperDice: React.FC<SuperDiceProps> = ({ isOpen, onClose, gameId, p
   }, [isRolling, diceCards, finalizeDice]);
 
   useEffect(() => {
+    if (isOpen) {
+      playModalOpen();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
     if (isOpen && !hasAutoRolled.current) {
       hasAutoRolled.current = true;
       const timer = setTimeout(() => {
@@ -127,7 +135,7 @@ export const SuperDice: React.FC<SuperDiceProps> = ({ isOpen, onClose, gameId, p
         <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-pink-500/10 rounded-2xl pointer-events-none" />
 
         <Button
-          onClick={onClose}
+          onClick={() => { playButtonClick(); onClose(); }}
           className="absolute top-3 right-3 bg-transparent hover:bg-gray-700 text-white p-2 h-8 w-8 rounded-full z-10 transition-all hover:scale-110"
           size="sm"
         >

@@ -3,6 +3,7 @@ import { Trophy, Gift, CheckCircle, Loader2, X, Lock, Star } from "lucide-react"
 import { Button } from "./ui/button";
 import { Progress } from "./ui/progress";
 import { CoinAnimation } from "./CoinAnimation";
+import { useAudio } from "../lib/stores/useAudio";
 
 interface Achievement {
   id: number;
@@ -72,6 +73,13 @@ export const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
   const [claiming, setClaiming] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [coinAnimation, setCoinAnimation] = useState<{ active: boolean; points: number }>({ active: false, points: 0 });
+  const { playPanelOpen, playButtonClick } = useAudio();
+
+  useEffect(() => {
+    if (isOpen) {
+      playPanelOpen();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && authToken) {
@@ -100,6 +108,7 @@ export const AchievementsPanel: React.FC<AchievementsPanelProps> = ({
   };
 
   const claimReward = async (achievementId: number) => {
+    playButtonClick();
     if (!authToken) return;
     
     try {

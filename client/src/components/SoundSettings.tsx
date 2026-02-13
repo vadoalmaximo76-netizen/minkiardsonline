@@ -8,7 +8,7 @@ interface SoundSettingsProps {
 }
 
 export const SoundSettings: React.FC<SoundSettingsProps> = ({ onClose }) => {
-  const { soundSettings, setSoundSettings, isMuted, toggleMute } = useAudio();
+  const { soundSettings, setSoundSettings, isMuted, toggleMute, playToggleOn, playToggleOff } = useAudio();
   
   const categories = [
     { key: 'myTurn' as const, label: 'Il mio turno', icon: Bell, color: 'text-yellow-400' },
@@ -55,7 +55,7 @@ export const SoundSettings: React.FC<SoundSettingsProps> = ({ onClose }) => {
         {categories.map(({ key, label, icon: Icon, color }) => (
           <button
             key={key}
-            onClick={() => setSoundSettings({ [key]: !soundSettings[key] })}
+            onClick={() => { if (soundSettings[key]) { playToggleOff(); } else { playToggleOn(); } setSoundSettings({ [key]: !soundSettings[key] }); }}
             disabled={isMuted}
             className={`w-full flex items-center justify-between p-2 rounded-lg transition-all ${
               isMuted ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-700/50'

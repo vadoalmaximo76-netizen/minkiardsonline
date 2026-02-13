@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Button } from "./ui/button";
 import { socket } from "../lib/socket";
 import { useGameState } from "../lib/stores/useGameState";
+import { useAudio } from "../lib/stores/useAudio";
 import { X } from "lucide-react";
 
 interface GameLogProps {
@@ -82,6 +83,7 @@ export const GameLog: React.FC<GameLogProps> = ({ onClose }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const { gameId } = useGameState();
+  const { playTabSwitch } = useAudio();
 
   useEffect(() => {
     if (gameId) {
@@ -153,7 +155,7 @@ export const GameLog: React.FC<GameLogProps> = ({ onClose }) => {
         {filters.map(f => (
           <button
             key={f.key}
-            onClick={() => setActiveFilter(f.key)}
+            onClick={() => { playTabSwitch(); setActiveFilter(f.key); }}
             className={`px-2 py-1 rounded text-xs font-medium transition-all ${
               activeFilter === f.key
                 ? 'bg-purple-600 text-white'

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "./ui/button";
 import { X, Calculator as CalcIcon } from "lucide-react";
+import { useAudio } from "../lib/stores/useAudio";
 
 interface CalculatorProps {
   onClose: () => void;
@@ -11,8 +12,10 @@ export const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
   const [previousValue, setPreviousValue] = useState<number | null>(null);
   const [operation, setOperation] = useState<string | null>(null);
   const [waitingForOperand, setWaitingForOperand] = useState(false);
+  const { playButtonClick } = useAudio();
 
   const inputNumber = (num: string) => {
+    playButtonClick();
     if (waitingForOperand) {
       setDisplay(num);
       setWaitingForOperand(false);
@@ -22,6 +25,7 @@ export const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
   };
 
   const inputOperation = (nextOperation: string) => {
+    playButtonClick();
     const inputValue = parseFloat(display);
 
     if (previousValue === null) {
@@ -56,6 +60,7 @@ export const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
   };
 
   const performCalculation = () => {
+    playButtonClick();
     if (previousValue !== null && operation) {
       const inputValue = parseFloat(display);
       const newValue = calculate(previousValue, inputValue, operation);
@@ -79,6 +84,7 @@ export const Calculator: React.FC<CalculatorProps> = ({ onClose }) => {
   };
 
   const inputDecimal = () => {
+    playButtonClick();
     if (waitingForOperand) {
       setDisplay("0.");
       setWaitingForOperand(false);
