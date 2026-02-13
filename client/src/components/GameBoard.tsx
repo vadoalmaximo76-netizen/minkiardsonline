@@ -1815,17 +1815,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       {/* Animated gradient background - dynamic colors based on game events */}
       <div className="fixed inset-0 pointer-events-none dynamic-bg-transition animate-color-shift" style={{ background: bgColors.gradient }} />
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        {/* Main floating orbs - larger and more vivid */}
-        <div className="absolute w-[700px] h-[700px] rounded-full blur-[120px] animate-bg-float-1 dynamic-bg-transition" style={{ background: `radial-gradient(circle, ${bgColors.orb1}, transparent 65%)`, opacity: bgColors.opacity1, top: '5%', left: '15%' }} />
-        <div className="absolute w-[600px] h-[600px] rounded-full blur-[100px] animate-bg-float-2 dynamic-bg-transition" style={{ background: `radial-gradient(circle, ${bgColors.orb2}, transparent 65%)`, opacity: bgColors.opacity2, bottom: '10%', right: '10%' }} />
-        <div className="absolute w-[500px] h-[500px] rounded-full blur-[90px] animate-bg-float-3 dynamic-bg-transition" style={{ background: `radial-gradient(circle, ${bgColors.orb3}, transparent 65%)`, opacity: bgColors.opacity3, top: '40%', left: '55%' }} />
-        <div className="absolute w-[550px] h-[550px] rounded-full blur-[110px] animate-bg-float-4 dynamic-bg-transition" style={{ background: `radial-gradient(circle, ${bgColors.orb4}, transparent 65%)`, opacity: bgColors.opacity4, top: '60%', left: '5%' }} />
-        <div className="absolute w-[450px] h-[450px] rounded-full blur-[80px] animate-bg-float-5 dynamic-bg-transition" style={{ background: `radial-gradient(circle, ${bgColors.orb5}, transparent 65%)`, opacity: bgColors.opacity5, top: '15%', right: '25%' }} />
-        {/* Aurora wave effects */}
-        <div className="absolute inset-0 animate-aurora-1 dynamic-bg-transition" style={{ background: `linear-gradient(90deg, transparent 0%, ${bgColors.auroraColor1} 30%, ${bgColors.auroraColor2} 50%, ${bgColors.auroraColor1} 70%, transparent 100%)`, opacity: bgColors.auroraOpacity, height: '40%', top: '10%' }} />
-        <div className="absolute inset-0 animate-aurora-2 dynamic-bg-transition" style={{ background: `linear-gradient(90deg, transparent 0%, ${bgColors.auroraColor2} 25%, ${bgColors.auroraColor1} 50%, ${bgColors.auroraColor2} 75%, transparent 100%)`, opacity: bgColors.auroraOpacity * 0.7, height: '35%', bottom: '15%', top: 'auto' }} />
-        {/* Central nebula pulse */}
-        <div className="absolute w-[800px] h-[800px] rounded-full blur-[150px] animate-nebula-pulse dynamic-bg-transition" style={{ background: `radial-gradient(circle, ${bgColors.pulseColor}, transparent 60%)`, opacity: bgColors.pulseOpacity, top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
+        {/* Main floating orbs - static on mobile, animated on desktop */}
+        <div className="absolute w-[200px] h-[200px] md:w-[700px] md:h-[700px] rounded-full blur-[40px] md:blur-[120px] md:animate-bg-float-1 dynamic-bg-transition will-change-[opacity]" style={{ background: `radial-gradient(circle, ${bgColors.orb1}, transparent 65%)`, opacity: bgColors.opacity1, top: '5%', left: '15%' }} />
+        <div className="absolute w-[180px] h-[180px] md:w-[600px] md:h-[600px] rounded-full blur-[35px] md:blur-[100px] md:animate-bg-float-2 dynamic-bg-transition will-change-[opacity]" style={{ background: `radial-gradient(circle, ${bgColors.orb2}, transparent 65%)`, opacity: bgColors.opacity2, bottom: '10%', right: '10%' }} />
+        <div className="hidden md:block absolute w-[500px] h-[500px] rounded-full blur-[90px] animate-bg-float-3 dynamic-bg-transition" style={{ background: `radial-gradient(circle, ${bgColors.orb3}, transparent 65%)`, opacity: bgColors.opacity3, top: '40%', left: '55%' }} />
+        <div className="hidden md:block absolute w-[550px] h-[550px] rounded-full blur-[110px] animate-bg-float-4 dynamic-bg-transition" style={{ background: `radial-gradient(circle, ${bgColors.orb4}, transparent 65%)`, opacity: bgColors.opacity4, top: '60%', left: '5%' }} />
+        <div className="hidden md:block absolute w-[450px] h-[450px] rounded-full blur-[80px] animate-bg-float-5 dynamic-bg-transition" style={{ background: `radial-gradient(circle, ${bgColors.orb5}, transparent 65%)`, opacity: bgColors.opacity5, top: '15%', right: '25%' }} />
+        {/* Aurora wave effects - hidden on mobile */}
+        <div className="hidden md:block absolute inset-0 animate-aurora-1 dynamic-bg-transition" style={{ background: `linear-gradient(90deg, transparent 0%, ${bgColors.auroraColor1} 30%, ${bgColors.auroraColor2} 50%, ${bgColors.auroraColor1} 70%, transparent 100%)`, opacity: bgColors.auroraOpacity, height: '40%', top: '10%' }} />
+        <div className="hidden md:block absolute inset-0 animate-aurora-2 dynamic-bg-transition" style={{ background: `linear-gradient(90deg, transparent 0%, ${bgColors.auroraColor2} 25%, ${bgColors.auroraColor1} 50%, ${bgColors.auroraColor2} 75%, transparent 100%)`, opacity: bgColors.auroraOpacity * 0.7, height: '35%', bottom: '15%', top: 'auto' }} />
+        {/* Central nebula pulse - hidden on mobile */}
+        <div className="hidden md:block absolute w-[800px] h-[800px] rounded-full blur-[150px] animate-nebula-pulse dynamic-bg-transition" style={{ background: `radial-gradient(circle, ${bgColors.pulseColor}, transparent 60%)`, opacity: bgColors.pulseOpacity, top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
       </div>
 
       {/* Back to Home button - hidden since back is in header menu */}

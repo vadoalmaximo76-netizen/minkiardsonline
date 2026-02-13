@@ -233,10 +233,9 @@ const RoundTableComponent: React.FC = () => {
       return [{ x: centerX, y: bottomY, angle: 0 }];
     }
     
-    // Spread cards horizontally at bottom center - MORE horizontal spacing
-    const availableWidth = isMobile ? 85 : isTablet ? 90 : 95;
-    const cardWidth = isMobile ? 18 : isTablet ? 16 : 14;
-    const idealSpacing = cardWidth + 3;
+    const availableWidth = isMobile ? 90 : isTablet ? 90 : 95;
+    const cardWidth = isMobile ? 22 : isTablet ? 18 : 16;
+    const idealSpacing = cardWidth + 2;
     
     const totalNeededWidth = cardCount * idealSpacing;
     const cardSpacing = totalNeededWidth > availableWidth 
@@ -255,10 +254,10 @@ const RoundTableComponent: React.FC = () => {
 
   const getCardScale = (playerCount: number) => {
     const mobileScales = {
-      2: 'scale-[0.42] landscape:scale-[0.88] sm:scale-[0.70] md:scale-[0.79] lg:scale-[0.88]',
-      4: 'scale-[0.33] landscape:scale-[0.79] sm:scale-[0.60] md:scale-[0.70] lg:scale-[0.79]', 
-      6: 'scale-[0.23] landscape:scale-[0.70] sm:scale-[0.51] md:scale-[0.60] lg:scale-[0.70]',
-      8: 'scale-[0.19] landscape:scale-[0.60] sm:scale-[0.42] md:scale-[0.51] lg:scale-[0.60]'
+      2: 'scale-[0.75] landscape:scale-[0.88] sm:scale-[0.80] md:scale-[0.85] lg:scale-[0.90]',
+      4: 'scale-[0.65] landscape:scale-[0.79] sm:scale-[0.70] md:scale-[0.75] lg:scale-[0.85]', 
+      6: 'scale-[0.55] landscape:scale-[0.70] sm:scale-[0.60] md:scale-[0.65] lg:scale-[0.75]',
+      8: 'scale-[0.45] landscape:scale-[0.60] sm:scale-[0.50] md:scale-[0.55] lg:scale-[0.65]'
     };
     
     if (playerCount <= 2) return mobileScales[2];
