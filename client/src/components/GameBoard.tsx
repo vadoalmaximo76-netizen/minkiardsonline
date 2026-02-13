@@ -3358,8 +3358,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         {/* Player Hand */}
         <PlayerHand />
 
-        {/* CPU Controls - conditional */}
-        {showCpuControls && <CPUControls />}
+        {/* CPU Controls - centered modal panel */}
+        {showCpuControls && <CPUControls onClose={() => setShowCpuControls(false)} />}
 
         {/* Other Players' Hands */}
         <OtherPlayersHands />
