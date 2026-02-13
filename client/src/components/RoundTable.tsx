@@ -255,10 +255,10 @@ const RoundTableComponent: React.FC = () => {
 
   const getCardScale = (playerCount: number) => {
     const mobileScales = {
-      2: 'scale-45 landscape:scale-95 sm:scale-75 md:scale-85 lg:scale-95',
-      4: 'scale-35 landscape:scale-85 sm:scale-65 md:scale-75 lg:scale-85', 
-      6: 'scale-25 landscape:scale-75 sm:scale-55 md:scale-65 lg:scale-75',
-      8: 'scale-20 landscape:scale-65 sm:scale-45 md:scale-55 lg:scale-65'
+      2: 'scale-[0.42] landscape:scale-[0.88] sm:scale-[0.70] md:scale-[0.79] lg:scale-[0.88]',
+      4: 'scale-[0.33] landscape:scale-[0.79] sm:scale-[0.60] md:scale-[0.70] lg:scale-[0.79]', 
+      6: 'scale-[0.23] landscape:scale-[0.70] sm:scale-[0.51] md:scale-[0.60] lg:scale-[0.70]',
+      8: 'scale-[0.19] landscape:scale-[0.60] sm:scale-[0.42] md:scale-[0.51] lg:scale-[0.60]'
     };
     
     if (playerCount <= 2) return mobileScales[2];
@@ -295,7 +295,7 @@ const RoundTableComponent: React.FC = () => {
       {/* Rectangular Table Container */}
       <div 
         data-tutorial="field"
-        className="relative w-[85vw] h-[95vh] landscape:w-[95vw] landscape:h-[95vh] sm:w-[90vw] sm:h-[90vh] md:w-[95vw] md:h-[95vh] lg:w-[98vw] lg:h-[95vh] xl:w-[98vw] xl:h-[98vh] max-w-[1600px] max-h-[1400px] min-w-[320px] min-h-[500px] mx-auto border-4 landscape:border-8 md:border-8 border-purple-500/30 game-field bg-no-repeat overflow-visible"
+        className="relative w-[79vw] h-[88vh] landscape:w-[88vw] landscape:h-[88vh] sm:w-[84vw] sm:h-[84vh] md:w-[88vw] md:h-[88vh] lg:w-[91vw] lg:h-[88vh] xl:w-[91vw] xl:h-[91vh] max-w-[1488px] max-h-[1302px] min-w-[298px] min-h-[465px] mx-auto border-4 landscape:border-8 md:border-8 border-purple-500/30 game-field bg-no-repeat overflow-visible"
         style={{
           borderRadius: '24px',
           backgroundImage: `url('https://i.ibb.co/Y4bv4xwz/sfondo-minkiards.png')`,
