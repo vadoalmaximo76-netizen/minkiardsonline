@@ -158,18 +158,19 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
 
   return (
     <div className="min-h-screen bg-arena-deep flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      {/* Same background as game board */}
-      <div 
-        className="fixed inset-0 bg-cover bg-center opacity-50"
-        style={{
-          backgroundImage: 'url(https://files.123freevectors.com/wp-content/original/113342-royal-blue-blurred-background-vector.jpg)'
-        }}
-      />
-      {/* Animated background elements */}
+      {/* Dynamic animated background */}
+      <div className="fixed inset-0 pointer-events-none animate-color-shift" style={{ background: 'radial-gradient(ellipse at 20% 10%, rgba(88, 28, 135, 0.35) 0%, transparent 55%), radial-gradient(ellipse at 80% 90%, rgba(30, 58, 138, 0.3) 0%, transparent 55%), radial-gradient(ellipse at 50% 50%, rgba(6, 182, 212, 0.15) 0%, transparent 60%), radial-gradient(ellipse at 10% 70%, rgba(139, 92, 246, 0.2) 0%, transparent 50%), linear-gradient(180deg, #03050d 0%, #070b1a 30%, #0a1028 60%, #060918 100%)' }} />
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-600/5 rounded-full blur-3xl" />
+        <div className="absolute w-[600px] h-[600px] rounded-full blur-[120px] animate-bg-float-1" style={{ background: 'radial-gradient(circle, #9333ea, transparent 65%)', opacity: 0.25, top: '10%', left: '10%' }} />
+        <div className="absolute w-[500px] h-[500px] rounded-full blur-[100px] animate-bg-float-2" style={{ background: 'radial-gradient(circle, #3b82f6, transparent 65%)', opacity: 0.2, bottom: '15%', right: '10%' }} />
+        <div className="absolute w-[450px] h-[450px] rounded-full blur-[90px] animate-bg-float-3" style={{ background: 'radial-gradient(circle, #06b6d4, transparent 65%)', opacity: 0.15, top: '50%', left: '60%' }} />
+        <div className="absolute w-[550px] h-[550px] rounded-full blur-[110px] animate-bg-float-4" style={{ background: 'radial-gradient(circle, #8b5cf6, transparent 65%)', opacity: 0.12, top: '65%', left: '5%' }} />
+        <div className="absolute w-[400px] h-[400px] rounded-full blur-[80px] animate-bg-float-5" style={{ background: 'radial-gradient(circle, #6366f1, transparent 65%)', opacity: 0.1, top: '20%', right: '20%' }} />
+        {/* Aurora waves */}
+        <div className="absolute inset-0 animate-aurora-1" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(139, 92, 246, 0.08) 30%, rgba(59, 130, 246, 0.06) 50%, rgba(139, 92, 246, 0.08) 70%, transparent 100%)', opacity: 0.6, height: '40%', top: '10%' }} />
+        <div className="absolute inset-0 animate-aurora-2" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(59, 130, 246, 0.06) 25%, rgba(139, 92, 246, 0.08) 50%, rgba(59, 130, 246, 0.06) 75%, transparent 100%)', opacity: 0.4, height: '35%', bottom: '15%', top: 'auto' }} />
+        {/* Nebula pulse */}
+        <div className="absolute w-[700px] h-[700px] rounded-full blur-[150px] animate-nebula-pulse" style={{ background: 'radial-gradient(circle, rgba(88, 28, 135, 0.12), transparent 60%)', opacity: 0.4, top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
       </div>
 
       {/* Header */}
