@@ -36,10 +36,10 @@ const DiceFace: React.FC<{ value: number; size: number }> = ({ value, size }) =>
         position: 'absolute',
         width: `${size}px`,
         height: `${size}px`,
-        background: 'linear-gradient(145deg, #dc2626, #991b1b)',
+        background: 'linear-gradient(145deg, #ef4444, #b91c1c)',
         borderRadius: `${size * 0.12}px`,
         border: '2px solid rgba(0,0,0,0.3)',
-        boxShadow: 'inset 0 2px 6px rgba(255,255,255,0.25), inset 0 -2px 6px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.4)',
+        boxShadow: 'inset 0 2px 8px rgba(255,255,255,0.3), inset 0 -3px 8px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.5)',
         backfaceVisibility: 'hidden',
       }}
     >
@@ -51,7 +51,7 @@ const DiceFace: React.FC<{ value: number; size: number }> = ({ value, size }) =>
             width: `${pipSize}px`,
             height: `${pipSize}px`,
             borderRadius: '50%',
-            background: 'radial-gradient(circle at 35% 35%, #ffffff, #e8e8e8)',
+            background: 'radial-gradient(circle at 35% 35%, #ffffff, #e0e0e0)',
             boxShadow: 'inset 0 -1px 2px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.4)',
             left: `${pos[0]}%`,
             top: `${pos[1]}%`,
@@ -81,7 +81,7 @@ export const Dice3D: React.FC<Dice3DProps> = ({
       wasRolling.current = false;
       const timer = setTimeout(() => {
         onRollComplete?.();
-      }, 800);
+      }, 1000);
       return () => clearTimeout(timer);
     }
   }, [isRolling, onRollComplete]);
@@ -107,61 +107,120 @@ export const Dice3D: React.FC<Dice3DProps> = ({
   ];
 
   const sid = styleId.current;
+  const bounceHeight = Math.round(size * 0.6);
 
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <style>{`
-        @keyframes ${sid}-roll-x {
-          0% { transform: rotateX(0deg); }
-          100% { transform: rotateX(1080deg); }
-        }
-        @keyframes ${sid}-roll-y {
-          0% { transform: rotateY(0deg); }
-          100% { transform: rotateY(900deg); }
-        }
-        @keyframes ${sid}-roll-z {
-          0% { transform: rotateZ(0deg); }
-          100% { transform: rotateZ(720deg); }
+        @keyframes ${sid}-tumble {
+          0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+          10% { transform: rotateX(120deg) rotateY(80deg) rotateZ(45deg); }
+          20% { transform: rotateX(250deg) rotateY(190deg) rotateZ(100deg); }
+          30% { transform: rotateX(400deg) rotateY(270deg) rotateZ(180deg); }
+          40% { transform: rotateX(520deg) rotateY(380deg) rotateZ(230deg); }
+          50% { transform: rotateX(650deg) rotateY(460deg) rotateZ(310deg); }
+          60% { transform: rotateX(790deg) rotateY(560deg) rotateZ(370deg); }
+          70% { transform: rotateX(900deg) rotateY(650deg) rotateZ(440deg); }
+          80% { transform: rotateX(980deg) rotateY(720deg) rotateZ(490deg); }
+          90% { transform: rotateX(1040deg) rotateY(770deg) rotateZ(530deg); }
+          100% { transform: rotateX(1080deg) rotateY(800deg) rotateZ(560deg); }
         }
         @keyframes ${sid}-bounce {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-8px); }
+          0% { transform: translateY(0) scale(1); }
+          8% { transform: translateY(-${bounceHeight}px) scale(0.95); }
+          16% { transform: translateY(0) scale(1.05, 0.95); }
+          20% { transform: translateY(0) scale(1); }
+          28% { transform: translateY(-${Math.round(bounceHeight * 0.55)}px) scale(0.97); }
+          36% { transform: translateY(0) scale(1.03, 0.97); }
+          40% { transform: translateY(0) scale(1); }
+          46% { transform: translateY(-${Math.round(bounceHeight * 0.3)}px) scale(0.98); }
+          52% { transform: translateY(0) scale(1.02, 0.98); }
+          56% { transform: translateY(0) scale(1); }
+          60% { transform: translateY(-${Math.round(bounceHeight * 0.12)}px) scale(0.99); }
+          64% { transform: translateY(0) scale(1.01, 0.99); }
+          68% { transform: translateY(0) scale(1); }
+          100% { transform: translateY(0) scale(1); }
+        }
+        @keyframes ${sid}-shadow {
+          0% { opacity: 0.4; transform: translateX(-50%) scale(1); }
+          8% { opacity: 0.15; transform: translateX(-50%) scale(1.8); }
+          16% { opacity: 0.5; transform: translateX(-50%) scale(0.85); }
+          28% { opacity: 0.2; transform: translateX(-50%) scale(1.4); }
+          36% { opacity: 0.45; transform: translateX(-50%) scale(0.9); }
+          46% { opacity: 0.25; transform: translateX(-50%) scale(1.2); }
+          52% { opacity: 0.4; transform: translateX(-50%) scale(0.95); }
+          68% { opacity: 0.4; transform: translateX(-50%) scale(1); }
+          100% { opacity: 0.4; transform: translateX(-50%) scale(1); }
         }
       `}</style>
       <div
         style={{
-          perspective: `${size * 5}px`,
+          position: 'relative',
           width: `${size}px`,
-          height: `${size}px`,
+          height: `${size + bounceHeight}px`,
+          display: 'flex',
+          alignItems: 'flex-end',
+          justifyContent: 'center',
         }}
       >
+        {isRolling && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '-4px',
+              left: '50%',
+              width: `${size * 0.7}px`,
+              height: `${size * 0.08}px`,
+              background: 'radial-gradient(ellipse, rgba(0,0,0,0.5) 0%, transparent 70%)',
+              borderRadius: '50%',
+              animation: `${sid}-shadow 1.2s cubic-bezier(0.25, 0.1, 0.25, 1) infinite`,
+              transformOrigin: 'center',
+            }}
+          />
+        )}
         <div
           style={{
-            width: `${size}px`,
-            height: `${size}px`,
-            position: 'relative',
-            transformStyle: 'preserve-3d',
             animation: isRolling
-              ? `${sid}-roll-x 0.6s linear infinite, ${sid}-roll-y 0.8s linear infinite, ${sid}-roll-z 1.0s linear infinite`
+              ? `${sid}-bounce 1.2s cubic-bezier(0.25, 0.1, 0.25, 1) infinite`
               : 'none',
-            transform: !isRolling ? cubeTransform : undefined,
-            transition: !isRolling ? 'transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none',
           }}
         >
-          {faces.map((face) => (
+          <div
+            style={{
+              perspective: `${size * 5}px`,
+              width: `${size}px`,
+              height: `${size}px`,
+            }}
+          >
             <div
-              key={face.value}
               style={{
-                position: 'absolute',
                 width: `${size}px`,
                 height: `${size}px`,
-                transform: face.transform,
-                backfaceVisibility: 'hidden',
+                position: 'relative',
+                transformStyle: 'preserve-3d',
+                animation: isRolling
+                  ? `${sid}-tumble 1.2s cubic-bezier(0.25, 0.1, 0.25, 1) infinite`
+                  : 'none',
+                transform: !isRolling ? cubeTransform : undefined,
+                transition: !isRolling ? 'transform 0.9s cubic-bezier(0.22, 0.68, 0.35, 1.2)' : 'none',
               }}
             >
-              <DiceFace value={face.value} size={size} />
+              {faces.map((face) => (
+                <div
+                  key={face.value}
+                  style={{
+                    position: 'absolute',
+                    width: `${size}px`,
+                    height: `${size}px`,
+                    transform: face.transform,
+                    backfaceVisibility: 'hidden',
+                  }}
+                >
+                  <DiceFace value={face.value} size={size} />
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       </div>
     </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { socket } from '../lib/socket';
 import { useGameState } from '../lib/stores/useGameState';
 import { Button } from './ui/button';
-import { Mic, MicOff } from 'lucide-react';
+import { Mic, MicOff, X } from 'lucide-react';
 
 interface PeerConnection {
   connection: RTCPeerConnection;
@@ -291,31 +291,31 @@ export const VoiceChat: React.FC = () => {
   };
 
   return (
-    <div className="flex gap-2">
+    <div className="flex items-center gap-0.5">
       {!isActive ? (
-        <Button
+        <button
           onClick={startVoiceChat}
-          className="bg-green-600 hover:bg-green-700 text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200"
+          className="p-2 rounded-xl bg-green-500/20 hover:bg-green-500/40 text-green-300 hover:text-green-200 transition-all duration-200"
           title="Attiva Chat Vocale"
         >
-          <Mic size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />
-        </Button>
+          <Mic size={16} />
+        </button>
       ) : (
         <>
-          <Button
+          <button
             onClick={toggleMute}
-            className={`${isMuted ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'} text-white rounded-full p-2 landscape:p-3 md:p-3 shadow-lg hover:shadow-xl transition-all duration-200`}
+            className={`p-2 rounded-xl transition-all duration-200 ${isMuted ? 'bg-red-500/30 text-red-300 hover:bg-red-500/50' : 'bg-green-500/30 text-green-300 hover:bg-green-500/50 ring-1 ring-green-400/40'}`}
             title={isMuted ? "Attiva Microfono" : "Disattiva Microfono"}
           >
-            {isMuted ? <MicOff size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" /> : <Mic size={16} className="landscape:w-6 landscape:h-6 md:w-6 md:h-6" />}
-          </Button>
-          <Button
+            {isMuted ? <MicOff size={16} /> : <Mic size={16} />}
+          </button>
+          <button
             onClick={stopVoiceChat}
-            className="bg-red-600 hover:bg-red-700 text-white text-xs landscape:text-sm md:text-sm px-2 landscape:px-3 md:px-3 py-1 landscape:py-2 md:py-2 rounded shadow-lg hover:shadow-xl transition-all duration-200"
+            className="p-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 transition-all duration-200"
             title="Disconnetti Chat Vocale"
           >
-            Disconnetti
-          </Button>
+            <X size={12} />
+          </button>
         </>
       )}
     </div>

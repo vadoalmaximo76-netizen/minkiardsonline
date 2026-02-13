@@ -3628,7 +3628,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
 
         {/* Add Cards, Scenari and Leave Game Buttons - Bottom of page */}
-        <div className="mt-4 sm:mt-8 md:mt-16 mb-2 sm:mb-4 md:mb-8 grid grid-cols-2 sm:flex sm:flex-row justify-center gap-1.5 sm:gap-2 md:gap-4 px-2 sm:px-4">
+        <div className="mt-4 sm:mt-8 md:mt-16 mb-16 sm:mb-16 md:mb-8 grid grid-cols-2 sm:flex sm:flex-row justify-center gap-1.5 sm:gap-2 md:gap-4 px-2 sm:px-4">
           {/* Only show AGGIUNGI button for registered users (not guests) */}
           {authenticatedUser && authenticatedUser.id > 0 && (
             <Button
