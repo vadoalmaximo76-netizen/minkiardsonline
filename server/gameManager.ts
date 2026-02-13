@@ -1685,7 +1685,7 @@ Rispondi SOLO in JSON:`;
           .where(eq(matches.id, game.matchId));
       }
 
-      await this.awardRankiardPoints(game, winnerPlayer);
+      const rewardsMap = await this.awardRankiardPoints(game, winnerPlayer);
       console.log(`Rankiard points awarded for match ${gameId}, winner: ${winnerPlayer}`);
 
       // Track game events for missions/achievements (non-blocking)
@@ -1695,6 +1695,15 @@ Rispondi SOLO in JSON:`;
       }
       if (winnerPlayer && !game.players[winnerPlayer]?.isCPU) {
         this.trackPlayerEventAsync(gameId, winnerPlayer, 'game_won', {});
+      }
+
+      // Emit rewards data to all players in the game room
+      const io = (global as any).io;
+      if (io) {
+        io.to(gameId).emit('game-end-rewards', {
+          rewards: rewardsMap,
+          winner: winnerPlayer || '',
+        });
       }
 
       // Check if this is a tournament match and update it
@@ -1823,14 +1832,14 @@ Rispondi SOLO in JSON:`;
     return table[placement - 1];
   }
 
-  private async awardRankiardPoints(game: GameState, winnerPlayer?: string): Promise<void> {
+  private async awardRankiardPoints(game: GameState, winnerPlayer?: string): Promise<Record<string, { pointsEarned: number; newTotal: number; placement: number; isWinner: boolean }>> {
+    const rewardsMap: Record<string, { pointsEarned: number; newTotal: number; placement: number; isWinner: boolean }> = {};
     try {
       const allPlayers = Object.keys(game.players).filter(p => !game.players[p].isCPU);
       const characterLimit = game.characterLimit;
       
-      // Calculate game duration in minutes
       const durationSeconds = Math.floor((Date.now() - game.startTime.getTime()) / 1000);
-      const durationMinutes = Math.max(1, Math.floor(durationSeconds / 60)); // At least 1 minute
+      const durationMinutes = Math.max(1, Math.floor(durationSeconds / 60));
 
       const finalRanking: string[] = [];
       if (winnerPlayer) {
@@ -1861,8 +1870,6 @@ Rispondi SOLO in JSON:`;
 
         if (userId) {
           try {
-            // Update all user statistics: points, games played, games won, minutes played
-            // Check isWinner first (regardless of points) to always count wins correctly
             if (isWinner) {
               await db.execute(
                 sql`UPDATE users SET 
@@ -1874,7 +1881,6 @@ Rispondi SOLO in JSON:`;
               );
               console.log(`Awarded ${points} Rankiard points + WIN to ${playerName} (userId: ${userId}) for ${placement}° place, +${durationMinutes} minutes`);
             } else {
-              // Non-winner: update points (if any), games played, and minutes
               await db.execute(
                 sql`UPDATE users SET 
                   punti_rankiard = punti_rankiard + ${points},
@@ -1884,16 +1890,24 @@ Rispondi SOLO in JSON:`;
               );
               console.log(`Awarded ${points} Rankiard points to ${playerName} (userId: ${userId}) for ${placement}° place, +${durationMinutes} minutes`);
             }
+            
+            const updatedUser = await db.select({ puntiRankiard: users.puntiRankiard }).from(users).where(eq(users.id, userId)).limit(1);
+            const newTotal = updatedUser.length > 0 ? updatedUser[0].puntiRankiard : points;
+            
+            rewardsMap[playerName] = { pointsEarned: points, newTotal, placement, isWinner };
           } catch (err) {
             console.error(`Failed to update stats for ${playerName}:`, err);
+            rewardsMap[playerName] = { pointsEarned: points, newTotal: points, placement, isWinner };
           }
         } else {
           console.log(`No userId found for ${playerName}, skipping stats update`);
+          rewardsMap[playerName] = { pointsEarned: points, newTotal: points, placement, isWinner };
         }
       }
     } catch (error) {
       console.error('Failed to award Rankiard points:', error);
     }
+    return rewardsMap;
   }
 
   setPlayerUserId(gameId: string, playerName: string, userId: number): void {

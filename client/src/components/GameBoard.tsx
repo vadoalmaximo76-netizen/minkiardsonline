@@ -39,6 +39,7 @@ import { SorosActivation } from "./SorosActivation";
 import { CharacterEffects } from "./CharacterEffects";
 import { TutorialOverlay } from "./TutorialOverlay";
 import { AdBanner, InterstitialAd } from "./AdBanner";
+import { GameEndRewardsPanel } from "./GameEndRewardsPanel";
 import { ConnectionStatus } from "./ConnectionStatus";
 import { GameToastContainer, useGameToast } from "./GameToast";
 import { ContextualTooltipLoader, ContextualTooltipDisplay, useTooltipStore } from "./ContextualTooltip";
@@ -146,6 +147,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [victoryDialogOpen, setVictoryDialogOpen] = useState(false);
   const [victoryPlayer, setVictoryPlayer] = useState<string>('');
   const [showInterstitialAd, setShowInterstitialAd] = useState(false);
+  const [gameEndRewards, setGameEndRewards] = useState<{
+    visible: boolean;
+    pointsEarned: number;
+    previousTotal: number;
+    newTotal: number;
+    placement: number;
+    isWinner: boolean;
+    winnerName: string;
+  }>({ visible: false, pointsEarned: 0, previousTotal: 0, newTotal: 0, placement: 0, isWinner: false, winnerName: '' });
   const [cardTrailParticles, setCardTrailParticles] = useState<{ visible: boolean; cardType: string; x: number; y: number }>({ visible: false, cardType: '', x: 0, y: 0 });
   const [victoryDefeatAnim, setVictoryDefeatAnim] = useState<{ visible: boolean; type: 'victory' | 'defeat'; playerName: string }>({ visible: false, type: 'victory', playerName: '' });
   const { shake } = useScreenShake();
@@ -1581,8 +1591,40 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       }
       setVictoryPlayer(winner);
       setVictoryDefeatAnim({ visible: true, type: isWinner ? 'victory' : 'defeat', playerName: winner });
-      setVictoryDialogOpen(true);
-      setTimeout(() => setShowInterstitialAd(true), 3000);
+    };
+
+    let rewardsTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    const handleGameEndRewards = ({ rewards, winner }: { rewards: Record<string, { pointsEarned: number; newTotal: number; placement: number; isWinner: boolean }>; winner: string }) => {
+      const myRewards = rewards[playerName];
+      if (myRewards) {
+        const previousTotal = Math.max(0, myRewards.newTotal - myRewards.pointsEarned);
+        rewardsTimeoutId = setTimeout(() => {
+          setVictoryDefeatAnim({ visible: false, type: 'victory', playerName: '' });
+          setGameEndRewards({
+            visible: true,
+            pointsEarned: myRewards.pointsEarned,
+            previousTotal,
+            newTotal: myRewards.newTotal,
+            placement: myRewards.placement,
+            isWinner: myRewards.isWinner,
+            winnerName: winner,
+          });
+          setUserRankiardPoints(myRewards.newTotal);
+        }, 4000);
+      } else {
+        rewardsTimeoutId = setTimeout(() => {
+          setVictoryDefeatAnim({ visible: false, type: 'victory', playerName: '' });
+          setGameEndRewards({
+            visible: true,
+            pointsEarned: 0,
+            previousTotal: 0,
+            newTotal: 0,
+            placement: 0,
+            isWinner: false,
+            winnerName: winner,
+          });
+        }, 4000);
+      }
     };
 
     const handleFusionError = ({ message }: { message: string }) => {
@@ -1603,6 +1645,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('elimination-check', handleEliminationCheck);
     socket.on('player-eliminated', handlePlayerEliminated);
     socket.on('game-victory', handleGameVictory);
+    socket.on('game-end-rewards', handleGameEndRewards);
     socket.on('fusion-error', handleFusionError);
     socket.on('voodoo:error', handleVoodooError);
 
@@ -1642,6 +1685,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('elimination-check', handleEliminationCheck);
       socket.off('player-eliminated', handlePlayerEliminated);
       socket.off('game-victory', handleGameVictory);
+      socket.off('game-end-rewards', handleGameEndRewards);
       socket.off('fusion-error', handleFusionError);
       socket.off('voodoo:error', handleVoodooError);
       socket.off('player-choosing-notification', handlePlayerChoosingNotification);
@@ -1679,6 +1723,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('clash-battle-end', handleClashBattleEnd);
       socket.off('attack-error', handleAttackError);
       socket.off('attack-blocked', handleAttackError);
+      if (rewardsTimeoutId) clearTimeout(rewardsTimeoutId);
     };
   }, []);
 
@@ -1918,38 +1963,27 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         </div>
       )}
 
-      {/* Victory Dialog */}
-      {victoryDialogOpen && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg p-8 w-full max-w-md mx-4 text-center border-4 border-yellow-300">
-            <div className="mb-4">
-              <Crown className="w-16 h-16 mx-auto text-yellow-800 mb-2" />
-              <div className="flex justify-center space-x-1 mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-6 h-6 text-yellow-800 fill-current" />
-                ))}
-              </div>
-            </div>
-            <h2 className="text-2xl font-bold text-yellow-900 mb-2">
-              {victoryPlayer}
-            </h2>
-            <h3 className="text-xl font-bold text-yellow-900 mb-6">
-              VINCE LA PARTITA!
-            </h3>
-            <Button
-              onClick={() => {
-                setVictoryDialogOpen(false);
-                // Clear session when user acknowledges victory
-                clearSession();
-                onLeaveGame?.();
-              }}
-              className="btn-neon-yellow text-white font-bold py-2 px-6"
-            >
-              Chiudi
-            </Button>
-          </div>
-        </div>
-      )}
+      {/* Game End Rewards Panel */}
+      <GameEndRewardsPanel
+        visible={gameEndRewards.visible}
+        pointsEarned={gameEndRewards.pointsEarned}
+        previousTotal={gameEndRewards.previousTotal}
+        newTotal={gameEndRewards.newTotal}
+        placement={gameEndRewards.placement}
+        isWinner={gameEndRewards.isWinner}
+        winnerName={gameEndRewards.winnerName}
+        playerName={playerName}
+        onGoHome={() => {
+          setGameEndRewards(prev => ({ ...prev, visible: false }));
+          clearSession();
+          onLeaveGame?.();
+        }}
+        onNewGame={() => {
+          setGameEndRewards(prev => ({ ...prev, visible: false }));
+          clearSession();
+          onBack?.();
+        }}
+      />
 
       {/* Player Elimination Notification */}
       {playerEliminationNotification.visible && (
