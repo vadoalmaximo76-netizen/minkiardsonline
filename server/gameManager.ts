@@ -6764,8 +6764,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           const sendTargetCard = sendTargets[0];
           const sendDeckType = sendTargetCard.type as 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali';
           game.field = game.field.filter(c => c.id !== sendTargetCard.id);
-          game.decks[sendDeckType].push(sendTargetCard);
-          console.log(`📥 SEND TO DECK: ${sendTargetCard.name} returned to ${sendDeckType} deck!`);
+          game.decks[sendDeckType].unshift(sendTargetCard);
+          console.log(`📥 SEND TO DECK: ${sendTargetCard.name} returned to bottom of ${sendDeckType} deck!`);
         }
         break;
 
@@ -8614,9 +8614,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           const cardToReturn = player.hand.splice(randomIdx, 1)[0];
           const deckType = cardToReturn.type as keyof typeof game.decks;
           if (game.decks[deckType]) {
-            game.decks[deckType].push(cardToReturn);
+            game.decks[deckType].unshift(cardToReturn);
             await this.pickCard(gameId, deckType as keyof GameState['decks'], playerName);
-            console.log(`🔄 SWAP CARD: CPU ${playerName} returned ${cardToReturn.name || cardToReturn.id} to ${deckType} deck and drew a new card`);
+            console.log(`🔄 SWAP CARD: CPU ${playerName} returned ${cardToReturn.name || cardToReturn.id} to bottom of ${deckType} deck and drew a new card`);
           }
         } else if (io) {
           const handCards = player.hand.map((c: Card) => ({
@@ -13217,9 +13217,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const cardName = cardToReturn.name || this.getCardNameFromUrl(cardToReturn.frontImage || '');
       const deckType = cardToReturn.type as keyof GameState['decks'];
       if (game.decks[deckType]) {
-        game.decks[deckType].push(cardToReturn);
+        game.decks[deckType].unshift(cardToReturn);
         await this.pickCard(gameId, deckType, playerName);
-        console.log(`🔄 SWAP CARD: ${playerName} returned ${cardName} to ${deckType} deck and drew a new card`);
+        console.log(`🔄 SWAP CARD: ${playerName} returned ${cardName} to bottom of ${deckType} deck and drew a new card`);
         io.to(gameId).emit('chat-message', {
           id: `${Date.now()}-swap-card-deck`,
           playerName: 'Sistema',
@@ -17414,38 +17414,38 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     // but clear their hand and move all their cards back to decks
     const player = gameState.players[playerName];
     
-    // Move all cards from player's hand back to appropriate decks
+    // Move all cards from player's hand back to appropriate decks (bottom)
     for (const card of player.hand) {
       const deckType = card.type as keyof typeof gameState.decks;
       card.owner = '';
       card.text = '';
-      gameState.decks[deckType].push(card);
+      gameState.decks[deckType].unshift(card);
     }
     
     // Clear player's hand
     player.hand = [];
 
-    // Move player's field cards back to decks  
+    // Move player's field cards back to decks (bottom)
     const playerFieldCards = gameState.field.filter(card => card.owner === playerName);
     for (const card of playerFieldCards) {
       const deckType = card.type as keyof typeof gameState.decks;
       card.owner = '';
       card.text = '';
       card.faceDown = false;
-      gameState.decks[deckType].push(card);
+      gameState.decks[deckType].unshift(card);
     }
     
     // Remove player's cards from field
     gameState.field = gameState.field.filter(card => card.owner !== playerName);
 
-    // Move player's graveyard cards back to decks
+    // Move player's graveyard cards back to decks (bottom)
     const playerGraveyardCards = gameState.graveyard.filter(card => card.owner === playerName);
     for (const card of playerGraveyardCards) {
       const deckType = card.type as keyof typeof gameState.decks;
       card.owner = '';
       card.text = '';
       card.eliminatedBy = undefined;
-      gameState.decks[deckType].push(card);
+      gameState.decks[deckType].unshift(card);
     }
     
     // Remove player's cards from graveyard
@@ -17692,7 +17692,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       // Return to appropriate deck
       const deckType = card.type as keyof GameState['decks'];
       if (game.decks[deckType]) {
-        game.decks[deckType].push(card);
+        game.decks[deckType].unshift(card);
         destLocation = `mazzo ${deckType}`;
       }
     }
@@ -18210,8 +18210,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         // Reset card ownership and add back to deck
         card.owner = '';
         card.text = '';
-        game.decks[deckType].push(card);
-        console.log(`[removePlayerFromGame] Returned ${card.id} to ${deckType} deck`);
+        game.decks[deckType].unshift(card);
+        console.log(`[removePlayerFromGame] Returned ${card.id} to bottom of ${deckType} deck`);
       }
     });
 
@@ -18220,11 +18220,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     playerFieldCards.forEach(card => {
       const deckType = card.type as keyof typeof game.decks;
       if (game.decks[deckType]) {
-        // Reset card ownership and add back to deck
+        // Reset card ownership and add back to deck (bottom)
         card.owner = '';
         card.text = '';
-        game.decks[deckType].push(card);
-        console.log(`[removePlayerFromGame] Returned field card ${card.id} to ${deckType} deck`);
+        game.decks[deckType].unshift(card);
+        console.log(`[removePlayerFromGame] Returned field card ${card.id} to bottom of ${deckType} deck`);
       }
     });
 
