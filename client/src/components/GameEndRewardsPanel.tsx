@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import { Crown, Trophy, Star, Home, Play, Medal } from 'lucide-react';
 import { AdBanner } from './AdBanner';
+import { useGameState } from '../lib/stores/useGameState';
 
 interface Coin {
   id: number;
@@ -150,7 +151,7 @@ export const GameEndRewardsPanel: React.FC<GameEndRewardsPanelProps> = ({
 
   if (phase === 'ad') {
     return (
-      <div className="fixed inset-0 bg-black/95 flex flex-col items-center justify-center z-[300] p-4">
+      <div className="fixed inset-0 bg-black/95 flex flex-col items-center justify-center p-4" style={{ zIndex: 10000 }}>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -164,15 +165,39 @@ export const GameEndRewardsPanel: React.FC<GameEndRewardsPanelProps> = ({
 
           <div className="flex flex-col sm:flex-row gap-3 w-full">
             <button
-              onClick={() => { console.log('[REWARDS-PANEL] Torna alla home clicked'); onGoHome(); }}
-              className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                console.log('[REWARDS-PANEL] Torna alla home clicked');
+                try {
+                  useGameState.getState().clearSession();
+                } catch (err) {
+                  console.error('[REWARDS-PANEL] clearSession error:', err);
+                }
+                window.location.href = window.location.origin;
+              }}
+              className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 cursor-pointer"
+              style={{ position: 'relative', zIndex: 9999 }}
             >
               <Home size={20} />
               Torna alla home
             </button>
             <button
-              onClick={() => { console.log('[REWARDS-PANEL] Nuova partita clicked'); onNewGame(); }}
-              className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-500 hover:to-emerald-600 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-green-500/30 hover:shadow-green-500/50"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                console.log('[REWARDS-PANEL] Nuova partita clicked');
+                try {
+                  useGameState.getState().clearSession();
+                } catch (err) {
+                  console.error('[REWARDS-PANEL] clearSession error:', err);
+                }
+                window.location.href = window.location.origin;
+              }}
+              className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-500 hover:to-emerald-600 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-green-500/30 hover:shadow-green-500/50 cursor-pointer"
+              style={{ position: 'relative', zIndex: 9999 }}
             >
               <Play size={20} />
               Nuova partita
@@ -184,7 +209,7 @@ export const GameEndRewardsPanel: React.FC<GameEndRewardsPanelProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[300] p-4 overflow-hidden">
+    <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 overflow-hidden" style={{ zIndex: 10000 }}>
       <AnimatePresence>
         {showCoins && coins.map((coin) => (
           <motion.div

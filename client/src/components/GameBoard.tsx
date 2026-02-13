@@ -1979,21 +1979,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         playerName={playerName}
         onGoHome={() => {
           console.log('[REWARDS] onGoHome clicked');
-          setGameEndRewards(prev => ({ ...prev, visible: false }));
-          onLeaveGame?.();
-          if (onBack) {
-            onBack();
-          }
           clearSession();
+          window.location.href = window.location.origin;
         }}
         onNewGame={() => {
           console.log('[REWARDS] onNewGame clicked');
-          setGameEndRewards(prev => ({ ...prev, visible: false }));
-          onLeaveGame?.();
-          if (onBack) {
-            onBack();
-          }
           clearSession();
+          window.location.href = window.location.origin;
         }}
       />
 
