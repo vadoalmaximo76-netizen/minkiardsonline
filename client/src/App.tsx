@@ -595,8 +595,8 @@ function App() {
     );
   }
 
-  // Show Room Dialog for Play section
-  if (showRoomDialog || !gameId) {
+  // Show Room Dialog for Play section (only when in play mode)
+  if (currentSection === 'play' && (showRoomDialog || !gameId)) {
     return (
       <QueryClientProvider client={queryClient}>
         <div className="min-h-screen bg-arena-deep flex flex-col items-center justify-center">

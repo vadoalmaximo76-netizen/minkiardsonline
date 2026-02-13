@@ -164,14 +164,14 @@ export const GameEndRewardsPanel: React.FC<GameEndRewardsPanelProps> = ({
 
           <div className="flex flex-col sm:flex-row gap-3 w-full">
             <button
-              onClick={onGoHome}
+              onClick={() => { console.log('[REWARDS-PANEL] Torna alla home clicked'); onGoHome(); }}
               className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50"
             >
               <Home size={20} />
               Torna alla home
             </button>
             <button
-              onClick={onNewGame}
+              onClick={() => { console.log('[REWARDS-PANEL] Nuova partita clicked'); onNewGame(); }}
               className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-500 hover:to-emerald-600 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-green-500/30 hover:shadow-green-500/50"
             >
               <Play size={20} />

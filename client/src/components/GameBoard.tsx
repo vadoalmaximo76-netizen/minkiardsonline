@@ -478,8 +478,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const handleLeaveGame = () => {
     if (confirm("Sei sicuro di voler lasciare la partita? Diventerai uno spettatore.")) {
       socket.emit('leave-game', { gameId, playerName });
-      clearSession(); // Clear session data when leaving game
-      onLeaveGame?.(); // Notify parent to reset session state
+      onLeaveGame?.();
+      onBack?.();
+      clearSession();
     }
   };
 
@@ -1570,8 +1571,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       
       // If the current player was eliminated, clear their session
       if (eliminatedPlayer === playerName) {
-        clearSession();
         onLeaveGame?.();
+        onBack?.();
+        clearSession();
       }
       
       // Hide notification after 3 seconds
@@ -1595,7 +1597,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
     let rewardsTimeoutId: ReturnType<typeof setTimeout> | null = null;
     const handleGameEndRewards = ({ rewards, winner }: { rewards: Record<string, { pointsEarned: number; newTotal: number; placement: number; isWinner: boolean }>; winner: string }) => {
-      const myRewards = rewards[playerName];
+      console.log('[REWARDS] game-end-rewards received:', { rewards, winner, playerName });
+      const currentPlayerName = useGameState.getState().playerName || playerName;
+      const myRewards = rewards[currentPlayerName];
       if (myRewards) {
         const previousTotal = Math.max(0, myRewards.newTotal - myRewards.pointsEarned);
         rewardsTimeoutId = setTimeout(() => {
@@ -1974,16 +1978,22 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         winnerName={gameEndRewards.winnerName}
         playerName={playerName}
         onGoHome={() => {
+          console.log('[REWARDS] onGoHome clicked');
           setGameEndRewards(prev => ({ ...prev, visible: false }));
-          clearSession();
           onLeaveGame?.();
-          onBack?.();
+          if (onBack) {
+            onBack();
+          }
+          clearSession();
         }}
         onNewGame={() => {
+          console.log('[REWARDS] onNewGame clicked');
           setGameEndRewards(prev => ({ ...prev, visible: false }));
-          clearSession();
           onLeaveGame?.();
-          onBack?.();
+          if (onBack) {
+            onBack();
+          }
+          clearSession();
         }}
       />
 
