@@ -162,6 +162,7 @@ interface PendingDefense {
   mosseDamageValue?: number; // Base PTI damage of the attacking MOSSE (for auto-calc)
   attackerStars?: number; // Attacker's current stars (for auto-calc)
   originalMosseDamage?: number; // Raw MOSSE damage before special move enhancement (for range checks)
+  isCounterAttackDefense?: boolean; // Whether this defense was created from a counter-attack (BONUS only, no re-counter)
   createdAt: Date;
   timeoutId?: NodeJS.Timeout;
 }
@@ -9094,18 +9095,19 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           console.log(`💥 PRE-DEFENSE SUPER ATTACCO: ${attackerCharacterName} → "${superAttaccoConfig.name}" - Danno: ${baseDmg} × ${attackerStars} stelle = ${finalDamageForDefense} PTI (original MOSSE: ${damageValue})`);
         }
       } else if (evolvedMovesConfig) {
-        const baseMosseDamage = damageValue;
-        if (evolvedMovesConfig.range1 && evolvedMovesConfig.range1.name && evolvedMovesConfig.range1.damage && baseMosseDamage >= 1 && baseMosseDamage <= 150) {
+        const rawMosseDamage = (mosseCard as any).mosseDamageValue || (attackerStars > 1 ? Math.round(damageValue / attackerStars) : damageValue);
+        console.log(`🔥 PRE-DEFENSE EVOLVED RANGE CHECK: rawMosseDamage=${rawMosseDamage} (mosseDamageValue=${(mosseCard as any).mosseDamageValue}, damageValue=${damageValue}, stars=${attackerStars})`);
+        if (evolvedMovesConfig.range1 && evolvedMovesConfig.range1.name && evolvedMovesConfig.range1.damage && rawMosseDamage >= 1 && rawMosseDamage <= 150) {
           const evoBaseDmg = parseInt(evolvedMovesConfig.range1.damage);
           if (!isNaN(evoBaseDmg) && evoBaseDmg > 0) {
             finalDamageForDefense = evoBaseDmg * attackerStars;
-            console.log(`🔥 PRE-DEFENSE MOSSA EVOLUTA (R1): ${attackerCharacterName} → "${evolvedMovesConfig.range1.name}" - Danno: ${evoBaseDmg} × ${attackerStars} stelle = ${finalDamageForDefense} PTI (original MOSSE: ${damageValue})`);
+            console.log(`🔥 PRE-DEFENSE MOSSA EVOLUTA (R1): ${attackerCharacterName} → "${evolvedMovesConfig.range1.name}" - Danno: ${evoBaseDmg} × ${attackerStars} stelle = ${finalDamageForDefense} PTI (original MOSSE: ${rawMosseDamage})`);
           }
-        } else if (evolvedMovesConfig.range2 && evolvedMovesConfig.range2.name && evolvedMovesConfig.range2.damage && baseMosseDamage >= 151 && baseMosseDamage <= 300) {
+        } else if (evolvedMovesConfig.range2 && evolvedMovesConfig.range2.name && evolvedMovesConfig.range2.damage && rawMosseDamage >= 151 && rawMosseDamage <= 300) {
           const evoBaseDmg = parseInt(evolvedMovesConfig.range2.damage);
           if (!isNaN(evoBaseDmg) && evoBaseDmg > 0) {
             finalDamageForDefense = evoBaseDmg * attackerStars;
-            console.log(`🔥 PRE-DEFENSE MOSSA EVOLUTA (R2): ${attackerCharacterName} → "${evolvedMovesConfig.range2.name}" - Danno: ${evoBaseDmg} × ${attackerStars} stelle = ${finalDamageForDefense} PTI (original MOSSE: ${damageValue})`);
+            console.log(`🔥 PRE-DEFENSE MOSSA EVOLUTA (R2): ${attackerCharacterName} → "${evolvedMovesConfig.range2.name}" - Danno: ${evoBaseDmg} × ${attackerStars} stelle = ${finalDamageForDefense} PTI (original MOSSE: ${rawMosseDamage})`);
           }
         }
       }
@@ -18607,6 +18609,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const defenderCard = game.field.find(c => c.id === pendingDefense.targetCardId);
     console.log(`🛡️ Defender Card found:`, defenderCard ? { id: defenderCard.id, image: defenderCard.frontImage ? '✓' : '✗' } : '✗ NOT FOUND');
     
+    const isCounterDefense = pendingDefense.isCounterAttackDefense === true;
     const defenseRequestData = {
       gameId,
       attackId: pendingDefense.attackId,
@@ -18615,15 +18618,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       mosseCardId: pendingDefense.mosseCardId,
       targetCardId: pendingDefense.targetCardId,
       damageValue: pendingDefense.damage,
-      message: `${pendingDefense.attacker} ti sta attaccando! Vuoi respingere l'attacco?`,
+      message: isCounterDefense 
+        ? `${pendingDefense.attacker} ti ha respinto! ${pendingDefense.damage} danni in arrivo! Vuoi difenderti con un BONUS?`
+        : `${pendingDefense.attacker} ti sta attaccando! Vuoi respingere l'attacco?`,
       mosseCardImage: mosseCard?.frontImage,
       attackerCardImage: attackerCard?.frontImage,
       defenderCardImage: defenderCard?.frontImage,
       attackerCardText: attackerCard?.text,
       defenderCardText: defenderCard?.text,
-      mosseCanBeCountered: pendingDefense.mosseCanBeCountered === true,
+      mosseCanBeCountered: isCounterDefense ? false : (pendingDefense.mosseCanBeCountered === true),
       mosseDamageValue: pendingDefense.mosseDamageValue ?? null,
-      attackerStars: pendingDefense.attackerStars ?? 1
+      attackerStars: pendingDefense.attackerStars ?? 1,
+      isCounterAttackDefense: isCounterDefense
     };
     
     console.log(`🛡️ DEFENSE REQUEST DATA:`, defenseRequestData);
@@ -19619,28 +19625,60 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       return { success: true, result: 'clash' };
     } else if (defenderDamage > attackDamage) {
-      // DEFENDER WINS: Apply net damage to attacker's character
+      // DEFENDER WINS: Net damage goes to attacker's character - allow BONUS defense
       const netDamage = defenderDamage - attackDamage;
-      console.log(`🛡️ COUNTER WIN: ${defender} deals ${netDamage} net damage to ${attacker}`);
+      console.log(`🛡️ COUNTER WIN: ${defender} deals ${netDamage} net damage to ${attacker} - creating defense opportunity`);
 
       io.to(gameId).emit('chat-message', {
         id: `${Date.now()}-counter-win`,
         playerName: 'Sistema',
-        message: `🛡️ ${defender} respinge con successo! ${attacker} subisce ${netDamage} danni (${defenderDamage} - ${attackDamage})!`,
+        message: `🛡️ ${defender} respinge con successo! ${attacker} subisce ${netDamage} danni (${defenderDamage} - ${attackDamage})! Può difendersi con BONUS!`,
         timestamp: Date.now()
       });
 
       // Return attacker's MOSSE to deck
       this.returnToDeck(gameId, mosseCardId, attacker);
-      
-      // Apply net damage to attacker's character (no star removal in counter-attacks)
-      await this.processMosseDamage(gameId, defender, defenderTargetCardId, netDamage, defenderMosseCardId, io, false, false, false, false, 0);
+
+      // Create pendingDefense for attacker to defend with BONUS (no counter-attacks allowed)
+      const counterDefenseId = `counter-defense-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const counterDefenseCreated = this.setPendingDefense(gameId, {
+        attackId: counterDefenseId,
+        attacker: defender,
+        defender: attacker,
+        damage: netDamage,
+        targetCardId: defenderTargetCardId,
+        mosseCardId: defenderMosseCardId,
+        isHandTarget: false,
+        deckType: 'mosse',
+        starsToRemove: 0,
+        mosseCanBeCountered: false,
+        isCounterAttackDefense: true
+      });
+
+      if (counterDefenseCreated) {
+        await this.emitDefenseRequest(gameId, io);
+        console.log(`🛡️ COUNTER-DEFENSE: ${attacker} can now defend against counter-attack with BONUS cards`);
+      } else {
+        console.log(`🛡️ COUNTER-DEFENSE: Failed to create defense - applying damage directly`);
+        await this.processMosseDamage(gameId, defender, defenderTargetCardId, netDamage, defenderMosseCardId, io, false, false, false, false, 0);
+      }
 
       // CRITICAL: Resolve CPU attacker's waiting state after counter-attack
       const cpuInstance = game?.players[attacker]?.cpuInstance;
       if (cpuInstance) {
-        cpuInstance.resolveAttack();
-        console.log(`🤖 CPU ${attacker} attack resolved after counter-attack (defender won)`);
+        if (counterDefenseCreated) {
+          setTimeout(async () => {
+            const currentGame = this.games.get(gameId);
+            if (currentGame?.pendingDefense?.attackId === counterDefenseId) {
+              cpuInstance.resolveAttack();
+              console.log(`🤖 CPU ${attacker} auto-accepting counter-attack damage (no BONUS defense)`);
+              await this.processDefenseResponse(gameId, counterDefenseId, false, io, 'cpu');
+            }
+          }, 3000);
+        } else {
+          cpuInstance.resolveAttack();
+          console.log(`🤖 CPU ${attacker} attack resolved after counter-attack (defender won)`);
+        }
       }
 
       // Send game state update
@@ -19649,28 +19687,63 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       return { success: true, result: 'defender_wins', netDamage };
     } else {
-      // ATTACKER WINS: Apply net damage to defender's character
+      // ATTACKER WINS: Net damage goes to defender's character - allow BONUS defense
       const netDamage = attackDamage - defenderDamage;
-      console.log(`⚔️ ATTACK WIN: ${attacker} deals ${netDamage} net damage to ${defender}`);
+      console.log(`⚔️ ATTACK WIN: ${attacker} deals ${netDamage} net damage to ${defender} - creating defense opportunity`);
 
       io.to(gameId).emit('chat-message', {
         id: `${Date.now()}-attack-win`,
         playerName: 'Sistema',
-        message: `⚔️ ${attacker} sfonda la difesa! ${defender} subisce ${netDamage} danni (${attackDamage} - ${defenderDamage})!`,
+        message: `⚔️ ${attacker} sfonda la difesa! ${defender} subisce ${netDamage} danni (${attackDamage} - ${defenderDamage})! Può difendersi con BONUS!`,
         timestamp: Date.now()
       });
 
       // Return defender's MOSSE to deck
       this.returnToDeck(gameId, defenderMosseCardId, defender);
-      
-      // Apply net damage to defender's character (no star removal in counter-attacks)
-      await this.processMosseDamage(gameId, attacker, targetCardId, netDamage, mosseCardId, io, false, isHandTarget || false, false, false, 0);
+
+      // Create pendingDefense for defender to defend with BONUS (no counter-attacks allowed)
+      const counterDefenseId = `counter-defense-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const counterDefenseCreated = this.setPendingDefense(gameId, {
+        attackId: counterDefenseId,
+        attacker: attacker,
+        defender: defender,
+        damage: netDamage,
+        targetCardId: targetCardId,
+        mosseCardId: mosseCardId,
+        isHandTarget: isHandTarget || false,
+        deckType: 'mosse',
+        starsToRemove: 0,
+        mosseCanBeCountered: false,
+        isCounterAttackDefense: true
+      });
+
+      if (counterDefenseCreated) {
+        await this.emitDefenseRequest(gameId, io);
+        console.log(`🛡️ COUNTER-DEFENSE: ${defender} can now defend against remaining attack with BONUS cards`);
+      } else {
+        console.log(`🛡️ COUNTER-DEFENSE: Failed to create defense - applying damage directly`);
+        await this.processMosseDamage(gameId, attacker, targetCardId, netDamage, mosseCardId, io, false, isHandTarget || false, false, false, 0);
+      }
 
       // CRITICAL: Resolve CPU attacker's waiting state after counter-attack
       const cpuInstanceAttacker = game?.players[attacker]?.cpuInstance;
       if (cpuInstanceAttacker) {
         cpuInstanceAttacker.resolveAttack();
         console.log(`🤖 CPU ${attacker} attack resolved after counter-attack (attacker won)`);
+      }
+
+      // Handle CPU defender auto-response for counter-defense
+      if (counterDefenseCreated && defender.startsWith('CPU')) {
+        const cpuDefender = game?.players[defender]?.cpuInstance;
+        if (cpuDefender) {
+          setTimeout(async () => {
+            const currentGame = this.games.get(gameId);
+            if (currentGame?.pendingDefense?.attackId === counterDefenseId) {
+              console.log(`🤖 CPU ${defender} auto-accepting counter-attack remaining damage (no BONUS defense)`);
+              await this.processDefenseResponse(gameId, counterDefenseId, false, io, 'cpu');
+            }
+          }, 3000);
+        }
       }
 
       // Send game state update
@@ -20530,23 +20603,24 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           console.log(`💥 SUPER ATTACCO: ${attackerCharForSpecial.name || 'Personaggio Speciale'} usa "${specialMoveName}" - Danno: ${baseDmg} × ${attackerStars} stelle = ${specialMoveFinalDamage} PTI`);
         }
       } else if (evolvedMovesConfig && !specialMoveName) {
-        const baseMosseDamage = damageValue;
+        const rawMosseDamage = (mosseCard as any)?.mosseDamageValue || (attackerStars > 1 ? Math.round(damageValue / attackerStars) : damageValue);
+        console.log(`🔥 EVOLVED RANGE CHECK: rawMosseDamage=${rawMosseDamage} (mosseDamageValue=${(mosseCard as any)?.mosseDamageValue}, damageValue=${damageValue}, stars=${attackerStars})`);
         
-        if (evolvedMovesConfig.range1 && evolvedMovesConfig.range1.name && evolvedMovesConfig.range1.damage && baseMosseDamage >= 1 && baseMosseDamage <= 150) {
+        if (evolvedMovesConfig.range1 && evolvedMovesConfig.range1.name && evolvedMovesConfig.range1.damage && rawMosseDamage >= 1 && rawMosseDamage <= 150) {
           const evoBaseDmg = parseInt(evolvedMovesConfig.range1.damage);
           if (!isNaN(evoBaseDmg) && evoBaseDmg > 0) {
             specialMoveName = evolvedMovesConfig.range1.name;
             specialMoveFinalDamage = evoBaseDmg * attackerStars;
             damageValue = specialMoveFinalDamage;
-            console.log(`🔥 MOSSA SPECIALE EVOLUTA (Range 1-150): ${attackerCharForSpecial.name || 'Personaggio Speciale'} usa "${specialMoveName}" - Danno: ${evoBaseDmg} × ${attackerStars} stelle = ${specialMoveFinalDamage} PTI`);
+            console.log(`🔥 MOSSA SPECIALE EVOLUTA (Range 1-150): ${attackerCharForSpecial.name || 'Personaggio Speciale'} usa "${specialMoveName}" - Danno: ${evoBaseDmg} × ${attackerStars} stelle = ${specialMoveFinalDamage} PTI (rawMosse: ${rawMosseDamage})`);
           }
-        } else if (evolvedMovesConfig.range2 && evolvedMovesConfig.range2.name && evolvedMovesConfig.range2.damage && baseMosseDamage >= 151 && baseMosseDamage <= 300) {
+        } else if (evolvedMovesConfig.range2 && evolvedMovesConfig.range2.name && evolvedMovesConfig.range2.damage && rawMosseDamage >= 151 && rawMosseDamage <= 300) {
           const evoBaseDmg = parseInt(evolvedMovesConfig.range2.damage);
           if (!isNaN(evoBaseDmg) && evoBaseDmg > 0) {
             specialMoveName = evolvedMovesConfig.range2.name;
             specialMoveFinalDamage = evoBaseDmg * attackerStars;
             damageValue = specialMoveFinalDamage;
-            console.log(`🔥 MOSSA SPECIALE EVOLUTA (Range 151-300): ${attackerCharForSpecial.name || 'Personaggio Speciale'} usa "${specialMoveName}" - Danno: ${evoBaseDmg} × ${attackerStars} stelle = ${specialMoveFinalDamage} PTI`);
+            console.log(`🔥 MOSSA SPECIALE EVOLUTA (Range 151-300): ${attackerCharForSpecial.name || 'Personaggio Speciale'} usa "${specialMoveName}" - Danno: ${evoBaseDmg} × ${attackerStars} stelle = ${specialMoveFinalDamage} PTI (rawMosse: ${rawMosseDamage})`);
           }
         }
       }
