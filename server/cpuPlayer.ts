@@ -971,7 +971,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           const cpuAttackerChar = gameState?.field?.find((c: any) => 
             c.owner === this.playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
           );
-          const cpuAttackerStars = cpuAttackerChar?.stars || 1;
+          const cpuAttackerStars = cpuAttackerChar?.stars ?? 1;
           if (cpuDamageValue > 0) {
             cpuDamageValue = cpuDamageValue * cpuAttackerStars;
           } else if (isFurto) {
@@ -1998,7 +1998,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         console.log(`🎯 CPU ${this.playerName}: DEBUG - MOSSE card:`, mosseCard ? { id: mosseCard.id, image: !!mosseCard.frontImage } : 'NOT FOUND');
         
         // Calculate suggested damage based on mosse card settings and attacker stars
-        const attackerStars = attackerCard?.stars || 1;
+        const attackerStars = attackerCard?.stars ?? 1;
         const attackerName = attackerCard ? this.getCardNameFromUrl(attackerCard.frontImage) : null;
         const targetName = target.name;
         
@@ -2141,7 +2141,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     
     // Calculate suggested damage based on mosse card settings and attacker stars
     // CRITICAL: Use current stars from .stars property OR parse from text as fallback
-    let attackerStars = attackerCard?.stars || 1;
+    let attackerStars = attackerCard?.stars ?? 1;
     if (attackerCard?.text) {
       const starsMatch = attackerCard.text.match(/[Ss]telle[:\s]*(\d+)/i);
       if (starsMatch) {

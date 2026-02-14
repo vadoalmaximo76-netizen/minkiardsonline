@@ -438,7 +438,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         const attackerCard = gameState?.field?.find((c: any) => 
           c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
         );
-        const attackerStars = attackerCard?.stars || 1;
+        const attackerStars = attackerCard?.stars ?? 1;
         const attackerName = attackerCard ? getCardName(attackerCard) : null;
         const targetName = getCardName(card);
         
@@ -646,7 +646,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     const attackerCard = gameState?.field?.find((c: any) => 
       c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
     );
-    const attackerStars = attackerCard?.stars || 1;
+    const attackerStars = attackerCard?.stars ?? 1;
     const attackerName = attackerCard ? getCardName(attackerCard) : null;
     const targetName = getCardName(handTargetCard);
     
@@ -713,7 +713,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       const attackerCard = gameState?.field?.find((c: any) => 
         c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
       );
-      const attackerStars = attackerCard?.stars || 1;
+      const attackerStars = attackerCard?.stars ?? 1;
       const attackerName = attackerCard ? getCardName(attackerCard) : null;
       // Use first target for character override check
       const firstTarget = targets[0];
@@ -2201,7 +2201,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
               {mosseHasPreset && (selectedMosseCard as any)?.mosseDamageValue !== undefined && (
                 <p className="text-green-200 text-sm">
                   Danno base: {(selectedMosseCard as any).mosseDamageValue} PTI × {
-                    gameState?.field?.find((c: any) => c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'))?.stars || 1
+                    gameState?.field?.find((c: any) => c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'))?.stars ?? 1
                   } stelle = <span className="font-bold text-green-400">{damageValue} PTI</span>
                 </p>
               )}

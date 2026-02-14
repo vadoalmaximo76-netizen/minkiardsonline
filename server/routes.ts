@@ -5736,7 +5736,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           
                           // Calculate suggested damage based on mosse card settings and attacker stars
                           // CRITICAL: Use current stars from .stars property OR parse from text as fallback
-                          let attackerStars = cpuCharacter?.stars || 1;
+                          let attackerStars = cpuCharacter?.stars ?? 1;
                           if (cpuCharacter?.text) {
                             const starsMatch = cpuCharacter.text.match(/[Ss]telle[:\s]*(\d+)/i);
                             if (starsMatch) {
@@ -6184,7 +6184,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                             
                             // Calculate suggested damage based on mosse card settings and attacker stars
                             // CRITICAL: Use current stars from .stars property OR parse from text as fallback
-                            let attackerStarsFE = cpuCharacter?.stars || 1;
+                            let attackerStarsFE = cpuCharacter?.stars ?? 1;
                             if (cpuCharacter?.text) {
                               const starsMatch = cpuCharacter.text.match(/[Ss]telle[:\s]*(\d+)/i);
                               if (starsMatch) {

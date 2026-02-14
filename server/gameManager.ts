@@ -8481,7 +8481,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const activeChar = this.getPlayerActiveCharacter(game, playerName);
         if (!activeChar) break;
         const currentPti = activeChar.pti || 0;
-        const currentStars = activeChar.stars || this.extractStarsFromNote(activeChar.text || '') || 1;
+        const currentStars = activeChar.stars ?? this.extractStarsFromNote(activeChar.text || '');
         if (!(game as any).inheritanceData) (game as any).inheritanceData = {};
         (game as any).inheritanceData[playerName] = { pti: currentPti, stars: currentStars };
         const io = (global as any).io;
@@ -9073,7 +9073,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const attackId = `attack-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
     // Get attacker's current stars for counter-attack calculation
-    let attackerStars = attackerCharacter.stars || 1;
+    let attackerStars = attackerCharacter.stars ?? 1;
     if (attackerCharacter.text) {
       const starsMatch = attackerCharacter.text.match(/[Ss]telle[:\s]*(\d+)/i);
       if (starsMatch) {
@@ -18367,7 +18367,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         
         // Get CPU's target card (the one being attacked) to calculate stars
         const targetCard = game.field.find((c: any) => c.id === pendingDefense.targetCardId);
-        let defenderStars = targetCard?.stars || 1;
+        let defenderStars = targetCard?.stars ?? 1;
         if (targetCard?.text) {
           const starsMatch = targetCard.text.match(/[Ss]telle[:\s]*(\d+)/i);
           if (starsMatch) {
@@ -20586,7 +20586,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     if (attackerCharForSpecial && !isPersistentTick && !isVoodooReflection) {
       const mosseCard = game?.field.find((c: Card) => c.id === mosseCardId);
       const mosseCardName = mosseCard ? this.getCardNameFromUrl(mosseCard.frontImage || '').toUpperCase().trim() : '';
-      const attackerStars = this.extractStarsFromNote(attackerCharForSpecial.text || '') || (attackerCharForSpecial.stars || 1);
+      const attackerStars = this.extractStarsFromNote(attackerCharForSpecial.text || '') ?? (attackerCharForSpecial.stars ?? 1);
       
       const superAttaccoConfig = (attackerCharForSpecial as any).superAttacco;
       const evolvedMovesConfig = (attackerCharForSpecial as any).evolvedMoves;
