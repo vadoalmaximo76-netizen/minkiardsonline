@@ -252,6 +252,44 @@ export default function VictoryDefeatAnimation({ type, visible, playerName }: Vi
             background: 'linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.3) 100%)',
           }} />
         )}
+        {defeatPhase >= 2 && (
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            textAlign: 'center',
+            animation: 'winnerTextAppear 1s ease-out forwards',
+          }}>
+            <div style={{
+              fontSize: 'clamp(20px, 5vw, 40px)',
+              fontWeight: 900,
+              color: '#fbbf24',
+              textShadow: '0 0 30px rgba(251, 191, 36, 0.6), 0 0 60px rgba(251, 191, 36, 0.3), 2px 2px 8px rgba(0,0,0,0.8)',
+              letterSpacing: '3px',
+              marginBottom: '12px',
+            }}>
+              VITTORIA
+            </div>
+            <div style={{
+              fontSize: 'clamp(28px, 7vw, 56px)',
+              fontWeight: 900,
+              color: '#ffffff',
+              textShadow: '0 0 20px rgba(255, 255, 255, 0.5), 0 0 40px rgba(251, 191, 36, 0.3), 3px 3px 10px rgba(0,0,0,0.9)',
+              letterSpacing: '2px',
+            }}>
+              {playerName}
+            </div>
+            <div style={{
+              fontSize: 'clamp(14px, 3vw, 20px)',
+              color: 'rgba(255, 255, 255, 0.7)',
+              marginTop: '8px',
+              textShadow: '1px 1px 4px rgba(0,0,0,0.8)',
+            }}>
+              ha vinto la partita!
+            </div>
+          </div>
+        )}
         <style>{`
           @keyframes defeatPulse {
             0%, 100% { opacity: 0.3; }
@@ -260,6 +298,11 @@ export default function VictoryDefeatAnimation({ type, visible, playerName }: Vi
           @keyframes defeatLine {
             0%, 100% { opacity: 0; transform: scaleY(0.5); }
             50% { opacity: 1; transform: scaleY(1); }
+          }
+          @keyframes winnerTextAppear {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+            60% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+            100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
           }
         `}</style>
       </div>
@@ -319,6 +362,51 @@ export default function VictoryDefeatAnimation({ type, visible, playerName }: Vi
           boxShadow: p.shape === 'star' ? `0 0 ${p.size}px ${p.color}` : 'none',
         }} />
       ))}
+      <div style={{
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        textAlign: 'center',
+        animation: 'winnerTextAppear 1s ease-out forwards',
+        animationDelay: '0.3s',
+        opacity: 0,
+      }}>
+        <div style={{
+          fontSize: 'clamp(20px, 5vw, 40px)',
+          fontWeight: 900,
+          color: '#fbbf24',
+          textShadow: '0 0 30px rgba(251, 191, 36, 0.6), 0 0 60px rgba(251, 191, 36, 0.3), 2px 2px 8px rgba(0,0,0,0.8)',
+          letterSpacing: '3px',
+          marginBottom: '12px',
+        }}>
+          VITTORIA
+        </div>
+        <div style={{
+          fontSize: 'clamp(28px, 7vw, 56px)',
+          fontWeight: 900,
+          color: '#ffffff',
+          textShadow: '0 0 20px rgba(255, 255, 255, 0.5), 0 0 40px rgba(251, 191, 36, 0.3), 3px 3px 10px rgba(0,0,0,0.9)',
+          letterSpacing: '2px',
+        }}>
+          {playerName}
+        </div>
+        <div style={{
+          fontSize: 'clamp(14px, 3vw, 20px)',
+          color: 'rgba(255, 255, 255, 0.7)',
+          marginTop: '8px',
+          textShadow: '1px 1px 4px rgba(0,0,0,0.8)',
+        }}>
+          ha vinto la partita!
+        </div>
+      </div>
+      <style>{`
+        @keyframes winnerTextAppear {
+          0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+          60% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+          100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+      `}</style>
     </div>
   );
 }

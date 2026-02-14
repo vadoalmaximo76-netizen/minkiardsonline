@@ -1569,12 +1569,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         player: eliminatedPlayer
       });
       
-      // If the current player was eliminated, clear their session
-      if (eliminatedPlayer === playerName) {
-        onLeaveGame?.();
-        onBack?.();
-        clearSession();
-      }
+      // Don't clear session here - let game-victory and game-end-rewards handle the end flow
+      // The player will see the winner announcement and rewards panel before being redirected
       
       // Hide notification after 3 seconds
       setTimeout(() => {
