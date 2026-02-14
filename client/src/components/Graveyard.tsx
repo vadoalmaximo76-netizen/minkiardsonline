@@ -17,23 +17,21 @@ export const Graveyard: React.FC<GraveyardProps> = ({ onClose }) => {
   const regularCards = graveyardCards.filter(card => !card.section || card.section !== 'CARTE CANCELLATE');
   const deletedCards = graveyardCards.filter(card => card.section === 'CARTE CANCELLATE');
 
-  // Group regular cards by the player who eliminated them
-  const cardsByEliminator = regularCards.reduce((acc, card) => {
-    const eliminator = card.eliminatedBy || 'Unknown';
-    if (!acc[eliminator]) {
-      acc[eliminator] = [];
+  const cardsByOwner = regularCards.reduce((acc, card) => {
+    const owner = card.owner || 'Unknown';
+    if (!acc[owner]) {
+      acc[owner] = [];
     }
-    acc[eliminator].push(card);
+    acc[owner].push(card);
     return acc;
   }, {} as Record<string, typeof regularCards>);
 
-  // Group deleted cards by the player who eliminated them
-  const deletedCardsByEliminator = deletedCards.reduce((acc, card) => {
-    const eliminator = card.eliminatedBy || 'Unknown';
-    if (!acc[eliminator]) {
-      acc[eliminator] = [];
+  const deletedCardsByOwner = deletedCards.reduce((acc, card) => {
+    const owner = card.owner || 'Unknown';
+    if (!acc[owner]) {
+      acc[owner] = [];
     }
-    acc[eliminator].push(card);
+    acc[owner].push(card);
     return acc;
   }, {} as Record<string, typeof deletedCards>);
 
@@ -54,12 +52,12 @@ export const Graveyard: React.FC<GraveyardProps> = ({ onClose }) => {
         {/* Regular graveyard cards */}
         <div className="mb-8">
           <h3 className="text-white font-bold text-xl mb-4">CARTE ELIMINATE</h3>
-          {Object.keys(cardsByEliminator).length === 0 ? (
-            <p className="text-white/70 italic text-center">No cards eliminated</p>
+          {Object.keys(cardsByOwner).length === 0 ? (
+            <p className="text-white/70 italic text-center">Nessuna carta eliminata</p>
           ) : (
-            Object.entries(cardsByEliminator).map(([eliminator, cards]) => (
-              <div key={eliminator} className="mb-6">
-                <h4 className="text-white font-semibold mb-3">Eliminated by: {eliminator}</h4>
+            Object.entries(cardsByOwner).map(([owner, cards]) => (
+              <div key={owner} className="mb-6">
+                <h4 className="text-white font-semibold mb-3">Personaggi di: {owner}</h4>
                 <div className="flex gap-4 flex-wrap">
                   {cards.map((card) => (
                     <Card
@@ -77,12 +75,12 @@ export const Graveyard: React.FC<GraveyardProps> = ({ onClose }) => {
         {/* Deleted cards section */}
         <div>
           <h3 className="text-red-400 font-bold text-xl mb-4">CARTE CANCELLATE</h3>
-          {Object.keys(deletedCardsByEliminator).length === 0 ? (
-            <p className="text-red-400/70 italic text-center">No cards deleted</p>
+          {Object.keys(deletedCardsByOwner).length === 0 ? (
+            <p className="text-red-400/70 italic text-center">Nessuna carta cancellata</p>
           ) : (
-            Object.entries(deletedCardsByEliminator).map(([eliminator, cards]) => (
-              <div key={eliminator} className="mb-6">
-                <h4 className="text-red-400 font-semibold mb-3">Deleted by: {eliminator}</h4>
+            Object.entries(deletedCardsByOwner).map(([owner, cards]) => (
+              <div key={owner} className="mb-6">
+                <h4 className="text-red-400 font-semibold mb-3">Cancellate di: {owner}</h4>
                 <div className="flex gap-4 flex-wrap">
                   {cards.map((card) => (
                     <div key={card.id} className="opacity-75">

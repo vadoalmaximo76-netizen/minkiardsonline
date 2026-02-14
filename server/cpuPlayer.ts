@@ -962,19 +962,37 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
             }
           }
           
-          // Use the MOSSE card that's already on the field for attack
           const cardName = this.getCardNameFromUrl(mosseOnField.frontImage);
           const targetName = this.getCardNameFromUrl(targetCard.frontImage);
           
-          this.sendChatMessage(`Uso la carta MOSSE "${cardName}" per attaccare ${targetName}!`);
+          const isFurto = cardName.toUpperCase() === 'FURTO' || cardName.toUpperCase().includes('FURTO');
           
-          // Emit the attack immediately
+          let cpuDamageValue = (mosseOnField as any).mosseDamageValue || 0;
+          const cpuAttackerChar = gameState?.field?.find((c: any) => 
+            c.owner === this.playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          );
+          const cpuAttackerStars = cpuAttackerChar?.stars || 1;
+          if (cpuDamageValue > 0) {
+            cpuDamageValue = cpuDamageValue * cpuAttackerStars;
+          } else if (isFurto) {
+            cpuDamageValue = cpuAttackerStars;
+          }
+          
+          if (isFurto) {
+            this.sendChatMessage(`Uso FURTO per rubare ${cpuDamageValue} stelle a ${targetName}!`);
+          } else {
+            this.sendChatMessage(`Uso la carta MOSSE "${cardName}" per attaccare ${targetName}!`);
+          }
+          
           if (this.socketEmitter) {
             this.socketEmitter.emit('mosse-attack', {
               mosseCardId: mosseOnField.id,
               targetCardId: action.target,
               attackerName: this.playerName,
-              targetOwner: targetCard.owner
+              targetOwner: targetCard.owner,
+              damageValue: cpuDamageValue || undefined,
+              isFurtoAttack: isFurto,
+              mosseEffect: (mosseOnField as any).mosseDamageEffect || undefined
             });
           }
           
@@ -986,7 +1004,9 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
               attackerName: this.playerName,
               targetOwner: targetCard.owner,
               cardName,
-              targetName
+              targetName,
+              isFurtoAttack: isFurto,
+              damageValue: cpuDamageValue || undefined
             }
           };
         } else {

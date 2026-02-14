@@ -704,7 +704,10 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     setTargetCards(targets);
     setShowAttackTargetSelect(false);
     
-    // Auto-fill damage based on MOSSE card configuration
+    const mosseCardNameForFurto = selectedMosseCard ? getCardName(selectedMosseCard) : '';
+    const isFurto = mosseCardNameForFurto === 'FURTO' || mosseCardNameForFurto.includes('FURTO');
+    setIsFurtoAttack(isFurto);
+    
     const mosseCard = selectedMosseCard as any;
     if (mosseCard) {
       const attackerCard = gameState?.field?.find((c: any) => 
@@ -778,8 +781,8 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
             damageValue: damage,
             starsToRemove: stars,
             isHandTarget: false,
-            isFurtoAttack: false,
-            mosseEffect: selectedMosseEffect  // Pass special effect
+            isFurtoAttack: isFurtoAttack,
+            mosseEffect: selectedMosseEffect
           });
           
           // Wait 3 seconds between attacks to allow full attack cycle (including defense resolution)

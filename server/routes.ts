@@ -4624,17 +4624,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        // NEW: Execute defense-enabled MOSSE attack (unified emission)
         const attackResult = await gameManager.executeMossaAttack(
           gameId, 
           attackerName, 
           mosseCardId, 
           targetCardId,
           damageValue,
-          isHandTarget || false,  // NEW: Pass isHandTarget flag
-          undefined,              // defenseRequestEmitter
-          starsToRemove || 0,     // Stars to remove
-          mosseEffect || null     // Special effect
+          isHandTarget || false,
+          undefined,
+          starsToRemove || 0,
+          mosseEffect || null,
+          isFurtoAttack || false
         );
 
         if (!attackResult.success) {

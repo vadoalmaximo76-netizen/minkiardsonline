@@ -8780,7 +8780,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   }
 
   // NEW: Authoritative MOSSE attack execution
-  async executeMossaAttack(gameId: string, attackerName: string, mosseCardId: string, targetCardId: string, damageValue: number, isHandTarget: boolean | number = false, defenseRequestEmitter?: (data: any) => void | string | null, starsToRemove: number = 0, mosseEffect?: string | null): Promise<{ success: boolean; result?: any; error?: string }> {
+  async executeMossaAttack(gameId: string, attackerName: string, mosseCardId: string, targetCardId: string, damageValue: number, isHandTarget: boolean | number = false, defenseRequestEmitter?: (data: any) => void | string | null, starsToRemove: number = 0, mosseEffect?: string | null, isFurtoAttack: boolean = false): Promise<{ success: boolean; result?: any; error?: string }> {
     // Handle legacy calls where isHandTarget might be starsToRemove number
     if (typeof isHandTarget === 'number') {
       starsToRemove = isHandTarget;
@@ -9145,6 +9145,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       isHandTarget: isHandTarget as boolean, // NEW: Pass isHandTarget flag
       deckType: 'mosse',
       starsToRemove: starsToRemove || 0,
+      isFurtoAttack: isFurtoAttack,
       mosseEffect: mosseEffect || undefined,
       mosseCanBeCountered: (mosseCard as any).mosseCanBeCountered === true,
       mosseDamageValue: (mosseCard as any).mosseDamageValue ?? null,
@@ -11633,14 +11634,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         this.removeVoodooLink(gameId, cardId);
       }
       
-      // FIXED: Always add card to graveyard, set eliminatedBy to who removed it
-      card.eliminatedBy = playerName;
+      card.eliminatedBy = attacker || 'Unknown';
       game.graveyard.push(card);
-      console.log(`Card ${cardId} moved to graveyard. Owner: ${cardOwner}, Eliminated by: ${playerName}`);
+      console.log(`Card ${cardId} moved to graveyard. Owner: ${cardOwner}, Killed by: ${attacker || 'Unknown'}`);
 
-      // Count PERSONAGGI cards in graveyard for this player (only personaggi count for elimination)
       const graveyardCount = game.graveyard.filter(
-        graveyardCard => graveyardCard.eliminatedBy === playerName && (graveyardCard.type === 'personaggi' || graveyardCard.type === 'personaggi_speciali')
+        graveyardCard => graveyardCard.owner === playerName && (graveyardCard.type === 'personaggi' || graveyardCard.type === 'personaggi_speciali')
       ).length;
 
       // NEW: Track elimination count for SOROS activation
@@ -16570,15 +16569,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       game.graveyard.push(card);
       
       const graveyardCount = game.graveyard.filter(
-        graveyardCard => graveyardCard.eliminatedBy === playerName && (graveyardCard.type === 'personaggi' || graveyardCard.type === 'personaggi_speciali')
+        graveyardCard => graveyardCard.owner === playerName && (graveyardCard.type === 'personaggi' || graveyardCard.type === 'personaggi_speciali')
       ).length;
 
-      // Check if player should be eliminated (only if it's a personaggi card)
       let eliminationCheck = false;
       if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && game.characterLimit !== 'unlimited') {
         const baseLimit = parseInt(game.characterLimit);
         const playerModifier = game.playerDeathModifiers.get(playerName) || 0;
-        const effectiveLimit = Math.max(1, baseLimit + playerModifier); // Minimum 1 death required
+        const effectiveLimit = Math.max(1, baseLimit + playerModifier);
         if (graveyardCount >= effectiveLimit && !game.eliminatedPlayers.has(playerName)) {
           eliminationCheck = true;
         }
@@ -18168,7 +18166,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     if (game.eliminatedPlayers.has(playerName)) return false;
 
     const graveyardCount = game.graveyard.filter(
-      (c: Card) => c.eliminatedBy === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      (c: Card) => c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
     ).length;
 
     const baseLimit = parseInt(game.characterLimit);
@@ -18973,10 +18971,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
                   // Remove from field
                   currentGame.field = currentGame.field.filter((c: any) => c.id !== counterCardId);
                   
-                  // Return to bottom of MOSSE deck
                   (cardToReturn as any).owner = undefined;
                   (cardToReturn as any).counterMosseOnField = undefined;
-                  currentGame.decks.mosse.push(cardToReturn);
+                  currentGame.decks.mosse.unshift(cardToReturn);
                   
                   console.log(`[COUNTER-MOSSE] ${cardToReturn.name || counterCardId} returned to deck after 5 seconds`);
                   
@@ -21581,7 +21578,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
                 attackAction.data.attackerName || playerName,
                 attackAction.data.mosseCardId,
                 attackAction.data.targetCardId,
-                attackAction.data.damage || 100
+                attackAction.data.damageValue || attackAction.data.damage || 100,
+                false,
+                undefined,
+                0,
+                attackAction.data.mosseEffect || null,
+                attackAction.data.isFurtoAttack || false
               );
               
               console.log(`${playerName} attack result:`, attackResult);
@@ -21666,7 +21668,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             attackAction.data.attackerName || playerName,
             attackAction.data.mosseCardId,
             attackAction.data.targetCardId,
-            attackAction.data.damage || 100
+            attackAction.data.damageValue || attackAction.data.damage || 100,
+            false,
+            undefined,
+            0,
+            attackAction.data.mosseEffect || null,
+            attackAction.data.isFurtoAttack || false
           );
           
           console.log(`${playerName} attack result:`, attackResult);
