@@ -8481,7 +8481,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const activeChar = this.getPlayerActiveCharacter(game, playerName);
         if (!activeChar) break;
         const currentPti = activeChar.pti || 0;
-        const currentStars = activeChar.stars ?? this.extractStarsFromNote(activeChar.text || '');
+        const currentStars = activeChar.stars || this.extractStarsFromNote(activeChar.text || '') || 1;
         if (!(game as any).inheritanceData) (game as any).inheritanceData = {};
         (game as any).inheritanceData[playerName] = { pti: currentPti, stars: currentStars };
         const io = (global as any).io;
@@ -20586,7 +20586,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     if (attackerCharForSpecial && !isPersistentTick && !isVoodooReflection) {
       const mosseCard = game?.field.find((c: Card) => c.id === mosseCardId);
       const mosseCardName = mosseCard ? this.getCardNameFromUrl(mosseCard.frontImage || '').toUpperCase().trim() : '';
-      const attackerStars = this.extractStarsFromNote(attackerCharForSpecial.text || '') ?? (attackerCharForSpecial.stars ?? 1);
+      const attackerStars = this.extractStarsFromNote(attackerCharForSpecial.text || '') || (attackerCharForSpecial.stars ?? 1);
       
       const superAttaccoConfig = (attackerCharForSpecial as any).superAttacco;
       const evolvedMovesConfig = (attackerCharForSpecial as any).evolvedMoves;
