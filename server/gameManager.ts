@@ -581,6 +581,18 @@ export class GameManager {
           }
         });
       }
+      const effectStats = { total: 0, withEffect: 0, byType: {} as Record<string, { total: number; withEffect: number }> };
+      for (const deckType of ['personaggi', 'mosse', 'bonus', 'personaggi_speciali'] as const) {
+        const deck = game.decks[deckType];
+        const deckWithEffect = deck.filter(c => c.effect);
+        effectStats.byType[deckType] = { total: deck.length, withEffect: deckWithEffect.length };
+        effectStats.total += deck.length;
+        effectStats.withEffect += deckWithEffect.length;
+      }
+      console.log(`📊 Card effects summary for game ${gameId}: ${effectStats.withEffect}/${effectStats.total} cards have effects`);
+      for (const [type, stats] of Object.entries(effectStats.byType)) {
+        console.log(`   ${type}: ${stats.withEffect}/${stats.total} with effects`);
+      }
     } catch (error) {
       console.error('Error applying card modifications:', error);
     }
@@ -2599,10 +2611,64 @@ Rispondi SOLO in JSON:`;
       if (!effectText && !textContent) {
         const knownNameEffects: Record<string, string> = {
           'asta': "Parte un'asta tra i partecipanti per un personaggio dal mazzo usando punti Rankiard",
+          'medicina': "Cura il tuo personaggio di 200 PTI [BERSAGLIO: scelta]",
+          'spinaci': "Aumenta i PTI del tuo personaggio di 300 [BERSAGLIO: scelta]",
+          'pesca miracolosa': "Pesca 3 carte da un mazzo a scelta",
+          'stipendio': "Guadagna 100 PTI [BERSAGLIO: scelta]",
+          'kainoken': "Raddoppia i PTI del tuo personaggio per 2 turni [BERSAGLIO: scelta]",
+          'terremoto': "Infligge 200 PTI di danno a tutti i personaggi in campo",
+          'tsunami': "Infligge 300 PTI di danno a tutti i personaggi avversari",
+          'uragano': "Infligge 200 PTI di danno a tutti i personaggi avversari",
+          'super mega uragano strano': "Infligge 500 PTI di danno a tutti i personaggi avversari",
+          'una tempesta baby': "Infligge 250 PTI di danno a tutti i personaggi avversari",
+          'ibernazione': "Congela un personaggio avversario per 3 turni [BERSAGLIO: scelta]",
+          'detonatore': "Piazza una bomba su un personaggio avversario che esplode tra 3 turni infliggendo 500 PTI di danno [BERSAGLIO: scelta]",
+          'trappola': "Infligge 200 PTI di danno al prossimo personaggio che attacca il tuo personaggio",
+          'boomerang': "Il prossimo danno subito dal tuo personaggio viene riflesso all'attaccante [BERSAGLIO: scelta]",
+          'scambio': "Scambia un tuo personaggio con uno dell'avversario [BERSAGLIO: scelta]",
+          'imitazione': "Copia l'effetto dell'ultima carta BONUS giocata",
+          'tabula rasa': "Rimuovi tutti gli effetti attivi dal campo di gioco",
+          'harakiri': "Sacrifica il tuo personaggio per infliggere i suoi PTI come danno a un personaggio avversario [BERSAGLIO: scelta]",
+          'sdoppiamento': "Crea una copia del tuo personaggio in campo [BERSAGLIO: scelta]",
+          'ciclone': "Infligge 150 PTI di danno a tutti i personaggi avversari",
+          'fiaschetta': "Cura il tuo personaggio di 100 PTI [BERSAGLIO: scelta]",
+          'carica': "Aumenta i PTI del tuo personaggio di 200 [BERSAGLIO: scelta]",
+          'doping': "Aumenta i PTI del tuo personaggio di 200 [BERSAGLIO: scelta]",
+          'mors tua vita mea': "Quando un personaggio avversario muore, il tuo personaggio guadagna i suoi PTI [BERSAGLIO: scelta]",
+          'rincoglionimento': "Stordisce un personaggio avversario per 2 turni [BERSAGLIO: scelta]",
+          'trauma': "Infligge 150 PTI di danno e stordisce per 1 turno [BERSAGLIO: scelta]",
+          'target acquired': "Infligge 300 PTI di danno a un personaggio avversario a scelta [BERSAGLIO: scelta]",
+          'distruzione totale': "Infligge 500 PTI di danno a tutti i personaggi in campo",
+          'apocalisse': "Infligge 400 PTI di danno a tutti i personaggi in campo",
+          'comunismo': "Tutti i personaggi in campo assumono lo stesso valore di PTI (media dei PTI di tutti)",
+          'corruzione': "Ruba 100 PTI da un personaggio avversario e li aggiunge al tuo [BERSAGLIO: scelta]",
+          'nirdosh': "Avvelena un personaggio avversario: perde 50 PTI per turno per 3 turni [BERSAGLIO: scelta]",
+          'munnezza': "Infligge 100 PTI di danno a un personaggio avversario [BERSAGLIO: scelta]",
+          'gasata': "Aumenta i PTI del tuo personaggio di 150 [BERSAGLIO: scelta]",
+          'sbirciata': "Guarda le carte in mano di un avversario",
+          'inverti giro': "Inverte l'ordine dei turni",
+          'slot machine': "Scommessa: 50% possibilità di guadagnare o perdere 200 PTI [BERSAGLIO: scelta] [DADO: Se indovina: Successo; Se sbaglia: Fallimento]",
+          'replay': "Ripeti il tuo turno: puoi giocare un'altra carta",
+          'folata di venta': "Infligge 100 PTI di danno a tutti i personaggi avversari",
+          'macchina del tempo': "Viaggio nel Tempo: riporta il gioco a 2 turni fa",
+          'disinnesca bomba': "Rimuovi tutte le bombe attive dal campo di gioco",
+          'cimitero vuoto': "Riporta in mano una carta dal cimitero a scelta",
+          'occhio del fotografo': "Guarda la prossima carta di ogni mazzo",
+          'soft control': "Prendi il controllo di un personaggio avversario per 1 turno [BERSAGLIO: scelta]",
+          'uovo': "Si schiude tra 3 turni e genera un personaggio casuale dal mazzo",
+          'tangram': "Scambia i PTI di due personaggi in campo [BERSAGLIO: scelta]",
+          'staku': "Aumenta i PTI del tuo personaggio di 100 per ogni carta in mano [BERSAGLIO: scelta]",
+          'la bevanda del vero ciclista': "Aumenta i PTI del tuo personaggio di 250 [BERSAGLIO: scelta]",
+          'playback': "Ripeti l'ultimo effetto BONUS giocato",
+          'portale speciale': "Pesca una carta dal mazzo PERSONAGGI SPECIALI",
+          'difesa vigliacca': "Il tuo personaggio non può essere attaccato per 2 turni [BERSAGLIO: scelta]",
         };
         if (knownNameEffects[cardNameLower]) {
           effectText = knownNameEffects[cardNameLower];
           card.effect = effectText;
+          console.log(`🔍 Name-based effect auto-assigned for "${cardNameLower}": "${effectText.substring(0, 80)}..."`);
+        } else if (card.type === 'bonus') {
+          console.log(`⚠️ BONUS card "${cardNameLower}" (${card.id}) has no effect configured - consider adding via wizard`);
         }
       }
       
@@ -11167,7 +11233,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       
       // FIRST: Check if card has modifications from JSON storage (highest priority)
       const mod = jsonStorage.cardModifications.getByOriginalCardId(card.id);
-      if (mod && !mod.isDeleted && (mod.pti !== null || mod.stars !== null)) {
+      if (mod && !mod.isDeleted && (mod.pti !== null || mod.stars !== null || mod.effect || mod.name)) {
         const pti = mod.pti !== null ? mod.pti : (card.pti || 1000);
         const stars = mod.stars !== null ? mod.stars : (card.stars || 1);
         card.text = `PTI: ${pti} | Stelle: ${stars} | PTI originali: ${pti}`;
@@ -11175,7 +11241,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         card.originalPti = pti;
         card.stars = stars;
         card.name = mod.name || card.name || cardName;
-        console.log(`✅ Card ${card.id} PTI from modifications: pti=${pti}, stars=${stars}`);
+        if (mod.effect && !card.effect) {
+          card.effect = mod.effect;
+        }
+        console.log(`✅ Card ${card.id} PTI from modifications: pti=${pti}, stars=${stars}, effect=${card.effect ? 'YES' : 'none'}`);
         return;
       }
       
@@ -11233,7 +11302,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       
       // FIRST: Check if card has modifications from JSON storage (highest priority)
       const mod = jsonStorage.cardModifications.getByOriginalCardId(card.id);
-      if (mod && !mod.isDeleted && (mod.pti !== null || mod.stars !== null)) {
+      if (mod && !mod.isDeleted && (mod.pti !== null || mod.stars !== null || mod.effect || mod.name)) {
         const pti = mod.pti !== null ? mod.pti : (card.pti || 1000);
         const stars = mod.stars !== null ? mod.stars : (card.stars || 1);
         card.text = `PTI: ${pti} | Stelle: ${stars} | PTI originali: ${pti}`;
@@ -11241,6 +11310,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         card.originalPti = pti;
         card.stars = stars;
         card.name = mod.name || card.name || cardName;
+        if (mod.effect && !card.effect) {
+          card.effect = mod.effect;
+        }
         return;
       }
       
