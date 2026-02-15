@@ -12,7 +12,6 @@ import { ProfileSection } from "./components/ProfileSection";
 import { SpectatorView } from "./components/SpectatorView";
 import { ResetPasswordPage } from "./components/ResetPasswordPage";
 import { CardAdminPanel } from "./components/CardAdminPanel";
-import { UpdateNotification } from "./components/UpdateNotification";
 import { useGameState } from "./lib/stores/useGameState";
 import { socket } from "./lib/socket";
 import { preloadCriticalImages } from "./lib/imagePreloader";
@@ -665,8 +664,6 @@ function App() {
     <TooltipProvider>
       <QueryClientProvider client={queryClient}>
         <div className="min-h-screen bg-arena-deep overflow-auto animate-view-enter">
-          {/* Card Update Notification */}
-          <UpdateNotification />
           
           {/* Game Invitation Notification */}
           {gameInvitation && (
