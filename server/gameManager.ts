@@ -18918,7 +18918,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           const clashDefenderIsCPU = defender.startsWith('CPU');
           
           if (clashAttackerIsCPU || clashDefenderIsCPU) {
-            const cpuTaps = Math.floor(Math.random() * 11) + 15;
+            const cpuTaps = Math.floor(Math.random() * 21) + 30;
             const tapInterval = 10000 / cpuTaps;
             
             if (clashAttackerIsCPU) {
@@ -19649,7 +19649,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       
       if (attackerIsCPU || defenderIsCPU) {
         // Generate random number of taps between 15-25
-        const cpuTaps = Math.floor(Math.random() * 11) + 15; // 15-25 taps
+        const cpuTaps = Math.floor(Math.random() * 21) + 30; // 30-50 taps
         const tapInterval = 10000 / cpuTaps; // Spread taps over 10 seconds
         
         if (attackerIsCPU) {
