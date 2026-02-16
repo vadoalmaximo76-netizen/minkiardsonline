@@ -12,6 +12,8 @@ interface CustomCard {
   stars: number | null;
   effect: string | null;
   audioUrl: string | null;
+  attackLowAudioUrl: string | null;
+  attackHighAudioUrl: string | null;
   youtubeUrl: string | null;
   mosseDamageValue: number | null;
   mosseDamageEffect: string | null;
@@ -36,6 +38,8 @@ interface CardModification {
   stars: number | null;
   effect: string | null;
   audioUrl: string | null;
+  attackLowAudioUrl: string | null;
+  attackHighAudioUrl: string | null;
   youtubeUrl: string | null;
   mosseDamageValue: number | null;
   mosseDamageEffect: string | null;
@@ -299,6 +303,8 @@ export const jsonStorage = {
           stars: data.stars ?? null,
           effect: data.effect || null,
           audioUrl: data.audioUrl || null,
+          attackLowAudioUrl: data.attackLowAudioUrl || null,
+          attackHighAudioUrl: data.attackHighAudioUrl || null,
           youtubeUrl: data.youtubeUrl || null,
           mosseDamageValue: data.mosseDamageValue ?? null,
           mosseDamageEffect: data.mosseDamageEffect || null,

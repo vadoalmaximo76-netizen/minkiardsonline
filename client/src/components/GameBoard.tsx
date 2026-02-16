@@ -1459,6 +1459,40 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('card-audio-play', handleCardAudioPlay);
 
+    const handleCharacterAttackAudio = ({ cardId, playerName: audioPlayerName, audioUrl, cardName, baseDamage }: {
+      cardId: string;
+      playerName: string;
+      audioUrl: string;
+      cardName: string;
+      baseDamage: number;
+    }) => {
+      console.log(`🔊 Character attack audio: ${cardName} by ${audioPlayerName}, damage: ${baseDamage}, URL: ${audioUrl}`);
+      
+      if (audioUrl) {
+        try {
+          let playableUrl = audioUrl;
+          
+          const driveMatch = audioUrl.match(/drive\.google\.com\/file\/d\/([^\/]+)/);
+          if (driveMatch) {
+            playableUrl = `https://docs.google.com/uc?export=download&id=${driveMatch[1]}`;
+          }
+          
+          if (audioUrl.includes('dropbox.com') && audioUrl.includes('dl=0')) {
+            playableUrl = audioUrl.replace('dl=0', 'dl=1');
+          }
+          
+          const audio = new Audio(playableUrl);
+          audio.volume = 0.7;
+          audio.play().catch(err => {
+            console.error('Error playing character attack audio:', err);
+          });
+        } catch (err) {
+          console.error('Error creating character attack audio:', err);
+        }
+      }
+    };
+    socket.on('character-attack-audio', handleCharacterAttackAudio);
+
     // YOUTUBE VIDEO: Show YouTube video when a card with youtubeUrl is played
     const handleShowYoutubeVideo = ({ cardId, playerName: videoPlayerName, youtubeUrl, cardName, cardType }: {
       cardId: string;
@@ -1718,6 +1752,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('hostage-released', handleHostageReleased);
       socket.off('hostage-died', handleHostageDied);
       socket.off('card-audio-play', handleCardAudioPlay);
+      socket.off('character-attack-audio', handleCharacterAttackAudio);
       socket.off('show-youtube-video', handleShowYoutubeVideo);
       socket.off('clash-battle-start', handleClashBattleStart);
       socket.off('clash-battle-end', handleClashBattleEnd);

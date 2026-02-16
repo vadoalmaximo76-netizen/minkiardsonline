@@ -39,6 +39,8 @@ interface Card {
   usedBy?: string; // Player who used this MOSSE card
   // Audio for custom cards
   audioUrl?: string; // URL to audio file to play when card is placed on field
+  attackLowAudioUrl?: string; // Audio URL to play when character attacks with a MOSSE that has < 150 base PTI damage
+  attackHighAudioUrl?: string; // Audio URL to play when character attacks with a MOSSE that has >= 150 base PTI damage
   youtubeUrl?: string; // URL to YouTube video to show when card is played
   evolvesInto?: string; // Card ID this character evolves into
   evolutionVariants?: { [key: string]: string }; // Dice-based evolution: { "1": cardId, "2": cardId, ... "6": cardId }
@@ -607,6 +609,8 @@ export class GameManager {
     if (mod.effect) card.effect = mod.effect;
     // Always update audioUrl and youtubeUrl (including clearing if null/undefined)
     card.audioUrl = mod.audioUrl || undefined;
+    card.attackLowAudioUrl = mod.attackLowAudioUrl || undefined;
+    card.attackHighAudioUrl = mod.attackHighAudioUrl || undefined;
     card.youtubeUrl = mod.youtubeUrl || undefined;
     // MOSSE-specific fields for damage auto-fill
     if (mod.mosseDamageValue !== null && mod.mosseDamageValue !== undefined) {
@@ -5247,6 +5251,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             stars: mod?.stars ?? originalStars,
             placedBy: activeChar.placedBy || playerName,
             audioUrl: mod?.audioUrl || undefined,
+            attackLowAudioUrl: mod?.attackLowAudioUrl || undefined,
+            attackHighAudioUrl: mod?.attackHighAudioUrl || undefined,
             youtubeUrl: mod?.youtubeUrl || undefined,
             effect: mod?.effect || undefined,
             evolvesInto: mod?.evolvesInto || undefined,
@@ -16469,6 +16475,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           stars: isCharacterDeck ? cardData.stars : null,
           effect: cardData.effect || undefined,
           audioUrl: cardData.audioUrl || undefined,
+          attackLowAudioUrl: cardData.attackLowAudioUrl || undefined,
+          attackHighAudioUrl: cardData.attackHighAudioUrl || undefined,
           youtubeUrl: cardData.youtubeUrl || undefined,
           mosseDamageValue: deckType === 'mosse' ? cardData.mosseDamageValue : null,
           mosseDamageEffect: deckType === 'mosse' ? cardData.mosseDamageEffect : null,
@@ -16499,6 +16507,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               stars: cardData.stars,
               effect: cardData.effect || null,
               audioUrl: cardData.audioUrl || null,
+              attackLowAudioUrl: cardData.attackLowAudioUrl || null,
+              attackHighAudioUrl: cardData.attackHighAudioUrl || null,
               youtubeUrl: cardData.youtubeUrl || null,
               mosseDamageValue: deckType === 'mosse' ? cardData.mosseDamageValue ?? null : null,
               mosseDamageEffect: deckType === 'mosse' ? cardData.mosseDamageEffect ?? null : null,

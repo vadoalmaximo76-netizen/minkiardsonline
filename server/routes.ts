@@ -1641,6 +1641,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     timestamp: Date.now()
                   });
                   
+                  // CHARACTER ATTACK AUDIO for CPU
+                  try {
+                    const cpuAttackState = gameManager.getGameState(gameId);
+                    if (cpuAttackState) {
+                      const cpuAttacker = cpuAttackState.field.find((c: any) => 
+                        (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.owner === currentAction.data.attackerName
+                      );
+                      if (cpuAttacker && (cpuAttacker.attackLowAudioUrl || cpuAttacker.attackHighAudioUrl)) {
+                        const cpuMosse = cpuAttackState.field.find((c: any) => c.id === currentAction.data.mosseCardId) ||
+                          cpuAttackState.decks?.mosse?.find((c: any) => c.id === currentAction.data.mosseCardId);
+                        const cpuBaseDmg = cpuMosse?.mosseDamageValue ?? (currentAction.data.damageValue || 0);
+                        const cpuAudioUrl = cpuBaseDmg >= 150 ? cpuAttacker.attackHighAudioUrl : cpuAttacker.attackLowAudioUrl;
+                        if (cpuAudioUrl) {
+                          io.to(gameId).emit('character-attack-audio', {
+                            cardId: cpuAttacker.id, playerName: currentAction.data.attackerName,
+                            audioUrl: cpuAudioUrl, cardName: cpuAttacker.name || 'CPU Character', baseDamage: cpuBaseDmg
+                          });
+                        }
+                      }
+                    }
+                  } catch (err) { console.error('Error emitting CPU attack audio:', err); }
+                  
                   // MANUAL RETURN: CPU must manually return MOSSE cards like humans
                   setTimeout(async () => {
                     console.log(`CPU ${cpuName} manually returning used MOSSE card to deck bottom`);
@@ -1868,6 +1890,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     damageValue: currentAction.data.damageValue || 0,
                     timestamp: Date.now()
                   });
+                  
+                  // CHARACTER ATTACK AUDIO for CPU
+                  try {
+                    const cpuAttState2 = gameManager.getGameState(gameId);
+                    if (cpuAttState2) {
+                      const cpuAtt2 = cpuAttState2.field.find((c: any) => 
+                        (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.owner === currentAction.data.attackerName
+                      );
+                      if (cpuAtt2 && (cpuAtt2.attackLowAudioUrl || cpuAtt2.attackHighAudioUrl)) {
+                        const cpuM2 = cpuAttState2.field.find((c: any) => c.id === currentAction.data.mosseCardId) ||
+                          cpuAttState2.decks?.mosse?.find((c: any) => c.id === currentAction.data.mosseCardId);
+                        const cpuBd2 = cpuM2?.mosseDamageValue ?? (currentAction.data.damageValue || 0);
+                        const cpuAu2 = cpuBd2 >= 150 ? cpuAtt2.attackHighAudioUrl : cpuAtt2.attackLowAudioUrl;
+                        if (cpuAu2) {
+                          io.to(gameId).emit('character-attack-audio', {
+                            cardId: cpuAtt2.id, playerName: currentAction.data.attackerName,
+                            audioUrl: cpuAu2, cardName: cpuAtt2.name || 'CPU Character', baseDamage: cpuBd2
+                          });
+                        }
+                      }
+                    }
+                  } catch (err) { console.error('Error emitting CPU attack audio:', err); }
                   break;
               }
             };
@@ -3885,6 +3929,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timestamp: Date.now()
       });
 
+      // CHARACTER ATTACK AUDIO for CPU
+      try {
+        const cpuAttState3 = gameManager.getGameState(gameId);
+        if (cpuAttState3) {
+          const cpuAtt3 = cpuAttState3.field.find((c: any) => 
+            (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.owner === cpuName
+          );
+          if (cpuAtt3 && (cpuAtt3.attackLowAudioUrl || cpuAtt3.attackHighAudioUrl)) {
+            const cpuM3 = cpuAttState3.field.find((c: any) => c.id === mosseCardId) ||
+              cpuAttState3.decks?.mosse?.find((c: any) => c.id === mosseCardId);
+            const cpuBd3 = cpuM3?.mosseDamageValue ?? damageValue;
+            const cpuAu3 = cpuBd3 >= 150 ? cpuAtt3.attackHighAudioUrl : cpuAtt3.attackLowAudioUrl;
+            if (cpuAu3) {
+              io.to(gameId).emit('character-attack-audio', {
+                cardId: cpuAtt3.id, playerName: cpuName,
+                audioUrl: cpuAu3, cardName: cpuAtt3.name || 'CPU Character', baseDamage: cpuBd3
+              });
+            }
+          }
+        }
+      } catch (err) { console.error('Error emitting CPU attack audio:', err); }
+
       // NEW: Use defense system like all other attacks
       if (attackResult.result?.requiresDefenseResponse) {
         console.log(`🛡️ CPU attack requires defense - emitting defense:request to ${targetOwner}`);
@@ -4653,6 +4719,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
           timestamp: Date.now()
         });
 
+        // CHARACTER ATTACK AUDIO: Emit audio based on MOSSE damage threshold
+        try {
+          const attackGameState = gameManager.getGameState(gameId);
+          if (attackGameState) {
+            const attackerCharacter = attackGameState.field.find((c: any) => 
+              (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.owner === attackerName
+            );
+            if (attackerCharacter && (attackerCharacter.attackLowAudioUrl || attackerCharacter.attackHighAudioUrl)) {
+              const mosseCardOnField = attackGameState.field.find((c: any) => c.id === mosseCardId) || 
+                attackGameState.decks?.mosse?.find((c: any) => c.id === mosseCardId);
+              const baseDamage = mosseCardOnField?.mosseDamageValue ?? damageValue;
+              const attackAudioUrl = baseDamage >= 150 ? attackerCharacter.attackHighAudioUrl : attackerCharacter.attackLowAudioUrl;
+              if (attackAudioUrl) {
+                const cardName = attackerCharacter.name || 'Character';
+                io.to(gameId).emit('character-attack-audio', {
+                  cardId: attackerCharacter.id,
+                  playerName: attackerName,
+                  audioUrl: attackAudioUrl,
+                  cardName,
+                  baseDamage
+                });
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Error emitting character attack audio:', err);
+        }
+
         // BARRIERA HANDLING: If attack was auto-absorbed by BARRIERA, apply damage and return
         if (attackResult.result?.barrieraAbsorbed) {
           // Use damage from result to ensure consistency
@@ -5283,6 +5377,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   timestamp: Date.now()
                 });
                 
+                // CHARACTER ATTACK AUDIO
+                try {
+                  const ordAttState = gameManager.getGameState(gameId);
+                  if (ordAttState) {
+                    const ordAtt = ordAttState.field.find((c: any) => 
+                      (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.owner === playerName
+                    );
+                    if (ordAtt && (ordAtt.attackLowAudioUrl || ordAtt.attackHighAudioUrl)) {
+                      const ordM = ordAttState.field.find((c: any) => c.id === mosseCard.id) ||
+                        ordAttState.decks?.mosse?.find((c: any) => c.id === mosseCard.id);
+                      const ordBd = ordM?.mosseDamageValue ?? 0;
+                      const ordAu = ordBd >= 150 ? ordAtt.attackHighAudioUrl : ordAtt.attackLowAudioUrl;
+                      if (ordAu) {
+                        io.to(gameId).emit('character-attack-audio', {
+                          cardId: ordAtt.id, playerName: playerName,
+                          audioUrl: ordAu, cardName: ordAtt.name || 'Character', baseDamage: ordBd
+                        });
+                      }
+                    }
+                  }
+                } catch (err) { console.error('Error emitting attack audio:', err); }
+                
                 io.to(gameId).emit('chat-message', {
                   id: `${Date.now()}-attack-order`,
                   playerName: 'Sistema',
@@ -5800,6 +5916,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       damageValue: cpuAction.data.damageValue || 0,
                       timestamp: Date.now()
                     });
+                    
+                    // CHARACTER ATTACK AUDIO for CPU
+                    try {
+                      const cpuAttState4 = gameManager.getGameState(gameId);
+                      if (cpuAttState4) {
+                        const cpuAtt4 = cpuAttState4.field.find((c: any) => 
+                          (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.owner === cpuAction.data.attackerName
+                        );
+                        if (cpuAtt4 && (cpuAtt4.attackLowAudioUrl || cpuAtt4.attackHighAudioUrl)) {
+                          const cpuM4 = cpuAttState4.field.find((c: any) => c.id === cpuAction.data.mosseCardId) ||
+                            cpuAttState4.decks?.mosse?.find((c: any) => c.id === cpuAction.data.mosseCardId);
+                          const cpuBd4 = cpuM4?.mosseDamageValue ?? (cpuAction.data.damageValue || 0);
+                          const cpuAu4 = cpuBd4 >= 150 ? cpuAtt4.attackHighAudioUrl : cpuAtt4.attackLowAudioUrl;
+                          if (cpuAu4) {
+                            io.to(gameId).emit('character-attack-audio', {
+                              cardId: cpuAtt4.id, playerName: cpuAction.data.attackerName,
+                              audioUrl: cpuAu4, cardName: cpuAtt4.name || 'CPU Character', baseDamage: cpuBd4
+                            });
+                          }
+                        }
+                      }
+                    } catch (err) { console.error('Error emitting CPU attack audio:', err); }
                     
                     // MANUAL RETURN: CPU manually returns MOSSE card to deck bottom
                     setTimeout(async () => {
@@ -6339,6 +6477,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           targetOwner: cpuAction.data.targetOwner,
                           damageValue: 0
                         });
+                        
+                        // CHARACTER ATTACK AUDIO for CPU
+                        try {
+                          const cpuAttState5 = gameManager.getGameState(gameId);
+                          if (cpuAttState5) {
+                            const cpuAtt5 = cpuAttState5.field.find((c: any) => 
+                              (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.owner === cpuAction.data.playerName
+                            );
+                            if (cpuAtt5 && (cpuAtt5.attackLowAudioUrl || cpuAtt5.attackHighAudioUrl)) {
+                              const cpuM5 = cpuAttState5.field.find((c: any) => c.id === cpuAction.data.mosseCardId) ||
+                                cpuAttState5.decks?.mosse?.find((c: any) => c.id === cpuAction.data.mosseCardId);
+                              const cpuBd5 = cpuM5?.mosseDamageValue ?? 0;
+                              const cpuAu5 = cpuBd5 >= 150 ? cpuAtt5.attackHighAudioUrl : cpuAtt5.attackLowAudioUrl;
+                              if (cpuAu5) {
+                                io.to(gameId).emit('character-attack-audio', {
+                                  cardId: cpuAtt5.id, playerName: cpuAction.data.playerName,
+                                  audioUrl: cpuAu5, cardName: cpuAtt5.name || 'CPU Character', baseDamage: cpuBd5
+                                });
+                              }
+                            }
+                          }
+                        } catch (err) { console.error('Error emitting CPU attack audio:', err); }
                       } else {
                         console.error(`CPU ${nextPlayer} MOSSE attack failed: ${attackResult.error}`);
                       }
@@ -6710,7 +6870,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/custom-cards/:id', async (req, res) => {
     try {
       const cardId = parseInt(req.params.id);
-      const { name, imageData, pti, stars, effect, audioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect, mosseCharacterOverrides, mosseRestrictedFrom, mosseRestrictedAgainst, mosseTargetingMode, mosseTargetCount, mosseCanCounter, mosseCanBeCountered } = req.body;
+      const { name, imageData, pti, stars, effect, audioUrl, attackLowAudioUrl, attackHighAudioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect, mosseCharacterOverrides, mosseRestrictedFrom, mosseRestrictedAgainst, mosseTargetingMode, mosseTargetCount, mosseCanCounter, mosseCanBeCountered } = req.body;
       
       if (isNaN(cardId)) {
         return res.status(400).json({ success: false, error: 'Invalid card ID' });
@@ -6734,6 +6894,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (audioUrl !== undefined) {
         updateData.audioUrl = audioUrl || null;
+      }
+      if (attackLowAudioUrl !== undefined) {
+        updateData.attackLowAudioUrl = attackLowAudioUrl || null;
+      }
+      if (attackHighAudioUrl !== undefined) {
+        updateData.attackHighAudioUrl = attackHighAudioUrl || null;
       }
       if (youtubeUrl !== undefined) {
         updateData.youtubeUrl = youtubeUrl || null;
@@ -6864,6 +7030,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             stars: mod?.stars || null,
             effect: mod?.effect || null,
             audioUrl: mod?.audioUrl || null,
+            attackLowAudioUrl: mod?.attackLowAudioUrl || null,
+            attackHighAudioUrl: mod?.attackHighAudioUrl || null,
             youtubeUrl: mod?.youtubeUrl || null,
             mosseDamageValue: mod?.mosseDamageValue || null,
             mosseDamageEffect: mod?.mosseDamageEffect || null,
@@ -6903,7 +7071,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ success: false, error: 'Unauthorized' });
       }
 
-      const { originalCardId, deckType, name, imageUrl, pti, stars, effect, audioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect, mosseCharacterOverrides, mosseRestrictedFrom, mosseRestrictedAgainst, mosseTargetingMode, mosseTargetCount, mosseCanCounter, mosseCanBeCountered, evolvesInto, evolutionVariants, transformsInto, transformsFrom, cheatsInto, specialCategory, evolvedMoves, superAttacco } = req.body;
+      const { originalCardId, deckType, name, imageUrl, pti, stars, effect, audioUrl, attackLowAudioUrl, attackHighAudioUrl, youtubeUrl, mosseDamageValue, mosseDamageEffect, mosseCharacterOverrides, mosseRestrictedFrom, mosseRestrictedAgainst, mosseTargetingMode, mosseTargetCount, mosseCanCounter, mosseCanBeCountered, evolvesInto, evolutionVariants, transformsInto, transformsFrom, cheatsInto, specialCategory, evolvedMoves, superAttacco } = req.body;
 
       // Helper to safely parse integer values (handles NaN, empty strings, undefined)
       const safeParseInt = (value: any): number | null => {
@@ -6921,6 +7089,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         stars: safeParseInt(stars),
         effect: effect || null,
         audioUrl: audioUrl || null,
+        attackLowAudioUrl: attackLowAudioUrl || null,
+        attackHighAudioUrl: attackHighAudioUrl || null,
         youtubeUrl: youtubeUrl || null,
         mosseDamageValue: safeParseInt(mosseDamageValue),
         mosseDamageEffect: mosseDamageEffect || null,
@@ -6986,6 +7156,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           stars: safeParseInt(mod.stars),
           effect: mod.effect || null,
           audioUrl: mod.audioUrl || null,
+          attackLowAudioUrl: mod.attackLowAudioUrl || null,
+          attackHighAudioUrl: mod.attackHighAudioUrl || null,
           youtubeUrl: mod.youtubeUrl || null,
           mosseDamageValue: safeParseInt(mod.mosseDamageValue),
           mosseDamageEffect: mod.mosseDamageEffect || null,

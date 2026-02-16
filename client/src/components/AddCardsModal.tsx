@@ -761,6 +761,8 @@ interface UploadedCardData {
   stars: number | null;
   effect: string;
   audioUrl: string;
+  attackLowAudioUrl: string;
+  attackHighAudioUrl: string;
   youtubeUrl: string;
   isPermanent: boolean;
   mosseDamageValue: number | null;
@@ -783,6 +785,8 @@ interface PermanentCard {
   stars: number | null;
   effect: string | null;
   audioUrl: string | null;
+  attackLowAudioUrl: string | null;
+  attackHighAudioUrl: string | null;
   youtubeUrl: string | null;
   mosseDamageValue: number | null;
   mosseDamageEffect: string | null;
@@ -808,6 +812,8 @@ interface ExistingCard {
   stars: number | null;
   effect: string | null;
   audioUrl: string | null;
+  attackLowAudioUrl: string | null;
+  attackHighAudioUrl: string | null;
   youtubeUrl: string | null;
   mosseDamageValue: number | null;
   mosseDamageEffect: string | null;
@@ -838,7 +844,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   const [loadingPermanent, setLoadingPermanent] = useState(false);
   const [editingCard, setEditingCard] = useState<number | null>(null);
   const [editForm, setEditForm] = useState({ 
-    name: '', pti: '', stars: '', effect: '', audioUrl: '', youtubeUrl: '', 
+    name: '', pti: '', stars: '', effect: '', audioUrl: '', attackLowAudioUrl: '', attackHighAudioUrl: '', youtubeUrl: '', 
     mosseDamageValue: '', mosseDamageEffect: '',
     mosseCharacterOverrides: [] as MosseCharacterOverride[],
     mosseRestrictedFrom: [] as string[],
@@ -856,7 +862,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   const [loadingExisting, setLoadingExisting] = useState(false);
   const [editingExistingCard, setEditingExistingCard] = useState<string | null>(null);
   const [existingEditForm, setExistingEditForm] = useState({ 
-    name: '', imageUrl: '', pti: '', stars: '', effect: '', audioUrl: '', youtubeUrl: '', 
+    name: '', imageUrl: '', pti: '', stars: '', effect: '', audioUrl: '', attackLowAudioUrl: '', attackHighAudioUrl: '', youtubeUrl: '', 
     mosseDamageValue: '', mosseDamageEffect: '',
     mosseCharacterOverrides: [] as MosseCharacterOverride[],
     mosseRestrictedFrom: [] as string[],
@@ -1297,6 +1303,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       stars: null,
       effect: '',
       audioUrl: '',
+      attackLowAudioUrl: '',
+      attackHighAudioUrl: '',
       youtubeUrl: '',
       isPermanent: false,
       mosseDamageValue: null,
@@ -1362,6 +1370,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
             stars: isCharacterDeck ? card.stars : null,
             effect: card.effect.trim() || null,
             audioUrl: card.audioUrl.trim() || null,
+            attackLowAudioUrl: card.attackLowAudioUrl?.trim() || null,
+            attackHighAudioUrl: card.attackHighAudioUrl?.trim() || null,
             youtubeUrl: card.youtubeUrl.trim() || null,
             isPermanent: card.isPermanent,
             mosseDamageValue: selectedDeck === 'mosse' ? card.mosseDamageValue : null,
@@ -1402,6 +1412,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       stars: card.stars?.toString() || '',
       effect: card.effect || '',
       audioUrl: card.audioUrl || '',
+      attackLowAudioUrl: card.attackLowAudioUrl || '',
+      attackHighAudioUrl: card.attackHighAudioUrl || '',
       youtubeUrl: card.youtubeUrl || '',
       mosseDamageValue: card.mosseDamageValue?.toString() || '',
       mosseDamageEffect: card.mosseDamageEffect || '',
@@ -1426,6 +1438,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
           stars: editForm.stars ? parseInt(editForm.stars) : null,
           effect: editForm.effect || null,
           audioUrl: editForm.audioUrl || null,
+          attackLowAudioUrl: editForm.attackLowAudioUrl || null,
+          attackHighAudioUrl: editForm.attackHighAudioUrl || null,
           youtubeUrl: editForm.youtubeUrl || null,
           mosseDamageValue: editForm.mosseDamageValue ? parseInt(editForm.mosseDamageValue) : null,
           mosseDamageEffect: editForm.mosseDamageEffect || null,
@@ -1497,6 +1511,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
         stars: card.stars?.toString() || '',
         effect: card.effect || '',
         audioUrl: card.audioUrl || '',
+        attackLowAudioUrl: card.attackLowAudioUrl || '',
+        attackHighAudioUrl: card.attackHighAudioUrl || '',
         youtubeUrl: card.youtubeUrl || '',
         mosseDamageValue: card.mosseDamageValue?.toString() || '',
         mosseDamageEffect: card.mosseDamageEffect || '',
@@ -1555,6 +1571,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
         stars: formData.stars || null,
         effect: formData.effect || null,
         audioUrl: formData.audioUrl || null,
+        attackLowAudioUrl: formData.attackLowAudioUrl || null,
+        attackHighAudioUrl: formData.attackHighAudioUrl || null,
         youtubeUrl: formData.youtubeUrl || null,
         mosseDamageValue: formData.mosseDamageValue ? parseInt(formData.mosseDamageValue) : null,
         mosseDamageEffect: formData.mosseDamageEffect || null,
@@ -2368,6 +2386,37 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                               />
                             </div>
                             
+                            {(card.deckType === 'personaggi' || card.deckType === 'personaggi_speciali') && (
+                              <div className="p-3 bg-orange-900/30 rounded-lg border border-orange-500/50">
+                                <div className="text-orange-400 text-sm font-bold mb-2">🔊 AUDIO ATTACCHI PERSONAGGIO</div>
+                                <p className="text-gray-400 text-xs mb-3">
+                                  Audio personalizzati che si attivano quando questo personaggio usa una MOSSA in base al danno originale (senza moltiplicazione stelle).
+                                </p>
+                                <div className="grid grid-cols-1 gap-3">
+                                  <div>
+                                    <label className="text-white text-xs mb-1 block">Audio Attacco Debole (danno {'<'} 150 PTI)</label>
+                                    <Input
+                                      type="text"
+                                      value={editForm.attackLowAudioUrl}
+                                      onChange={(e) => setEditForm(prev => ({ ...prev, attackLowAudioUrl: e.target.value }))}
+                                      placeholder="https://... audio per attacchi con danno < 150 PTI"
+                                      className="bg-gray-600 text-white border-gray-500"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-white text-xs mb-1 block">Audio Attacco Forte (danno {'≥'} 150 PTI)</label>
+                                    <Input
+                                      type="text"
+                                      value={editForm.attackHighAudioUrl}
+                                      onChange={(e) => setEditForm(prev => ({ ...prev, attackHighAudioUrl: e.target.value }))}
+                                      placeholder="https://... audio per attacchi con danno ≥ 150 PTI"
+                                      className="bg-gray-600 text-white border-gray-500"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            
                             <div>
                               <label className="text-white text-sm mb-1 flex items-center gap-1">
                                 <Video size={14} className="text-red-500" />
@@ -2811,6 +2860,37 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                                 className="bg-gray-600 text-white border-gray-500"
                               />
                             </div>
+                            
+                            {(card.deckType === 'personaggi' || card.deckType === 'personaggi_speciali') && (
+                              <div className="p-3 bg-orange-900/30 rounded-lg border border-orange-500/50">
+                                <div className="text-orange-400 text-sm font-bold mb-2">🔊 AUDIO ATTACCHI PERSONAGGIO</div>
+                                <p className="text-gray-400 text-xs mb-3">
+                                  Audio personalizzati che si attivano quando questo personaggio usa una MOSSA in base al danno originale (senza moltiplicazione stelle).
+                                </p>
+                                <div className="grid grid-cols-1 gap-3">
+                                  <div>
+                                    <label className="text-white text-xs mb-1 block">Audio Attacco Debole (danno {'<'} 150 PTI)</label>
+                                    <Input
+                                      type="text"
+                                      value={existingEditForm.attackLowAudioUrl}
+                                      onChange={(e) => setExistingEditForm(prev => ({ ...prev, attackLowAudioUrl: e.target.value }))}
+                                      placeholder="https://... audio per attacchi con danno < 150 PTI"
+                                      className="bg-gray-600 text-white border-gray-500"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-white text-xs mb-1 block">Audio Attacco Forte (danno {'≥'} 150 PTI)</label>
+                                    <Input
+                                      type="text"
+                                      value={existingEditForm.attackHighAudioUrl}
+                                      onChange={(e) => setExistingEditForm(prev => ({ ...prev, attackHighAudioUrl: e.target.value }))}
+                                      placeholder="https://... audio per attacchi con danno ≥ 150 PTI"
+                                      className="bg-gray-600 text-white border-gray-500"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                             
                             <div>
                               <label className="text-white text-sm mb-1 flex items-center gap-1">
