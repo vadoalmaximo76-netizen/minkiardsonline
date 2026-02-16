@@ -20,7 +20,7 @@ export const ClashBattle: React.FC<ClashBattleProps> = ({
   duration
 }) => {
   const { playerName } = useGameState();
-  const { playClashTap, playClashBattleStart, playClashVictory } = useAudio();
+  const { playClashTap, playClashBattleStart, playClashVictory, playBattleMusic, stopBattleMusic } = useAudio();
   const [attackerTaps, setAttackerTaps] = useState(0);
   const [defenderTaps, setDefenderTaps] = useState(0);
   const [timeLeft, setTimeLeft] = useState(duration / 1000);
@@ -35,6 +35,10 @@ export const ClashBattle: React.FC<ClashBattleProps> = ({
 
   useEffect(() => {
     playClashBattleStart();
+    const music = playBattleMusic();
+    return () => {
+      music.stop();
+    };
   }, []);
 
   useEffect(() => {
@@ -50,6 +54,7 @@ export const ClashBattle: React.FC<ClashBattleProps> = ({
         setIsActive(false);
         setWinner(data.winner);
         setShowResult(true);
+        stopBattleMusic();
         if (data.winner) {
           playClashVictory();
         }
@@ -172,13 +177,13 @@ export const ClashBattle: React.FC<ClashBattleProps> = ({
   return (
     <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[100] p-4 overflow-hidden">
       <div className="absolute inset-0">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-red-600/20 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-600/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '0.5s' }} />
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-purple-600/30 rounded-full blur-3xl animate-ping" style={{ animationDuration: '2s' }} />
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-red-600/15 rounded-full blur-3xl" style={{ animation: 'pulse 3s ease-in-out infinite' }} />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-600/15 rounded-full blur-3xl" style={{ animation: 'pulse 3s ease-in-out infinite 1s' }} />
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-purple-600/20 rounded-full blur-3xl" style={{ animation: 'pulse 4s ease-in-out infinite' }} />
       </div>
       
       <div className="relative w-full max-w-3xl">
-        <div className="absolute -inset-1 bg-gradient-to-r from-red-500 via-purple-500 to-cyan-500 rounded-3xl blur opacity-75 animate-pulse" />
+        <div className="absolute -inset-1 bg-gradient-to-r from-red-500 via-purple-500 to-cyan-500 rounded-3xl blur opacity-50" style={{ animation: 'pulse 4s ease-in-out infinite' }} />
         
         <div className="relative bg-gradient-to-b from-slate-900/98 to-slate-800/98 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl p-8">
           <div className="text-center mb-8">
@@ -222,7 +227,7 @@ export const ClashBattle: React.FC<ClashBattleProps> = ({
             
             <div className="relative h-20 rounded-xl overflow-hidden border-2 border-white/20 shadow-inner bg-slate-900">
               <div 
-                className="absolute left-0 top-0 h-full transition-all duration-100 ease-out"
+                className="absolute left-0 top-0 h-full transition-all duration-300 ease-out"
                 style={{ 
                   width: `${attackerProgress}%`,
                   background: 'linear-gradient(90deg, #dc2626 0%, #f97316 50%, #fbbf24 100%)',
@@ -239,7 +244,7 @@ export const ClashBattle: React.FC<ClashBattleProps> = ({
               </div>
               
               <div 
-                className="absolute right-0 top-0 h-full transition-all duration-100 ease-out"
+                className="absolute right-0 top-0 h-full transition-all duration-300 ease-out"
                 style={{ 
                   width: `${defenderProgress}%`,
                   background: 'linear-gradient(270deg, #0891b2 0%, #06b6d4 50%, #22d3ee 100%)',
@@ -267,9 +272,9 @@ export const ClashBattle: React.FC<ClashBattleProps> = ({
           {isParticipant && isActive && (
             <div className="text-center">
               <div className="relative inline-block">
-                <div className={`absolute -inset-4 rounded-full blur-xl animate-pulse ${
-                  isAttacker ? 'bg-red-500/50' : 'bg-cyan-500/50'
-                }`} />
+                <div className={`absolute -inset-4 rounded-full blur-xl ${
+                  isAttacker ? 'bg-red-500/40' : 'bg-cyan-500/40'
+                }`} style={{ animation: 'pulse 2s ease-in-out infinite' }} />
                 
                 <button
                   ref={buttonRef}

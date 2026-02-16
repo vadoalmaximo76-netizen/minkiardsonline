@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { socket } from '../lib/socket';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Swords, Zap } from 'lucide-react';
+import { useAudio } from '../lib/stores/useAudio';
 
 interface DamageStep {
   target: 'attacker' | 'defender';
@@ -36,6 +37,14 @@ export const RecursiveDamagePanel: React.FC = () => {
   const [defenderPTI, setDefenderPTI] = useState<number>(0);
   const [showDamage, setShowDamage] = useState<{ target: 'attacker' | 'defender'; value: number } | null>(null);
   const [ballPosition, setBallPosition] = useState<'center' | 'attacker' | 'defender'>('center');
+  const { playBattleMusic, stopBattleMusic, playTennisHit, playSempafaagaraHit } = useAudio();
+  const battleMusicRef = useRef<{ stop: () => void } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      battleMusicRef.current?.stop();
+    };
+  }, []);
 
   useEffect(() => {
     const handleRecursiveDamage = (data: RecursiveDamageEvent) => {
@@ -46,6 +55,7 @@ export const RecursiveDamagePanel: React.FC = () => {
       setDefenderPTI(data.defenderCard.initialPTI);
       setShowDamage(null);
       setBallPosition('center');
+      battleMusicRef.current = playBattleMusic();
     };
 
     socket.on('recursive-damage-animation', handleRecursiveDamage);
@@ -65,6 +75,7 @@ export const RecursiveDamagePanel: React.FC = () => {
       if (cancelled || stepIndex >= event.steps.length) {
         if (!cancelled) {
           setTimeout(() => {
+            battleMusicRef.current?.stop();
             setEvent(null);
             setCurrentStep(-1);
           }, 2000);
@@ -79,6 +90,11 @@ export const RecursiveDamagePanel: React.FC = () => {
       }
       
       setShowDamage({ target: step.target, value: step.damage });
+      if (event.type === 'PARTITA_DI_TENNIS') {
+        playTennisHit();
+      } else {
+        playSempafaagaraHit();
+      }
       
       setTimeout(() => {
         if (cancelled) return;
@@ -98,6 +114,7 @@ export const RecursiveDamagePanel: React.FC = () => {
           if (step.eliminated) {
             setTimeout(() => {
               if (!cancelled) {
+                battleMusicRef.current?.stop();
                 setEvent(null);
                 setCurrentStep(-1);
               }
