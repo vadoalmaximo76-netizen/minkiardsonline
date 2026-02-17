@@ -10522,8 +10522,8 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // =================== AI NARRATOR API ===================
 
   app.post('/api/narrator/comment', authMiddleware, async (req, res) => {
+    const { eventType, eventData } = req.body;
     try {
-      const { eventType, eventData } = req.body;
       if (!eventType) return res.status(400).json({ error: 'Missing event type' });
 
       let prompt = '';
@@ -10564,7 +10564,39 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       res.json({ comment });
     } catch (error: any) {
       console.error('Narrator API error:', error?.message || error);
-      res.json({ comment: '' });
+      
+      const fallbackComments: Record<string, string[]> = {
+        card_played: [
+          `Che mossa di ${eventData?.playerName || 'il giocatore'}! ${eventData?.cardName || 'Una carta'} scende in campo!`,
+          `${eventData?.playerName || 'Il giocatore'} gioca ${eventData?.cardName || 'una carta'}! La partita si accende!`,
+          `Ecco ${eventData?.cardName || 'la carta'}! ${eventData?.playerName || 'Il giocatore'} non si tira indietro!`,
+          `Incredibile! ${eventData?.playerName || 'Il giocatore'} cala ${eventData?.cardName || 'una carta'} sul campo di battaglia!`,
+        ],
+        player_eliminated: [
+          `${eventData?.playerName || 'Un giocatore'} è fuori! Eliminazione brutale!`,
+          `È finita per ${eventData?.playerName || 'un giocatore'}! Che sconfitta devastante!`,
+          `${eventData?.playerName || 'Il giocatore'} cade! Il campo di battaglia si fa sempre più stretto!`,
+        ],
+        card_eliminated: [
+          `${eventData?.cardName || 'Il personaggio'} è stato distrutto! Che colpo fatale!`,
+          `Addio ${eventData?.cardName || 'guerriero'}! La battaglia è stata impietosa!`,
+        ],
+        evolution: [
+          `EVOLUZIONE! ${eventData?.oldName || 'Il personaggio'} si trasforma in ${eventData?.newName || 'una forma più potente'}!`,
+          `Che potenza! L'evoluzione è completa! Nessuno può fermarlo ora!`,
+        ],
+        big_damage: [
+          `COLPO DEVASTANTE! ${eventData?.damage || ''} danni! Che potenza incredibile!`,
+          `Un attacco da ${eventData?.damage || ''} danni! Il campo trema!`,
+        ],
+        game_start: [
+          `Si parte! La battaglia di MINKIARDS ha inizio! Chi vincerà?`,
+          `Benvenuti alla battaglia! I giocatori sono pronti, che vinca il migliore!`,
+        ],
+      };
+      const comments = fallbackComments[eventType] || fallbackComments['card_played']!;
+      const fallback = comments[Math.floor(Math.random() * comments.length)];
+      res.json({ comment: fallback });
     }
   });
 
