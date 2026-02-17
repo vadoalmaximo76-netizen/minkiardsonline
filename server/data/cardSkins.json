@@ -1,1 +1,20 @@
-[]
+[
+  {
+    "name": "Michael J. Peeo",
+    "cardName": "PEEO",
+    "cardType": "personaggi",
+    "description": "Ameeeeeeeco 🔥",
+    "skinImageUrl": "https://i.postimg.cc/WpWHWvhQ/Michael-J-Peeo.png",
+    "skinPti": null,
+    "skinStars": null,
+    "borderStyle": null,
+    "backgroundGradient": null,
+    "frameImageUrl": null,
+    "glowColor": null,
+    "rarity": "epic",
+    "price": 250,
+    "isAvailable": true,
+    "id": 1,
+    "createdAt": "2026-02-16T13:23:35.326Z"
+  }
+]

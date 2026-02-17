@@ -30,7 +30,7 @@
     "id": "evolution-hint",
     "trigger": "evolution_available",
     "title": "Evoluzione disponibile!",
-    "message": "Il tuo personaggio può evolversi! Tira il dado per tentare l'evoluzione.",
+    "message": "Il tuo personaggio può evolversi! Gioca la carta che ti permette di effettuare l'evoluzione e prova a potenziare il tuo personaggio! ",
     "position": "top",
     "isActive": true,
     "priority": 4
@@ -70,5 +70,14 @@
     "position": "center",
     "isActive": true,
     "priority": 8
+  },
+  {
+    "id": "tooltip-1771248516257",
+    "trigger": "game_start",
+    "title": "Inizio partita ",
+    "message": "La partita è cominciata! Premi sui mazzi dei Personaggi, delle Mosse e dei Bonus per pescare una carta da ognuno",
+    "position": "top",
+    "isActive": true,
+    "priority": 9
   }
 ]
