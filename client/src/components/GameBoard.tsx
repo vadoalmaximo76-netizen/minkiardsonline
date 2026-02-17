@@ -662,6 +662,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       shake(dmg > 50 ? 'heavy' : dmg > 20 ? 'medium' : 'light');
       playAttackSound();
       playDamageSound();
+      requestNarratorComment('attack', { attackerName: attacker, fromPlayer: attacker, targetName: target, toPlayer: defender, damage: dmg });
     };
 
     const handleCardToGraveyard = ({ cardName, cardType }: { cardName: string, cardType?: string }) => {
@@ -935,6 +936,24 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('attack-error', handleAttackError);
     socket.on('attack-blocked', handleAttackError);
+
+    const handleDefenseResult = (data: { attackId?: string; success?: boolean; defenderName?: string; defenseCardName?: string; message?: string; damageDelayed?: boolean; damageReflected?: boolean; damageRedirected?: boolean }) => {
+      if (data.success) {
+        let msg = data.message || '';
+        if (data.damageReflected) msg = 'Danno riflesso al mittente! ' + msg;
+        if (data.damageRedirected) msg = 'Danno reindirizzato! ' + msg;
+        if (data.damageDelayed) msg = 'Danno ritardato! ' + msg;
+        requestNarratorComment('defense_block', { defenderPlayer: data.defenderName || '???', defenseCardName: data.defenseCardName || '', message: msg });
+      }
+    };
+    socket.on('defense:result', handleDefenseResult);
+
+    const handleEffectApplied = (data: { cardName?: string; effectDescription?: string; playerName?: string }) => {
+      if (data.cardName) {
+        requestNarratorComment('effect_applied', { cardName: data.cardName, effectDescription: data.effectDescription || '', playerName: data.playerName || '???' });
+      }
+    };
+    socket.on('bonus-effect-applied', handleEffectApplied);
 
     // CLASH BATTLE: Start battle when equal damage values
     const handleClashBattleStart = ({ clashId, attacker, defender, damageValue, duration }: {
@@ -1824,6 +1843,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('clash-battle-end', handleClashBattleEnd);
       socket.off('attack-error', handleAttackError);
       socket.off('attack-blocked', handleAttackError);
+      socket.off('defense:result', handleDefenseResult);
+      socket.off('bonus-effect-applied', handleEffectApplied);
       if (rewardsTimeoutId) clearTimeout(rewardsTimeoutId);
     };
   }, []);

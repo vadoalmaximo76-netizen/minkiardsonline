@@ -4766,6 +4766,11 @@ Rispondi SOLO in JSON:`;
             message: `⚡ ${cardName} - Effetto attivato: ${actions.map(a => a.description).join(', ')}`,
             timestamp: Date.now()
           });
+          io.to(gameId).emit('bonus-effect-applied', {
+            cardName,
+            effectDescription: actions.map(a => a.description).join(', ').substring(0, 150),
+            playerName,
+          });
           
           // Broadcast updated state
           const gameState = this.getSanitizedGameState(gameId);
@@ -13556,6 +13561,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         playerName: 'Sistema',
         message: `🎯 ${playerName} ha attivato l'effetto di ${selection.cardName} su: ${targetNames}`,
         timestamp: Date.now()
+      });
+      io.to(gameId).emit('bonus-effect-applied', {
+        cardName: selection.cardName,
+        effectDescription: selection.effectText?.substring(0, 150) || '',
+        playerName,
       });
     } else {
       io.to(gameId).emit('chat-message', {

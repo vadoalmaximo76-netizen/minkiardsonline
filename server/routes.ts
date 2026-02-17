@@ -10546,6 +10546,15 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         case 'big_damage':
           prompt = `"${eventData.attackerCard}" ha inflitto ${eventData.damage} danni a "${eventData.targetCard}"! Un colpo devastante! Genera un commento breve e drammatico in italiano come un telecronista sportivo. Massimo 2 frasi, stile Dragon Ball.`;
           break;
+        case 'attack':
+          prompt = `"${eventData.attackerName}" di ${eventData.fromPlayer} attacca "${eventData.targetName}" di ${eventData.toPlayer} con ${eventData.damage} danni! Genera un commento breve e drammatico in italiano come un telecronista sportivo. Massimo 2 frasi, stile Dragon Ball.`;
+          break;
+        case 'defense_block':
+          prompt = `${eventData.defenderPlayer} ha respinto l'attacco${eventData.defenseCardName ? ` usando "${eventData.defenseCardName}"` : ''}! ${eventData.message || ''} Genera un commento breve e drammatico in italiano come un telecronista sportivo che commenta una difesa spettacolare. Massimo 2 frasi, stile Dragon Ball.`;
+          break;
+        case 'effect_applied':
+          prompt = `La carta "${eventData.cardName}" ha attivato il suo effetto${eventData.effectDescription ? `: ${eventData.effectDescription}` : ''}! Giocata da ${eventData.playerName}. Genera un commento breve e drammatico in italiano come un telecronista sportivo. Massimo 2 frasi, stile Dragon Ball.`;
+          break;
         default:
           prompt = `Evento di gioco: ${eventType}. ${JSON.stringify(eventData || {})}. Genera un commento breve e drammatico in italiano come un telecronista sportivo di un gioco di carte. Massimo 2 frasi.`;
       }
@@ -10588,6 +10597,21 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         big_damage: [
           `COLPO DEVASTANTE! ${eventData?.damage || ''} danni! Che potenza incredibile!`,
           `Un attacco da ${eventData?.damage || ''} danni! Il campo trema!`,
+        ],
+        attack: [
+          `${eventData?.attackerName || 'L\'attaccante'} scatena un attacco da ${eventData?.damage || '?'} danni contro ${eventData?.targetName || 'il bersaglio'}! Il campo trema!`,
+          `Che attacco fulminante! ${eventData?.fromPlayer || 'Il giocatore'} colpisce con ${eventData?.damage || '?'} danni!`,
+          `${eventData?.attackerName || 'Il guerriero'} non si trattiene! ${eventData?.damage || '?'} danni diretti a ${eventData?.targetName || 'il nemico'}!`,
+        ],
+        defense_block: [
+          `RESPINTO! ${eventData?.defenderPlayer || 'Il difensore'} blocca l'attacco con una mossa magistrale!`,
+          `Che difesa incredibile! L'attacco è stato completamente neutralizzato!`,
+          `Nessuno passa! ${eventData?.defenderPlayer || 'Il giocatore'} respinge il colpo con stile!`,
+        ],
+        effect_applied: [
+          `L'effetto di "${eventData?.cardName || 'la carta'}" si attiva! Che mossa strategica da ${eventData?.playerName || 'il giocatore'}!`,
+          `EFFETTO SPECIALE! "${eventData?.cardName || 'La carta'}" scatena il suo potere sul campo!`,
+          `Incredibile! L'effetto di "${eventData?.cardName || 'la carta'}" cambia le sorti della battaglia!`,
         ],
         game_start: [
           `Si parte! La battaglia di MINKIARDS ha inizio! Chi vincerà?`,
