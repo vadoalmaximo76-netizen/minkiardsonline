@@ -476,28 +476,30 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
         .zone-bottom { background: linear-gradient(0deg, rgba(60,0,80,0.3) 0%, rgba(30,0,50,0.15) 100%); box-shadow: 0 -4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(147,51,234,0.2), 0 0 30px rgba(147,51,234,0.08); }
 
         /* === SPECULAR REFLECTION === */
-        .card-specular { position: relative; overflow: hidden; }
+        .card-specular { position: relative; }
+        .card-specular:hover {
+          --specular-visible: 1;
+        }
         .card-specular::after {
           content: '';
           position: absolute;
-          top: -50%;
-          left: -50%;
-          width: 200%;
-          height: 200%;
-          background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.12) 45%, rgba(255,255,255,0.25) 50%, rgba(255,255,255,0.12) 55%, transparent 60%);
-          transform: translateX(-100%) translateY(-100%);
+          top: 0;
+          left: -100%;
+          width: 60%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 40%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0.15) 60%, transparent 100%);
           pointer-events: none;
           z-index: 10;
           opacity: 0;
-          transition: opacity 0.3s ease;
+          transition: opacity 0.2s ease;
         }
         .card-specular:hover::after {
           opacity: 1;
-          animation: specular-sweep 0.8s ease-out forwards;
+          animation: specular-sweep 0.7s ease-out forwards;
         }
         @keyframes specular-sweep {
-          0% { transform: translateX(-100%) translateY(-100%); }
-          100% { transform: translateX(100%) translateY(100%); }
+          0% { left: -60%; }
+          100% { left: 110%; }
         }
 
         /* === HOLOGRAPHIC SHIMMER for special cards === */
@@ -506,86 +508,51 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
           50% { background-position: 100% 50%; }
           100% { background-position: 0% 50%; }
         }
-        .card-holo::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(135deg,
-            rgba(255,0,0,0.08), rgba(255,127,0,0.08), rgba(255,255,0,0.08),
-            rgba(0,255,0,0.08), rgba(0,0,255,0.08), rgba(139,0,255,0.08),
-            rgba(255,0,0,0.08));
-          background-size: 400% 400%;
-          animation: holo-shimmer 4s ease infinite;
-          pointer-events: none;
-          z-index: 5;
-          border-radius: inherit;
-          mix-blend-mode: overlay;
+        .card-holo {
+          outline: 2px solid rgba(255,255,255,0.15);
+          outline-offset: -2px;
+          box-shadow: 0 0 8px rgba(255,100,255,0.2), 0 0 16px rgba(100,100,255,0.15), inset 0 0 12px rgba(255,200,100,0.08);
         }
 
-        /* === EFFECT GLOW PULSE === */
-        @keyframes effect-glow-pulse {
-          0%, 100% { box-shadow: 0 0 8px rgba(147,51,234,0.3), 0 0 16px rgba(147,51,234,0.15); }
-          50% { box-shadow: 0 0 16px rgba(147,51,234,0.6), 0 0 32px rgba(147,51,234,0.3), 0 0 48px rgba(147,51,234,0.15); }
-        }
+        /* === EFFECT GLOW PULSE (uses box-shadow transition, no animation property conflict) === */
         .card-effect-glow {
-          animation: effect-glow-pulse 2s ease-in-out infinite;
+          box-shadow: 0 0 8px rgba(147,51,234,0.3), 0 0 16px rgba(147,51,234,0.15);
+          transition: box-shadow 1s ease-in-out;
+        }
+        .card-effect-glow:not(:hover) {
+          box-shadow: 0 0 16px rgba(147,51,234,0.5), 0 0 32px rgba(147,51,234,0.25);
         }
 
         /* === DAMAGED CARD (low health <30%) === */
         .card-damaged {
           filter: brightness(0.85) saturate(0.65) sepia(0.15) !important;
         }
-        .card-damaged::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background:
-            repeating-linear-gradient(60deg, transparent, transparent 3px, rgba(180,40,40,0.04) 3px, rgba(180,40,40,0.04) 4px),
-            repeating-linear-gradient(-30deg, transparent, transparent 5px, rgba(0,0,0,0.03) 5px, rgba(0,0,0,0.03) 6px);
-          pointer-events: none;
-          z-index: 6;
-          border-radius: inherit;
-        }
 
-        /* === CARD TREMBLE (low health <20%) === */
-        @keyframes card-tremble {
-          0% { transform: translate(0, 0); }
+        /* === CARD TREMBLE (low health <20%) - applies to inner child, won't conflict === */
+        @keyframes card-tremble-shake {
+          0%, 100% { transform: translate(0, 0); }
           10% { transform: translate(-0.5px, 0.5px); }
-          20% { transform: translate(0.5px, -0.5px); }
-          30% { transform: translate(-0.5px, -0.3px); }
-          40% { transform: translate(0.3px, 0.5px); }
+          30% { transform: translate(0.5px, -0.5px); }
           50% { transform: translate(-0.3px, 0px); }
-          60% { transform: translate(0.5px, 0.3px); }
-          70% { transform: translate(0px, -0.5px); }
-          80% { transform: translate(-0.3px, 0.5px); }
-          90% { transform: translate(0.5px, -0.3px); }
-          100% { transform: translate(0, 0); }
+          70% { transform: translate(0.5px, 0.3px); }
+          90% { transform: translate(-0.3px, -0.5px); }
         }
-        .card-tremble > * {
-          animation: card-tremble 0.4s linear infinite;
+        .card-tremble > div:first-child {
+          animation: card-tremble-shake 0.4s linear infinite;
         }
 
-        /* === HIGH POWER CARD === */
-        @keyframes high-power-pulse {
-          0%, 100% { transform: scale(1); filter: brightness(1); }
-          50% { transform: scale(1.015); filter: brightness(1.08) saturate(1.15); }
-        }
+        /* === HIGH POWER CARD (uses filter transition, no animation conflict) === */
         .card-high-power {
-          animation: high-power-pulse 3s ease-in-out infinite;
+          filter: brightness(1.08) saturate(1.1) !important;
+          transition: filter 0.5s ease;
         }
 
-        /* === TURN PLAYER AURA === */
-        @keyframes turn-aura-pulse {
-          0%, 100% { box-shadow: 0 0 6px var(--aura-color); }
-          50% { box-shadow: 0 0 18px var(--aura-color), 0 0 36px var(--aura-color); }
-        }
+        /* === TURN PLAYER AURA (uses box-shadow, no animation conflict) === */
         .card-turn-aura-gold {
-          --aura-color: rgba(234,179,8,0.5);
-          animation: turn-aura-pulse 2.5s ease-in-out infinite;
+          box-shadow: 0 0 12px rgba(234,179,8,0.5), 0 0 24px rgba(234,179,8,0.25) !important;
         }
         .card-turn-aura-blue {
-          --aura-color: rgba(59,130,246,0.4);
-          animation: turn-aura-pulse 2.5s ease-in-out infinite;
+          box-shadow: 0 0 10px rgba(59,130,246,0.4), 0 0 20px rgba(59,130,246,0.2) !important;
         }
 
         /* === DUST FLOAT === */
