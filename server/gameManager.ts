@@ -2474,6 +2474,9 @@ Rispondi SOLO in JSON:`;
   }
 
   private trackPlayerStat(game: GameState, playerName: string, statType: 'cardsPlayed' | 'damageDealt' | 'damageReceived' | 'turnsPlayed', amount: number = 1) {
+    if (!game.playerStats) {
+      game.playerStats = new Map<string, { cardsPlayed: number; damageDealt: number; damageReceived: number; turnsPlayed: number }>();
+    }
     if (!game.playerStats.has(playerName)) {
       game.playerStats.set(playerName, { cardsPlayed: 0, damageDealt: 0, damageReceived: 0, turnsPlayed: 0 });
     }
