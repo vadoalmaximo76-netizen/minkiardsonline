@@ -20,6 +20,15 @@ const hasCustomEffect = (card: any): boolean => {
   return effect.trim().length > 5;
 };
 
+const PARTICLES = Array.from({ length: 12 }, (_, i) => ({
+  size: 2 + (i * 7 % 5),
+  left: (i * 8.3) % 100,
+  top: (i * 13.7) % 100,
+  color: ['#fbbf24', '#a855f7', '#3b82f6', '#22c55e'][i % 4],
+  duration: 8 + (i % 4) * 3,
+  delay: (i % 5) * 2,
+}));
+
 interface GameBoard3DProps {
   onCardClick?: (card: any) => void;
 }
@@ -67,48 +76,34 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
   const myCards = cardsByPlayer[playerName] || [];
 
   return (
-    <div className="fixed inset-0 z-[15] overflow-hidden" style={{ background: 'radial-gradient(ellipse at 50% 30%, #0d1b2a 0%, #050a12 60%, #000 100%)' }}>
+    <div className="fixed inset-0 z-[15] overflow-hidden" style={{ background: '#050a12' }}>
       <style>{`
-        @keyframes float-particle {
-          0%, 100% { transform: translateY(0) translateX(0) scale(1); opacity: 0.3; }
-          25% { transform: translateY(-20px) translateX(10px) scale(1.2); opacity: 0.6; }
-          50% { transform: translateY(-40px) translateX(-5px) scale(0.8); opacity: 0.4; }
-          75% { transform: translateY(-20px) translateX(-15px) scale(1.1); opacity: 0.5; }
-        }
-        @keyframes glow-pulse {
-          0%, 100% { box-shadow: 0 0 20px rgba(147,51,234,0.3), 0 0 60px rgba(147,51,234,0.1); }
-          50% { box-shadow: 0 0 30px rgba(147,51,234,0.5), 0 0 80px rgba(147,51,234,0.2); }
-        }
-        @keyframes edge-glow {
-          0%, 100% { opacity: 0.3; }
-          50% { opacity: 0.7; }
-        }
-        @keyframes spotlight-sweep {
-          0% { transform: translateX(-100%) rotate(15deg); }
-          100% { transform: translateX(200%) rotate(15deg); }
+        @keyframes float-particle-3d {
+          0%, 100% { transform: translateY(0); opacity: 0.2; }
+          50% { transform: translateY(-30px); opacity: 0.5; }
         }
         .card-3d-hover:hover {
           transform: translateY(-8px) scale(1.05) !important;
           z-index: 50 !important;
-          filter: brightness(1.2);
+          filter: brightness(1.15);
         }
         .card-3d-hover {
-          transition: transform 0.25s ease, filter 0.25s ease, z-index 0s;
+          transition: transform 0.3s ease, filter 0.3s ease;
         }
       `}</style>
 
-      {[...Array(20)].map((_, i) => (
+      {PARTICLES.map((p, i) => (
         <div
-          key={`particle-${i}`}
+          key={`p3d-${i}`}
           className="absolute rounded-full pointer-events-none"
           style={{
-            width: `${2 + Math.random() * 4}px`,
-            height: `${2 + Math.random() * 4}px`,
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-            background: ['#fbbf24', '#a855f7', '#3b82f6', '#22c55e'][i % 4],
-            animation: `float-particle ${4 + Math.random() * 6}s ease-in-out ${Math.random() * 5}s infinite`,
-            opacity: 0.3,
+            width: `${p.size}px`,
+            height: `${p.size}px`,
+            left: `${p.left}%`,
+            top: `${p.top}%`,
+            background: p.color,
+            animation: `float-particle-3d ${p.duration}s ease-in-out ${p.delay}s infinite`,
+            opacity: 0.2,
           }}
         />
       ))}
@@ -125,59 +120,62 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
           style={{
             width: 'min(95vw, 900px)',
             height: 'min(75vh, 650px)',
-            transform: 'rotateX(45deg) rotateZ(0deg)',
+            transform: 'rotateX(45deg)',
             transformStyle: 'preserve-3d',
           }}
         >
+          {/* Table surface with game background image */}
           <div
             className="absolute inset-0 rounded-3xl overflow-hidden"
             style={{
-              background: 'linear-gradient(145deg, #0a3d1a 0%, #0d4f20 30%, #0a3d1a 60%, #072e13 100%)',
-              boxShadow: '0 30px 60px rgba(0,0,0,0.8), 0 0 100px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)',
-              animation: 'glow-pulse 4s ease-in-out infinite',
+              backgroundImage: `url('https://i.ibb.co/Y4bv4xwz/sfondo-minkiards.png')`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              boxShadow: '0 30px 60px rgba(0,0,0,0.8), 0 0 80px rgba(147,51,234,0.15), inset 0 1px 0 rgba(255,255,255,0.05)',
             }}
           >
-            <div className="absolute inset-0 rounded-3xl" style={{
-              background: 'repeating-linear-gradient(45deg, transparent, transparent 30px, rgba(255,255,255,0.01) 30px, rgba(255,255,255,0.01) 60px)',
-            }} />
+            {/* Dark overlay to match 2D table */}
+            <div className="absolute inset-0 bg-black/40 rounded-3xl" />
 
-            <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
-              <div style={{
-                position: 'absolute',
-                top: 0, left: 0, right: 0, bottom: 0,
-                background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.03) 50%, transparent 100%)',
-                width: '30%',
-                animation: 'spotlight-sweep 8s ease-in-out infinite',
-              }} />
-            </div>
+            {/* Subtle felt texture overlay */}
+            <div className="absolute inset-0 rounded-3xl" style={{
+              background: 'repeating-linear-gradient(45deg, transparent, transparent 40px, rgba(255,255,255,0.008) 40px, rgba(255,255,255,0.008) 80px)',
+            }} />
           </div>
 
+          {/* Wood border frame */}
           <div className="absolute inset-[-8px] rounded-[28px] pointer-events-none" style={{
             border: '8px solid transparent',
             backgroundImage: 'linear-gradient(135deg, #3d2817 0%, #5c3d24 30%, #3d2817 60%, #2a1a0e 100%)',
             backgroundClip: 'border-box',
-            WebkitBackgroundClip: 'border-box',
-            boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.1), 0 4px 8px rgba(0,0,0,0.5)',
+            boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.08), 0 4px 12px rgba(0,0,0,0.6)',
             zIndex: -1,
           }} />
 
+          {/* Purple border glow like 2D */}
+          <div className="absolute inset-[-4px] rounded-[26px] pointer-events-none" style={{
+            border: '4px solid rgba(147,51,234,0.3)',
+            boxShadow: '0 0 40px rgba(147,51,234,0.2)',
+          }} />
+
+          {/* Decorative center circles */}
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" style={{
-            width: '40%', height: '40%',
-            border: '1px solid rgba(251,191,36,0.1)',
+            width: '35%', height: '35%',
+            border: '1px solid rgba(251,191,36,0.08)',
             borderRadius: '50%',
-            boxShadow: '0 0 30px rgba(251,191,36,0.05)',
           }} />
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" style={{
-            width: '60%', height: '60%',
-            border: '1px solid rgba(147,51,234,0.08)',
+            width: '55%', height: '55%',
+            border: '1px solid rgba(147,51,234,0.06)',
             borderRadius: '50%',
           }} />
 
+          {/* Content layer on the table */}
           <div className="absolute inset-0 rounded-3xl" style={{ transformStyle: 'preserve-3d' }}>
             {/* Decks area - center of table */}
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10" style={{ transform: 'translate(-50%, -50%) translateZ(5px)' }}>
               <div className="flex gap-2 sm:gap-3 items-start justify-center p-2 rounded-xl" style={{
-                background: 'rgba(0,0,0,0.3)',
+                background: 'rgba(0,0,0,0.25)',
                 backdropFilter: 'blur(4px)',
                 border: '1px solid rgba(255,255,255,0.05)',
               }}>
@@ -303,16 +301,17 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
             </div>
           </div>
 
+          {/* Floor shadow under the table */}
           <div className="absolute inset-0 pointer-events-none" style={{
             transform: 'translateZ(-20px) translateY(30px) scale(1.05)',
-            background: 'rgba(0,0,0,0.4)',
+            background: 'rgba(0,0,0,0.35)',
             borderRadius: '30px',
-            filter: 'blur(20px)',
+            filter: 'blur(25px)',
           }} />
         </div>
       </div>
 
-      {/* Turn indicator floating above */}
+      {/* Turn indicator */}
       <div className="fixed top-14 left-1/2 -translate-x-1/2 z-20">
         <div className={`px-4 py-1.5 rounded-2xl text-sm font-bold whitespace-nowrap border ${
           isMyTurn
@@ -324,13 +323,12 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
             : 'linear-gradient(135deg, rgba(59,130,246,0.25) 0%, rgba(139,92,246,0.15) 100%)',
           backdropFilter: 'blur(12px)',
           textShadow: isMyTurn ? '0 0 12px rgba(250,204,21,0.5)' : '0 0 8px rgba(147,197,253,0.4)',
-          boxShadow: isMyTurn ? '0 0 20px rgba(250,204,21,0.2)' : '0 0 15px rgba(59,130,246,0.15)',
         }}>
           {isMyTurn ? '👑 TOCCA A TE!' : `⏳ Turno di ${currentTurnPlayer}`}
         </div>
       </div>
 
-      {/* Info bar at bottom */}
+      {/* Info bar */}
       <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-20">
         <div className="flex gap-3 items-center px-4 py-2 rounded-2xl" style={{
           background: 'rgba(10,8,30,0.85)',
