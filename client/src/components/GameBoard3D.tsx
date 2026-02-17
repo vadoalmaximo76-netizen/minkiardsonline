@@ -83,12 +83,16 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
           50% { transform: translateY(-30px); opacity: 0.5; }
         }
         .card-3d-hover:hover {
-          transform: translateY(-8px) scale(1.05) !important;
+          transform: translateY(-6px) scale(1.03) !important;
           z-index: 50 !important;
           filter: brightness(1.15);
         }
         .card-3d-hover {
           transition: transform 0.3s ease, filter 0.3s ease;
+        }
+        .deck-tap-area {
+          touch-action: manipulation;
+          -webkit-tap-highlight-color: transparent;
         }
       `}</style>
 
@@ -111,22 +115,22 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
       <div
         className="absolute inset-0 flex items-center justify-center"
         style={{
-          perspective: '1200px',
-          perspectiveOrigin: '50% 35%',
+          perspective: '1400px',
+          perspectiveOrigin: '50% 40%',
         }}
       >
         <div
           className="relative"
           style={{
-            width: 'min(95vw, 900px)',
-            height: 'min(75vh, 650px)',
-            transform: 'rotateX(45deg)',
+            width: 'min(95vw, 950px)',
+            height: 'min(80vh, 700px)',
+            transform: 'rotateX(32deg)',
             transformStyle: 'preserve-3d',
           }}
         >
           {/* Table surface with game background image */}
           <div
-            className="absolute inset-0 rounded-3xl overflow-hidden"
+            className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none"
             style={{
               backgroundImage: `url('https://i.ibb.co/Y4bv4xwz/sfondo-minkiards.png')`,
               backgroundSize: 'cover',
@@ -134,10 +138,7 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
               boxShadow: '0 30px 60px rgba(0,0,0,0.8), 0 0 80px rgba(147,51,234,0.15), inset 0 1px 0 rgba(255,255,255,0.05)',
             }}
           >
-            {/* Dark overlay to match 2D table */}
-            <div className="absolute inset-0 bg-black/40 rounded-3xl" />
-
-            {/* Subtle felt texture overlay */}
+            <div className="absolute inset-0 bg-black/35 rounded-3xl" />
             <div className="absolute inset-0 rounded-3xl" style={{
               background: 'repeating-linear-gradient(45deg, transparent, transparent 40px, rgba(255,255,255,0.008) 40px, rgba(255,255,255,0.008) 80px)',
             }} />
@@ -152,7 +153,7 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
             zIndex: -1,
           }} />
 
-          {/* Purple border glow like 2D */}
+          {/* Purple border glow */}
           <div className="absolute inset-[-4px] rounded-[26px] pointer-events-none" style={{
             border: '4px solid rgba(147,51,234,0.3)',
             boxShadow: '0 0 40px rgba(147,51,234,0.2)',
@@ -170,29 +171,8 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
             borderRadius: '50%',
           }} />
 
-          {/* Content layer on the table */}
-          <div className="absolute inset-0 rounded-3xl" style={{ transformStyle: 'preserve-3d' }}>
-            {/* Decks area - center of table */}
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10" style={{ transform: 'translate(-50%, -50%) translateZ(5px)' }}>
-              <div className="flex gap-2 sm:gap-3 items-start justify-center p-2 rounded-xl" style={{
-                background: 'rgba(0,0,0,0.25)',
-                backdropFilter: 'blur(4px)',
-                border: '1px solid rgba(255,255,255,0.05)',
-              }}>
-                <div className="scale-[0.6] sm:scale-[0.7] md:scale-[0.8]">
-                  <Deck name="PERSONAGGI" backImage="https://i.imgur.com/r1rfUAB.png" type="personaggi" />
-                </div>
-                <div className="scale-[0.6] sm:scale-[0.7] md:scale-[0.8]">
-                  <Deck name="MOSSE" backImage="https://i.imgur.com/6MUXCZO.png" type="mosse" />
-                </div>
-                <div className="scale-[0.6] sm:scale-[0.7] md:scale-[0.8]">
-                  <Deck name="BONUS" backImage="https://i.imgur.com/lEROr3r.png" type="bonus" />
-                </div>
-                <div className="scale-[0.6] sm:scale-[0.7] md:scale-[0.8]">
-                  <Deck name="SPECIALI" backImage="https://i.imgur.com/ipVd57A.png" type="personaggi_speciali" />
-                </div>
-              </div>
-            </div>
+          {/* Content layer - flat transform so touch/click targets align with visuals */}
+          <div className="absolute inset-0 rounded-3xl" style={{ transformStyle: 'flat' }}>
 
             {/* Opponent cards - top area */}
             {otherPlayers.map((opName, idx) => {
@@ -207,19 +187,19 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
               return (
                 <div key={opName} className="absolute" style={{
                   left: `${leftPct}%`,
-                  top: '6%',
-                  transform: 'translateX(-50%) translateZ(3px)',
+                  top: '5%',
+                  transform: 'translateX(-50%)',
                 }}>
                   <div className="flex flex-col items-center gap-1">
                     <span className={`${opName === currentTurnPlayer ? 'bg-green-600/90 ring-2 ring-green-400' : 'bg-blue-800/80'} text-white font-bold px-2 py-0.5 rounded-full text-[10px] shadow-lg whitespace-nowrap`}>
                       {players[opName]?.avatar && <span className="mr-1">{getAvatarEmoji(players[opName]?.avatar || '')}</span>}
                       {opName}
                     </span>
-                    <div className="flex gap-1 items-center">
+                    <div className="flex gap-1 items-center flex-wrap justify-center max-w-[300px]">
                       {opCards.length > 0 ? opCards.map((card) => {
                         const attached = attachedCardsMap[card.id] || [];
                         return (
-                          <div key={card.id} className="card-3d-hover flex items-center gap-0.5" style={{ transform: 'translateZ(2px)' }}>
+                          <div key={card.id} className="card-3d-hover flex items-center gap-0.5">
                             <div className="scale-[0.55] sm:scale-[0.65] md:scale-[0.7]">
                               <Card card={card} location="field" />
                             </div>
@@ -241,24 +221,46 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
               );
             })}
 
-            {/* My cards - bottom area */}
-            <div className="absolute bottom-[6%] left-1/2 -translate-x-1/2" style={{ transform: 'translateX(-50%) translateZ(8px)' }}>
-              <div className="flex flex-col items-center gap-1">
-                <div className="flex gap-1 items-end justify-center">
+            {/* Decks area - center of table */}
+            <div className="absolute left-1/2 top-[40%] z-10" style={{ transform: 'translate(-50%, -50%)' }}>
+              <div className="deck-tap-area flex gap-3 sm:gap-4 items-start justify-center p-3 rounded-xl" style={{
+                background: 'rgba(0,0,0,0.25)',
+                backdropFilter: 'blur(4px)',
+                border: '1px solid rgba(255,255,255,0.05)',
+              }}>
+                <div className="deck-tap-area scale-[0.65] sm:scale-[0.75] md:scale-[0.85]">
+                  <Deck name="PERSONAGGI" backImage="https://i.imgur.com/r1rfUAB.png" type="personaggi" />
+                </div>
+                <div className="deck-tap-area scale-[0.65] sm:scale-[0.75] md:scale-[0.85]">
+                  <Deck name="MOSSE" backImage="https://i.imgur.com/6MUXCZO.png" type="mosse" />
+                </div>
+                <div className="deck-tap-area scale-[0.65] sm:scale-[0.75] md:scale-[0.85]">
+                  <Deck name="BONUS" backImage="https://i.imgur.com/lEROr3r.png" type="bonus" />
+                </div>
+                <div className="deck-tap-area scale-[0.65] sm:scale-[0.75] md:scale-[0.85]">
+                  <Deck name="SPECIALI" backImage="https://i.imgur.com/ipVd57A.png" type="personaggi_speciali" />
+                </div>
+              </div>
+            </div>
+
+            {/* My cards - bottom area, raised higher for visibility */}
+            <div className="absolute bottom-[12%] left-1/2" style={{ transform: 'translateX(-50%)' }}>
+              <div className="flex flex-col items-center gap-1.5">
+                <div className="flex gap-1.5 items-end justify-center flex-wrap max-w-[90vw]">
                   {myCards.length > 0 ? myCards.map((card, i) => {
                     const attached = attachedCardsMap[card.id] || [];
                     return (
-                      <div key={card.id} className="card-3d-hover flex flex-col items-center" style={{ transform: 'translateZ(4px)' }}>
+                      <div key={card.id} className="card-3d-hover flex flex-col items-center">
                         <div className="flex items-center gap-0.5">
                           <Button
                             onClick={() => handleMoveCard(card.id, 'left')}
                             disabled={i === 0}
-                            className="p-0.5 h-4 w-4 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
+                            className="p-0.5 h-5 w-5 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
                             size="sm"
                           >
-                            <ChevronLeft size={8} />
+                            <ChevronLeft size={10} />
                           </Button>
-                          <div className="scale-[0.6] sm:scale-[0.7] md:scale-[0.8]">
+                          <div className="scale-[0.65] sm:scale-[0.75] md:scale-[0.85]">
                             <Card card={card} location="field" />
                           </div>
                           {attached.map((p) => (
@@ -271,19 +273,19 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
                           <Button
                             onClick={() => handleMoveCard(card.id, 'right')}
                             disabled={i === myCards.length - 1}
-                            className="p-0.5 h-4 w-4 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
+                            className="p-0.5 h-5 w-5 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
                             size="sm"
                           >
-                            <ChevronRight size={8} />
+                            <ChevronRight size={10} />
                           </Button>
                         </div>
                         {hasCustomEffect(card) && (
                           <Button
                             onClick={() => handleActivateEffect(card)}
-                            className="mt-0.5 px-1.5 py-0 h-4 text-[8px] bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-0.5"
+                            className="mt-0.5 px-1.5 py-0 h-5 text-[9px] bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-0.5"
                             size="sm"
                           >
-                            <Zap size={8} />
+                            <Zap size={9} />
                             Effetto
                           </Button>
                         )}
@@ -293,7 +295,7 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
                     <span className="text-white/40 text-xs italic">Nessuna carta in campo</span>
                   )}
                 </div>
-                <span className={`${isMyTurn ? 'bg-green-500/90 ring-2 ring-green-400' : 'bg-yellow-600/80'} text-white font-bold px-2 py-0.5 rounded-full text-[10px] shadow-lg`}>
+                <span className={`${isMyTurn ? 'bg-green-500/90 ring-2 ring-green-400' : 'bg-yellow-600/80'} text-white font-bold px-3 py-1 rounded-full text-xs shadow-lg`}>
                   {players[playerName]?.avatar && <span className="mr-1">{getAvatarEmoji(players[playerName]?.avatar || '')}</span>}
                   {playerName} (Tu)
                 </span>
@@ -301,7 +303,7 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
             </div>
           </div>
 
-          {/* Floor shadow under the table */}
+          {/* Floor shadow */}
           <div className="absolute inset-0 pointer-events-none" style={{
             transform: 'translateZ(-20px) translateY(30px) scale(1.05)',
             background: 'rgba(0,0,0,0.35)',
@@ -329,7 +331,7 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
       </div>
 
       {/* Info bar */}
-      <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-20">
+      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-20">
         <div className="flex gap-3 items-center px-4 py-2 rounded-2xl" style={{
           background: 'rgba(10,8,30,0.85)',
           backdropFilter: 'blur(16px)',
