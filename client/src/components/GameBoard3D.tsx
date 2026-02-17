@@ -110,6 +110,7 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
         .deck-tap-area {
           touch-action: manipulation;
           -webkit-tap-highlight-color: transparent;
+          cursor: pointer;
         }
       `}</style>
 
@@ -129,27 +130,25 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
         />
       ))}
 
-      {/* 3D perspective wrapper */}
+      {/* ====== LAYER 1: 3D TABLE (visual only, no interaction) ====== */}
       <div
-        className="absolute inset-0 flex items-center justify-center"
+        className="absolute inset-0 flex items-center justify-center pointer-events-none"
         style={{
           perspective: '1400px',
           perspectiveOrigin: '50% 40%',
         }}
       >
-        {/* Rotated table */}
         <div
           className="relative"
           style={{
             width: 'min(95vw, 950px)',
             height: 'min(82vh, 720px)',
             transform: 'rotateX(32deg)',
-            transformStyle: 'preserve-3d',
           }}
         >
-          {/* Table surface - visual only */}
+          {/* Table surface */}
           <div
-            className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none"
+            className="absolute inset-0 rounded-3xl overflow-hidden"
             style={{
               backgroundImage: `url('https://i.ibb.co/Y4bv4xwz/sfondo-minkiards.png')`,
               backgroundSize: 'cover',
@@ -164,7 +163,7 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
           </div>
 
           {/* Wood border frame */}
-          <div className="absolute inset-[-8px] rounded-[28px] pointer-events-none" style={{
+          <div className="absolute inset-[-8px] rounded-[28px]" style={{
             border: '8px solid transparent',
             backgroundImage: 'linear-gradient(135deg, #3d2817 0%, #5c3d24 30%, #3d2817 60%, #2a1a0e 100%)',
             backgroundClip: 'border-box',
@@ -173,149 +172,149 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
           }} />
 
           {/* Purple border glow */}
-          <div className="absolute inset-[-4px] rounded-[26px] pointer-events-none" style={{
+          <div className="absolute inset-[-4px] rounded-[26px]" style={{
             border: '4px solid rgba(147,51,234,0.3)',
             boxShadow: '0 0 40px rgba(147,51,234,0.2)',
           }} />
 
-          {/* Decorative center circles */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" style={{
+          {/* Decorative circles */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" style={{
             width: '35%', height: '35%',
             border: '1px solid rgba(251,191,36,0.08)',
             borderRadius: '50%',
           }} />
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" style={{
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" style={{
             width: '55%', height: '55%',
             border: '1px solid rgba(147,51,234,0.06)',
             borderRadius: '50%',
           }} />
 
-          {/* CONTENT: flex column layout to prevent overlap */}
-          <div className="absolute inset-0 rounded-3xl flex flex-col p-2 sm:p-3 overflow-hidden" style={{ transformStyle: 'flat' }}>
-
-            {/* === TOP ZONE: Opponent cards === */}
-            <div className="flex-shrink-0 flex flex-wrap justify-center gap-3 sm:gap-4 py-1">
-              {otherPlayers.map((opName) => {
-                const opCards = cardsByPlayer[opName] || [];
-                return (
-                  <div key={opName} className="flex flex-col items-center gap-1 min-w-0">
-                    <span className={`${opName === currentTurnPlayer ? 'bg-green-600/90 ring-2 ring-green-400' : 'bg-blue-800/80'} text-white font-bold px-2 py-0.5 rounded-full text-[10px] shadow-lg whitespace-nowrap`}>
-                      {players[opName]?.avatar && <span className="mr-1">{getAvatarEmoji(players[opName]?.avatar || '')}</span>}
-                      {opName}
-                    </span>
-                    <div className="flex gap-0.5 items-center flex-wrap justify-center">
-                      {opCards.length > 0 ? opCards.map((card) => {
-                        const attached = attachedCardsMap[card.id] || [];
-                        return (
-                          <div key={card.id} className="card-3d-hover flex items-center gap-0.5">
-                            <div className="scale-[0.5] sm:scale-[0.55] md:scale-[0.65] origin-top">
-                              <Card card={card} location="field" />
-                            </div>
-                            {attached.map((p) => (
-                              <div key={p.id} className="scale-[0.45] origin-top">
-                                <div className="border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/50">
-                                  <Card card={p} location="field" />
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      }) : (
-                        <span className="text-white/40 text-[10px] italic">Nessuna carta</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* === MIDDLE ZONE: Decks === */}
-            <div className="flex-1 flex items-center justify-center min-h-0">
-              <div className="deck-tap-area flex gap-2 sm:gap-3 items-start justify-center p-2 rounded-xl" style={{
-                background: 'rgba(0,0,0,0.25)',
-                backdropFilter: 'blur(4px)',
-                border: '1px solid rgba(255,255,255,0.05)',
-              }}>
-                <div className="deck-tap-area scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-center">
-                  <Deck name="PERSONAGGI" backImage="https://i.imgur.com/r1rfUAB.png" type="personaggi" />
-                </div>
-                <div className="deck-tap-area scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-center">
-                  <Deck name="MOSSE" backImage="https://i.imgur.com/6MUXCZO.png" type="mosse" />
-                </div>
-                <div className="deck-tap-area scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-center">
-                  <Deck name="BONUS" backImage="https://i.imgur.com/lEROr3r.png" type="bonus" />
-                </div>
-                <div className="deck-tap-area scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-center">
-                  <Deck name="SPECIALI" backImage="https://i.imgur.com/ipVd57A.png" type="personaggi_speciali" />
-                </div>
-              </div>
-            </div>
-
-            {/* === BOTTOM ZONE: My cards === */}
-            <div className="flex-shrink-0 flex flex-col items-center gap-1 py-1">
-              <div className="flex gap-1 items-end justify-center flex-wrap max-w-full">
-                {myCards.length > 0 ? myCards.map((card, i) => {
-                  const attached = attachedCardsMap[card.id] || [];
-                  return (
-                    <div key={card.id} className="card-3d-hover flex flex-col items-center">
-                      <div className="flex items-center gap-0.5">
-                        <Button
-                          onClick={() => handleMoveCard(card.id, 'left')}
-                          disabled={i === 0}
-                          className="p-0.5 h-5 w-5 bg-gray-600/80 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
-                          size="sm"
-                        >
-                          <ChevronLeft size={10} />
-                        </Button>
-                        <div className="scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-bottom">
-                          <Card card={card} location="field" />
-                        </div>
-                        {attached.map((p) => (
-                          <div key={p.id} className="scale-[0.45] origin-bottom">
-                            <div className="border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/50">
-                              <Card card={p} location="field" />
-                            </div>
-                          </div>
-                        ))}
-                        <Button
-                          onClick={() => handleMoveCard(card.id, 'right')}
-                          disabled={i === myCards.length - 1}
-                          className="p-0.5 h-5 w-5 bg-gray-600/80 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
-                          size="sm"
-                        >
-                          <ChevronRight size={10} />
-                        </Button>
-                      </div>
-                      {hasCustomEffect(card) && (
-                        <Button
-                          onClick={() => handleActivateEffect(card)}
-                          className="mt-0.5 px-1.5 py-0 h-5 text-[9px] bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-0.5"
-                          size="sm"
-                        >
-                          <Zap size={9} />
-                          Effetto
-                        </Button>
-                      )}
-                    </div>
-                  );
-                }) : (
-                  <span className="text-white/40 text-xs italic">Nessuna carta in campo</span>
-                )}
-              </div>
-              <span className={`${isMyTurn ? 'bg-green-500/90 ring-2 ring-green-400' : 'bg-yellow-600/80'} text-white font-bold px-3 py-1 rounded-full text-xs shadow-lg`}>
-                {players[playerName]?.avatar && <span className="mr-1">{getAvatarEmoji(players[playerName]?.avatar || '')}</span>}
-                {playerName} (Tu)
-              </span>
-            </div>
-          </div>
-
           {/* Floor shadow */}
-          <div className="absolute inset-0 pointer-events-none" style={{
+          <div className="absolute inset-0" style={{
             transform: 'translateZ(-20px) translateY(30px) scale(1.05)',
             background: 'rgba(0,0,0,0.35)',
             borderRadius: '30px',
             filter: 'blur(25px)',
           }} />
+        </div>
+      </div>
+
+      {/* ====== LAYER 2: INTERACTIVE CONTENT (2D overlay, no 3D transform) ====== */}
+      <div className="absolute inset-0 flex flex-col" style={{ paddingTop: '50px', paddingBottom: '50px' }}>
+
+        {/* === TOP ZONE: Opponent cards === */}
+        <div className="flex-shrink-0 flex flex-wrap justify-center gap-3 sm:gap-4 px-2 py-1 mt-1">
+          {otherPlayers.map((opName) => {
+            const opCards = cardsByPlayer[opName] || [];
+            return (
+              <div key={opName} className="flex flex-col items-center gap-1 min-w-0">
+                <span className={`${opName === currentTurnPlayer ? 'bg-green-600/90 ring-2 ring-green-400' : 'bg-blue-800/80'} text-white font-bold px-2 py-0.5 rounded-full text-[10px] shadow-lg whitespace-nowrap`}>
+                  {players[opName]?.avatar && <span className="mr-1">{getAvatarEmoji(players[opName]?.avatar || '')}</span>}
+                  {opName}
+                </span>
+                <div className="flex gap-0.5 items-center flex-wrap justify-center">
+                  {opCards.length > 0 ? opCards.map((card) => {
+                    const attached = attachedCardsMap[card.id] || [];
+                    return (
+                      <div key={card.id} className="card-3d-hover flex items-center gap-0.5">
+                        <div className="scale-[0.5] sm:scale-[0.55] md:scale-[0.65] origin-top">
+                          <Card card={card} location="field" />
+                        </div>
+                        {attached.map((p) => (
+                          <div key={p.id} className="scale-[0.45] origin-top">
+                            <div className="border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/50">
+                              <Card card={p} location="field" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  }) : (
+                    <span className="text-white/40 text-[10px] italic">Nessuna carta</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* === MIDDLE ZONE: Decks === */}
+        <div className="flex-1 flex items-center justify-center min-h-0 px-2">
+          <div className="deck-tap-area flex gap-2 sm:gap-3 items-start justify-center p-2 sm:p-3 rounded-xl" style={{
+            background: 'rgba(0,0,0,0.3)',
+            backdropFilter: 'blur(6px)',
+            border: '1px solid rgba(255,255,255,0.08)',
+          }}>
+            <div className="deck-tap-area scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-center">
+              <Deck name="PERSONAGGI" backImage="https://i.imgur.com/r1rfUAB.png" type="personaggi" />
+            </div>
+            <div className="deck-tap-area scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-center">
+              <Deck name="MOSSE" backImage="https://i.imgur.com/6MUXCZO.png" type="mosse" />
+            </div>
+            <div className="deck-tap-area scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-center">
+              <Deck name="BONUS" backImage="https://i.imgur.com/lEROr3r.png" type="bonus" />
+            </div>
+            <div className="deck-tap-area scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-center">
+              <Deck name="SPECIALI" backImage="https://i.imgur.com/ipVd57A.png" type="personaggi_speciali" />
+            </div>
+          </div>
+        </div>
+
+        {/* === BOTTOM ZONE: My cards === */}
+        <div className="flex-shrink-0 flex flex-col items-center gap-1 px-2 py-1 mb-1">
+          <div className="flex gap-1 items-end justify-center flex-wrap max-w-full">
+            {myCards.length > 0 ? myCards.map((card, i) => {
+              const attached = attachedCardsMap[card.id] || [];
+              return (
+                <div key={card.id} className="card-3d-hover flex flex-col items-center">
+                  <div className="flex items-center gap-0.5">
+                    <Button
+                      onClick={() => handleMoveCard(card.id, 'left')}
+                      disabled={i === 0}
+                      className="p-0.5 h-5 w-5 bg-gray-600/80 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
+                      size="sm"
+                    >
+                      <ChevronLeft size={10} />
+                    </Button>
+                    <div className="scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-bottom">
+                      <Card card={card} location="field" />
+                    </div>
+                    {attached.map((p) => (
+                      <div key={p.id} className="scale-[0.45] origin-bottom">
+                        <div className="border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/50">
+                          <Card card={p} location="field" />
+                        </div>
+                      </div>
+                    ))}
+                    <Button
+                      onClick={() => handleMoveCard(card.id, 'right')}
+                      disabled={i === myCards.length - 1}
+                      className="p-0.5 h-5 w-5 bg-gray-600/80 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
+                      size="sm"
+                    >
+                      <ChevronRight size={10} />
+                    </Button>
+                  </div>
+                  {hasCustomEffect(card) && (
+                    <Button
+                      onClick={() => handleActivateEffect(card)}
+                      className="mt-0.5 px-1.5 py-0 h-5 text-[9px] bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-0.5"
+                      size="sm"
+                    >
+                      <Zap size={9} />
+                      Effetto
+                    </Button>
+                  )}
+                </div>
+              );
+            }) : (
+              <span className="text-white/40 text-xs italic">Nessuna carta in campo</span>
+            )}
+          </div>
+          <span className={`${isMyTurn ? 'bg-green-500/90 ring-2 ring-green-400' : 'bg-yellow-600/80'} text-white font-bold px-3 py-1 rounded-full text-xs shadow-lg`}>
+            {players[playerName]?.avatar && <span className="mr-1">{getAvatarEmoji(players[playerName]?.avatar || '')}</span>}
+            {playerName} (Tu)
+          </span>
         </div>
       </div>
 
