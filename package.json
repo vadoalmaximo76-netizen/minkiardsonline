@@ -70,6 +70,7 @@
     "matter-js": "^0.20.0",
     "memorystore": "^1.6.7",
     "meshline": "^3.3.1",
+    "msedge-tts": "^2.0.4",
     "next-themes": "^0.4.5",
     "ogl": "^1.0.11",
     "openai": "^5.20.0",

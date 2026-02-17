@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import useNarrator from "../lib/stores/useNarrator";
+import useNarrator, { type VoiceType } from "../lib/stores/useNarrator";
 
-function speakText(text: string, preferredVoiceName: string) {
+function speakWithDeviceVoice(text: string, preferredVoiceName: string) {
   try {
     if (!('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
@@ -20,6 +20,46 @@ function speakText(text: string, preferredVoiceName: string) {
     }
     window.speechSynthesis.speak(utterance);
   } catch (e) {}
+}
+
+let currentCloudAudio: HTMLAudioElement | null = null;
+
+async function speakWithCloudVoice(text: string, voiceName: string) {
+  try {
+    if (currentCloudAudio) {
+      currentCloudAudio.pause();
+      currentCloudAudio = null;
+    }
+    const response = await fetch('/api/tts/speak', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, voice: voiceName }),
+    });
+    if (!response.ok) throw new Error('Cloud TTS failed');
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    currentCloudAudio = audio;
+    audio.onended = () => {
+      URL.revokeObjectURL(url);
+      currentCloudAudio = null;
+    };
+    audio.onerror = () => {
+      URL.revokeObjectURL(url);
+      currentCloudAudio = null;
+    };
+    audio.play();
+  } catch (e) {
+    speakWithDeviceVoice(text, '');
+  }
+}
+
+function stopAllSpeech() {
+  try { window.speechSynthesis.cancel(); } catch (e) {}
+  if (currentCloudAudio) {
+    currentCloudAudio.pause();
+    currentCloudAudio = null;
+  }
 }
 
 interface NarratorBannerProps {
@@ -42,6 +82,7 @@ export const NarratorBanner: React.FC<NarratorBannerProps> = ({
   const charIndexRef = useRef(0);
   const lastSpokenRef = useRef("");
   const selectedVoiceName = useNarrator(s => s.selectedVoiceName);
+  const selectedVoiceType = useNarrator(s => s.selectedVoiceType);
 
   const cleanup = useCallback(() => {
     if (intervalRef.current) {
@@ -64,7 +105,11 @@ export const NarratorBanner: React.FC<NarratorBannerProps> = ({
 
       if (message !== lastSpokenRef.current) {
         lastSpokenRef.current = message;
-        speakText(message, selectedVoiceName);
+        if (selectedVoiceType === 'cloud' && selectedVoiceName) {
+          speakWithCloudVoice(message, selectedVoiceName);
+        } else {
+          speakWithDeviceVoice(message, selectedVoiceName);
+        }
       }
 
       requestAnimationFrame(() => {
@@ -95,7 +140,7 @@ export const NarratorBanner: React.FC<NarratorBannerProps> = ({
       cleanup();
       setIsAnimatingIn(false);
       setIsAnimatingOut(true);
-      try { window.speechSynthesis.cancel(); } catch (e) {}
+      stopAllSpeech();
 
       dismissTimerRef.current = setTimeout(() => {
         setShouldRender(false);
@@ -106,7 +151,7 @@ export const NarratorBanner: React.FC<NarratorBannerProps> = ({
     }
 
     return cleanup;
-  }, [visible, message, selectedVoiceName]);
+  }, [visible, message, selectedVoiceName, selectedVoiceType]);
 
   const handleDismiss = useCallback(() => {
     cleanup();
@@ -130,7 +175,7 @@ export const NarratorBanner: React.FC<NarratorBannerProps> = ({
           <span className="text-2xl flex-shrink-0 mt-0.5">🪶</span>
           <div className="flex-1 min-w-0">
             <p className="text-yellow-400/90 text-xs font-semibold tracking-wide mb-1">
-              🎙️ Narratore 🔊
+              🎙️ Narratore {selectedVoiceType === 'cloud' && selectedVoiceName ? '☁️' : '🔊'}
             </p>
             <p className="text-white text-sm leading-relaxed">
               {displayedText}

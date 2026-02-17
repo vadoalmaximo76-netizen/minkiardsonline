@@ -10600,6 +10600,74 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     }
   });
 
+  // =================== CLOUD TTS API (Edge TTS) ===================
+
+  const CLOUD_VOICES = [
+    { name: 'it-IT-IsabellaNeural', label: 'Isabella', lang: 'it-IT', gender: 'Femminile' },
+    { name: 'it-IT-DiegoNeural', label: 'Diego', lang: 'it-IT', gender: 'Maschile' },
+    { name: 'it-IT-ElsaNeural', label: 'Elsa', lang: 'it-IT', gender: 'Femminile' },
+    { name: 'it-IT-GiuseppeNeural', label: 'Giuseppe', lang: 'it-IT', gender: 'Maschile' },
+    { name: 'it-IT-BenignoNeural', label: 'Benigno', lang: 'it-IT', gender: 'Maschile' },
+    { name: 'it-IT-CalimeroNeural', label: 'Calimero', lang: 'it-IT', gender: 'Maschile' },
+    { name: 'it-IT-CataldoNeural', label: 'Cataldo', lang: 'it-IT', gender: 'Maschile' },
+    { name: 'it-IT-FabiolaNeural', label: 'Fabiola', lang: 'it-IT', gender: 'Femminile' },
+    { name: 'it-IT-FiammaNeural', label: 'Fiamma', lang: 'it-IT', gender: 'Femminile' },
+    { name: 'it-IT-GianniNeural', label: 'Gianni', lang: 'it-IT', gender: 'Maschile' },
+    { name: 'it-IT-ImeldaNeural', label: 'Imelda', lang: 'it-IT', gender: 'Femminile' },
+    { name: 'it-IT-IrmaNeural', label: 'Irma', lang: 'it-IT', gender: 'Femminile' },
+    { name: 'it-IT-LisandroNeural', label: 'Lisandro', lang: 'it-IT', gender: 'Maschile' },
+    { name: 'it-IT-PalmiraNeural', label: 'Palmira', lang: 'it-IT', gender: 'Femminile' },
+    { name: 'it-IT-PierinaNeural', label: 'Pierina', lang: 'it-IT', gender: 'Femminile' },
+    { name: 'it-IT-RinaldoNeural', label: 'Rinaldo', lang: 'it-IT', gender: 'Maschile' },
+    { name: 'en-US-AriaNeural', label: 'Aria (EN)', lang: 'en-US', gender: 'Female' },
+    { name: 'en-US-GuyNeural', label: 'Guy (EN)', lang: 'en-US', gender: 'Male' },
+    { name: 'en-GB-SoniaNeural', label: 'Sonia (EN-GB)', lang: 'en-GB', gender: 'Female' },
+    { name: 'es-ES-ElviraNeural', label: 'Elvira (ES)', lang: 'es-ES', gender: 'Female' },
+    { name: 'fr-FR-DeniseNeural', label: 'Denise (FR)', lang: 'fr-FR', gender: 'Female' },
+    { name: 'de-DE-KatjaNeural', label: 'Katja (DE)', lang: 'de-DE', gender: 'Female' },
+    { name: 'ja-JP-NanamiNeural', label: 'Nanami (JP)', lang: 'ja-JP', gender: 'Female' },
+  ];
+
+  app.get('/api/tts/voices', (_req, res) => {
+    res.json(CLOUD_VOICES);
+  });
+
+  app.post('/api/tts/speak', async (req, res) => {
+    try {
+      const { text, voice } = req.body;
+      if (!text || !voice) return res.status(400).json({ error: 'Missing text or voice' });
+      if (text.length > 500) return res.status(400).json({ error: 'Text too long (max 500 chars)' });
+
+      const validVoice = CLOUD_VOICES.find(v => v.name === voice);
+      if (!validVoice) return res.status(400).json({ error: 'Invalid voice name' });
+
+      const { MsEdgeTTS, OUTPUT_FORMAT } = await import('msedge-tts');
+      const tts = new MsEdgeTTS();
+      await tts.setMetadata(voice, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+
+      const { audioStream } = await tts.toStream(text);
+
+      const chunks: Buffer[] = [];
+      audioStream.on('data', (chunk: Buffer) => chunks.push(chunk));
+      audioStream.on('end', () => {
+        const audioBuffer = Buffer.concat(chunks);
+        res.set({
+          'Content-Type': 'audio/mpeg',
+          'Content-Length': audioBuffer.length.toString(),
+          'Cache-Control': 'public, max-age=3600',
+        });
+        res.send(audioBuffer);
+      });
+      audioStream.on('error', (err: any) => {
+        console.error('Edge TTS stream error:', err?.message || err);
+        res.status(500).json({ error: 'TTS generation failed' });
+      });
+    } catch (error: any) {
+      console.error('Edge TTS error:', error?.message || error);
+      res.status(500).json({ error: 'TTS service unavailable' });
+    }
+  });
+
   // =================== CARD COLLECTION API ===================
 
   // Get user's card collection

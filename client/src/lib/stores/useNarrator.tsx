@@ -1,14 +1,17 @@
 import { create } from 'zustand';
 
+export type VoiceType = 'device' | 'cloud';
+
 interface NarratorStore {
   enabled: boolean;
   currentMessage: string;
   visible: boolean;
   selectedVoiceName: string;
+  selectedVoiceType: VoiceType;
   setEnabled: (enabled: boolean) => void;
   showMessage: (message: string) => void;
   dismiss: () => void;
-  setSelectedVoiceName: (name: string) => void;
+  setSelectedVoice: (name: string, type: VoiceType) => void;
 }
 
 const useNarrator = create<NarratorStore>((set) => ({
@@ -16,15 +19,17 @@ const useNarrator = create<NarratorStore>((set) => ({
   currentMessage: '',
   visible: false,
   selectedVoiceName: localStorage.getItem('minkiards_narrator_voice') || '',
+  selectedVoiceType: (localStorage.getItem('minkiards_narrator_voice_type') as VoiceType) || 'device',
   setEnabled: (enabled: boolean) => {
     localStorage.setItem('minkiards_narrator_enabled', String(enabled));
     set({ enabled });
   },
   showMessage: (message: string) => set({ currentMessage: message, visible: true }),
   dismiss: () => set({ visible: false, currentMessage: '' }),
-  setSelectedVoiceName: (name: string) => {
+  setSelectedVoice: (name: string, type: VoiceType) => {
     localStorage.setItem('minkiards_narrator_voice', name);
-    set({ selectedVoiceName: name });
+    localStorage.setItem('minkiards_narrator_voice_type', type);
+    set({ selectedVoiceName: name, selectedVoiceType: type });
   },
 }));
 
