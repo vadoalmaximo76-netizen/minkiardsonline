@@ -54,6 +54,7 @@ import { ProfilePanel } from "./ProfilePanel";
 import { EmojiReactions } from "./EmojiReactions";
 import { JoinRequestDialog } from "./JoinRequestDialog";
 import CardTrailParticles from "./CardTrailParticles";
+import { GameBoard3D } from "./GameBoard3D";
 import VictoryDefeatAnimation from "./VictoryDefeatAnimation";
 import { useScreenShake } from "../lib/useScreenShake";
 import { useGameState } from "../lib/stores/useGameState";
@@ -123,6 +124,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [leavingPlayer, setLeavingPlayer] = useState<string>("");
   const [superDiceOpen, setSuperDiceOpen] = useState(false);
   const [showCpuControls, setShowCpuControls] = useState(false);
+  const [is3DMode, setIs3DMode] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [chatNotifications, setChatNotifications] = useState<Array<{
     id: string;
@@ -382,7 +384,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     timestamp: number;
     cardType: string;
   }>>([]);
-    const { selectedCard, gameId, playerName, gameState, setGameId, setUserRankiardPoints, addPRSpent, prSpentThisGame, resetPRSpent, clearSession } = useGameState();
+    const { selectedCard, setSelectedCard, gameId, playerName, gameState, setGameId, setUserRankiardPoints, addPRSpent, prSpentThisGame, resetPRSpent, clearSession } = useGameState();
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted, playAttackSound, playDeathSound, playCardPickup, playCardPlay, playTurnChange, playBonusActivated, playMyTurn, playDeckShuffle, playEffectActivate, playHostageApplied, playHostageReleased, playPersonaggioEnter, playCardReveal, playErrorSound, playPlayerEliminated, playSorosActivation, playFusionSound, playCardPlayedToField, playVictory, playDefeat, playButtonClick, playPanelOpen, playPanelClose, playModalOpen, playModalClose, playConfirm } = useAudio();
 
 
@@ -3325,6 +3327,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             >
               CPU
             </Button>
+            <Button
+              onClick={() => { playButtonClick(); setIs3DMode(!is3DMode); }}
+              className={`${is3DMode ? 'bg-cyan-500/90 border-cyan-400/30 shadow-cyan-500/25' : 'bg-white/10 border-white/10 shadow-none'} text-white font-bold text-[11px] landscape:text-sm md:text-sm px-3 landscape:px-4 md:px-4 py-1.5 landscape:py-2 md:py-2 rounded-xl shadow-lg border transition-all duration-200 hover:bg-cyan-500/70`}
+            >
+              3D
+            </Button>
           </div>
 
           {/* Right: User info + Menu */}
@@ -3430,11 +3438,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         {/* CPU Controls - centered modal panel */}
         {showCpuControls && <CPUControls onClose={() => setShowCpuControls(false)} />}
 
-        {/* Other Players' Hands */}
-        <OtherPlayersHands />
+        {is3DMode ? (
+          <GameBoard3D onCardClick={(card) => setSelectedCard(card)} />
+        ) : (
+          <>
+            {/* Other Players' Hands */}
+            <OtherPlayersHands />
 
-        {/* Round Table - replaces the old decks and game field */}
-        <RoundTable />
+            {/* Round Table - replaces the old decks and game field */}
+            <RoundTable />
+          </>
+        )}
 
         {/* Graveyard Modal */}
         {graveyardOpen && (
