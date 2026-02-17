@@ -446,13 +446,13 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
         }
         .card-3d-opponent {
           transform: perspective(600px) rotateX(8deg) scale(0.92);
-          filter: brightness(0.85) saturate(0.9);
+          filter: brightness(0.95) saturate(0.95);
           transition: transform 0.3s ease, filter 0.3s ease;
           position: relative;
         }
         .card-3d-opponent:hover {
           transform: perspective(600px) rotateX(2deg) scale(1.0) translateY(-4px) !important;
-          filter: brightness(1.05) saturate(1.0) !important;
+          filter: brightness(1.1) saturate(1.0) !important;
           z-index: 50 !important;
         }
         .card-3d-mine {
@@ -525,7 +525,7 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
 
         /* === DAMAGED CARD (low health <30%) === */
         .card-damaged {
-          filter: brightness(0.85) saturate(0.65) sepia(0.15) !important;
+          filter: brightness(0.92) saturate(0.8) sepia(0.08) !important;
         }
 
         /* === CARD TREMBLE (low health <20%) - applies to inner child, won't conflict === */
@@ -577,13 +577,14 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
         }
       `}</style>
 
-      {/* Ambient light overlay from background effect store */}
+      {/* Ambient light overlay from background effect store - behind cards */}
       <div
-        className="absolute inset-0 pointer-events-none z-[1]"
+        className="absolute inset-0 pointer-events-none"
         style={{
           background: bgColors.gradient,
-          opacity: 0.35,
+          opacity: 0.15,
           transition: 'background 1.5s ease, opacity 1.5s ease',
+          zIndex: 0,
         }}
       />
 
@@ -641,22 +642,26 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
         />
       ))}
 
-      {/* Edge fog/mist */}
-      <div className="absolute top-0 left-0 right-0 h-24 pointer-events-none z-[2]" style={{
-        background: 'linear-gradient(to bottom, rgba(10,5,25,0.7) 0%, transparent 100%)',
+      {/* Edge fog/mist - very subtle, behind interactive layer */}
+      <div className="absolute top-0 left-0 right-0 h-16 pointer-events-none" style={{
+        background: 'linear-gradient(to bottom, rgba(10,5,25,0.35) 0%, transparent 100%)',
         animation: 'fog-drift 8s ease-in-out infinite',
+        zIndex: 0,
       }} />
-      <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none z-[2]" style={{
-        background: 'linear-gradient(to top, rgba(10,5,25,0.7) 0%, transparent 100%)',
+      <div className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none" style={{
+        background: 'linear-gradient(to top, rgba(10,5,25,0.35) 0%, transparent 100%)',
         animation: 'fog-drift 10s ease-in-out 2s infinite',
+        zIndex: 0,
       }} />
-      <div className="absolute top-0 bottom-0 left-0 w-16 pointer-events-none z-[2]" style={{
-        background: 'linear-gradient(to right, rgba(10,5,25,0.6) 0%, transparent 100%)',
+      <div className="absolute top-0 bottom-0 left-0 w-12 pointer-events-none" style={{
+        background: 'linear-gradient(to right, rgba(10,5,25,0.25) 0%, transparent 100%)',
         animation: 'fog-drift 12s ease-in-out 1s infinite',
+        zIndex: 0,
       }} />
-      <div className="absolute top-0 bottom-0 right-0 w-16 pointer-events-none z-[2]" style={{
-        background: 'linear-gradient(to left, rgba(10,5,25,0.6) 0%, transparent 100%)',
+      <div className="absolute top-0 bottom-0 right-0 w-12 pointer-events-none" style={{
+        background: 'linear-gradient(to left, rgba(10,5,25,0.25) 0%, transparent 100%)',
         animation: 'fog-drift 11s ease-in-out 3s infinite',
+        zIndex: 0,
       }} />
 
       {/* ====== LAYER 1: 3D TABLE (visual only, no interaction) ====== */}
@@ -686,14 +691,14 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
               boxShadow: `${shadowX}px ${shadowY}px 60px rgba(0,0,0,0.8), 0 0 80px rgba(147,51,234,0.15), inset 0 1px 0 rgba(255,255,255,0.05)`,
             }}
           >
-            <div className="absolute inset-0 bg-black/30 rounded-3xl" />
+            <div className="absolute inset-0 bg-black/15 rounded-3xl" />
             {/* Directional light from top */}
             <div className="absolute inset-0 rounded-3xl" style={{
               background: 'radial-gradient(ellipse 70% 50% at 50% 20%, rgba(255,250,230,0.12) 0%, transparent 60%)',
             }} />
-            {/* Enhanced vignette */}
+            {/* Subtle vignette */}
             <div className="absolute inset-0 rounded-3xl" style={{
-              background: 'radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.6) 100%)',
+              background: 'radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.35) 100%)',
             }} />
             {/* Felt texture */}
             <div className="absolute inset-0 rounded-3xl" style={{
