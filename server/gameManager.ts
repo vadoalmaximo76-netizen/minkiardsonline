@@ -10897,7 +10897,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   }
 
   // FUSION SYSTEM FOR PERSONAGGI CARDS - UNLIMITED FUSION
-  async fuseCards(gameId: string, leaderCardId: string, targetCardId: string, playerName: string): Promise<{ success: boolean, message?: string }> {
+  async fuseCards(gameId: string, leaderCardId: string, targetCardId: string, playerName: string, fusionTypeOverride?: 'fusione' | 'unione_clandestina' | 'ameeco'): Promise<{ success: boolean, message?: string }> {
     try {
       const game = this.games.get(gameId);
       if (!game) return { success: false, message: 'Game not found' };
@@ -10924,6 +10924,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         console.log(`❌ Fusion rejected: Cards ${leaderCardId} and ${targetCardId} are already fused together`);
         return { success: false, message: 'Queste carte sono già fuse insieme!' };
       }
+
+      const targetOriginalOwner = targetCard.owner;
 
       // Transfer target card ownership to the player initiating fusion
       targetCard.owner = playerName;
@@ -10964,6 +10966,30 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         newOwner: playerName,
         totalCardsInFusion: allCardsInFusion.length
       }, playerName);
+
+      const leaderName = leaderCard.name || this.getCardNameFromUrl(leaderCard.frontImage || '');
+      const targetName = targetCard.name || this.getCardNameFromUrl(targetCard.frontImage || '');
+      const wasEnemyFusion = targetOriginalOwner !== playerName;
+      const fusionType = fusionTypeOverride || (wasEnemyFusion ? 'unione_clandestina' : 'fusione');
+
+      const totalPti = allCardsInFusion.reduce((sum, c) => sum + (c.pti || 0), 0);
+      const totalStars = allCardsInFusion.reduce((sum, c) => sum + (c.stars || 0), 0);
+
+      const ioRef = (global as any).io;
+      if (ioRef) {
+        ioRef.to(gameId).emit('fusion-animation', {
+          card1Name: leaderName,
+          card2Name: targetName,
+          card1Image: leaderCard.frontImage || '',
+          card2Image: targetCard.frontImage || '',
+          resultName: leaderName,
+          resultImage: leaderCard.frontImage || '',
+          playerName,
+          fusionType,
+          resultPti: totalPti,
+          resultStars: totalStars
+        });
+      }
 
       console.log(`Cards fused: ${leaderCardId} + ${targetCardId} by ${playerName} (total ${allCardsInFusion.length} cards in fusion)`);
       return { success: true };

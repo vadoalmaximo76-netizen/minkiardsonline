@@ -13,6 +13,7 @@ import { DiceModal } from "./DiceModal";
 import { FullScreenNotification } from "./FullScreenNotification";
 import { PersonaggioNotification } from "./PersonaggioNotification";
 import { EvolutionAnimation } from "./EvolutionAnimation";
+import { FusionAnimation } from "./FusionAnimation";
 import { CardAnimation } from "./CardAnimation";
 import { CustomAnimationOverlay } from "./CustomAnimationOverlay";
 import { AddCardsModal } from "./AddCardsModal";
@@ -195,6 +196,20 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     pti?: number;
     stars?: number;
   }>({ visible: false, key: 0, type: 'evolution', oldName: '', newName: '', oldImage: '', newImage: '', playerName: '' });
+  const [fusionAnim, setFusionAnim] = useState<{
+    visible: boolean;
+    key: number;
+    card1Name: string;
+    card2Name: string;
+    card1Image: string;
+    card2Image: string;
+    resultName: string;
+    resultImage: string;
+    playerName: string;
+    fusionType: 'fusione' | 'unione_clandestina' | 'ameeco';
+    resultPti?: number;
+    resultStars?: number;
+  }>({ visible: false, key: 0, card1Name: '', card2Name: '', card1Image: '', card2Image: '', resultName: '', resultImage: '', playerName: '', fusionType: 'fusione' });
   const [cardAnimationVisible, setCardAnimationVisible] = useState(false);
   const [cardAnimationName, setCardAnimationName] = useState<string>("");
   const [customAnimationVisible, setCustomAnimationVisible] = useState(false);
@@ -779,6 +794,29 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       });
     };
 
+    const handleFusionAnimation = (data: {
+      card1Name: string; card2Name: string; card1Image: string; card2Image: string;
+      resultName: string; resultImage: string; playerName: string;
+      fusionType: 'fusione' | 'unione_clandestina' | 'ameeco';
+      resultPti?: number; resultStars?: number;
+    }) => {
+      console.log(`🔗 Fusion animation: ${data.card1Name} + ${data.card2Name} → ${data.resultName} (${data.fusionType})`);
+      setFusionAnim({
+        visible: true,
+        key: Date.now(),
+        card1Name: data.card1Name,
+        card2Name: data.card2Name,
+        card1Image: data.card1Image,
+        card2Image: data.card2Image,
+        resultName: data.resultName,
+        resultImage: data.resultImage,
+        playerName: data.playerName,
+        fusionType: data.fusionType,
+        resultPti: data.resultPti,
+        resultStars: data.resultStars
+      });
+    };
+
     const handleCardPlayed = ({ cardId, cardType, frontImage, cardName, playerName: cardPlayerName }: { 
       cardId: string, 
       cardType: string, 
@@ -915,6 +953,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('custom-animation-trigger', handleCustomAnimationTrigger);
     socket.on('special-move-overlay', handleSpecialMoveOverlay);
     socket.on('evolution-animation', handleEvolutionAnimation);
+    socket.on('fusion-animation', handleFusionAnimation);
     socket.on('card-played', handleCardPlayed);
     socket.on('card-played-face-down', handleCardPlayedFaceDown);
     socket.on('card-revealed', handleCardRevealed);
@@ -1788,6 +1827,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('character-sound', handleCharacterSound);
       socket.off('special-move-overlay', handleSpecialMoveOverlay);
       socket.off('evolution-animation', handleEvolutionAnimation);
+      socket.off('fusion-animation', handleFusionAnimation);
       socket.off('card-played', handleCardPlayed);
       socket.off('card-played-face-down', handleCardPlayedFaceDown);
       socket.off('card-revealed', handleCardRevealed);
@@ -3763,6 +3803,23 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           pti={evolutionAnim.pti}
           stars={evolutionAnim.stars}
           onComplete={() => setEvolutionAnim(prev => ({ ...prev, visible: false }))}
+        />
+
+        {/* Fusion Animation */}
+        <FusionAnimation
+          key={fusionAnim.key}
+          isVisible={fusionAnim.visible}
+          card1Name={fusionAnim.card1Name}
+          card2Name={fusionAnim.card2Name}
+          card1Image={fusionAnim.card1Image}
+          card2Image={fusionAnim.card2Image}
+          resultName={fusionAnim.resultName}
+          resultImage={fusionAnim.resultImage}
+          playerName={fusionAnim.playerName}
+          fusionType={fusionAnim.fusionType}
+          resultPti={fusionAnim.resultPti}
+          resultStars={fusionAnim.resultStars}
+          onComplete={() => setFusionAnim(prev => ({ ...prev, visible: false }))}
         />
 
         {/* PERSONAGGI Enter Notification */}
