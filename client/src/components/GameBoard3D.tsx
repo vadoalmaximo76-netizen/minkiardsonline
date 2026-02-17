@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Card } from "./Card";
 import { Deck } from "./Deck";
 import { useGameState } from "../lib/stores/useGameState";
@@ -20,14 +20,26 @@ const hasCustomEffect = (card: any): boolean => {
   return effect.trim().length > 5;
 };
 
-const PARTICLES = Array.from({ length: 12 }, (_, i) => ({
+const AMBIENT_PARTICLES = Array.from({ length: 15 }, (_, i) => ({
   size: 2 + (i * 7 % 5),
   left: (i * 8.3) % 100,
   top: (i * 13.7) % 100,
   color: ['#fbbf24', '#a855f7', '#3b82f6', '#22c55e'][i % 4],
-  duration: 8 + (i % 4) * 3,
+  duration: 10 + (i % 4) * 4,
   delay: (i % 5) * 2,
 }));
+
+interface ContextParticle {
+  id: string;
+  x: number;
+  y: number;
+  type: 'spark' | 'smoke' | 'glow';
+  color: string;
+  size: number;
+  duration: number;
+  sparkDx: number;
+  sparkDy: number;
+}
 
 interface GameBoard3DProps {
   onCardClick?: (card: any) => void;
@@ -45,6 +57,121 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
   const myHand = players[playerName]?.hand || [];
 
   const turnOrder = gameState?.turnOrder || [];
+
+  // === INTERACTIVE TABLE ROTATION ===
+  const [tableRotation, setTableRotation] = useState({ x: 32, y: 0 });
+  const isDragging = useRef(false);
+  const lastTouch = useRef({ x: 0, y: 0 });
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest('.deck-tap-area, .card-3d-opponent, .card-3d-mine, .card-interactive, button')) return;
+    isDragging.current = true;
+    lastTouch.current = { x: e.clientX, y: e.clientY };
+  }, []);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!isDragging.current) return;
+    const dx = e.clientX - lastTouch.current.x;
+    const dy = e.clientY - lastTouch.current.y;
+    lastTouch.current = { x: e.clientX, y: e.clientY };
+    setTableRotation(prev => ({
+      x: Math.max(15, Math.min(55, prev.x - dy * 0.3)),
+      y: Math.max(-25, Math.min(25, prev.y + dx * 0.3)),
+    }));
+  }, []);
+
+  const handlePointerUp = useCallback(() => {
+    isDragging.current = false;
+  }, []);
+
+  // === CONTEXTUAL PARTICLES ===
+  const [contextParticles, setContextParticles] = useState<ContextParticle[]>([]);
+  const prevFieldCardIds = useRef<string[]>([]);
+  const prevFieldCount = useRef(0);
+
+  useEffect(() => {
+    const currentIds = fieldCards.map((c: any) => c.id);
+    const prevIds = prevFieldCardIds.current;
+
+    const newCards = currentIds.filter((id: string) => !prevIds.includes(id));
+    const removedCards = prevIds.filter((id: string) => !currentIds.includes(id));
+
+    if (newCards.length > 0 && prevIds.length > 0) {
+      const particles: ContextParticle[] = [];
+      for (let i = 0; i < 8; i++) {
+        particles.push({
+          id: `glow-${Date.now()}-${i}`,
+          x: 40 + Math.random() * 20,
+          y: 40 + Math.random() * 20,
+          type: 'glow',
+          color: ['#fbbf24', '#a855f7', '#3b82f6', '#22c55e'][i % 4],
+          size: 4 + Math.random() * 6,
+          duration: 1 + Math.random() * 0.5,
+          sparkDx: 0,
+          sparkDy: 0,
+        });
+      }
+      setContextParticles(prev => [...prev, ...particles]);
+      setTimeout(() => {
+        setContextParticles(prev => prev.filter(p => !particles.find(np => np.id === p.id)));
+      }, 2000);
+    }
+
+    if (removedCards.length > 0 && prevIds.length > 0) {
+      const particles: ContextParticle[] = [];
+      for (let i = 0; i < 12; i++) {
+        particles.push({
+          id: `smoke-${Date.now()}-${i}`,
+          x: 30 + Math.random() * 40,
+          y: 30 + Math.random() * 40,
+          type: 'smoke',
+          color: `rgba(${100 + Math.random() * 100}, ${80 + Math.random() * 60}, ${60 + Math.random() * 40}, 0.6)`,
+          size: 8 + Math.random() * 12,
+          duration: 1.5 + Math.random() * 1,
+          sparkDx: 0,
+          sparkDy: 0,
+        });
+      }
+      setContextParticles(prev => [...prev, ...particles]);
+      setTimeout(() => {
+        setContextParticles(prev => prev.filter(p => !particles.find(np => np.id === p.id)));
+      }, 3000);
+    }
+
+    prevFieldCardIds.current = currentIds;
+    prevFieldCount.current = fieldCards.length;
+  }, [fieldCards]);
+
+  // === ATTACK PARTICLES (listen for attack events) ===
+  useEffect(() => {
+    const handleAttack = () => {
+      const particles: ContextParticle[] = [];
+      for (let i = 0; i < 15; i++) {
+        particles.push({
+          id: `spark-${Date.now()}-${i}`,
+          x: 35 + Math.random() * 30,
+          y: 25 + Math.random() * 50,
+          type: 'spark',
+          color: ['#ff4444', '#ff8800', '#ffcc00', '#ff6622'][i % 4],
+          size: 3 + Math.random() * 5,
+          duration: 0.6 + Math.random() * 0.8,
+          sparkDx: (Math.random() - 0.5) * 80,
+          sparkDy: (Math.random() - 0.5) * 80,
+        });
+      }
+      setContextParticles(prev => [...prev, ...particles]);
+      setTimeout(() => {
+        setContextParticles(prev => prev.filter(p => !particles.find(np => np.id === p.id)));
+      }, 2000);
+    };
+
+    socket.on('attack-result', handleAttack);
+    socket.on('recursive-damage-result', handleAttack);
+    return () => {
+      socket.off('attack-result', handleAttack);
+      socket.off('recursive-damage-result', handleAttack);
+    };
+  }, []);
 
   const getOrderedPlayers = () => {
     let orderedList: string[];
@@ -93,28 +220,92 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
   const myCards = cardsByPlayer[playerName] || [];
 
   return (
-    <div className="fixed inset-0 z-[15] overflow-hidden" style={{ background: '#050a12' }}>
+    <div
+      className="fixed inset-0 z-[15] overflow-hidden select-none"
+      style={{ background: '#050a12' }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerUp}
+    >
       <style>{`
         @keyframes float-particle-3d {
-          0%, 100% { transform: translateY(0); opacity: 0.2; }
-          50% { transform: translateY(-30px); opacity: 0.5; }
+          0%, 100% { transform: translateY(0); opacity: 0.15; }
+          50% { transform: translateY(-25px); opacity: 0.4; }
         }
-        .card-3d-hover:hover {
-          transform: translateY(-6px) scale(1.03) !important;
-          z-index: 50 !important;
-          filter: brightness(1.15);
+        @keyframes card-enter-3d {
+          0% { opacity: 0; transform: scale(0.3) translateY(40px) rotateY(180deg); }
+          50% { opacity: 0.7; transform: scale(1.15) translateY(-10px) rotateY(10deg); }
+          100% { opacity: 1; transform: scale(1) translateY(0) rotateY(0deg); }
         }
-        .card-3d-hover {
+        @keyframes spark-burst {
+          0% { opacity: 1; transform: scale(1) translate(0, 0); }
+          100% { opacity: 0; transform: scale(0.2) translate(var(--spark-dx), var(--spark-dy)); }
+        }
+        @keyframes smoke-rise {
+          0% { opacity: 0.6; transform: scale(1) translateY(0); filter: blur(2px); }
+          100% { opacity: 0; transform: scale(2.5) translateY(-40px); filter: blur(8px); }
+        }
+        @keyframes glow-appear {
+          0% { opacity: 0; transform: scale(0.5); }
+          40% { opacity: 0.9; transform: scale(1.3); }
+          100% { opacity: 0; transform: scale(2); }
+        }
+        .card-3d-opponent {
+          transform: perspective(600px) rotateX(8deg) scale(0.92);
+          filter: brightness(0.85) saturate(0.9);
           transition: transform 0.3s ease, filter 0.3s ease;
+        }
+        .card-3d-opponent:hover {
+          transform: perspective(600px) rotateX(2deg) scale(1.0) translateY(-4px) !important;
+          filter: brightness(1.05) saturate(1.0) !important;
+          z-index: 50 !important;
+        }
+        .card-3d-mine {
+          transform: perspective(800px) rotateX(-3deg) scale(1.0);
+          filter: brightness(1.05);
+          transition: transform 0.3s ease, filter 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card-3d-mine:hover {
+          transform: perspective(800px) rotateX(-1deg) scale(1.08) translateY(-8px) !important;
+          filter: brightness(1.2) !important;
+          z-index: 50 !important;
+        }
+        .card-shadow-float {
+          box-shadow: 0 8px 20px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.3);
+        }
+        .card-shadow-float-mine {
+          box-shadow: 0 12px 30px rgba(0,0,0,0.6), 0 4px 10px rgba(0,0,0,0.4), 0 0 20px rgba(147,51,234,0.15);
+        }
+        .card-enter-anim {
+          animation: card-enter-3d 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
         .deck-tap-area {
           touch-action: manipulation;
           -webkit-tap-highlight-color: transparent;
           cursor: pointer;
         }
+        .zone-depth {
+          backdrop-filter: blur(4px);
+          border: 1px solid rgba(255,255,255,0.06);
+          transition: box-shadow 0.4s ease;
+        }
+        .zone-top {
+          background: linear-gradient(180deg, rgba(0,30,60,0.4) 0%, rgba(0,20,40,0.2) 100%);
+          box-shadow: 0 4px 20px rgba(0,0,0,0.3), inset 0 -1px 0 rgba(59,130,246,0.15);
+        }
+        .zone-middle {
+          background: linear-gradient(180deg, rgba(10,10,30,0.25) 0%, rgba(5,5,20,0.35) 100%);
+          box-shadow: 0 6px 25px rgba(0,0,0,0.35), inset 0 1px 0 rgba(251,191,36,0.1), inset 0 -1px 0 rgba(251,191,36,0.1);
+        }
+        .zone-bottom {
+          background: linear-gradient(0deg, rgba(60,0,80,0.3) 0%, rgba(30,0,50,0.15) 100%);
+          box-shadow: 0 -4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(147,51,234,0.2), 0 0 30px rgba(147,51,234,0.08);
+        }
       `}</style>
 
-      {PARTICLES.map((p, i) => (
+      {/* Ambient particles */}
+      {AMBIENT_PARTICLES.map((p, i) => (
         <div
           key={`p3d-${i}`}
           className="absolute rounded-full pointer-events-none"
@@ -125,8 +316,27 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
             top: `${p.top}%`,
             background: p.color,
             animation: `float-particle-3d ${p.duration}s ease-in-out ${p.delay}s infinite`,
-            opacity: 0.2,
+            opacity: 0.15,
           }}
+        />
+      ))}
+
+      {/* Contextual particles */}
+      {contextParticles.map((p) => (
+        <div
+          key={p.id}
+          className="absolute rounded-full pointer-events-none"
+          style={{
+            width: `${p.size}px`,
+            height: `${p.size}px`,
+            left: `${p.x}%`,
+            top: `${p.y}%`,
+            background: p.color,
+            animation: `${p.type === 'spark' ? 'spark-burst' : p.type === 'smoke' ? 'smoke-rise' : 'glow-appear'} ${p.duration}s ease-out forwards`,
+            '--spark-dx': `${p.sparkDx}px`,
+            '--spark-dy': `${p.sparkDy}px`,
+            zIndex: 30,
+          } as React.CSSProperties}
         />
       ))}
 
@@ -143,7 +353,8 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
           style={{
             width: 'min(95vw, 950px)',
             height: 'min(82vh, 720px)',
-            transform: 'rotateX(32deg)',
+            transform: `rotateX(${tableRotation.x}deg) rotateY(${tableRotation.y}deg)`,
+            transition: isDragging.current ? 'none' : 'transform 0.5s ease-out',
           }}
         >
           {/* Table surface */}
@@ -156,9 +367,18 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
               boxShadow: '0 30px 60px rgba(0,0,0,0.8), 0 0 80px rgba(147,51,234,0.15), inset 0 1px 0 rgba(255,255,255,0.05)',
             }}
           >
-            <div className="absolute inset-0 bg-black/35 rounded-3xl" />
+            <div className="absolute inset-0 bg-black/30 rounded-3xl" />
+            {/* Directional light from top */}
             <div className="absolute inset-0 rounded-3xl" style={{
-              background: 'repeating-linear-gradient(45deg, transparent, transparent 40px, rgba(255,255,255,0.008) 40px, rgba(255,255,255,0.008) 80px)',
+              background: 'radial-gradient(ellipse 70% 50% at 50% 20%, rgba(255,250,230,0.12) 0%, transparent 60%)',
+            }} />
+            {/* Subtle vignette */}
+            <div className="absolute inset-0 rounded-3xl" style={{
+              background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.4) 100%)',
+            }} />
+            {/* Felt texture */}
+            <div className="absolute inset-0 rounded-3xl" style={{
+              background: 'repeating-linear-gradient(45deg, transparent, transparent 40px, rgba(255,255,255,0.006) 40px, rgba(255,255,255,0.006) 80px)',
             }} />
           </div>
 
@@ -177,15 +397,16 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
             boxShadow: '0 0 40px rgba(147,51,234,0.2)',
           }} />
 
-          {/* Decorative circles */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" style={{
-            width: '35%', height: '35%',
-            border: '1px solid rgba(251,191,36,0.08)',
+          {/* Decorative circles with light reflection */}
+          <div className="absolute left-1/2 top-[40%] -translate-x-1/2 -translate-y-1/2" style={{
+            width: '30%', height: '30%',
+            border: '1px solid rgba(251,191,36,0.1)',
             borderRadius: '50%',
+            boxShadow: '0 0 20px rgba(251,191,36,0.03)',
           }} />
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" style={{
-            width: '55%', height: '55%',
-            border: '1px solid rgba(147,51,234,0.06)',
+          <div className="absolute left-1/2 top-[40%] -translate-x-1/2 -translate-y-1/2" style={{
+            width: '50%', height: '50%',
+            border: '1px solid rgba(147,51,234,0.07)',
             borderRadius: '50%',
           }} />
 
@@ -199,11 +420,11 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
         </div>
       </div>
 
-      {/* ====== LAYER 2: INTERACTIVE CONTENT (2D overlay, no 3D transform) ====== */}
+      {/* ====== LAYER 2: INTERACTIVE CONTENT (2D overlay) ====== */}
       <div className="absolute inset-0 flex flex-col" style={{ paddingTop: '50px', paddingBottom: '50px' }}>
 
-        {/* === TOP ZONE: Opponent cards === */}
-        <div className="flex-shrink-0 flex flex-wrap justify-center gap-3 sm:gap-4 px-2 py-1 mt-1">
+        {/* === TOP ZONE: Opponent cards with perspective tilt === */}
+        <div className="flex-shrink-0 flex flex-wrap justify-center gap-2 sm:gap-3 px-2 py-1 mt-1 mx-2 sm:mx-4 rounded-xl zone-depth zone-top">
           {otherPlayers.map((opName) => {
             const opCards = cardsByPlayer[opName] || [];
             return (
@@ -216,13 +437,13 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
                   {opCards.length > 0 ? opCards.map((card) => {
                     const attached = attachedCardsMap[card.id] || [];
                     return (
-                      <div key={card.id} className="card-3d-hover flex items-center gap-0.5">
-                        <div className="scale-[0.5] sm:scale-[0.55] md:scale-[0.65] origin-top">
+                      <div key={card.id} className="card-3d-opponent card-interactive card-enter-anim flex items-center gap-0.5">
+                        <div className="scale-[0.48] sm:scale-[0.53] md:scale-[0.6] origin-top card-shadow-float rounded-lg">
                           <Card card={card} location="field" />
                         </div>
                         {attached.map((p) => (
-                          <div key={p.id} className="scale-[0.45] origin-top">
-                            <div className="border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/50">
+                          <div key={p.id} className="scale-[0.42] origin-top">
+                            <div className="border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/50 card-shadow-float">
                               <Card card={p} location="field" />
                             </div>
                           </div>
@@ -238,13 +459,9 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
           })}
         </div>
 
-        {/* === MIDDLE ZONE: Decks === */}
+        {/* === MIDDLE ZONE: Decks with spotlight effect === */}
         <div className="flex-1 flex items-center justify-center min-h-0 px-2">
-          <div className="deck-tap-area flex gap-2 sm:gap-3 items-start justify-center p-2 sm:p-3 rounded-xl" style={{
-            background: 'rgba(0,0,0,0.3)',
-            backdropFilter: 'blur(6px)',
-            border: '1px solid rgba(255,255,255,0.08)',
-          }}>
+          <div className="deck-tap-area flex gap-2 sm:gap-3 items-start justify-center p-3 sm:p-4 rounded-2xl zone-depth zone-middle">
             <div className="deck-tap-area scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-center">
               <Deck name="PERSONAGGI" backImage="https://i.imgur.com/r1rfUAB.png" type="personaggi" />
             </div>
@@ -260,13 +477,13 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
           </div>
         </div>
 
-        {/* === BOTTOM ZONE: My cards === */}
-        <div className="flex-shrink-0 flex flex-col items-center gap-1 px-2 py-1 mb-1">
-          <div className="flex gap-1 items-end justify-center flex-wrap max-w-full">
+        {/* === BOTTOM ZONE: My cards with forward perspective === */}
+        <div className="flex-shrink-0 flex flex-col items-center gap-1 px-2 py-1.5 mb-1 mx-2 sm:mx-4 rounded-xl zone-depth zone-bottom">
+          <div className="flex gap-1.5 items-end justify-center flex-wrap max-w-full">
             {myCards.length > 0 ? myCards.map((card, i) => {
               const attached = attachedCardsMap[card.id] || [];
               return (
-                <div key={card.id} className="card-3d-hover flex flex-col items-center">
+                <div key={card.id} className="card-3d-mine card-interactive card-enter-anim flex flex-col items-center">
                   <div className="flex items-center gap-0.5">
                     <Button
                       onClick={() => handleMoveCard(card.id, 'left')}
@@ -276,12 +493,12 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
                     >
                       <ChevronLeft size={10} />
                     </Button>
-                    <div className="scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-bottom">
+                    <div className="scale-[0.58] sm:scale-[0.68] md:scale-[0.78] origin-bottom card-shadow-float-mine rounded-lg">
                       <Card card={card} location="field" />
                     </div>
                     {attached.map((p) => (
-                      <div key={p.id} className="scale-[0.45] origin-bottom">
-                        <div className="border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/50">
+                      <div key={p.id} className="scale-[0.48] origin-bottom">
+                        <div className="border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/50 card-shadow-float">
                           <Card card={p} location="field" />
                         </div>
                       </div>
