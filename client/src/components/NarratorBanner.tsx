@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
+import useNarrator from "../lib/stores/useNarrator";
 
-function speakText(text: string) {
+function speakText(text: string, preferredVoiceName: string) {
   try {
     if (!('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
@@ -10,8 +11,13 @@ function speakText(text: string) {
     utterance.pitch = 1.0;
     utterance.volume = 0.8;
     const voices = window.speechSynthesis.getVoices();
-    const italianVoice = voices.find(v => v.lang.startsWith('it'));
-    if (italianVoice) utterance.voice = italianVoice;
+    if (preferredVoiceName) {
+      const preferred = voices.find(v => v.name === preferredVoiceName);
+      if (preferred) utterance.voice = preferred;
+    } else {
+      const italianVoice = voices.find(v => v.lang.startsWith('it'));
+      if (italianVoice) utterance.voice = italianVoice;
+    }
     window.speechSynthesis.speak(utterance);
   } catch (e) {}
 }
@@ -35,6 +41,7 @@ export const NarratorBanner: React.FC<NarratorBannerProps> = ({
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const charIndexRef = useRef(0);
   const lastSpokenRef = useRef("");
+  const selectedVoiceName = useNarrator(s => s.selectedVoiceName);
 
   const cleanup = useCallback(() => {
     if (intervalRef.current) {
@@ -57,7 +64,7 @@ export const NarratorBanner: React.FC<NarratorBannerProps> = ({
 
       if (message !== lastSpokenRef.current) {
         lastSpokenRef.current = message;
-        speakText(message);
+        speakText(message, selectedVoiceName);
       }
 
       requestAnimationFrame(() => {
@@ -99,7 +106,7 @@ export const NarratorBanner: React.FC<NarratorBannerProps> = ({
     }
 
     return cleanup;
-  }, [visible, message]);
+  }, [visible, message, selectedVoiceName]);
 
   const handleDismiss = useCallback(() => {
     cleanup();

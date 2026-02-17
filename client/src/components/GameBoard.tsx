@@ -55,6 +55,7 @@ import { CollectionPanel } from "./CollectionPanel";
 import { TableThemeSelector } from "./TableThemeSelector";
 import useTableTheme from "../lib/stores/useTableTheme";
 import { NarratorBanner } from "./NarratorBanner";
+import { NarratorVoiceSelector } from "./NarratorVoiceSelector";
 import useNarrator from "../lib/stores/useNarrator";
 import { EmojiReactions } from "./EmojiReactions";
 import { JoinRequestDialog } from "./JoinRequestDialog";
@@ -94,6 +95,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [soundSettingsOpen, setSoundSettingsOpen] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [musicPlayerOpen, setMusicPlayerOpen] = useState(false);
+  const [voiceSelectorOpen, setVoiceSelectorOpen] = useState(false);
   const [graveyardOpen, setGraveyardOpen] = useState(false);
   const [missionsOpen, setMissionsOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
@@ -1952,6 +1954,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         visible={narratorVisible}
         onDismiss={dismissNarrator}
       />
+      <NarratorVoiceSelector
+        visible={voiceSelectorOpen}
+        onClose={() => setVoiceSelectorOpen(false)}
+      />
       
       {/* Join Request Dialog for room creator */}
       <JoinRequestDialog
@@ -3518,6 +3524,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                         <MessageCircle size={16} className={narratorEnabled ? "text-amber-400 flex-shrink-0" : "text-gray-500 flex-shrink-0"} />
                         {narratorEnabled ? 'Narratore ON' : 'Narratore OFF'}
                       </button>
+                      {narratorEnabled && (
+                        <button onClick={() => { setVoiceSelectorOpen(true); setHeaderMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors">
+                          <Volume2 size={16} className="text-amber-400/70 flex-shrink-0" />
+                          Voce Narratore
+                        </button>
+                      )}
                     </div>
                   </div>
                 </>
