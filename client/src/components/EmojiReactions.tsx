@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Volume2 } from 'lucide-react';
 import { socket } from '../lib/socket';
 
@@ -15,9 +15,7 @@ interface EmojiReactionsProps {
   playerName: string;
 }
 
-const QUICK_EMOJIS = ['👍', '👎', '😂', '😮', '😢', '🔥', '💪', '🎉', '😤', '🤔', '❤️', '⚡'];
-
-const SOUND_REACTIONS = [
+export const SOUND_REACTIONS = [
   { id: 'applause', emoji: '👏', label: 'Applauso', frequency: [400, 800], type: 'noise' as const },
   { id: 'horn', emoji: '📯', label: 'Tromba', frequency: [523, 659, 784], type: 'horn' as const },
   { id: 'drumroll', emoji: '🥁', label: 'Rullo', frequency: [150, 200], type: 'drum' as const },
@@ -34,7 +32,7 @@ function getAudioContext() {
   return audioCtx;
 }
 
-function playSoundEffect(effectId: string) {
+export function playSoundEffect(effectId: string) {
   const effect = SOUND_REACTIONS.find(s => s.id === effectId);
   if (!effect) return;
 
@@ -173,8 +171,6 @@ function playSoundEffect(effectId: string) {
 
 export function EmojiReactions({ gameId, playerName }: EmojiReactionsProps) {
   const [floatingEmojis, setFloatingEmojis] = useState<EmojiReaction[]>([]);
-  const [soundPanelOpen, setSoundPanelOpen] = useState(false);
-  const lastSoundTime = useRef(0);
 
   useEffect(() => {
     const handleEmojiReaction = (data: { emoji: string; playerName: string; id: string; soundEffect?: string }) => {
@@ -201,59 +197,12 @@ export function EmojiReactions({ gameId, playerName }: EmojiReactionsProps) {
     };
   }, []);
 
-  const sendSoundReaction = useCallback((soundId: string, emoji: string) => {
-    const now = Date.now();
-    if (now - lastSoundTime.current < 2000) return;
-    lastSoundTime.current = now;
-    
-    const reactionId = `${playerName}-sound-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    socket.emit('send-emoji-reaction', {
-      gameId,
-      emoji,
-      playerName,
-      id: reactionId,
-      soundEffect: soundId
-    });
-    setSoundPanelOpen(false);
-  }, [gameId, playerName]);
-
   return (
-    <>
-      <div className="fixed inset-0 pointer-events-none z-50">
-        {floatingEmojis.map((reaction) => (
-          <FloatingEmoji key={reaction.id} emoji={reaction.emoji} playerName={reaction.playerName} hasSoundEffect={!!reaction.soundEffect} />
-        ))}
-      </div>
-
-      <div className="fixed bottom-20 right-4 z-40 pointer-events-auto">
-        <button
-          onClick={() => setSoundPanelOpen(!soundPanelOpen)}
-          className="p-2.5 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 hover:bg-white/10 transition-all duration-200 text-amber-400 hover:text-amber-300 hover:scale-105"
-          title="Reazioni Sonore"
-        >
-          <Volume2 size={18} />
-        </button>
-
-        {soundPanelOpen && (
-          <div className="absolute bottom-12 right-0 p-3 rounded-2xl bg-black/70 backdrop-blur-xl border border-white/15 shadow-2xl min-w-[200px]">
-            <div className="text-xs text-white/50 uppercase tracking-wider mb-2 px-1">Reazioni Sonore</div>
-            <div className="grid grid-cols-4 gap-1.5">
-              {SOUND_REACTIONS.map(sound => (
-                <button
-                  key={sound.id}
-                  onClick={() => sendSoundReaction(sound.id, sound.emoji)}
-                  className="flex flex-col items-center gap-0.5 p-2 rounded-xl hover:bg-white/10 transition-all duration-150 group"
-                  title={sound.label}
-                >
-                  <span className="text-2xl group-hover:scale-125 transition-transform duration-150">{sound.emoji}</span>
-                  <span className="text-[9px] text-white/40 group-hover:text-white/70">{sound.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </>
+    <div className="fixed inset-0 pointer-events-none z-50">
+      {floatingEmojis.map((reaction) => (
+        <FloatingEmoji key={reaction.id} emoji={reaction.emoji} playerName={reaction.playerName} hasSoundEffect={!!reaction.soundEffect} />
+      ))}
+    </div>
   );
 }
 

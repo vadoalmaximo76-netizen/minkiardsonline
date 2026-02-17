@@ -3,7 +3,8 @@ import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { socket } from "../lib/socket";
-import { X, Send, Smile } from "lucide-react";
+import { X, Send, Smile, Volume2 } from "lucide-react";
+import { SOUND_REACTIONS } from "./EmojiReactions";
 
 const QUICK_EMOJIS = ['👍', '👎', '😂', '😮', '😢', '🔥', '💪', '🎉', '😤', '🤔', '❤️', '⚡'];
 
@@ -22,7 +23,9 @@ export const Chat: React.FC<ChatProps> = ({ onClose }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showSoundPicker, setShowSoundPicker] = useState(false);
   const [emojiCooldown, setEmojiCooldown] = useState(false);
+  const [soundCooldown, setSoundCooldown] = useState(false);
   const { playerName, gameId } = useGameState();
   const { playButtonClick } = useAudio();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -39,7 +42,24 @@ export const Chat: React.FC<ChatProps> = ({ onClose }) => {
     setShowEmojiPicker(false);
   };
 
-  // Load persisted messages when chat opens
+  const sendSoundReaction = (soundId: string, emoji: string) => {
+    if (soundCooldown || !gameId) return;
+
+    const reactionId = `${playerName}-sound-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    socket.emit('send-emoji-reaction', {
+      gameId,
+      emoji,
+      playerName,
+      id: reactionId,
+      soundEffect: soundId
+    });
+
+    setSoundCooldown(true);
+    setTimeout(() => setSoundCooldown(false), 2000);
+
+    setShowSoundPicker(false);
+  };
+
   useEffect(() => {
     const loadPersistedMessages = () => {
       if (gameId) {
@@ -58,7 +78,6 @@ export const Chat: React.FC<ChatProps> = ({ onClose }) => {
     loadPersistedMessages();
   }, [gameId]);
 
-  // Persist messages to localStorage whenever they change
   useEffect(() => {
     if (gameId && messages.length > 0) {
       localStorage.setItem(`chat_messages_${gameId}`, JSON.stringify(messages));
@@ -69,7 +88,6 @@ export const Chat: React.FC<ChatProps> = ({ onClose }) => {
     const handleChatMessage = (message: ChatMessage) => {
       setMessages(prev => {
         const newMessages = [...prev, message];
-        // Persist immediately when new message arrives
         if (gameId) {
           localStorage.setItem(`chat_messages_${gameId}`, JSON.stringify(newMessages));
         }
@@ -152,10 +170,33 @@ export const Chat: React.FC<ChatProps> = ({ onClose }) => {
             </div>
           </div>
         )}
+
+        {/* Sound Reaction Picker */}
+        {showSoundPicker && (
+          <div className="absolute bottom-16 left-3 right-3 bg-slate-800/95 backdrop-blur-sm rounded-xl p-3 shadow-2xl border border-amber-500/30 animate-in fade-in slide-in-from-bottom-2 duration-200">
+            <div className="text-xs text-amber-400/70 uppercase tracking-wider mb-2 px-1">Reazioni Sonore</div>
+            <div className="grid grid-cols-4 gap-2">
+              {SOUND_REACTIONS.map((sound) => (
+                <button
+                  key={sound.id}
+                  onClick={() => sendSoundReaction(sound.id, sound.emoji)}
+                  disabled={soundCooldown}
+                  className={`flex flex-col items-center gap-0.5 p-2 rounded-xl transition-all duration-150 group ${
+                    soundCooldown ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10 hover:scale-105'
+                  }`}
+                  title={sound.label}
+                >
+                  <span className="text-2xl group-hover:scale-125 transition-transform duration-150">{sound.emoji}</span>
+                  <span className="text-[9px] text-white/40 group-hover:text-white/70">{sound.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         
         <div className="flex gap-2">
           <button
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowSoundPicker(false); }}
             className={`p-2 rounded-lg transition-all ${
               showEmojiPicker 
                 ? 'bg-purple-500 text-white' 
@@ -163,6 +204,17 @@ export const Chat: React.FC<ChatProps> = ({ onClose }) => {
             }`}
           >
             <Smile size={20} />
+          </button>
+          <button
+            onClick={() => { setShowSoundPicker(!showSoundPicker); setShowEmojiPicker(false); }}
+            className={`p-2 rounded-lg transition-all ${
+              showSoundPicker
+                ? 'bg-amber-500 text-white'
+                : 'bg-gray-700 text-amber-400/70 hover:text-amber-300 hover:bg-gray-600'
+            }`}
+            title="Reazioni Sonore"
+          >
+            <Volume2 size={20} />
           </button>
           <input
             type="text"

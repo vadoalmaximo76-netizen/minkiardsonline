@@ -1,5 +1,21 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 
+function speakText(text: string) {
+  try {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'it-IT';
+    utterance.rate = 1.05;
+    utterance.pitch = 1.0;
+    utterance.volume = 0.8;
+    const voices = window.speechSynthesis.getVoices();
+    const italianVoice = voices.find(v => v.lang.startsWith('it'));
+    if (italianVoice) utterance.voice = italianVoice;
+    window.speechSynthesis.speak(utterance);
+  } catch (e) {}
+}
+
 interface NarratorBannerProps {
   message: string;
   visible: boolean;
@@ -18,6 +34,7 @@ export const NarratorBanner: React.FC<NarratorBannerProps> = ({
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const charIndexRef = useRef(0);
+  const lastSpokenRef = useRef("");
 
   const cleanup = useCallback(() => {
     if (intervalRef.current) {
@@ -38,6 +55,11 @@ export const NarratorBanner: React.FC<NarratorBannerProps> = ({
       setShouldRender(true);
       setIsAnimatingOut(false);
 
+      if (message !== lastSpokenRef.current) {
+        lastSpokenRef.current = message;
+        speakText(message);
+      }
+
       requestAnimationFrame(() => {
         setIsAnimatingIn(true);
       });
@@ -55,7 +77,7 @@ export const NarratorBanner: React.FC<NarratorBannerProps> = ({
 
           dismissTimerRef.current = setTimeout(() => {
             onDismiss();
-          }, 3000);
+          }, 5000);
         } else {
           setDisplayedText(message.slice(0, currentIndex));
         }
@@ -66,6 +88,7 @@ export const NarratorBanner: React.FC<NarratorBannerProps> = ({
       cleanup();
       setIsAnimatingIn(false);
       setIsAnimatingOut(true);
+      try { window.speechSynthesis.cancel(); } catch (e) {}
 
       dismissTimerRef.current = setTimeout(() => {
         setShouldRender(false);
@@ -100,7 +123,7 @@ export const NarratorBanner: React.FC<NarratorBannerProps> = ({
           <span className="text-2xl flex-shrink-0 mt-0.5">🪶</span>
           <div className="flex-1 min-w-0">
             <p className="text-yellow-400/90 text-xs font-semibold tracking-wide mb-1">
-              🎙️ Narratore
+              🎙️ Narratore 🔊
             </p>
             <p className="text-white text-sm leading-relaxed">
               {displayedText}
