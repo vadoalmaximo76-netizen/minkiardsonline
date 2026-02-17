@@ -408,13 +408,14 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
   }, [gameId, playerName, playButtonClick]);
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, zIndex: 5 }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 15, background: '#0a0a1a' }}>
       <Canvas
         shadows
         camera={{ position: [0, 7, 7], fov: 50 }}
-        style={{ background: 'transparent' }}
-        gl={{ antialias: true, alpha: true }}
+        style={{ width: '100%', height: '100%' }}
+        gl={{ antialias: true }}
       >
+        <color attach="background" args={['#0a0a1a']} />
         <CameraController />
 
         <ambientLight intensity={0.3} />
@@ -572,13 +573,13 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
       </Canvas>
 
       <div style={{
-        position: 'absolute',
-        bottom: '10px',
+        position: 'fixed',
+        bottom: '70px',
         left: '50%',
         transform: 'translateX(-50%)',
         display: 'flex',
         gap: '6px',
-        zIndex: 10,
+        zIndex: 20,
         pointerEvents: 'auto',
       }}>
         <div style={{
