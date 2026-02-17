@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { Card } from "./Card";
 import { Deck } from "./Deck";
 import { useGameState } from "../lib/stores/useGameState";
@@ -44,7 +44,27 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
   const isMyTurn = currentTurnPlayer === playerName;
   const myHand = players[playerName]?.hand || [];
 
-  const otherPlayers = useMemo(() => allPlayerNames.filter(n => n !== playerName), [allPlayerNames, playerName]);
+  const turnOrder = gameState?.turnOrder || [];
+
+  const getOrderedPlayers = () => {
+    let orderedList: string[];
+    if (turnOrder.length > 0) {
+      orderedList = [...turnOrder];
+    } else {
+      orderedList = [...allPlayerNames];
+    }
+    const currentPlayerIndex = orderedList.indexOf(playerName);
+    if (currentPlayerIndex === -1) return orderedList.filter(name => name !== playerName);
+    const reorderedPlayers: string[] = [];
+    const totalPlayers = orderedList.length;
+    for (let i = 1; i < totalPlayers; i++) {
+      const playerIndex = (currentPlayerIndex + i) % totalPlayers;
+      reorderedPlayers.push(orderedList[playerIndex]);
+    }
+    return reorderedPlayers;
+  };
+
+  const otherPlayers = getOrderedPlayers();
 
   const attachedParasiticCards = fieldCards.filter(card => card.attachedTo);
   const regularCards = fieldCards.filter(card => !card.attachedTo);
@@ -56,14 +76,11 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
     return acc;
   }, {} as Record<string, typeof fieldCards>);
 
-  const cardsByPlayer = useMemo(() => {
-    const map: Record<string, typeof fieldCards> = {};
-    for (const card of regularCards) {
-      if (!map[card.owner]) map[card.owner] = [];
-      map[card.owner].push(card);
-    }
-    return map;
-  }, [regularCards]);
+  const cardsByPlayer = regularCards.reduce((acc, card) => {
+    if (!acc[card.owner]) acc[card.owner] = [];
+    acc[card.owner].push(card);
+    return acc;
+  }, {} as Record<string, typeof fieldCards>);
 
   const handleMoveCard = (cardId: string, direction: 'left' | 'right') => {
     socket.emit('move-card-position', { cardId, direction, playerName, gameId });
