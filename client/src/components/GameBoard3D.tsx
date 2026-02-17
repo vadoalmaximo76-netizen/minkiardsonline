@@ -3,6 +3,7 @@ import { Card } from "./Card";
 import { Deck } from "./Deck";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
+import { useBackgroundEffect } from "../lib/stores/useBackgroundEffect";
 import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
 import { ChevronLeft, ChevronRight, Zap } from "lucide-react";
@@ -20,6 +21,50 @@ const hasCustomEffect = (card: any): boolean => {
   return effect.trim().length > 5;
 };
 
+const isSpecialCard = (card: any): boolean => {
+  if (card.type === 'personaggi_speciali') return true;
+  const name = (card.name || '').toLowerCase();
+  return name.includes('leggendari') || name.includes('ultra') || name.includes('speciale') || name.includes('boss') || name.includes('divino');
+};
+
+const getCardHealthPercent = (card: any): number => {
+  if (!card) return 1;
+  const maxPti = card.ppiIniziali || card.ppiMax || card.ppiOriginali || 1;
+  const currentPti = card.ppiAttuali ?? card.ppiIniziali ?? maxPti;
+  return maxPti > 0 ? currentPti / maxPti : 1;
+};
+
+const isHighPTI = (card: any): boolean => {
+  if (!card) return false;
+  return ((card.ppiIniziali || 0) > 500) || ((card.attack || 0) > 300);
+};
+
+const seededRandom = (seed: number): number => {
+  const x = Math.sin(seed * 9301 + 49297) * 233280;
+  return x - Math.floor(x);
+};
+
+const getCardClasses = (card: any, isMyCard: boolean, animClass: string, currentTurnPlayer: string): string => {
+  const base = isMyCard ? 'card-3d-mine' : 'card-3d-opponent';
+  const classes = [base, 'card-specular'];
+  if (isSpecialCard(card)) classes.push('card-holo');
+  if (hasCustomEffect(card)) classes.push('card-effect-glow');
+  const health = getCardHealthPercent(card);
+  if (health < 0.3) classes.push('card-damaged');
+  if (health < 0.2) classes.push('card-tremble');
+  if (isHighPTI(card)) classes.push('card-high-power');
+  if (card.owner === currentTurnPlayer) {
+    classes.push(isMyCard ? 'card-turn-aura-gold' : 'card-turn-aura-blue');
+  }
+  classes.push('card-interactive');
+  if (animClass) {
+    classes.push(animClass);
+  } else {
+    classes.push('card-enter-anim');
+  }
+  return classes.join(' ');
+};
+
 const AMBIENT_PARTICLES = Array.from({ length: 15 }, (_, i) => ({
   size: 2 + (i * 7 % 5),
   left: (i * 8.3) % 100,
@@ -27,6 +72,16 @@ const AMBIENT_PARTICLES = Array.from({ length: 15 }, (_, i) => ({
   color: ['#fbbf24', '#a855f7', '#3b82f6', '#22c55e'][i % 4],
   duration: 10 + (i % 4) * 4,
   delay: (i % 5) * 2,
+}));
+
+const DUST_PARTICLES = Array.from({ length: 25 }, (_, i) => ({
+  size: 1 + (i * 3 % 3),
+  left: (i * 4.1 + 2) % 100,
+  top: (i * 3.9 + 5) % 100,
+  color: i % 3 === 0 ? '#ffd700' : i % 3 === 1 ? '#fffbe6' : '#ffe4b5',
+  duration: 12 + (i * 7 % 10),
+  delay: (i * 1.3) % 8,
+  opacity: 0.1 + (i * 0.02 % 0.2),
 }));
 
 interface ContextParticle {
@@ -48,6 +103,9 @@ interface GameBoard3DProps {
 export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
   const { gameState, playerName, gameId } = useGameState();
   const { playButtonClick } = useAudio();
+  const { colors: bgColors } = useBackgroundEffect();
+
+  const [rippleActive, setRippleActive] = useState(false);
 
   const fieldCards = gameState?.field || [];
   const players = gameState?.players || {};
@@ -97,42 +155,49 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
     const removedCards = prevIds.filter((id: string) => !currentIds.includes(id));
 
     if (newCards.length > 0 && prevIds.length > 0) {
+      const ts = Date.now();
       const particles: ContextParticle[] = [];
       for (let i = 0; i < 8; i++) {
+        const s = ts + i;
         particles.push({
-          id: `glow-${Date.now()}-${i}`,
-          x: 40 + Math.random() * 20,
-          y: 40 + Math.random() * 20,
+          id: `glow-${ts}-${i}`,
+          x: 40 + seededRandom(s) * 20,
+          y: 40 + seededRandom(s + 100) * 20,
           type: 'glow',
           color: ['#fbbf24', '#a855f7', '#3b82f6', '#22c55e'][i % 4],
-          size: 4 + Math.random() * 6,
-          duration: 1 + Math.random() * 0.5,
+          size: 4 + seededRandom(s + 200) * 6,
+          duration: 1 + seededRandom(s + 300) * 0.5,
           sparkDx: 0,
           sparkDy: 0,
         });
       }
-      setContextParticles(prev => [...prev, ...particles]);
+      setContextParticles(prev => [...prev, ...particles].slice(-40));
       setTimeout(() => {
         setContextParticles(prev => prev.filter(p => !particles.find(np => np.id === p.id)));
       }, 2000);
     }
 
     if (removedCards.length > 0 && prevIds.length > 0) {
+      const ts = Date.now();
       const particles: ContextParticle[] = [];
       for (let i = 0; i < 12; i++) {
+        const s = ts + i;
+        const r = seededRandom(s + 500) * 100;
+        const g = seededRandom(s + 600) * 60;
+        const b = seededRandom(s + 700) * 40;
         particles.push({
-          id: `smoke-${Date.now()}-${i}`,
-          x: 30 + Math.random() * 40,
-          y: 30 + Math.random() * 40,
+          id: `smoke-${ts}-${i}`,
+          x: 30 + seededRandom(s + 800) * 40,
+          y: 30 + seededRandom(s + 900) * 40,
           type: 'smoke',
-          color: `rgba(${100 + Math.random() * 100}, ${80 + Math.random() * 60}, ${60 + Math.random() * 40}, 0.6)`,
-          size: 8 + Math.random() * 12,
-          duration: 1.5 + Math.random() * 1,
+          color: `rgba(${Math.floor(100 + r)}, ${Math.floor(80 + g)}, ${Math.floor(60 + b)}, 0.6)`,
+          size: 8 + seededRandom(s + 1000) * 12,
+          duration: 1.5 + seededRandom(s + 1100) * 1,
           sparkDx: 0,
           sparkDy: 0,
         });
       }
-      setContextParticles(prev => [...prev, ...particles]);
+      setContextParticles(prev => [...prev, ...particles].slice(-40));
       setTimeout(() => {
         setContextParticles(prev => prev.filter(p => !particles.find(np => np.id === p.id)));
       }, 3000);
@@ -145,21 +210,23 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
   // === ATTACK PARTICLES (listen for attack events) ===
   useEffect(() => {
     const handleAttack = () => {
+      const ts = Date.now();
       const particles: ContextParticle[] = [];
       for (let i = 0; i < 15; i++) {
+        const s = ts + i;
         particles.push({
-          id: `spark-${Date.now()}-${i}`,
-          x: 35 + Math.random() * 30,
-          y: 25 + Math.random() * 50,
+          id: `spark-${ts}-${i}`,
+          x: 35 + seededRandom(s + 2000) * 30,
+          y: 25 + seededRandom(s + 2100) * 50,
           type: 'spark',
           color: ['#ff4444', '#ff8800', '#ffcc00', '#ff6622'][i % 4],
-          size: 3 + Math.random() * 5,
-          duration: 0.6 + Math.random() * 0.8,
-          sparkDx: (Math.random() - 0.5) * 80,
-          sparkDy: (Math.random() - 0.5) * 80,
+          size: 3 + seededRandom(s + 2200) * 5,
+          duration: 0.6 + seededRandom(s + 2300) * 0.8,
+          sparkDx: (seededRandom(s + 2400) - 0.5) * 80,
+          sparkDy: (seededRandom(s + 2500) - 0.5) * 80,
         });
       }
-      setContextParticles(prev => [...prev, ...particles]);
+      setContextParticles(prev => [...prev, ...particles].slice(-40));
       setTimeout(() => {
         setContextParticles(prev => prev.filter(p => !particles.find(np => np.id === p.id)));
       }, 2000);
@@ -170,6 +237,20 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
     return () => {
       socket.off('attack-result', handleAttack);
       socket.off('recursive-damage-result', handleAttack);
+    };
+  }, []);
+
+  // === TABLE RIPPLE on card impact ===
+  useEffect(() => {
+    const handleRipple = () => {
+      setRippleActive(true);
+      setTimeout(() => setRippleActive(false), 1000);
+    };
+    socket.on('play-card-result', handleRipple);
+    socket.on('card-played', handleRipple);
+    return () => {
+      socket.off('play-card-result', handleRipple);
+      socket.off('card-played', handleRipple);
     };
   }, []);
 
@@ -287,6 +368,9 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
 
   const myCards = cardsByPlayer[playerName] || [];
 
+  const shadowX = tableRotation.y * 0.5;
+  const shadowY = 10 + (tableRotation.x - 32) * 0.3;
+
   return (
     <div
       className="fixed inset-0 z-[15] overflow-hidden select-none"
@@ -305,164 +389,48 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
           0% { opacity: 0; transform: scale(0.7) translateY(20px); }
           100% { opacity: 1; transform: scale(1) translateY(0); }
         }
-
-        /* DRAW FROM DECK - my card: lifts up from center, flips face-up, arcs down to hand */
         @keyframes card-draw-from-deck-mine {
-          0% {
-            opacity: 0;
-            transform: translateY(-120px) translateX(0) scale(0.4) rotateY(180deg) rotateZ(-5deg);
-            filter: brightness(0.5);
-          }
-          20% {
-            opacity: 1;
-            transform: translateY(-160px) translateX(0) scale(0.7) rotateY(120deg) rotateZ(-3deg);
-            filter: brightness(0.7);
-          }
-          50% {
-            opacity: 1;
-            transform: translateY(-80px) translateX(20px) scale(0.9) rotateY(40deg) rotateZ(2deg);
-            filter: brightness(1.1);
-          }
-          75% {
-            opacity: 1;
-            transform: translateY(-20px) translateX(10px) scale(1.05) rotateY(8deg) rotateZ(-1deg);
-            filter: brightness(1.2);
-          }
-          90% {
-            transform: translateY(5px) translateX(0) scale(1.02) rotateY(0deg) rotateZ(0deg);
-            filter: brightness(1.05);
-          }
-          100% {
-            opacity: 1;
-            transform: translateY(0) translateX(0) scale(1) rotateY(0deg) rotateZ(0deg);
-            filter: brightness(1);
-          }
+          0% { opacity: 0; transform: translateY(-120px) translateX(0) scale(0.4) rotateY(180deg) rotateZ(-5deg); filter: brightness(0.5); }
+          20% { opacity: 1; transform: translateY(-160px) translateX(0) scale(0.7) rotateY(120deg) rotateZ(-3deg); filter: brightness(0.7); }
+          50% { opacity: 1; transform: translateY(-80px) translateX(20px) scale(0.9) rotateY(40deg) rotateZ(2deg); filter: brightness(1.1); }
+          75% { opacity: 1; transform: translateY(-20px) translateX(10px) scale(1.05) rotateY(8deg) rotateZ(-1deg); filter: brightness(1.2); }
+          90% { transform: translateY(5px) translateX(0) scale(1.02) rotateY(0deg) rotateZ(0deg); filter: brightness(1.05); }
+          100% { opacity: 1; transform: translateY(0) translateX(0) scale(1) rotateY(0deg) rotateZ(0deg); filter: brightness(1); }
         }
-
-        /* DRAW FROM DECK - opponent card: similar arc but going upward */
         @keyframes card-draw-from-deck-opponent {
-          0% {
-            opacity: 0;
-            transform: translateY(100px) scale(0.3) rotateY(180deg) rotateZ(3deg);
-            filter: brightness(0.4);
-          }
-          25% {
-            opacity: 1;
-            transform: translateY(60px) scale(0.6) rotateY(100deg) rotateZ(1deg);
-            filter: brightness(0.6);
-          }
-          60% {
-            opacity: 1;
-            transform: translateY(-10px) scale(0.85) rotateY(20deg) rotateZ(-1deg);
-            filter: brightness(0.85);
-          }
-          85% {
-            transform: translateY(3px) scale(0.93) rotateY(2deg) rotateZ(0deg);
-            filter: brightness(0.88);
-          }
-          100% {
-            opacity: 1;
-            transform: translateY(0) scale(0.92) rotateY(0deg) rotateZ(0deg);
-            filter: brightness(0.85);
-          }
+          0% { opacity: 0; transform: translateY(100px) scale(0.3) rotateY(180deg) rotateZ(3deg); filter: brightness(0.4); }
+          25% { opacity: 1; transform: translateY(60px) scale(0.6) rotateY(100deg) rotateZ(1deg); filter: brightness(0.6); }
+          60% { opacity: 1; transform: translateY(-10px) scale(0.85) rotateY(20deg) rotateZ(-1deg); filter: brightness(0.85); }
+          85% { transform: translateY(3px) scale(0.93) rotateY(2deg) rotateZ(0deg); filter: brightness(0.88); }
+          100% { opacity: 1; transform: translateY(0) scale(0.92) rotateY(0deg) rotateZ(0deg); filter: brightness(0.85); }
         }
-
-        /* PLAY CARD - from hand onto field: rises up, tilts forward, accelerates down */
         @keyframes card-play-to-field-mine {
-          0% {
-            transform: translateY(60px) scale(0.8) rotateX(-15deg) rotateZ(2deg);
-            opacity: 0.5;
-            filter: brightness(1.3);
-          }
-          30% {
-            transform: translateY(-40px) scale(1.15) rotateX(5deg) rotateZ(-1deg);
-            opacity: 1;
-            filter: brightness(1.4);
-          }
-          55% {
-            transform: translateY(-60px) scale(1.2) rotateX(12deg) rotateZ(0deg);
-            opacity: 1;
-            filter: brightness(1.5) drop-shadow(0 0 15px rgba(147,51,234,0.5));
-          }
-          80% {
-            transform: translateY(8px) scale(1.0) rotateX(-2deg) rotateZ(0deg);
-            opacity: 1;
-            filter: brightness(1.1) drop-shadow(0 4px 8px rgba(0,0,0,0.4));
-          }
-          90% {
-            transform: translateY(-3px) scale(1.01) rotateX(0deg);
-            filter: brightness(1.05);
-          }
-          100% {
-            transform: translateY(0) scale(1) rotateX(0deg) rotateZ(0deg);
-            opacity: 1;
-            filter: brightness(1);
-          }
+          0% { transform: translateY(60px) scale(0.8) rotateX(-15deg) rotateZ(2deg); opacity: 0.5; filter: brightness(1.3) drop-shadow(0 0 20px rgba(147,51,234,0.6)); }
+          30% { transform: translateY(-40px) scale(1.15) rotateX(5deg) rotateZ(-1deg); opacity: 1; filter: brightness(1.4) drop-shadow(0 0 25px rgba(147,51,234,0.7)); }
+          55% { transform: translateY(-60px) scale(1.2) rotateX(12deg) rotateZ(0deg); opacity: 1; filter: brightness(1.5) drop-shadow(0 0 30px rgba(147,51,234,0.8)); }
+          80% { transform: translateY(8px) scale(1.0) rotateX(-2deg) rotateZ(0deg); opacity: 1; filter: brightness(1.1) drop-shadow(0 4px 8px rgba(0,0,0,0.4)); }
+          90% { transform: translateY(-3px) scale(1.01) rotateX(0deg); filter: brightness(1.05); }
+          100% { transform: translateY(0) scale(1) rotateX(0deg) rotateZ(0deg); opacity: 1; filter: brightness(1); }
         }
-
-        /* PLAY CARD - opponent plays onto field: descends from above */
         @keyframes card-play-to-field-opponent {
-          0% {
-            transform: translateY(-80px) scale(0.6) rotateX(20deg) rotateZ(-3deg);
-            opacity: 0;
-            filter: brightness(0.4);
-          }
-          35% {
-            transform: translateY(-30px) scale(0.95) rotateX(8deg) rotateZ(1deg);
-            opacity: 1;
-            filter: brightness(0.7);
-          }
-          65% {
-            transform: translateY(10px) scale(1.0) rotateX(-3deg) rotateZ(0deg);
-            opacity: 1;
-            filter: brightness(0.9);
-          }
-          85% {
-            transform: translateY(-4px) scale(0.93) rotateX(1deg);
-            filter: brightness(0.87);
-          }
-          100% {
-            transform: translateY(0) scale(0.92) rotateX(0deg) rotateZ(0deg);
-            opacity: 1;
-            filter: brightness(0.85);
-          }
+          0% { transform: translateY(-80px) scale(0.6) rotateX(20deg) rotateZ(-3deg); opacity: 0; filter: brightness(0.4) drop-shadow(0 0 15px rgba(59,130,246,0.5)); }
+          35% { transform: translateY(-30px) scale(0.95) rotateX(8deg) rotateZ(1deg); opacity: 1; filter: brightness(0.7) drop-shadow(0 0 20px rgba(59,130,246,0.6)); }
+          65% { transform: translateY(10px) scale(1.0) rotateX(-3deg) rotateZ(0deg); opacity: 1; filter: brightness(0.9) drop-shadow(0 0 10px rgba(59,130,246,0.3)); }
+          85% { transform: translateY(-4px) scale(0.93) rotateX(1deg); filter: brightness(0.87); }
+          100% { transform: translateY(0) scale(0.92) rotateX(0deg) rotateZ(0deg); opacity: 1; filter: brightness(0.85); }
         }
-
-        /* SLAM LANDING - impact bounce when card lands on field */
         @keyframes card-slam-impact {
-          0% {
-            transform: scale(1.08) translateY(-4px);
-            filter: brightness(1.3) drop-shadow(0 0 20px rgba(251,191,36,0.6));
-          }
-          30% {
-            transform: scale(0.96) translateY(3px);
-            filter: brightness(1.1) drop-shadow(0 0 10px rgba(251,191,36,0.3));
-          }
-          60% {
-            transform: scale(1.02) translateY(-1px);
-            filter: brightness(1.05);
-          }
-          100% {
-            transform: scale(1) translateY(0);
-            filter: brightness(1);
-          }
+          0% { transform: scale(1.12) translateY(-6px); filter: brightness(1.6) drop-shadow(0 0 30px rgba(251,191,36,0.8)); }
+          15% { filter: brightness(1.8) drop-shadow(0 0 40px rgba(255,255,255,0.6)); }
+          30% { transform: scale(0.96) translateY(3px); filter: brightness(1.1) drop-shadow(0 0 10px rgba(251,191,36,0.3)); }
+          60% { transform: scale(1.02) translateY(-1px); filter: brightness(1.05); }
+          100% { transform: scale(1) translateY(0); filter: brightness(1); }
         }
-
-        .card-draw-mine {
-          animation: card-draw-from-deck-mine 1.1s cubic-bezier(0.23, 1, 0.32, 1) forwards;
-        }
-        .card-draw-opponent {
-          animation: card-draw-from-deck-opponent 1.0s cubic-bezier(0.23, 1, 0.32, 1) forwards;
-        }
-        .card-play-mine {
-          animation: card-play-to-field-mine 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-        }
-        .card-play-opponent {
-          animation: card-play-to-field-opponent 0.75s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-        }
-        .card-slam-land {
-          animation: card-slam-impact 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-        }
+        .card-draw-mine { animation: card-draw-from-deck-mine 1.1s cubic-bezier(0.23, 1, 0.32, 1) forwards; }
+        .card-draw-opponent { animation: card-draw-from-deck-opponent 1.0s cubic-bezier(0.23, 1, 0.32, 1) forwards; }
+        .card-play-mine { animation: card-play-to-field-mine 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        .card-play-opponent { animation: card-play-to-field-opponent 0.75s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+        .card-slam-land { animation: card-slam-impact 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
         @keyframes spark-burst {
           0% { opacity: 1; transform: scale(1) translate(0, 0); }
           100% { opacity: 0; transform: scale(0.2) translate(var(--spark-dx), var(--spark-dy)); }
@@ -480,6 +448,7 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
           transform: perspective(600px) rotateX(8deg) scale(0.92);
           filter: brightness(0.85) saturate(0.9);
           transition: transform 0.3s ease, filter 0.3s ease;
+          position: relative;
         }
         .card-3d-opponent:hover {
           transform: perspective(600px) rotateX(2deg) scale(1.0) translateY(-4px) !important;
@@ -490,44 +459,166 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
           transform: perspective(800px) rotateX(-3deg) scale(1.0);
           filter: brightness(1.05);
           transition: transform 0.3s ease, filter 0.3s ease, box-shadow 0.3s ease;
+          position: relative;
         }
         .card-3d-mine:hover {
           transform: perspective(800px) rotateX(-1deg) scale(1.08) translateY(-8px) !important;
           filter: brightness(1.2) !important;
           z-index: 50 !important;
         }
-        .card-shadow-float {
-          box-shadow: 0 8px 20px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.3);
+        .card-shadow-float { box-shadow: 0 8px 20px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.3); }
+        .card-shadow-float-mine { box-shadow: 0 12px 30px rgba(0,0,0,0.6), 0 4px 10px rgba(0,0,0,0.4), 0 0 20px rgba(147,51,234,0.15); }
+        .card-enter-anim { animation: card-enter-3d 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        .deck-tap-area { touch-action: manipulation; -webkit-tap-highlight-color: transparent; cursor: pointer; }
+        .zone-depth { backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.06); transition: box-shadow 0.4s ease; }
+        .zone-top { background: linear-gradient(180deg, rgba(0,30,60,0.4) 0%, rgba(0,20,40,0.2) 100%); box-shadow: 0 4px 20px rgba(0,0,0,0.3), inset 0 -1px 0 rgba(59,130,246,0.15); }
+        .zone-middle { background: linear-gradient(180deg, rgba(10,10,30,0.25) 0%, rgba(5,5,20,0.35) 100%); box-shadow: 0 6px 25px rgba(0,0,0,0.35), inset 0 1px 0 rgba(251,191,36,0.1), inset 0 -1px 0 rgba(251,191,36,0.1); }
+        .zone-bottom { background: linear-gradient(0deg, rgba(60,0,80,0.3) 0%, rgba(30,0,50,0.15) 100%); box-shadow: 0 -4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(147,51,234,0.2), 0 0 30px rgba(147,51,234,0.08); }
+
+        /* === SPECULAR REFLECTION === */
+        .card-specular { position: relative; overflow: hidden; }
+        .card-specular::after {
+          content: '';
+          position: absolute;
+          top: -50%;
+          left: -50%;
+          width: 200%;
+          height: 200%;
+          background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.12) 45%, rgba(255,255,255,0.25) 50%, rgba(255,255,255,0.12) 55%, transparent 60%);
+          transform: translateX(-100%) translateY(-100%);
+          pointer-events: none;
+          z-index: 10;
+          opacity: 0;
+          transition: opacity 0.3s ease;
         }
-        .card-shadow-float-mine {
-          box-shadow: 0 12px 30px rgba(0,0,0,0.6), 0 4px 10px rgba(0,0,0,0.4), 0 0 20px rgba(147,51,234,0.15);
+        .card-specular:hover::after {
+          opacity: 1;
+          animation: specular-sweep 0.8s ease-out forwards;
         }
-        .card-enter-anim {
-          animation: card-enter-3d 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        @keyframes specular-sweep {
+          0% { transform: translateX(-100%) translateY(-100%); }
+          100% { transform: translateX(100%) translateY(100%); }
         }
-        .deck-tap-area {
-          touch-action: manipulation;
-          -webkit-tap-highlight-color: transparent;
-          cursor: pointer;
+
+        /* === HOLOGRAPHIC SHIMMER for special cards === */
+        @keyframes holo-shimmer {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
         }
-        .zone-depth {
-          backdrop-filter: blur(4px);
-          border: 1px solid rgba(255,255,255,0.06);
-          transition: box-shadow 0.4s ease;
+        .card-holo::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(135deg,
+            rgba(255,0,0,0.08), rgba(255,127,0,0.08), rgba(255,255,0,0.08),
+            rgba(0,255,0,0.08), rgba(0,0,255,0.08), rgba(139,0,255,0.08),
+            rgba(255,0,0,0.08));
+          background-size: 400% 400%;
+          animation: holo-shimmer 4s ease infinite;
+          pointer-events: none;
+          z-index: 5;
+          border-radius: inherit;
+          mix-blend-mode: overlay;
         }
-        .zone-top {
-          background: linear-gradient(180deg, rgba(0,30,60,0.4) 0%, rgba(0,20,40,0.2) 100%);
-          box-shadow: 0 4px 20px rgba(0,0,0,0.3), inset 0 -1px 0 rgba(59,130,246,0.15);
+
+        /* === EFFECT GLOW PULSE === */
+        @keyframes effect-glow-pulse {
+          0%, 100% { box-shadow: 0 0 8px rgba(147,51,234,0.3), 0 0 16px rgba(147,51,234,0.15); }
+          50% { box-shadow: 0 0 16px rgba(147,51,234,0.6), 0 0 32px rgba(147,51,234,0.3), 0 0 48px rgba(147,51,234,0.15); }
         }
-        .zone-middle {
-          background: linear-gradient(180deg, rgba(10,10,30,0.25) 0%, rgba(5,5,20,0.35) 100%);
-          box-shadow: 0 6px 25px rgba(0,0,0,0.35), inset 0 1px 0 rgba(251,191,36,0.1), inset 0 -1px 0 rgba(251,191,36,0.1);
+        .card-effect-glow {
+          animation: effect-glow-pulse 2s ease-in-out infinite;
         }
-        .zone-bottom {
-          background: linear-gradient(0deg, rgba(60,0,80,0.3) 0%, rgba(30,0,50,0.15) 100%);
-          box-shadow: 0 -4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(147,51,234,0.2), 0 0 30px rgba(147,51,234,0.08);
+
+        /* === DAMAGED CARD (low health <30%) === */
+        .card-damaged {
+          filter: brightness(0.85) saturate(0.65) sepia(0.15) !important;
+        }
+        .card-damaged::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background:
+            repeating-linear-gradient(60deg, transparent, transparent 3px, rgba(180,40,40,0.04) 3px, rgba(180,40,40,0.04) 4px),
+            repeating-linear-gradient(-30deg, transparent, transparent 5px, rgba(0,0,0,0.03) 5px, rgba(0,0,0,0.03) 6px);
+          pointer-events: none;
+          z-index: 6;
+          border-radius: inherit;
+        }
+
+        /* === CARD TREMBLE (low health <20%) === */
+        @keyframes card-tremble {
+          0% { transform: translate(0, 0); }
+          10% { transform: translate(-0.5px, 0.5px); }
+          20% { transform: translate(0.5px, -0.5px); }
+          30% { transform: translate(-0.5px, -0.3px); }
+          40% { transform: translate(0.3px, 0.5px); }
+          50% { transform: translate(-0.3px, 0px); }
+          60% { transform: translate(0.5px, 0.3px); }
+          70% { transform: translate(0px, -0.5px); }
+          80% { transform: translate(-0.3px, 0.5px); }
+          90% { transform: translate(0.5px, -0.3px); }
+          100% { transform: translate(0, 0); }
+        }
+        .card-tremble > * {
+          animation: card-tremble 0.4s linear infinite;
+        }
+
+        /* === HIGH POWER CARD === */
+        @keyframes high-power-pulse {
+          0%, 100% { transform: scale(1); filter: brightness(1); }
+          50% { transform: scale(1.015); filter: brightness(1.08) saturate(1.15); }
+        }
+        .card-high-power {
+          animation: high-power-pulse 3s ease-in-out infinite;
+        }
+
+        /* === TURN PLAYER AURA === */
+        @keyframes turn-aura-pulse {
+          0%, 100% { box-shadow: 0 0 6px var(--aura-color); }
+          50% { box-shadow: 0 0 18px var(--aura-color), 0 0 36px var(--aura-color); }
+        }
+        .card-turn-aura-gold {
+          --aura-color: rgba(234,179,8,0.5);
+          animation: turn-aura-pulse 2.5s ease-in-out infinite;
+        }
+        .card-turn-aura-blue {
+          --aura-color: rgba(59,130,246,0.4);
+          animation: turn-aura-pulse 2.5s ease-in-out infinite;
+        }
+
+        /* === DUST FLOAT === */
+        @keyframes dust-float {
+          0%, 100% { transform: translateY(0) translateX(0); opacity: var(--dust-opacity); }
+          25% { transform: translateY(-15px) translateX(5px); opacity: calc(var(--dust-opacity) * 1.5); }
+          50% { transform: translateY(-30px) translateX(-3px); opacity: var(--dust-opacity); }
+          75% { transform: translateY(-15px) translateX(-8px); opacity: calc(var(--dust-opacity) * 0.6); }
+        }
+
+        /* === FOG DRIFT === */
+        @keyframes fog-drift {
+          0%, 100% { opacity: 0.5; }
+          50% { opacity: 0.8; }
+        }
+
+        /* === TABLE RIPPLE === */
+        @keyframes table-ripple {
+          0% { transform: scale(0); opacity: 0.6; border-width: 3px; }
+          50% { opacity: 0.3; border-width: 1.5px; }
+          100% { transform: scale(3); opacity: 0; border-width: 0.5px; }
         }
       `}</style>
+
+      {/* Ambient light overlay from background effect store */}
+      <div
+        className="absolute inset-0 pointer-events-none z-[1]"
+        style={{
+          background: bgColors.gradient,
+          opacity: 0.35,
+          transition: 'background 1.5s ease, opacity 1.5s ease',
+        }}
+      />
 
       {/* Ambient particles */}
       {AMBIENT_PARTICLES.map((p, i) => (
@@ -543,6 +634,24 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
             animation: `float-particle-3d ${p.duration}s ease-in-out ${p.delay}s infinite`,
             opacity: 0.15,
           }}
+        />
+      ))}
+
+      {/* Dust particles (illuminated) */}
+      {DUST_PARTICLES.map((p, i) => (
+        <div
+          key={`dust-${i}`}
+          className="absolute rounded-full pointer-events-none"
+          style={{
+            width: `${p.size}px`,
+            height: `${p.size}px`,
+            left: `${p.left}%`,
+            top: `${p.top}%`,
+            background: p.color,
+            animation: `dust-float ${p.duration}s ease-in-out ${p.delay}s infinite`,
+            '--dust-opacity': `${p.opacity}`,
+            opacity: p.opacity,
+          } as React.CSSProperties}
         />
       ))}
 
@@ -564,6 +673,24 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
           } as React.CSSProperties}
         />
       ))}
+
+      {/* Edge fog/mist */}
+      <div className="absolute top-0 left-0 right-0 h-24 pointer-events-none z-[2]" style={{
+        background: 'linear-gradient(to bottom, rgba(10,5,25,0.7) 0%, transparent 100%)',
+        animation: 'fog-drift 8s ease-in-out infinite',
+      }} />
+      <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none z-[2]" style={{
+        background: 'linear-gradient(to top, rgba(10,5,25,0.7) 0%, transparent 100%)',
+        animation: 'fog-drift 10s ease-in-out 2s infinite',
+      }} />
+      <div className="absolute top-0 bottom-0 left-0 w-16 pointer-events-none z-[2]" style={{
+        background: 'linear-gradient(to right, rgba(10,5,25,0.6) 0%, transparent 100%)',
+        animation: 'fog-drift 12s ease-in-out 1s infinite',
+      }} />
+      <div className="absolute top-0 bottom-0 right-0 w-16 pointer-events-none z-[2]" style={{
+        background: 'linear-gradient(to left, rgba(10,5,25,0.6) 0%, transparent 100%)',
+        animation: 'fog-drift 11s ease-in-out 3s infinite',
+      }} />
 
       {/* ====== LAYER 1: 3D TABLE (visual only, no interaction) ====== */}
       <div
@@ -589,7 +716,7 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
               backgroundImage: `url('https://i.ibb.co/Y4bv4xwz/sfondo-minkiards.png')`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
-              boxShadow: '0 30px 60px rgba(0,0,0,0.8), 0 0 80px rgba(147,51,234,0.15), inset 0 1px 0 rgba(255,255,255,0.05)',
+              boxShadow: `${shadowX}px ${shadowY}px 60px rgba(0,0,0,0.8), 0 0 80px rgba(147,51,234,0.15), inset 0 1px 0 rgba(255,255,255,0.05)`,
             }}
           >
             <div className="absolute inset-0 bg-black/30 rounded-3xl" />
@@ -597,14 +724,34 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
             <div className="absolute inset-0 rounded-3xl" style={{
               background: 'radial-gradient(ellipse 70% 50% at 50% 20%, rgba(255,250,230,0.12) 0%, transparent 60%)',
             }} />
-            {/* Subtle vignette */}
+            {/* Enhanced vignette */}
             <div className="absolute inset-0 rounded-3xl" style={{
-              background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.4) 100%)',
+              background: 'radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.6) 100%)',
             }} />
             {/* Felt texture */}
             <div className="absolute inset-0 rounded-3xl" style={{
               background: 'repeating-linear-gradient(45deg, transparent, transparent 40px, rgba(255,255,255,0.006) 40px, rgba(255,255,255,0.006) 80px)',
             }} />
+            {/* Table ripple on card impact */}
+            {rippleActive && (
+              <>
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none" style={{
+                  width: '120px', height: '120px',
+                  border: '2px solid rgba(147,51,234,0.4)',
+                  animation: 'table-ripple 1s ease-out forwards',
+                }} />
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none" style={{
+                  width: '120px', height: '120px',
+                  border: '2px solid rgba(251,191,36,0.3)',
+                  animation: 'table-ripple 1s ease-out 0.15s forwards',
+                }} />
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none" style={{
+                  width: '120px', height: '120px',
+                  border: '2px solid rgba(147,51,234,0.2)',
+                  animation: 'table-ripple 1s ease-out 0.3s forwards',
+                }} />
+              </>
+            )}
           </div>
 
           {/* Wood border frame */}
@@ -642,6 +789,19 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
             borderRadius: '30px',
             filter: 'blur(25px)',
           }} />
+
+          {/* Table reflection on floor */}
+          <div className="absolute inset-0" style={{
+            transform: 'scaleY(-0.3) translateY(-100%)',
+            opacity: 0.08,
+            filter: 'blur(12px) brightness(0.5)',
+            backgroundImage: `url('https://i.ibb.co/Y4bv4xwz/sfondo-minkiards.png')`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            borderRadius: '30px',
+            maskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 80%)',
+            WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 80%)',
+          }} />
         </div>
       </div>
 
@@ -662,7 +822,7 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
                   {opCards.length > 0 ? opCards.map((card) => {
                     const attached = attachedCardsMap[card.id] || [];
                     return (
-                      <div key={card.id} className={`card-3d-opponent card-interactive flex items-center gap-0.5 ${getCardAnimClass(card.id, false) || 'card-enter-anim'}`}>
+                      <div key={card.id} className={`${getCardClasses(card, false, getCardAnimClass(card.id, false), currentTurnPlayer)} flex items-center gap-0.5`}>
                         <div className="scale-[0.48] sm:scale-[0.53] md:scale-[0.6] origin-top card-shadow-float rounded-lg">
                           <Card card={card} location="field" />
                         </div>
@@ -708,7 +868,7 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
             {myCards.length > 0 ? myCards.map((card, i) => {
               const attached = attachedCardsMap[card.id] || [];
               return (
-                <div key={card.id} className={`card-3d-mine card-interactive flex flex-col items-center ${getCardAnimClass(card.id, true) || 'card-enter-anim'}`}>
+                <div key={card.id} className={`${getCardClasses(card, true, getCardAnimClass(card.id, true), currentTurnPlayer)} flex flex-col items-center`}>
                   <div className="flex items-center gap-0.5">
                     <Button
                       onClick={() => handleMoveCard(card.id, 'left')}
