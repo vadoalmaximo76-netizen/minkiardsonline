@@ -72,11 +72,9 @@ const RoundTableComponent: React.FC = () => {
   const getOrderedPlayers = () => {
     let orderedList;
     if (turnOrder.length > 0) {
-      // Use turn order if available
-      orderedList = [...turnOrder];
+      orderedList = Array.from(new Set(turnOrder));
     } else {
-      // Fallback to all players if no turn order yet
-      orderedList = [...allPlayerNames];
+      orderedList = Array.from(new Set(allPlayerNames));
     }
 
     // Find current player index

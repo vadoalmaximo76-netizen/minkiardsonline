@@ -49,9 +49,9 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
   const getOrderedPlayers = () => {
     let orderedList: string[];
     if (turnOrder.length > 0) {
-      orderedList = [...turnOrder];
+      orderedList = Array.from(new Set(turnOrder));
     } else {
-      orderedList = [...allPlayerNames];
+      orderedList = Array.from(new Set(allPlayerNames));
     }
     const currentPlayerIndex = orderedList.indexOf(playerName);
     if (currentPlayerIndex === -1) return orderedList.filter(name => name !== playerName);
