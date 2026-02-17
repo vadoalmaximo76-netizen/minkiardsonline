@@ -65,7 +65,7 @@ export const CollectionPanel: React.FC<CollectionPanelProps> = ({ visible, onClo
   useEffect(() => {
     if (visible) {
       setIsClosing(false);
-      const token = localStorage.getItem("minkiards_token");
+      const token = localStorage.getItem("authToken");
       if (!token) {
         setLoading(false);
         setError("Accedi per vedere la tua collezione");

@@ -207,17 +207,24 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
   const requestNarratorComment = useCallback((eventType: string, eventData: any) => {
     if (!narratorEnabled) return;
-    const token = localStorage.getItem('minkiards_token');
-    if (!token) return;
+    const token = authToken || localStorage.getItem('authToken');
+    if (!token) {
+      console.log('[Narrator] No auth token found, skipping');
+      return;
+    }
+    console.log('[Narrator] Requesting comment for:', eventType, eventData);
     fetch('/api/narrator/comment', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ eventType, eventData })
     })
       .then(r => r.json())
-      .then(data => { if (data.comment) showNarratorMessage(data.comment); })
-      .catch(() => {});
-  }, [narratorEnabled, showNarratorMessage]);
+      .then(data => {
+        console.log('[Narrator] Response:', data);
+        if (data.comment) showNarratorMessage(data.comment);
+      })
+      .catch((err) => { console.error('[Narrator] Error:', err); });
+  }, [narratorEnabled, showNarratorMessage, authToken]);
 
   const [attackEffectVisible, setAttackEffectVisible] = useState(false);
   const [attackedCharacterName, setAttackedCharacterName] = useState<string>("");
@@ -797,13 +804,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       requestNarratorComment('card_played', { playerName: cardPlayerName, cardName: cardName || '', cardType });
 
       // Track card for collection (non-blocking)
-      const token = localStorage.getItem('minkiards_token');
-      if (token && cardPlayerName === playerName) {
+      const collectionToken = authToken || localStorage.getItem('authToken');
+      if (collectionToken && cardPlayerName === playerName) {
         const extractedName = cardName || (frontImage ? frontImage.split('/').pop()?.replace(/\.\w+$/, '').replace(/-/g, ' ') : '');
         if (extractedName) {
           fetch('/api/collection/track', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${collectionToken}` },
             body: JSON.stringify({ cardName: extractedName, cardDeckType: cardType, cardImageUrl: frontImage })
           }).catch(() => {});
         }
