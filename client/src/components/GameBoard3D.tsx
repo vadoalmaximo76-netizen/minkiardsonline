@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Card } from "./Card";
 import { Deck } from "./Deck";
 import { useGameState } from "../lib/stores/useGameState";
@@ -173,6 +173,74 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
     };
   }, []);
 
+  // === CARD ANIMATION TRACKING ===
+  const [drawnCardIds, setDrawnCardIds] = useState<Set<string>>(new Set());
+  const [playedCardIds, setPlayedCardIds] = useState<Set<string>>(new Set());
+  const [slamCardIds, setSlamCardIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const handlePickCard = (data: any) => {
+      if (data?.cardId) {
+        setDrawnCardIds(prev => new Set(prev).add(data.cardId));
+        setTimeout(() => {
+          setDrawnCardIds(prev => {
+            const next = new Set(prev);
+            next.delete(data.cardId);
+            return next;
+          });
+        }, 1200);
+      }
+    };
+
+    const handlePlayCard = (data: any) => {
+      const cardId = data?.cardId || data?.eventData?.cardId;
+      if (cardId) {
+        setPlayedCardIds(prev => new Set(prev).add(cardId));
+        setTimeout(() => {
+          setPlayedCardIds(prev => {
+            const next = new Set(prev);
+            next.delete(cardId);
+            return next;
+          });
+          setSlamCardIds(prev => new Set(prev).add(cardId));
+          setTimeout(() => {
+            setSlamCardIds(prev => {
+              const next = new Set(prev);
+              next.delete(cardId);
+              return next;
+            });
+          }, 600);
+        }, 800);
+      }
+    };
+
+    const handleGameEvent = (data: any) => {
+      if (data?.eventType === 'pick-card') handlePickCard(data.eventData);
+      if (data?.eventType === 'play-card') handlePlayCard(data.eventData || data);
+    };
+
+    socket.on('card-picked', handlePickCard);
+    socket.on('pick-card-result', handlePickCard);
+    socket.on('card-played', handlePlayCard);
+    socket.on('play-card-result', handlePlayCard);
+    socket.on('game-event', handleGameEvent);
+
+    return () => {
+      socket.off('card-picked', handlePickCard);
+      socket.off('pick-card-result', handlePickCard);
+      socket.off('card-played', handlePlayCard);
+      socket.off('play-card-result', handlePlayCard);
+      socket.off('game-event', handleGameEvent);
+    };
+  }, []);
+
+  const getCardAnimClass = useCallback((cardId: string, isMyCard: boolean) => {
+    if (playedCardIds.has(cardId)) return isMyCard ? 'card-play-mine' : 'card-play-opponent';
+    if (slamCardIds.has(cardId)) return 'card-slam-land';
+    if (drawnCardIds.has(cardId)) return isMyCard ? 'card-draw-mine' : 'card-draw-opponent';
+    return '';
+  }, [drawnCardIds, playedCardIds, slamCardIds]);
+
   const getOrderedPlayers = () => {
     let orderedList: string[];
     if (turnOrder.length > 0) {
@@ -234,9 +302,166 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
           50% { transform: translateY(-25px); opacity: 0.4; }
         }
         @keyframes card-enter-3d {
-          0% { opacity: 0; transform: scale(0.3) translateY(40px) rotateY(180deg); }
-          50% { opacity: 0.7; transform: scale(1.15) translateY(-10px) rotateY(10deg); }
-          100% { opacity: 1; transform: scale(1) translateY(0) rotateY(0deg); }
+          0% { opacity: 0; transform: scale(0.7) translateY(20px); }
+          100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        /* DRAW FROM DECK - my card: lifts up from center, flips face-up, arcs down to hand */
+        @keyframes card-draw-from-deck-mine {
+          0% {
+            opacity: 0;
+            transform: translateY(-120px) translateX(0) scale(0.4) rotateY(180deg) rotateZ(-5deg);
+            filter: brightness(0.5);
+          }
+          20% {
+            opacity: 1;
+            transform: translateY(-160px) translateX(0) scale(0.7) rotateY(120deg) rotateZ(-3deg);
+            filter: brightness(0.7);
+          }
+          50% {
+            opacity: 1;
+            transform: translateY(-80px) translateX(20px) scale(0.9) rotateY(40deg) rotateZ(2deg);
+            filter: brightness(1.1);
+          }
+          75% {
+            opacity: 1;
+            transform: translateY(-20px) translateX(10px) scale(1.05) rotateY(8deg) rotateZ(-1deg);
+            filter: brightness(1.2);
+          }
+          90% {
+            transform: translateY(5px) translateX(0) scale(1.02) rotateY(0deg) rotateZ(0deg);
+            filter: brightness(1.05);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) translateX(0) scale(1) rotateY(0deg) rotateZ(0deg);
+            filter: brightness(1);
+          }
+        }
+
+        /* DRAW FROM DECK - opponent card: similar arc but going upward */
+        @keyframes card-draw-from-deck-opponent {
+          0% {
+            opacity: 0;
+            transform: translateY(100px) scale(0.3) rotateY(180deg) rotateZ(3deg);
+            filter: brightness(0.4);
+          }
+          25% {
+            opacity: 1;
+            transform: translateY(60px) scale(0.6) rotateY(100deg) rotateZ(1deg);
+            filter: brightness(0.6);
+          }
+          60% {
+            opacity: 1;
+            transform: translateY(-10px) scale(0.85) rotateY(20deg) rotateZ(-1deg);
+            filter: brightness(0.85);
+          }
+          85% {
+            transform: translateY(3px) scale(0.93) rotateY(2deg) rotateZ(0deg);
+            filter: brightness(0.88);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(0.92) rotateY(0deg) rotateZ(0deg);
+            filter: brightness(0.85);
+          }
+        }
+
+        /* PLAY CARD - from hand onto field: rises up, tilts forward, accelerates down */
+        @keyframes card-play-to-field-mine {
+          0% {
+            transform: translateY(60px) scale(0.8) rotateX(-15deg) rotateZ(2deg);
+            opacity: 0.5;
+            filter: brightness(1.3);
+          }
+          30% {
+            transform: translateY(-40px) scale(1.15) rotateX(5deg) rotateZ(-1deg);
+            opacity: 1;
+            filter: brightness(1.4);
+          }
+          55% {
+            transform: translateY(-60px) scale(1.2) rotateX(12deg) rotateZ(0deg);
+            opacity: 1;
+            filter: brightness(1.5) drop-shadow(0 0 15px rgba(147,51,234,0.5));
+          }
+          80% {
+            transform: translateY(8px) scale(1.0) rotateX(-2deg) rotateZ(0deg);
+            opacity: 1;
+            filter: brightness(1.1) drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+          }
+          90% {
+            transform: translateY(-3px) scale(1.01) rotateX(0deg);
+            filter: brightness(1.05);
+          }
+          100% {
+            transform: translateY(0) scale(1) rotateX(0deg) rotateZ(0deg);
+            opacity: 1;
+            filter: brightness(1);
+          }
+        }
+
+        /* PLAY CARD - opponent plays onto field: descends from above */
+        @keyframes card-play-to-field-opponent {
+          0% {
+            transform: translateY(-80px) scale(0.6) rotateX(20deg) rotateZ(-3deg);
+            opacity: 0;
+            filter: brightness(0.4);
+          }
+          35% {
+            transform: translateY(-30px) scale(0.95) rotateX(8deg) rotateZ(1deg);
+            opacity: 1;
+            filter: brightness(0.7);
+          }
+          65% {
+            transform: translateY(10px) scale(1.0) rotateX(-3deg) rotateZ(0deg);
+            opacity: 1;
+            filter: brightness(0.9);
+          }
+          85% {
+            transform: translateY(-4px) scale(0.93) rotateX(1deg);
+            filter: brightness(0.87);
+          }
+          100% {
+            transform: translateY(0) scale(0.92) rotateX(0deg) rotateZ(0deg);
+            opacity: 1;
+            filter: brightness(0.85);
+          }
+        }
+
+        /* SLAM LANDING - impact bounce when card lands on field */
+        @keyframes card-slam-impact {
+          0% {
+            transform: scale(1.08) translateY(-4px);
+            filter: brightness(1.3) drop-shadow(0 0 20px rgba(251,191,36,0.6));
+          }
+          30% {
+            transform: scale(0.96) translateY(3px);
+            filter: brightness(1.1) drop-shadow(0 0 10px rgba(251,191,36,0.3));
+          }
+          60% {
+            transform: scale(1.02) translateY(-1px);
+            filter: brightness(1.05);
+          }
+          100% {
+            transform: scale(1) translateY(0);
+            filter: brightness(1);
+          }
+        }
+
+        .card-draw-mine {
+          animation: card-draw-from-deck-mine 1.1s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+        }
+        .card-draw-opponent {
+          animation: card-draw-from-deck-opponent 1.0s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+        }
+        .card-play-mine {
+          animation: card-play-to-field-mine 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        .card-play-opponent {
+          animation: card-play-to-field-opponent 0.75s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+        .card-slam-land {
+          animation: card-slam-impact 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
         @keyframes spark-burst {
           0% { opacity: 1; transform: scale(1) translate(0, 0); }
@@ -455,7 +680,7 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
                   {opCards.length > 0 ? opCards.map((card) => {
                     const attached = attachedCardsMap[card.id] || [];
                     return (
-                      <div key={card.id} className="card-3d-opponent card-interactive card-enter-anim flex items-center gap-0.5" style={{ transformStyle: 'preserve-3d' }}>
+                      <div key={card.id} className={`card-3d-opponent card-interactive flex items-center gap-0.5 ${getCardAnimClass(card.id, false) || 'card-enter-anim'}`} style={{ transformStyle: 'preserve-3d' }}>
                         <div className="scale-[0.48] sm:scale-[0.53] md:scale-[0.6] origin-top card-shadow-float rounded-lg" style={{ transform: 'translateZ(15px)' }}>
                           <Card card={card} location="field" />
                         </div>
@@ -501,7 +726,7 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
             {myCards.length > 0 ? myCards.map((card, i) => {
               const attached = attachedCardsMap[card.id] || [];
               return (
-                <div key={card.id} className="card-3d-mine card-interactive card-enter-anim flex flex-col items-center" style={{ transformStyle: 'preserve-3d' }}>
+                <div key={card.id} className={`card-3d-mine card-interactive flex flex-col items-center ${getCardAnimClass(card.id, true) || 'card-enter-anim'}`} style={{ transformStyle: 'preserve-3d' }}>
                   <div className="flex items-center gap-0.5" style={{ transformStyle: 'preserve-3d' }}>
                     <Button
                       onClick={() => handleMoveCard(card.id, 'left')}
