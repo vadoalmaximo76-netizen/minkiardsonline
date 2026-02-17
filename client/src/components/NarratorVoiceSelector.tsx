@@ -94,8 +94,12 @@ export const NarratorVoiceSelector: React.FC<NarratorVoiceSelectorProps> = ({ vi
         body: JSON.stringify({ text: "Che mossa incredibile! La partita si accende!", voice: voice.name }),
       });
       if (!response.ok) throw new Error('TTS failed');
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('audio')) throw new Error('Not audio');
       const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
+      if (blob.size < 100) throw new Error('Audio too small');
+      const audioBlob = new Blob([blob], { type: 'audio/mpeg' });
+      const url = URL.createObjectURL(audioBlob);
       const audio = new Audio(url);
       audioRef.current = audio;
       audio.onended = () => {
@@ -106,7 +110,7 @@ export const NarratorVoiceSelector: React.FC<NarratorVoiceSelectorProps> = ({ vi
         setPreviewPlaying(null);
         URL.revokeObjectURL(url);
       };
-      audio.play();
+      await audio.play();
     } catch {
       setPreviewPlaying(null);
     }

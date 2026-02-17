@@ -36,8 +36,12 @@ async function speakWithCloudVoice(text: string, voiceName: string) {
       body: JSON.stringify({ text, voice: voiceName }),
     });
     if (!response.ok) throw new Error('Cloud TTS failed');
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('audio')) throw new Error('Not audio response');
     const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
+    if (blob.size < 100) throw new Error('Audio too small');
+    const audioBlob = new Blob([blob], { type: 'audio/mpeg' });
+    const url = URL.createObjectURL(audioBlob);
     const audio = new Audio(url);
     currentCloudAudio = audio;
     audio.onended = () => {
@@ -47,8 +51,9 @@ async function speakWithCloudVoice(text: string, voiceName: string) {
     audio.onerror = () => {
       URL.revokeObjectURL(url);
       currentCloudAudio = null;
+      speakWithDeviceVoice(text, '');
     };
-    audio.play();
+    await audio.play();
   } catch (e) {
     speakWithDeviceVoice(text, '');
   }

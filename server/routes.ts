@@ -10648,17 +10648,29 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       const { audioStream } = await tts.toStream(text);
 
       const chunks: Buffer[] = [];
+      let responded = false;
       audioStream.on('data', (chunk: Buffer) => chunks.push(chunk));
-      audioStream.on('end', () => {
+      const finalize = () => {
+        if (responded) return;
+        responded = true;
         const audioBuffer = Buffer.concat(chunks);
+        if (audioBuffer.length < 100) {
+          console.error('Edge TTS: empty or too small audio output for voice', voice);
+          res.status(500).json({ error: 'TTS produced no audio' });
+          return;
+        }
         res.set({
           'Content-Type': 'audio/mpeg',
           'Content-Length': audioBuffer.length.toString(),
           'Cache-Control': 'public, max-age=3600',
         });
         res.send(audioBuffer);
-      });
+      };
+      audioStream.on('end', finalize);
+      audioStream.on('close', finalize);
       audioStream.on('error', (err: any) => {
+        if (responded) return;
+        responded = true;
         console.error('Edge TTS stream error:', err?.message || err);
         res.status(500).json({ error: 'TTS generation failed' });
       });
