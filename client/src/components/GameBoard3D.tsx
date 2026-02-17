@@ -420,11 +420,29 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
         </div>
       </div>
 
-      {/* ====== LAYER 2: INTERACTIVE CONTENT (2D overlay) ====== */}
-      <div className="absolute inset-0 flex flex-col" style={{ paddingTop: '50px', paddingBottom: '50px' }}>
+      {/* ====== LAYER 2: INTERACTIVE CONTENT with perspective ====== */}
+      <div
+        className="absolute inset-0 flex items-center justify-center"
+        style={{
+          perspective: '1400px',
+          perspectiveOrigin: '50% 40%',
+        }}
+      >
+        <div
+          className="relative flex flex-col"
+          style={{
+            width: 'min(95vw, 950px)',
+            height: 'min(82vh, 720px)',
+            transform: `rotateX(${tableRotation.x}deg) rotateY(${tableRotation.y}deg)`,
+            transition: isDragging.current ? 'none' : 'transform 0.5s ease-out',
+            transformStyle: 'preserve-3d',
+            paddingTop: '8px',
+            paddingBottom: '8px',
+          }}
+        >
 
-        {/* === TOP ZONE: Opponent cards with perspective tilt === */}
-        <div className="flex-shrink-0 flex flex-wrap justify-center gap-2 sm:gap-3 px-2 py-1 mt-1 mx-2 sm:mx-4 rounded-xl zone-depth zone-top">
+        {/* === TOP ZONE: Opponent cards === */}
+        <div className="flex-shrink-0 flex flex-wrap justify-center gap-2 sm:gap-3 px-2 py-1 mt-1 mx-2 rounded-xl zone-depth zone-top" style={{ transformStyle: 'preserve-3d' }}>
           {otherPlayers.map((opName) => {
             const opCards = cardsByPlayer[opName] || [];
             return (
@@ -433,16 +451,16 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
                   {players[opName]?.avatar && <span className="mr-1">{getAvatarEmoji(players[opName]?.avatar || '')}</span>}
                   {opName}
                 </span>
-                <div className="flex gap-0.5 items-center flex-wrap justify-center">
+                <div className="flex gap-0.5 items-center flex-wrap justify-center" style={{ transformStyle: 'preserve-3d' }}>
                   {opCards.length > 0 ? opCards.map((card) => {
                     const attached = attachedCardsMap[card.id] || [];
                     return (
-                      <div key={card.id} className="card-3d-opponent card-interactive card-enter-anim flex items-center gap-0.5">
-                        <div className="scale-[0.48] sm:scale-[0.53] md:scale-[0.6] origin-top card-shadow-float rounded-lg">
+                      <div key={card.id} className="card-3d-opponent card-interactive card-enter-anim flex items-center gap-0.5" style={{ transformStyle: 'preserve-3d' }}>
+                        <div className="scale-[0.48] sm:scale-[0.53] md:scale-[0.6] origin-top card-shadow-float rounded-lg" style={{ transform: 'translateZ(15px)' }}>
                           <Card card={card} location="field" />
                         </div>
                         {attached.map((p) => (
-                          <div key={p.id} className="scale-[0.42] origin-top">
+                          <div key={p.id} className="scale-[0.42] origin-top" style={{ transform: 'translateZ(20px)' }}>
                             <div className="border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/50 card-shadow-float">
                               <Card card={p} location="field" />
                             </div>
@@ -459,45 +477,46 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
           })}
         </div>
 
-        {/* === MIDDLE ZONE: Decks with spotlight effect === */}
-        <div className="flex-1 flex items-center justify-center min-h-0 px-2">
-          <div className="deck-tap-area flex gap-2 sm:gap-3 items-start justify-center p-3 sm:p-4 rounded-2xl zone-depth zone-middle">
-            <div className="deck-tap-area scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-center">
+        {/* === MIDDLE ZONE: Decks === */}
+        <div className="flex-1 flex items-center justify-center min-h-0 px-2" style={{ transformStyle: 'preserve-3d' }}>
+          <div className="deck-tap-area flex gap-2 sm:gap-3 items-start justify-center p-3 sm:p-4 rounded-2xl zone-depth zone-middle" style={{ transform: 'translateZ(10px)', transformStyle: 'preserve-3d' }}>
+            <div className="deck-tap-area scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-center" style={{ transform: 'translateZ(8px)' }}>
               <Deck name="PERSONAGGI" backImage="https://i.imgur.com/r1rfUAB.png" type="personaggi" />
             </div>
-            <div className="deck-tap-area scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-center">
+            <div className="deck-tap-area scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-center" style={{ transform: 'translateZ(8px)' }}>
               <Deck name="MOSSE" backImage="https://i.imgur.com/6MUXCZO.png" type="mosse" />
             </div>
-            <div className="deck-tap-area scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-center">
+            <div className="deck-tap-area scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-center" style={{ transform: 'translateZ(8px)' }}>
               <Deck name="BONUS" backImage="https://i.imgur.com/lEROr3r.png" type="bonus" />
             </div>
-            <div className="deck-tap-area scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-center">
+            <div className="deck-tap-area scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-center" style={{ transform: 'translateZ(8px)' }}>
               <Deck name="SPECIALI" backImage="https://i.imgur.com/ipVd57A.png" type="personaggi_speciali" />
             </div>
           </div>
         </div>
 
-        {/* === BOTTOM ZONE: My cards with forward perspective === */}
-        <div className="flex-shrink-0 flex flex-col items-center gap-1 px-2 py-1.5 mb-1 mx-2 sm:mx-4 rounded-xl zone-depth zone-bottom">
-          <div className="flex gap-1.5 items-end justify-center flex-wrap max-w-full">
+        {/* === BOTTOM ZONE: My cards === */}
+        <div className="flex-shrink-0 flex flex-col items-center gap-1 px-2 py-1.5 mb-1 mx-2 rounded-xl zone-depth zone-bottom" style={{ transformStyle: 'preserve-3d' }}>
+          <div className="flex gap-1.5 items-end justify-center flex-wrap max-w-full" style={{ transformStyle: 'preserve-3d' }}>
             {myCards.length > 0 ? myCards.map((card, i) => {
               const attached = attachedCardsMap[card.id] || [];
               return (
-                <div key={card.id} className="card-3d-mine card-interactive card-enter-anim flex flex-col items-center">
-                  <div className="flex items-center gap-0.5">
+                <div key={card.id} className="card-3d-mine card-interactive card-enter-anim flex flex-col items-center" style={{ transformStyle: 'preserve-3d' }}>
+                  <div className="flex items-center gap-0.5" style={{ transformStyle: 'preserve-3d' }}>
                     <Button
                       onClick={() => handleMoveCard(card.id, 'left')}
                       disabled={i === 0}
                       className="p-0.5 h-5 w-5 bg-gray-600/80 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
                       size="sm"
+                      style={{ transform: 'translateZ(25px)' }}
                     >
                       <ChevronLeft size={10} />
                     </Button>
-                    <div className="scale-[0.58] sm:scale-[0.68] md:scale-[0.78] origin-bottom card-shadow-float-mine rounded-lg">
+                    <div className="scale-[0.58] sm:scale-[0.68] md:scale-[0.78] origin-bottom card-shadow-float-mine rounded-lg" style={{ transform: 'translateZ(25px)' }}>
                       <Card card={card} location="field" />
                     </div>
                     {attached.map((p) => (
-                      <div key={p.id} className="scale-[0.48] origin-bottom">
+                      <div key={p.id} className="scale-[0.48] origin-bottom" style={{ transform: 'translateZ(30px)' }}>
                         <div className="border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/50 card-shadow-float">
                           <Card card={p} location="field" />
                         </div>
@@ -508,6 +527,7 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
                       disabled={i === myCards.length - 1}
                       className="p-0.5 h-5 w-5 bg-gray-600/80 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
                       size="sm"
+                      style={{ transform: 'translateZ(25px)' }}
                     >
                       <ChevronRight size={10} />
                     </Button>
@@ -517,6 +537,7 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
                       onClick={() => handleActivateEffect(card)}
                       className="mt-0.5 px-1.5 py-0 h-5 text-[9px] bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-0.5"
                       size="sm"
+                      style={{ transform: 'translateZ(30px)' }}
                     >
                       <Zap size={9} />
                       Effetto
@@ -528,10 +549,11 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
               <span className="text-white/40 text-xs italic">Nessuna carta in campo</span>
             )}
           </div>
-          <span className={`${isMyTurn ? 'bg-green-500/90 ring-2 ring-green-400' : 'bg-yellow-600/80'} text-white font-bold px-3 py-1 rounded-full text-xs shadow-lg`}>
+          <span className={`${isMyTurn ? 'bg-green-500/90 ring-2 ring-green-400' : 'bg-yellow-600/80'} text-white font-bold px-3 py-1 rounded-full text-xs shadow-lg`} style={{ transform: 'translateZ(20px)' }}>
             {players[playerName]?.avatar && <span className="mr-1">{getAvatarEmoji(players[playerName]?.avatar || '')}</span>}
             {playerName} (Tu)
           </span>
+        </div>
         </div>
       </div>
 
