@@ -557,6 +557,22 @@ export const privateMessages = pgTable("private_messages", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Card Collection tracking
+export const cardCollection = pgTable("card_collection", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  cardName: text("card_name").notNull(),
+  cardDeckType: text("card_deck_type").notNull(),
+  cardImageUrl: text("card_image_url"),
+  timesDrawn: integer("times_drawn").notNull().default(1),
+  firstDrawnAt: timestamp("first_drawn_at").notNull().defaultNow(),
+  lastDrawnAt: timestamp("last_drawn_at").notNull().defaultNow(),
+});
+
+export const insertCardCollectionSchema = createInsertSchema(cardCollection).omit({ id: true, firstDrawnAt: true, lastDrawnAt: true });
+export type CardCollection = typeof cardCollection.$inferSelect;
+export type InsertCardCollection = z.infer<typeof insertCardCollectionSchema>;
+
 // Push Notification Subscriptions
 export const pushSubscriptions = pgTable("push_subscriptions", {
   id: serial("id").primaryKey(),

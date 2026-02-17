@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Deck } from "./Deck";
 import { PlayerHand } from "./PlayerHand";
 import { OtherPlayersHands } from "./OtherPlayersHands";
@@ -51,6 +51,11 @@ import { MissionsPanel } from "./MissionsPanel";
 import { AchievementsPanel } from "./AchievementsPanel";
 import { RankiardLeaderboard } from "./RankiardLeaderboard";
 import { ProfilePanel } from "./ProfilePanel";
+import { CollectionPanel } from "./CollectionPanel";
+import { TableThemeSelector } from "./TableThemeSelector";
+import useTableTheme from "../lib/stores/useTableTheme";
+import { NarratorBanner } from "./NarratorBanner";
+import useNarrator from "../lib/stores/useNarrator";
 import { EmojiReactions } from "./EmojiReactions";
 import { JoinRequestDialog } from "./JoinRequestDialog";
 import CardTrailParticles from "./CardTrailParticles";
@@ -63,7 +68,7 @@ import { useBackgroundEffect } from "../lib/stores/useBackgroundEffect";
 import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
-import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star, Hand, Music, Shuffle, User, LogOut, Target, Trophy, SkipForward, ScrollText, Settings, MoreVertical, BookOpen, UserPlus, RotateCcw, PlusCircle, ChevronDown } from "lucide-react";
+import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star, Hand, Music, Shuffle, User, LogOut, Target, Trophy, SkipForward, ScrollText, Settings, MoreVertical, BookOpen, UserPlus, RotateCcw, PlusCircle, ChevronDown, Palette } from "lucide-react";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 
@@ -92,6 +97,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [graveyardOpen, setGraveyardOpen] = useState(false);
   const [missionsOpen, setMissionsOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
+  const [collectionOpen, setCollectionOpen] = useState(false);
+  const [themeOpen, setThemeOpen] = useState(false);
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [gameLogOpen, setGameLogOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -159,7 +166,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     winnerName: string;
   }>({ visible: false, pointsEarned: 0, previousTotal: 0, newTotal: 0, placement: 0, isWinner: false, winnerName: '' });
   const [cardTrailParticles, setCardTrailParticles] = useState<{ visible: boolean; cardType: string; x: number; y: number }>({ visible: false, cardType: '', x: 0, y: 0 });
-  const [victoryDefeatAnim, setVictoryDefeatAnim] = useState<{ visible: boolean; type: 'victory' | 'defeat'; playerName: string }>({ visible: false, type: 'victory', playerName: '' });
+  const [victoryDefeatAnim, setVictoryDefeatAnim] = useState<{ visible: boolean; type: 'victory' | 'defeat'; playerName: string; stats?: { cardsPlayed: number; totalDamageDealt: number; totalDamageReceived: number; turnsPlayed: number; matchDuration: number; finalBlowCard?: { name: string; imageUrl?: string; deckType: string } } }>({ visible: false, type: 'victory', playerName: '' });
   const { shake } = useScreenShake();
   const [removePlayerDialogOpen, setRemovePlayerDialogOpen] = useState(false);
   const [playerEliminationNotification, setPlayerEliminationNotification] = useState<{
@@ -192,6 +199,26 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [customAnimationData, setCustomAnimationData] = useState<{ cardName: string; animationDescription: string } | null>(null);
   const [sorosActivationVisible, setSorosActivationVisible] = useState(false);
   const [sorosData, setSorosData] = useState<{ activator: string; cardImage: string } | null>(null);
+  const narratorEnabled = useNarrator(s => s.enabled);
+  const showNarratorMessage = useNarrator(s => s.showMessage);
+  const narratorVisible = useNarrator(s => s.visible);
+  const narratorMessage = useNarrator(s => s.currentMessage);
+  const dismissNarrator = useNarrator(s => s.dismiss);
+
+  const requestNarratorComment = useCallback((eventType: string, eventData: any) => {
+    if (!narratorEnabled) return;
+    const token = localStorage.getItem('minkiards_token');
+    if (!token) return;
+    fetch('/api/narrator/comment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ eventType, eventData })
+    })
+      .then(r => r.json())
+      .then(data => { if (data.comment) showNarratorMessage(data.comment); })
+      .catch(() => {});
+  }, [narratorEnabled, showNarratorMessage]);
+
   const [attackEffectVisible, setAttackEffectVisible] = useState(false);
   const [attackedCharacterName, setAttackedCharacterName] = useState<string>("");
   const [attackSlash3D, setAttackSlash3D] = useState<{ visible: boolean; attackerName: string; targetName: string; damage: number }>({ visible: false, attackerName: '', targetName: '', damage: 0 });
@@ -742,7 +769,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       });
     };
 
-    const handleCardPlayed = ({ cardId, cardType, frontImage, cardName, playerName }: { 
+    const handleCardPlayed = ({ cardId, cardType, frontImage, cardName, playerName: cardPlayerName }: { 
       cardId: string, 
       cardType: string, 
       frontImage: string, 
@@ -758,13 +785,29 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           id: cardId,
           frontImage,
           name: cardName,
-          playerName,
+          playerName: cardPlayerName,
           timestamp: Date.now(),
           cardType
         };
         const updated = [...prev, newCard];
         return updated.slice(-10);
       });
+
+      // Request narrator comment for card played
+      requestNarratorComment('card_played', { playerName: cardPlayerName, cardName: cardName || '', cardType });
+
+      // Track card for collection (non-blocking)
+      const token = localStorage.getItem('minkiards_token');
+      if (token && cardPlayerName === playerName) {
+        const extractedName = cardName || (frontImage ? frontImage.split('/').pop()?.replace(/\.\w+$/, '').replace(/-/g, ' ') : '');
+        if (extractedName) {
+          fetch('/api/collection/track', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ cardName: extractedName, cardDeckType: cardType, cardImageUrl: frontImage })
+          }).catch(() => {});
+        }
+      }
     };
 
     const handleCardPlayedFaceDown = ({ cardId, playerName, message }: { cardId: string, playerName: string, message: string }) => {
@@ -1605,6 +1648,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         player: eliminatedPlayer
       });
       
+      // Request narrator comment for player elimination
+      requestNarratorComment('player_eliminated', { playerName: eliminatedPlayer });
+      
       // Don't clear session here - let game-victory and game-end-rewards handle the end flow
       // The player will see the winner announcement and rewards panel before being redirected
       
@@ -1614,7 +1660,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       }, 3000);
     };
 
-    const handleGameVictory = ({ winner }: { winner: string }) => {
+    const handleGameVictory = ({ winner, lastAction, matchDuration, playerStats }: { winner: string; lastAction?: any; matchDuration?: number; playerStats?: Record<string, any> }) => {
       const isWinner = winner === playerName;
       if (isWinner) {
         playVictory();
@@ -1624,7 +1670,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         shake('heavy');
       }
       setVictoryPlayer(winner);
-      setVictoryDefeatAnim({ visible: true, type: isWinner ? 'victory' : 'defeat', playerName: winner });
+      const myStats = playerStats?.[playerName || ''];
+      const stats = myStats ? {
+        cardsPlayed: myStats.cardsPlayed || 0,
+        totalDamageDealt: myStats.damageDealt || 0,
+        totalDamageReceived: myStats.damageReceived || 0,
+        turnsPlayed: myStats.turnsPlayed || 0,
+        matchDuration: matchDuration || 0,
+        finalBlowCard: lastAction?.cardName ? { name: lastAction.cardName, imageUrl: lastAction.cardImageUrl, deckType: lastAction.cardDeckType || 'personaggi' } : undefined,
+      } : undefined;
+      setVictoryDefeatAnim({ visible: true, type: isWinner ? 'victory' : 'defeat', playerName: winner, stats });
     };
 
     let rewardsTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -1871,6 +1926,25 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         authToken={authToken || null}
         gameId={gameId || undefined}
       />
+
+      {/* Collection Panel */}
+      <CollectionPanel
+        visible={collectionOpen}
+        onClose={() => setCollectionOpen(false)}
+      />
+
+      {/* Table Theme Selector */}
+      <TableThemeSelector
+        visible={themeOpen}
+        onClose={() => setThemeOpen(false)}
+      />
+
+      {/* AI Narrator Banner */}
+      <NarratorBanner
+        message={narratorMessage}
+        visible={narratorVisible}
+        onDismiss={dismissNarrator}
+      />
       
       {/* Join Request Dialog for room creator */}
       <JoinRequestDialog
@@ -1892,6 +1966,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         visible={victoryDefeatAnim.visible}
         type={victoryDefeatAnim.type}
         playerName={victoryDefeatAnim.playerName}
+        stats={victoryDefeatAnim.stats}
       />
 
       {/* Animated gradient background - dynamic colors based on game events */}
@@ -3396,8 +3471,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                             <Trophy size={16} className="text-yellow-400 flex-shrink-0" />
                             Trofei
                           </button>
+                          <button onClick={() => { setCollectionOpen(true); setHeaderMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors">
+                            <BookOpen size={16} className="text-pink-400 flex-shrink-0" />
+                            Collezione
+                          </button>
                         </>
                       )}
+                      <button onClick={() => { setThemeOpen(true); setHeaderMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors">
+                        <Palette size={16} className="text-violet-400 flex-shrink-0" />
+                        Tema Tavolo
+                      </button>
                       <button onClick={() => { setRankiardOpen(!rankiardOpen); setHeaderMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors">
                         <Star size={16} className="text-amber-400 flex-shrink-0" />
                         Rankiard
@@ -3423,6 +3506,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                       <button onClick={() => { setMusicPlayerOpen(!musicPlayerOpen); setHeaderMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors">
                         <Music size={16} className="text-pink-400 flex-shrink-0" />
                         Musica
+                      </button>
+                      <button onClick={() => { useNarrator.getState().setEnabled(!narratorEnabled); setHeaderMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors">
+                        <MessageCircle size={16} className={narratorEnabled ? "text-amber-400 flex-shrink-0" : "text-gray-500 flex-shrink-0"} />
+                        {narratorEnabled ? 'Narratore ON' : 'Narratore OFF'}
                       </button>
                     </div>
                   </div>

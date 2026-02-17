@@ -304,6 +304,8 @@ interface GameState {
   delayedDamages: DelayedDamage[]; // Delayed damage effects from defense
   timedEffects: TimedEffect[]; // Generic delayed effects from Wizard cards (trigger after X turns)
   playerDeathModifiers: Map<string, number>; // Per-player death limit modifiers (+/- deaths)
+  playerStats: Map<string, { cardsPlayed: number; damageDealt: number; damageReceived: number; turnsPlayed: number }>; // Per-player game stats
+  lastAction?: { type: string; playerName: string; cardName?: string; cardImageUrl?: string; cardDeckType?: string; targetPlayer?: string; damage?: number }; // Track last significant action for final blow replay
   requiresApproval?: boolean; // Whether new players need creator approval to join
   creatorName?: string; // Name of the room creator
   creatorSocketId?: string; // Socket ID of the room creator
@@ -864,7 +866,8 @@ export class GameManager {
       barrieraShields: [],
       delayedDamages: [],
       timedEffects: [],
-      playerDeathModifiers: new Map<string, number>()
+      playerDeathModifiers: new Map<string, number>(),
+      playerStats: new Map<string, { cardsPlayed: number; damageDealt: number; damageReceived: number; turnsPlayed: number }>()
     };
 
     // Auto-shuffle all decks when starting a new game
@@ -2470,6 +2473,18 @@ Rispondi SOLO in JSON:`;
     return true;
   }
 
+  private trackPlayerStat(game: GameState, playerName: string, statType: 'cardsPlayed' | 'damageDealt' | 'damageReceived' | 'turnsPlayed', amount: number = 1) {
+    if (!game.playerStats.has(playerName)) {
+      game.playerStats.set(playerName, { cardsPlayed: 0, damageDealt: 0, damageReceived: 0, turnsPlayed: 0 });
+    }
+    const stats = game.playerStats.get(playerName)!;
+    stats[statType] += amount;
+  }
+
+  private trackLastAction(game: GameState, action: { type: string; playerName: string; cardName?: string; cardImageUrl?: string; cardDeckType?: string; targetPlayer?: string; damage?: number }) {
+    game.lastAction = action;
+  }
+
   async playCard(gameId: string, cardId: string, playerName: string): Promise<{ card?: any, isPersonaggio?: boolean, duelAutoAttack?: boolean, customAnimation?: string }> {
     const game = this.games.get(gameId);
     if (!game || !game.players[playerName]) return {};
@@ -2528,6 +2543,16 @@ Rispondi SOLO in JSON:`;
       player.hand.splice(cardIndex, 1);
       card.faceDown = false;
       card.owner = playerName;
+
+      // Track card played stat
+      this.trackPlayerStat(game, playerName, 'cardsPlayed');
+      this.trackLastAction(game, {
+        type: 'play',
+        playerName,
+        cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+        cardImageUrl: card.frontImage,
+        cardDeckType: card.type,
+      });
       
       // If it's a BONUS or MOSSE being placed on the field, initialize turn counter
       if ((card.type === 'bonus' || card.type === 'mosse')) {
@@ -16839,6 +16864,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const gameState = this.games.get(gameId);
     if (!gameState || gameState.turnOrder.length === 0) return null;
 
+    // Track turns played stat
+    this.trackPlayerStat(gameState, playerName, 'turnsPlayed');
+
     // Save game state snapshot for REPLAY card (full state for atomic rollback)
     if (!(gameState as any).stateSnapshots) (gameState as any).stateSnapshots = [];
     const snapshot = {
@@ -18269,7 +18297,16 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const winner = this.checkForGameVictory(gameId);
         if (winner) {
           console.log(`🏆 Game won by: ${winner}`);
-          io.to(gameId).emit('game-victory', { winner });
+          const gameForStats = this.games.get(gameId);
+          const lastAct = gameForStats?.lastAction;
+          const duration = gameForStats ? Math.floor((Date.now() - gameForStats.startTime.getTime()) / 1000) : 0;
+          const statsMap: Record<string, any> = {};
+          if (gameForStats) {
+            for (const [pName, pStats] of gameForStats.playerStats.entries()) {
+              statsMap[pName] = pStats;
+            }
+          }
+          io.to(gameId).emit('game-victory', { winner, lastAction: lastAct || null, matchDuration: duration, playerStats: statsMap });
           this.completeMatch(gameId, winner);
         }
         return true;

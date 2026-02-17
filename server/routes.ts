@@ -8,7 +8,7 @@ import fs from "fs";
 import path from "path";
 import { db } from "./db";
 import { isDatabaseAvailable } from "./db";
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection } from "../shared/schema";
 import { jsonStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray } from "drizzle-orm";
 import { CARD_DATA } from "../client/src/lib/cardData";
@@ -4182,20 +4182,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('send-emoji-reaction', ({ gameId, emoji, playerName, id }) => {
+    socket.on('send-emoji-reaction', ({ gameId, emoji, playerName, id, soundEffect }) => {
       if (gameId) {
-        // Server-side rate limiting: 1 emoji per second per socket
         const now = Date.now();
         const lastEmoji = socket.data.lastEmojiTime || 0;
-        if (now - lastEmoji < 1000) {
-          return; // Rate limited
+        const minInterval = soundEffect ? 2000 : 1000;
+        if (now - lastEmoji < minInterval) {
+          return;
         }
         socket.data.lastEmojiTime = now;
         
         io.to(gameId).emit('emoji-reaction', {
           emoji,
           playerName,
-          id
+          id,
+          ...(soundEffect ? { soundEffect } : {})
         });
       }
     });
@@ -10515,6 +10516,129 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     } catch (error) {
       console.error('Error getting card update:', error);
       res.status(500).json({ error: 'Failed to get update' });
+    }
+  });
+
+  // =================== AI NARRATOR API ===================
+
+  app.post('/api/narrator/comment', authMiddleware, async (req, res) => {
+    try {
+      const { eventType, eventData } = req.body;
+      if (!eventType) return res.status(400).json({ error: 'Missing event type' });
+
+      let prompt = '';
+      switch (eventType) {
+        case 'card_played':
+          prompt = `Un giocatore di nome "${eventData.playerName}" ha giocato la carta "${eventData.cardName}" (tipo: ${eventData.cardType}) sul campo di battaglia. Genera un commento breve e drammatico in italiano come un telecronista sportivo eccitato. Massimo 2 frasi, stile Dragon Ball.`;
+          break;
+        case 'card_eliminated':
+          prompt = `Il personaggio "${eventData.cardName}" con ${eventData.pti} PTI è stato eliminato dalla partita! Genera un commento breve e drammatico in italiano come un telecronista sportivo. Massimo 2 frasi, stile Dragon Ball.`;
+          break;
+        case 'player_eliminated':
+          prompt = `Il giocatore "${eventData.playerName}" è stato completamente eliminato dalla partita! Ha perso tutti i suoi personaggi. Genera un commento breve e drammatico in italiano come un telecronista sportivo. Massimo 2 frasi.`;
+          break;
+        case 'evolution':
+          prompt = `Il personaggio "${eventData.oldName}" si è evoluto in "${eventData.newName}"! Genera un commento breve ed eccitato in italiano come un telecronista sportivo. Massimo 2 frasi, stile Dragon Ball.`;
+          break;
+        case 'game_start':
+          prompt = `La partita di MINKIARDS sta per iniziare con ${eventData.playerCount} giocatori! Genera un'introduzione breve e carica di energia in italiano come un telecronista sportivo. Massimo 2 frasi.`;
+          break;
+        case 'big_damage':
+          prompt = `"${eventData.attackerCard}" ha inflitto ${eventData.damage} danni a "${eventData.targetCard}"! Un colpo devastante! Genera un commento breve e drammatico in italiano come un telecronista sportivo. Massimo 2 frasi, stile Dragon Ball.`;
+          break;
+        default:
+          prompt = `Evento di gioco: ${eventType}. ${JSON.stringify(eventData || {})}. Genera un commento breve e drammatico in italiano come un telecronista sportivo di un gioco di carte. Massimo 2 frasi.`;
+      }
+
+      // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+      const response = await openai.chat.completions.create({
+        model: 'gpt-5',
+        messages: [
+          { role: 'system', content: 'Sei un telecronista sportivo eccitato che commenta una partita di carte MINKIARDS (ispirato a Dragon Ball). Rispondi sempre in italiano con commenti brevi, drammatici e coinvolgenti. Massimo 2 frasi. Non usare hashtag.' },
+          { role: 'user', content: prompt }
+        ],
+        max_completion_tokens: 150,
+      });
+
+      const comment = response.choices[0]?.message?.content?.trim() || '';
+      res.json({ comment });
+    } catch (error: any) {
+      console.error('Narrator API error:', error?.message || error);
+      res.json({ comment: '' });
+    }
+  });
+
+  // =================== CARD COLLECTION API ===================
+
+  // Get user's card collection
+  app.get('/api/collection', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json([]);
+      const userId = (req as any).user.userId;
+      const collection = await db.select().from(cardCollection).where(eq(cardCollection.userId, userId));
+      res.json(collection);
+    } catch (error) {
+      console.error('Error fetching collection:', error);
+      res.status(500).json({ error: 'Failed to fetch collection' });
+    }
+  });
+
+  // Track a card drawn/played (called from game events)
+  app.post('/api/collection/track', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json({ success: true });
+      const userId = (req as any).user.userId;
+      const { cardName, cardDeckType, cardImageUrl } = req.body;
+      if (!cardName || !cardDeckType) return res.status(400).json({ error: 'Missing card data' });
+
+      const existing = await db.select().from(cardCollection)
+        .where(and(eq(cardCollection.userId, userId), eq(cardCollection.cardName, cardName), eq(cardCollection.cardDeckType, cardDeckType)));
+
+      if (existing.length > 0) {
+        await db.update(cardCollection)
+          .set({ timesDrawn: sql`${cardCollection.timesDrawn} + 1`, lastDrawnAt: new Date(), cardImageUrl: cardImageUrl || existing[0].cardImageUrl })
+          .where(eq(cardCollection.id, existing[0].id));
+      } else {
+        await db.insert(cardCollection).values({ userId, cardName, cardDeckType, cardImageUrl: cardImageUrl || null, timesDrawn: 1 });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error tracking collection:', error);
+      res.status(500).json({ error: 'Failed to track card' });
+    }
+  });
+
+  // Get collection stats
+  app.get('/api/collection/stats', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json({ total: 0, byType: {}, badges: [] });
+      const userId = (req as any).user.userId;
+      const collection = await db.select().from(cardCollection).where(eq(cardCollection.userId, userId));
+
+      const totalCards = Object.values(CARD_DATA).flat().length;
+      const byType: Record<string, { collected: number; total: number }> = {};
+      for (const [deckType, cards] of Object.entries(CARD_DATA)) {
+        const collectedInType = collection.filter(c => c.cardDeckType === deckType).length;
+        byType[deckType] = { collected: collectedInType, total: cards.length };
+      }
+
+      const badges: string[] = [];
+      const collectedCount = collection.length;
+      if (collectedCount >= 10) badges.push('collector_10');
+      if (collectedCount >= 50) badges.push('collector_50');
+      if (collectedCount >= 100) badges.push('collector_100');
+      if (collectedCount >= 200) badges.push('collector_200');
+      for (const [deckType, stats] of Object.entries(byType)) {
+        if (stats.collected === stats.total && stats.total > 0) {
+          badges.push(`complete_${deckType}`);
+        }
+      }
+      const completionPercent = totalCards > 0 ? Math.round((collectedCount / totalCards) * 100) : 0;
+
+      res.json({ total: collectedCount, totalCards, completionPercent, byType, badges });
+    } catch (error) {
+      console.error('Error fetching collection stats:', error);
+      res.status(500).json({ error: 'Failed to fetch stats' });
     }
   });
 

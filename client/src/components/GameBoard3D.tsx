@@ -4,6 +4,7 @@ import { Deck } from "./Deck";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { useBackgroundEffect } from "../lib/stores/useBackgroundEffect";
+import useTableTheme from "../lib/stores/useTableTheme";
 import { socket } from "../lib/socket";
 import { Button } from "./ui/button";
 import { ChevronLeft, ChevronRight, Zap } from "lucide-react";
@@ -104,6 +105,7 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
   const { gameState, playerName, gameId } = useGameState();
   const { playButtonClick } = useAudio();
   const { colors: bgColors } = useBackgroundEffect();
+  const currentTheme = useTableTheme(s => s.getCurrentTheme)();
 
   const [rippleActive, setRippleActive] = useState(false);
 
@@ -688,13 +690,18 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
               backgroundImage: `url('https://i.ibb.co/Y4bv4xwz/sfondo-minkiards.png')`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
-              boxShadow: `${shadowX}px ${shadowY}px 60px rgba(0,0,0,0.8), 0 0 80px rgba(147,51,234,0.15), inset 0 1px 0 rgba(255,255,255,0.05)`,
+              boxShadow: `${shadowX}px ${shadowY}px 60px rgba(0,0,0,0.8), 0 0 80px ${currentTheme.fogColor}, inset 0 1px 0 rgba(255,255,255,0.05)`,
+              borderColor: currentTheme.tableBorder,
+              borderWidth: '2px',
+              borderStyle: 'solid',
             }}
           >
-            <div className="absolute inset-0 bg-black/15 rounded-3xl" />
+            {/* Theme overlay */}
+            <div className="absolute inset-0 rounded-3xl" style={{ background: currentTheme.tableSurface, opacity: 0.6 }} />
+            <div className="absolute inset-0 bg-black/10 rounded-3xl" />
             {/* Directional light from top */}
             <div className="absolute inset-0 rounded-3xl" style={{
-              background: 'radial-gradient(ellipse 70% 50% at 50% 20%, rgba(255,250,230,0.12) 0%, transparent 60%)',
+              background: `radial-gradient(ellipse 70% 50% at 50% 20%, ${currentTheme.ambientColor}1f 0%, transparent 60%)`,
             }} />
             {/* Subtle vignette */}
             <div className="absolute inset-0 rounded-3xl" style={{
