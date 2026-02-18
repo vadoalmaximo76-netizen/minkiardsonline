@@ -1070,13 +1070,15 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
 
   // Deterministic scatter direction for elimination based on card id
   const [scatterX] = useState(() => {
-    const seed = typeof id === 'string' ? id.split('').reduce((a, c) => a + c.charCodeAt(0), 0) : Number(id) || 0;
+    const cid = card.id || '0';
+    const seed = cid.split('').reduce((a: number, c: string) => a + c.charCodeAt(0), 0);
     const s = Math.sin(seed * 1.7) * 10000;
     const r = s - Math.floor(s);
     return (r - 0.5) * 80 - (r > 0.5 ? 40 : -40);
   });
   const [scatterY] = useState(() => {
-    const seed = typeof id === 'string' ? id.split('').reduce((a, c) => a + c.charCodeAt(0), 0) : Number(id) || 0;
+    const cid = card.id || '0';
+    const seed = cid.split('').reduce((a: number, c: string) => a + c.charCodeAt(0), 0);
     const s = Math.sin(seed * 2.3) * 10000;
     const r = s - Math.floor(s);
     return (r - 0.5) * 80 - 60;
