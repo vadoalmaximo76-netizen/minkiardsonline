@@ -81,7 +81,17 @@ interface AudioState {
   stopBattleMusic: () => void;
   startAmbientSound: () => void;
   stopAmbientSound: () => void;
-  _ambientNodes: { source: AudioBufferSourceNode | null; gain: GainNode | null; active: boolean } | null;
+  setAmbientMood: (mood: 'calm' | 'tension' | 'myturn' | 'victory' | 'danger') => void;
+  _ambientMood: 'calm' | 'tension' | 'myturn' | 'victory' | 'danger';
+  _ambientNodes: {
+    oscillators: OscillatorNode[];
+    gains: GainNode[];
+    masterGain: GainNode | null;
+    filter: BiquadFilterNode | null;
+    active: boolean;
+    lfo: OscillatorNode | null;
+    lfoGain: GainNode | null;
+  } | null;
   _battleMusicNodes: { oscillators: OscillatorNode[]; gains: GainNode[]; tickInterval: ReturnType<typeof setInterval> | null; active: boolean } | null;
   registerLowHealthCard: (cardId: string) => void;
   unregisterLowHealthCard: (cardId: string) => void;
@@ -109,6 +119,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   audioContext: null,
   _lowHealthAlarmNodes: null,
   _battleMusicNodes: null,
+  _ambientMood: 'calm' as const,
   _ambientNodes: null,
   _lowHealthCardIds: new Set<string>(),
   soundSettings: (() => {
@@ -1788,57 +1799,155 @@ export const useAudio = create<AudioState>((set, get) => ({
     const existing = get()._ambientNodes;
     if (existing?.active) return;
 
-    const sampleRate = audioContext.sampleRate;
-    const duration = 4;
-    const bufferLength = sampleRate * duration;
-    const buffer = audioContext.createBuffer(1, bufferLength, sampleRate);
-    const data = buffer.getChannelData(0);
+    const mood = get()._ambientMood;
+    const moodConfig = {
+      calm:    { freqs: [130.81, 164.81, 196.00, 261.63], vol: 0.06, filterFreq: 600, lfoRate: 0.15, lfoDepth: 8 },
+      tension: { freqs: [110.00, 146.83, 174.61, 220.00], vol: 0.07, filterFreq: 900, lfoRate: 0.4, lfoDepth: 15 },
+      myturn:  { freqs: [164.81, 196.00, 246.94, 329.63], vol: 0.065, filterFreq: 1000, lfoRate: 0.25, lfoDepth: 12 },
+      victory: { freqs: [196.00, 246.94, 293.66, 392.00], vol: 0.07, filterFreq: 1200, lfoRate: 0.2, lfoDepth: 10 },
+      danger:  { freqs: [82.41, 110.00, 138.59, 164.81], vol: 0.07, filterFreq: 500, lfoRate: 0.6, lfoDepth: 20 },
+    };
+    const cfg = moodConfig[mood];
+    const now = audioContext.currentTime;
 
-    for (let i = 0; i < bufferLength; i++) {
-      const t = i / sampleRate;
-      const noise = (Math.random() * 2 - 1) * 0.015;
-      const crackle = Math.random() < 0.003 ? (Math.random() * 0.08 - 0.04) : 0;
-      const wind = Math.sin(t * 0.7) * 0.008 + Math.sin(t * 1.3) * 0.005;
-      const rumble = Math.sin(t * 30) * 0.003 * (0.5 + Math.sin(t * 0.2) * 0.5);
-      data[i] = noise + crackle + wind + rumble;
-    }
-
-    const source = audioContext.createBufferSource();
-    source.buffer = buffer;
-    source.loop = true;
-
-    const gainNode = audioContext.createGain();
-    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-    gainNode.gain.linearRampToValueAtTime(0.6, audioContext.currentTime + 2);
+    const masterGain = audioContext.createGain();
+    masterGain.gain.setValueAtTime(0, now);
+    masterGain.gain.linearRampToValueAtTime(1, now + 2.5);
 
     const filter = audioContext.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(800, audioContext.currentTime);
-    filter.Q.setValueAtTime(0.5, audioContext.currentTime);
+    filter.frequency.setValueAtTime(cfg.filterFreq, now);
+    filter.Q.setValueAtTime(1.5, now);
 
-    source.connect(filter);
-    filter.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    source.start();
+    const lfo = audioContext.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.setValueAtTime(cfg.lfoRate, now);
+    const lfoGain = audioContext.createGain();
+    lfoGain.gain.setValueAtTime(cfg.lfoDepth, now);
+    lfo.connect(lfoGain);
+    lfoGain.connect(filter.frequency);
+    lfo.start(now);
 
-    set({ _ambientNodes: { source, gain: gainNode, active: true } });
+    const oscillators: OscillatorNode[] = [];
+    const gains: GainNode[] = [];
+
+    cfg.freqs.forEach((freq, i) => {
+      const osc = audioContext.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now);
+
+      const detune = audioContext.createOscillator();
+      detune.type = 'sine';
+      detune.frequency.setValueAtTime(0.05 + i * 0.03, now);
+      const detuneGain = audioContext.createGain();
+      detuneGain.gain.setValueAtTime(2 + i, now);
+      detune.connect(detuneGain);
+      detuneGain.connect(osc.frequency);
+      detune.start(now);
+
+      const oscGain = audioContext.createGain();
+      const vol = cfg.vol * (i === 0 ? 1.0 : i === 1 ? 0.7 : i === 2 ? 0.5 : 0.35);
+      oscGain.gain.setValueAtTime(vol, now);
+
+      osc.connect(oscGain);
+      oscGain.connect(filter);
+
+      osc.start(now + i * 0.3);
+      oscillators.push(osc, detune);
+      gains.push(oscGain, detuneGain);
+    });
+
+    filter.connect(masterGain);
+    masterGain.connect(audioContext.destination);
+
+    set({
+      _ambientNodes: {
+        oscillators,
+        gains,
+        masterGain,
+        filter,
+        active: true,
+        lfo,
+        lfoGain,
+      },
+    });
   },
 
   stopAmbientSound: () => {
     const nodes = get()._ambientNodes;
-    if (nodes?.active && nodes.source && nodes.gain) {
+    if (nodes?.active && nodes.masterGain) {
       const ctx = get().audioContext;
       if (ctx) {
         try {
-          nodes.gain.gain.setValueAtTime(nodes.gain.gain.value, ctx.currentTime);
-          nodes.gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 1);
+          nodes.masterGain.gain.setValueAtTime(nodes.masterGain.gain.value, ctx.currentTime);
+          nodes.masterGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 1.5);
         } catch {}
       }
       setTimeout(() => {
-        try { nodes.source?.stop(); } catch {}
-      }, 1200);
-      set({ _ambientNodes: { source: null, gain: null, active: false } });
+        try {
+          nodes.oscillators.forEach(o => { try { o.stop(); } catch {} });
+          if (nodes.lfo) nodes.lfo.stop();
+        } catch {}
+      }, 2000);
+      set({ _ambientNodes: { oscillators: [], gains: [], masterGain: null, filter: null, active: false, lfo: null, lfoGain: null } });
     }
+  },
+
+  setAmbientMood: (mood: 'calm' | 'tension' | 'myturn' | 'victory' | 'danger') => {
+    const prev = get()._ambientMood;
+    if (mood === prev) return;
+    set({ _ambientMood: mood });
+
+    const nodes = get()._ambientNodes;
+    if (!nodes?.active) return;
+    const ctx = get().audioContext;
+    if (!ctx) return;
+
+    const moodConfig = {
+      calm:    { freqs: [130.81, 164.81, 196.00, 261.63], vol: 0.06, filterFreq: 600, lfoRate: 0.15, lfoDepth: 8 },
+      tension: { freqs: [110.00, 146.83, 174.61, 220.00], vol: 0.07, filterFreq: 900, lfoRate: 0.4, lfoDepth: 15 },
+      myturn:  { freqs: [164.81, 196.00, 246.94, 329.63], vol: 0.065, filterFreq: 1000, lfoRate: 0.25, lfoDepth: 12 },
+      victory: { freqs: [196.00, 246.94, 293.66, 392.00], vol: 0.07, filterFreq: 1200, lfoRate: 0.2, lfoDepth: 10 },
+      danger:  { freqs: [82.41, 110.00, 138.59, 164.81], vol: 0.07, filterFreq: 500, lfoRate: 0.6, lfoDepth: 20 },
+    };
+    const cfg = moodConfig[mood];
+    const now = ctx.currentTime;
+    const ramp = 1.5;
+
+    if (nodes.filter) {
+      nodes.filter.frequency.cancelScheduledValues(now);
+      nodes.filter.frequency.setValueAtTime(nodes.filter.frequency.value, now);
+      nodes.filter.frequency.linearRampToValueAtTime(cfg.filterFreq, now + ramp);
+    }
+    if (nodes.lfo) {
+      nodes.lfo.frequency.cancelScheduledValues(now);
+      nodes.lfo.frequency.setValueAtTime(nodes.lfo.frequency.value, now);
+      nodes.lfo.frequency.linearRampToValueAtTime(cfg.lfoRate, now + ramp);
+    }
+    if (nodes.lfoGain) {
+      nodes.lfoGain.gain.cancelScheduledValues(now);
+      nodes.lfoGain.gain.setValueAtTime(nodes.lfoGain.gain.value, now);
+      nodes.lfoGain.gain.linearRampToValueAtTime(cfg.lfoDepth, now + ramp);
+    }
+
+    const mainOscs = nodes.oscillators.filter((_, i) => i % 2 === 0);
+    mainOscs.forEach((osc, i) => {
+      if (i < cfg.freqs.length) {
+        osc.frequency.cancelScheduledValues(now);
+        osc.frequency.setValueAtTime(osc.frequency.value, now);
+        osc.frequency.linearRampToValueAtTime(cfg.freqs[i], now + ramp);
+      }
+    });
+
+    const mainGains = nodes.gains.filter((_, i) => i % 2 === 0);
+    mainGains.forEach((g, i) => {
+      if (i < cfg.freqs.length) {
+        const vol = cfg.vol * (i === 0 ? 1.0 : i === 1 ? 0.7 : i === 2 ? 0.5 : 0.35);
+        g.gain.cancelScheduledValues(now);
+        g.gain.setValueAtTime(g.gain.value, now);
+        g.gain.linearRampToValueAtTime(vol, now + ramp);
+      }
+    });
   },
 
   playTennisHit: () => {
