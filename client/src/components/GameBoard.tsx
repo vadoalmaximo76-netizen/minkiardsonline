@@ -248,6 +248,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [attackEffectVisible, setAttackEffectVisible] = useState(false);
   const [attackedCharacterName, setAttackedCharacterName] = useState<string>("");
   const [attackSlash3D, setAttackSlash3D] = useState<{ visible: boolean; attackerName: string; targetName: string; damage: number }>({ visible: false, attackerName: '', targetName: '', damage: 0 });
+  const [cinematicFlash, setCinematicFlash] = useState<{ visible: boolean; type: 'attack' | 'heal' }>({ visible: false, type: 'attack' });
   const [cardShatter3D, setCardShatter3D] = useState<{ visible: boolean; cardImage: string; cardName: string }>({ visible: false, cardImage: '', cardName: '' });
   const [attackEffectKey, setAttackEffectKey] = useState(0);
   const [deathEffectVisible, setDeathEffectVisible] = useState(false);
@@ -677,6 +678,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         setAttackEffectVisible(true);
       }, 10);
       setAttackSlash3D({ visible: true, attackerName: attacker, targetName: target, damage: dmg });
+      if (dmg >= 30) {
+        setCinematicFlash({ visible: true, type: 'attack' });
+        setTimeout(() => setCinematicFlash({ visible: false, type: 'attack' }), 700);
+      }
       shake(dmg > 50 ? 'heavy' : dmg > 20 ? 'medium' : 'light');
       playAttackSound();
       playDamageSound();
@@ -1957,7 +1962,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   }, [triggerBgEvent, playerName, addToast, triggerTooltipFn]);
 
   return (
-    <div id="game-root" className="min-h-screen bg-arena-deep text-slate-100 p-4 relative">
+    <div id="game-root" className="min-h-screen bg-arena-deep text-slate-100 p-4 relative overflow-hidden">
+      <div className="game-field-aurora" />
       <GameToastContainer />
       <ContextualTooltipLoader />
       <ContextualTooltipDisplay />
@@ -3975,6 +3981,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             cardName={cardShatter3D.cardName}
             onComplete={() => setCardShatter3D({ visible: false, cardImage: '', cardName: '' })}
           />
+        )}
+
+        {cinematicFlash.visible && (
+          <div className={cinematicFlash.type === 'attack' ? 'cinematic-attack-flash' : 'cinematic-heal-flash'} />
         )}
 
         {/* Player Order Notification */}

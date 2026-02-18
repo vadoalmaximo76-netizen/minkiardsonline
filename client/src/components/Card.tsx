@@ -10,6 +10,8 @@ import { Input } from "./ui/input";
 import { FloatingNumber } from "./FloatingNumber";
 import { SkinSelectionPanel } from "./SkinSelectionPanel";
 
+let _cardIdCounter = 0;
+
 const parsePTI = (text: string | undefined): number | null => {
   if (!text) return null;
   const match = text.match(/PTI:\s*(\d+)/i);
@@ -259,7 +261,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         const rect = cardRef.current.getBoundingClientRect();
         const x = rect.left + rect.width / 2;
         const y = rect.top + rect.height / 3;
-        const id = `pti-${Date.now()}-${Math.random()}`;
+        const id = `pti-${Date.now()}-${++_cardIdCounter}`;
         
         if (diff > 0) {
           setFloatingNumbers(prev => [...prev, { id, value: diff, type: 'heal', x, y }]);
@@ -285,7 +287,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         const rect = cardRef.current.getBoundingClientRect();
         const x = rect.left + rect.width / 2;
         const y = rect.top + rect.height / 2;
-        const id = `star-${Date.now()}-${Math.random()}`;
+        const id = `star-${Date.now()}-${++_cardIdCounter}`;
         
         if (diff > 0) {
           setFloatingNumbers(prev => [...prev, { id, value: diff, type: 'star-up', x, y }]);
@@ -857,7 +859,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       const addFloatingNumber = (value: number, type: 'damage' | 'heal' | 'star-up' | 'star-down') => {
         if (cardRef.current) {
           const rect = cardRef.current.getBoundingClientRect();
-          const id = `${Date.now()}-${Math.random()}`;
+          const id = `cb-${Date.now()}-${++_cardIdCounter}`;
           setFloatingNumbers(prev => [...prev, {
             id,
             value,
@@ -1139,7 +1141,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     <div 
       ref={cardRef}
       onMouseMove={handleMouseMove3D}
-      className={`relative flex flex-col gap-2 card-play-transition card-3d-tilt ${damageFlash ? 'card-damage-flash' : ''} ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? getEntryAnimationClass() : ''} ${isPlayable ? 'card-playable-glow' : ''} ${getFieldBreathClass()}`}
+      className={`relative flex flex-col gap-2 card-play-transition card-3d-tilt ${damageFlash ? 'card-damage-flash' : ''} ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? getEntryAnimationClass() : ''} ${isPlayable ? 'card-playable-glow' : ''} ${getFieldBreathClass()} ${location === 'field' && !isNewlyPlaced && !isEliminated ? 'card-levitate-field' : ''}`}
       style={{
         perspective: location === 'field' ? '800px' : undefined,
         transformStyle: location === 'field' ? 'preserve-3d' as any : undefined,
@@ -1223,6 +1225,34 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
               animation: 'card-flash-burst 0.6s ease-out forwards',
             }}
           />
+          {/* Shockwave rings */}
+          {[0, 1].map((ring) => {
+            const ringColor = isSpeciali ? 'rgba(251,191,36,0.6)' : isMosse ? 'rgba(239,68,68,0.6)' : isBonus ? 'rgba(251,191,36,0.5)' : 'rgba(0,242,255,0.6)';
+            return (
+              <div
+                key={`ring-${ring}`}
+                className="absolute left-1/2 top-1/2 rounded-full"
+                style={{
+                  width: '80px',
+                  height: '80px',
+                  border: `3px solid ${ringColor}`,
+                  animation: `${ring === 0 ? 'shockwave-ring' : 'shockwave-ring-2'} ${ring === 0 ? '0.8s' : '0.6s'} ${ring * 0.15}s ease-out forwards`,
+                  transform: 'translate(-50%, -50%)',
+                }}
+              />
+            );
+          })}
+          {/* Ground impact flash */}
+          <div
+            className="absolute left-1/2 top-1/2 rounded-full"
+            style={{
+              width: '60px',
+              height: '60px',
+              background: `radial-gradient(circle, ${isSpeciali ? 'rgba(251,191,36,0.5)' : isMosse ? 'rgba(239,68,68,0.5)' : isBonus ? 'rgba(251,191,36,0.4)' : 'rgba(0,242,255,0.5)'}, transparent 70%)`,
+              animation: 'slam-ground-flash 0.5s ease-out forwards',
+              transform: 'translate(-50%, -50%)',
+            }}
+          />
         </div>
       )}
       
@@ -1296,7 +1326,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         
         {/* Card image - immediately clickable */}
         <div 
-          className={`relative cursor-pointer ${isLowHealth && location === 'field' ? 'low-health-critical' : ''}`}
+          className={`relative cursor-pointer ${isLowHealth && location === 'field' ? 'low-health-critical' : ''} ${location === 'field' && !card.faceDown ? (card.type === 'personaggi' ? 'card-border-glow-personaggi' : card.type === 'mosse' ? 'card-border-glow-mosse' : card.type === 'bonus' ? 'card-border-glow-bonus' : card.type === 'personaggi_speciali' ? 'card-border-glow-speciali' : '') : ''}`}
           onClick={handleCardClick}
         >
           <img
@@ -1316,17 +1346,20 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
               ${isShaking && !isEliminated ? 'animate-shake' : ''} 
               ${isMosseSelected ? 'ring-4 ring-purple-500 ring-opacity-70' : ''}
               ${card.faceDown ? 'ring-2 ring-orange-400 ring-opacity-50' : ''}
-              ${isNewlyDrawn && location === 'hand' ? 'card-draw-enter' : ''}
+              ${isNewlyDrawn && location === 'hand' ? 'card-draw-enter-enhanced' : ''}
               ${skinAnimation || ''}`}
           />
           {isHovered && location === 'field' && !card.faceDown && !showBack && (
-            <div 
-              className="absolute inset-0 rounded-xl pointer-events-none"
-              style={{
-                background: `radial-gradient(circle at ${cardTilt.glareX}% ${cardTilt.glareY}%, rgba(255,255,255,0.25) 0%, transparent 60%)`,
-                transition: 'background 0.1s ease-out',
-              }}
-            />
+            <>
+              <div 
+                className="absolute inset-0 rounded-xl pointer-events-none"
+                style={{
+                  background: `radial-gradient(circle at ${cardTilt.glareX}% ${cardTilt.glareY}%, rgba(255,255,255,0.3) 0%, transparent 60%)`,
+                  transition: 'background 0.1s ease-out',
+                }}
+              />
+              <div className="card-holo-reflection" style={{ animation: 'holo-shimmer 1.5s linear infinite', opacity: 0.7 }} />
+            </>
           )}
           {isLowHealth && location === 'field' && (
             <div className="absolute inset-0 low-health-critical-overlay rounded-xl" />
