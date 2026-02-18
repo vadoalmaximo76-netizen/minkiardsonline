@@ -438,7 +438,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     cardType: string;
   }>>([]);
     const { selectedCard, setSelectedCard, gameId, playerName, gameState, setGameId, setUserRankiardPoints, addPRSpent, prSpentThisGame, resetPRSpent, clearSession } = useGameState();
-  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted, playAttackSound, playDeathSound, playCardPickup, playCardPlay, playTurnChange, playBonusActivated, playMyTurn, playDeckShuffle, playEffectActivate, playHostageApplied, playHostageReleased, playPersonaggioEnter, playCardReveal, playErrorSound, playPlayerEliminated, playSorosActivation, playFusionSound, playCardPlayedToField, playVictory, playDefeat, playButtonClick, playPanelOpen, playPanelClose, playModalOpen, playModalClose, playConfirm, startAmbientSound, stopAmbientSound, setAmbientMood } = useAudio();
+  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted, playAttackSound, playDeathSound, playCardPickup, playCardPlay, playTurnChange, playBonusActivated, playMyTurn, playDeckShuffle, playEffectActivate, playHostageApplied, playHostageReleased, playPersonaggioEnter, playCardReveal, playErrorSound, playPlayerEliminated, playSorosActivation, playFusionSound, playCardPlayedToField, playVictory, playDefeat, playButtonClick, playPanelOpen, playPanelClose, playModalOpen, playModalClose, playConfirm } = useAudio();
 
 
   const shareInviteLink = () => {
@@ -565,13 +565,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     initAudioContext();
     const timer = setTimeout(() => {
       playGameStart();
-      if (!useAudio.getState().isMuted) {
-        startAmbientSound();
-      }
     }, 500);
     return () => {
       clearTimeout(timer);
-      stopAmbientSound();
     };
   }, []);
 
@@ -684,7 +680,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       shake(dmg > 50 ? 'heavy' : dmg > 20 ? 'medium' : 'light');
       playAttackSound();
       playDamageSound();
-      setAmbientMood('tension');
       requestNarratorComment('attack', { attackerName: attacker, fromPlayer: attacker, targetName: target, toPlayer: defender, damage: dmg });
     };
 
@@ -703,7 +698,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         }, 10);
         setCardShatter3D({ visible: true, cardImage: '', cardName });
         playDeathSound();
-        setAmbientMood('danger');
       }
       
       setTimeout(() => {
@@ -889,10 +883,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       setNextTurnVisible(true);
       if (nextPlayer === playerName) {
         playMyTurn();
-        setAmbientMood('myturn');
       } else {
         playTurnChange();
-        setAmbientMood('calm');
       }
     };
 
@@ -1743,11 +1735,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       if (isWinner) {
         playVictory();
         shake('extreme');
-        setAmbientMood('victory');
       } else {
         playDefeat();
         shake('heavy');
-        setAmbientMood('danger');
       }
       setVictoryPlayer(winner);
       const myStats = playerStats?.[playerName || ''];
