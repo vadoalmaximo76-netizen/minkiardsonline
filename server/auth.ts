@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
 import { jsonStorage } from "./jsonStorage";
+import { emitSync } from './dbSync';
 import crypto from "crypto";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -106,6 +107,8 @@ export function registerAuthRoutes(app: Express) {
           avatar: validAvatar,
         }).returning();
 
+        emitSync('users', 'insert', { username, email, password: hashedPassword, avatar: validAvatar });
+
         const token = generateToken(newUser.id, newUser.email);
 
         res.json({
@@ -143,6 +146,8 @@ export function registerAuthRoutes(app: Express) {
           resetPasswordToken: null,
           resetPasswordExpires: null,
         });
+
+        emitSync('users', 'insert', { username, email, password: hashedPassword, googleId: null, avatar: validAvatar, puntiRankiard: 0, isAdmin: false });
 
         const token = generateToken(newUser.id, newUser.email);
 
@@ -318,6 +323,7 @@ export function registerAuthRoutes(app: Express) {
               .set({ googleId })
               .where(eq(users.id, existingEmailUser.id))
               .returning();
+            emitSync('users', 'update', { googleId, _syncId: existingEmailUser.id }, eq(users.id, existingEmailUser.id));
           }
         }
 
@@ -336,6 +342,7 @@ export function registerAuthRoutes(app: Express) {
             googleId,
             avatar: validAvatar,
           }).returning();
+          emitSync('users', 'insert', { username, email: email || undefined, googleId, avatar: validAvatar });
         }
 
         const token = generateToken(user.id, user.email);
@@ -358,6 +365,7 @@ export function registerAuthRoutes(app: Express) {
           const existingEmailUser = jsonStorage.users.getByEmail(email);
           if (existingEmailUser) {
             user = jsonStorage.users.update(existingEmailUser.id, { googleId }) || undefined;
+            emitSync('users', 'update', { googleId, _syncId: existingEmailUser.id }, eq(users.id, existingEmailUser.id));
           }
         }
 
@@ -381,6 +389,7 @@ export function registerAuthRoutes(app: Express) {
             resetPasswordToken: null,
             resetPasswordExpires: null,
           });
+          emitSync('users', 'insert', { username, email: email || null, password: null, googleId, avatar: validAvatar, puntiRankiard: 0, isAdmin: false });
         }
 
         const token = generateToken(user.id, user.email);
@@ -565,6 +574,8 @@ export function registerAuthRoutes(app: Express) {
           .where(eq(users.id, userId))
           .returning();
 
+        emitSync('users', 'update', { avatar, _syncId: userId }, eq(users.id, userId));
+
         if (!updatedUser) {
           return res.status(404).json({ error: "Utente non trovato" });
         }
@@ -579,6 +590,8 @@ export function registerAuthRoutes(app: Express) {
         });
       } else {
         const updatedUser = jsonStorage.users.update(userId, { avatar });
+
+        emitSync('users', 'update', { avatar, _syncId: userId }, eq(users.id, userId));
 
         if (!updatedUser) {
           return res.status(404).json({ error: "Utente non trovato" });
@@ -629,6 +642,8 @@ export function registerAuthRoutes(app: Express) {
           })
           .where(eq(users.id, user.id));
 
+        emitSync('users', 'update', { resetPasswordToken: resetToken, resetPasswordExpires: resetExpires, _syncId: user.id }, eq(users.id, user.id));
+
         try {
           const { getUncachableResendClient } = await import('./resendClient');
           const { client, fromEmail } = await getUncachableResendClient();
@@ -672,6 +687,8 @@ export function registerAuthRoutes(app: Express) {
           resetPasswordToken: resetToken,
           resetPasswordExpires: resetExpires,
         });
+
+        emitSync('users', 'update', { resetPasswordToken: resetToken, resetPasswordExpires: resetExpires, _syncId: user.id }, eq(users.id, user.id));
 
         try {
           const { getUncachableResendClient } = await import('./resendClient');
@@ -743,6 +760,8 @@ export function registerAuthRoutes(app: Express) {
           })
           .where(eq(users.id, user.id));
 
+        emitSync('users', 'update', { password: hashedPassword, resetPasswordToken: null, resetPasswordExpires: null, _syncId: user.id }, eq(users.id, user.id));
+
         res.json({ success: true, message: "Password reimpostata con successo" });
       } else {
         const user = jsonStorage.users.getByResetToken(token);
@@ -762,6 +781,8 @@ export function registerAuthRoutes(app: Express) {
           resetPasswordToken: null,
           resetPasswordExpires: null,
         });
+
+        emitSync('users', 'update', { password: hashedPassword, resetPasswordToken: null, resetPasswordExpires: null, _syncId: user.id }, eq(users.id, user.id));
 
         res.json({ success: true, message: "Password reimpostata con successo" });
       }

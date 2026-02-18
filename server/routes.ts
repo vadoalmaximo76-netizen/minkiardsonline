@@ -16,6 +16,7 @@ import { authMiddleware, ADMIN_FALLBACK, JWT_SECRET } from "./auth";
 import { setPlayerOnline, rateLimit as redisRateLimit, isRedisConfigured, updateLeaderboard as redisUpdateLeaderboard, cacheGet, cacheSet } from "./redis";
 import { getOptimizedCardUrl, isCloudinaryConfigured } from "./cloudinary";
 import { captureError } from "./sentry";
+import { emitSync } from "./dbSync";
 
 const jwtSecret = JWT_SECRET;
 
@@ -6950,6 +6951,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ success: false, error: 'Card not found' });
       }
       
+      emitSync('custom_cards', 'update', updateData, { id: cardId });
       res.json({ success: true, card: result });
     } catch (error) {
       console.error('Error updating custom card:', error);
@@ -6972,6 +6974,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ success: false, error: 'Card not found' });
       }
       
+      emitSync('custom_cards', 'delete', {}, { id: cardId });
       res.json({ success: true, message: 'Card deleted successfully' });
     } catch (error) {
       console.error('Error deleting custom card:', error);
@@ -7120,6 +7123,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         modifiedBy: userEmail || null
       });
       
+      emitSync('card_modifications', 'update', { originalCardId, ...modification }, { originalCardId });
       // Refresh card metadata in all active games so changes take effect immediately
       const refreshedGames = await gameManager.refreshCardMetadataForAllGames();
       console.log(`Card modification saved. Refreshed ${refreshedGames.length} active games.`);
@@ -7186,6 +7190,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           superAttacco: mod.superAttacco || null,
           modifiedBy: userEmail || null
         });
+        emitSync('card_modifications', 'update', { originalCardId: mod.originalCardId, ...mod }, { originalCardId: mod.originalCardId });
       }
 
       const refreshedGames = await gameManager.refreshCardMetadataForAllGames();
@@ -7220,6 +7225,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         modifiedBy: userEmail || null
       });
       
+      emitSync('card_modifications', 'update', { originalCardId, deckType, isDeleted, modifiedBy: userEmail || null }, { originalCardId });
       res.json({ success: true, modification });
     } catch (error) {
       console.error('Error toggling card deletion:', error);
@@ -7727,6 +7733,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         isActive: isActive !== false
       }).returning();
 
+      emitSync('seasonal_events', 'insert', { name, description: description || null, startDate: new Date(startDate), endDate: new Date(endDate), bannerImage: bannerImage || null, isActive: isActive !== false });
       res.json({ success: true, event: newEvent[0] });
     } catch (error) {
       console.error('Error creating seasonal event:', error);
@@ -7767,6 +7774,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         return res.status(404).json({ success: false, error: 'Event not found' });
       }
 
+      emitSync('seasonal_events', 'update', { name, description: description || null, startDate: new Date(startDate), endDate: new Date(endDate), bannerImage: bannerImage || null, isActive: isActive !== false }, eq(seasonalEvents.id, eventId));
       res.json({ success: true, event: updated[0] });
     } catch (error) {
       console.error('Error updating seasonal event:', error);
@@ -7791,7 +7799,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
 
       // Also delete associated seasonal cards
       await db.delete(seasonalCards).where(eq(seasonalCards.eventId, eventId));
+      emitSync('seasonal_cards', 'delete', {}, eq(seasonalCards.eventId, eventId));
       await db.delete(seasonalEvents).where(eq(seasonalEvents.id, eventId));
+      emitSync('seasonal_events', 'delete', {}, eq(seasonalEvents.id, eventId));
       
       res.json({ success: true });
     } catch (error) {
@@ -7831,6 +7841,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         rarity: rarity || 'rare'
       }).returning();
 
+      emitSync('seasonal_cards', 'insert', { eventId, name, deckType, imageUrl: imageUrl || null, pti: pti || null, stars: stars || null, effect: effect || null, rarity: rarity || 'rare' });
       res.json({ success: true, card: newCard[0] });
     } catch (error) {
       console.error('Error adding seasonal card:', error);
@@ -7854,6 +7865,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       }
 
       await db.delete(seasonalCards).where(eq(seasonalCards.id, cardId));
+      emitSync('seasonal_cards', 'delete', {}, eq(seasonalCards.id, cardId));
       res.json({ success: true });
     } catch (error) {
       console.error('Error deleting seasonal card:', error);
@@ -8006,11 +8018,13 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       await db.update(users)
         .set({ puntiRankiard: currentUser[0].puntiRankiard - (skin.price || 0) })
         .where(eq(users.id, currentUser[0].id));
+      emitSync('users', 'update', { puntiRankiard: currentUser[0].puntiRankiard - (skin.price || 0) }, eq(users.id, currentUser[0].id));
       
       await db.insert(playerSkins).values({
         userId: currentUser[0].id,
         skinId
       });
+      emitSync('player_skins', 'insert', { userId: currentUser[0].id, skinId });
       
       res.json({ success: true });
     } catch (error) {
@@ -8038,11 +8052,13 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       await db.update(playerSkins)
         .set({ isEquipped: false })
         .where(eq(playerSkins.userId, currentUser[0].id));
+      emitSync('player_skins', 'update', { isEquipped: false }, eq(playerSkins.userId, currentUser[0].id));
       
       // Equip the selected skin
       await db.update(playerSkins)
         .set({ isEquipped: true })
         .where(and(eq(playerSkins.userId, currentUser[0].id), eq(playerSkins.skinId, skinId)));
+      emitSync('player_skins', 'update', { isEquipped: true }, and(eq(playerSkins.userId, currentUser[0].id), eq(playerSkins.skinId, skinId)));
       
       res.json({ success: true });
     } catch (error) {
@@ -8086,6 +8102,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         isAvailable: isAvailable !== false
       });
 
+      emitSync('card_skins', 'insert', newSkin);
       res.json({ success: true, skin: newSkin });
     } catch (error) {
       console.error('Error creating skin:', error);
@@ -8125,6 +8142,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         return res.status(404).json({ success: false, error: 'Skin not found' });
       }
 
+      emitSync('card_skins', 'update', updated, { id: skinId });
       res.json({ success: true, skin: updated });
     } catch (error) {
       console.error('Error updating skin:', error);
@@ -8144,6 +8162,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       }
 
       jsonStorage.cardSkins.delete(skinId);
+      emitSync('card_skins', 'delete', {}, { id: skinId });
       res.json({ success: true });
     } catch (error) {
       console.error('Error deleting skin:', error);
@@ -8220,6 +8239,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
           userId: currentUser[0].id,
           passId
         }).returning();
+        emitSync('player_pass_progress', 'insert', { userId: currentUser[0].id, passId });
         progressData = inserted;
       }
       
@@ -8271,6 +8291,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         await db.update(users)
           .set({ puntiRankiard: currentUser[0].puntiRankiard + points })
           .where(eq(users.id, currentUser[0].id));
+        emitSync('users', 'update', { puntiRankiard: currentUser[0].puntiRankiard + points }, eq(users.id, currentUser[0].id));
       }
       
       res.json({ success: true, message: 'Reward claimed successfully' });
@@ -8335,6 +8356,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         isActive: isActive !== false
       }).returning();
 
+      emitSync('seasonal_passes', 'insert', { name, description: description || null, startDate: new Date(startDate), endDate: new Date(endDate), maxLevel: maxLevel || 50, isActive: isActive !== false });
       res.json({ success: true, pass: newPass[0] });
     } catch (error) {
       console.error('Error creating seasonal pass:', error);
@@ -8375,6 +8397,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         return res.status(404).json({ success: false, error: 'Pass not found' });
       }
 
+      emitSync('seasonal_passes', 'update', { name, description: description || null, startDate: new Date(startDate), endDate: new Date(endDate), maxLevel: maxLevel || 50, isActive: isActive !== false }, eq(seasonalPasses.id, passId));
       res.json({ success: true, pass: updated[0] });
     } catch (error) {
       console.error('Error updating seasonal pass:', error);
@@ -8399,7 +8422,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
 
       // Also delete associated rewards
       await db.delete(passRewards).where(eq(passRewards.passId, passId));
+      emitSync('pass_rewards', 'delete', {}, eq(passRewards.passId, passId));
       await db.delete(seasonalPasses).where(eq(seasonalPasses.id, passId));
+      emitSync('seasonal_passes', 'delete', {}, eq(seasonalPasses.id, passId));
       
       res.json({ success: true });
     } catch (error) {
@@ -8437,6 +8462,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         isPremium: isPremium || false
       }).returning();
 
+      emitSync('pass_rewards', 'insert', { passId, level, rewardType, rewardValue, isPremium: isPremium || false });
       res.json({ success: true, reward: newReward[0] });
     } catch (error) {
       console.error('Error adding pass reward:', error);
@@ -8460,6 +8486,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       }
 
       await db.delete(passRewards).where(eq(passRewards.id, rewardId));
+      emitSync('pass_rewards', 'delete', {}, eq(passRewards.id, rewardId));
       res.json({ success: true });
     } catch (error) {
       console.error('Error deleting pass reward:', error);
@@ -8583,6 +8610,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         leaderId: currentUser[0].id,
         isPublic: isPublic !== false
       }).returning();
+      emitSync('clans', 'insert', { name, tag: tag.toUpperCase(), description: description || null, emblem: emblem || '⚔️', leaderId: currentUser[0].id, isPublic: isPublic !== false });
       
       // Add creator as leader
       await db.insert(clanMembers).values({
@@ -8591,11 +8619,13 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         role: 'leader',
         contributedPoints: currentUser[0].puntiRankiard
       });
+      emitSync('clan_members', 'insert', { clanId: newClan.id, userId: currentUser[0].id, role: 'leader', contributedPoints: currentUser[0].puntiRankiard });
       
       // Update clan total points
       await db.update(clans)
         .set({ totalPoints: currentUser[0].puntiRankiard })
         .where(eq(clans.id, newClan.id));
+      emitSync('clans', 'update', { totalPoints: currentUser[0].puntiRankiard }, eq(clans.id, newClan.id));
       
       res.json({ success: true, clan: newClan });
     } catch (error) {
@@ -8641,6 +8671,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
           clanId,
           userId: currentUser[0].id
         });
+        emitSync('clan_join_requests', 'insert', { clanId, userId: currentUser[0].id });
         return res.json({ success: true, message: 'Join request sent' });
       }
       
@@ -8651,6 +8682,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         role: 'member',
         contributedPoints: currentUser[0].puntiRankiard
       });
+      emitSync('clan_members', 'insert', { clanId, userId: currentUser[0].id, role: 'member', contributedPoints: currentUser[0].puntiRankiard });
       
       // Update clan stats
       await db.update(clans)
@@ -8659,6 +8691,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
           totalPoints: clan[0].totalPoints + currentUser[0].puntiRankiard
         })
         .where(eq(clans.id, clanId));
+      emitSync('clans', 'update', { memberCount: clan[0].memberCount + 1, totalPoints: clan[0].totalPoints + currentUser[0].puntiRankiard }, eq(clans.id, clanId));
       
       res.json({ success: true, message: 'Joined clan successfully' });
     } catch (error) {
@@ -8695,8 +8728,11 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       // If leader and only member, delete clan
       if (membership[0].role === 'leader' && clan[0].memberCount <= 1) {
         await db.delete(clanMembers).where(eq(clanMembers.clanId, clan[0].id));
+        emitSync('clan_members', 'delete', {}, eq(clanMembers.clanId, clan[0].id));
         await db.delete(clanJoinRequests).where(eq(clanJoinRequests.clanId, clan[0].id));
+        emitSync('clan_join_requests', 'delete', {}, eq(clanJoinRequests.clanId, clan[0].id));
         await db.delete(clans).where(eq(clans.id, clan[0].id));
+        emitSync('clans', 'delete', {}, eq(clans.id, clan[0].id));
         return res.json({ success: true, message: 'Clan deleted' });
       }
       
@@ -8708,12 +8744,15 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
           .limit(1);
         if (nextLeader.length) {
           await db.update(clanMembers).set({ role: 'leader' }).where(eq(clanMembers.id, nextLeader[0].id));
+          emitSync('clan_members', 'update', { role: 'leader' }, eq(clanMembers.id, nextLeader[0].id));
           await db.update(clans).set({ leaderId: nextLeader[0].userId }).where(eq(clans.id, clan[0].id));
+          emitSync('clans', 'update', { leaderId: nextLeader[0].userId }, eq(clans.id, clan[0].id));
         }
       }
       
       // Remove member
       await db.delete(clanMembers).where(eq(clanMembers.id, membership[0].id));
+      emitSync('clan_members', 'delete', {}, eq(clanMembers.id, membership[0].id));
       
       // Update clan stats
       await db.update(clans)
@@ -8722,6 +8761,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
           totalPoints: clan[0].totalPoints - membership[0].contributedPoints
         })
         .where(eq(clans.id, clan[0].id));
+      emitSync('clans', 'update', { memberCount: clan[0].memberCount - 1, totalPoints: clan[0].totalPoints - membership[0].contributedPoints }, eq(clans.id, clan[0].id));
       
       res.json({ success: true, message: 'Left clan successfully' });
     } catch (error) {
@@ -8862,6 +8902,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         organizerId: currentUser[0].id
       }).returning();
       
+      emitSync('tournaments', 'insert', { name, description: description || null, type: type || 'elimination', maxParticipants: maxParticipants || 8, prizePool: prizePool || 100, entryFee: entryFee || 0, organizerId: currentUser[0].id });
       res.json({ success: true, tournament: newTournament });
     } catch (error) {
       console.error('Error creating tournament:', error);
@@ -8917,6 +8958,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         await db.update(users)
           .set({ puntiRankiard: currentUser[0].puntiRankiard - tournament[0].entryFee })
           .where(eq(users.id, currentUser[0].id));
+        emitSync('users', 'update', { puntiRankiard: currentUser[0].puntiRankiard - tournament[0].entryFee }, eq(users.id, currentUser[0].id));
       }
       
       // Register
@@ -8924,11 +8966,13 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         tournamentId,
         userId: currentUser[0].id
       });
+      emitSync('tournament_participants', 'insert', { tournamentId, userId: currentUser[0].id });
       
       // Update participant count
       await db.update(tournaments)
         .set({ currentParticipants: tournament[0].currentParticipants + 1 })
         .where(eq(tournaments.id, tournamentId));
+      emitSync('tournaments', 'update', { currentParticipants: tournament[0].currentParticipants + 1 }, eq(tournaments.id, tournamentId));
       
       res.json({ success: true, message: 'Successfully joined tournament' });
     } catch (error) {
@@ -8972,6 +9016,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       await db.update(tournaments)
         .set({ status: 'closed' })
         .where(eq(tournaments.id, tournamentId));
+      emitSync('tournaments', 'update', { status: 'closed' }, eq(tournaments.id, tournamentId));
 
       res.json({ success: true, message: 'Registration closed successfully' });
     } catch (error) {
@@ -9017,6 +9062,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       await db.update(tournaments)
         .set({ status: 'in_progress', startDate: new Date() })
         .where(eq(tournaments.id, tournamentId));
+      emitSync('tournaments', 'update', { status: 'in_progress', startDate: new Date() }, eq(tournaments.id, tournamentId));
       
       // Generate first round matches
       const participants = await db.select().from(tournamentParticipants)
@@ -9039,6 +9085,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
           status: hasBothPlayers ? 'pending' : 'completed',
           winnerId: hasBothPlayers ? null : shuffled[i * 2].userId // Bye
         });
+        emitSync('tournament_matches', 'insert', { tournamentId, round: 1, matchNumber: i + 1, player1Id: shuffled[i * 2].userId, player2Id: shuffled[i * 2 + 1]?.userId || null, gameId, status: hasBothPlayers ? 'pending' : 'completed', winnerId: hasBothPlayers ? null : shuffled[i * 2].userId });
       }
       
       // Broadcast tournament started to all connected clients
@@ -9108,6 +9155,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         await db.update(tournamentMatches)
           .set(updateFields)
           .where(eq(tournamentMatches.id, matchId));
+        emitSync('tournament_matches', 'update', updateFields, eq(tournamentMatches.id, matchId));
       }
       
       res.json({ 
@@ -9169,6 +9217,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       await db.update(tournamentMatches)
         .set({ winnerId, status: 'completed', completedAt: new Date() })
         .where(eq(tournamentMatches.id, matchId));
+      emitSync('tournament_matches', 'update', { winnerId, status: 'completed', completedAt: new Date() }, eq(tournamentMatches.id, matchId));
       
       // Check if all matches in this round are completed
       const roundMatches = await db.select().from(tournamentMatches)
@@ -9188,6 +9237,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
           await db.update(tournaments)
             .set({ status: 'completed', winnerId: winners[0] || null })
             .where(eq(tournaments.id, matchData.tournamentId));
+          emitSync('tournaments', 'update', { status: 'completed', winnerId: winners[0] || null }, eq(tournaments.id, matchData.tournamentId));
           
           io.emit('tournament-completed', {
             tournamentId: matchData.tournamentId,
@@ -9213,6 +9263,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
               status: p2 ? 'pending' : 'completed',
               winnerId: p2 ? null : p1
             });
+            emitSync('tournament_matches', 'insert', { tournamentId: matchData.tournamentId, round: nextRound, matchNumber: i + 1, player1Id: p1, player2Id: p2, gameId, status: p2 ? 'pending' : 'completed', winnerId: p2 ? null : p1 });
           }
           
           io.emit('tournament-round-advanced', {
@@ -9421,6 +9472,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         message: message || null,
         status: 'pending'
       });
+      emitSync('friend_requests', 'insert', { requesterId, addresseeId, message: message || null, status: 'pending' });
       
       res.json({ success: true });
     } catch (error) {
@@ -9466,6 +9518,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
           respondedAt: new Date()
         })
         .where(eq(friendRequests.id, requestId));
+      emitSync('friend_requests', 'update', { status: accept ? 'accepted' : 'rejected', respondedAt: new Date() }, eq(friendRequests.id, requestId));
       
       if (accept) {
         const [userAId, userBId] = request[0].requesterId < currentUser[0].id
@@ -9476,6 +9529,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
           userAId,
           userBId
         });
+        emitSync('friendships', 'insert', { userAId, userBId });
       }
       
       res.json({ success: true });
@@ -9512,6 +9566,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         status: 'pending',
         expiresAt: new Date(Date.now() + 30 * 60 * 1000)
       });
+      emitSync('game_invitations', 'insert', { senderId: currentUser[0].id, receiverId: friendId, gameId, status: 'pending', expiresAt: new Date(Date.now() + 30 * 60 * 1000) });
       
       // Emit to specific user's socket only - find their socket by iterating connections
       const sockets = await io.fetchSockets();
@@ -9607,6 +9662,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         tipContent
       }).returning();
       
+      emitSync('training_tips', 'insert', { cardName, cardType, tipTitle, tipContent });
       res.json(newTip);
     } catch (error) {
       console.error('Error creating training tip:', error);
@@ -9635,6 +9691,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         .where(eq(trainingTips.id, tipId))
         .returning();
       
+      emitSync('training_tips', 'update', { tipTitle, tipContent, updatedAt: new Date() }, eq(trainingTips.id, tipId));
       res.json(updatedTip);
     } catch (error) {
       console.error('Error updating training tip:', error);
@@ -9657,6 +9714,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       
       const tipId = parseInt(req.params.id);
       await db.delete(trainingTips).where(eq(trainingTips.id, tipId));
+      emitSync('training_tips', 'delete', {}, eq(trainingTips.id, tipId));
       
       res.json({ success: true });
     } catch (error) {
@@ -9700,6 +9758,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         isActive: isActive !== false
       });
       
+      emitSync('tutorial_steps', 'insert', newStep);
       res.json({ success: true, step: newStep });
     } catch (error) {
       console.error('Error creating tutorial step:', error);
@@ -9736,6 +9795,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         return res.status(404).json({ error: 'Tutorial step not found' });
       }
       
+      emitSync('tutorial_steps', 'update', updates, { id: stepId });
       res.json({ success: true, step: updatedStep });
     } catch (error) {
       console.error('Error updating tutorial step:', error);
@@ -9763,6 +9823,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         return res.status(404).json({ error: 'Tutorial step not found' });
       }
       
+      emitSync('tutorial_steps', 'delete', {}, { id: stepId });
       res.json({ success: true });
     } catch (error) {
       console.error('Error deleting tutorial step:', error);
@@ -9802,6 +9863,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       
       for (const step of defaultSteps) {
         jsonStorage.tutorialSteps.create(step);
+        emitSync('tutorial_steps', 'insert', step);
       }
       
       res.json({ success: true, message: 'Tutorial steps initialized', count: defaultSteps.length });
@@ -9830,6 +9892,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         .where(eq(users.email, user.email))
         .returning();
       
+      emitSync('users', 'update', updates, eq(users.email, user.email));
       res.json({ success: true, user: updatedUser });
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -9863,6 +9926,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       await db.update(users)
         .set({ password: hashedPassword })
         .where(eq(users.email, user.email));
+      emitSync('users', 'update', { password: hashedPassword }, eq(users.email, user.email));
       
       res.json({ success: true });
     } catch (error) {
@@ -10028,6 +10092,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
           eq(privateMessages.conversationId, conversationId),
           ne(privateMessages.senderId, currentUser.id)
         ));
+      emitSync('private_messages', 'update', { isRead: true }, and(eq(privateMessages.conversationId, conversationId), ne(privateMessages.senderId, currentUser.id)));
       
       res.json(messages);
     } catch (error) {
@@ -10077,6 +10142,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         })
         .returning();
       
+      emitSync('conversations', 'insert', { participant1Id: currentUser.id, participant2Id: recipientId, lastMessageAt: new Date() });
       res.json(newConv);
     } catch (error) {
       console.error('Error creating conversation:', error);
@@ -10114,11 +10180,13 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
           isRead: false
         })
         .returning();
+      emitSync('private_messages', 'insert', { conversationId, senderId: currentUser.id, content, isRead: false });
       
       // Update conversation last message timestamp
       await db.update(conversations)
         .set({ lastMessageAt: new Date() })
         .where(eq(conversations.id, conversationId));
+      emitSync('conversations', 'update', { lastMessageAt: new Date() }, eq(conversations.id, conversationId));
       
       // Get recipient for notification
       const recipientId = conv.participant1Id === currentUser.id ? conv.participant2Id : conv.participant1Id;
@@ -10218,6 +10286,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         p256dh: subscription.keys.p256dh,
         auth: subscription.keys.auth
       });
+      emitSync('push_subscriptions', 'insert', { userId: currentUser.id, endpoint: subscription.endpoint, p256dh: subscription.keys.p256dh, auth: subscription.keys.auth });
       
       res.json({ success: true });
     } catch (error) {
@@ -10246,6 +10315,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
           eq(pushSubscriptions.userId, currentUser.id),
           eq(pushSubscriptions.endpoint, endpoint)
         ));
+      emitSync('push_subscriptions', 'delete', {}, and(eq(pushSubscriptions.userId, currentUser.id), eq(pushSubscriptions.endpoint, endpoint)));
       
       res.json({ success: true });
     } catch (error) {
@@ -10333,6 +10403,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       }
 
       jsonStorage.cardModifications.upsert(modification.cardId, modification);
+      emitSync('card_modifications', 'update', modification, { originalCardId: modification.cardId });
       res.json({ success: true, modification });
     } catch (error) {
       console.error('Error saving modification:', error);
@@ -10741,8 +10812,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         await db.update(cardCollection)
           .set({ timesDrawn: sql`${cardCollection.timesDrawn} + 1`, lastDrawnAt: new Date(), cardImageUrl: cardImageUrl || existing[0].cardImageUrl })
           .where(eq(cardCollection.id, existing[0].id));
+        emitSync('card_collection', 'update', { lastDrawnAt: new Date(), cardImageUrl: cardImageUrl || existing[0].cardImageUrl }, eq(cardCollection.id, existing[0].id));
       } else {
         await db.insert(cardCollection).values({ userId, cardName, cardDeckType, cardImageUrl: cardImageUrl || null, timesDrawn: 1 });
+        emitSync('card_collection', 'insert', { userId, cardName, cardDeckType, cardImageUrl: cardImageUrl || null, timesDrawn: 1 });
       }
       res.json({ success: true });
     } catch (error) {

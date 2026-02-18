@@ -6,6 +6,7 @@ import { CPUPlayer } from './cpuPlayer';
 import { trackGameEvent } from './missionsAndAchievements';
 import { getPersonaggioFromCache } from './personaggiCache';
 import { jsonStorage } from './jsonStorage';
+import { emitSync } from './dbSync';
 
 interface Card {
   id: string;
@@ -1703,6 +1704,12 @@ Rispondi SOLO in JSON:`;
             players: playerList
           })
           .where(eq(matches.id, game.matchId));
+        emitSync('matches', 'update', {
+          endedAt: new Date(),
+          winnerPlayer,
+          duration,
+          players: playerList
+        }, eq(matches.id, game.matchId));
       }
 
       const rewardsMap = await this.awardRankiardPoints(game, winnerPlayer);
@@ -1787,6 +1794,7 @@ Rispondi SOLO in JSON:`;
       await db.update(tournamentMatches)
         .set({ winnerId, status: 'completed', completedAt: new Date() })
         .where(eq(tournamentMatches.id, matchData.id));
+      emitSync('tournament_matches', 'update', { winnerId, status: 'completed', completedAt: new Date() }, eq(tournamentMatches.id, matchData.id));
 
       console.log(`Tournament match ${matchData.id} completed - winner: ${winnerPlayer} (${winnerId})`);
 
@@ -1807,6 +1815,7 @@ Rispondi SOLO in JSON:`;
           await db.update(tournaments)
             .set({ status: 'completed', winnerId: winners[0] || null })
             .where(eq(tournaments.id, matchData.tournamentId));
+          emitSync('tournaments', 'update', { status: 'completed', winnerId: winners[0] || null }, eq(tournaments.id, matchData.tournamentId));
           console.log(`Tournament ${matchData.tournamentId} completed - winner: ${winners[0]}`);
         } else {
           // Create next round matches
@@ -1818,7 +1827,7 @@ Rispondi SOLO in JSON:`;
             const p2 = winners[i * 2 + 1] || null;
             const newGameId = p2 ? `tournament-${matchData.tournamentId}-r${nextRound}-m${i + 1}` : null;
 
-            await db.insert(tournamentMatches).values({
+            const tournamentMatchValues = {
               tournamentId: matchData.tournamentId,
               round: nextRound,
               matchNumber: i + 1,
@@ -1827,7 +1836,9 @@ Rispondi SOLO in JSON:`;
               gameId: newGameId,
               status: p2 ? 'pending' : 'completed',
               winnerId: p2 ? null : p1
-            });
+            };
+            await db.insert(tournamentMatches).values(tournamentMatchValues);
+            emitSync('tournament_matches', 'insert', tournamentMatchValues);
           }
           console.log(`Tournament ${matchData.tournamentId} advanced to round ${nextRound}`);
         }
@@ -16730,7 +16741,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
         if (cardData.isPermanent) {
           try {
-            jsonStorage.customCards.create({
+            const customCardData = {
               name: cardData.name,
               deckType: deckType,
               imageData: cardData.data,
@@ -16751,12 +16762,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               mosseCanCounter: deckType === 'mosse' ? cardData.mosseCanCounter ?? false : false,
               mosseCanBeCountered: deckType === 'mosse' ? cardData.mosseCanBeCountered ?? false : false,
               createdBy: playerName
-            });
+            };
+            jsonStorage.customCards.create(customCardData);
+            emitSync('custom_cards', 'insert', customCardData);
             console.log(`Permanent card "${cardData.name}" saved to JSON with audioUrl: ${cardData.audioUrl}, youtubeUrl: ${cardData.youtubeUrl}`);
             
             // Automatically create a skin for this permanent custom card
             try {
-              jsonStorage.cardSkins.create({
+              const cardSkinData = {
                 name: `Skin - ${cardData.name}`,
                 description: `Skin personalizzata per ${cardData.name}`,
                 rarity: 'common',
@@ -16771,7 +16784,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
                 glowColor: null,
                 frameImageUrl: null,
                 isAvailable: true
-              });
+              };
+              jsonStorage.cardSkins.create(cardSkinData);
+              emitSync('card_skins', 'insert', cardSkinData);
               console.log(`Auto-created skin for permanent card "${cardData.name}"`);
             } catch (skinError) {
               console.error('Error creating skin for permanent card:', skinError);

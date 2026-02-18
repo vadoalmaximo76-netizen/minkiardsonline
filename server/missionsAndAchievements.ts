@@ -2,6 +2,7 @@ import { db, isDatabaseAvailable } from "./db";
 import { playerAchievements, playerDailyMissions, users } from "../shared/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { jsonStorage } from "./jsonStorage";
+import { emitSync } from "./dbSync";
 
 export async function initializeMissionsAndAchievements() {
   console.log('🎯 Initializing missions and achievements system from JSON...');
@@ -85,6 +86,14 @@ async function assignDailyMissions(usernameOrEmail: string) {
       claimed: false,
       assignedDate: today,
     });
+    emitSync('player_daily_missions', 'insert', {
+      usernameOrEmail,
+      missionId: template.id,
+      progress: 0,
+      completed: false,
+      claimed: false,
+      assignedDate: today,
+    });
   }
   
   console.log(`📋 Assigned ${missionCount} daily missions to ${usernameOrEmail}`);
@@ -141,6 +150,11 @@ export async function updateMissionProgress(usernameOrEmail: string, type: strin
         completedAt: isCompleted ? new Date() : null
       })
       .where(eq(playerDailyMissions.id, mission.id));
+    emitSync('player_daily_missions', 'update', { 
+      progress: newProgress, 
+      completed: isCompleted,
+      completedAt: isCompleted ? new Date() : null
+    }, eq(playerDailyMissions.id, mission.id));
     
     if (isCompleted) {
       completedMissions.push({
@@ -176,6 +190,13 @@ export async function updateAchievementProgress(usernameOrEmail: string, code: s
       completed: false,
       claimed: false,
     });
+    emitSync('player_achievements', 'insert', {
+      usernameOrEmail,
+      achievementId: achievement.id,
+      progress: 0,
+      completed: false,
+      claimed: false,
+    });
     playerAch = await db.select()
       .from(playerAchievements)
       .where(and(
@@ -197,6 +218,11 @@ export async function updateAchievementProgress(usernameOrEmail: string, code: s
       completedAt: isCompleted ? new Date() : null
     })
     .where(eq(playerAchievements.id, playerAch[0].id));
+  emitSync('player_achievements', 'update', { 
+    progress: newProgress, 
+    completed: isCompleted,
+    completedAt: isCompleted ? new Date() : null
+  }, eq(playerAchievements.id, playerAch[0].id));
   
   if (isCompleted) {
     return { ...achievement, newlyCompleted: true };
@@ -226,10 +252,12 @@ export async function claimMissionReward(usernameOrEmail: string, missionId: num
   await db.update(playerDailyMissions)
     .set({ claimed: true })
     .where(eq(playerDailyMissions.id, missionId));
+  emitSync('player_daily_missions', 'update', { claimed: true }, eq(playerDailyMissions.id, missionId));
   
   await db.update(users)
     .set({ puntiRankiard: sql`${users.puntiRankiard} + ${rewardPoints}` })
     .where(eq(users.email, usernameOrEmail));
+  emitSync('users', 'update', { puntiRankiard: sql`${users.puntiRankiard} + ${rewardPoints}` }, eq(users.email, usernameOrEmail));
   
   return { success: true, pointsAwarded: rewardPoints };
 }
@@ -255,10 +283,12 @@ export async function claimAchievementReward(usernameOrEmail: string, achievemen
   await db.update(playerAchievements)
     .set({ claimed: true })
     .where(eq(playerAchievements.id, playerAch[0].id));
+  emitSync('player_achievements', 'update', { claimed: true }, eq(playerAchievements.id, playerAch[0].id));
   
   await db.update(users)
     .set({ puntiRankiard: sql`${users.puntiRankiard} + ${rewardPoints}` })
     .where(eq(users.email, usernameOrEmail));
+  emitSync('users', 'update', { puntiRankiard: sql`${users.puntiRankiard} + ${rewardPoints}` }, eq(users.email, usernameOrEmail));
   
   return { success: true, pointsAwarded: rewardPoints };
 }
