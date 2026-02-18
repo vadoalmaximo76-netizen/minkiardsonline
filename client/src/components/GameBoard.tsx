@@ -38,6 +38,7 @@ import { YouTubeVideoModal } from "./YouTubeVideoModal";
 import { PickedCardModal } from "./PickedCardModal";
 import { SorosActivation } from "./SorosActivation";
 import { CharacterEffects } from "./CharacterEffects";
+import { trackGameStarted, trackGameEnded, trackCardPlayed, trackFeatureUsed, identifyPlayer, trackVoiceChatUsed } from "../lib/posthog";
 import { TutorialOverlay } from "./TutorialOverlay";
 import { AdBanner, InterstitialAd } from "./AdBanner";
 import { GameEndRewardsPanel } from "./GameEndRewardsPanel";
@@ -881,6 +882,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     const handleGameStarted = ({ playerOrder }: { playerOrder: string[] }) => {
       setPlayerOrder(playerOrder);
       setPlayerOrderVisible(true);
+      identifyPlayer(playerName || 'unknown');
+      trackGameStarted(gameId || 'unknown', playerOrder.length, playerOrder.some(p => p.startsWith('CPU')));
     };
 
     const handleNextTurn = ({ nextPlayer }: { nextPlayer: string }) => {
@@ -1755,6 +1758,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         finalBlowCard: lastAction?.cardName ? { name: lastAction.cardName, imageUrl: lastAction.cardImageUrl, deckType: lastAction.cardDeckType || 'personaggi' } : undefined,
       } : undefined;
       setVictoryDefeatAnim({ visible: true, type: isWinner ? 'victory' : 'defeat', playerName: winner, stats });
+      trackGameEnded(gameId || 'unknown', winner, matchDuration || 0, myStats?.turnsPlayed || 0);
     };
 
     let rewardsTimeoutId: ReturnType<typeof setTimeout> | null = null;

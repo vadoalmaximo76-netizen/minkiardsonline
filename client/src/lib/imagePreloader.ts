@@ -1,5 +1,39 @@
 const imageCache = new Map<string, HTMLImageElement>();
 
+let cloudinaryCloudName: string | null = null;
+
+async function fetchCloudinaryConfig() {
+  try {
+    const res = await fetch('/api/integrations-status');
+    const data = await res.json();
+    if (data.cloudinary) {
+      const configRes = await fetch('/api/optimize-image?url=test&size=card');
+      const configData = await configRes.json();
+      if (configData.optimized && configData.optimized !== 'test') {
+        const match = configData.optimized.match(/res\.cloudinary\.com\/([^/]+)/);
+        if (match) cloudinaryCloudName = match[1];
+      }
+    }
+  } catch {
+  }
+}
+
+fetchCloudinaryConfig();
+
+export function getOptimizedUrl(originalUrl: string, size: 'thumb' | 'card' | 'preview' | 'full' = 'card'): string {
+  if (!cloudinaryCloudName || !originalUrl || originalUrl.startsWith('data:')) return originalUrl;
+  
+  const sizeMap: Record<string, string> = {
+    thumb: 'w_80,h_120,c_fill,q_auto,f_auto',
+    card: 'w_160,h_240,c_fill,q_auto,f_auto',
+    preview: 'w_400,h_600,c_fill,q_auto,f_auto',
+    full: 'q_auto,f_auto',
+  };
+  
+  const transforms = sizeMap[size] || sizeMap.card;
+  return `https://res.cloudinary.com/${cloudinaryCloudName}/image/fetch/${transforms}/${encodeURIComponent(originalUrl)}`;
+}
+
 export const preloadImage = (src: string): Promise<HTMLImageElement> => {
   if (imageCache.has(src)) {
     return Promise.resolve(imageCache.get(src)!);

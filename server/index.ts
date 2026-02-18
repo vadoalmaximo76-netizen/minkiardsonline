@@ -2,10 +2,16 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { registerAuthRoutes } from "./auth";
 import { setupVite, serveStatic, log } from "./vite";
+import { initSentry } from "./sentry";
+import { isRedisConfigured, setPlayerOnline, getOnlinePlayerCount } from "./redis";
+import { isCloudinaryConfigured } from "./cloudinary";
+import { isFreesoundConfigured } from "./freesound";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+initSentry(app);
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -45,6 +51,26 @@ app.use((req, res, next) => {
     }
 
     registerAuthRoutes(app);
+
+    app.get('/api/sentry-dsn', (_req, res) => {
+      res.json({ dsn: process.env.SENTRY_DSN || null });
+    });
+
+    app.get('/api/posthog-key', (_req, res) => {
+      res.json({ key: process.env.POSTHOG_API_KEY || null });
+    });
+
+    app.get('/api/integrations-status', async (_req, res) => {
+      res.json({
+        cloudinary: isCloudinaryConfigured(),
+        sentry: !!process.env.SENTRY_DSN,
+        redis: isRedisConfigured(),
+        posthog: !!process.env.POSTHOG_API_KEY,
+        freesound: isFreesoundConfigured(),
+        onlinePlayers: isRedisConfigured() ? await getOnlinePlayerCount() : null,
+      });
+    });
+
     const server = await registerRoutes(app);
 
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

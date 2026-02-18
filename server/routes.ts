@@ -13,6 +13,9 @@ import { jsonStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray } from "drizzle-orm";
 import { CARD_DATA } from "../client/src/lib/cardData";
 import { authMiddleware, ADMIN_FALLBACK, JWT_SECRET } from "./auth";
+import { setPlayerOnline, rateLimit as redisRateLimit, isRedisConfigured, updateLeaderboard as redisUpdateLeaderboard, cacheGet, cacheSet } from "./redis";
+import { getOptimizedCardUrl, isCloudinaryConfigured } from "./cloudinary";
+import { captureError } from "./sentry";
 
 const jwtSecret = JWT_SECRET;
 
@@ -1111,6 +1114,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       socket.join(gameId);
+      
+      if (isRedisConfigured()) {
+        setPlayerOnline(playerName).catch(() => {});
+      }
       
       // Set avatar if provided
       if (avatarId) {
@@ -10775,6 +10782,85 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     } catch (error) {
       console.error('Error fetching collection stats:', error);
       res.status(500).json({ error: 'Failed to fetch stats' });
+    }
+  });
+
+  // === FREESOUND API ROUTES ===
+  app.get('/api/freesound/search', async (req, res) => {
+    try {
+      const { searchSounds } = await import('./freesound');
+      const query = req.query.q as string;
+      if (!query) return res.status(400).json({ error: 'Query parameter q is required' });
+      const sort = (req.query.sort as any) || 'rating_desc';
+      const pageSize = parseInt(req.query.pageSize as string) || 10;
+      const results = await searchSounds(query, { pageSize, sort });
+      res.json(results);
+    } catch (error) {
+      console.error('Freesound search error:', error);
+      res.status(500).json({ error: 'Failed to search sounds' });
+    }
+  });
+
+  app.get('/api/freesound/game-sound/:category', async (req, res) => {
+    try {
+      const { getGameSound } = await import('./freesound');
+      const category = req.params.category as any;
+      const url = await getGameSound(category);
+      res.json({ url });
+    } catch (error) {
+      console.error('Freesound game-sound error:', error);
+      res.status(500).json({ error: 'Failed to get game sound' });
+    }
+  });
+
+  // === CLOUDINARY IMAGE OPTIMIZATION ROUTE ===
+  app.get('/api/optimize-image', (req, res) => {
+    try {
+      const url = req.query.url as string;
+      const size = (req.query.size as string) || 'card';
+      if (!url) return res.status(400).json({ error: 'URL parameter is required' });
+      if (!isCloudinaryConfigured()) return res.json({ optimized: url });
+      const optimized = getOptimizedCardUrl(url, size as any);
+      res.json({ optimized });
+    } catch (error) {
+      res.json({ optimized: req.query.url });
+    }
+  });
+
+  // === REDIS-ENHANCED LEADERBOARD ROUTES ===
+  app.get('/api/redis-leaderboard/:name', async (req, res) => {
+    try {
+      const { getLeaderboard, isRedisConfigured } = await import('./redis');
+      if (!isRedisConfigured()) return res.json({ success: false, error: 'Redis not configured' });
+      const limit = parseInt(req.query.limit as string) || 50;
+      const leaderboard = await getLeaderboard(req.params.name, limit);
+      res.json({ success: true, leaderboard });
+    } catch (error) {
+      res.status(500).json({ success: false, error: 'Failed to fetch leaderboard' });
+    }
+  });
+
+  app.post('/api/redis-leaderboard/:name', async (req, res) => {
+    try {
+      const { updateLeaderboard, isRedisConfigured } = await import('./redis');
+      if (!isRedisConfigured()) return res.json({ success: false });
+      const { playerName, score } = req.body;
+      if (!playerName || score === undefined) return res.status(400).json({ error: 'playerName and score required' });
+      await updateLeaderboard(req.params.name, playerName, score);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ success: false, error: 'Failed to update leaderboard' });
+    }
+  });
+
+  app.get('/api/online-count', async (_req, res) => {
+    try {
+      const { getOnlinePlayerCount, isRedisConfigured } = await import('./redis');
+      if (!isRedisConfigured()) return res.json({ count: null });
+      const count = await getOnlinePlayerCount();
+      res.json({ count });
+    } catch (error) {
+      res.json({ count: null });
     }
   });
 
