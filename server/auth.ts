@@ -624,99 +624,89 @@ export function registerAuthRoutes(app: Express) {
         return res.status(400).json({ error: "Email richiesta" });
       }
 
+      const crypto = await import('crypto');
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const resetExpires = new Date(Date.now() + 3600000);
+
+      let userFound = false;
+      let userId: number | undefined;
+
       if (isDatabaseAvailable() && db) {
         const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-        
-        if (!user) {
-          return res.json({ success: true, message: "Se l'email esiste, riceverai le istruzioni per il recupero password" });
+        if (user) {
+          userFound = true;
+          userId = user.id;
+          await db.update(users)
+            .set({ resetPasswordToken: resetToken, resetPasswordExpires: resetExpires })
+            .where(eq(users.id, user.id));
+          emitSync('users', 'update', { resetPasswordToken: resetToken, resetPasswordExpires: resetExpires, _syncId: user.id }, eq(users.id, user.id));
         }
-
-        const crypto = await import('crypto');
-        const resetToken = crypto.randomBytes(32).toString('hex');
-        const resetExpires = new Date(Date.now() + 3600000);
-
-        await db.update(users)
-          .set({ 
-            resetPasswordToken: resetToken,
-            resetPasswordExpires: resetExpires
-          })
-          .where(eq(users.id, user.id));
-
-        emitSync('users', 'update', { resetPasswordToken: resetToken, resetPasswordExpires: resetExpires, _syncId: user.id }, eq(users.id, user.id));
-
-        try {
-          const { getUncachableResendClient } = await import('./resendClient');
-          const { client, fromEmail } = await getUncachableResendClient();
-          
-          const resetUrl = `${req.protocol}://${req.get('host')}/?token=${resetToken}`;
-          
-          await client.emails.send({
-            from: fromEmail || 'MINKIARDS <onboarding@resend.dev>',
-            to: email,
-            subject: 'Recupero Password MINKIARDS',
-            html: `
-              <h1>Recupero Password</h1>
-              <p>Hai richiesto il recupero della password per il tuo account MINKIARDS.</p>
-              <p>Clicca sul link seguente per reimpostare la password:</p>
-              <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #7c3aed; color: white; text-decoration: none; border-radius: 6px;">Reimposta Password</a>
-              <p>Il link scadrà tra 1 ora.</p>
-              <p>Se non hai richiesto il recupero password, ignora questa email.</p>
-            `
-          });
-          console.log("Password reset email sent to:", email);
-        } catch (emailError) {
-          console.error("Error sending reset email:", emailError);
-        }
-
-        res.json({ 
-          success: true, 
-          message: "Se l'email esiste, riceverai le istruzioni per il recupero password"
-        });
       } else {
         const user = jsonStorage.users.getByEmail(email);
-        
-        if (!user) {
-          return res.json({ success: true, message: "Se l'email esiste, riceverai le istruzioni per il recupero password" });
+        if (user) {
+          userFound = true;
+          userId = user.id;
+          jsonStorage.users.update(user.id, {
+            resetPasswordToken: resetToken,
+            resetPasswordExpires: resetExpires.toISOString(),
+          });
+          emitSync('users', 'update', { resetPasswordToken: resetToken, resetPasswordExpires: resetExpires, _syncId: user.id }, eq(users.id, user.id));
         }
+      }
 
-        const crypto = await import('crypto');
-        const resetToken = crypto.randomBytes(32).toString('hex');
-        const resetExpires = new Date(Date.now() + 3600000).toISOString();
+      if (!userFound) {
+        return res.json({ success: true, message: "Se l'email esiste nel sistema, riceverai le istruzioni per il recupero password." });
+      }
 
-        jsonStorage.users.update(user.id, {
-          resetPasswordToken: resetToken,
-          resetPasswordExpires: resetExpires,
+      const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
+      const host = req.get('host') || '';
+      const resetUrl = `${protocol}://${host}/?token=${resetToken}`;
+
+      try {
+        const { getUncachableResendClient } = await import('./resendClient');
+        const { client, fromEmail } = await getUncachableResendClient();
+        
+        const toAddress = email;
+        
+        const result = await client.emails.send({
+          from: fromEmail || 'MINKIARDS <onboarding@resend.dev>',
+          to: toAddress,
+          subject: 'Recupero Password MINKIARDS',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #1a1a2e; color: #ffffff; border-radius: 12px;">
+              <h1 style="text-align: center; color: #a78bfa;">Recupero Password MINKIARDS</h1>
+              <p>Hai richiesto il recupero della password per il tuo account.</p>
+              <p>Clicca sul pulsante qui sotto per reimpostare la password:</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${resetUrl}" style="display: inline-block; padding: 14px 32px; background-color: #7c3aed; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">Reimposta Password</a>
+              </div>
+              <p style="color: #9ca3af; font-size: 14px;">Il link scadra tra 1 ora.</p>
+              <p style="color: #9ca3af; font-size: 14px;">Se non hai richiesto il recupero password, ignora questa email.</p>
+              <hr style="border-color: #374151; margin: 20px 0;" />
+              <p style="color: #6b7280; font-size: 12px; text-align: center;">MINKIARDS - Il gioco di carte</p>
+            </div>
+          `
         });
 
-        emitSync('users', 'update', { resetPasswordToken: resetToken, resetPasswordExpires: resetExpires, _syncId: user.id }, eq(users.id, user.id));
-
-        try {
-          const { getUncachableResendClient } = await import('./resendClient');
-          const { client, fromEmail } = await getUncachableResendClient();
-          
-          const resetUrl = `${req.protocol}://${req.get('host')}/?token=${resetToken}`;
-          
-          await client.emails.send({
-            from: fromEmail || 'MINKIARDS <onboarding@resend.dev>',
-            to: email,
-            subject: 'Recupero Password MINKIARDS',
-            html: `
-              <h1>Recupero Password</h1>
-              <p>Hai richiesto il recupero della password per il tuo account MINKIARDS.</p>
-              <p>Clicca sul link seguente per reimpostare la password:</p>
-              <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #7c3aed; color: white; text-decoration: none; border-radius: 6px;">Reimposta Password</a>
-              <p>Il link scadrà tra 1 ora.</p>
-              <p>Se non hai richiesto il recupero password, ignora questa email.</p>
-            `
-          });
-          console.log("Password reset email sent to:", email);
-        } catch (emailError) {
-          console.error("Error sending reset email:", emailError);
+        if (result.error) {
+          console.error("Resend API error:", JSON.stringify(result.error));
+          throw new Error(result.error.message || 'Email send failed');
         }
 
+        console.log("Password reset email sent successfully to:", toAddress, "ID:", result.data?.id);
+        
         res.json({ 
           success: true, 
-          message: "Se l'email esiste, riceverai le istruzioni per il recupero password"
+          emailSent: true,
+          message: "Email di recupero inviata! Controlla la tua casella di posta (anche lo spam)."
+        });
+      } catch (emailError: any) {
+        console.error("Error sending reset email:", emailError?.message || emailError);
+        
+        res.status(500).json({ 
+          success: false, 
+          emailSent: false,
+          error: "Impossibile inviare l'email di recupero. Riprova tra qualche minuto o contatta l'assistenza."
         });
       }
     } catch (error) {
