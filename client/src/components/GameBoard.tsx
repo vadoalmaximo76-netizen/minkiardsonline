@@ -223,7 +223,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const dismissNarrator = useNarrator(s => s.dismiss);
 
   const requestNarratorComment = useCallback((eventType: string, eventData: any) => {
-    if (!narratorEnabled) return;
+    const isEnabled = useNarrator.getState().enabled;
+    if (!isEnabled) return;
     const token = authToken || localStorage.getItem('authToken');
     if (!token) {
       console.log('[Narrator] No auth token found, skipping');
@@ -238,10 +239,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       .then(r => r.json())
       .then(data => {
         console.log('[Narrator] Response:', data);
-        if (data.comment) showNarratorMessage(data.comment);
+        if (data.comment) useNarrator.getState().showMessage(data.comment);
       })
       .catch((err) => { console.error('[Narrator] Error:', err); });
-  }, [narratorEnabled, showNarratorMessage, authToken]);
+  }, [authToken]);
 
   const [attackEffectVisible, setAttackEffectVisible] = useState(false);
   const [attackedCharacterName, setAttackedCharacterName] = useState<string>("");
@@ -627,12 +628,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
 
     const handleChatMessage = (message: { id: string; playerName: string; message: string; timestamp: number }) => {
-      // Always persist messages to localStorage so they're available when chat opens
+      const isSystemEvent = message.playerName === 'Sistema';
+      
       if (gameId) {
         try {
           const storedMessages = localStorage.getItem(`chat_messages_${gameId}`);
           const existingMessages = storedMessages ? JSON.parse(storedMessages) : [];
-          // Avoid duplicates
           if (!existingMessages.some((m: any) => m.id === message.id)) {
             const newMessages = [...existingMessages, message];
             localStorage.setItem(`chat_messages_${gameId}`, JSON.stringify(newMessages));
@@ -642,18 +643,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         }
       }
       
+      if (isSystemEvent) return;
+      
       if (!chatOpen && message.playerName !== playerName) {
-        // Increment unread count
         setUnreadMessages(prev => prev + 1);
         
-        // Show notification popup
         setChatNotifications(prev => [...prev, {
           id: message.id,
           message: message.message,
           playerName: message.playerName
         }]);
       }
-      // Play chat message sound
       playChatMessage();
     };
 

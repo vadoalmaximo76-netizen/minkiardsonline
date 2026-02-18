@@ -67,7 +67,7 @@ export const Chat: React.FC<ChatProps> = ({ onClose }) => {
         if (storedMessages) {
           try {
             const parsedMessages = JSON.parse(storedMessages);
-            setMessages(parsedMessages);
+            setMessages(parsedMessages.filter((m: ChatMessage) => m.playerName !== 'Sistema'));
           } catch (error) {
             console.error('Error loading chat messages:', error);
           }
@@ -86,6 +86,7 @@ export const Chat: React.FC<ChatProps> = ({ onClose }) => {
 
   useEffect(() => {
     const handleChatMessage = (message: ChatMessage) => {
+      if (message.playerName === 'Sistema') return;
       setMessages(prev => {
         const newMessages = [...prev, message];
         if (gameId) {
