@@ -2459,3 +2459,134 @@ input:focus, select:focus {
     border: 1px solid rgba(255, 255, 255, 0);
   }
 }
+
+/* ===== MOBILE PERFORMANCE OPTIMIZATIONS ===== */
+/* Reduces/disables heavy animations on mobile to prevent flickering */
+
+@media (max-width: 768px) {
+  .card-levitate-field {
+    animation: none !important;
+    will-change: auto !important;
+  }
+
+  .card-field-alive,
+  .card-field-alive-personaggi,
+  .card-field-alive-mosse,
+  .card-field-alive-bonus,
+  .card-field-alive-speciali {
+    animation: none !important;
+    will-change: auto !important;
+  }
+
+  .card-border-glow-personaggi::before,
+  .card-border-glow-mosse::before,
+  .card-border-glow-bonus::before,
+  .card-border-glow-speciali::before {
+    animation: none !important;
+    opacity: 0.7;
+  }
+
+  .card-holo-active .card-holo-reflection {
+    animation: none !important;
+    display: none !important;
+  }
+
+  .game-field-aurora {
+    animation: none !important;
+    opacity: 0.08;
+  }
+
+  .card-draw-enter-enhanced {
+    animation: card-draw-3d-enhanced 0.5s ease-out !important;
+  }
+
+  .low-health-critical {
+    animation: low-health-pulse 4s ease-in-out infinite !important;
+    will-change: auto !important;
+  }
+
+  .low-health-critical-overlay {
+    animation: low-health-overlay 4s ease-in-out infinite !important;
+    will-change: auto !important;
+  }
+
+  .card-playable-glow {
+    animation: playable-glow-pulse 5s ease-in-out infinite !important;
+    will-change: auto !important;
+  }
+
+  .cinematic-attack-flash,
+  .cinematic-heal-flash {
+    display: none !important;
+  }
+
+  .card-attack-zoom {
+    animation: none !important;
+  }
+
+  [style*="blur-3xl"],
+  .blur-3xl {
+    filter: none !important;
+    -webkit-filter: none !important;
+  }
+
+  .backdrop-blur-xl {
+    -webkit-backdrop-filter: blur(8px) !important;
+    backdrop-filter: blur(8px) !important;
+  }
+
+  .backdrop-blur-md {
+    -webkit-backdrop-filter: blur(4px) !important;
+    backdrop-filter: blur(4px) !important;
+  }
+
+  .animate-bounce {
+    animation: none !important;
+  }
+
+  .drop-shadow-lg {
+    filter: none !important;
+  }
+
+  .scontro-bg-orb {
+    display: none !important;
+  }
+}
+
+/* Reduced motion preference - accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .card-levitate-field,
+  .card-field-alive,
+  .card-field-alive-personaggi,
+  .card-field-alive-mosse,
+  .card-field-alive-bonus,
+  .card-field-alive-speciali,
+  .card-playable-glow,
+  .low-health-critical,
+  .low-health-critical-overlay,
+  .game-field-aurora,
+  .card-draw-enter-enhanced,
+  .card-attack-zoom,
+  .cinematic-attack-flash,
+  .cinematic-heal-flash {
+    animation: none !important;
+    will-change: auto !important;
+  }
+
+  .card-border-glow-personaggi::before,
+  .card-border-glow-mosse::before,
+  .card-border-glow-bonus::before,
+  .card-border-glow-speciali::before {
+    animation: none !important;
+  }
+
+  .card-holo-active .card-holo-reflection {
+    display: none !important;
+  }
+
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

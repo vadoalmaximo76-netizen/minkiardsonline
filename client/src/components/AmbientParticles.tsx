@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useIsMobile } from '../hooks/use-is-mobile';
 
 interface ParticleData {
   id: number;
@@ -25,10 +26,15 @@ const deterministicRange = (seed: number, min: number, max: number): number => {
 };
 
 export default function AmbientParticles({ visible }: AmbientParticlesProps) {
+  const isMobile = useIsMobile();
+
   const particles = useMemo<ParticleData[]>(() => {
     const result: ParticleData[] = [];
+    const sparkleCount = isMobile ? 5 : 15;
+    const dustCount = isMobile ? 4 : 12;
+    const emberCount = isMobile ? 3 : 8;
 
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < sparkleCount; i++) {
       result.push({
         id: i,
         left: deterministicRange(i * 1.3, 0, 100),
@@ -40,7 +46,7 @@ export default function AmbientParticles({ visible }: AmbientParticlesProps) {
       });
     }
 
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < dustCount; i++) {
       result.push({
         id: i + 100,
         left: 0,
@@ -53,7 +59,7 @@ export default function AmbientParticles({ visible }: AmbientParticlesProps) {
       });
     }
 
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < emberCount; i++) {
       result.push({
         id: i + 200,
         left: deterministicRange((i + 27) * 1.3, 5, 95),
@@ -66,7 +72,7 @@ export default function AmbientParticles({ visible }: AmbientParticlesProps) {
     }
 
     return result;
-  }, []);
+  }, [isMobile]);
 
   if (!visible) return null;
 
@@ -119,7 +125,7 @@ export default function AmbientParticles({ visible }: AmbientParticlesProps) {
                   backgroundColor: '#ffffff',
                   boxShadow: `0 0 ${p.size * 1.5}px #ffffff, 0 0 ${p.size * 3}px rgba(255, 255, 255, 0.6)`,
                   animation: `sparkle-twinkle-float ${p.duration}s ease-in ${p.delay}s infinite`,
-                  willChange: 'transform',
+                  willChange: isMobile ? 'auto' : 'transform',
                 }}
               />
             );
@@ -138,7 +144,7 @@ export default function AmbientParticles({ visible }: AmbientParticlesProps) {
                   backgroundColor: '#d4a574',
                   boxShadow: `0 0 ${p.size * 1.5}px #d4a574, 0 0 ${p.size * 2.5}px rgba(212, 165, 116, 0.5)`,
                   animation: `dust-drift-sine ${p.duration}s ease-in-out ${p.delay}s infinite`,
-                  willChange: 'transform',
+                  willChange: isMobile ? 'auto' : 'transform',
                   '--dust-drift': `${p.xDrift}px`,
                 } as React.CSSProperties}
               />
@@ -157,7 +163,7 @@ export default function AmbientParticles({ visible }: AmbientParticlesProps) {
                 backgroundColor: '#ff6b35',
                 boxShadow: `0 0 ${p.size * 2}px #ff6b35, 0 0 ${p.size * 3}px rgba(255, 107, 53, 0.6)`,
                 animation: `ember-rise-fade ${p.duration}s ease-out ${p.delay}s infinite`,
-                willChange: 'transform',
+                willChange: isMobile ? 'auto' : 'transform',
               }}
             />
           );
