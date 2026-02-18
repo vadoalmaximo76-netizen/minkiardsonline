@@ -1221,7 +1221,7 @@ input:focus, select:focus {
 }
 .btn-neon-blue:active {
   background: #1d4ed8 !important;
-  transform: scale(0.95);
+  animation: btn-press-bounce 0.3s ease-out;
 }
 
 .btn-neon-green {
@@ -1237,7 +1237,7 @@ input:focus, select:focus {
 }
 .btn-neon-green:active {
   background: #15803d !important;
-  transform: scale(0.95);
+  animation: btn-press-bounce 0.3s ease-out;
 }
 
 .btn-neon-red {
@@ -1253,7 +1253,7 @@ input:focus, select:focus {
 }
 .btn-neon-red:active {
   background: #b91c1c !important;
-  transform: scale(0.95);
+  animation: btn-press-bounce 0.3s ease-out;
 }
 
 .btn-neon-yellow {
@@ -1269,7 +1269,7 @@ input:focus, select:focus {
 }
 .btn-neon-yellow:active {
   background: #a16207 !important;
-  transform: scale(0.95);
+  animation: btn-press-bounce 0.3s ease-out;
 }
 
 .btn-neon-orange {
@@ -1285,7 +1285,7 @@ input:focus, select:focus {
 }
 .btn-neon-orange:active {
   background: #c2410c !important;
-  transform: scale(0.95);
+  animation: btn-press-bounce 0.3s ease-out;
 }
 
 .btn-neon-purple {
@@ -1333,7 +1333,11 @@ input:focus, select:focus {
 }
 .btn-neon-gray:active {
   background: #374151 !important;
-  transform: scale(0.95);
+  animation: btn-press-bounce 0.3s ease-out;
+}
+
+[class*="btn-neon-"]:hover {
+  transform: scale(1.05);
 }
 
 /* STAT CHANGE GLOW EFFECTS */
@@ -1896,4 +1900,90 @@ input:focus, select:focus {
   pointer-events: none;
   border-radius: 12px;
   will-change: opacity;
+}
+
+/* ===== CLASH OF CLANS ATMOSPHERE ===== */
+
+/* Card field breathing - subtle pulse to make cards feel alive */
+@keyframes card-field-breathe {
+  0%, 100% { 
+    transform: scale(1);
+    box-shadow: 0 0 8px rgba(139, 92, 246, 0.15);
+  }
+  50% { 
+    transform: scale(1.008);
+    box-shadow: 0 0 14px rgba(139, 92, 246, 0.3), 0 0 28px rgba(139, 92, 246, 0.1);
+  }
+}
+@keyframes card-field-breathe-personaggi {
+  0%, 100% { box-shadow: 0 0 8px rgba(59, 130, 246, 0.2); }
+  50% { box-shadow: 0 0 16px rgba(59, 130, 246, 0.5), 0 0 32px rgba(59, 130, 246, 0.15); }
+}
+@keyframes card-field-breathe-mosse {
+  0%, 100% { box-shadow: 0 0 8px rgba(239, 68, 68, 0.2); }
+  50% { box-shadow: 0 0 16px rgba(239, 68, 68, 0.5), 0 0 32px rgba(239, 68, 68, 0.15); }
+}
+@keyframes card-field-breathe-bonus {
+  0%, 100% { box-shadow: 0 0 8px rgba(251, 191, 36, 0.2); }
+  50% { box-shadow: 0 0 16px rgba(251, 191, 36, 0.5), 0 0 32px rgba(251, 191, 36, 0.15); }
+}
+@keyframes card-field-breathe-speciali {
+  0%, 100% { box-shadow: 0 0 10px rgba(168, 85, 247, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(168, 85, 247, 0.6), 0 0 40px rgba(168, 85, 247, 0.2); }
+}
+
+.card-field-alive {
+  animation: card-field-breathe 3s ease-in-out infinite;
+  will-change: box-shadow;
+}
+.card-field-alive-personaggi {
+  animation: card-field-breathe-personaggi 3s ease-in-out infinite;
+  will-change: box-shadow;
+}
+.card-field-alive-mosse {
+  animation: card-field-breathe-mosse 2.5s ease-in-out infinite;
+  will-change: box-shadow;
+}
+.card-field-alive-bonus {
+  animation: card-field-breathe-bonus 3.5s ease-in-out infinite;
+  will-change: box-shadow;
+}
+.card-field-alive-speciali {
+  animation: card-field-breathe-speciali 2.8s ease-in-out infinite;
+  will-change: box-shadow;
+}
+
+/* Button press/bounce animations */
+@keyframes btn-press-bounce {
+  0% { transform: scale(1); }
+  40% { transform: scale(0.92); }
+  70% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+.btn-clash-bounce:active {
+  animation: btn-press-bounce 0.3s ease-out;
+}
+.btn-clash-bounce {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.btn-clash-bounce:hover {
+  transform: scale(1.04);
+}
+
+/* Stat counter flash animation */
+@keyframes stat-count-up {
+  0% { transform: scale(1); color: inherit; }
+  30% { transform: scale(1.3); color: #4ade80; }
+  100% { transform: scale(1); color: inherit; }
+}
+@keyframes stat-count-down {
+  0% { transform: scale(1); color: inherit; }
+  30% { transform: scale(1.3); color: #f87171; }
+  100% { transform: scale(1); color: inherit; }
+}
+.stat-flash-up {
+  animation: stat-count-up 0.5s ease-out;
+}
+.stat-flash-down {
+  animation: stat-count-down 0.5s ease-out;
 }

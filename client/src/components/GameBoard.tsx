@@ -61,6 +61,7 @@ import useNarrator from "../lib/stores/useNarrator";
 import { EmojiReactions } from "./EmojiReactions";
 import { JoinRequestDialog } from "./JoinRequestDialog";
 import CardTrailParticles from "./CardTrailParticles";
+import AmbientParticles from "./AmbientParticles";
 import { GameBoard3D } from "./GameBoard3D";
 import VictoryDefeatAnimation from "./VictoryDefeatAnimation";
 import { useScreenShake } from "../lib/useScreenShake";
@@ -437,7 +438,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     cardType: string;
   }>>([]);
     const { selectedCard, setSelectedCard, gameId, playerName, gameState, setGameId, setUserRankiardPoints, addPRSpent, prSpentThisGame, resetPRSpent, clearSession } = useGameState();
-  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted, playAttackSound, playDeathSound, playCardPickup, playCardPlay, playTurnChange, playBonusActivated, playMyTurn, playDeckShuffle, playEffectActivate, playHostageApplied, playHostageReleased, playPersonaggioEnter, playCardReveal, playErrorSound, playPlayerEliminated, playSorosActivation, playFusionSound, playCardPlayedToField, playVictory, playDefeat, playButtonClick, playPanelOpen, playPanelClose, playModalOpen, playModalClose, playConfirm } = useAudio();
+  const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted, playAttackSound, playDeathSound, playCardPickup, playCardPlay, playTurnChange, playBonusActivated, playMyTurn, playDeckShuffle, playEffectActivate, playHostageApplied, playHostageReleased, playPersonaggioEnter, playCardReveal, playErrorSound, playPlayerEliminated, playSorosActivation, playFusionSound, playCardPlayedToField, playVictory, playDefeat, playButtonClick, playPanelOpen, playPanelClose, playModalOpen, playModalClose, playConfirm, startAmbientSound, stopAmbientSound } = useAudio();
 
 
   const shareInviteLink = () => {
@@ -562,10 +563,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   // Initialize audio context and play game start sound on mount
   useEffect(() => {
     initAudioContext();
-    // Play game start sound after a brief delay
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       playGameStart();
+      if (!useAudio.getState().isMuted) {
+        startAmbientSound();
+      }
     }, 500);
+    return () => {
+      clearTimeout(timer);
+      stopAmbientSound();
+    };
   }, []);
 
   useEffect(() => {
@@ -2058,6 +2065,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         {/* Central nebula pulse - hidden on mobile */}
         <div className="hidden md:block absolute w-[800px] h-[800px] rounded-full blur-[150px] animate-nebula-pulse dynamic-bg-transition" style={{ background: `radial-gradient(circle, ${bgColors.pulseColor}, transparent 60%)`, opacity: bgColors.pulseOpacity, top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
       </div>
+
+      <AmbientParticles visible={true} />
 
       {/* Back to Home button - hidden since back is in header menu */}
 

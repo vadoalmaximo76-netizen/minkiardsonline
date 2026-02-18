@@ -79,6 +79,9 @@ interface AudioState {
   playTennisHit: () => void;
   playSempafaagaraHit: () => void;
   stopBattleMusic: () => void;
+  startAmbientSound: () => void;
+  stopAmbientSound: () => void;
+  _ambientNodes: { source: AudioBufferSourceNode | null; gain: GainNode | null; active: boolean } | null;
   _battleMusicNodes: { oscillators: OscillatorNode[]; gains: GainNode[]; tickInterval: ReturnType<typeof setInterval> | null; active: boolean } | null;
   registerLowHealthCard: (cardId: string) => void;
   unregisterLowHealthCard: (cardId: string) => void;
@@ -106,6 +109,7 @@ export const useAudio = create<AudioState>((set, get) => ({
   audioContext: null,
   _lowHealthAlarmNodes: null,
   _battleMusicNodes: null,
+  _ambientNodes: null,
   _lowHealthCardIds: new Set<string>(),
   soundSettings: (() => {
     try {
@@ -1115,25 +1119,62 @@ export const useAudio = create<AudioState>((set, get) => ({
     const { audioContext, isMuted } = get();
     if (isMuted || !audioContext) return;
     if (!get().soundSettings.turnChange) return;
+    const t = audioContext.currentTime;
 
-    const frequencies = [392, 523, 659];
+    const whooshOsc = audioContext.createOscillator();
+    const whooshGain = audioContext.createGain();
+    whooshOsc.type = 'sawtooth';
+    whooshOsc.frequency.setValueAtTime(100, t);
+    whooshOsc.frequency.exponentialRampToValueAtTime(400, t + 0.15);
+    whooshOsc.frequency.exponentialRampToValueAtTime(80, t + 0.4);
+    whooshOsc.connect(whooshGain);
+    whooshGain.connect(audioContext.destination);
+    whooshGain.gain.setValueAtTime(0.06, t);
+    whooshGain.gain.linearRampToValueAtTime(0.1, t + 0.1);
+    whooshGain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+    whooshOsc.start(t);
+    whooshOsc.stop(t + 0.4);
+
+    const drumOsc = audioContext.createOscillator();
+    const drumGain = audioContext.createGain();
+    drumOsc.type = 'sine';
+    drumOsc.frequency.setValueAtTime(60, t + 0.08);
+    drumOsc.frequency.exponentialRampToValueAtTime(30, t + 0.25);
+    drumOsc.connect(drumGain);
+    drumGain.connect(audioContext.destination);
+    drumGain.gain.setValueAtTime(0.2, t + 0.08);
+    drumGain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+    drumOsc.start(t + 0.08);
+    drumOsc.stop(t + 0.3);
+
+    const frequencies = [392, 523, 659, 784];
     frequencies.forEach((freq, index) => {
       setTimeout(() => {
+        const ct = audioContext.currentTime;
         const osc = audioContext.createOscillator();
         const gain = audioContext.createGain();
-        
         osc.connect(gain);
         gain.connect(audioContext.destination);
-        
-        osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+        osc.frequency.setValueAtTime(freq, ct);
         osc.type = 'sine';
-        
-        gain.gain.setValueAtTime(0.08, audioContext.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
-        
-        osc.start(audioContext.currentTime);
-        osc.stop(audioContext.currentTime + 0.15);
-      }, index * 80);
+        gain.gain.setValueAtTime(0.1, ct);
+        gain.gain.exponentialRampToValueAtTime(0.001, ct + 0.2);
+        osc.start(ct);
+        osc.stop(ct + 0.2);
+
+        if (index === 3) {
+          const harmOsc = audioContext.createOscillator();
+          const harmGain = audioContext.createGain();
+          harmOsc.type = 'sine';
+          harmOsc.frequency.setValueAtTime(freq * 1.5, ct);
+          harmOsc.connect(harmGain);
+          harmGain.connect(audioContext.destination);
+          harmGain.gain.setValueAtTime(0.05, ct);
+          harmGain.gain.exponentialRampToValueAtTime(0.001, ct + 0.3);
+          harmOsc.start(ct);
+          harmOsc.stop(ct + 0.3);
+        }
+      }, 120 + index * 70);
     });
   },
 
@@ -1738,6 +1779,65 @@ export const useAudio = create<AudioState>((set, get) => ({
         });
       }, 400);
       set({ _battleMusicNodes: { ...nodes, tickInterval: null, active: false } });
+    }
+  },
+
+  startAmbientSound: () => {
+    const { audioContext, isMuted } = get();
+    if (isMuted || !audioContext) return;
+    const existing = get()._ambientNodes;
+    if (existing?.active) return;
+
+    const sampleRate = audioContext.sampleRate;
+    const duration = 4;
+    const bufferLength = sampleRate * duration;
+    const buffer = audioContext.createBuffer(1, bufferLength, sampleRate);
+    const data = buffer.getChannelData(0);
+
+    for (let i = 0; i < bufferLength; i++) {
+      const t = i / sampleRate;
+      const noise = (Math.random() * 2 - 1) * 0.015;
+      const crackle = Math.random() < 0.003 ? (Math.random() * 0.08 - 0.04) : 0;
+      const wind = Math.sin(t * 0.7) * 0.008 + Math.sin(t * 1.3) * 0.005;
+      const rumble = Math.sin(t * 30) * 0.003 * (0.5 + Math.sin(t * 0.2) * 0.5);
+      data[i] = noise + crackle + wind + rumble;
+    }
+
+    const source = audioContext.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+
+    const gainNode = audioContext.createGain();
+    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.6, audioContext.currentTime + 2);
+
+    const filter = audioContext.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(800, audioContext.currentTime);
+    filter.Q.setValueAtTime(0.5, audioContext.currentTime);
+
+    source.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    source.start();
+
+    set({ _ambientNodes: { source, gain: gainNode, active: true } });
+  },
+
+  stopAmbientSound: () => {
+    const nodes = get()._ambientNodes;
+    if (nodes?.active && nodes.source && nodes.gain) {
+      const ctx = get().audioContext;
+      if (ctx) {
+        try {
+          nodes.gain.gain.setValueAtTime(nodes.gain.gain.value, ctx.currentTime);
+          nodes.gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 1);
+        } catch {}
+      }
+      setTimeout(() => {
+        try { nodes.source?.stop(); } catch {}
+      }, 1200);
+      set({ _ambientNodes: { source: null, gain: null, active: false } });
     }
   },
 

@@ -1058,9 +1058,29 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     return 'card-epic-enter';
   };
   
-  // Random scatter direction for elimination (pre-calculated)
-  const [scatterX] = useState(() => (Math.random() - 0.5) * 80 - (Math.random() > 0.5 ? 40 : -40));
-  const [scatterY] = useState(() => (Math.random() - 0.5) * 80 - 60);
+  const getFieldBreathClass = () => {
+    if (location !== 'field' || card.faceDown || isNewlyPlaced) return '';
+    const normalizedType = (card.type || '').toLowerCase();
+    if (normalizedType === 'personaggi') return 'card-field-alive-personaggi';
+    if (normalizedType === 'mosse') return 'card-field-alive-mosse';
+    if (normalizedType === 'bonus') return 'card-field-alive-bonus';
+    if (normalizedType === 'personaggi_speciali' || normalizedType === 'speciali') return 'card-field-alive-speciali';
+    return 'card-field-alive';
+  };
+
+  // Deterministic scatter direction for elimination based on card id
+  const [scatterX] = useState(() => {
+    const seed = typeof id === 'string' ? id.split('').reduce((a, c) => a + c.charCodeAt(0), 0) : Number(id) || 0;
+    const s = Math.sin(seed * 1.7) * 10000;
+    const r = s - Math.floor(s);
+    return (r - 0.5) * 80 - (r > 0.5 ? 40 : -40);
+  });
+  const [scatterY] = useState(() => {
+    const seed = typeof id === 'string' ? id.split('').reduce((a, c) => a + c.charCodeAt(0), 0) : Number(id) || 0;
+    const s = Math.sin(seed * 2.3) * 10000;
+    const r = s - Math.floor(s);
+    return (r - 0.5) * 80 - 60;
+  });
 
   const removeFloatingNumber = (id: string) => {
     setFloatingNumbers(prev => prev.filter(n => n.id !== id));
@@ -1117,7 +1137,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     <div 
       ref={cardRef}
       onMouseMove={handleMouseMove3D}
-      className={`relative flex flex-col gap-2 card-play-transition card-3d-tilt ${damageFlash ? 'card-damage-flash' : ''} ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? getEntryAnimationClass() : ''} ${isPlayable ? 'card-playable-glow' : ''}`}
+      className={`relative flex flex-col gap-2 card-play-transition card-3d-tilt ${damageFlash ? 'card-damage-flash' : ''} ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? getEntryAnimationClass() : ''} ${isPlayable ? 'card-playable-glow' : ''} ${getFieldBreathClass()}`}
       style={{
         perspective: location === 'field' ? '800px' : undefined,
         transformStyle: location === 'field' ? 'preserve-3d' as any : undefined,
