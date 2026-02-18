@@ -8,9 +8,14 @@ let _db: DbType | null = null;
 let _isDatabaseAvailable = false;
 let _activeDbSource: string = 'none';
 
+function sanitizeDbUrl(url: string): string {
+  return url.replace(/#/g, '%23');
+}
+
 function tryConnect(url: string, label: string): boolean {
   try {
-    const sql = neon(url);
+    const sanitizedUrl = sanitizeDbUrl(url);
+    const sql = neon(sanitizedUrl);
     _db = drizzle(sql, { schema });
     _isDatabaseAvailable = true;
     _activeDbSource = label;
