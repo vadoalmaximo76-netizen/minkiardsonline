@@ -10495,6 +10495,105 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     }
   });
 
+  app.post('/api/admin/ocr-bonus-cards', authMiddleware, async (req, res) => {
+    try {
+      const userEmail = (req as any).user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ success: false, error: 'Access denied' });
+      }
+
+      const { ocrAllMissingBonusCards, ocrSingleCard, saveOcrResultsToModifications, isOcrRunning } = await import('./ocrBonusCards');
+      const { cardId } = req.body || {};
+
+      if (cardId) {
+        const cardDataContent = fs.readFileSync(path.join(process.cwd(), 'client/src/lib/cardData.ts'), 'utf-8');
+        const bonusMatch = cardDataContent.match(/bonus:\s*\[([\s\S]*?)\]/);
+        if (!bonusMatch) {
+          return res.status(400).json({ success: false, error: 'Impossibile trovare le carte BONUS' });
+        }
+        const urls = (bonusMatch[1].match(/"https?:\/\/[^"]+"/g) || []).map((u: string) => u.replace(/"/g, ''));
+        const index = parseInt(cardId.replace('bonus-', ''));
+        if (isNaN(index) || index < 0 || index >= urls.length) {
+          return res.status(400).json({ success: false, error: `Card ID non valido: ${cardId}` });
+        }
+
+        const result = await ocrSingleCard(cardId, urls[index]);
+        if (result.success) {
+          const { saved } = saveOcrResultsToModifications([result]);
+          return res.json({ success: true, result, saved });
+        }
+        return res.json({ success: false, result });
+      }
+
+      if (isOcrRunning()) {
+        return res.status(409).json({ success: false, error: 'OCR già in esecuzione. Attendere il completamento.' });
+      }
+
+      res.json({ success: true, message: 'OCR avviato in background' });
+
+      ocrAllMissingBonusCards((done, total) => {
+        console.log(`🔄 OCR Progress: ${done}/${total}`);
+      }).then(({ results, successCount, failCount, needsReviewCount }) => {
+        const { saved, pendingReview, skipped } = saveOcrResultsToModifications(results);
+        console.log(`✅ OCR completato: ${successCount} successi, ${failCount} falliti, ${saved} salvati, ${pendingReview} da rivedere, ${skipped} saltati`);
+      }).catch(err => {
+        console.error('❌ OCR errore:', err);
+      });
+    } catch (error: any) {
+      console.error('OCR endpoint error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  app.get('/api/admin/ocr-pending-review', authMiddleware, async (req, res) => {
+    try {
+      const userEmail = (req as any).user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ success: false, error: 'Access denied' });
+      }
+      const mods = jsonStorage.cardModifications.getAll();
+      const pending = mods.filter((m: any) => m.ocrPendingReview === true && m.ocrText);
+      res.json({ success: true, pending: pending.map((m: any) => ({
+        cardId: m.originalCardId,
+        ocrText: m.ocrText,
+        ocrConfidence: m.ocrConfidence || 0,
+        currentEffect: m.effect || null,
+      }))});
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  app.post('/api/admin/ocr-approve', authMiddleware, async (req, res) => {
+    try {
+      const userEmail = (req as any).user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ success: false, error: 'Access denied' });
+      }
+      const { cardId, approvedText } = req.body;
+      if (!cardId) {
+        return res.status(400).json({ success: false, error: 'cardId richiesto' });
+      }
+
+      const effectText = approvedText || jsonStorage.cardModifications.getByOriginalCardId(cardId)?.ocrText;
+      if (!effectText) {
+        return res.status(400).json({ success: false, error: 'Nessun testo OCR trovato' });
+      }
+
+      const modData: Record<string, any> = {
+        effect: effectText,
+        ocrPendingReview: false,
+        modifiedBy: userEmail,
+      };
+      jsonStorage.cardModifications.upsert(cardId, modData);
+      emitSync('card_modifications', 'update', { originalCardId: cardId, ...modData }, { originalCardId: cardId });
+
+      res.json({ success: true, cardId, effect: effectText });
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   app.get('/api/admin/contextual-tooltips', authMiddleware, async (req, res) => {
     try {
       const userEmail = req.user?.email;

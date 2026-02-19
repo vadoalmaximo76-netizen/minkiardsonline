@@ -38,6 +38,9 @@ Features four unique card types with images, ownership tracking, and custom anno
 ## Defense BONUS Card System
 Specific BONUS cards allow players to defend against attacks with unique behaviors, such as nullifying damage, reflecting damage, or redirecting damage. CPU players intelligently select defense cards.
 
+## OCR Card Effect Extraction
+Server-side OCR using Tesseract.js (`server/ocrBonusCards.ts`) extracts text from BONUS card images. Low-quality OCR results are stored in `ocrText` field with `ocrPendingReview=true` and don't affect gameplay until admin approves via the OCR Review Panel in CardAdminPanel. Admin endpoints: `POST /api/admin/ocr-bonus-cards` (run OCR), `GET /api/admin/ocr-pending-review` (list pending), `POST /api/admin/ocr-approve` (approve with optional text override).
+
 ## Custom Card Effect System
 Supports a wide range of custom card effects via `[COMPORTAMENTO: ...]` tags, including status effects, combat effects, and advanced bonus effects like conditional taroccata, KEBAB buff, character inheritance, block and evolve, character stealing, bomb removal, card swapping, mirror effects, dividing stats, and self-cloning.
 
