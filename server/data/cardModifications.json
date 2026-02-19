@@ -355,7 +355,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": "Guadagna 2 stelle",
+    "effect": "Tutti i personaggi in campo guadagnano 2 stelle",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -367,7 +367,19 @@
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-01-29T12:47:06.476Z"
+    "modifiedAt": "2026-02-19T10:50:35.270Z",
+    "attackLowAudioUrl": null,
+    "attackHighAudioUrl": null,
+    "mosseCanCounter": false,
+    "mosseCanBeCountered": false,
+    "evolvesInto": null,
+    "evolutionVariants": null,
+    "transformsInto": null,
+    "transformsFrom": null,
+    "cheatsInto": null,
+    "specialCategory": null,
+    "evolvedMoves": null,
+    "superAttacco": null
   },
   {
     "id": 13,
@@ -421,7 +433,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "FA MALE! FA MALISSIMO! LE ONDE! PORCA TROIA!",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -432,10 +444,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:00.413Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:30:26.759Z",
     "ocrText": "& Rw % N “a N LA A ano E P_i FA MALE! FA MALISSIMO! LE ONDE! PORCA TROIA!",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 18,
@@ -8273,10 +8285,22 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:00.424Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:50:34.782Z",
     "ocrText": "BONUS AGGLOMERA LEGHE a ; *",
-    "ocrPendingReview": true
+    "ocrPendingReview": false,
+    "attackLowAudioUrl": null,
+    "attackHighAudioUrl": null,
+    "mosseCanCounter": false,
+    "mosseCanBeCountered": false,
+    "evolvesInto": null,
+    "evolutionVariants": null,
+    "transformsInto": null,
+    "transformsFrom": null,
+    "cheatsInto": null,
+    "specialCategory": null,
+    "evolvedMoves": null,
+    "superAttacco": null
   },
   {
     "id": 278,
@@ -8286,7 +8310,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "SI LANCIA IL DADO E IN BASE AL NUMERO CHE ESCE, SI TRASFORMA IL PERSONAGGIO DI QUELLO CHE NEL RANKIARD OCCUPA LA POSIZIONE DEL NUMERO RISULTANTE DAL DADO. SE ESCE 5, SI TRASFORMA IL PERSONAGGIO DEL QUINTO NEL RANKIARD E COSÌ VIA",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8297,10 +8321,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:00.502Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:31:05.974Z",
     "ocrText": "BONUS CI | a s SI LANCIA IL DADO E IN BASE AL NUMERO CHE ESCE, SI TRASFORMA IL PERSONAGGIO DI QUELLO CHE NEL RANKIARD OCCUPA LA POSIZIONE DEL NUMERO RISULTANTE DAL DADO. SE ESCE, SI TRASFORMA IL PERSONAGGIO DEL QUINTO NEL RANKIARD E COSÌ VIA",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 279,
@@ -8321,10 +8345,22 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:00.514Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:50:35.114Z",
     "ocrText": "BONUS ALTA Salva . i pi , E * ” | Hi : i",
-    "ocrPendingReview": true
+    "ocrPendingReview": false,
+    "attackLowAudioUrl": null,
+    "attackHighAudioUrl": null,
+    "mosseCanCounter": false,
+    "mosseCanBeCountered": false,
+    "evolvesInto": null,
+    "evolutionVariants": null,
+    "transformsInto": null,
+    "transformsFrom": null,
+    "cheatsInto": null,
+    "specialCategory": null,
+    "evolvedMoves": null,
+    "superAttacco": null
   },
   {
     "id": 280,
@@ -8334,7 +8370,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "B0ONnUs 2 | PARTE UN’ASTA TRA | PARTECIPANTI PER SCAMBIARE IL PROPRIO PERSONAGGIO CON UNO A SCELTA DAL MAZZO. | SOLDI UTILIZZATI SONO | PUNTI RANKIARD.",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8345,10 +8381,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:00.530Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:31:23.218Z",
     "ocrText": "B0ONnUs 2 | PARTE UN’ASTA TRA | PARTECIPANTI PER SCAMBIARE IL PROPRIO PERSONAGGIO CON UNO A SCELTA DAL MAZZO. | SOLDI UTILIZZATI SONO | PUNTI RANKIARD.",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 281,
@@ -8358,7 +8394,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "B0ONnUs d E | e] PROSSIMI ATTACCHI RIVOLTI AL TUO PERSONAGGIO SARANNO SUBITI DA 3 SAGOME AVENTI OGNUNA 50 PUNTI. SI PUO' ELIMINARE UNA SOLA SAGOMA PER ATTACCO.",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8369,10 +8405,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:00.540Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:31:26.589Z",
     "ocrText": "B0ONnUs d E | e] PROSSIMI ATTACCHI RIVOLTI AL TUO PERSONAGGIO SARANNO SUBITI DA 3 SAGOME AVENTI OGNUNA 50 PUNTI. SI PUO' ELIMINARE UNA SOLA SAGOMA PER ATTACCO.",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 282,
@@ -8393,10 +8429,22 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:00.553Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:50:35.151Z",
     "ocrText": "BONnUs BOOMERANG po ZZZ _ E ’ panni 7 n _ | = TA,",
-    "ocrPendingReview": true
+    "ocrPendingReview": false,
+    "attackLowAudioUrl": null,
+    "attackHighAudioUrl": null,
+    "mosseCanCounter": false,
+    "mosseCanBeCountered": false,
+    "evolvesInto": null,
+    "evolutionVariants": null,
+    "transformsInto": null,
+    "transformsFrom": null,
+    "cheatsInto": null,
+    "specialCategory": null,
+    "evolvedMoves": null,
+    "superAttacco": null
   },
   {
     "id": 283,
@@ -8417,10 +8465,22 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:00.566Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:50:35.187Z",
     "ocrText": "BONnus ca am TRO ES=__ —————— RESPINGE UN ATTACCO SU UN ALTRO PERSONAGGIO A TUA SCELTA E NE RADDOPPIA IL VALORE. PUOI USARE QUESTA CARTA NEL MOMENTO STESSO IN CUI VIENI ATTACCATO.",
-    "ocrPendingReview": true
+    "ocrPendingReview": false,
+    "attackLowAudioUrl": null,
+    "attackHighAudioUrl": null,
+    "mosseCanCounter": false,
+    "mosseCanBeCountered": false,
+    "evolvesInto": null,
+    "evolutionVariants": null,
+    "transformsInto": null,
+    "transformsFrom": null,
+    "cheatsInto": null,
+    "specialCategory": null,
+    "evolvedMoves": null,
+    "superAttacco": null
   },
   {
     "id": 284,
@@ -8430,7 +8490,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "Se c'è in campo \"BOMBA SENZA DETONATORE\", la fa esplodere con un danno di 50 PTI all'ultimo utente che ha finito il turno",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8441,10 +8501,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:00.579Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:32:29.480Z",
     "ocrText": "B0ONnUs DETONMNATORI i | = TA,",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 285,
@@ -8454,7 +8514,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "ana Ja MAAÀ i i Nei A MES UA # | PE So | 2 | 5 ZA = TA,",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8465,10 +8525,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:00.597Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:32:33.120Z",
     "ocrText": "ana Ja MAAÀ i i Nei A MES UA # | PE So | 2 | 5 ZA = TA,",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 286,
@@ -8478,7 +8538,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "BONUS Pi SI, ESITO 4 ta. è c Le lO » © 2 Ab em i E ENN.T:MITISSCUORN?? | SI PUO’ USARE MENTRE SI VIENE ATTACCATI IN MODO DA ANNULLARE LA MOSSA.",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8489,10 +8549,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:00.606Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:32:36.702Z",
     "ocrText": "BONUS Pi SI, ESITO 4 ta. è c Le lO » © 2 Ab em i E ENN.T:MITISSCUORN?? | SI PUO’ USARE MENTRE SI VIENE ATTACCATI IN MODO DA ANNULLARE LA MOSSA.",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 287,
@@ -8502,7 +8562,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "ZI MZ ARI a CPN, A Pa 7 4 I , 4 E re N A 4 Mi) > e \\L dd ’ \\ TL pa Ù wi ij = TA,",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8513,10 +8573,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:00.622Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:32:39.990Z",
     "ocrText": "ZI MZ ARI a CPN, A Pa 7 4 I , 4 E re N A 4 Mi) > e \\L dd ’ \\ TL pa Ù wi ij = TA,",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 288,
@@ -8526,7 +8586,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "NON APPENA, A TUA DISCREZIONE, CREDI CHE LA PARTITA PER TE SI SIA MESSA MALE, PUOI RIMISCHIARE LE CARTE E RIPESCARNE ALTRE AL POSTO DI QUELLE CHE HAI. QUESTA CARTA NON COINVOLGE GLI ALTRI CONCORRENTI",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8537,10 +8597,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:00.814Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:32:52.801Z",
     "ocrText": "BONUS fu AA ’ PGE LN i] 4 & Wi G 39 i RN Re PAS 4 I I PS 5 RR À i “E è ; (A — Ru E 4 4 E (LIL i A i | INON APPENA, A TUA DISCREZIONE, CREDI CHE LA PARTITA PER TE SI SIA MESSA MALE, PUOI RIMISCHIARE LE CARTE E RIPESCARNE ALTRE AL POSTO DI QUELLE CHE HAI. QUESTA CARTA NON COINVOLGE GLI ALTRI CONCORRENTI",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 289,
@@ -8550,7 +8610,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "SCAMBI TUTTE LE CARTE IN MANO DI OGNI PARTECIPANTE CON QUELLE DEGLI ALTRI A TUO PIACIMENTO MA SOLTANTO TUTTE INSIEME E NON SINGOLARMENTE. SE SEI \"AL BANO\" PUOI SCAMBIARLE SINGOLARMENTE MA SEMPRE SENZA VEDERLE",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8561,10 +8621,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:00.824Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:33:07.126Z",
     "ocrText": "BONUS i NE Za Li Quilt | N E) = È Us | 7? i È y_O ISCAMBI TUTTE LE CARTE IN MANO DI OGNI PARTECIPANTE CON QUELLE DEGLI ALTRI A TUO PIACIMENTO MA SOLTANTO TUTTE INSIEME E NON SINGOLARMENTE. SE SEI \"AL BANO\" PUOI SCAMBIARLE SINGOLARMENTE MA SEMPRE SENZA VEDERLE",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 290,
@@ -8574,7 +8634,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "OGNI PARTECIPANTE SCAMBIA UNA SUA CARTA CON CHI LO PRECEDE NELL'ORDINE DEI TURNI. NON SI PUÒ CEDERE UNA CARTA RICEVUTA DA ALTRI. SE LA USA \"IL FENOMENO\" PUÒ GUARDARE LE CARTE DEGLI ALTRI PRIMA DELLO SCAMBIO E QUELLA CHE PRENDE NON PUÒ ESSERGLI SOTTRATTA",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8585,10 +8645,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:00.835Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:34:04.571Z",
     "ocrText": "B0ONnUs = E 5 ti OGNI PARTECIPANTE SCAMBIA UNA SUA CARTA CON CHI GLI SIEDE A SINISTRA PER UN GIRO COMPLETO. NON SI PUÒ CEDERE UNA CARTA RICEVUTA DA ALTRI. SE LA USA \"IL FENOMENO\" PUÒ GUARDARE LE CARTE DEGLI ALTRI PRIMA DELLO SCAMBIO E QUELLA CHE PRENDE NON PUÒ ESSERGLI SOTTRATTA",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 291,
@@ -8598,7 +8658,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "AGGIUNGE 20 PTI AL TUO PERSONAGGIO IN CAMPO; SE IL TUO PERSONAGGIO IN CAMPO È \"SCREAM\", GLI AGGIUNGE 200 PTI.",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8609,10 +8669,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:00.850Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:34:43.383Z",
     "ocrText": "& i *",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 292,
@@ -8622,7 +8682,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "AGGIUNGE 30 PTI AL TUO PERSONAGGIO IN CAMPO. SE IL TUO PERSONAGGIO IN CAMPO È \"CANNUCCIA\", TUTTI I TUOI AVVERSARI SI AUTOINFLIGGONO IL LORO PROSSIMO ATTACCO ANZICHÉ COLPIRE GLI ALTRI.",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8633,10 +8693,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:00.860Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:35:46.292Z",
     "ocrText": "B0ONnUs FIASCHETTA È : i",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 293,
@@ -8657,10 +8717,22 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:00.869Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:50:35.227Z",
     "ocrText": "zan 4) La 7 ” HB zz | = TA",
-    "ocrPendingReview": true
+    "ocrPendingReview": false,
+    "attackLowAudioUrl": null,
+    "attackHighAudioUrl": null,
+    "mosseCanCounter": false,
+    "mosseCanBeCountered": false,
+    "evolvesInto": null,
+    "evolutionVariants": null,
+    "transformsInto": null,
+    "transformsFrom": null,
+    "cheatsInto": null,
+    "specialCategory": null,
+    "evolvedMoves": null,
+    "superAttacco": null
   },
   {
     "id": 294,
@@ -8670,7 +8742,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "AGGIUNGE 10 PTI AL TUO PERSONAGGIO IN CAMPO. SE IL TUO PERSONAGGIO IN CAMPO È \"PSY\", SI AGGIUNGE 1 STELLA.",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8681,10 +8753,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:00.891Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:36:23.552Z",
     "ocrText": "n= A =] fi Ve si e pi a i #4 = ARPA SU} SF SAR (SS zig anm |",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 295,
@@ -8694,7 +8766,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "SCEGLI UN PERSONAGGIO AVVERSARIO E IL TUO PERSONAGGIO IN CAMPO: A ENTRAMBI VENGONO AGGIUNTI 500 PTI.",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8705,10 +8777,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:00.906Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:37:09.037Z",
     "ocrText": "e Pai Pi A 7 4 * # Dn TAMA:",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 296,
@@ -8718,7 +8790,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "SE PREMI SU \"ATTIVA\", IL TUO PERSONAGGIO IN CAMPO TORNA NEL MAZZO.",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8729,10 +8801,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:00.916Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:37:43.156Z",
     "ocrText": "BONUS HARAKIRI | N ca | | * = TA,",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 297,
@@ -8742,7 +8814,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "DA QUANDO VIENE GIOCATA QUESTA CARTA, APPENA UN PERSONAGGIO NE UCCIDE UN ALTRO, RESTA BLOCCATO PER 2 TURNI. SE LA USA \"ZIO MICHELE\", RESTA BLOCCATO \"ZIO MICHELE\".",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8753,10 +8825,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:00.925Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:38:06.479Z",
     "ocrText": "aonus fa Z E i 2 E Ei E uu APPENA UN PERSONAGGIO NE UCCIDE UN ALTRO, RESTA BLOCCATO PER 2 TURNI. SE LA USA \"ZIO MICHELE\", RESTA BLOCCATO LUI",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 298,
@@ -8766,7 +8838,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "DECIDI, TRAMITE PANNELLO A SCELTA, QUALE TIPO DI CARTE NON SI PUÒ METTERE IN CAMPO PER 3 TURNI: MOSSE, BONUS O PERSONAGGI.",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8777,10 +8849,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:00.935Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:39:00.146Z",
     "ocrText": "BONUS IBERNAZIONE ai A I 7 N AI NU i E > la AI |A A, È at i = TA,",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 299,
@@ -8790,7 +8862,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "DA UN PANNELLO A COMPARSA, SCEGLI: \"VUOI FARE IL PATTO CON QUELLO DI GIÙ?\". SE SCEGLI \"SÌ\", IL TUO PERSONAGGIO IN CAMPO VA A 0 STELLE MA SI AGGIUNGE 10000 PTI. SE SCEGLI \"NO\", RESTA TUTTO INVARIATO",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8801,10 +8873,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:00.945Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:40:17.753Z",
     "ocrText": "sal ’ è AM We » iL * Bg DTA,",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 300,
@@ -8814,7 +8886,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "SI APRE AUTOMATICAMENTE IL PANNELLO DEI POTERITUO E IL TUO PERSONAGGIO SI AGGIUNGE IL POTERE DI UN ALTRO PERSONAGGIO A TUA SCELTA",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8825,10 +8897,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:00.952Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:41:28.374Z",
     "ocrText": "BONUS i E Po I” va I > IN N È | to _ ss” IUTUO PERSONAGGIO SI AGGIUNGE IL POTERE (EFFETTO NATIVO) DI UN ALTRO PERSONAGGIO A TUA SCELTA, ANCHE DAL MAZZO.",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 301,
@@ -8838,7 +8910,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "INVERTE L'ORDINE DEI TURNI DEI GIOCATORI DALL'ULTIMO AL PRIMO",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8849,10 +8921,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:01.047Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:41:50.842Z",
     "ocrText": "B0Onus RE n di mM. i cia 47 INVERTE IL GIRO DA ANTIORARIO A ORARIO O VICEVERSA",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 302,
@@ -8862,7 +8934,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "SCEGLI UN PERSONAGGIO AVVERSARIO IN CAMPO, IL TUO SI TRASFORMERÀ NELLA SUA VERSIONE TAROCCATA. SE LA USI CON “BELLO FIGO GU” PUOI SCEGLIERE UN PERSONAGGIO QUALUNQUE, ANCHE SE NON IN CAMPO, E SI APRE IL PANNELLO PER LA SCELTA DEI PERSONAGGI",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8873,10 +8945,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:01.053Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:42:23.678Z",
     "ocrText": "BONUS A © BCE ECB EZB EKT EKP 200%. i Vl ugte 4 pla pp WE 0 i gi i = 5 Fico PA : E VP sE pi W 05 [u SCEGLI UN PERSONAGGIO AVVERSARIO IN CAMPO, IL TUO SI TRASFORMERÀ NELLA SUA VERSIONE TAROCCATA. SE LA USI CON “BELLO FIGO GU” PUOI SCEGLIERE UN PERSONAGGIO QUALUNQUE, ANCHE SE NON IN CAMPO.",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 303,
@@ -8886,7 +8958,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "SI APRE UN PANNELLO DI SCELTA DELLE CARTE PER IL MAZZO DEI PERSONAGGI: SFOGLIA IL MAZZO E SCEGLI PER OGNI AVVERSARIO UNA CARTA CHE DEVONO PESCARE SOSTITUENDONE UNA DELLO STESSO TIPO CHE HANNO IN MANO.\nPOI SI APRE UN PANNELLO DI SCELTA DELLE CARTE PER IL MAZZO DELLE MOSSE: SFOGLIA IL MAZZO E SCEGLI PER OGNI AVVERSARIO UNA CARTA CHE DEVONO PESCARE SOSTITUENDONE UNA DELLO STESSO TIPO CHE HANNO IN MANO.\nINFINE SI APRE UN PANNELLO DI SCELTA DELLE CARTE PER IL MAZZO DEI BONUS: SFOGLIA IL MAZZO E SCEGLI PER OGNI AVVERSARIO UNA CARTA CHE DEVONO PESCARE SOSTITUENDONE UNA DELLO STESSO TIPO CHE HANNO IN MANO.",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8897,10 +8969,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:01.060Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:44:01.431Z",
     "ocrText": "BONnos MA A AA, À E UA ì i Pe AM = 2 SI =] sd SN >: p__ FA = 5-1 ZI I Pi SFOGLIA IL MAZZO E SCEGLI PER OGNI AVVERSARIO UNA CARTA CHE DEVONO PESCARE SOSTITUENDONE UNA DELLO STESSO TIPO CHE HANNO IN MANO.",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 304,
@@ -8910,7 +8982,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "AGGIUNGE 30 PTI AL TUO PERSONAGGIO IN CAMPO. SE IL TUO PERSONAGGIO IN CAMPO È \"MAESTRO TONDINO\", SI AGGIUNGE 5000 PTI.",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8921,10 +8993,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:01.068Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:44:38.112Z",
     "ocrText": "La BEVANDA DL Zon _ | Ì IL ’ PER \"MAESTRO +5000]_ PAGE",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 305,
@@ -8934,7 +9006,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "SE HAI IN CAMPO UNO TRA “LUCA NERVI”, “PAOLO BITTA', “ANDREA\", “SILVANO”, “GHELLER” E“ DE MARINIS” ARRIVANO AUTOMATICAMENTE IN CAMPO GLI ALTRI (OVUNQUE SI TROVINO ANCHE SOTTRAENDOLI A UN ALTRO) E PUOI METTERLI IN CAMPO CONTEMPORANEAMENTE",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8945,10 +9017,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:01.086Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:45:23.821Z",
     "ocrText": "BONnos - - i IL - he pp E ij LE E & i i SE HAI IN CAMPO UNO TRA “LUCA NERVI”, “PAOLO BITTA', “ANDREA\", “SILVANO”, “GHELLER” E“ DE MARINIS” PUOI PRENDERE GLI ALTRI (OVUNQUE SI TROVINO ANCHE SOTTRAENDOLI A UN ALTRO) E METTERLI IN CAMPO CONTEMPORANEAMENTE",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 306,
@@ -8958,7 +9030,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "SE HAI IN CAMPO UNO TRA \"GIGIONE\",\"CACCA\", \"ONE DIRECTION\", \"MICHELE TELO”, \"PSY\" E \"JUSTIN BIEBERON\", ARRIVANO AUTOMATICAMENTE GLI ALTRI (OVUNQUE SI TROVINO ED ANCHE SOTTRAENDOLI AD UN AVVERSARIO) IN MODO DA AVERE PIU' PERSONAGGI A DISPOSIZIONE. ESSI VENGONO SCHIERATI INSIEME SUL CAMPO.",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8969,10 +9041,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:01.092Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:45:50.157Z",
     "ocrText": "BONnos | | * 4 A a N - ” È 7 i i i sf T- pa I ud | A n GP 2 E i i | 7 Ap El E'HAIIN CAMPO UNO TRA \"GIGIONE\",\"CACCA\", \"ONE DIRECTION\", \"MICHELE TELO”, \"PSY\" E \"JUSTIN BIEBERON\", PUOI PRENDERE GLI ALTRI (OVUNQUE SI TROVINO ED ANCHE SOTTRAENDOLI AD UN AVVERSARIO) IN MODO DA AVERE PIU' PERSONAGGI A DISPOSIZIONE. ESSI VENGONO SCHIERATI INSIEME SUL CAMPO.",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 307,
@@ -8982,7 +9054,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "SE HAI IN CAMPO UNO TRA \"PETER\", \"BRIAN\" E \"STEWIE\", ARRIVANO AUTOMATICAMENTE IN CAMPO GLI ALTRI (OVUNQUE SI TROVINO ED ANCHE SOTTRAENDOLI AD UN AVVERSARIO) IN MODO DA AVERE PIU' PERSONAGGI A DISPOSIZIONE. ESSI VENGONO SCHIERATI INSIEME SUL CAMPO.",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -8993,10 +9065,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:01.099Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:46:13.400Z",
     "ocrText": "BONUS esi E ? L=) “apr su i & UN pp n NN RZ EN i A geo, » ” È 3 4 =_= | Sa 4) E = SE HAI IN CAMPO UNO TRA \"PETER\", \"BRIAN\" E \"STEWIE\", PUOI PRENDERE GLI ALTRI (OVUNQUE SI TROVINO ED ANCHE SOTTRAENDOLI AD UN AVVERSARIO) IN MODO DA AVERE PIU' PERSONAGGI A DISPOSIZIONE. ESSI VENGONO SCHIERATI INSIEME SUL CAMPO.",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 308,
@@ -9006,7 +9078,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "SE HAI IN CAMPO UNO TRA \"POLLON”, \"ZEUS\", “POSEIDONE” E \"APOLLO\", ARRIVANO AUTOMATICAMENTE IN CAMPO GLI ALTRI (OVUNQUE SI TROVINO ED ANCHE SOTTRAENDOLI AD UN AVVERSARIO) IN MODO DA AVERE PIU' PERSONAGGI A DISPOSIZIONE. ESSI VENGONO SCHIERATI INSIEME SUL CAMPO. INFINE FAI TRASFORMARE UNO A TUA SCELTA.",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -9017,10 +9089,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:01.114Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:46:36.829Z",
     "ocrText": "BONnUs pr i E | P_i SE HAI IN CAMPO UNO TRA \"POLLON”, \"ZEUS\", “POSEIDONE” E \"APOLLO\", PUOI PRENDERE GLI ALTRI (OVUNQUE SI TROVINO ED ANCHE SOTTRAENDOLI AD UN AVVERSARIO) IN MODO DA AVERE PIU' PERSONAGGI A DISPOSIZIONE. ESSI VENGONO SCHIERATI INSIEME SUL CAMPO. INFINE FAI TRASFORMARE UNO A TUA SCELTA.",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 309,
@@ -9030,7 +9102,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "SE HAI IN CAMPO UNO TRA \"GOKU\" E \"VEGETA”, ARRIVANO IN CAMPO AUTOMATICAMENTE GLI ALTRI (OVUNQUE SI TROVINO ED ANCHE SOTTRAENDOLI AD UN AVVERSARIO) IN MODO DA AVERE PIU' PERSONAGGI A DISPOSIZIONE. ESSI VENGONO SCHIERATI INSIEME SUL CAMPO.",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -9041,10 +9113,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:01.121Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:47:18.794Z",
     "ocrText": "7onus fa Le SR A & FA AV i ‘das LA VE do * NI | = TA, |",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 310,
@@ -9054,7 +9126,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": null,
+    "effect": "SE HAI IN CAMPO UNO TRA \"HOMER\", \"BART\" E \"MILHOUSE”, ARRIVANO AUTOMATICAMENTE GLI ALTRI (OVUNQUE SI TROVINO ED ANCHE SOTTRAENDOLI AD UN AVVERSARIO) IN MODO DA AVERE PIU' PERSONAGGI A DISPOSIZIONE. ESSI VENGONO SCHIERATI INSIEME SUL CAMPO.",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
@@ -9065,10 +9137,10 @@
     "mosseTargetingMode": null,
     "mosseTargetCount": null,
     "isDeleted": false,
-    "modifiedBy": "ocr-auto",
-    "modifiedAt": "2026-02-19T10:22:01.128Z",
+    "modifiedBy": "lucaforte94@gmail.com",
+    "modifiedAt": "2026-02-19T10:47:38.213Z",
     "ocrText": "B0ONnUs E J 3 = | tl SE HAI IN CAMPO UNO TRA \"HOMER\" \"BART\" E \"MILHOUSE”, PUOI PRENDERE GLI ALTRI (OVUNQUE SI TROVINO ED ANCHE SOTTRAENDOLI AD UN AVVERSARIO) IN MODO DA AVERE PIU' PERSONAGGI A DISPOSIZIONE. ESSI VENGONO SCHIERATI INSIEME SUL CAMPO.",
-    "ocrPendingReview": true
+    "ocrPendingReview": false
   },
   {
     "id": 311,
