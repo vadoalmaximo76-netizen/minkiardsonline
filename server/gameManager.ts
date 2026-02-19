@@ -3721,11 +3721,29 @@ Rispondi SOLO in JSON:`;
       actions.push({ type: 'dice_control', target: 'self', value: 1, description: 'Controllo del dado: il giocatore può scegliere il risultato' });
     }
 
+    // ============ GROUP SUMMON PATTERN (must be before CONDITIONAL) ============
+    // "SE HAI IN CAMPO UNO TRA "X", "Y", "Z", ARRIVANO AUTOMATICAMENTE GLI ALTRI"
+    const groupSummonMatch = text.match(/se\s+hai\s+in\s+campo\s+uno\s+tra\s+(.*?)(?:arrivano|vengono)/i);
+    if (groupSummonMatch) {
+      const namesSection = groupSummonMatch[1];
+      const nameMatches = namesSection.match(/"([^"]+)"/g);
+      if (nameMatches && nameMatches.length > 0) {
+        const characterNames = nameMatches.map(n => n.replace(/"/g, '').trim()).filter(n => n.length > 1);
+        actions.push({ 
+          type: 'group_summon', 
+          target: 'self', 
+          value: characterNames.length, 
+          description: `Evoca gruppo: ${characterNames.join(', ')}`,
+          characterNames: characterNames as any
+        } as any);
+      }
+    }
+
     // ============ CONDITIONAL PATTERNS ============
     if ((text.includes('se ') || text.includes('quando ') || text.includes('ogni volta che')) &&
         !text.includes('pannello') && !text.includes('inserire') &&
         !isKebabText && !isMirrorText &&
-        !actions.some(a => a.type === 'cycle_cards' || a.type === 'kebab_buff' || a.type === 'mirror_effect' || a.type === 'conditional_taroccata' || a.type === 'block_then_evolve')) {
+        !actions.some(a => a.type === 'cycle_cards' || a.type === 'kebab_buff' || a.type === 'mirror_effect' || a.type === 'conditional_taroccata' || a.type === 'block_then_evolve' || a.type === 'group_summon')) {
       // Mark as conditional for special handling (but not if it's a panel effect, cycle effect, or already-handled complex effect)
       actions.push({ type: 'conditional', target: 'self', value: 0, description: effectText });
     }
@@ -4050,24 +4068,6 @@ Rispondi SOLO in JSON:`;
     if ((text.includes('immune') || text.includes('immunità') || text.includes('resiste')) && 
         (text.includes('veleno') || text.includes('fuoco') || text.includes('ghiaccio') || text.includes('effetti negativi'))) {
       actions.push({ type: 'immunity', target: 'self', value: 3, description: 'Immunità agli effetti negativi' });
-    }
-
-    // ============ GROUP SUMMON PATTERN ============
-    // "SE HAI IN CAMPO UNO TRA "X", "Y", "Z", ARRIVANO AUTOMATICAMENTE GLI ALTRI"
-    const groupSummonMatch = text.match(/se\s+hai\s+in\s+campo\s+uno\s+tra\s+(.*?)(?:arrivano|vengono)/i);
-    if (groupSummonMatch) {
-      const namesSection = groupSummonMatch[1];
-      const nameMatches = namesSection.match(/"([^"]+)"/g);
-      if (nameMatches && nameMatches.length > 0) {
-        const characterNames = nameMatches.map(n => n.replace(/"/g, '').trim());
-        actions.push({ 
-          type: 'group_summon', 
-          target: 'self', 
-          value: characterNames.length, 
-          description: `Evoca gruppo: ${characterNames.join(', ')}`,
-          characterNames
-        });
-      }
     }
 
     // ============ SUMMON/EVOKE PATTERNS ============
