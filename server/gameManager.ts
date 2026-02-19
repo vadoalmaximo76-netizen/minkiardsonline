@@ -4052,8 +4052,27 @@ Rispondi SOLO in JSON:`;
       actions.push({ type: 'immunity', target: 'self', value: 3, description: 'Immunità agli effetti negativi' });
     }
 
+    // ============ GROUP SUMMON PATTERN ============
+    // "SE HAI IN CAMPO UNO TRA "X", "Y", "Z", ARRIVANO AUTOMATICAMENTE GLI ALTRI"
+    const groupSummonMatch = text.match(/se\s+hai\s+in\s+campo\s+uno\s+tra\s+(.*?)(?:arrivano|vengono)/i);
+    if (groupSummonMatch) {
+      const namesSection = groupSummonMatch[1];
+      const nameMatches = namesSection.match(/"([^"]+)"/g);
+      if (nameMatches && nameMatches.length > 0) {
+        const characterNames = nameMatches.map(n => n.replace(/"/g, '').trim());
+        actions.push({ 
+          type: 'group_summon', 
+          target: 'self', 
+          value: characterNames.length, 
+          description: `Evoca gruppo: ${characterNames.join(', ')}`,
+          characterNames
+        });
+      }
+    }
+
     // ============ SUMMON/EVOKE PATTERNS ============
-    if ((text.includes('evoca') || text.includes('invoca') || text.includes('richiama') || text.includes('materializza') || text.includes('genera')) && 
+    if (!actions.some(a => a.type === 'group_summon') &&
+        (text.includes('evoca') || text.includes('invoca') || text.includes('richiama') || text.includes('materializza') || text.includes('genera')) && 
         (text.includes('personaggio') || text.includes('carta') || text.includes('creatura') || text.includes('mostro') || text.includes('guerriero'))) {
       actions.push({ type: 'summon', target: 'self', value: 1, description: 'Evoca un personaggio dal mazzo' });
     }
@@ -4828,12 +4847,62 @@ Rispondi SOLO in JSON:`;
     // PRIORITY: Always try keyword parser FIRST before AI - it's more reliable for known patterns
     {
       console.log('🔧 Trying keyword-based effect parsing FIRST (before AI)');
-      const keywordActions = this.parseEffectKeywords(card.effect);
-      console.log(`🎴 Keyword-parsed actions (${keywordActions.length}):`, keywordActions.map(a => `${a.type}:${a.target}`));
       
-      if (keywordActions.length > 0) {
+      // ============ CONDITIONAL CHARACTER CHECK PRE-PROCESSOR ============
+      // Detect "base effect; SE IL TUO PERSONAGGIO È X, enhanced effect" patterns
+      // and evaluate the condition BEFORE parsing, so only the correct branch is processed
+      let effectToProcess = card.effect;
+      const activeChar = this.getPlayerActiveCharacter(game, playerName);
+      const activeCharName = (activeChar?.name || '').toUpperCase().trim();
+      
+      // Check for semicolon-separated conditional patterns like:
+      // "AGGIUNGE 20 PTI; SE IL TUO PERSONAGGIO È "SCREAM", GLI AGGIUNGE 200 PTI."
+      const conditionalCharPattern = /[;.]?\s*SE\s+(?:IL\s+TUO\s+)?PERSONAGGIO\s+(?:IN\s+CAMPO\s+)?(?:È|E')\s*"([^"]+)"/i;
+      const hasConditionalChar = conditionalCharPattern.test(card.effect);
+      
+      if (hasConditionalChar && activeCharName) {
+        // Split the effect into parts - handle both semicolon and period separators
+        // Use a regex that splits on ". SE" or "; SE" boundaries to keep conditional intact
+        const parts = card.effect.split(/(?:\.\s+(?=SE\s))|(?:\s*;\s*)/i);
+        const baseParts: string[] = [];
+        const conditionalParts: { charName: string; text: string; matched: boolean }[] = [];
+        
+        for (const part of parts) {
+          const condMatch = part.match(/^SE\s+(?:IL\s+TUO\s+)?PERSONAGGIO\s+(?:IN\s+CAMPO\s+)?(?:È|E')\s*"([^"]+)"\s*,?\s*(.*)/i);
+          if (condMatch) {
+            const requiredChar = condMatch[1].toUpperCase().trim();
+            const condText = condMatch[2] || part;
+            const matched = activeCharName === requiredChar || activeCharName.includes(requiredChar) || requiredChar.includes(activeCharName);
+            conditionalParts.push({ charName: requiredChar, text: condText, matched });
+            console.log(`🔍 Conditional check: "${requiredChar}" vs active "${activeCharName}" → ${matched ? 'MATCH' : 'NO MATCH'}`);
+          } else if (part.trim().length > 5) {
+            baseParts.push(part.trim());
+          }
+        }
+        
+        // If any conditional matches, use conditional text and skip the base effect
+        const matchedConditional = conditionalParts.find(c => c.matched);
+        if (matchedConditional) {
+          // Character matches - use the enhanced effect, skip the base
+          effectToProcess = matchedConditional.text;
+          console.log(`✅ Conditional MATCHED: using enhanced effect for "${matchedConditional.charName}": "${effectToProcess.substring(0, 80)}"`);
+        } else if (conditionalParts.length > 0 && baseParts.length > 0) {
+          // No conditional match - use only the base parts
+          effectToProcess = baseParts.join('; ');
+          console.log(`❌ Conditional NOT matched: using base effect only: "${effectToProcess.substring(0, 80)}"`);
+        }
+      }
+      
+      const keywordActions = this.parseEffectKeywords(effectToProcess);
+      // Filter out 'conditional' type actions that are just markers for the SE pattern we already handled
+      const filteredActions = hasConditionalChar 
+        ? keywordActions.filter(a => a.type !== 'conditional')
+        : keywordActions;
+      console.log(`🎴 Keyword-parsed actions (${filteredActions.length}):`, filteredActions.map(a => `${a.type}:${a.target}`));
+      
+      if (filteredActions.length > 0) {
         const needsTargetSelection = dettagliData['input_type']?.toLowerCase().includes('selezione') ||
-          keywordActions.some(a => a.target === 'choose_target');
+          filteredActions.some(a => a.target === 'choose_target');
         
         if (needsTargetSelection) {
           const io = (global as any).io;
@@ -4848,7 +4917,7 @@ Rispondi SOLO in JSON:`;
             if (isCPU) {
               const cpuTarget = enemyChars[Math.floor(Math.random() * enemyChars.length)];
               console.log(`🤖 CPU ${cardOwner} auto-selecting target: ${cpuTarget.name || cpuTarget.id}`);
-              for (const action of keywordActions) {
+              for (const action of filteredActions) {
                 action.target = 'selected';
                 await this.applyEffectToCardWithFallback(gameId, action, card, cpuTarget, cardOwner, io);
               }
@@ -4884,27 +4953,31 @@ Rispondi SOLO in JSON:`;
                 subtitle: card.effect.replace(/\[DETTAGLI:[^\]]*\]/gi, '').replace(/\[ANIMAZIONE:[^\]]*\]/gi, '').trim().substring(0, 100)
               });
               
-              console.log(`🎯 Showing target selection panel for ${card.name || card.id} (${keywordActions.map(a => a.type).join(', ')})`);
+              console.log(`🎯 Showing target selection panel for ${card.name || card.id} (${filteredActions.map(a => a.type).join(', ')})`);
             }
           } else {
             console.log(`⚠️ No enemy characters available for target selection`);
           }
           
           (card as any).effectAlreadyApplied = true;
+          const fieldCardRef = game.field.find((c: Card) => c.id === card.id);
+          if (fieldCardRef) (fieldCardRef as any).effectAlreadyApplied = true;
           return { customAnimation };
         }
         
-        for (const action of keywordActions) {
+        for (const action of filteredActions) {
           await this.executeCustomEffectAction(gameId, action, playerName, card);
         }
         (card as any).effectAlreadyApplied = true;
+        const fieldCardRef2 = game.field.find((c: Card) => c.id === card.id);
+        if (fieldCardRef2) (fieldCardRef2 as any).effectAlreadyApplied = true;
         this.checkAndEnforcePtiThresholds(gameId);
         
         await this.recordEvent(gameId, 'custom-card-effect', {
           cardId: card.id,
           cardName: card.name,
           effect: card.effect,
-          result: { keywordActions, message: `Effetto attivato: ${keywordActions.map(a => a.description).join(', ')}` }
+          result: { keywordActions: filteredActions, message: `Effetto attivato: ${filteredActions.map(a => a.description).join(', ')}` }
         }, playerName);
         
         return { customAnimation };
@@ -8107,6 +8180,125 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
                 });
               }
             }
+          }
+        }
+        break;
+      }
+
+      case 'group_summon': {
+        const groupNames: string[] = (action as any).characterNames || [];
+        if (groupNames.length === 0) {
+          console.log(`❌ GROUP_SUMMON: No character names provided`);
+          break;
+        }
+        
+        const playerField = game.field.filter((c: Card) => c.owner === playerName);
+        const alreadyOnField = groupNames.filter(name => 
+          playerField.some(c => {
+            const cName = (c.name || this.getCardNameFromUrl(c.frontImage || '')).toUpperCase().trim();
+            return cName.includes(name.toUpperCase()) || name.toUpperCase().includes(cName);
+          })
+        );
+        
+        if (alreadyOnField.length === 0) {
+          console.log(`❌ GROUP_SUMMON: None of the group characters are on field. Need at least one.`);
+          const ioGS = (global as any).io;
+          if (ioGS) {
+            ioGS.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-group-summon-fail`,
+              playerName: 'Sistema',
+              message: `❌ Nessuno dei personaggi del gruppo è in campo! Serve almeno uno tra: ${groupNames.join(', ')}`,
+              timestamp: Date.now()
+            });
+          }
+          break;
+        }
+        
+        console.log(`🎭 GROUP_SUMMON: ${alreadyOnField.join(', ')} on field. Summoning remaining: ${groupNames.filter(n => !alreadyOnField.includes(n)).join(', ')}`);
+        const summonedNames: string[] = [];
+        
+        for (const charName of groupNames) {
+          const upperName = charName.toUpperCase().trim();
+          const alreadyHere = playerField.some(c => {
+            const cName = (c.name || this.getCardNameFromUrl(c.frontImage || '')).toUpperCase().trim();
+            return cName.includes(upperName) || upperName.includes(cName);
+          });
+          if (alreadyHere) continue;
+          
+          let foundCard: Card | null = null;
+          let foundSource = '';
+          
+          for (const otherPlayer of Object.keys(game.players)) {
+            if (otherPlayer === playerName) continue;
+            const otherField = game.field.filter((c: Card) => c.owner === otherPlayer);
+            const idx = otherField.findIndex(c => {
+              const cName = (c.name || this.getCardNameFromUrl(c.frontImage || '')).toUpperCase().trim();
+              return cName.includes(upperName) || upperName.includes(cName);
+            });
+            if (idx !== -1) {
+              foundCard = otherField[idx];
+              game.field = game.field.filter((c: Card) => c.id !== foundCard!.id);
+              foundSource = `campo di ${otherPlayer}`;
+              break;
+            }
+            
+            const handIdx = game.players[otherPlayer]?.hand.findIndex((c: Card) => {
+              const cName = (c.name || this.getCardNameFromUrl(c.frontImage || '')).toUpperCase().trim();
+              return cName.includes(upperName) || upperName.includes(cName);
+            });
+            if (handIdx !== undefined && handIdx !== -1) {
+              foundCard = game.players[otherPlayer].hand.splice(handIdx, 1)[0];
+              foundSource = `mano di ${otherPlayer}`;
+              break;
+            }
+          }
+          
+          if (!foundCard) {
+            const myHandIdx = game.players[playerName]?.hand.findIndex((c: Card) => {
+              const cName = (c.name || this.getCardNameFromUrl(c.frontImage || '')).toUpperCase().trim();
+              return cName.includes(upperName) || upperName.includes(cName);
+            });
+            if (myHandIdx !== undefined && myHandIdx !== -1) {
+              foundCard = game.players[playerName].hand.splice(myHandIdx, 1)[0];
+              foundSource = 'la tua mano';
+            }
+          }
+          
+          if (!foundCard) {
+            for (const deckType of ['personaggi', 'personaggi_speciali'] as const) {
+              const deckIdx = game.decks[deckType].findIndex((c: Card) => {
+                const cName = (c.name || this.getCardNameFromUrl(c.frontImage || '')).toUpperCase().trim();
+                return cName.includes(upperName) || upperName.includes(cName);
+              });
+              if (deckIdx !== -1) {
+                foundCard = game.decks[deckType].splice(deckIdx, 1)[0];
+                foundSource = `mazzo ${deckType}`;
+                break;
+              }
+            }
+          }
+          
+          if (foundCard) {
+            foundCard.owner = playerName;
+            game.field.push(foundCard);
+            summonedNames.push(foundCard.name || charName);
+            console.log(`🎭 GROUP_SUMMON: Summoned "${foundCard.name || charName}" from ${foundSource}`);
+          } else {
+            console.log(`⚠️ GROUP_SUMMON: "${charName}" not found anywhere`);
+          }
+        }
+        
+        if (summonedNames.length > 0) {
+          const ioGS2 = (global as any).io;
+          if (ioGS2) {
+            ioGS2.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-group-summon`,
+              playerName: 'Sistema',
+              message: `🎭 ${playerName} evoca il gruppo! ${summonedNames.join(', ')} arrivano in campo!`,
+              timestamp: Date.now()
+            });
+            const gsState = this.getSanitizedGameState(gameId);
+            ioGS2.to(gameId).emit('game-state-update', gsState);
           }
         }
         break;
@@ -14933,8 +15125,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           return game.field.filter((c: Card) => 
             c.type === 'personaggi' || c.type === 'personaggi_speciali'
           );
-        case 'self':
+        case 'self': {
+          if (sourceCard.type === 'bonus') {
+            const activeCharSelf = this.getPlayerActiveCharacter(game, playerName);
+            if (activeCharSelf) return [activeCharSelf];
+            const anyCharSelf = game.field.find((c: Card) => 
+              c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+            );
+            if (anyCharSelf) return [anyCharSelf];
+          }
           return [sourceCard];
+        }
         default:
           return [];
       }
