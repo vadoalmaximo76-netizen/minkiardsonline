@@ -4,6 +4,8 @@ import { X, Check, SkipForward, Eye, Loader2 } from 'lucide-react';
 
 interface PendingCard {
   cardId: string;
+  cardName: string;
+  imageUrl: string;
   ocrText: string;
   ocrConfidence: number;
   currentEffect: string | null;
@@ -150,10 +152,18 @@ export function OcrReviewPanel({ onClose }: OcrReviewPanelProps) {
             <div className="space-y-3">
               {pending.map(card => (
                 <div key={card.cardId} className="bg-gray-800 rounded-lg p-3 border border-gray-700">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-mono text-yellow-400">{card.cardId}</span>
+                  <div className="flex items-start gap-3">
+                    {card.imageUrl && (
+                      <img
+                        src={card.imageUrl}
+                        alt={card.cardName}
+                        className="w-16 h-20 object-cover rounded border border-gray-600 flex-shrink-0"
+                      />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="text-sm font-bold text-white">{card.cardName}</span>
+                        <span className="text-xs text-gray-500 font-mono">{card.cardId}</span>
                         <span className={`text-xs px-2 py-0.5 rounded ${
                           card.ocrConfidence >= 50 ? 'bg-green-600/30 text-green-400' :
                           card.ocrConfidence >= 30 ? 'bg-yellow-600/30 text-yellow-400' :

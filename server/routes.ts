@@ -10551,14 +10551,25 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
         return res.status(403).json({ success: false, error: 'Access denied' });
       }
+      const cardDataContent = fs.readFileSync(path.join(process.cwd(), 'client/src/lib/cardData.ts'), 'utf-8');
+      const bonusMatch = cardDataContent.match(/bonus:\s*\[([\s\S]*?)\]/);
+      const bonusUrls = bonusMatch ? (bonusMatch[1].match(/"https?:\/\/[^"]+"/g) || []).map((u: string) => u.replace(/"/g, '')) : [];
+
       const mods = jsonStorage.cardModifications.getAll();
       const pending = mods.filter((m: any) => m.ocrPendingReview === true && m.ocrText);
-      res.json({ success: true, pending: pending.map((m: any) => ({
-        cardId: m.originalCardId,
-        ocrText: m.ocrText,
-        ocrConfidence: m.ocrConfidence || 0,
-        currentEffect: m.effect || null,
-      }))});
+      res.json({ success: true, pending: pending.map((m: any) => {
+        const index = parseInt((m.originalCardId || '').replace('bonus-', ''));
+        const url = bonusUrls[index] || '';
+        const fileName = decodeURIComponent(url.split('/').pop() || '').replace(/\.(png|jpg|jpeg|gif|webp)$/i, '').replace(/[-_]/g, ' ').trim();
+        return {
+          cardId: m.originalCardId,
+          cardName: fileName || m.originalCardId,
+          imageUrl: url,
+          ocrText: m.ocrText,
+          ocrConfidence: m.ocrConfidence || 0,
+          currentEffect: m.effect || null,
+        };
+      })});
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
     }
