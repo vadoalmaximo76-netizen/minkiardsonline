@@ -3002,10 +3002,11 @@ Rispondi SOLO in JSON:`;
     }
 
     // ============ DELAYED DEATH PATTERN ============
-    if (/dopo\s+\d+\s+turni.*muore/i.test(text) || /morirà.*dopo\s+\d+\s+turni/i.test(text) || /muore.*tra\s+\d+\s+turni/i.test(text) || /morte.*dopo\s+\d+\s+turni/i.test(text) || /morire.*dopo/i.test(text)) {
+    if (/dopo\s+\d+\s+turni.*muor/i.test(text) || /morirà.*dopo\s+\d+\s+turni/i.test(text) || /muore.*tra\s+\d+\s+turni/i.test(text) || /morte.*dopo\s+\d+\s+turni/i.test(text) || /morire.*dopo/i.test(text) || /dopo\s+\d+\s+turni.*muoiono/i.test(text)) {
       const deathTurnsMatch = text.match(/(\d+)\s+turni/i);
       const deathTurnsVal = deathTurnsMatch ? parseInt(deathTurnsMatch[1], 10) : 5;
-      actions.push({ type: 'delayed_death', target: 'self', value: deathTurnsVal, description: `Muore dopo ${deathTurnsVal} turni` });
+      const deathTarget = /muoiono\s+tutti|tutti\s+i\s+personaggi/i.test(text) ? 'all' : 'self';
+      actions.push({ type: 'delayed_death', target: deathTarget, value: deathTurnsVal, description: deathTarget === 'all' ? `Tutti muoiono dopo ${deathTurnsVal} turni` : `Muore dopo ${deathTurnsVal} turni` });
     }
 
     // ============ DAMAGE PATTERNS ============
@@ -3079,7 +3080,8 @@ Rispondi SOLO in JSON:`;
         text.includes('metti in mano') || text.includes('aggiungi in mano') || text.includes('carta in mano') ||
         text.includes('ottieni carta') || text.includes('guadagna carta') || text.includes('ricevi carta') ||
         text.includes('acquisisci') || text.includes('preleva') || text.includes('ritira') ||
-        text.includes('raccoglie') || text.includes('raccatta') || text.includes('recupera carte')) {
+        text.includes('raccoglie') || text.includes('raccatta') || text.includes('recupera carte') ||
+        text.includes('mettila in mano') || text.includes('mettile in mano')) {
       const value = extractNumber(text, 1);
       let deckType = 'any';
       if (text.includes('personaggio') || text.includes('personaggi')) deckType = 'personaggi';
@@ -3212,7 +3214,7 @@ Rispondi SOLO in JSON:`;
     }
 
     // ============ DEMINKIATORE / HALVE NEXT ATTACK PATTERN ============
-    if (/deminkiatore|dimezza.*prossimo.*attacco|prossimo.*attacco.*dimezzato|dimezza.*danni.*prossim|riduc.*metà.*prossim/i.test(text)) {
+    if (/deminkiatore|dimezza.*prossimo.*attacco|prossimo.*attacco.*dimezzato|attacco.*verrà.*dimezzato|dimezza.*danni.*prossim|riduc.*metà.*prossim/i.test(text)) {
       actions.push({ type: 'deminkiatore', target: 'self', value: 50, description: 'Dimezza i danni del prossimo attacco ricevuto' });
     }
 
@@ -3476,7 +3478,7 @@ Rispondi SOLO in JSON:`;
     }
 
     // ============ DIVIDI FUNCTION PATTERN ============
-    if (/funzione.*dividi|dividi.*personaggio.*avversario|usa.*dividi/i.test(text)) {
+    if (/funzione.*dividi|dividi.*personaggio.*avversario|usa.*dividi|funzione\s*"dividi"/i.test(text)) {
       actions.push({ type: 'dividi', target: 'choose_target', value: 0, description: 'Dimezza PTI e stelle di un personaggio avversario (Dividi)' });
     }
 
@@ -3540,8 +3542,8 @@ Rispondi SOLO in JSON:`;
     }
 
     // ============ RETURN TO DECK PATTERNS ============
-    if ((text.includes('ritorna') || text.includes('torna') || text.includes('rimetti') || text.includes('rimanda') || text.includes('rimescola')) && 
-        (text.includes('mazzo') || text.includes('deck'))) {
+    if ((text.includes('ritorna') || text.includes('torna') || text.includes('rimetti') || text.includes('rimanda') || text.includes('rimescola') || text.includes('tornano') || text.includes('mischia')) && 
+        (text.includes('mazzo') || text.includes('mazzi') || text.includes('deck'))) {
       const value = extractNumber(text, 1);
       if (!actions.some(a => a.type === 'return_to_deck')) {
         actions.push({ type: 'return_to_deck', target: 'any', value, description: `Rimanda ${value} carte nel mazzo` });
