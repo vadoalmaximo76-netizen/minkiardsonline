@@ -4550,7 +4550,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const graveyardCard = fullGameForGraveyard?.graveyard?.find((c: any) => c.id === mosseCardId);
           if (graveyardCard) {
             console.log(`🗡️ MOSSE card ${mosseCardId} found in graveyard (multi-target continuation) - proceeding with attack`);
-            // Proceed directly to attack execution without card-on-field checks
+            
+            // Check if this MOSSE has a timed effect - if so, add this target to the deferred actions
+            const fullGameForTimed = gameManager.getGameState(gameId);
+            if (fullGameForTimed?.timedEffects) {
+              const timedForThisCard = fullGameForTimed.timedEffects.find(
+                (te: any) => te.sourceCardId === mosseCardId && te.sourcePlayer === attackerName
+              );
+              if (timedForThisCard) {
+                console.log(`⏳ MOSSE DELAYED (multi-target continuation): Adding ${targetOwner}'s ${targetCardId} to deferred damage`);
+                timedForThisCard.actions.push({
+                  type: 'damage',
+                  target: targetOwner === attackerName ? 'self' : 'opponents',
+                  value: damageValue,
+                  description: `Danno ritardato: ${damageValue} PTI`,
+                  targetCardId: targetCardId
+                });
+                if (starsToRemove && starsToRemove > 0) {
+                  timedForThisCard.actions.push({
+                    type: 'remove_stars',
+                    target: targetOwner === attackerName ? 'self' : 'opponents',
+                    value: starsToRemove,
+                    description: `Rimuovi ${starsToRemove} stelle`,
+                    targetCardId: targetCardId
+                  });
+                }
+                const updatedState = gameManager.getSanitizedGameState(gameId);
+                io.to(gameId).emit('game-state-update', updatedState);
+                return;
+              }
+            }
+            
+            // No timed effect - proceed directly to attack execution without card-on-field checks
             const attackResult = await gameManager.executeMossaAttack(
               gameId, attackerName, mosseCardId, targetCardId,
               damageValue, isHandTarget || false, undefined,

@@ -3024,9 +3024,15 @@ Rispondi SOLO in JSON:`;
         text.includes('fracassa') || text.includes('trapassa') || text.includes('trafigge') || text.includes('lacera') ||
         text.includes('squarcia')) {
       if (!hasMultiAttack && !hasAllAttack && !hasGambling && !hasReturnToHand) {
-        const value = getDetailValue(['damage_amount', 'danni', 'danno', 'valore'], extractNumber(text));
-        const target = determineTarget(text);
-        actions.push({ type: 'damage', target, value, description: `Infligge ${value} danni` });
+        const textForDamageExtract = delayTurns > 0 
+          ? text.replace(/(?:dopo|tra)\s+\d+\s+turni?\b/gi, '').replace(/ritardo\s+(?:di\s+)?\d+\s+turni?\b/gi, '')
+          : text;
+        const extractedDmg = extractNumber(textForDamageExtract, 0);
+        if (extractedDmg > 0) {
+          const value = getDetailValue(['damage_amount', 'danni', 'danno', 'valore'], extractedDmg);
+          const target = determineTarget(text);
+          actions.push({ type: 'damage', target, value, description: `Infligge ${value} danni` });
+        }
       }
     }
 
@@ -5760,7 +5766,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             this.moveToGraveyard(gameId, deadCard.id, deadCard.owner || '', playerName);
           }
         } else if (action.target === 'self') {
-          const selfChar = this.getPlayerActiveCharacter(game, playerName);
+          const selfTargetId = (action as any).targetCardId;
+          let selfChar: Card | undefined;
+          if (selfTargetId) {
+            selfChar = game.field.find((c: Card) => c.id === selfTargetId && c.owner === playerName);
+          }
+          if (!selfChar) {
+            selfChar = this.getPlayerActiveCharacter(game, playerName);
+          }
           if (selfChar && selfChar.pti != null) {
             const oldPti = selfChar.pti;
             selfChar.pti = Math.max(0, selfChar.pti - (action.value || 0));
