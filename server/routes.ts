@@ -2467,46 +2467,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
           emitImmediateGameState(io, gameId, updatedGameState);
         }
         
-        // DUELLO: Auto-activate MOSSE attack during duel
+        // DUELLO: Auto-activate MOSSE attack during duel (fully automatic for all players)
         if (result.duelAutoAttack && result.card) {
           const duelState = gameManager.getDuelState(gameId);
           if (duelState && duelState.active) {
             console.log(`⚔️ DUELLO: Auto-activating MOSSE attack for ${playerName}`);
             
             const opponentCharacterId = playerName === duelState.player1 ? duelState.character2Id : duelState.character1Id;
+            const mosseCard = result.card as any;
+            const targetCard = gameManager.getGameState(gameId)?.field.find((c: any) => c.id === opponentCharacterId);
             
-            if (playerName.startsWith('CPU-')) {
-              // CPU auto-submits damage during duel
-              const mosseCard = result.card as any;
-              const cpuDamage = mosseCard.mosseDamageValue || 100;
-              console.log(`⚔️ DUELLO: CPU ${playerName} auto-attacking with damage ${cpuDamage}`);
+            if (targetCard) {
+              const attackerChar = gameManager.getGameState(gameId)?.field.find((c: any) =>
+                c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+              );
+              const attackerStars = attackerChar?.stars ?? 1;
+              const baseDamage = mosseCard.mosseDamageValue || 100;
+              const totalDamage = baseDamage * attackerStars;
               
-              const targetCard = gameManager.getGameState(gameId)?.field.find((c: any) => c.id === opponentCharacterId);
-              if (targetCard) {
-                io.to(gameId).emit('chat-message', {
-                  id: `${Date.now()}-cpu-duel-attack`,
-                  playerName,
-                  message: `⚔️ DUELLO: Attacco con ${cpuDamage} danni!`,
-                  timestamp: Date.now()
-                });
-                
-                setTimeout(async () => {
-                  io.to(gameId).emit('mosse-attack', {
-                    attackingCard: result.card,
-                    targetCard,
-                    playerName,
-                    automatic: true,
-                    damageValue: cpuDamage
-                  });
-                }, 800);
-              }
-            } else {
-              io.to(gameId).emit('duel-auto-attack', {
-                attackerName: playerName,
-                mosseCardId: result.card.id,
-                targetCardId: opponentCharacterId,
-                message: `⚔️ DUELLO: ${playerName} attacca automaticamente!`
+              console.log(`⚔️ DUELLO: ${playerName} auto-attacking with damage ${baseDamage} x ${attackerStars} stelle = ${totalDamage}`);
+              
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-duel-attack`,
+                playerName,
+                message: `⚔️ DUELLO: Attacco con ${totalDamage} danni!`,
+                timestamp: Date.now()
               });
+              
+              setTimeout(async () => {
+                try {
+                  const attackResult = await gameManager.executeMossaAttack(
+                    gameId, playerName, mosseCard.id, opponentCharacterId,
+                    totalDamage, false, undefined, 0, mosseCard.mosseDamageEffect || null
+                  );
+                  
+                  if (attackResult.success) {
+                    io.to(gameId).emit('card-attacked', {
+                      mosseCardId: mosseCard.id,
+                      targetCardId: opponentCharacterId,
+                      attackerName: playerName,
+                      targetOwner: targetCard.owner,
+                      damageValue: totalDamage,
+                      timestamp: Date.now()
+                    });
+                    
+                    if (attackResult.result?.requiresDefenseResponse) {
+                      const pendingDefense = gameManager.getPendingDefense(gameId);
+                      if (pendingDefense) {
+                        pendingDefense.damage = totalDamage;
+                        pendingDefense.mosseCardId = mosseCard.id;
+                        (pendingDefense as any).starsToRemove = 0;
+                      }
+                      await gameManager.emitDefenseRequest(gameId, io);
+                    } else {
+                      gameManager.returnToDeck(gameId, mosseCard.id, playerName);
+                    }
+                  } else {
+                    gameManager.returnToDeck(gameId, mosseCard.id, playerName);
+                    console.log(`⚔️ DUELLO: Attack failed: ${attackResult.error}`);
+                  }
+                  
+                  const updatedState = gameManager.getSanitizedGameState(gameId);
+                  emitImmediateGameState(io, gameId, updatedState);
+                } catch (err) {
+                  console.error(`⚔️ DUELLO: Error executing auto-attack:`, err);
+                }
+              }, 800);
             }
             
             console.log(`⚔️ DUELLO: Auto-attack will target ${opponentCharacterId}`);

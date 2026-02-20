@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useGameState } from '../lib/stores/useGameState';
 import { socket } from '../lib/socket';
 import { Swords } from 'lucide-react';
-import { Button } from './ui/button';
 
 interface DuelCharInfo {
   id: string;
@@ -23,13 +22,6 @@ interface DuelStateData {
   currentTurn: string;
   consecutiveTurns: number;
   active: boolean;
-}
-
-interface DuelAutoAttackEvent {
-  attackerName: string;
-  mosseCardId: string;
-  targetCardId: string;
-  message: string;
 }
 
 const getCardNameFromUrl = (url: string): string => {
@@ -106,9 +98,6 @@ export const DuelBattleOverlay: React.FC = () => {
   const [hitEffect, setHitEffect] = useState<'left' | 'right' | null>(null);
   const [shakeScreen, setShakeScreen] = useState(false);
   const [damageFlash, setDamageFlash] = useState<'left' | 'right' | null>(null);
-  const [attackEvent, setAttackEvent] = useState<DuelAutoAttackEvent | null>(null);
-  const [damageInput, setDamageInput] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const prevPtiRef = useRef<{ char1: number; char2: number }>({ char1: 0, char2: 0 });
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const mountedRef = useRef(true);
@@ -172,30 +161,26 @@ export const DuelBattleOverlay: React.FC = () => {
         setDuelState(null);
         setShowVictory(null);
         setShowIntro(false);
-        setAttackEvent(null);
       }, 5000);
     };
 
-    const handleDuelAutoAttack = (event: DuelAutoAttackEvent) => {
-      console.log('⚔️ DUEL OVERLAY: Auto-attack event', event);
-      if (event.attackerName === playerName) {
-        setAttackEvent(event);
-        setDamageInput('');
-        setIsSubmitting(false);
-      }
-      setCurrentMessage(`${event.attackerName} attacca!`);
+    const handleCardAttacked = (data: { attackerName: string; damageValue: number; targetCardId: string }) => {
+      if (!duelState) return;
+      const targetName = gameState?.field?.find((c: any) => c.id === data.targetCardId);
+      const name = targetName ? getCardNameFromUrl(targetName.frontImage) : 'avversario';
+      setCurrentMessage(`${data.attackerName} infligge ${data.damageValue} danni a ${name}!`);
     };
 
     socket.on('duel:started', handleDuelStarted);
     socket.on('duel-ended', handleDuelEnded);
-    socket.on('duel-auto-attack', handleDuelAutoAttack);
+    socket.on('card-attacked', handleCardAttacked);
 
     return () => {
       socket.off('duel:started', handleDuelStarted);
       socket.off('duel-ended', handleDuelEnded);
-      socket.off('duel-auto-attack', handleDuelAutoAttack);
+      socket.off('card-attacked', handleCardAttacked);
     };
-  }, [playerName, safeTimeout]);
+  }, [playerName, safeTimeout, duelState, gameState]);
 
   useEffect(() => {
     const gs = gameState as any;
@@ -236,73 +221,6 @@ export const DuelBattleOverlay: React.FC = () => {
     safeTimeout(() => setHitEffect(null), 600);
     safeTimeout(() => setDamageFlash(null), 300);
     safeTimeout(() => setShakeScreen(false), 400);
-  };
-
-  const evaluateExpression = (expr: string): number => {
-    const sanitized = expr.trim().replace(/\s+/g, '');
-    if (!/^[0-9+\-*/().]+$/.test(sanitized) || sanitized.length === 0) {
-      throw new Error('Risultato non valido');
-    }
-    const tokens = sanitized.match(/(\d+\.?\d*|[+\-*/()])/g);
-    if (!tokens) throw new Error('Risultato non valido');
-    let pos = 0;
-    const peek = () => tokens[pos];
-    const consume = () => tokens[pos++];
-    const parseNum = (): number => {
-      if (peek() === '(') { consume(); const v = parseAdd(); if (peek() === ')') consume(); return v; }
-      const n = parseFloat(consume()); if (isNaN(n)) throw new Error('Risultato non valido'); return n;
-    };
-    const parseMul = (): number => {
-      let v = parseNum();
-      while (pos < tokens.length && (peek() === '*' || peek() === '/')) {
-        const op = consume(); const r = parseNum(); v = op === '*' ? v * r : r !== 0 ? v / r : NaN;
-      }
-      return v;
-    };
-    const parseAdd = (): number => {
-      let v = parseMul();
-      while (pos < tokens.length && (peek() === '+' || peek() === '-')) {
-        const op = consume(); const r = parseMul(); v = op === '+' ? v + r : v - r;
-      }
-      return v;
-    };
-    const result = parseAdd();
-    if (isNaN(result) || !isFinite(result)) throw new Error('Risultato non valido');
-    return Math.min(Math.max(Math.floor(result), 0), 99999);
-  };
-
-  const handleDamageSubmit = () => {
-    if (!attackEvent || isSubmitting) return;
-    try {
-      const damage = evaluateExpression(damageInput.trim());
-      if (damage <= 0) return;
-      setIsSubmitting(true);
-
-      const targetCard = gameState?.field?.find((c: any) => c.id === attackEvent.targetCardId);
-      if (!targetCard) {
-        setIsSubmitting(false);
-        return;
-      }
-
-      socket.emit('mosse-attack', {
-        mosseCardId: attackEvent.mosseCardId,
-        targetCardId: attackEvent.targetCardId,
-        attackerName: attackEvent.attackerName,
-        targetOwner: targetCard.owner,
-        damageValue: damage
-      });
-
-      const targetName = getCardNameFromUrl(targetCard.frontImage);
-      setCurrentMessage(`${attackEvent.attackerName} infligge ${damage} danni a ${targetName}!`);
-
-      safeTimeout(() => {
-        setAttackEvent(null);
-        setDamageInput('');
-        setIsSubmitting(false);
-      }, 500);
-    } catch {
-      setIsSubmitting(false);
-    }
   };
 
   const isMyTurn = useMemo(() => {
@@ -493,53 +411,23 @@ export const DuelBattleOverlay: React.FC = () => {
               )}
             </div>
 
-            <div className="relative z-20 pointer-events-auto">
-              <div className="bg-gray-900/95 backdrop-blur-sm border-t-2 border-gray-600/50 px-4 py-3 min-h-[80px]">
-                {attackEvent ? (
-                  <div className="space-y-2">
+            <div className="relative z-20">
+              <div className="bg-gray-900/95 backdrop-blur-sm border-t-2 border-gray-600/50 px-4 py-3 min-h-[60px]">
+                <div>
+                  {currentMessage ? (
                     <p className="text-white text-sm font-medium">
-                      Inserisci il danno dell'attacco:
+                      <TypewriterText text={currentMessage} speed={25} />
                     </p>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={damageInput}
-                        onChange={(e) => setDamageInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && damageInput) handleDamageSubmit();
-                        }}
-                        placeholder="es. 100 o 50*2"
-                        className="flex-1 px-3 py-2 text-lg font-bold text-center bg-gray-800 border-2 border-red-500/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-red-500"
-                        autoFocus
-                        disabled={isSubmitting}
-                      />
-                      <Button
-                        onClick={handleDamageSubmit}
-                        disabled={isSubmitting || !damageInput}
-                        className="bg-red-600 hover:bg-red-700 text-white font-bold px-6"
-                      >
-                        <Swords className="w-4 h-4 mr-1" />
-                        ATTACCA!
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    {currentMessage ? (
-                      <p className="text-white text-sm font-medium">
-                        <TypewriterText text={currentMessage} speed={25} />
-                      </p>
-                    ) : (
-                      <p className="text-gray-400 text-sm">
-                        {!isParticipant
-                          ? `Stai osservando il duello... Turno di ${duelState.currentTurn}`
-                          : isMyTurn
-                            ? 'È il tuo turno! Gioca una carta MOSSE per attaccare.'
-                            : `È il turno di ${duelState.currentTurn}...`}
-                      </p>
-                    )}
-                  </div>
-                )}
+                  ) : (
+                    <p className="text-gray-400 text-sm">
+                      {!isParticipant
+                        ? `Stai osservando il duello... Turno di ${duelState.currentTurn}`
+                        : isMyTurn
+                          ? 'È il tuo turno! Gioca una carta MOSSE per attaccare.'
+                          : `È il turno di ${duelState.currentTurn}...`}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="bg-gray-950/90 px-4 py-2 flex items-center justify-between border-t border-gray-700/50">

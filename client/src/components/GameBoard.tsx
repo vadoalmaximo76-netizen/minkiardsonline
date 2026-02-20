@@ -25,7 +25,6 @@ import { TransferRequestDialog } from "./TransferRequestDialog";
 import { DefenseDialog } from "./DefenseDialog";
 import { ClashBattle } from "./ClashBattle";
 import { CPUDamageDialog } from "./CPUDamageDialog";
-import { DuelDamageDialog } from "./DuelDamageDialog";
 import { DuelBattleOverlay } from "./DuelBattleOverlay";
 import { RecursiveDamagePanel } from "./RecursiveDamagePanel";
 import AuctionOverlay from "./AuctionOverlay";
