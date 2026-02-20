@@ -67,7 +67,7 @@ const getCardName = (imageUrl: string) => {
     const url = new URL(imageUrl);
     const filename = url.pathname.split('/').pop() || '';
     const nameWithoutExt = filename.replace(/\.[^/.]+$/, '');
-    return decodeURIComponent(nameWithoutExt).toUpperCase();
+    return decodeURIComponent(nameWithoutExt).replace(/-/g, ' ').toUpperCase();
   } catch {
     return 'CARTA';
   }
