@@ -19203,6 +19203,20 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
         }
 
+        // For RESPINTA / CONTRO SKRAZZKOOM, CPU picks a random opponent character to redirect damage
+        if (bonusCardName.includes('RESPINTA') || bonusCardName.includes('CONTRO SKRAZZKOOM')) {
+          const opponentCharacters = game.field.filter((c: any) => 
+            c.owner !== pendingDefense.defender && 
+            (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          );
+          if (opponentCharacters.length > 0) {
+            const randomTarget = opponentCharacters[Math.floor(Math.random() * opponentCharacters.length)];
+            cpuRedirectTargetCardId = randomTarget.id;
+            const dmgLabel = bonusCardName.includes('CONTRO SKRAZZKOOM') ? `${(pendingDefense.damage || 0) * 2} (DOPPIO)` : `${pendingDefense.damage || 0}`;
+            console.log(`🤖 CPU ${pendingDefense.defender}: ${bonusCardName} redirecting ${dmgLabel} damage to ${randomTarget.name || randomTarget.id} (owner: ${randomTarget.owner})`);
+          }
+        }
+
         // ATOMIC RESOLUTION: Set defends=true before calling processDefenseResponse
         const bonusId = bonusInHand.id;
         setTimeout(async () => {
@@ -19864,14 +19878,28 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
         } else if (defenseCardName.includes('CONTRO SKRAZZKOOM')) {
           const doubleDamage = (damage || 0) * 2;
-          io.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-defense-success`,
-            playerName: 'Sistema',
-            message: `🛡️ ${defender} usa CONTRO SKRAZZKOOM! Danno DOPPIO (${doubleDamage}) riflesso su ${attacker}!`,
-            timestamp: Date.now()
-          });
-          if (doubleDamage > 0) {
-            applyDamageToCharacter(attacker, doubleDamage, 'CONTRO SKRAZZKOOM');
+          if (redirectTargetCardId) {
+            const targetChar = game.field.find((c: any) => c.id === redirectTargetCardId);
+            const targetName = targetChar?.name || targetChar?.owner || 'Personaggio';
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-defense-success`,
+              playerName: 'Sistema',
+              message: `🛡️ ${defender} usa CONTRO SKRAZZKOOM! Danno DOPPIO (${doubleDamage}) deviato su ${targetName}!`,
+              timestamp: Date.now()
+            });
+            if (doubleDamage > 0) {
+              applyDamageToSpecificCard(redirectTargetCardId, doubleDamage, 'CONTRO SKRAZZKOOM');
+            }
+          } else {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-defense-success`,
+              playerName: 'Sistema',
+              message: `🛡️ ${defender} usa CONTRO SKRAZZKOOM! Danno DOPPIO (${doubleDamage}) riflesso su ${attacker}!`,
+              timestamp: Date.now()
+            });
+            if (doubleDamage > 0) {
+              applyDamageToCharacter(attacker, doubleDamage, 'CONTRO SKRAZZKOOM');
+            }
           }
 
         } else if (defenseCardName.includes('CONVERSIONE')) {
@@ -19967,14 +19995,28 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
 
         } else if (defenseCardName.includes('RESPINTA')) {
-          io.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-defense-success`,
-            playerName: 'Sistema',
-            message: `🛡️ ${defender} usa RESPINTA per riflettere l'attacco di ${attacker}!`,
-            timestamp: Date.now()
-          });
-          if (damage && damage > 0) {
-            applyDamageToCharacter(attacker, damage, 'RESPINTA');
+          if (redirectTargetCardId) {
+            const targetChar = game.field.find((c: any) => c.id === redirectTargetCardId);
+            const targetName = targetChar?.name || targetChar?.owner || 'Personaggio';
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-defense-success`,
+              playerName: 'Sistema',
+              message: `🛡️ ${defender} usa RESPINTA! ${damage} danni deviati su ${targetName}!`,
+              timestamp: Date.now()
+            });
+            if (damage && damage > 0) {
+              applyDamageToSpecificCard(redirectTargetCardId, damage, 'RESPINTA');
+            }
+          } else {
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-defense-success`,
+              playerName: 'Sistema',
+              message: `🛡️ ${defender} usa RESPINTA per riflettere l'attacco di ${attacker}!`,
+              timestamp: Date.now()
+            });
+            if (damage && damage > 0) {
+              applyDamageToCharacter(attacker, damage, 'RESPINTA');
+            }
           }
 
         } else {

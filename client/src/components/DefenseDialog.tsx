@@ -87,6 +87,9 @@ export const DefenseDialog: React.FC = () => {
   const [delayTurns, setDelayTurns] = useState<string>('');
   const [showVigliaccaTargetSelect, setShowVigliaccaTargetSelect] = useState<boolean>(false);
   const [selectedVigliaccaCard, setSelectedVigliaccaCard] = useState<GameCard | null>(null);
+  const [showRedirectTargetSelect, setShowRedirectTargetSelect] = useState<boolean>(false);
+  const [selectedRedirectCard, setSelectedRedirectCard] = useState<GameCard | null>(null);
+  const [redirectCardType, setRedirectCardType] = useState<'RESPINTA' | 'CONTRO SKRAZZKOOM' | null>(null);
   const { playerName, gameId, gameState } = useGameState();
   const { playAttackSound, playDefenseActivated, playAttackBlocked, playModalOpen, playButtonClick } = useAudio();
 
@@ -154,6 +157,11 @@ export const DefenseDialog: React.FC = () => {
     (card: any) => card.owner !== attackerName && card.owner !== playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali')
   );
 
+  // Get all opponent characters for RESPINTA/CONTRO SKRAZZKOOM redirect (any opponent character)
+  const redirectTargetCharacters = (gameState?.field || []).filter(
+    (card: any) => card.owner !== playerName && (card.type === 'personaggi' || card.type === 'personaggi_speciali')
+  );
+
   const DELAY_DEFENSE_PATTERN = /ritard[ai].*dann[oi]|dann[oi].*ritardat[oi]|(?:dopo|tra)\s+\d+\s+turni?.*dann[oi]|assorb[ei].*dann[oi].*(?:dopo|tra)\s+\d+/i;
 
   const getDelayTurnsFromCard = (card: GameCard): number | null => {
@@ -214,6 +222,9 @@ export const DefenseDialog: React.FC = () => {
         setDelayTurns('');
         setShowVigliaccaTargetSelect(false);
         setSelectedVigliaccaCard(null);
+        setShowRedirectTargetSelect(false);
+        setSelectedRedirectCard(null);
+        setRedirectCardType(null);
       } else {
         console.log('🛡️ Defense request not for this player, ignoring');
       }
@@ -310,6 +321,13 @@ export const DefenseDialog: React.FC = () => {
         setSelectedVigliaccaCard(card);
         setShowDefenseCardSelect(false);
         setShowVigliaccaTargetSelect(true);
+      } else if (cardName.includes('RESPINTA') || cardName.includes('CONTRO SKRAZZKOOM')) {
+        const type = cardName.includes('CONTRO SKRAZZKOOM') ? 'CONTRO SKRAZZKOOM' as const : 'RESPINTA' as const;
+        console.log(`🛡️ Selected ${type} - showing redirect target selection`);
+        setSelectedRedirectCard(card);
+        setRedirectCardType(type);
+        setShowDefenseCardSelect(false);
+        setShowRedirectTargetSelect(true);
       } else if (isDelayDefenseCard(card)) {
         const turns = getDelayTurnsFromCard(card);
         if (turns && defenseRequest) {
@@ -358,6 +376,9 @@ export const DefenseDialog: React.FC = () => {
     setDelayTurns('');
     setShowVigliaccaTargetSelect(false);
     setSelectedVigliaccaCard(null);
+    setShowRedirectTargetSelect(false);
+    setSelectedRedirectCard(null);
+    setRedirectCardType(null);
   };
 
   const handleSelectVigliaccaTarget = (targetCard: any) => {
@@ -387,6 +408,38 @@ export const DefenseDialog: React.FC = () => {
       setIsProcessing(false);
       setShowVigliaccaTargetSelect(false);
       setSelectedVigliaccaCard(null);
+    }, 500);
+  };
+
+  const handleSelectRedirectTarget = (targetCard: any) => {
+    if (!defenseRequest || !selectedRedirectCard || isProcessing) return;
+    setIsProcessing(true);
+    const damageToApply = redirectCardType === 'CONTRO SKRAZZKOOM' 
+      ? (defenseRequest.damageValue || 0) * 2 
+      : (defenseRequest.damageValue || 0);
+    console.log(`🛡️ ${redirectCardType}: Redirecting ${damageToApply} damage to ${targetCard.id}`);
+
+    socket.emit('play-card', {
+      cardId: selectedRedirectCard.id,
+      playerName: playerName
+    });
+
+    socket.emit('defense:response', {
+      gameId: defenseRequest.gameId,
+      attackId: defenseRequest.attackId,
+      defends: true,
+      defenseCardId: selectedRedirectCard.id,
+      redirectTargetCardId: targetCard.id
+    });
+
+    playAttackBlocked();
+
+    setTimeout(() => {
+      setDefenseRequest(null);
+      setIsProcessing(false);
+      setShowRedirectTargetSelect(false);
+      setSelectedRedirectCard(null);
+      setRedirectCardType(null);
     }, 500);
   };
 
@@ -541,6 +594,85 @@ export const DefenseDialog: React.FC = () => {
           ) : (
             <div className="text-center text-gray-400 py-4 mb-4">
               Nessun personaggio nemico disponibile (escluso attaccante)
+            </div>
+          )}
+
+          <div className="flex justify-center">
+            <Button
+              onClick={handleBackToMain}
+              className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6"
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              INDIETRO
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // RESPINTA / CONTRO SKRAZZKOOM: Redirect target selection panel
+  if (showRedirectTargetSelect && selectedRedirectCard && redirectCardType) {
+    const redirectDamage = redirectCardType === 'CONTRO SKRAZZKOOM' 
+      ? (defenseRequest.damageValue || 0) * 2 
+      : (defenseRequest.damageValue || 0);
+    const borderColor = redirectCardType === 'CONTRO SKRAZZKOOM' ? 'border-red-500' : 'border-orange-500';
+    const textColor = redirectCardType === 'CONTRO SKRAZZKOOM' ? 'text-red-400' : 'text-orange-400';
+    const hoverBorder = redirectCardType === 'CONTRO SKRAZZKOOM' ? 'hover:border-red-400' : 'hover:border-orange-400';
+    return (
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+        <div className={`w-full max-w-2xl bg-gradient-to-b from-gray-900 to-gray-800 rounded-lg shadow-2xl border-2 ${borderColor} p-4`}>
+          <div className="text-center mb-4">
+            <div className={`flex items-center justify-center gap-2 ${textColor} mb-1`}>
+              <Target className="w-6 h-6" />
+              <h1 className="text-xl font-bold">{redirectCardType}</h1>
+              <Target className="w-6 h-6" />
+            </div>
+            <p className="text-gray-300 text-sm">
+              Scegli un personaggio avversario su cui deviare{' '}
+              <span className="text-red-400 font-bold">{redirectDamage} PTI</span> di danno
+              {redirectCardType === 'CONTRO SKRAZZKOOM' && (
+                <span className="text-yellow-400 ml-1">(danno DOPPIO!)</span>
+              )}
+            </p>
+            <div className="flex items-center justify-center gap-1 text-gray-300 text-sm mt-2">
+              <Clock className="w-4 h-4" />
+              <span className="font-mono font-bold">{timeLeft}s</span>
+            </div>
+          </div>
+
+          {redirectTargetCharacters.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+              {redirectTargetCharacters.map((card: any) => (
+                <div
+                  key={card.id}
+                  onClick={() => handleSelectRedirectTarget(card)}
+                  className={`cursor-pointer hover:scale-105 transition-transform duration-200 bg-gray-800 rounded-lg border-2 border-gray-600 ${hoverBorder} p-2 flex flex-col items-center`}
+                >
+                  {card.frontImage && (
+                    <img
+                      src={card.frontImage}
+                      alt={getCardName(card.frontImage)}
+                      className="w-20 h-28 object-cover rounded-md mb-2"
+                    />
+                  )}
+                  <div className="text-white text-xs font-bold text-center">
+                    {card.frontImage ? getCardName(card.frontImage) : 'Personaggio'}
+                  </div>
+                  <div className="text-gray-400 text-xs mt-1">
+                    {card.owner}
+                  </div>
+                  {card.text && (
+                    <div className="text-gray-500 text-xs mt-1 text-center line-clamp-1">
+                      {card.text}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center text-gray-400 py-4 mb-4">
+              Nessun personaggio avversario disponibile
             </div>
           )}
 
@@ -808,8 +940,9 @@ export const DefenseDialog: React.FC = () => {
                 const delayTurnsVal = isDelayDefenseCard(card) ? getDelayTurnsFromCard(card) : null;
                 const bonusLabel = isBonusDef ? (
                   delayTurnsVal ? `Ritarda ${delayTurnsVal} turni` :
-                  cardNameStr.includes('BOOMERANG') || cardNameStr.includes('RESPINTA') ? 'Riflette danno' :
-                  cardNameStr.includes('CONTRO SKRAZZKOOM') ? 'Riflette x2' :
+                  cardNameStr.includes('BOOMERANG') ? 'Riflette danno' :
+                  cardNameStr.includes('RESPINTA') ? 'Devia su avversario' :
+                  cardNameStr.includes('CONTRO SKRAZZKOOM') ? 'Devia x2 su avversario' :
                   cardNameStr.includes('CONVERSIONE') ? 'Converte in PTI' :
                   cardNameStr.includes('DIFESA VIGLIACCA') ? 'Devia su nemico' :
                   cardNameStr.includes('E NN T MITT') ? 'Annulla danno' :
