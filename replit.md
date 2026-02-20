@@ -63,7 +63,7 @@ A comprehensive sound effect system using the Web Audio API provides in-game eve
 - **3D Card Interaction System**: Cards feature 3D CSS effects like tilt/parallax on hover, 3D draw animation, 3D entry slam, 3D damage shake, 3D attack lunge, and hover zoom preview via ReactDOM portal.
 - **3D Animation Components**: Includes `Dice3D` (pure CSS 3D dice), `AttackSlash3D` (full-screen 3D slash effect), and `CardShatter3D` (3D card shattering death effect).
 - **Combat Feedback System**: Damage flash animation, smooth CSS transitions for card movement, 3D attack lunge, 3D slash overlay, and floating damage numbers with audio feedback.
-- **Duel Battle Overlay**: Full-screen Pokémon-style battle overlay (`DuelBattleOverlay.tsx`) for DUELLO combat with animated HP bars (green/yellow/red), VS intro animation, typewriter battle messages, hit/shake effects, damage flash, integrated damage input with safe recursive descent math parser (clamped 0-99999), spectator support, and victory screen. Uses `safeTimeout` pattern for cleanup-safe animations.
+- **Duel Battle Overlay**: Full-screen Pokémon-style battle overlay (`DuelBattleOverlay.tsx`) for DUELLO combat with animated HP bars (green/yellow/red), VS intro animation, typewriter battle messages, hit/shake effects, damage flash, integrated damage input with safe recursive descent math parser (clamped 0-99999), spectator support, victory screen, and YouTube battle music. Uses `safeTimeout` pattern for cleanup-safe animations. CPU players can both participate in and initiate duels autonomously.
 - **Game Log Panel**: Slide-out panel for game events with category filtering, emoji icons, color-coding, and auto-scroll, persisting messages in localStorage.
 
 # External Dependencies

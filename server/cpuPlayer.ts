@@ -1425,6 +1425,45 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         }
       }
       
+      // DUELLO: Check if CPU has a DUELLO card and should initiate a duel
+      if (!gameState.activeDuel || !gameState.activeDuel.active) {
+        const duelloInHand = cpuPlayer.hand.find((c: any) => {
+          const name = this.getCardNameFromUrl(c.frontImage || '').toUpperCase();
+          return name.includes('DUELLO') && (c.type === 'bonus' || c.type === 'mosse');
+        });
+        
+        if (duelloInHand) {
+          const hasCharOnField = gameState.field.some((c: any) =>
+            c.owner === this.playerName &&
+            (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+            !c.isHostage
+          );
+          const opponentChars = gameState.field.filter((c: any) =>
+            c.owner !== this.playerName &&
+            (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+            !c.isHostage
+          );
+          
+          if (hasCharOnField && opponentChars.length > 0) {
+            const bestTarget = opponentChars.reduce((best: any, curr: any) =>
+              (curr.pti || 0) < (best.pti || 0) ? curr : best
+            , opponentChars[0]);
+            
+            console.log(`⚔️ DUELLO: CPU ${this.playerName} initiating duel with DUELLO card ${duelloInHand.id} targeting ${bestTarget.id}`);
+            this.sendChatMessage(`⚔️ Sfido a DUELLO! Preparati!`);
+            
+            return {
+              type: 'start-duel',
+              data: {
+                duelCardId: duelloInHand.id,
+                initiatorPlayer: this.playerName,
+                opponentCharacterId: bestTarget.id
+              }
+            };
+          }
+        }
+      }
+      
       // NEW: Process pending orders from human players first
       if (this.pendingOrder) {
         console.log(`CPU ${this.playerName} processing pending order:`, this.pendingOrder);

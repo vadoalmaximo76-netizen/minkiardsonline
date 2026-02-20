@@ -329,7 +329,7 @@ export const DuelBattleOverlay: React.FC = () => {
     return char2;
   }, [duelState, playerName, char1, char2]);
 
-  const showBattleMusic = !!(duelState || showIntro) && !showVictory;
+  const showBattleMusic = !!(duelState || showIntro || showVictory);
 
   if (!duelState && !showIntro && !showVictory) return null;
 

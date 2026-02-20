@@ -1694,6 +1694,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   }, 3000); // 3 seconds for manual return
                   break;
                   
+                case 'start-duel':
+                  console.log(`⚔️ CPU ${cpuName} starting a DUELLO`);
+                  // First play the DUELLO card on field
+                  const duelPlayResult = await gameManager.playCard(gameId, currentAction.data.duelCardId, currentAction.data.initiatorPlayer);
+                  if (duelPlayResult.card) {
+                    await emitCardPlayed(io, gameId, duelPlayResult.card, currentAction.data.initiatorPlayer);
+                  }
+                  const duelStartResult = await gameManager.startDuel(gameId, currentAction.data.duelCardId, currentAction.data.initiatorPlayer, currentAction.data.opponentCharacterId);
+                  if (duelStartResult.success) {
+                    const duelStartState = gameManager.getDuelState(gameId);
+                    io.to(gameId).emit('chat-message', {
+                      id: `${Date.now()}-duel-start`,
+                      playerName: 'Sistema',
+                      message: duelStartResult.message,
+                      timestamp: Date.now()
+                    });
+                    io.to(gameId).emit('duel:started', {
+                      duelState: duelStartState,
+                      message: duelStartResult.message
+                    });
+                    const duelGameState = gameManager.getSanitizedGameState(gameId);
+                    emitThrottledGameState(io, gameId, duelGameState);
+                  } else {
+                    console.log(`⚔️ DUELLO: CPU ${cpuName} failed to start duel: ${duelStartResult.message}`);
+                  }
+                  break;
+                  
                 case 'pick-card-and-end-opening':
                   console.log(`CPU ${cpuName} picking replacement and ending opening sequence`);
                   const replacementSuccess = await gameManager.pickCard(gameId, currentAction.data.deckType, currentAction.data.playerName);
@@ -2446,16 +2473,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (duelState && duelState.active) {
             console.log(`⚔️ DUELLO: Auto-activating MOSSE attack for ${playerName}`);
             
-            // Determine opponent's character
             const opponentCharacterId = playerName === duelState.player1 ? duelState.character2Id : duelState.character1Id;
             
-            // Emit auto-attack notification to client
-            io.to(gameId).emit('duel-auto-attack', {
-              attackerName: playerName,
-              mosseCardId: result.card.id,
-              targetCardId: opponentCharacterId,
-              message: `⚔️ DUELLO: ${playerName} attacca automaticamente!`
-            });
+            if (playerName.startsWith('CPU-')) {
+              // CPU auto-submits damage during duel
+              const mosseCard = result.card as any;
+              const cpuDamage = mosseCard.mosseDamageValue || 100;
+              console.log(`⚔️ DUELLO: CPU ${playerName} auto-attacking with damage ${cpuDamage}`);
+              
+              const targetCard = gameManager.getGameState(gameId)?.field.find((c: any) => c.id === opponentCharacterId);
+              if (targetCard) {
+                io.to(gameId).emit('chat-message', {
+                  id: `${Date.now()}-cpu-duel-attack`,
+                  playerName,
+                  message: `⚔️ DUELLO: Attacco con ${cpuDamage} danni!`,
+                  timestamp: Date.now()
+                });
+                
+                setTimeout(async () => {
+                  io.to(gameId).emit('mosse-attack', {
+                    attackingCard: result.card,
+                    targetCard,
+                    playerName,
+                    automatic: true,
+                    damageValue: cpuDamage
+                  });
+                }, 800);
+              }
+            } else {
+              io.to(gameId).emit('duel-auto-attack', {
+                attackerName: playerName,
+                mosseCardId: result.card.id,
+                targetCardId: opponentCharacterId,
+                message: `⚔️ DUELLO: ${playerName} attacca automaticamente!`
+              });
+            }
             
             console.log(`⚔️ DUELLO: Auto-attack will target ${opponentCharacterId}`);
           }
@@ -4160,6 +4212,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           playerName: currentPlayer,
                           cardImage: result.card.frontImage
                         });
+                      }
+                      break;
+                      
+                    case 'start-duel':
+                      console.log(`⚔️ CPU ${currentPlayer} starting a DUELLO (chat-response path)`);
+                      const duelPlayRes = await gameManager.playCard(gameId, cpuAction.data.duelCardId, cpuAction.data.initiatorPlayer);
+                      if (duelPlayRes.card) {
+                        await emitCardPlayed(io, gameId, duelPlayRes.card, cpuAction.data.initiatorPlayer);
+                      }
+                      const duelRes = await gameManager.startDuel(gameId, cpuAction.data.duelCardId, cpuAction.data.initiatorPlayer, cpuAction.data.opponentCharacterId);
+                      if (duelRes.success) {
+                        const dState = gameManager.getDuelState(gameId);
+                        io.to(gameId).emit('chat-message', {
+                          id: `${Date.now()}-duel-start`,
+                          playerName: 'Sistema',
+                          message: duelRes.message,
+                          timestamp: Date.now()
+                        });
+                        io.to(gameId).emit('duel:started', {
+                          duelState: dState,
+                          message: duelRes.message
+                        });
+                        const dGs = gameManager.getSanitizedGameState(gameId);
+                        emitThrottledGameState(io, gameId, dGs);
+                      } else {
+                        console.log(`⚔️ DUELLO: CPU ${currentPlayer} failed to start duel: ${duelRes.message}`);
                       }
                       break;
                   }

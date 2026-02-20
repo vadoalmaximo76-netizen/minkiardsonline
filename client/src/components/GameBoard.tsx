@@ -3641,7 +3641,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         {/* Right-side Game Tools */}
         <div
           data-tutorial="tools"
-          className="fixed bottom-3 landscape:bottom-4 md:bottom-4 right-2 landscape:right-3 md:right-4 z-30 transition-all duration-300"
+          className="fixed bottom-3 landscape:bottom-4 md:bottom-4 right-2 landscape:right-3 md:right-4 z-[95] transition-all duration-300"
           style={{
             opacity: (chatOpen || calculatorOpen || gameLogOpen || soundSettingsOpen || musicPlayerOpen) ? 0 : 1,
             pointerEvents: (chatOpen || calculatorOpen || gameLogOpen || soundSettingsOpen || musicPlayerOpen) ? 'none' : 'auto',
