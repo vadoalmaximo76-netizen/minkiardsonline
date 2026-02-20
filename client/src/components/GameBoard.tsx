@@ -26,6 +26,7 @@ import { DefenseDialog } from "./DefenseDialog";
 import { ClashBattle } from "./ClashBattle";
 import { CPUDamageDialog } from "./CPUDamageDialog";
 import { DuelDamageDialog } from "./DuelDamageDialog";
+import { DuelBattleOverlay } from "./DuelBattleOverlay";
 import { RecursiveDamagePanel } from "./RecursiveDamagePanel";
 import AuctionOverlay from "./AuctionOverlay";
 import { HandModal } from "./HandModal";
@@ -4294,8 +4295,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         {/* CPU Damage Request Dialog */}
         <CPUDamageDialog />
         
-        {/* Duel Auto-Attack Damage Dialog */}
-        <DuelDamageDialog />
+        {/* Pokémon-style Duel Battle Overlay */}
+        <DuelBattleOverlay />
         
         {/* Recursive Damage Panel for SEMPAFAAGARA and PARTITA DI TENNIS */}
         <RecursiveDamagePanel />

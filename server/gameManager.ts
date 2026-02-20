@@ -2084,7 +2084,17 @@ Rispondi SOLO in JSON:`;
         sourceCardName: te.sourceCardName,
         turnsRemaining: te.turnsRemaining,
         description: te.actions.map(a => a.description).join(', ')
-      }))
+      })),
+      activeDuel: gameState.activeDuel ? {
+        duelCardId: gameState.activeDuel.duelCardId,
+        character1Id: gameState.activeDuel.character1Id,
+        character2Id: gameState.activeDuel.character2Id,
+        player1: gameState.activeDuel.player1,
+        player2: gameState.activeDuel.player2,
+        currentTurn: gameState.activeDuel.currentTurn,
+        consecutiveTurns: gameState.activeDuel.consecutiveTurns,
+        active: gameState.activeDuel.active
+      } : undefined
     };
 
     // Sanitize players by removing cpuInstance references
