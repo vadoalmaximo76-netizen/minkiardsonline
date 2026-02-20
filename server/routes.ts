@@ -591,6 +591,165 @@ async function emitCardPlayed(io: SocketServer, gameId: string, card: any, playe
   }
 }
 
+async function executeCpuDuelAttackSequence(
+  io: SocketServer,
+  gameId: string,
+  gameManager: any,
+  cpuName: string,
+  duelCardId: string,
+  initiatorPlayer: string,
+  opponentCharacterId: string
+) {
+  const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+  
+  const getCardName = (url: string) => {
+    const parts = url.split('/');
+    const filename = parts[parts.length - 1];
+    return filename.replace(/\.(png|jpg|jpeg|gif|webp)$/i, '').replace(/[-_]/g, ' ');
+  };
+  
+  const getStars = (card: any) => {
+    let stars = card?.stars ?? 1;
+    if (card?.text) {
+      const m = card.text.match(/[Ss]telle[:\s]*(\d+)/i);
+      if (m) stars = parseInt(m[1]);
+    }
+    return stars;
+  };
+  
+  await delay(1500);
+  
+  const gs1 = gameManager.getGameState(gameId);
+  const duelCardOnField = gs1?.field.find((c: any) => c.id === duelCardId);
+  const duelState1 = gameManager.getDuelState(gameId);
+  if (!duelState1 || !duelState1.active) {
+    console.log(`⚔️ DUELLO: Duel already ended before CPU attack, ending turn`);
+    const nxt = gameManager.endTurn(gameId, cpuName);
+    if (nxt) {
+      io.to(gameId).emit('next-turn', { nextPlayer: nxt });
+      const gs = gameManager.getGameState(gameId);
+      if (gs && gs.players[nxt]?.isCPU) {
+        setTimeout(() => gameManager.processCPUTurn(gameId, nxt, io), 2000);
+      }
+    }
+    return;
+  }
+  
+  if (duelCardOnField && duelCardOnField.type === 'mosse') {
+    const cpuChar = gs1?.field.find((c: any) =>
+      c.owner === initiatorPlayer &&
+      (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+    );
+    const duelloDmg = (duelCardOnField.mosseDamageValue || 100) * getStars(cpuChar);
+    
+    console.log(`⚔️ DUELLO: CPU ${cpuName} attacking with DUELLO card, damage=${duelloDmg}`);
+    io.to(gameId).emit('chat-message', {
+      id: `${Date.now()}-duel-card-attack`,
+      playerName: cpuName,
+      message: `⚔️ Attacco con la carta DUELLO! Danno: ${duelloDmg}`,
+      timestamp: Date.now()
+    });
+    
+    const duelAttackResult = await gameManager.executeMossaAttack(
+      gameId, initiatorPlayer, duelCardId, opponentCharacterId, duelloDmg
+    );
+    
+    if (duelAttackResult.success && duelAttackResult.result?.requiresDefenseResponse) {
+      await gameManager.emitDefenseRequest(gameId, io);
+    }
+    
+    gameManager.returnToDeck(gameId, duelCardId, initiatorPlayer);
+    emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
+  }
+  
+  await delay(2000);
+  
+  const duelState2 = gameManager.getDuelState(gameId);
+  if (!duelState2 || !duelState2.active) {
+    console.log(`⚔️ DUELLO: Duel ended after DUELLO attack, skipping follow-up MOSSE`);
+    const nxt = gameManager.endTurn(gameId, cpuName);
+    if (nxt) {
+      io.to(gameId).emit('next-turn', { nextPlayer: nxt });
+      const gs = gameManager.getGameState(gameId);
+      if (gs && gs.players[nxt]?.isCPU) {
+        setTimeout(() => gameManager.processCPUTurn(gameId, nxt, io), 2000);
+      }
+    }
+    return;
+  }
+  
+  const gs2 = gameManager.getGameState(gameId);
+  const cpuPlayerData = gs2?.players[initiatorPlayer];
+  const mosseInHand = cpuPlayerData?.hand?.find((c: any) => c.type === 'mosse');
+  
+  if (mosseInHand) {
+    console.log(`⚔️ DUELLO: CPU ${cpuName} playing follow-up MOSSE card ${mosseInHand.id}`);
+    const mossePlayResult = await gameManager.playCard(gameId, mosseInHand.id, initiatorPlayer);
+    if (mossePlayResult.card) {
+      await emitCardPlayed(io, gameId, mossePlayResult.card, initiatorPlayer);
+      emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
+      
+      await delay(1500);
+      
+      const duelState3 = gameManager.getDuelState(gameId);
+      if (!duelState3 || !duelState3.active) {
+        console.log(`⚔️ DUELLO: Duel ended before follow-up MOSSE attack, ending turn`);
+        const nxt = gameManager.endTurn(gameId, cpuName);
+        if (nxt) {
+          io.to(gameId).emit('next-turn', { nextPlayer: nxt });
+          const gs = gameManager.getGameState(gameId);
+          if (gs && gs.players[nxt]?.isCPU) {
+            setTimeout(() => gameManager.processCPUTurn(gameId, nxt, io), 2000);
+          }
+        }
+        return;
+      }
+      
+      const gs3 = gameManager.getGameState(gameId);
+      const mosseOnField = gs3?.field.find((c: any) => c.id === mosseInHand.id && c.owner === initiatorPlayer);
+      if (mosseOnField) {
+        const cpuChar2 = gs3?.field.find((c: any) =>
+          c.owner === initiatorPlayer &&
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        const mosseDmg = (mosseOnField.mosseDamageValue || 100) * getStars(cpuChar2);
+        const mosseName = getCardName(mosseOnField.frontImage || '');
+        
+        console.log(`⚔️ DUELLO: CPU ${cpuName} attacking with follow-up MOSSE "${mosseName}", damage=${mosseDmg}`);
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-duel-mosse-attack`,
+          playerName: cpuName,
+          message: `⚔️ Attacco con ${mosseName}! Danno: ${mosseDmg}`,
+          timestamp: Date.now()
+        });
+        
+        const mosseAttackResult = await gameManager.executeMossaAttack(
+          gameId, initiatorPlayer, mosseInHand.id, opponentCharacterId, mosseDmg
+        );
+        
+        if (mosseAttackResult.success && mosseAttackResult.result?.requiresDefenseResponse) {
+          await gameManager.emitDefenseRequest(gameId, io);
+        }
+        
+        gameManager.returnToDeck(gameId, mosseInHand.id, initiatorPlayer);
+        emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
+      }
+    }
+  } else {
+    console.log(`⚔️ DUELLO: CPU ${cpuName} has no MOSSE card in hand for follow-up`);
+  }
+  
+  await delay(1500);
+  const nxt = gameManager.endTurn(gameId, cpuName);
+  if (nxt) {
+    io.to(gameId).emit('next-turn', { nextPlayer: nxt });
+    const gs = gameManager.getGameState(gameId);
+    if (gs && gs.players[nxt]?.isCPU) {
+      setTimeout(() => gameManager.processCPUTurn(gameId, nxt, io), 2000);
+    }
+  }
+}
+
 // Extract card name from image URL
 function getCardNameFromImageUrl(imageUrl: string): string {
   try {
@@ -1696,11 +1855,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   
                 case 'start-duel':
                   console.log(`⚔️ CPU ${cpuName} starting a DUELLO`);
-                  // First play the DUELLO card on field
                   const duelPlayResult = await gameManager.playCard(gameId, currentAction.data.duelCardId, currentAction.data.initiatorPlayer);
                   if (duelPlayResult.card) {
                     await emitCardPlayed(io, gameId, duelPlayResult.card, currentAction.data.initiatorPlayer);
                   }
+                  emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
                   const duelStartResult = await gameManager.startDuel(gameId, currentAction.data.duelCardId, currentAction.data.initiatorPlayer, currentAction.data.opponentCharacterId);
                   if (duelStartResult.success) {
                     const duelStartState = gameManager.getDuelState(gameId);
@@ -1714,8 +1873,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       duelState: duelStartState,
                       message: duelStartResult.message
                     });
-                    const duelGameState = gameManager.getSanitizedGameState(gameId);
-                    emitThrottledGameState(io, gameId, duelGameState);
+                    emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
+                    executeCpuDuelAttackSequence(io, gameId, gameManager, cpuName, currentAction.data.duelCardId, currentAction.data.initiatorPlayer, currentAction.data.opponentCharacterId);
                   } else {
                     console.log(`⚔️ DUELLO: CPU ${cpuName} failed to start duel: ${duelStartResult.message}`);
                   }
@@ -4247,6 +4406,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       if (duelPlayRes.card) {
                         await emitCardPlayed(io, gameId, duelPlayRes.card, cpuAction.data.initiatorPlayer);
                       }
+                      emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
                       const duelRes = await gameManager.startDuel(gameId, cpuAction.data.duelCardId, cpuAction.data.initiatorPlayer, cpuAction.data.opponentCharacterId);
                       if (duelRes.success) {
                         const dState = gameManager.getDuelState(gameId);
@@ -4260,8 +4420,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           duelState: dState,
                           message: duelRes.message
                         });
-                        const dGs = gameManager.getSanitizedGameState(gameId);
-                        emitThrottledGameState(io, gameId, dGs);
+                        emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
+                        executeCpuDuelAttackSequence(io, gameId, gameManager, currentPlayer, cpuAction.data.duelCardId, cpuAction.data.initiatorPlayer, cpuAction.data.opponentCharacterId);
+                        return;
                       } else {
                         console.log(`⚔️ DUELLO: CPU ${currentPlayer} failed to start duel: ${duelRes.message}`);
                       }
@@ -6206,8 +6367,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     if (etDuelPlayResult.card) {
                       await emitCardPlayed(io, gameId, etDuelPlayResult.card, cpuAction.data.initiatorPlayer);
                     }
-                    const etDuelGameState1 = gameManager.getSanitizedGameState(gameId);
-                    emitThrottledGameState(io, gameId, etDuelGameState1);
+                    emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
                     
                     const etDuelStartResult = await gameManager.startDuel(gameId, cpuAction.data.duelCardId, cpuAction.data.initiatorPlayer, cpuAction.data.opponentCharacterId);
                     if (etDuelStartResult.success) {
@@ -6222,8 +6382,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         duelState: etDuelState,
                         message: etDuelStartResult.message
                       });
-                      const etDuelGameState2 = gameManager.getSanitizedGameState(gameId);
-                      emitThrottledGameState(io, gameId, etDuelGameState2);
+                      emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
+                      
+                      executeCpuDuelAttackSequence(io, gameId, gameManager, nextPlayer, cpuAction.data.duelCardId, cpuAction.data.initiatorPlayer, cpuAction.data.opponentCharacterId);
+                      return;
                     } else {
                       console.log(`⚔️ DUELLO: CPU ${nextPlayer} failed to start duel: ${etDuelStartResult.message}`);
                     }
@@ -6264,8 +6426,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         if (fuDuelPlayResult.card) {
                           await emitCardPlayed(io, gameId, fuDuelPlayResult.card, followUpAction.data.initiatorPlayer);
                         }
-                        const fuDuelGs1 = gameManager.getSanitizedGameState(gameId);
-                        emitThrottledGameState(io, gameId, fuDuelGs1);
+                        emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
                         
                         const fuDuelStartResult = await gameManager.startDuel(gameId, followUpAction.data.duelCardId, followUpAction.data.initiatorPlayer, followUpAction.data.opponentCharacterId);
                         if (fuDuelStartResult.success) {
@@ -6280,8 +6441,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                             duelState: fuDuelState,
                             message: fuDuelStartResult.message
                           });
-                          const fuDuelGs2 = gameManager.getSanitizedGameState(gameId);
-                          emitThrottledGameState(io, gameId, fuDuelGs2);
+                          emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
+                          executeCpuDuelAttackSequence(io, gameId, gameManager, nextPlayer, followUpAction.data.duelCardId, followUpAction.data.initiatorPlayer, followUpAction.data.opponentCharacterId);
+                          return;
                         } else {
                           console.log(`⚔️ DUELLO: CPU ${nextPlayer} failed to start duel (follow-up): ${fuDuelStartResult.message}`);
                         }
@@ -6800,8 +6962,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       if (feDuelPlayResult.card) {
                         await emitCardPlayed(io, gameId, feDuelPlayResult.card, cpuAction.data.initiatorPlayer);
                       }
-                      const feDuelGameState1 = gameManager.getSanitizedGameState(gameId);
-                      emitThrottledGameState(io, gameId, feDuelGameState1);
+                      emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
                       
                       const feDuelStartResult = await gameManager.startDuel(gameId, cpuAction.data.duelCardId, cpuAction.data.initiatorPlayer, cpuAction.data.opponentCharacterId);
                       if (feDuelStartResult.success) {
@@ -6816,8 +6977,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           duelState: feDuelState,
                           message: feDuelStartResult.message
                         });
-                        const feDuelGameState2 = gameManager.getSanitizedGameState(gameId);
-                        emitThrottledGameState(io, gameId, feDuelGameState2);
+                        emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
+                        executeCpuDuelAttackSequence(io, gameId, gameManager, nextPlayer, cpuAction.data.duelCardId, cpuAction.data.initiatorPlayer, cpuAction.data.opponentCharacterId);
+                        return;
                       } else {
                         console.log(`⚔️ DUELLO: CPU ${nextPlayer} failed to start duel: ${feDuelStartResult.message}`);
                       }
