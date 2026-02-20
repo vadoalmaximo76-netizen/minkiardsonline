@@ -757,9 +757,15 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
 
   const handleMultiTargetDamageConfirm = () => {
     try {
-      const damage = evaluateExpression(damageValue.trim());
-      if (damage < 0) {
-        alert("Il risultato non può essere negativo");
+      let damage = 0;
+      if (damageValue.trim() !== '') {
+        damage = evaluateExpression(damageValue.trim());
+        if (damage < 0) {
+          alert("Il risultato non può essere negativo");
+          return;
+        }
+      } else if (!selectedMosseEffect) {
+        alert("Inserisci un valore di danno!");
         return;
       }
 

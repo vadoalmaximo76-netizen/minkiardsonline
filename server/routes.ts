@@ -4545,7 +4545,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const mosseCard = gameState?.field?.find((c: any) => c.id === mosseCardId);
         
         if (!mosseCard) {
-          console.log(`MOSSE card ${mosseCardId} not found on field`);
+          // Multi-target attacks: MOSSE card may have been moved to graveyard after first target
+          const fullGameForGraveyard = gameManager.getGameState(gameId);
+          const graveyardCard = fullGameForGraveyard?.graveyard?.find((c: any) => c.id === mosseCardId);
+          if (graveyardCard) {
+            console.log(`🗡️ MOSSE card ${mosseCardId} found in graveyard (multi-target continuation) - proceeding with attack`);
+            // Proceed directly to attack execution without card-on-field checks
+            const attackResult = await gameManager.executeMossaAttack(
+              gameId, attackerName, mosseCardId, targetCardId,
+              damageValue, isHandTarget || false, undefined,
+              starsToRemove || 0, mosseEffect || null, isFurtoAttack || false
+            );
+            if (attackResult.success) {
+              io.to(gameId).emit('card-attacked', {
+                mosseCardId, targetCardId, attackerName, targetOwner,
+                damageValue, timestamp: Date.now()
+              });
+              const updatedState = gameManager.getSanitizedGameState(gameId);
+              io.to(gameId).emit('game-state-update', updatedState);
+            } else {
+              console.log(`Multi-target attack failed: ${attackResult.error}`);
+            }
+            return;
+          }
+          console.log(`MOSSE card ${mosseCardId} not found on field or graveyard`);
           return;
         }
 

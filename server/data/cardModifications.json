@@ -4737,7 +4737,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": "Il tuo personaggio si evolve [DETTAGLI: effect_summary: Il tuo personaggio in campo effettua l evoluzione; effect_goal: Curare/potenziare alleati]",
+    "effect": "[DADO_AUTOMATICO: 1: evoluzione; 2: nulla; 3: evoluzione; 4: nulla; 5: evoluzione; 6: nulla] [DETTAGLI: effect_summary: Tira il dado: se esce dispari il personaggio si evolve, se esce pari non succede niente; effect_goal: Curare/potenziare alleati]",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,

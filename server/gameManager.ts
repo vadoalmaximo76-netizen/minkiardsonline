@@ -14897,8 +14897,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       return;
     }
 
-    // If effect is "Nessun effetto" or unrecognized
-    if (effectLower.includes('nessun effetto') || effectLower === 'none') {
+    // If effect is "Nessun effetto", "nulla", "none" or unrecognized no-ops
+    if (effectLower.includes('nessun effetto') || effectLower === 'none' || effectLower === 'nulla' || effectLower.includes('non succede niente') || effectLower.includes('nessun cambiamento')) {
       console.log(`🎲 No effect applied to ${cardName}`);
       return;
     }
