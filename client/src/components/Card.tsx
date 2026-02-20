@@ -471,7 +471,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           setSelectedMosseEffect(mosseCard.mosseDamageEffect || null);
         } else {
           setDamageValue('');
-          setMosseHasPreset(false);
+          setMosseHasPreset(!!mosseCard.mosseDamageEffect);
           setSelectedMosseEffect(mosseCard.mosseDamageEffect || null);
         }
         
@@ -677,7 +677,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       setSelectedMosseEffect(mosseCard.mosseDamageEffect || null);
     } else {
       setDamageValue('');
-      setMosseHasPreset(false);
+      setMosseHasPreset(!!mosseCard?.mosseDamageEffect);
       setSelectedMosseEffect(mosseCard?.mosseDamageEffect || null);
     }
     
@@ -747,7 +747,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         console.log(`🎯 Multi-target autofill: ${mosseCard.mosseDamageValue} × ${attackerStars} = ${suggestedDamage}`);
       } else {
         setDamageValue('');
-        setMosseHasPreset(false);
+        setMosseHasPreset(!!mosseCard.mosseDamageEffect);
         setSelectedMosseEffect(mosseCard.mosseDamageEffect || null);
       }
     }

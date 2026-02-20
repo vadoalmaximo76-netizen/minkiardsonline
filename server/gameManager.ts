@@ -4173,18 +4173,31 @@ Rispondi SOLO in JSON:`;
 
     // ============ WRAP DELAYED EFFECTS ============
     // If "dopo X turni" was detected, wrap all parsed actions into a single timed_effect
-    if (delayTurns > 0 && actions.length > 0) {
-      const wrappedActions = [...actions];
-      const descriptions = wrappedActions.map(a => a.description).join(', ');
-      console.log(`⏳ TIMED EFFECT: Wrapping ${wrappedActions.length} actions with ${delayTurns} turn delay: ${descriptions}`);
-      actions.length = 0;
-      actions.push({
-        type: 'timed_effect',
-        target: 'self',
-        value: delayTurns,
-        description: `Effetto ritardato (${delayTurns} turni): ${descriptions}`,
-        _delayedActions: wrappedActions
-      } as any);
+    if (delayTurns > 0) {
+      if (actions.length > 0) {
+        const wrappedActions = [...actions];
+        const descriptions = wrappedActions.map(a => a.description).join(', ');
+        console.log(`⏳ TIMED EFFECT: Wrapping ${wrappedActions.length} actions with ${delayTurns} turn delay: ${descriptions}`);
+        actions.length = 0;
+        actions.push({
+          type: 'timed_effect',
+          target: 'self',
+          value: delayTurns,
+          description: `Effetto ritardato (${delayTurns} turni): ${descriptions}`,
+          _delayedActions: wrappedActions
+        } as any);
+      } else {
+        // MOSSE or cards with delay but no explicit actions: create placeholder timed_effect
+        // The actual damage/effect will be filled in by the attack system when player clicks ATTACCA
+        console.log(`⏳ TIMED EFFECT (placeholder): ${delayTurns} turn delay, actions will be determined on attack`);
+        actions.push({
+          type: 'timed_effect',
+          target: 'self',
+          value: delayTurns,
+          description: `Effetto ritardato (${delayTurns} turni)`,
+          _delayedActions: [{ type: 'special', target: 'opponents', value: 0, description: `Danno ritardato (${delayTurns} turni)` }]
+        } as any);
+      }
     }
 
     console.log(`🎴 Parsed "${effectText.substring(0, 50)}..." → ${actions.length} actions: ${actions.map(a => a.type).join(', ')}`);
@@ -4895,9 +4908,27 @@ Rispondi SOLO in JSON:`;
       
       const keywordActions = this.parseEffectKeywords(effectToProcess);
       // Filter out 'conditional' type actions that are just markers for the SE pattern we already handled
-      const filteredActions = hasConditionalChar 
+      let filteredActions = hasConditionalChar 
         ? keywordActions.filter(a => a.type !== 'conditional')
         : keywordActions;
+      
+      // MOSSE cards: only process timed_effect on play, skip gambling/damage/combat effects
+      // Those effects trigger during the attack phase via routes.ts, not when card is placed on field
+      if (card.type === 'mosse') {
+        const mosseSkipTypes = ['gambling', 'damage', 'remove_stars', 'heal', 'steal_stars', 'multi_attack'];
+        const hasCombatActions = filteredActions.some(a => mosseSkipTypes.includes(a.type));
+        if (hasCombatActions) {
+          const timedOnly = filteredActions.filter(a => a.type === 'timed_effect');
+          if (timedOnly.length > 0) {
+            console.log(`🃏 MOSSE card ${card.id}: processing only timed_effect on play, skipping ${filteredActions.length - timedOnly.length} combat actions`);
+            filteredActions = timedOnly;
+          } else {
+            console.log(`🃏 MOSSE card ${card.id}: skipping ${filteredActions.length} combat actions on play (will trigger on attack)`);
+            filteredActions = [];
+          }
+        }
+      }
+      
       console.log(`🎴 Keyword-parsed actions (${filteredActions.length}):`, filteredActions.map(a => `${a.type}:${a.target}`));
       
       if (filteredActions.length > 0) {
@@ -5241,8 +5272,22 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             const typeLabel = type === 'evolution' ? 'EVOLUZIONE' : type === 'transformation' ? 'TRASFORMAZIONE' : 'TAROCCATA';
             const emoji = type === 'evolution' ? '🌟' : type === 'transformation' ? '🦋' : '🃏';
             const oldName = handCard.name || handCard.id;
-            const originalPti = handCard.pti || 0;
-            const originalStars = handCard.stars || 1;
+            // Use original base stats for hand evolution calculations
+            let handBasePti = (handCard as any).originalPti || 0;
+            let handBaseStars = handCard.stars || 1;
+            if (!handBasePti) {
+              const hMod = jsonStorage.cardModifications.getByOriginalCardId(handCard.id);
+              if (hMod && hMod.pti !== null) {
+                handBasePti = hMod.pti;
+                if (hMod.stars !== null) handBaseStars = hMod.stars;
+              } else {
+                const hCached = getPersonaggioFromCache(oldName);
+                handBasePti = hCached?.pti || handCard.pti || 0;
+                handBaseStars = hCached?.stars || handCard.stars || 1;
+              }
+            }
+            const originalPti = handBasePti;
+            const originalStars = handBaseStars;
             
             if (type === 'evolution') {
               handCard.pti = originalPti + Math.floor(originalPti / 2);
@@ -5293,8 +5338,25 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const io = (global as any).io;
     const oldName = activeChar.name || activeChar.id;
     const oldImage = activeChar.frontImage || '';
-    const originalPti = activeChar.pti || 0;
-    const originalStars = activeChar.stars || 1;
+    
+    // Use ORIGINAL base stats for evolution/transformation calculations, not current (possibly damaged) stats
+    // originalPti is stored when the card is first played; fall back to cardModifications or current pti
+    let basePti = (activeChar as any).originalPti || 0;
+    let baseStars = activeChar.stars || 1;
+    if (!basePti) {
+      const mod = jsonStorage.cardModifications.getByOriginalCardId(activeChar.id);
+      if (mod && mod.pti !== null) {
+        basePti = mod.pti;
+        if (mod.stars !== null) baseStars = mod.stars;
+      } else {
+        const cachedData = getPersonaggioFromCache(oldName);
+        basePti = cachedData?.pti || activeChar.pti || 0;
+        baseStars = cachedData?.stars || activeChar.stars || 1;
+      }
+    }
+    const originalPti = basePti;
+    const originalStars = baseStars;
+    console.log(`🔄 ${type}: ${oldName} - current PTI=${activeChar.pti}, original base PTI=${originalPti}, stars=${originalStars}`);
 
     let targetCardId: string | undefined;
     let diceRoll: number | undefined;
@@ -7139,8 +7201,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         );
         if (returnTarget) {
           game.field = game.field.filter(c => c.id !== returnTarget.id);
+          (returnTarget as any)._returnedToHand = true;
+          (returnTarget as any)._savedPti = returnTarget.pti;
+          (returnTarget as any)._savedStars = returnTarget.stars;
           game.players[returnTarget.owner || playerName]?.hand.push(returnTarget);
-          console.log(`✋ Custom effect: ${returnTarget.name || returnTarget.id} returned to hand!`);
+          console.log(`✋ Custom effect: ${returnTarget.name || returnTarget.id} returned to hand! (saved PTI=${returnTarget.pti}, Stars=${returnTarget.stars})`);
         }
         break;
 
@@ -8311,8 +8376,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         );
         if (rthTarget) {
           game.field = game.field.filter(c => c.id !== rthTarget.id);
+          (rthTarget as any)._returnedToHand = true;
+          (rthTarget as any)._savedPti = rthTarget.pti;
+          (rthTarget as any)._savedStars = rthTarget.stars;
           game.players[rthTarget.owner || playerName]?.hand.push(rthTarget);
-          console.log(`✋ RETURN TO HAND: ${rthTarget.name || rthTarget.id} returned to hand!`);
+          console.log(`✋ RETURN TO HAND: ${rthTarget.name || rthTarget.id} returned to hand! (saved PTI=${rthTarget.pti}, Stars=${rthTarget.stars})`);
         }
         break;
       }
@@ -8664,8 +8732,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const playerFieldCards = game.field.filter(c => c.owner === playerName);
         for (const fieldCard of playerFieldCards) {
           game.field = game.field.filter(c => c.id !== fieldCard.id);
+          if (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') {
+            (fieldCard as any)._returnedToHand = true;
+            (fieldCard as any)._savedPti = fieldCard.pti;
+            (fieldCard as any)._savedStars = fieldCard.stars;
+          }
           game.players[playerName]?.hand.push(fieldCard);
-          console.log(`✋ RETURN ALL TO HAND: ${fieldCard.name || fieldCard.id} returned to ${playerName}'s hand`);
+          console.log(`✋ RETURN ALL TO HAND: ${fieldCard.name || fieldCard.id} returned to ${playerName}'s hand (saved PTI=${fieldCard.pti})`);
         }
         const io = (global as any).io;
         if (io) {
@@ -11541,6 +11614,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   // AUTO-ANALYZE PERSONAGGI CARDS FOR ALL PLAYERS (using cache - synchronous)
   private autoAnalyzePersonaggioCardSync(card: any, playerName: string): void {
     try {
+      // RETURNED TO HAND: If card was returned to hand, preserve its saved stats
+      if (card._returnedToHand && card._savedPti !== undefined) {
+        card.pti = card._savedPti;
+        card.stars = card._savedStars ?? card.stars;
+        card.text = `PTI: ${card.pti} | Stelle: ${card.stars} | PTI originali: ${card.originalPti || card.pti}`;
+        console.log(`✅ Card ${card.id} restored saved stats from hand: pti=${card.pti}, stars=${card.stars}`);
+        delete card._returnedToHand;
+        delete card._savedPti;
+        delete card._savedStars;
+        return;
+      }
+
       // DISTRIBUTED CARDS: If card has already had PTI/stelle distributed (Giovanni Muciaccia style), preserve them
       if (card.ptiDistributed && card.pti != null && card.stars != null) {
         console.log(`✅ Card ${card.id} keeping distributed stats: pti=${card.pti}, stars=${card.stars}`);
@@ -11761,6 +11846,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
 
     if (card && card.owner === playerName) {
+      // Preserve current stats so they aren't overwritten when replayed
+      if (card.type === 'personaggi' || card.type === 'personaggi_speciali') {
+        (card as any)._returnedToHand = true;
+        (card as any)._savedPti = card.pti;
+        (card as any)._savedStars = card.stars;
+        console.log(`✋ RETURN TO HAND: Saving stats for ${card.name || card.id}: PTI=${card.pti}, Stars=${card.stars}`);
+      }
       game.players[playerName].hand.push(card);
       
       // Record return to hand event
@@ -11932,6 +12024,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         game.field = game.field.filter((c: Card) => c.id !== cardId);
         delete (cardToCheck as any).returnToHandOnDeath;
         cardToCheck.pti = cardToCheck.pti || 500;
+        (cardToCheck as any)._returnedToHand = true;
+        (cardToCheck as any)._savedPti = cardToCheck.pti;
+        (cardToCheck as any)._savedStars = cardToCheck.stars;
         game.players[cardOwner].hand.push(cardToCheck);
         const cardName = cardToCheck.name || this.getCardNameFromUrl(cardToCheck.frontImage || '');
         console.log(`🔄 RETURN ON DEATH: ${cardName} returned to ${cardOwner}'s hand instead of graveyard`);

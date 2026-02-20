@@ -4737,7 +4737,7 @@
     "imageUrl": null,
     "pti": null,
     "stars": null,
-    "effect": "Scommessa: 50% possibilità di guadagnare o perdere 0 PTI [DADO_AUTOMATICO: 1: Si evolve; 2: Nessun effetto; 3: Si evolve; 4: Nessun effetto; 5: Si evolve; 6: Nessun effetto]",
+    "effect": "Il tuo personaggio si evolve [DETTAGLI: effect_summary: Il tuo personaggio in campo effettua l evoluzione; effect_goal: Curare/potenziare alleati]",
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
