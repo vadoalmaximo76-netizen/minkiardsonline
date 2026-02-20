@@ -6199,6 +6199,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       }, 1000); // Brief delay to show the draw then play
                     }
                     break;
+                    
+                  case 'start-duel':
+                    console.log(`⚔️ CPU ${nextPlayer} starting a DUELLO (end-turn path)`);
+                    const etDuelPlayResult = await gameManager.playCard(gameId, cpuAction.data.duelCardId, cpuAction.data.initiatorPlayer);
+                    if (etDuelPlayResult.card) {
+                      await emitCardPlayed(io, gameId, etDuelPlayResult.card, cpuAction.data.initiatorPlayer);
+                    }
+                    const etDuelGameState1 = gameManager.getSanitizedGameState(gameId);
+                    emitThrottledGameState(io, gameId, etDuelGameState1);
+                    
+                    const etDuelStartResult = await gameManager.startDuel(gameId, cpuAction.data.duelCardId, cpuAction.data.initiatorPlayer, cpuAction.data.opponentCharacterId);
+                    if (etDuelStartResult.success) {
+                      const etDuelState = gameManager.getDuelState(gameId);
+                      io.to(gameId).emit('chat-message', {
+                        id: `${Date.now()}-duel-start`,
+                        playerName: 'Sistema',
+                        message: etDuelStartResult.message,
+                        timestamp: Date.now()
+                      });
+                      io.to(gameId).emit('duel:started', {
+                        duelState: etDuelState,
+                        message: etDuelStartResult.message
+                      });
+                      const etDuelGameState2 = gameManager.getSanitizedGameState(gameId);
+                      emitThrottledGameState(io, gameId, etDuelGameState2);
+                    } else {
+                      console.log(`⚔️ DUELLO: CPU ${nextPlayer} failed to start duel: ${etDuelStartResult.message}`);
+                    }
+                    break;
                 }
                 
                 // NEW: Continue processing CPU actions until turn is complete  
@@ -6228,7 +6257,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     if (followUpAction && followUpAction.type !== 'end-turn') {
                       console.log(`CPU ${nextPlayer} continuing with action: ${followUpAction.type}`);
                       continuousActions++;
-                      await processContinuous(); // Continue processing
+                      
+                      if (followUpAction.type === 'start-duel') {
+                        console.log(`⚔️ CPU ${nextPlayer} starting a DUELLO (follow-up action)`);
+                        const fuDuelPlayResult = await gameManager.playCard(gameId, followUpAction.data.duelCardId, followUpAction.data.initiatorPlayer);
+                        if (fuDuelPlayResult.card) {
+                          await emitCardPlayed(io, gameId, fuDuelPlayResult.card, followUpAction.data.initiatorPlayer);
+                        }
+                        const fuDuelGs1 = gameManager.getSanitizedGameState(gameId);
+                        emitThrottledGameState(io, gameId, fuDuelGs1);
+                        
+                        const fuDuelStartResult = await gameManager.startDuel(gameId, followUpAction.data.duelCardId, followUpAction.data.initiatorPlayer, followUpAction.data.opponentCharacterId);
+                        if (fuDuelStartResult.success) {
+                          const fuDuelState = gameManager.getDuelState(gameId);
+                          io.to(gameId).emit('chat-message', {
+                            id: `${Date.now()}-duel-start`,
+                            playerName: 'Sistema',
+                            message: fuDuelStartResult.message,
+                            timestamp: Date.now()
+                          });
+                          io.to(gameId).emit('duel:started', {
+                            duelState: fuDuelState,
+                            message: fuDuelStartResult.message
+                          });
+                          const fuDuelGs2 = gameManager.getSanitizedGameState(gameId);
+                          emitThrottledGameState(io, gameId, fuDuelGs2);
+                        } else {
+                          console.log(`⚔️ DUELLO: CPU ${nextPlayer} failed to start duel (follow-up): ${fuDuelStartResult.message}`);
+                        }
+                      }
+                      
+                      await processContinuous();
                     } else {
                       // CPU is done or wants to end turn
                       console.log(`CPU ${nextPlayer} finished all actions, ending turn`);
@@ -6733,6 +6792,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           }
                         }
                       }, 1500);
+                      break;
+                      
+                    case 'start-duel':
+                      console.log(`⚔️ CPU ${nextPlayer} starting a DUELLO (force-end-turn path)`);
+                      const feDuelPlayResult = await gameManager.playCard(gameId, cpuAction.data.duelCardId, cpuAction.data.initiatorPlayer);
+                      if (feDuelPlayResult.card) {
+                        await emitCardPlayed(io, gameId, feDuelPlayResult.card, cpuAction.data.initiatorPlayer);
+                      }
+                      const feDuelGameState1 = gameManager.getSanitizedGameState(gameId);
+                      emitThrottledGameState(io, gameId, feDuelGameState1);
+                      
+                      const feDuelStartResult = await gameManager.startDuel(gameId, cpuAction.data.duelCardId, cpuAction.data.initiatorPlayer, cpuAction.data.opponentCharacterId);
+                      if (feDuelStartResult.success) {
+                        const feDuelState = gameManager.getDuelState(gameId);
+                        io.to(gameId).emit('chat-message', {
+                          id: `${Date.now()}-duel-start`,
+                          playerName: 'Sistema',
+                          message: feDuelStartResult.message,
+                          timestamp: Date.now()
+                        });
+                        io.to(gameId).emit('duel:started', {
+                          duelState: feDuelState,
+                          message: feDuelStartResult.message
+                        });
+                        const feDuelGameState2 = gameManager.getSanitizedGameState(gameId);
+                        emitThrottledGameState(io, gameId, feDuelGameState2);
+                      } else {
+                        console.log(`⚔️ DUELLO: CPU ${nextPlayer} failed to start duel: ${feDuelStartResult.message}`);
+                      }
                       break;
                       
                     default:
