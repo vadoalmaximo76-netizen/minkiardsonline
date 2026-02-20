@@ -329,12 +329,23 @@ export const DuelBattleOverlay: React.FC = () => {
     return char2;
   }, [duelState, playerName, char1, char2]);
 
+  const showBattleMusic = !!(duelState || showIntro) && !showVictory;
+
   if (!duelState && !showIntro && !showVictory) return null;
 
   return (
-    <div className={`fixed inset-0 z-[90] ${shakeScreen ? 'animate-shake' : ''}`}>
+    <div className={`fixed inset-0 z-[90] pointer-events-none ${shakeScreen ? 'animate-shake' : ''}`}>
+      {showBattleMusic && (
+        <iframe
+          src="https://www.youtube.com/embed/XZT7ancr3qQ?autoplay=1&loop=1&playlist=XZT7ancr3qQ&controls=0&showinfo=0&modestbranding=1&rel=0"
+          allow="autoplay; encrypted-media"
+          className="absolute bottom-0 right-0 w-[1px] h-[1px] opacity-[0.01]"
+          title="Duel Battle Music"
+        />
+      )}
+
       {showIntro && (
-        <div className="absolute inset-0 z-[95] flex items-center justify-center bg-black">
+        <div className="absolute inset-0 z-[95] flex items-center justify-center bg-black pointer-events-auto">
           {introPhase === 'flash' && (
             <div className="absolute inset-0 bg-white animate-flash" />
           )}
@@ -381,7 +392,7 @@ export const DuelBattleOverlay: React.FC = () => {
       )}
 
       {showVictory && (
-        <div className="absolute inset-0 z-[95] flex items-center justify-center bg-black/90">
+        <div className="absolute inset-0 z-[95] flex items-center justify-center bg-black/90 pointer-events-auto">
           <div className="text-center animate-victoryBounce">
             <div className="text-6xl mb-4">🏆</div>
             <h1 className="text-4xl font-black text-yellow-400 mb-2 drop-shadow-[0_0_20px_rgba(250,204,21,0.6)]">
@@ -399,7 +410,7 @@ export const DuelBattleOverlay: React.FC = () => {
       )}
 
       {!showIntro && !showVictory && duelState && (
-        <div className="absolute inset-0 bg-gradient-to-b from-gray-900 via-slate-900 to-black">
+        <div className="absolute inset-0 bg-gradient-to-b from-gray-900/70 via-slate-900/60 to-transparent">
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
             <div className="absolute top-0 left-0 w-full h-1/3 bg-gradient-to-b from-indigo-950/50 to-transparent" />
             <div className="absolute bottom-0 left-0 w-full h-1/3 bg-gradient-to-t from-slate-950/50 to-transparent" />
@@ -482,7 +493,7 @@ export const DuelBattleOverlay: React.FC = () => {
               )}
             </div>
 
-            <div className="relative z-20">
+            <div className="relative z-20 pointer-events-auto">
               <div className="bg-gray-900/95 backdrop-blur-sm border-t-2 border-gray-600/50 px-4 py-3 min-h-[80px]">
                 {attackEvent ? (
                   <div className="space-y-2">
