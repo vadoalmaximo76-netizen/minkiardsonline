@@ -101,6 +101,7 @@ export const DuelBattleOverlay: React.FC = () => {
   const prevPtiRef = useRef<{ char1: number; char2: number }>({ char1: 0, char2: 0 });
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const mountedRef = useRef(true);
+  const isDuelEndingRef = useRef(false);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -122,23 +123,39 @@ export const DuelBattleOverlay: React.FC = () => {
   const findCharInfo = useCallback((charId: string): DuelCharInfo | null => {
     if (!gameState?.field) return null;
     const card: any = gameState.field.find((c: any) => c.id === charId);
-    if (!card) return null;
-    const name = getCardNameFromUrl(card.frontImage);
-    const originalPti = card.originalPti || card.pti || 500;
-    return {
-      id: card.id,
-      name,
-      owner: card.owner,
-      pti: card.pti || 0,
-      maxPti: Math.max(originalPti, card.pti || 0),
-      stars: card.stars || 1,
-      frontImage: card.frontImage || ''
-    };
+    if (card) {
+      const name = getCardNameFromUrl(card.frontImage);
+      const originalPti = card.originalPti || card.pti || 500;
+      return {
+        id: card.id,
+        name,
+        owner: card.owner,
+        pti: card.pti || 0,
+        maxPti: Math.max(originalPti, card.pti || 0),
+        stars: card.stars || 1,
+        frontImage: card.frontImage || ''
+      };
+    }
+    const graveyardCard: any = (gameState as any)?.graveyard?.find((c: any) => c.id === charId);
+    if (graveyardCard) {
+      const name = getCardNameFromUrl(graveyardCard.frontImage);
+      return {
+        id: graveyardCard.id,
+        name,
+        owner: graveyardCard.owner,
+        pti: 0,
+        maxPti: graveyardCard.originalPti || 500,
+        stars: graveyardCard.stars || 1,
+        frontImage: graveyardCard.frontImage || ''
+      };
+    }
+    return null;
   }, [gameState]);
 
   useEffect(() => {
     const handleDuelStarted = (data: { duelState: DuelStateData; message: string }) => {
       console.log('⚔️ DUEL OVERLAY: Duel started!', data);
+      isDuelEndingRef.current = false;
       setDuelState(data.duelState);
       setShowIntro(true);
       setIntroPhase('flash');
@@ -155,12 +172,14 @@ export const DuelBattleOverlay: React.FC = () => {
 
     const handleDuelEnded = (data: { winner: string; reason: string }) => {
       console.log('⚔️ DUEL OVERLAY: Duel ended!', data);
+      isDuelEndingRef.current = true;
       setShowVictory(data);
       setCurrentMessage(`${data.winner} ha vinto il duello!`);
       safeTimeout(() => {
         setDuelState(null);
         setShowVictory(null);
         setShowIntro(false);
+        isDuelEndingRef.current = false;
       }, 5000);
     };
 
@@ -190,7 +209,7 @@ export const DuelBattleOverlay: React.FC = () => {
     if (gs?.activeDuel && duelState) {
       setDuelState(gs.activeDuel);
     }
-    if (!gs?.activeDuel && duelState && !showVictory) {
+    if (!gs?.activeDuel && duelState && !showVictory && !isDuelEndingRef.current) {
       setDuelState(null);
     }
   }, [(gameState as any)?.activeDuel]);
@@ -212,6 +231,45 @@ export const DuelBattleOverlay: React.FC = () => {
 
     setChar1(c1);
     setChar2(c2);
+
+    if (!showVictory && !isDuelEndingRef.current) {
+      if (c1 && c1.pti <= 0) {
+        console.log(`⚔️ DUEL OVERLAY: Character 1 (${c1.name}) PTI=0, ending duel client-side`);
+        isDuelEndingRef.current = true;
+        setShowVictory({ winner: duelState.player2, reason: 'character_death' });
+        setCurrentMessage(`${duelState.player2} ha vinto il duello!`);
+        safeTimeout(() => {
+          setDuelState(null);
+          setShowVictory(null);
+          setShowIntro(false);
+          isDuelEndingRef.current = false;
+        }, 5000);
+      } else if (c2 && c2.pti <= 0) {
+        console.log(`⚔️ DUEL OVERLAY: Character 2 (${c2.name}) PTI=0, ending duel client-side`);
+        isDuelEndingRef.current = true;
+        setShowVictory({ winner: duelState.player1, reason: 'character_death' });
+        setCurrentMessage(`${duelState.player1} ha vinto il duello!`);
+        safeTimeout(() => {
+          setDuelState(null);
+          setShowVictory(null);
+          setShowIntro(false);
+          isDuelEndingRef.current = false;
+        }, 5000);
+      } else if ((!c1 && char1) || (!c2 && char2)) {
+        const missingIsChar1 = !c1 && char1;
+        const winner = missingIsChar1 ? duelState.player2 : duelState.player1;
+        console.log(`⚔️ DUEL OVERLAY: Character removed from field, ending duel client-side. Winner: ${winner}`);
+        isDuelEndingRef.current = true;
+        setShowVictory({ winner, reason: 'character_death' });
+        setCurrentMessage(`${winner} ha vinto il duello!`);
+        safeTimeout(() => {
+          setDuelState(null);
+          setShowVictory(null);
+          setShowIntro(false);
+          isDuelEndingRef.current = false;
+        }, 5000);
+      }
+    }
   }, [duelState, gameState?.field, findCharInfo]);
 
   const triggerHitEffect = (side: 'left' | 'right', _damage: number) => {

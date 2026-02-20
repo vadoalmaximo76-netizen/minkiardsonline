@@ -12158,6 +12158,28 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       game.graveyard.push(card);
       console.log(`Card ${cardId} moved to graveyard. Owner: ${cardOwner}, Killed by: ${attacker || 'Unknown'}`);
 
+      if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && game.activeDuel && game.activeDuel.active) {
+        if (game.activeDuel.character1Id === cardId || game.activeDuel.character2Id === cardId) {
+          const duel = game.activeDuel;
+          const winnerPlayer = cardId === duel.character1Id ? duel.player2 : duel.player1;
+          console.log(`⚔️ DUELLO (moveToGraveyard): Character ${cardId} died - ending duel. Winner: ${winnerPlayer}`);
+          this.endDuel(gameId, `Character death in moveToGraveyard (${cardId})`);
+          const ioGlobal = (global as any).io;
+          if (ioGlobal) {
+            ioGlobal.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-duel-end-graveyard`,
+              playerName: 'Sistema',
+              message: `⚔️ DUELLO TERMINATO! ${winnerPlayer} vince il duello!`,
+              timestamp: Date.now()
+            });
+            ioGlobal.to(gameId).emit('duel-ended', {
+              winner: winnerPlayer,
+              reason: 'character_death'
+            });
+          }
+        }
+      }
+
       const graveyardCount = game.graveyard.filter(
         graveyardCard => graveyardCard.owner === playerName && (graveyardCard.type === 'personaggi' || graveyardCard.type === 'personaggi_speciali')
       ).length;
