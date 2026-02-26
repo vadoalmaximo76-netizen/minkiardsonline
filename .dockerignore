@@ -1,0 +1,14 @@
+node_modules
+dist
+.git
+.gitignore
+attached_assets
+*.log
+*.md
+.replit
+replit.nix
+.local
+.cache
+.upm
+.config
+fly-setup.sh
