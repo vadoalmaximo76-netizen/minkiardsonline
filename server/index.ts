@@ -1,3 +1,4 @@
+import childProcess from 'child_process';
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { registerAuthRoutes } from "./auth";
@@ -7,16 +8,23 @@ import { isRedisConfigured, setPlayerOnline, getOnlinePlayerCount } from "./redi
 import { isCloudinaryConfigured } from "./cloudinary";
 import { isFreesoundConfigured } from "./freesound";
 
+// Patch child_process.spawn so all child processes run in their own process group.
+// This prevents SIGHUP sent to our process group from reaching esbuild (used by Vite).
+const _origSpawn = childProcess.spawn.bind(childProcess);
+(childProcess as any).spawn = (cmd: string, args?: any, opts: any = {}) => {
+  return _origSpawn(cmd, args, { ...opts, detached: true });
+};
+
+// Node.js installs its own SIGHUP handler on startup (overriding inherited SIG_IGN).
+// We install a no-op to prevent Node.js from exiting when Replit sends SIGHUP.
+process.on('SIGHUP', () => {});
+
 process.on('uncaughtException', (err) => {
   console.error('Uncaught exception:', err.message);
 });
 
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled rejection:', reason instanceof Error ? reason.message : reason);
-});
-
-process.on('SIGHUP', () => {
-  // Replit sends SIGHUP when the preview panel is closed - keep the server alive
 });
 
 const app = express();
