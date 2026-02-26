@@ -7,6 +7,18 @@ import { isRedisConfigured, setPlayerOnline, getOnlinePlayerCount } from "./redi
 import { isCloudinaryConfigured } from "./cloudinary";
 import { isFreesoundConfigured } from "./freesound";
 
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err.message);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled rejection:', reason instanceof Error ? reason.message : reason);
+});
+
+process.on('SIGHUP', () => {
+  // Replit sends SIGHUP when the preview panel is closed - keep the server alive
+});
+
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
