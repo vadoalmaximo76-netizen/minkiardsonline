@@ -635,7 +635,7 @@ async function executeCpuDuelAttackSequence(
     return;
   }
   
-  if (duelCardOnField && duelCardOnField.type === 'mosse') {
+  if (duelCardOnField) {
     const cpuChar = gs1?.field.find((c: any) =>
       c.owner === initiatorPlayer &&
       (c.type === 'personaggi' || c.type === 'personaggi_speciali')
@@ -9227,14 +9227,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
 
       const status = req.query.status as string;
       
-      let query = db.select().from(tournaments).orderBy(desc(tournaments.createdAt)).limit(20);
-      if (status) {
-        query = db.select().from(tournaments)
-          .where(eq(tournaments.status, status))
-          .orderBy(desc(tournaments.createdAt)).limit(20);
-      }
-      
-      const tournamentList = await query;
+      const tournamentList = await (status
+        ? db.select().from(tournaments).where(eq(tournaments.status, status)).orderBy(desc(tournaments.createdAt)).limit(20)
+        : db.select().from(tournaments).orderBy(desc(tournaments.createdAt)).limit(20)
+      );
       res.json({ success: true, tournaments: tournamentList });
     } catch (error) {
       console.error('Error fetching tournaments:', error);
@@ -10997,7 +10993,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         return res.status(400).json({ success: false, error: 'cardId richiesto' });
       }
 
-      const effectText = approvedText || jsonStorage.cardModifications.getByOriginalCardId(cardId)?.ocrText;
+      const effectText = approvedText || (jsonStorage.cardModifications.getByOriginalCardId(cardId) as any)?.ocrText;
       if (!effectText) {
         return res.status(400).json({ success: false, error: 'Nessun testo OCR trovato' });
       }

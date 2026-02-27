@@ -17060,8 +17060,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           stars: isCharacterDeck ? cardData.stars : null,
           effect: cardData.effect || undefined,
           audioUrl: cardData.audioUrl || undefined,
-          attackLowAudioUrl: cardData.attackLowAudioUrl || undefined,
-          attackHighAudioUrl: cardData.attackHighAudioUrl || undefined,
+          attackLowAudioUrl: (cardData as any).attackLowAudioUrl || undefined,
+          attackHighAudioUrl: (cardData as any).attackHighAudioUrl || undefined,
           youtubeUrl: cardData.youtubeUrl || undefined,
           mosseDamageValue: deckType === 'mosse' ? cardData.mosseDamageValue : null,
           mosseDamageEffect: deckType === 'mosse' ? cardData.mosseDamageEffect : null,
@@ -17092,8 +17092,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               stars: cardData.stars,
               effect: cardData.effect || null,
               audioUrl: cardData.audioUrl || null,
-              attackLowAudioUrl: cardData.attackLowAudioUrl || null,
-              attackHighAudioUrl: cardData.attackHighAudioUrl || null,
+              attackLowAudioUrl: (cardData as any).attackLowAudioUrl || null,
+              attackHighAudioUrl: (cardData as any).attackHighAudioUrl || null,
               youtubeUrl: cardData.youtubeUrl || null,
               mosseDamageValue: deckType === 'mosse' ? cardData.mosseDamageValue ?? null : null,
               mosseDamageEffect: deckType === 'mosse' ? cardData.mosseDamageEffect ?? null : null,
@@ -19815,15 +19815,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           });
           if (newPti <= 0) {
             console.log(`[DEFENSE-BONUS] ${targetPlayerName}'s ${cardName} DIED from ${reason}!`);
-            targetChar.eliminatedBy = defender;
-            game.graveyard.push(targetChar);
-            game.field = game.field.filter((c: any) => c.id !== targetChar.id);
-            io.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-defense-bonus-kill`,
-              playerName: 'Sistema',
-              message: `💀 ${cardName} di ${targetPlayerName} è stato eliminato!`,
-              timestamp: Date.now()
-            });
+            this.moveToGraveyard(gameId, targetChar.id, targetPlayerName, defender);
           }
         };
 
@@ -19854,15 +19846,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           });
           if (newPti <= 0) {
             console.log(`[DEFENSE-BONUS] ${targetPlayerName}'s ${cardName} DIED from ${reason}!`);
-            targetChar.eliminatedBy = defender;
-            game.graveyard.push(targetChar);
-            game.field = game.field.filter((c: any) => c.id !== targetChar.id);
-            io.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-defense-bonus-kill`,
-              playerName: 'Sistema',
-              message: `💀 ${cardName} di ${targetPlayerName} è stato eliminato!`,
-              timestamp: Date.now()
-            });
+            this.moveToGraveyard(gameId, targetChar.id, targetPlayerName, defender);
           }
         };
 

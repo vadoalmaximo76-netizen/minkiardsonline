@@ -43,6 +43,10 @@ interface Card {
   hostageTurnsRemaining?: number; // Turns remaining before release
   isOstaggioCard?: boolean; // True if this MOSSE card is OSTAGGIO and is active on field
   ostaggioHoldingCardId?: string; // ID of the character card this OSTAGGIO is holding
+  // Stats fields used in gameplay calculations
+  stars?: number; // Number of stars (power level) of personaggi/mosse cards
+  pti?: number; // Punti vita (hit points) for personaggi cards
+  mosseDamageValue?: number; // Base damage value for mosse attacks
 }
 
 interface Player {
