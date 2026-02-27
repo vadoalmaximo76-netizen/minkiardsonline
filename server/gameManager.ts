@@ -2242,34 +2242,33 @@ Rispondi SOLO in JSON:`;
           const playerHands = savedGame.playerHands as Record<string, Card[]>;
           const playerUserIds = state.playerUserIds || {};
 
-          // Reconstruct the game state - SECURITY: Only restore players with userId binding
+          // Reconstruct the game state - include all players (authenticated + guest)
           const reconstructedPlayers: Record<string, Player> = {};
-          let skippedPlayers = 0;
+          let guestPlayers = 0;
           
           for (const [playerName, playerInfo] of Object.entries(state.players as Record<string, any>)) {
-            // SECURITY: Skip players without userId binding (guest/legacy) - they cannot be securely reconnected
             const hasUserId = playerUserIds[playerName] != null;
             const isCPU = (playerInfo as any).isCPU;
             
             if (!hasUserId && !isCPU) {
-              console.log(`⚠️ Skipping guest player ${playerName} in ${savedGame.gameId} - no userId binding for secure reconnection`);
-              skippedPlayers++;
-              continue;
+              // Guest player: include with empty socketId (disconnected) so they can rejoin by name
+              guestPlayers++;
+              console.log(`👤 Including guest player ${playerName} in ${savedGame.gameId} as disconnected — can rejoin by name`);
             }
             
             reconstructedPlayers[playerName] = {
               name: (playerInfo as any).name,
               hand: playerHands[playerName] || [],
-              socketId: (playerInfo as any).socketId,
+              socketId: (!hasUserId && !isCPU) ? '' : (playerInfo as any).socketId,
               isCPU: (playerInfo as any).isCPU,
               avatar: (playerInfo as any).avatar
             };
-            // Re-register player-to-game mapping
+            // Re-register player-to-game mapping so rejoin works
             this.playerToGame.set(playerName, savedGame.gameId);
           }
           
-          if (skippedPlayers > 0) {
-            console.log(`⚠️ Skipped ${skippedPlayers} guest players in ${savedGame.gameId} - only authenticated players can reconnect after restart`);
+          if (guestPlayers > 0) {
+            console.log(`👤 Restored ${guestPlayers} guest player(s) in ${savedGame.gameId} as disconnected — they can rejoin by name`);
           }
 
           const gameState: GameState = {

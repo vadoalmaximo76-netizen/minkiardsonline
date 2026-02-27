@@ -1234,23 +1234,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if this is a reconnection to an existing game with an existing player
       const existingGame = gameManager.getGameState(gameId);
       if (existingGame && existingGame.players[playerName]) {
-        // SECURITY: Reconnection requires authenticated identity
-        if (!validatedUserId) {
+        const originalUserId = existingGame.playerUserIds?.get(playerName);
+
+        if (!originalUserId && !validatedUserId) {
+          // Guest slot (no userId binding) + guest trying to reconnect → allow by name
+          console.log(`✅ GUEST REJOIN: ${playerName} reconnecting to guest slot in ${gameId}`);
+        } else if (!validatedUserId) {
+          // Authenticated player's slot, but no auth provided → block
           console.log(`🚫 SECURITY: Unauthenticated reconnection attempt to ${gameId} as ${playerName}`);
           socket.emit('join-game-error', { message: 'Authentication required to rejoin existing game' });
           return;
-        }
-        
-        // SECURITY: Verify that the authenticated user matches the player name
-        // Allow if validatedUsername matches playerName, or if the original player had this userId
-        const originalUserId = existingGame.playerUserIds?.get(playerName);
-        const usernameMatches = validatedUsername && validatedUsername === playerName;
-        const userIdMatches = originalUserId && originalUserId === validatedUserId;
-        
-        if (!usernameMatches && !userIdMatches) {
-          console.log(`🚫 SECURITY: User ${validatedUsername} (ID: ${validatedUserId}) attempted to rejoin as ${playerName} (original ID: ${originalUserId})`);
-          socket.emit('join-game-error', { message: 'You cannot rejoin as another player' });
-          return;
+        } else {
+          // Authenticated user → verify identity matches the original player
+          const usernameMatches = validatedUsername && validatedUsername === playerName;
+          const userIdMatches = originalUserId && originalUserId === validatedUserId;
+
+          if (!usernameMatches && !userIdMatches) {
+            console.log(`🚫 SECURITY: User ${validatedUsername} (ID: ${validatedUserId}) attempted to rejoin as ${playerName} (original ID: ${originalUserId})`);
+            socket.emit('join-game-error', { message: 'You cannot rejoin as another player' });
+            return;
+          }
         }
       }
       
