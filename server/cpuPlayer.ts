@@ -52,6 +52,7 @@ export class CPUPlayer {
   private gameId: string;
   private waitingForResponse: boolean = false;
   private waitingForAttackResolution: boolean = false; // NEW: Wait for MOSSE attack to complete before ending turn
+  private attackResolutionSafetyTimer: ReturnType<typeof setTimeout> | null = null; // Safety timer to prevent deadlock
   private currentQuestion: string = '';
   private conversationHistory: Array<{type: 'question' | 'answer', content: string, timestamp: number}> = [];
   private socketEmitter: any;
@@ -120,8 +121,33 @@ export class CPUPlayer {
       executedThisTurn: false
     };
     // CRITICAL: Reset attack flag so CPU can play in next turn
+    this._clearAttackSafetyTimer();
     this.waitingForAttackResolution = false;
     console.log(`CPU ${this.playerName} turn state reset (attack flag cleared)`);
+  }
+
+  private _clearAttackSafetyTimer() {
+    if (this.attackResolutionSafetyTimer !== null) {
+      clearTimeout(this.attackResolutionSafetyTimer);
+      this.attackResolutionSafetyTimer = null;
+    }
+  }
+
+  private _setWaitingForAttackResolution(value: boolean) {
+    this.waitingForAttackResolution = value;
+    if (value) {
+      // Start a 15-second safety timer: if attack never resolves, unblock the CPU
+      this._clearAttackSafetyTimer();
+      this.attackResolutionSafetyTimer = setTimeout(() => {
+        if (this.waitingForAttackResolution) {
+          console.warn(`⚠️ CPU ${this.playerName}: attack resolution safety timer fired — unblocking CPU after 15s`);
+          this.waitingForAttackResolution = false;
+          this.attackResolutionSafetyTimer = null;
+        }
+      }, 15000);
+    } else {
+      this._clearAttackSafetyTimer();
+    }
   }
 
   markActionExecuted(actionType: 'draw' | 'play' | 'execute', cardId?: string, cardType?: string) {
@@ -1612,8 +1638,10 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       }
       
       if (playAction && playAction.type === 'play-card') {
-        // The card will be played by routes.ts, but we continue to execute its action
-        console.log(`CPU ${this.playerName} will play card ${playAction.data.cardId}`);
+        // The card will be played by routes.ts — mark turnState as played so next takeTurn knows
+        const cardType = playAction.data.cardType || 'unknown';
+        this.markActionExecuted('play', playAction.data.cardId, cardType);
+        console.log(`CPU ${this.playerName} will play card ${playAction.data.cardId} (type: ${cardType}), turnState updated`);
       } else if (playAction && playAction.type === 'end-turn') {
         // No card to play, end turn
         this.sendChatMessage(`Non ho carte da giocare, finisco il turno.`);
@@ -2120,7 +2148,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
             this.socketEmitter.to(this.gameId).emit('game-state-update', updatedState);
           }
           
-          this.waitingForAttackResolution = true;
+          this._setWaitingForAttackResolution(true);
         } else {
           // FALLBACK: No pre-calculated damage - show dialog for manual input
           this.socketEmitter.to(this.gameId).emit('cpu-damage-request', {
@@ -2153,7 +2181,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
             } : null
           });
           
-          this.waitingForAttackResolution = true;
+          this._setWaitingForAttackResolution(true);
           console.log(`🎯 CPU ${this.playerName}: Damage request emitted to game creator ${gameCreator}`);
         }
       }
@@ -2284,7 +2312,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         this.socketEmitter.to(this.gameId).emit('game-state-update', updatedState);
       }
       
-      this.waitingForAttackResolution = true;
+      this._setWaitingForAttackResolution(true);
       console.log(`🎯 CPU ${this.playerName}: AUTO-ATTACK COMPLETE - waiting for defense resolution`);
       return;
     }
@@ -2323,7 +2351,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     });
     
     // Set flag to wait for attack resolution
-    this.waitingForAttackResolution = true;
+    this._setWaitingForAttackResolution(true);
     console.log(`🎯 CPU ${this.playerName}: DAMAGE REQUEST SENT - waiting for game creator input`);
   }
 

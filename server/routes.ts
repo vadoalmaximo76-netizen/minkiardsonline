@@ -7534,7 +7534,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         modifiedBy: userEmail || null
       });
       
-      emitSync('card_modifications', 'update', { originalCardId, ...modification }, { originalCardId });
+      emitSync('card_modifications', 'update', { ...modification, originalCardId }, { originalCardId });
       // Refresh card metadata in all active games so changes take effect immediately
       const refreshedGames = await gameManager.refreshCardMetadataForAllGames();
       console.log(`Card modification saved. Refreshed ${refreshedGames.length} active games.`);

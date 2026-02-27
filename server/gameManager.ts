@@ -2300,7 +2300,8 @@ Rispondi SOLO in JSON:`;
             playerDeathModifiers: new Map(Object.entries(state.playerDeathModifiers || {})),
             prSpentThisGame: new Map(Object.entries(state.prSpentThisGame || {})),
             extraTurnPlayer: state.extraTurnPlayer,
-            skipTurnPlayers: state.skipTurnPlayers
+            skipTurnPlayers: state.skipTurnPlayers,
+            playerStats: new Map<string, { cardsPlayed: number; damageDealt: number; damageReceived: number; turnsPlayed: number }>()
           };
 
           this.games.set(savedGame.gameId, gameState);
@@ -19386,6 +19387,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       return false;
     }
 
+    // MUTEX GUARD: Prevent concurrent defense resolutions
+    if ((game as any)._defenseBeingResolved) {
+      console.warn(`[DEFENSE-RESOLVE] Defense already being resolved (mutex), ignoring duplicate call`, {
+        gameId, attackId, resolveSource, timestamp: new Date().toISOString()
+      });
+      return false;
+    }
+    (game as any)._defenseBeingResolved = true;
+
+    try {
+
     // ATOMIC GUARD: Get pending defense and validate
     const pendingDefense = game.pendingDefense;
     if (!pendingDefense || pendingDefense.attackId !== attackId) {
@@ -20191,6 +20203,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     });
 
     return true;
+
+    } finally {
+      // MUTEX RELEASE: Always release the defense mutex, even on error
+      (game as any)._defenseBeingResolved = false;
+    }
   }
 
   // COUNTER-ATTACK PROCESSING: When defender uses MOSSE to counter, subtract damage values
@@ -22225,8 +22242,30 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       return;
     }
 
+    const duel = game.activeDuel;
+    const duelPlayers = [duel.player1, duel.player2].filter(Boolean);
+
     console.log(`⚔️ DUELLO ended: ${reason}`);
     game.activeDuel = undefined;
+
+    // Clean up pending defense if it involved a duel participant
+    if (game.pendingDefense) {
+      const defenseInvolvesDuel = duelPlayers.includes(game.pendingDefense.attacker) ||
+        duelPlayers.includes(game.pendingDefense.defender);
+      if (defenseInvolvesDuel) {
+        if (game.pendingDefense.timeoutId) clearTimeout(game.pendingDefense.timeoutId);
+        game.pendingDefense = undefined;
+        console.log(`⚔️ DUELLO cleanup: cleared pending defense that involved a duel participant`);
+      }
+    }
+
+    // Clear counterMosseOnField flags on cards owned by duel participants
+    for (const card of game.field) {
+      if ((card as any).counterMosseOnField && duelPlayers.includes(card.owner || '')) {
+        (card as any).counterMosseOnField = false;
+        console.log(`⚔️ DUELLO cleanup: cleared counterMosseOnField on ${card.id} (owner: ${card.owner})`);
+      }
+    }
   }
 
   // DUELLO: Get current duel state

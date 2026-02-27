@@ -54,7 +54,7 @@ export async function cacheSet(key: string, value: any, ttlSeconds?: number): Pr
     const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
     
     if (ttlSeconds) {
-      await redis.setex(key, ttlSeconds, stringValue);
+      await redis.set(key, stringValue, { ex: ttlSeconds });
     } else {
       await redis.set(key, stringValue);
     }
@@ -246,7 +246,7 @@ export async function setPlayerOnline(playerName: string, ttlSeconds: number = 3
   
   try {
     const key = `online:${playerName}`;
-    await redis.setex(key, ttlSeconds, "1");
+    await redis.set(key, "1", { ex: ttlSeconds });
     await redis.incr("online_count");
   } catch (error) {
     console.error(`[Redis] Error setting player online ${playerName}:`, error);
