@@ -990,16 +990,18 @@ export class GameManager {
                 .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
                 .replace(/[-_]/g, ' ')
                 .trim();
-              return {
+              const card: Card = {
                 id: `${id}-${Math.random().toString(36).substr(2, 6)}`,
                 type: deckType,
-                frontImage: mod?.imageUrl || imageUrl,
+                frontImage: imageUrl,
                 backImage: (DECK_BACK_IMAGES as any)[deckType] || '',
                 owner: '',
-                name: mod?.name || defaultName,
-                pti: mod?.pti ?? undefined,
-                stars: mod?.stars ?? undefined,
-              } as Card;
+                name: defaultName,
+              };
+              if (mod) {
+                this.applyModificationToCard(card, mod);
+              }
+              return card;
             }).filter(Boolean) as Card[];
           };
           game.playerDraftDecks![playerName] = {
