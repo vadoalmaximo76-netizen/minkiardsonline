@@ -27,16 +27,16 @@ function tryConnect(url: string, label: string): boolean {
   }
 }
 
-if (process.env.DATABASE_URL) {
-  if (!tryConnect(process.env.DATABASE_URL, 'DATABASE_URL (Replit)')) {
-    if (process.env.EXTERNAL_DATABASE_URL) {
-      console.log('🔄 Trying fallback: EXTERNAL_DATABASE_URL...');
-      tryConnect(process.env.EXTERNAL_DATABASE_URL, 'EXTERNAL_DATABASE_URL (external)');
+if (process.env.EXTERNAL_DATABASE_URL) {
+  console.log('📡 Using EXTERNAL_DATABASE_URL as primary...');
+  if (!tryConnect(process.env.EXTERNAL_DATABASE_URL, 'EXTERNAL_DATABASE_URL (primary)')) {
+    if (process.env.DATABASE_URL) {
+      console.log('🔄 Trying fallback: DATABASE_URL...');
+      tryConnect(process.env.DATABASE_URL, 'DATABASE_URL (fallback)');
     }
   }
-} else if (process.env.EXTERNAL_DATABASE_URL) {
-  console.log('📡 DATABASE_URL not found, using EXTERNAL_DATABASE_URL...');
-  tryConnect(process.env.EXTERNAL_DATABASE_URL, 'EXTERNAL_DATABASE_URL (external)');
+} else if (process.env.DATABASE_URL) {
+  tryConnect(process.env.DATABASE_URL, 'DATABASE_URL (Replit)');
 } else {
   console.warn('⚠️ No database URL found. Running in offline mode (no database).');
 }
