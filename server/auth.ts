@@ -188,7 +188,47 @@ export function registerAuthRoutes(app: Express) {
 
       if (isDatabaseAvailable() && db) {
         try {
-          const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+          let [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+
+          if (!user) {
+            // Check JSON storage for migration
+            const jsonUser = jsonStorage.users.getByEmail(email);
+            if (jsonUser) {
+              const validPassword = jsonUser.password ? await bcrypt.compare(password, jsonUser.password) : false;
+              if (validPassword) {
+                console.log(`[Migration] Migrating user ${email} from JSON to external DB`);
+                try {
+                  [user] = await db.insert(users).values({
+                    username: jsonUser.username,
+                    email: jsonUser.email,
+                    password: jsonUser.password,
+                    avatar: jsonUser.avatar,
+                    puntiRankiard: jsonUser.puntiRankiard,
+                    gamesPlayed: 0, // Default if not in JSON or add if present
+                    gamesWon: 0,
+                    tutorialCompleted: false,
+                    isAdmin: jsonUser.isAdmin,
+                  }).returning();
+                  emitSync('users', 'insert', { ...jsonUser });
+                } catch (migrationError) {
+                  console.error("[Migration] Error migrating user:", migrationError);
+                  // Use jsonUser for this session if migration fails but password was correct
+                  const token = generateToken(jsonUser.id, jsonUser.email);
+                  return res.json({
+                    success: true,
+                    token,
+                    user: {
+                      id: jsonUser.id,
+                      username: jsonUser.username,
+                      email: jsonUser.email,
+                      avatar: jsonUser.avatar,
+                      puntiRankiard: jsonUser.puntiRankiard,
+                    }
+                  });
+                }
+              }
+            }
+          }
 
           if (!user) {
             return res.status(401).json({ error: "Email o password non corretti" });
@@ -329,6 +369,27 @@ export function registerAuthRoutes(app: Express) {
               .where(eq(users.id, existingEmailUser.id))
               .returning();
             emitSync('users', 'update', { googleId, _syncId: existingEmailUser.id }, eq(users.id, existingEmailUser.id));
+          }
+        }
+
+        // Migration check for Google Auth
+        if (!user) {
+          const jsonUser = jsonStorage.users.getByGoogleId(googleId) || (email ? jsonStorage.users.getByEmail(email) : undefined);
+          if (jsonUser) {
+            console.log(`[Migration] Migrating Google user ${email || googleId} from JSON to external DB`);
+            try {
+              [user] = await db.insert(users).values({
+                username: jsonUser.username,
+                email: jsonUser.email,
+                googleId: googleId,
+                avatar: jsonUser.avatar,
+                puntiRankiard: jsonUser.puntiRankiard,
+                isAdmin: jsonUser.isAdmin,
+              }).returning();
+              emitSync('users', 'insert', { ...jsonUser, googleId });
+            } catch (migrationError) {
+              console.error("[Migration] Error migrating Google user:", migrationError);
+            }
           }
         }
 
