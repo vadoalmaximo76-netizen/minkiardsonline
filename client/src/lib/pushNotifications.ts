@@ -1,38 +1,30 @@
-const VAPID_PUBLIC_KEY = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U';
+const VAPID_PUBLIC_KEY = 'BFRPyWrRZU7M4nFlJ3wI1fVKSRXaLDpJSBBNL4TmEYZ-jbn4BckvvfgnowU1Oa6Oj3z20OEVV841a3bUx_TRUQk';
 
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (!('serviceWorker' in navigator)) {
-    console.log('Service Worker not supported');
+    console.log('[Push] Service Worker not supported');
     return null;
   }
-  
+
   try {
-    const registrations = await navigator.serviceWorker.getRegistrations();
-    for (const registration of registrations) {
-      await registration.unregister();
-      console.log('[PWA] Old Service Worker unregistered');
-    }
-    if ('caches' in window) {
-      const cacheNames = await caches.keys();
-      for (const cacheName of cacheNames) {
-        await caches.delete(cacheName);
-      }
-    }
-    return null;
+    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    console.log('[Push] Service Worker registered:', registration.scope);
+    await navigator.serviceWorker.ready;
+    return registration;
   } catch (error) {
-    console.error('Service Worker cleanup failed:', error);
+    console.error('[Push] Service Worker registration failed:', error);
     return null;
   }
 }
 
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
   if (!('Notification' in window)) {
-    console.log('Notifications not supported');
+    console.log('[Push] Notifications not supported');
     return 'denied';
   }
-  
+
   const permission = await Notification.requestPermission();
-  console.log('Notification permission:', permission);
+  console.log('[Push] Notification permission:', permission);
   return permission;
 }
 
@@ -49,11 +41,11 @@ export async function subscribeToPush(registration: ServiceWorkerRegistration): 
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
     });
-    
-    console.log('Push subscription:', subscription);
+
+    console.log('[Push] Push subscription created:', subscription.endpoint);
     return subscription;
   } catch (error) {
-    console.error('Failed to subscribe to push:', error);
+    console.error('[Push] Failed to subscribe to push:', error);
     return null;
   }
 }
@@ -67,7 +59,7 @@ export async function unsubscribeFromPush(registration: ServiceWorkerRegistratio
     }
     return false;
   } catch (error) {
-    console.error('Failed to unsubscribe from push:', error);
+    console.error('[Push] Failed to unsubscribe from push:', error);
     return false;
   }
 }
@@ -76,7 +68,7 @@ export async function getExistingSubscription(registration: ServiceWorkerRegistr
   try {
     return await registration.pushManager.getSubscription();
   } catch (error) {
-    console.error('Failed to get subscription:', error);
+    console.error('[Push] Failed to get subscription:', error);
     return null;
   }
 }
@@ -86,10 +78,10 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const base64 = (base64String + padding)
     .replace(/-/g, '+')
     .replace(/_/g, '/');
-  
+
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
-  
+
   for (let i = 0; i < rawData.length; ++i) {
     outputArray[i] = rawData.charCodeAt(i);
   }
@@ -98,10 +90,21 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 
 export function showLocalNotification(title: string, body: string, tag?: string): void {
   if (Notification.permission === 'granted') {
-    new Notification(title, {
-      body,
-      icon: '/favicon.ico',
-      tag: tag || 'minkiards-local'
-    });
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.ready.then(reg => {
+        reg.showNotification(title, {
+          body,
+          icon: '/icons/icon-192.png',
+          tag: tag || 'minkiards-local',
+          vibrate: [100, 50, 100]
+        });
+      });
+    } else {
+      new Notification(title, {
+        body,
+        icon: '/favicon.ico',
+        tag: tag || 'minkiards-local'
+      });
+    }
   }
 }

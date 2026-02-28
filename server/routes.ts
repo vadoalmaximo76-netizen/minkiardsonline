@@ -10047,7 +10047,15 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       if (!inviteSent) {
         console.log(`Friend ${friend[0].username} (id: ${friendId}) not found online - no socket with matching userId`);
       }
-      
+
+      // Send push notification to the invited player (works even if offline)
+      sendPushToUser(friendId, {
+        title: '🎮 Invito partita MINKIARDS',
+        body: `${currentUser[0].username} ti ha invitato in una partita! Codice: ${gameId.replace('room-', '')}`,
+        url: `/?gameId=${gameId}`,
+        tag: `game-invite-${gameId}`
+      }).catch(() => {});
+
       res.json({ success: true });
     } catch (error) {
       console.error('Error inviting friend:', error);
@@ -10651,7 +10659,15 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         senderUsername: currentUser.username,
         recipientId
       });
-      
+
+      // Send push notification to recipient (works even if offline)
+      sendPushToUser(recipientId, {
+        title: `💬 Messaggio da ${currentUser.username}`,
+        body: content.length > 80 ? content.substring(0, 77) + '...' : content,
+        url: '/profile',
+        tag: `dm-${conversationId}`
+      }).catch(() => {});
+
       res.json(newMessage);
     } catch (error) {
       console.error('Error sending message:', error);
@@ -10703,7 +10719,43 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   });
 
   // ============ PUSH NOTIFICATIONS API ============
-  
+
+  // Expose VAPID public key to clients
+  app.get('/api/vapid-public-key', (req, res) => {
+    const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
+    if (vapidPublicKey) {
+      res.json({ publicKey: vapidPublicKey });
+    } else {
+      res.status(503).json({ error: 'VAPID not configured' });
+    }
+  });
+
+  // Helper: send push notification to a specific user by userId
+  async function sendPushToUser(userId: number, payload: { title: string; body: string; url?: string; tag?: string }): Promise<void> {
+    if (!isDatabaseAvailable()) return;
+    try {
+      const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
+      const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
+      if (!vapidPublicKey || !vapidPrivateKey) return;
+      const webpush = require('web-push');
+      webpush.setVapidDetails('mailto:vadoalmaximo76@gmail.com', vapidPublicKey, vapidPrivateKey);
+      const subs = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, userId));
+      const jsonPayload = JSON.stringify(payload);
+      for (const sub of subs) {
+        try {
+          await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, jsonPayload);
+        } catch (e: any) {
+          if (e.statusCode === 410 || e.statusCode === 404) {
+            // Subscription expired — remove it
+            await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, sub.endpoint));
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[Push] sendPushToUser error:', e);
+    }
+  }
+
   // Subscribe to push notifications
   app.post('/api/push/subscribe', authMiddleware, async (req, res) => {
     try {

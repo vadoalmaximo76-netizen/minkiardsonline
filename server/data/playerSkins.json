@@ -5,5 +5,12 @@
     "skinId": 1,
     "isEquipped": true,
     "purchasedAt": "2026-01-31T04:26:45.485Z"
+  },
+  {
+    "userId": 3,
+    "skinId": 1,
+    "isEquipped": false,
+    "id": 2,
+    "purchasedAt": "2026-02-28T15:27:41.153Z"
   }
 ]

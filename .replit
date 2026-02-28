@@ -46,3 +46,5 @@ integrations = ["javascript_openai:1.0.0", "resend:1.0.0"]
 [userenv.shared]
 ADMIN_EMAIL = "lucaforte94@gmail.com"
 JWT_SECRET = "90c3b6a9b43c1ba7af3e8c9d5fb757ebedabe622e13a297d4f0ffa4ef2bf88bc366701995693dbad5eb486338f61a131"
+VAPID_PUBLIC_KEY = "BFRPyWrRZU7M4nFlJ3wI1fVKSRXaLDpJSBBNL4TmEYZ-jbn4BckvvfgnowU1Oa6Oj3z20OEVV841a3bUx_TRUQk"
+VAPID_PRIVATE_KEY = "itkoNWBOxFrfQqH-Xj45k-pZW1NoHTu7vQeDLASnTwQ"
