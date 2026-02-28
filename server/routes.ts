@@ -11685,11 +11685,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         return res.status(400).json({ error: 'Formato mazzo non valido' });
       }
       const isComplete = personaggiCards.length === 33 && mosseCards.length === 33 && bonusCards.length === 33;
-      // Calculate total cost
+      // Calculate total cost using jsonStorage (primary source for draftCost set by admin)
       const allCardIds = [...personaggiCards, ...mosseCards, ...bonusCards];
-      const mods = await db.select({ originalCardId: cardModifications.originalCardId, draftCost: cardModifications.draftCost })
-        .from(cardModifications).where(inArray(cardModifications.originalCardId, allCardIds));
-      const costMap = new Map(mods.map(m => [m.originalCardId, m.draftCost || 0]));
+      const allMods = jsonStorage.cardModifications.getAll();
+      const costMap = new Map(allMods.map((m: any) => [m.originalCardId, (m.draftCost as number) || 0]));
       const totalCostSpent = allCardIds.reduce((sum, id) => sum + (costMap.get(id) || 0), 0);
       // Check if user has enough credits
       const credits = await getOrCreateDraftCredits(currentUser.id);
@@ -11715,31 +11714,44 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // GET /api/draft/cards - all cards with their draft costs
   app.get('/api/draft/cards', async (req, res) => {
     try {
-      const mods = await (isDatabaseAvailable()
-        ? db.select({ originalCardId: cardModifications.originalCardId, deckType: cardModifications.deckType, draftCost: cardModifications.draftCost, name: cardModifications.name, imageUrl: cardModifications.imageUrl, isDeleted: cardModifications.isDeleted }).from(cardModifications)
-        : Promise.resolve([]));
-      const modMap = new Map(mods.map((m: any) => [m.originalCardId, m]));
-      // Build card list from CARD_DATA
+      // Use jsonStorage as primary source (same as admin panel)
+      const modifications = jsonStorage.cardModifications.getAll();
+      const modMap = new Map(modifications.map((m: any) => [m.originalCardId, m]));
+
       const cards: any[] = [];
       const deckTypes = ['personaggi', 'mosse', 'bonus'] as const;
+
       for (const deckType of deckTypes) {
-        const deckCards = (CARD_DATA as any)[deckType] || [];
-        for (const card of deckCards) {
-          const mod = modMap.get(card.id);
-          if (mod && (mod as any).isDeleted) continue;
+        const deckUrls: string[] = (CARD_DATA as any)[deckType] || [];
+        deckUrls.forEach((imageUrl: string, index: number) => {
+          const cardId = `${deckType}-${index}`;
+          const mod = modMap.get(cardId);
+
+          if (mod?.isDeleted) return;
+
+          // Extract display name from URL filename
+          const urlParts = imageUrl.split('/');
+          const filename = urlParts[urlParts.length - 1];
+          const defaultName = decodeURIComponent(filename)
+            .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+            .replace(/[-_]/g, ' ')
+            .trim();
+
           cards.push({
-            id: card.id,
+            id: cardId,
             deckType,
-            name: (mod as any)?.name || card.name || card.id,
-            imageUrl: (mod as any)?.imageUrl || card.frontImage,
-            pti: card.pti,
-            stars: card.stars,
+            name: mod?.name || defaultName,
+            imageUrl: mod?.imageUrl || imageUrl,
+            pti: mod?.pti ?? null,
+            stars: mod?.stars ?? null,
             draftCost: (mod as any)?.draftCost ?? 0,
           });
-        }
+        });
       }
+
       res.json(cards);
     } catch (error) {
+      console.error('Error fetching draft cards:', error);
       res.status(500).json({ error: 'Errore nel recupero carte draft' });
     }
   });
