@@ -1,1 +1,15 @@
-[]
+[
+  {
+    "username": "Lord Ernesto",
+    "email": "ernestogambelarghe@gmail.com",
+    "password": "$2b$10$BtNonzw7itBwX3qGMkWAk.RJYeoCOMHPl2LQuj62TLDc2qeB8Y.uW",
+    "googleId": null,
+    "avatar": "dragon",
+    "puntiRankiard": 0,
+    "isAdmin": false,
+    "resetPasswordToken": null,
+    "resetPasswordExpires": null,
+    "id": 1,
+    "createdAt": "2026-02-28T13:42:40.852Z"
+  }
+]

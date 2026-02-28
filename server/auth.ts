@@ -100,69 +100,74 @@ export function registerAuthRoutes(app: Express) {
         const hashedPassword = await bcrypt.hash(password, 10);
         const validAvatar = avatar && VALID_AVATAR_IDS.includes(avatar) ? avatar : 'dragon';
 
-        const [newUser] = await db.insert(users).values({
-          username,
-          email,
-          password: hashedPassword,
-          avatar: validAvatar,
-        }).returning();
+        try {
+          const [newUser] = await db.insert(users).values({
+            username,
+            email,
+            password: hashedPassword,
+            avatar: validAvatar,
+          }).returning();
 
-        emitSync('users', 'insert', { username, email, password: hashedPassword, avatar: validAvatar });
+          emitSync('users', 'insert', { username, email, password: hashedPassword, avatar: validAvatar });
 
-        const token = generateToken(newUser.id, newUser.email);
+          const token = generateToken(newUser.id, newUser.email);
 
-        res.json({
-          success: true,
-          token,
-          user: {
-            id: newUser.id,
-            username: newUser.username,
-            email: newUser.email,
-            avatar: newUser.avatar,
-            puntiRankiard: newUser.puntiRankiard,
-          }
-        });
-      } else {
-        const existingByEmail = jsonStorage.users.getByEmail(email);
-        if (existingByEmail) {
-          return res.status(400).json({ error: "Email già registrata" });
+          return res.json({
+            success: true,
+            token,
+            user: {
+              id: newUser.id,
+              username: newUser.username,
+              email: newUser.email,
+              avatar: newUser.avatar,
+              puntiRankiard: newUser.puntiRankiard,
+            }
+          });
+        } catch (insertError) {
+          console.error("DB Insert error, falling back to JSON:", insertError);
+          // Fall through to JSON storage if DB insert fails
         }
-        const existingByUsername = jsonStorage.users.getByUsername(username);
-        if (existingByUsername) {
-          return res.status(400).json({ error: "Nome utente già in uso" });
-        }
-
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const validAvatar = avatar && VALID_AVATAR_IDS.includes(avatar) ? avatar : 'dragon';
-
-        const newUser = jsonStorage.users.create({
-          username,
-          email,
-          password: hashedPassword,
-          googleId: null,
-          avatar: validAvatar,
-          puntiRankiard: 0,
-          isAdmin: false,
-          resetPasswordToken: null,
-          resetPasswordExpires: null,
-        });
-
-        emitSync('users', 'insert', { username, email, password: hashedPassword, googleId: null, avatar: validAvatar, puntiRankiard: 0, isAdmin: false });
-
-        const token = generateToken(newUser.id, newUser.email);
-
-        res.json({
-          success: true,
-          token,
-          user: {
-            id: newUser.id,
-            username: newUser.username,
-            email: newUser.email,
-            avatar: newUser.avatar,
-            puntiRankiard: newUser.puntiRankiard,
-          }
-        });
       }
+
+      const existingByEmail = jsonStorage.users.getByEmail(email);
+      if (existingByEmail) {
+        return res.status(400).json({ error: "Email già registrata" });
+      }
+      const existingByUsername = jsonStorage.users.getByUsername(username);
+      if (existingByUsername) {
+        return res.status(400).json({ error: "Nome utente già in uso" });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const validAvatar = avatar && VALID_AVATAR_IDS.includes(avatar) ? avatar : 'dragon';
+
+      const newUser = jsonStorage.users.create({
+        username,
+        email,
+        password: hashedPassword,
+        googleId: null,
+        avatar: validAvatar,
+        puntiRankiard: 0,
+        isAdmin: false,
+        resetPasswordToken: null,
+        resetPasswordExpires: null,
+      });
+
+      emitSync('users', 'insert', { username, email, password: hashedPassword, googleId: null, avatar: validAvatar, puntiRankiard: 0, isAdmin: false });
+
+      const token = generateToken(newUser.id, newUser.email);
+
+      res.json({
+        success: true,
+        token,
+        user: {
+          id: newUser.id,
+          username: newUser.username,
+          email: newUser.email,
+          avatar: newUser.avatar,
+          puntiRankiard: newUser.puntiRankiard,
+        }
+      });
     } catch (error) {
       console.error("Registration error:", error);
       res.status(500).json({ error: "Errore durante la registrazione" });
