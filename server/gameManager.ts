@@ -2633,8 +2633,10 @@ Rispondi SOLO in JSON:`;
     const game = this.games.get(gameId);
     if (!game || !game.players[playerName]) return false;
 
-    const deck = game.decks[deckType];
-    const cardIndex = deck.findIndex(card => card.id === cardId);
+    const isDraft = (game as any).isDraftMode;
+    const personalDeck: any[] | undefined = isDraft ? (game as any).playerDraftDecks?.[playerName]?.[deckType] : undefined;
+    const deck = personalDeck ?? game.decks[deckType];
+    const cardIndex = deck.findIndex((card: any) => card.id === cardId);
     
     if (cardIndex === -1) return false;
 
@@ -12899,17 +12901,20 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     let targetDeck: any[] | null = null;
     let deckDisplayName = '';
 
+    const isDraft = (game as any).isDraftMode;
+    const personalDecks = isDraft ? (game as any).playerDraftDecks?.[playerName] : undefined;
+
     switch (deckType) {
       case 'personaggi':
-        targetDeck = game.decks.personaggi;
+        targetDeck = personalDecks?.personaggi ?? game.decks.personaggi;
         deckDisplayName = 'PERSONAGGI';
         break;
       case 'mosse':
-        targetDeck = game.decks.mosse;
+        targetDeck = personalDecks?.mosse ?? game.decks.mosse;
         deckDisplayName = 'MOSSE';
         break;
       case 'bonus':
-        targetDeck = game.decks.bonus;
+        targetDeck = personalDecks?.bonus ?? game.decks.bonus;
         deckDisplayName = 'BONUS';
         break;
       case 'personaggi_speciali':
@@ -12931,7 +12936,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       stars: c.stars
     }));
 
-    console.log(`🎴 Sending ${cards.length} cards from ${deckDisplayName} deck to ${playerName} for selection`);
+    console.log(`🎴 Sending ${cards.length} cards from ${deckDisplayName} deck to ${playerName} for selection${isDraft ? ' [DRAFT - personal deck]' : ''}`);
     return { success: true, cards, deckDisplayName };
   }
 
@@ -12944,20 +12949,23 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const playerData = game.players[playerName];
     if (!playerData) return { success: false };
 
+    const isDraft = (game as any).isDraftMode;
+    const personalDecks = isDraft ? (game as any).playerDraftDecks?.[playerName] : undefined;
+
     let targetDeck: any[] | null = null;
     let deckDisplayName = '';
 
     switch (deckType) {
       case 'personaggi':
-        targetDeck = game.decks.personaggi;
+        targetDeck = personalDecks?.personaggi ?? game.decks.personaggi;
         deckDisplayName = 'PERSONAGGI';
         break;
       case 'mosse':
-        targetDeck = game.decks.mosse;
+        targetDeck = personalDecks?.mosse ?? game.decks.mosse;
         deckDisplayName = 'MOSSE';
         break;
       case 'bonus':
-        targetDeck = game.decks.bonus;
+        targetDeck = personalDecks?.bonus ?? game.decks.bonus;
         deckDisplayName = 'BONUS';
         break;
       case 'personaggi_speciali':
@@ -12979,7 +12987,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     playerData.hand.push(selectedCard);
 
     const cardName = selectedCard.name || this.getCardNameFromUrl(selectedCard.frontImage || '');
-    console.log(`🎴 ${playerName} chose ${cardName} from ${deckDisplayName} deck`);
+    console.log(`🎴 ${playerName} chose ${cardName} from ${deckDisplayName} deck${isDraft ? ' [DRAFT - personal deck]' : ''}`);
     return { success: true, message: `🎴 ${playerName} ha scelto ${cardName} dal mazzo ${deckDisplayName}!` };
   }
 

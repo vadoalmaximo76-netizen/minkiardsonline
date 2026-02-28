@@ -2304,8 +2304,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
         const gameState = gameManager.getGameState(gameId);
-        if (gameState && gameState.decks[deckType]) {
-          socket.emit('deck-contents', { deckType, cards: gameState.decks[deckType] });
+        if (gameState) {
+          if (gameState.isDraftMode) {
+            const playerName = gameManager.getPlayerNameFromSocket(socket.id);
+            const personalDeck = playerName && (gameState as any).playerDraftDecks?.[playerName]?.[deckType];
+            if (personalDeck && personalDeck.length > 0) {
+              socket.emit('deck-contents', { deckType, cards: personalDeck });
+              return;
+            }
+            if (!personalDeck || personalDeck.length === 0) {
+              socket.emit('deck-contents', { deckType, cards: [] });
+              return;
+            }
+          }
+          if (gameState.decks[deckType]) {
+            socket.emit('deck-contents', { deckType, cards: gameState.decks[deckType] });
+          }
         }
       }
     });
