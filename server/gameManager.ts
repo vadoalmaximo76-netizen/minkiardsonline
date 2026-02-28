@@ -2301,6 +2301,8 @@ Rispondi SOLO in JSON:`;
         extraTurnPlayer: game.extraTurnPlayer,
         skipTurnPlayers: game.skipTurnPlayers,
         prSpentThisGame: game.prSpentThisGame ? Object.fromEntries(game.prSpentThisGame) : {},
+        isDraftMode: game.isDraftMode || false,
+        playerDraftDecks: game.playerDraftDecks || {},
         // Store player info without cpuInstance
         players: Object.fromEntries(
           Object.entries(game.players).map(([name, player]) => [
@@ -2445,7 +2447,9 @@ Rispondi SOLO in JSON:`;
             prSpentThisGame: new Map(Object.entries(state.prSpentThisGame || {})),
             extraTurnPlayer: state.extraTurnPlayer,
             skipTurnPlayers: state.skipTurnPlayers,
-            playerStats: new Map<string, { cardsPlayed: number; damageDealt: number; damageReceived: number; turnsPlayed: number }>()
+            playerStats: new Map<string, { cardsPlayed: number; damageDealt: number; damageReceived: number; turnsPlayed: number }>(),
+            isDraftMode: state.isDraftMode || false,
+            playerDraftDecks: state.playerDraftDecks || {}
           };
 
           this.games.set(savedGame.gameId, gameState);
@@ -2487,11 +2491,11 @@ Rispondi SOLO in JSON:`;
     const game = this.games.get(gameId);
     if (!game || !game.players[playerName]) return false;
 
-    // In draft mode, use player's personal deck if available
+    // In draft mode, use player's personal deck — never fall back to shared deck
     let deck: Card[];
     if (game.isDraftMode && game.playerDraftDecks?.[playerName] && deckType !== 'personaggi_speciali') {
       const personalDecks = game.playerDraftDecks[playerName];
-      deck = personalDecks[deckType as 'personaggi' | 'mosse' | 'bonus'] || game.decks[deckType];
+      deck = personalDecks[deckType as 'personaggi' | 'mosse' | 'bonus'] || [];
     } else {
       deck = game.decks[deckType];
     }
@@ -2523,7 +2527,13 @@ Rispondi SOLO in JSON:`;
     const game = this.games.get(gameId);
     if (!game || !game.players[playerName]) return null;
 
-    const deck = game.decks[deckType];
+    let deck: Card[];
+    if (game.isDraftMode && game.playerDraftDecks?.[playerName] && deckType !== 'personaggi_speciali') {
+      const personalDecks = game.playerDraftDecks[playerName];
+      deck = personalDecks[deckType as 'personaggi' | 'mosse' | 'bonus'] || [];
+    } else {
+      deck = game.decks[deckType];
+    }
     if (deck.length === 0) return null;
 
     // Check CPU invariants before drawing
@@ -2555,7 +2565,20 @@ Rispondi SOLO in JSON:`;
     console.log(`Picking opening cards for ${playerName}:`, types);
     
     for (const deckType of types) {
-      const deck = game.decks[deckType as keyof GameState['decks']];
+      let deck: Card[] | undefined;
+
+      // In draft mode, use the player's personal deck if available
+      if (game.isDraftMode && game.playerDraftDecks?.[playerName] && deckType !== 'personaggi_speciali') {
+        const personalDecks = game.playerDraftDecks[playerName];
+        deck = personalDecks[deckType as 'personaggi' | 'mosse' | 'bonus'];
+        if (!deck || deck.length === 0) {
+          console.log(`⚠️ Draft opening: personal ${deckType} deck empty for ${playerName}`);
+          continue;
+        }
+      } else {
+        deck = game.decks[deckType as keyof GameState['decks']];
+      }
+
       if (deck && deck.length > 0) {
         const card = deck.pop()!;
         card.owner = playerName;
