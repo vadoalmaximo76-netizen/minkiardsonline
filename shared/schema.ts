@@ -103,6 +103,7 @@ export const cardModifications = pgTable("card_modifications", {
   isDeleted: boolean("is_deleted").default(false), // Hide card from game
   modifiedBy: text("modified_by"), // Admin email who modified
   modifiedAt: timestamp("modified_at").notNull().defaultNow(),
+  draftCost: integer("draft_cost").default(0), // Cost in draft credits to buy this card
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -595,3 +596,49 @@ export type InsertPrivateMessage = z.infer<typeof insertPrivateMessageSchema>;
 export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;
 export type InsertPassReward = z.infer<typeof insertPassRewardSchema>;
 export type InsertPlayerPassProgress = z.infer<typeof insertPlayerPassProgressSchema>;
+
+// ===== DRAFT MODE =====
+
+// User's draft credits balance
+export const userDraftCredits = pgTable("user_draft_credits", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().unique(),
+  freeCredits: integer("free_credits").notNull().default(500), // Initial 500 free
+  paidCredits: integer("paid_credits").notNull().default(0),   // Purchased credits
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// User's saved draft decks (one row per user, stores all 3 deck types as JSON)
+export const draftDecks = pgTable("draft_decks", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().unique(),
+  // JSON arrays of card IDs (e.g. ["personaggi-5", "mosse-12", ...])
+  personaggiCards: jsonb("personaggi_cards").notNull().default([]),
+  mosseCards: jsonb("mosse_cards").notNull().default([]),
+  bonusCards: jsonb("bonus_cards").notNull().default([]),
+  totalCostSpent: integer("total_cost_spent").notNull().default(0),
+  isComplete: boolean("is_complete").notNull().default(false), // true = 33+33+33 valid
+  savedAt: timestamp("saved_at").notNull().defaultNow(),
+});
+
+// Credit purchase requests (pending admin approval)
+export const creditPurchases = pgTable("credit_purchases", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  packageId: text("package_id").notNull(), // '100', '500', '1000', '1500', '2000', '5000'
+  creditsAmount: integer("credits_amount").notNull(),
+  priceEur: integer("price_eur_cents").notNull(), // in euro cents (e.g. 100 = €1.00)
+  status: text("status").notNull().default("pending"), // 'pending', 'approved', 'rejected'
+  paymentNote: text("payment_note"), // User-provided PayPal transaction ID or note
+  adminNote: text("admin_note"), // Admin note when approving/rejecting
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  processedAt: timestamp("processed_at"),
+});
+
+export const insertUserDraftCreditsSchema = createInsertSchema(userDraftCredits).omit({ id: true, updatedAt: true });
+export const insertDraftDeckSchema = createInsertSchema(draftDecks).omit({ id: true, savedAt: true });
+export const insertCreditPurchaseSchema = createInsertSchema(creditPurchases).omit({ id: true, createdAt: true, processedAt: true });
+
+export type UserDraftCredits = typeof userDraftCredits.$inferSelect;
+export type DraftDeck = typeof draftDecks.$inferSelect;
+export type CreditPurchase = typeof creditPurchases.$inferSelect;

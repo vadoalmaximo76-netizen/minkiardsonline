@@ -7,7 +7,7 @@ import jwt from "jsonwebtoken";
 import fs from "fs";
 import path from "path";
 import { db, legacyDb, isDatabaseAvailable, isLegacyDbAvailable } from "./db";
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases } from "../shared/schema";
 import { jsonStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray } from "drizzle-orm";
 import { CARD_DATA } from "../client/src/lib/cardData";
@@ -1201,7 +1201,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('join-game', async ({ gameId, playerName, avatarId, userId, authToken }) => {
+    socket.on('join-game', async ({ gameId, playerName, avatarId, userId, authToken, isDraftMode }) => {
       // SECURITY: For reconnection to existing games, require authenticated identity
       // Use socket.data.userId if already authenticated, or verify authToken if provided
       let validatedUserId = socket.data?.userId;
@@ -1261,7 +1261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Wait for player to be added with identity verification
-      const result = await gameManager.addPlayer(gameId, playerName, socket.id, false, validatedUserId, false);
+      const result = await gameManager.addPlayer(gameId, playerName, socket.id, false, validatedUserId, false, !!isDraftMode);
       
       if (!result.success) {
         console.log(`Join failed for ${playerName}: ${result.error}`);
@@ -7519,7 +7519,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             evolvedMoves: mod?.evolvedMoves || null,
             superAttacco: mod?.superAttacco || null,
             isDeleted: mod?.isDeleted || false,
-            isModified: !!mod
+            isModified: !!mod,
+            draftCost: (mod as any)?.draftCost ?? 0
           });
         });
       }
@@ -7645,7 +7646,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           specialCategory: mod.specialCategory || null,
           evolvedMoves: mod.evolvedMoves || null,
           superAttacco: mod.superAttacco || null,
-          modifiedBy: userEmail || null
+          modifiedBy: userEmail || null,
+          draftCost: safeParseInt(mod.draftCost) ?? 0
         });
         emitSync('card_modifications', 'update', { originalCardId: mod.originalCardId, ...mod }, { originalCardId: mod.originalCardId });
       }
@@ -11613,6 +11615,250 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       res.json({ count });
     } catch (error) {
       res.json({ count: null });
+    }
+  });
+
+  // ===== DRAFT MODE API =====
+
+  // Helper: get or create user's draft credits record
+  async function getOrCreateDraftCredits(userId: number) {
+    const existing = await db.select().from(userDraftCredits).where(eq(userDraftCredits.userId, userId)).limit(1);
+    if (existing.length > 0) return existing[0];
+    const [newRecord] = await db.insert(userDraftCredits).values({ userId, freeCredits: 500, paidCredits: 0 }).returning();
+    return newRecord;
+  }
+
+  // GET /api/draft/status - credits + deck summary
+  app.get('/api/draft/status', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'User not found' });
+      const credits = await getOrCreateDraftCredits(currentUser.id);
+      const deckRows = await db.select().from(draftDecks).where(eq(draftDecks.userId, currentUser.id)).limit(1);
+      const deck = deckRows[0] || null;
+      res.json({
+        userId: currentUser.id,
+        freeCredits: credits.freeCredits,
+        paidCredits: credits.paidCredits,
+        totalCredits: credits.freeCredits + credits.paidCredits,
+        puntiRankiard: currentUser.puntiRankiard,
+        deck: deck ? {
+          personaggiCount: (deck.personaggiCards as string[]).length,
+          mosseCount: (deck.mosseCards as string[]).length,
+          bonusCount: (deck.bonusCards as string[]).length,
+          isComplete: deck.isComplete,
+          totalCostSpent: deck.totalCostSpent,
+          savedAt: deck.savedAt,
+        } : null
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Errore nel recupero stato draft' });
+    }
+  });
+
+  // GET /api/draft/deck - get user's full draft deck
+  app.get('/api/draft/deck', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'User not found' });
+      const deckRows = await db.select().from(draftDecks).where(eq(draftDecks.userId, currentUser.id)).limit(1);
+      if (!deckRows.length) return res.json({ personaggiCards: [], mosseCards: [], bonusCards: [], isComplete: false, totalCostSpent: 0 });
+      res.json(deckRows[0]);
+    } catch (error) {
+      res.status(500).json({ error: 'Errore nel recupero mazzo draft' });
+    }
+  });
+
+  // PUT /api/draft/deck - save user's draft deck
+  app.put('/api/draft/deck', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'User not found' });
+      const { personaggiCards, mosseCards, bonusCards } = req.body;
+      if (!Array.isArray(personaggiCards) || !Array.isArray(mosseCards) || !Array.isArray(bonusCards)) {
+        return res.status(400).json({ error: 'Formato mazzo non valido' });
+      }
+      const isComplete = personaggiCards.length === 33 && mosseCards.length === 33 && bonusCards.length === 33;
+      // Calculate total cost
+      const allCardIds = [...personaggiCards, ...mosseCards, ...bonusCards];
+      const mods = await db.select({ originalCardId: cardModifications.originalCardId, draftCost: cardModifications.draftCost })
+        .from(cardModifications).where(inArray(cardModifications.originalCardId, allCardIds));
+      const costMap = new Map(mods.map(m => [m.originalCardId, m.draftCost || 0]));
+      const totalCostSpent = allCardIds.reduce((sum, id) => sum + (costMap.get(id) || 0), 0);
+      // Check if user has enough credits
+      const credits = await getOrCreateDraftCredits(currentUser.id);
+      const totalAvailable = credits.freeCredits + credits.paidCredits + currentUser.puntiRankiard;
+      if (totalCostSpent > totalAvailable) {
+        return res.status(400).json({ error: 'Crediti insufficienti per salvare questo mazzo', totalCostSpent, totalAvailable });
+      }
+      // Upsert deck
+      const existing = await db.select().from(draftDecks).where(eq(draftDecks.userId, currentUser.id)).limit(1);
+      if (existing.length > 0) {
+        await db.update(draftDecks).set({ personaggiCards, mosseCards, bonusCards, isComplete, totalCostSpent, savedAt: new Date() })
+          .where(eq(draftDecks.userId, currentUser.id));
+      } else {
+        await db.insert(draftDecks).values({ userId: currentUser.id, personaggiCards, mosseCards, bonusCards, isComplete, totalCostSpent });
+      }
+      res.json({ success: true, isComplete, totalCostSpent });
+    } catch (error) {
+      console.error('Error saving draft deck:', error);
+      res.status(500).json({ error: 'Errore nel salvataggio mazzo draft' });
+    }
+  });
+
+  // GET /api/draft/cards - all cards with their draft costs
+  app.get('/api/draft/cards', async (req, res) => {
+    try {
+      const mods = await (isDatabaseAvailable()
+        ? db.select({ originalCardId: cardModifications.originalCardId, deckType: cardModifications.deckType, draftCost: cardModifications.draftCost, name: cardModifications.name, imageUrl: cardModifications.imageUrl, isDeleted: cardModifications.isDeleted }).from(cardModifications)
+        : Promise.resolve([]));
+      const modMap = new Map(mods.map((m: any) => [m.originalCardId, m]));
+      // Build card list from CARD_DATA
+      const cards: any[] = [];
+      const deckTypes = ['personaggi', 'mosse', 'bonus'] as const;
+      for (const deckType of deckTypes) {
+        const deckCards = (CARD_DATA as any)[deckType] || [];
+        for (const card of deckCards) {
+          const mod = modMap.get(card.id);
+          if (mod && (mod as any).isDeleted) continue;
+          cards.push({
+            id: card.id,
+            deckType,
+            name: (mod as any)?.name || card.name || card.id,
+            imageUrl: (mod as any)?.imageUrl || card.frontImage,
+            pti: card.pti,
+            stars: card.stars,
+            draftCost: (mod as any)?.draftCost ?? 0,
+          });
+        }
+      }
+      res.json(cards);
+    } catch (error) {
+      res.status(500).json({ error: 'Errore nel recupero carte draft' });
+    }
+  });
+
+  // GET /api/draft/my-purchases - get user's own purchase history
+  app.get('/api/draft/my-purchases', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json([]);
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.json([]);
+      const myPurchases = await db.select().from(creditPurchases)
+        .where(eq(creditPurchases.userId, currentUser.id))
+        .orderBy(desc(creditPurchases.createdAt));
+      res.json(myPurchases);
+    } catch (error) {
+      res.json([]);
+    }
+  });
+
+  // POST /api/draft/purchase-credits - request credit purchase (admin must approve)
+  app.post('/api/draft/purchase-credits', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'User not found' });
+      const PACKAGES: Record<string, { credits: number; priceEurCents: number }> = {
+        '100':  { credits: 100,  priceEurCents: 100 },
+        '500':  { credits: 500,  priceEurCents: 500 },
+        '1000': { credits: 1000, priceEurCents: 1000 },
+        '1500': { credits: 1500, priceEurCents: 1200 },
+        '2000': { credits: 2000, priceEurCents: 1500 },
+        '5000': { credits: 5000, priceEurCents: 4000 },
+      };
+      const { packageId, paymentNote } = req.body;
+      const pkg = PACKAGES[packageId];
+      if (!pkg) return res.status(400).json({ error: 'Pacchetto non valido' });
+      const [purchase] = await db.insert(creditPurchases).values({
+        userId: currentUser.id,
+        packageId,
+        creditsAmount: pkg.credits,
+        priceEur: pkg.priceEurCents,
+        status: 'pending',
+        paymentNote: paymentNote || null,
+      }).returning();
+      res.json({ success: true, purchaseId: purchase.id, message: 'Acquisto registrato. I crediti saranno aggiunti dopo approvazione admin.' });
+    } catch (error) {
+      res.status(500).json({ error: 'Errore nella creazione acquisto' });
+    }
+  });
+
+  // GET /api/admin/draft/purchases - list all purchases (admin only)
+  app.get('/api/admin/draft/purchases', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser || !currentUser.isAdmin) return res.status(403).json({ error: 'Admin required' });
+      const purchases = await db.select({
+        id: creditPurchases.id,
+        userId: creditPurchases.userId,
+        packageId: creditPurchases.packageId,
+        creditsAmount: creditPurchases.creditsAmount,
+        priceEur: creditPurchases.priceEur,
+        status: creditPurchases.status,
+        paymentNote: creditPurchases.paymentNote,
+        adminNote: creditPurchases.adminNote,
+        createdAt: creditPurchases.createdAt,
+        processedAt: creditPurchases.processedAt,
+        username: users.username,
+        email: users.email,
+      }).from(creditPurchases).leftJoin(users, eq(creditPurchases.userId, users.id))
+        .orderBy(desc(creditPurchases.createdAt));
+      res.json(purchases);
+    } catch (error) {
+      res.status(500).json({ error: 'Errore nel recupero acquisti' });
+    }
+  });
+
+  // POST /api/admin/draft/purchases/:id/approve
+  app.post('/api/admin/draft/purchases/:id/approve', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser || !currentUser.isAdmin) return res.status(403).json({ error: 'Admin required' });
+      const purchaseId = parseInt(req.params.id);
+      const [purchase] = await db.select().from(creditPurchases).where(eq(creditPurchases.id, purchaseId)).limit(1);
+      if (!purchase) return res.status(404).json({ error: 'Acquisto non trovato' });
+      if (purchase.status !== 'pending') return res.status(400).json({ error: 'Acquisto già processato' });
+      const { adminNote } = req.body;
+      // Add credits to user
+      const credits = await getOrCreateDraftCredits(purchase.userId);
+      await db.update(userDraftCredits).set({ paidCredits: credits.paidCredits + purchase.creditsAmount, updatedAt: new Date() })
+        .where(eq(userDraftCredits.userId, purchase.userId));
+      // Update purchase status
+      await db.update(creditPurchases).set({ status: 'approved', adminNote: adminNote || null, processedAt: new Date() })
+        .where(eq(creditPurchases.id, purchaseId));
+      res.json({ success: true, message: `${purchase.creditsAmount} crediti aggiunti all'utente` });
+    } catch (error) {
+      res.status(500).json({ error: 'Errore nell\'approvazione acquisto' });
+    }
+  });
+
+  // POST /api/admin/draft/purchases/:id/reject
+  app.post('/api/admin/draft/purchases/:id/reject', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser || !currentUser.isAdmin) return res.status(403).json({ error: 'Admin required' });
+      const purchaseId = parseInt(req.params.id);
+      const { adminNote } = req.body;
+      await db.update(creditPurchases).set({ status: 'rejected', adminNote: adminNote || null, processedAt: new Date() })
+        .where(eq(creditPurchases.id, purchaseId));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Errore nel rifiuto acquisto' });
     }
   });
 

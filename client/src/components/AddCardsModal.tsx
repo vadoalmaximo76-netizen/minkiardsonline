@@ -834,6 +834,7 @@ interface ExistingCard {
   superAttacco: any | null;
   isDeleted: boolean;
   isModified: boolean;
+  draftCost: number | null;
 }
 
 export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose }) => {
@@ -878,7 +879,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     cheatsInto: '',
     specialCategory: '',
     evolvedMoves: { range1: { name: '', damage: '' }, range2: { name: '', damage: '' } },
-    superAttacco: { name: '', damage: '' }
+    superAttacco: { name: '', damage: '' },
+    draftCost: '0'
   });
   const [pendingChanges, setPendingChanges] = useState<Map<string, {card: ExistingCard, formData: typeof existingEditForm}>>(new Map());
   const [isBulkSaving, setIsBulkSaving] = useState(false);
@@ -1530,7 +1532,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
         cheatsInto: card.cheatsInto || '',
         specialCategory: card.specialCategory || '',
         evolvedMoves: card.evolvedMoves || { range1: { name: '', damage: '' }, range2: { name: '', damage: '' } },
-        superAttacco: card.superAttacco || { name: '', damage: '' }
+        superAttacco: card.superAttacco || { name: '', damage: '' },
+        draftCost: (card.draftCost ?? 0).toString()
       });
     }
     setEditingExistingCard(card.id);
@@ -1590,7 +1593,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
         cheatsInto: formData.cheatsInto || null,
         specialCategory: formData.specialCategory || null,
         evolvedMoves: (formData.evolvedMoves?.range1?.name || formData.evolvedMoves?.range1?.damage || formData.evolvedMoves?.range2?.name || formData.evolvedMoves?.range2?.damage) ? formData.evolvedMoves : null,
-        superAttacco: (formData.superAttacco?.name || formData.superAttacco?.damage) ? formData.superAttacco : null
+        superAttacco: (formData.superAttacco?.name || formData.superAttacco?.damage) ? formData.superAttacco : null,
+        draftCost: formData.draftCost ? parseInt(formData.draftCost) : 0
       }));
       
       const response = await fetch('/api/admin/card-modifications-bulk', {
@@ -3232,6 +3236,20 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                                 </div>
                               </div>
                             )}
+
+                            {/* Draft Cost */}
+                            <div className="p-3 bg-teal-900/30 rounded-lg border border-teal-500/50">
+                              <div className="text-teal-400 text-sm font-bold mb-2">🪙 COSTO DRAFT</div>
+                              <p className="text-gray-400 text-xs mb-2">Crediti necessari per acquistare questa carta nella modalità Draft (0 = gratuita).</p>
+                              <Input
+                                type="number"
+                                min="0"
+                                value={existingEditForm.draftCost}
+                                onChange={(e) => setExistingEditForm(prev => ({ ...prev, draftCost: e.target.value }))}
+                                placeholder="0"
+                                className="bg-gray-600 text-white border-gray-500 w-40"
+                              />
+                            </div>
                             
                             {/* MOSSE Damage Settings */}
                             {card.deckType === 'mosse' && (

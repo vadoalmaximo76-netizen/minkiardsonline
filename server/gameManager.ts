@@ -1,6 +1,6 @@
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from '../client/src/lib/cardData';
 import { db, isDatabaseAvailable } from './db';
-import { matches, gameEvents, personaggi, customCards, cardModifications, users, gameStates, cardSkins, tournamentMatches, tournaments, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
+import { matches, gameEvents, personaggi, customCards, cardModifications, users, gameStates, cardSkins, tournamentMatches, tournaments, draftDecks, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
 import { eq, ilike, sql, and } from 'drizzle-orm';
 import { CPUPlayer } from './cpuPlayer';
 import { trackGameEvent } from './missionsAndAchievements';
@@ -410,6 +410,8 @@ interface GameState {
   }>;
   kebabMultiplier?: Record<string, number>;
   hands?: Record<string, Record<string, Card[]>>;
+  isDraftMode?: boolean;
+  playerDraftDecks?: Record<string, { personaggi: Card[], mosse: Card[], bonus: Card[] }>;
 }
 
 export class GameManager {
@@ -938,7 +940,7 @@ export class GameManager {
     return gameState;
   }
 
-  async addPlayer(gameId: string, playerName: string, socketId: string, isCPU: boolean = false, authenticatedUserId?: number, isApproved: boolean = false): Promise<{ success: boolean; error?: string; requiresApproval?: boolean }> {
+  async addPlayer(gameId: string, playerName: string, socketId: string, isCPU: boolean = false, authenticatedUserId?: number, isApproved: boolean = false, isDraftMode: boolean = false): Promise<{ success: boolean; error?: string; requiresApproval?: boolean }> {
     const isNewGame = !this.games.has(gameId);
     
     if (isNewGame) {
@@ -950,6 +952,63 @@ export class GameManager {
     }
 
     const game = this.games.get(gameId)!;
+
+    // Set draft mode if specified (only on first player joining)
+    if (isDraftMode && isNewGame) {
+      game.isDraftMode = true;
+      game.playerDraftDecks = {};
+    }
+
+    // Load draft deck for this player if in draft mode and authenticated
+    if (game.isDraftMode && authenticatedUserId && !isCPU && isDatabaseAvailable()) {
+      try {
+        const deckRows = await db.select().from(draftDecks).where(eq(draftDecks.userId, authenticatedUserId)).limit(1);
+        if (deckRows.length > 0 && deckRows[0].isComplete) {
+          const deckRow = deckRows[0];
+          const personaggiIds = (deckRow.personaggiCards as string[]) || [];
+          const mosseIds = (deckRow.mosseCards as string[]) || [];
+          const bonusIds = (deckRow.bonusCards as string[]) || [];
+          // Build Card objects from card IDs
+          const buildCards = (ids: string[], deckType: string): Card[] => {
+            return ids.map(id => {
+              const allCards = (CARD_DATA as any)[deckType] || [];
+              const cardData = allCards.find((c: any) => c.id === id);
+              if (!cardData) return null;
+              return {
+                id: `${id}-${Math.random().toString(36).substr(2, 6)}`,
+                type: deckType,
+                frontImage: cardData.frontImage || '',
+                backImage: (DECK_BACK_IMAGES as any)[deckType] || '',
+                owner: '',
+                name: cardData.name,
+                pti: cardData.pti,
+                stars: cardData.stars,
+              } as Card;
+            }).filter(Boolean) as Card[];
+          };
+          game.playerDraftDecks![playerName] = {
+            personaggi: buildCards(personaggiIds, 'personaggi'),
+            mosse: buildCards(mosseIds, 'mosse'),
+            bonus: buildCards(bonusIds, 'bonus'),
+          };
+          // Shuffle the player's personal decks
+          const shuffle = (arr: Card[]) => {
+            for (let i = arr.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+          };
+          shuffle(game.playerDraftDecks![playerName].personaggi);
+          shuffle(game.playerDraftDecks![playerName].mosse);
+          shuffle(game.playerDraftDecks![playerName].bonus);
+          console.log(`✅ Draft deck loaded for ${playerName}: ${personaggiIds.length} personaggi, ${mosseIds.length} mosse, ${bonusIds.length} bonus`);
+        } else {
+          console.log(`⚠️ Player ${playerName} has no complete draft deck - using shared decks`);
+        }
+      } catch (err) {
+        console.error('Error loading draft deck:', err);
+      }
+    };
     
     // Set creator info if this is the first player
     if (isNewGame && !isCPU) {
@@ -2155,7 +2214,15 @@ Rispondi SOLO in JSON:`;
         currentTurn: gameState.activeDuel.currentTurn,
         consecutiveTurns: gameState.activeDuel.consecutiveTurns,
         active: gameState.activeDuel.active
-      } : undefined
+      } : undefined,
+      isDraftMode: gameState.isDraftMode || false,
+      playerDraftDeckCounts: gameState.isDraftMode && gameState.playerDraftDecks
+        ? Object.fromEntries(Object.entries(gameState.playerDraftDecks).map(([name, decks]) => [name, {
+            personaggi: decks.personaggi.length,
+            mosse: decks.mosse.length,
+            bonus: decks.bonus.length,
+          }]))
+        : {}
     };
 
     // Sanitize players by removing cpuInstance references
@@ -2404,7 +2471,14 @@ Rispondi SOLO in JSON:`;
     const game = this.games.get(gameId);
     if (!game || !game.players[playerName]) return false;
 
-    const deck = game.decks[deckType];
+    // In draft mode, use player's personal deck if available
+    let deck: Card[];
+    if (game.isDraftMode && game.playerDraftDecks?.[playerName] && deckType !== 'personaggi_speciali') {
+      const personalDecks = game.playerDraftDecks[playerName];
+      deck = personalDecks[deckType as 'personaggi' | 'mosse' | 'bonus'] || game.decks[deckType];
+    } else {
+      deck = game.decks[deckType];
+    }
     if (deck.length === 0) return false;
 
     // Check CPU invariants before drawing

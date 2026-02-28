@@ -318,9 +318,9 @@ function App() {
     }
   };
 
-  const handleRoomSubmit = (roomCode: string) => {
+  const handleRoomSubmit = (roomCode: string, isDraftMode?: boolean) => {
     const newGameId = `room-${roomCode}`;
-    console.log(`Attempting to join room: ${newGameId} with player: ${playerName}`);
+    console.log(`Attempting to join room: ${newGameId} with player: ${playerName}${isDraftMode ? ' [DRAFT]' : ''}`);
     
     setGameId(newGameId);
     setShowRoomDialog(false);
@@ -335,7 +335,8 @@ function App() {
       gameId: newGameId, 
       playerName, 
       avatarId: pendingAvatar,
-      userId: authenticatedUser?.id 
+      userId: authenticatedUser?.id,
+      isDraftMode: isDraftMode || false
     });
   };
 

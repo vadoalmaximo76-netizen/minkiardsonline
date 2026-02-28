@@ -2,6 +2,8 @@
 
 MINKIARDS is a real-time multiplayer online card game built with React and Express, offering an immersive and strategic card gaming experience. It features a modern UI, advanced AI opponents, and utilizes WebSocket communication for dynamic player interaction across four unique card types (PERSONAGGI, MOSSE, BONUS, PERSONAGGI SPECIALI) on a shared game field.
 
+The game supports two play modes: **Classic** (shared central decks) and **Draft** (each player builds and uses a personal 33+33+33 deck using a credit system). A global leaderboard is accessible from the home screen. After a match ends, players can vote for an automatic rematch. An inactivity timer (30s per turn) automatically ends the turn if the active player doesn't act. Players can challenge each other directly from the leaderboard.
+
 # User Preferences
 
 Preferred communication style: Simple, everyday language.
