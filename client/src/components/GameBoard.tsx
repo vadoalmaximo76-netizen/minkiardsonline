@@ -134,6 +134,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [nextTurnPlayer, setNextTurnPlayer] = useState<string>("");
   const [leaveGameVisible, setLeaveGameVisible] = useState(false);
   const [leavingPlayer, setLeavingPlayer] = useState<string>("");
+  const [turnTimerState, setTurnTimerState] = useState<{ active: boolean; seconds: number; playerName: string; isWarning: boolean }>({ active: false, seconds: 30, playerName: '', isWarning: false });
+  const turnTimerIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+  const [rematchState, setRematchState] = useState<{ votes: number; total: number; voters: string[]; declined: boolean; declinedBy: string; expired: boolean; newGameId: string | null }>({ votes: 0, total: 0, voters: [], declined: false, declinedBy: '', expired: false, newGameId: null });
   const [superDiceOpen, setSuperDiceOpen] = useState(false);
   const [showCpuControls, setShowCpuControls] = useState(false);
   const [is3DMode, setIs3DMode] = useState(false);
@@ -1819,7 +1822,59 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('fusion-error', handleFusionError);
     socket.on('voodoo:error', handleVoodooError);
 
+    // ── Turn Timer ──────────────────────────────────────────────────────────
+    const startTurnCountdown = (totalSeconds: number, timerPlayerName: string) => {
+      if (turnTimerIntervalRef.current) clearInterval(turnTimerIntervalRef.current);
+      let remaining = totalSeconds;
+      setTurnTimerState({ active: true, seconds: remaining, playerName: timerPlayerName, isWarning: remaining <= 10 });
+      turnTimerIntervalRef.current = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) {
+          if (turnTimerIntervalRef.current) clearInterval(turnTimerIntervalRef.current);
+          setTurnTimerState({ active: false, seconds: 0, playerName: timerPlayerName, isWarning: false });
+        } else {
+          setTurnTimerState({ active: true, seconds: remaining, playerName: timerPlayerName, isWarning: remaining <= 10 });
+        }
+      }, 1000);
+    };
+    const handleTurnTimerStart = ({ playerName: timerPlayer, seconds }: { playerName: string; seconds: number }) => {
+      startTurnCountdown(seconds, timerPlayer);
+    };
+    const handleTurnTimerWarning = ({ playerName: timerPlayer, seconds }: { playerName: string; seconds: number }) => {
+      setTurnTimerState(prev => ({ ...prev, isWarning: true, seconds }));
+    };
+    socket.on('turn-timer-start', handleTurnTimerStart);
+    socket.on('turn-timer-warning', handleTurnTimerWarning);
+    // ── Rematch ─────────────────────────────────────────────────────────────
+    const handleRematchVoteUpdate = ({ votes, total, voters }: { votes: number; total: number; voters: string[] }) => {
+      setRematchState(prev => ({ ...prev, votes, total, voters }));
+    };
+    const handleRematchReady = ({ newGameId }: { newGameId: string }) => {
+      setRematchState(prev => ({ ...prev, newGameId }));
+      setTimeout(() => {
+        window.location.href = `${window.location.origin}?gameId=${newGameId}`;
+      }, 2000);
+    };
+    const handleRematchDeclined = ({ declinedBy }: { declinedBy: string }) => {
+      setRematchState(prev => ({ ...prev, declined: true, declinedBy }));
+    };
+    const handleRematchExpired = () => {
+      setRematchState(prev => ({ ...prev, expired: true }));
+    };
+    socket.on('rematch-vote-update', handleRematchVoteUpdate);
+    socket.on('rematch-ready', handleRematchReady);
+    socket.on('rematch-declined', handleRematchDeclined);
+    socket.on('rematch-expired', handleRematchExpired);
+    // ────────────────────────────────────────────────────────────────────────
+
     return () => {
+      if (turnTimerIntervalRef.current) clearInterval(turnTimerIntervalRef.current);
+      socket.off('turn-timer-start', handleTurnTimerStart);
+      socket.off('turn-timer-warning', handleTurnTimerWarning);
+      socket.off('rematch-vote-update', handleRematchVoteUpdate);
+      socket.off('rematch-ready', handleRematchReady);
+      socket.off('rematch-declined', handleRematchDeclined);
+      socket.off('rematch-expired', handleRematchExpired);
       socket.off('game-reset', handleGameReset);
       socket.off('card-shown', handleCardShown);
       socket.off('card-show-confirmed', handleCardShowConfirmed);
@@ -4005,6 +4060,80 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           onClose={() => setNextTurnVisible(false)}
           isMyTurn={nextTurnPlayer === playerName}
         />
+
+        {/* Turn Timer Widget */}
+        {turnTimerState.active && (
+          <div className={`fixed top-20 right-4 z-40 flex flex-col items-center gap-1 pointer-events-none select-none ${turnTimerState.isWarning ? 'animate-pulse' : ''}`}>
+            <div className={`relative w-16 h-16 ${turnTimerState.isWarning ? 'drop-shadow-[0_0_12px_rgba(239,68,68,0.8)]' : 'drop-shadow-[0_0_8px_rgba(250,204,21,0.6)]'}`}>
+              <svg className="w-full h-full -rotate-90" viewBox="0 0 64 64">
+                <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="6" />
+                <circle
+                  cx="32" cy="32" r="28"
+                  fill="none"
+                  stroke={turnTimerState.isWarning ? '#ef4444' : '#facc15'}
+                  strokeWidth="6"
+                  strokeLinecap="round"
+                  strokeDasharray={`${2 * Math.PI * 28}`}
+                  strokeDashoffset={`${2 * Math.PI * 28 * (1 - turnTimerState.seconds / 30)}`}
+                  style={{ transition: 'stroke-dashoffset 1s linear' }}
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className={`text-lg font-bold ${turnTimerState.isWarning ? 'text-red-400' : 'text-yellow-300'}`}>
+                  {turnTimerState.seconds}
+                </span>
+              </div>
+            </div>
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${turnTimerState.isWarning ? 'bg-red-600/80 text-white' : 'bg-black/60 text-yellow-300'}`}>
+              {turnTimerState.playerName === playerName ? 'Il tuo turno' : turnTimerState.playerName}
+            </span>
+          </div>
+        )}
+
+        {/* Rematch Panel (overlaid over game end rewards) */}
+        {gameEndRewards.visible && !rematchState.newGameId && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex flex-col items-center gap-3 pointer-events-auto">
+            {rematchState.declined ? (
+              <div className="bg-red-900/90 border border-red-500 text-white px-6 py-3 rounded-xl text-center shadow-xl">
+                <p className="font-bold">❌ Rivincita rifiutata</p>
+                <p className="text-sm text-red-200">{rematchState.declinedBy} non vuole rigiocare</p>
+              </div>
+            ) : rematchState.expired ? (
+              <div className="bg-gray-900/90 border border-gray-500 text-white px-6 py-3 rounded-xl text-center shadow-xl">
+                <p className="text-sm">⏰ Il tempo per la rivincita è scaduto</p>
+              </div>
+            ) : rematchState.voters.includes(playerName) ? (
+              <div className="bg-yellow-900/90 border border-yellow-500 text-white px-6 py-3 rounded-xl text-center shadow-xl animate-pulse">
+                <p className="font-bold">⏳ In attesa degli altri...</p>
+                <p className="text-sm text-yellow-200">{rematchState.votes}/{rematchState.total} hanno accettato</p>
+              </div>
+            ) : (
+              <div className="flex gap-3">
+                <button
+                  onClick={() => socket.emit('request-rematch', { gameId, playerName })}
+                  className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 text-white font-bold px-6 py-3 rounded-xl shadow-xl shadow-orange-500/30 transition-all hover:scale-105 flex items-center gap-2"
+                >
+                  🔄 Rivincita!
+                </button>
+                <button
+                  onClick={() => socket.emit('decline-rematch', { gameId, playerName })}
+                  className="bg-gray-700/80 hover:bg-gray-600/80 text-white/70 hover:text-white font-medium px-4 py-3 rounded-xl transition-all text-sm"
+                >
+                  No grazie
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        {rematchState.newGameId && (
+          <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center">
+            <div className="bg-gradient-to-br from-yellow-900 to-orange-900 border-2 border-yellow-400 rounded-2xl p-8 text-center shadow-2xl animate-bounce">
+              <p className="text-4xl mb-3">🔥</p>
+              <p className="text-2xl font-bold text-yellow-300">Rivincita in corso!</p>
+              <p className="text-white/70 mt-2">Ricarico la partita...</p>
+            </div>
+          </div>
+        )}
 
         {/* Leave Game Notification */}
         <LeaveGameNotification

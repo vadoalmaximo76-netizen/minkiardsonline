@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Gamepad2, GraduationCap, Users, User, Trophy, Clock, Star, Award, Sparkles, Settings } from 'lucide-react';
+import { Gamepad2, GraduationCap, Users, User, Trophy, Clock, Star, Award, Sparkles, Settings, Shuffle } from 'lucide-react';
 import { TournamentPanel } from './TournamentPanel';
 import { SeasonalEventsPanel } from './SeasonalEventsPanel';
+import { RankiardLeaderboard } from './RankiardLeaderboard';
 
 interface HomeScreenProps {
   playerName: string;
   userId?: number;
-  onNavigate: (section: 'play' | 'training' | 'rooms' | 'profile' | 'admin') => void;
+  onNavigate: (section: 'play' | 'training' | 'rooms' | 'profile' | 'admin' | 'draft' | 'leaderboard') => void;
   onJoinTournamentMatch?: (gameId: string, matchId: number, tournamentName: string) => void;
   userEmail?: string;
 }
@@ -35,6 +36,7 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
   }, []);
   const [showTournaments, setShowTournaments] = useState(false);
   const [showSeasonalEvents, setShowSeasonalEvents] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -141,6 +143,30 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
       badge: userStats ? `${userStats.gamesWon}/${userStats.gamesPlayed} vinte` : null,
       badgeIcon: Trophy,
       action: () => onNavigate('profile')
+    },
+    {
+      id: 'leaderboard' as const,
+      title: 'Classifica',
+      subtitle: 'Top 100 giocatori per Rankiard',
+      icon: Trophy,
+      gradient: 'from-yellow-600 via-amber-500 to-orange-600',
+      hoverGradient: 'hover:from-yellow-500 hover:via-amber-400 hover:to-orange-500',
+      shadowColor: 'shadow-yellow-500/30',
+      badge: userStats ? `${userStats.puntiRankiard} PR` : 'Top 100',
+      badgeIcon: Trophy,
+      action: () => setShowLeaderboard(true)
+    },
+    {
+      id: 'draft' as const,
+      title: 'Draft',
+      subtitle: 'Scegli le tue carte prima della partita',
+      icon: Shuffle,
+      gradient: 'from-teal-600 via-cyan-500 to-teal-600',
+      hoverGradient: 'hover:from-teal-500 hover:via-cyan-400 hover:to-teal-500',
+      shadowColor: 'shadow-teal-500/30',
+      badge: 'In arrivo',
+      badgeIcon: Star,
+      action: () => onNavigate('draft')
     },
     ...(isAdmin ? [{
       id: 'admin' as const,
@@ -264,6 +290,13 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
       <SeasonalEventsPanel
         isOpen={showSeasonalEvents}
         onClose={() => setShowSeasonalEvents(false)}
+      />
+
+      {/* Leaderboard Modal */}
+      <RankiardLeaderboard
+        isOpen={showLeaderboard}
+        onClose={() => setShowLeaderboard(false)}
+        currentUserId={userId}
       />
     </div>
   );

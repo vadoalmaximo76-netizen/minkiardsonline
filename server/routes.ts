@@ -58,6 +58,10 @@ const openai = new OpenAI({
 // Track voice chat participants: gameId -> Set of playerNames
 const voiceChatRooms = new Map<string, Map<string, string>>(); // gameId -> Map(playerName -> socketId)
 
+// Rematch voting state
+const rematchVotes = new Map<string, Set<string>>(); // gameId -> Set(playerName)
+const rematchTimers = new Map<string, NodeJS.Timeout>(); // gameId -> expiry timer
+
 // Throttled game state updates to reduce broadcast frequency
 const pendingStateUpdates = new Map<string, NodeJS.Timeout>();
 const lastEventCounters = new Map<string, number>(); // Track eventCounter to skip true duplicates
@@ -5853,6 +5857,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const playerOrder = gameManager.startGame(gameId, characterLimit);
         if (playerOrder) {
           io.to(gameId).emit('game-started', { playerOrder });
+          // Start turn timer for the first player
+          if (playerOrder.length > 0) {
+            gameManager.startTurnTimer(gameId, playerOrder[0]);
+          }
         }
       }
     });
@@ -7175,6 +7183,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
     });
+
+    // ─── REMATCH SYSTEM ──────────────────────────────────────────────────────
+    socket.on('request-rematch', ({ gameId, playerName }: { gameId: string, playerName: string }) => {
+      const game = gameManager.getGame(gameId);
+      if (!game) return;
+      if (!rematchVotes.has(gameId)) rematchVotes.set(gameId, new Set());
+      const votes = rematchVotes.get(gameId)!;
+      votes.add(playerName);
+      // Broadcast vote count to all in room
+      const humanPlayers = Object.values(game.players).filter(p => !p.cpuInstance);
+      io.to(gameId).emit('rematch-vote-update', { votes: votes.size, total: humanPlayers.length, voters: Array.from(votes) });
+      console.log(`[REMATCH] ${playerName} voted rematch in ${gameId} (${votes.size}/${humanPlayers.length})`);
+      if (votes.size >= humanPlayers.length) {
+        // All human players voted — start rematch
+        const rematchId = `${gameId}-rematch-${Date.now()}`;
+        rematchVotes.delete(gameId);
+        if (rematchTimers.has(gameId)) { clearTimeout(rematchTimers.get(gameId)!); rematchTimers.delete(gameId); }
+        io.to(gameId).emit('rematch-ready', { newGameId: rematchId });
+        console.log(`[REMATCH] All players agreed — new game: ${rematchId}`);
+      } else {
+        // Set a 60s expiry for votes
+        if (!rematchTimers.has(gameId)) {
+          const timer = setTimeout(() => {
+            rematchVotes.delete(gameId);
+            rematchTimers.delete(gameId);
+            io.to(gameId).emit('rematch-expired');
+          }, 60000);
+          rematchTimers.set(gameId, timer as any);
+        }
+      }
+    });
+
+    socket.on('decline-rematch', ({ gameId, playerName }: { gameId: string, playerName: string }) => {
+      rematchVotes.delete(gameId);
+      if (rematchTimers.has(gameId)) { clearTimeout(rematchTimers.get(gameId)!); rematchTimers.delete(gameId); }
+      io.to(gameId).emit('rematch-declined', { declinedBy: playerName });
+      console.log(`[REMATCH] ${playerName} declined rematch in ${gameId}`);
+    });
+    // ─────────────────────────────────────────────────────────────────────────
 
     socket.on('disconnect', () => {
       console.log('Player disconnected:', socket.id);

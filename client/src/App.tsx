@@ -12,13 +12,15 @@ import { ProfileSection } from "./components/ProfileSection";
 import { SpectatorView } from "./components/SpectatorView";
 import { ResetPasswordPage } from "./components/ResetPasswordPage";
 import { CardAdminPanel } from "./components/CardAdminPanel";
+import { DraftSection } from "./components/DraftSection";
+import { RankiardLeaderboard } from "./components/RankiardLeaderboard";
 import { useGameState } from "./lib/stores/useGameState";
 import { socket } from "./lib/socket";
 import { preloadCriticalImages } from "./lib/imagePreloader";
 import "@fontsource/inter";
 import "./index.css";
 
-type AppSection = 'home' | 'play' | 'training' | 'rooms' | 'profile' | 'spectator' | 'admin';
+type AppSection = 'home' | 'play' | 'training' | 'rooms' | 'profile' | 'spectator' | 'admin' | 'draft' | 'leaderboard';
 
 function getResetPasswordToken(): string | null {
   const urlParams = new URLSearchParams(window.location.search);
@@ -411,7 +413,7 @@ function App() {
     }
   };
 
-  const handleNavigate = (section: 'play' | 'training' | 'rooms' | 'profile' | 'admin') => {
+  const handleNavigate = (section: 'play' | 'training' | 'rooms' | 'profile' | 'admin' | 'draft' | 'leaderboard') => {
     if (section === 'play') {
       setShowRoomDialog(true);
     }
@@ -571,6 +573,32 @@ function App() {
           socket={socket}
           onBack={() => setCurrentSection('home')}
           onUpdateProfile={handleUpdateProfile}
+        />
+      </QueryClientProvider>
+    );
+  }
+
+  // Show Draft Section
+  if (currentSection === 'draft') {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <DraftSection
+          playerName={playerName}
+          onBack={() => setCurrentSection('home')}
+        />
+      </QueryClientProvider>
+    );
+  }
+
+  // Show Leaderboard Section
+  if (currentSection === 'leaderboard') {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <RankiardLeaderboard
+          isOpen={true}
+          onClose={() => setCurrentSection('home')}
+          currentUserId={authenticatedUser?.id}
+          currentGameId={gameId || undefined}
         />
       </QueryClientProvider>
     );

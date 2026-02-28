@@ -420,6 +420,67 @@ export class GameManager {
   private isProcessingQueue = false;
   private lastSaveTime: Map<string, number> = new Map(); // Throttle DB saves per game
   private saveDebounceMs = 2000; // Save at most every 2 seconds per game
+  private turnTimers: Map<string, NodeJS.Timeout> = new Map();
+  private turnWarningTimers: Map<string, NodeJS.Timeout> = new Map();
+  private readonly TURN_TIMEOUT_SECONDS = 30;
+
+  clearTurnTimer(gameId: string): void {
+    const t = this.turnTimers.get(gameId);
+    if (t) { clearTimeout(t); this.turnTimers.delete(gameId); }
+    const w = this.turnWarningTimers.get(gameId);
+    if (w) { clearTimeout(w); this.turnWarningTimers.delete(gameId); }
+  }
+
+  startTurnTimer(gameId: string, playerName: string): void {
+    this.clearTurnTimer(gameId);
+    const gameState = this.games.get(gameId);
+    if (!gameState) return;
+    // Don't start timer for CPU players
+    const player = gameState.players[playerName];
+    if (player?.cpuInstance) return;
+    // Don't start timer if duel is active
+    if (gameState.activeDuel?.active) return;
+
+    const io = (global as any).io;
+    if (io) {
+      io.to(gameId).emit('turn-timer-start', { playerName, seconds: this.TURN_TIMEOUT_SECONDS });
+    }
+
+    // Warning at 10 seconds remaining (20s delay)
+    const warningTimer = setTimeout(() => {
+      const io2 = (global as any).io;
+      if (io2) {
+        io2.to(gameId).emit('turn-timer-warning', { playerName, seconds: 10 });
+      }
+    }, (this.TURN_TIMEOUT_SECONDS - 10) * 1000);
+    this.turnWarningTimers.set(gameId, warningTimer);
+
+    // Auto end turn at timeout
+    const timer = setTimeout(() => {
+      const currentState = this.games.get(gameId);
+      if (!currentState) return;
+      const currentPlayer = currentState.turnOrder[currentState.currentTurnIndex];
+      if (currentPlayer !== playerName) return; // Turn already changed
+      const io3 = (global as any).io;
+      console.log(`⏰ Turn timer expired for ${playerName} in game ${gameId}`);
+      if (io3) {
+        io3.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-turn-timeout`,
+          playerName: 'Sistema',
+          message: `⏰ ${playerName} ha esaurito il tempo! Turno passato automaticamente.`,
+          timestamp: Date.now()
+        });
+      }
+      const nextPlayer = this.forceEndTurn(gameId);
+      if (nextPlayer && io3) {
+        io3.to(gameId).emit('next-turn', { nextPlayer, reason: 'timeout' });
+        const updatedState = this.getSanitizedGameState(gameId);
+        if (updatedState) io3.to(gameId).emit('game-state-update', updatedState);
+        this.startTurnTimer(gameId, nextPlayer);
+      }
+    }, this.TURN_TIMEOUT_SECONDS * 1000);
+    this.turnTimers.set(gameId, timer);
+  }
 
   getGame(gameId: string): GameState | undefined {
     return this.games.get(gameId);
@@ -17424,6 +17485,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   }
 
   endTurn(gameId: string, playerName: string): string | null {
+    // Clear any active turn timer for this game
+    this.clearTurnTimer(gameId);
     // CRITICAL FIX: Reset CPU turn state when turn ends
     const game = this.getGameState(gameId);
     if (game && game.players[playerName]?.cpuInstance) {
@@ -17902,6 +17965,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
           gameState.players[nextPlayer].usedMosseOnBarrieraThisTurn = false;
         }
+        // Start inactivity timer for the next human player
+        this.startTurnTimer(gameId, nextPlayer);
         return nextPlayer;
       }
       
@@ -17915,6 +17980,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
   // Force end turn - bypasses all turn validation checks (for admin/universal turn control)
   forceEndTurn(gameId: string): string | null {
+    this.clearTurnTimer(gameId);
     const gameState = this.games.get(gameId);
     if (!gameState || gameState.turnOrder.length === 0) return null;
 
@@ -18061,6 +18127,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
           gameState.players[nextPlayer].usedMosseOnBarrieraThisTurn = false;
         }
+        // Start inactivity timer for the next human player
+        this.startTurnTimer(gameId, nextPlayer);
         return nextPlayer;
       }
       

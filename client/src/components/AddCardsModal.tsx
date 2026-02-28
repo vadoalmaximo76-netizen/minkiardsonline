@@ -2775,6 +2775,57 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                       <div className="flex-1">
                         {editingExistingCard === card.id ? (
                           <div className="space-y-3">
+                            {/* Real-time Card Preview */}
+                            <div className="bg-gray-900/60 rounded-lg p-3 border border-white/10">
+                              <label className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-2 block">Anteprima in tempo reale</label>
+                              <div className="flex gap-4 items-start">
+                                <div className="relative flex-shrink-0 w-28 rounded-lg overflow-hidden shadow-lg border-2 border-white/20" style={{ aspectRatio: '2/3' }}>
+                                  <img
+                                    src={existingEditForm.imageUrl || card.imageUrl || ''}
+                                    alt={existingEditForm.name || card.name}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/112x168?text=?'; }}
+                                  />
+                                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                                  <div className="absolute bottom-0 left-0 right-0 p-1.5">
+                                    <p className="text-white text-[10px] font-bold leading-tight line-clamp-2 text-center">
+                                      {existingEditForm.name || card.name}
+                                    </p>
+                                    {isCharacterDeck && (
+                                      <div className="flex justify-center gap-1 mt-0.5">
+                                        {existingEditForm.pti && <span className="text-[9px] bg-blue-600/80 text-white px-1 rounded">PTI {existingEditForm.pti}</span>}
+                                        {existingEditForm.stars && <span className="text-[9px] bg-yellow-500/80 text-white px-1 rounded">★ {existingEditForm.stars}</span>}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex-1 min-w-0 space-y-1">
+                                  <div className="text-xs">
+                                    <span className="text-gray-400">Nome: </span>
+                                    <span className="text-white font-medium">{existingEditForm.name || card.name}</span>
+                                  </div>
+                                  {isCharacterDeck && (
+                                    <>
+                                      <div className="text-xs">
+                                        <span className="text-gray-400">PTI: </span>
+                                        <span className="text-blue-300 font-medium">{existingEditForm.pti || card.pti || '—'}</span>
+                                      </div>
+                                      <div className="text-xs">
+                                        <span className="text-gray-400">Stelle: </span>
+                                        <span className="text-yellow-300 font-medium">{existingEditForm.stars || card.stars || '—'}</span>
+                                      </div>
+                                    </>
+                                  )}
+                                  {existingEditForm.effect && (
+                                    <div className="text-xs">
+                                      <span className="text-gray-400">Effetto: </span>
+                                      <span className="text-green-300 text-[10px] line-clamp-3">{existingEditForm.effect}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
                             <div>
                               <label className="text-gray-400 text-xs">Nome originale: {card.originalName}</label>
                               <Input
