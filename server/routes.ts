@@ -6,8 +6,7 @@ import OpenAI from "openai";
 import jwt from "jsonwebtoken";
 import fs from "fs";
 import path from "path";
-import { db } from "./db";
-import { isDatabaseAvailable } from "./db";
+import { db, legacyDb, isDatabaseAvailable, isLegacyDbAvailable } from "./db";
 import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection } from "../shared/schema";
 import { jsonStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray } from "drizzle-orm";
@@ -10899,6 +10898,70 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       }
     } catch (error) {
       res.json({ success: true, tooltips: [] });
+    }
+  });
+
+  app.post('/api/admin/migrate-users-bulk', authMiddleware, async (req, res) => {
+    try {
+      const userEmail = (req as any).user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ success: false, error: 'Access denied' });
+      }
+
+      if (!isLegacyDbAvailable() || !legacyDb) {
+        return res.status(400).json({ success: false, error: 'Legacy DB non disponibile. DATABASE_URL e EXTERNAL_DATABASE_URL sono identici o il vecchio DB non è raggiungibile.' });
+      }
+      if (!isDatabaseAvailable() || !db) {
+        return res.status(503).json({ success: false, error: 'Database esterno non disponibile.' });
+      }
+
+      const legacyUsers = await legacyDb.select().from(users);
+      let migrated = 0;
+      let skipped = 0;
+      const errors: string[] = [];
+
+      for (const legacyUser of legacyUsers) {
+        try {
+          // Check if user already exists in external DB (by email or googleId)
+          const existing = legacyUser.email
+            ? await db.select().from(users).where(eq(users.email, legacyUser.email)).limit(1)
+            : legacyUser.googleId
+              ? await db.select().from(users).where(eq(users.googleId, legacyUser.googleId)).limit(1)
+              : [];
+
+          if (existing.length > 0) {
+            skipped++;
+            continue;
+          }
+
+          await db.insert(users).values({
+            username: legacyUser.username,
+            email: legacyUser.email,
+            password: legacyUser.password,
+            googleId: legacyUser.googleId,
+            avatar: legacyUser.avatar,
+            puntiRankiard: legacyUser.puntiRankiard,
+            gamesPlayed: legacyUser.gamesPlayed,
+            gamesWon: legacyUser.gamesWon,
+            minutesPlayed: legacyUser.minutesPlayed,
+            tutorialCompleted: legacyUser.tutorialCompleted,
+            isAdmin: legacyUser.isAdmin,
+          });
+
+          migrated++;
+          console.log(`[BulkMigration] ✅ Migrated user: ${legacyUser.email || legacyUser.username}`);
+        } catch (userError: any) {
+          const msg = `Failed to migrate ${legacyUser.email || legacyUser.username}: ${userError?.message}`;
+          errors.push(msg);
+          console.error(`[BulkMigration] ❌ ${msg}`);
+        }
+      }
+
+      console.log(`[BulkMigration] Complete — total: ${legacyUsers.length}, migrated: ${migrated}, skipped: ${skipped}, errors: ${errors.length}`);
+      res.json({ success: true, total: legacyUsers.length, migrated, skipped, errors });
+    } catch (error: any) {
+      console.error('[BulkMigration] Fatal error:', error);
+      res.status(500).json({ success: false, error: error?.message || 'Errore interno' });
     }
   });
 

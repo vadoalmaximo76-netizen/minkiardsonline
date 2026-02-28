@@ -1,5 +1,5 @@
 import { Express, Request, Response, NextFunction } from "express";
-import { db, isDatabaseAvailable } from "./db";
+import { db, legacyDb, isDatabaseAvailable, isLegacyDbAvailable } from "./db";
 import { users, registerUserSchema, loginUserSchema } from "../shared/schema";
 import { eq, or } from "drizzle-orm";
 import bcrypt from "bcryptjs";
@@ -191,40 +191,87 @@ export function registerAuthRoutes(app: Express) {
           let [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
 
           if (!user) {
-            // Check JSON storage for migration
-            const jsonUser = jsonStorage.users.getByEmail(email);
-            if (jsonUser) {
-              const validPassword = jsonUser.password ? await bcrypt.compare(password, jsonUser.password) : false;
-              if (validPassword) {
-                console.log(`[Migration] Migrating user ${email} from JSON to external DB`);
-                try {
-                  [user] = await db.insert(users).values({
-                    username: jsonUser.username,
-                    email: jsonUser.email,
-                    password: jsonUser.password,
-                    avatar: jsonUser.avatar,
-                    puntiRankiard: jsonUser.puntiRankiard,
-                    gamesPlayed: 0, // Default if not in JSON or add if present
-                    gamesWon: 0,
-                    tutorialCompleted: false,
-                    isAdmin: jsonUser.isAdmin,
-                  }).returning();
-                  emitSync('users', 'insert', { ...jsonUser });
-                } catch (migrationError) {
-                  console.error("[Migration] Error migrating user:", migrationError);
-                  // Use jsonUser for this session if migration fails but password was correct
-                  const token = generateToken(jsonUser.id, jsonUser.email);
-                  return res.json({
-                    success: true,
-                    token,
-                    user: {
-                      id: jsonUser.id,
+            // Check legacy DB (old Replit Neon DB) for migration
+            if (isLegacyDbAvailable() && legacyDb) {
+              try {
+                const [legacyUser] = await legacyDb.select().from(users).where(eq(users.email, email)).limit(1);
+                if (legacyUser && legacyUser.password) {
+                  const validLegacyPassword = await bcrypt.compare(password, legacyUser.password);
+                  if (validLegacyPassword) {
+                    console.log(`[Migration] Migrating user ${email} from legacy DB to external DB`);
+                    try {
+                      [user] = await db.insert(users).values({
+                        username: legacyUser.username,
+                        email: legacyUser.email,
+                        password: legacyUser.password,
+                        googleId: legacyUser.googleId,
+                        avatar: legacyUser.avatar,
+                        puntiRankiard: legacyUser.puntiRankiard,
+                        gamesPlayed: legacyUser.gamesPlayed,
+                        gamesWon: legacyUser.gamesWon,
+                        minutesPlayed: legacyUser.minutesPlayed,
+                        tutorialCompleted: legacyUser.tutorialCompleted,
+                        isAdmin: legacyUser.isAdmin,
+                      }).returning();
+                      console.log(`[Migration] ✅ User ${email} migrated successfully`);
+                    } catch (migrationError) {
+                      console.error("[Migration] Error migrating user from legacy DB:", migrationError);
+                      // Still allow login using legacy user data
+                      const token = generateToken(legacyUser.id, legacyUser.email);
+                      return res.json({
+                        success: true,
+                        token,
+                        user: {
+                          id: legacyUser.id,
+                          username: legacyUser.username,
+                          email: legacyUser.email,
+                          avatar: legacyUser.avatar,
+                          puntiRankiard: legacyUser.puntiRankiard,
+                        }
+                      });
+                    }
+                  }
+                }
+              } catch (legacyErr) {
+                console.warn("[Migration] Could not query legacy DB:", legacyErr);
+              }
+            }
+
+            // Fallback: check JSON storage
+            if (!user) {
+              const jsonUser = jsonStorage.users.getByEmail(email);
+              if (jsonUser && jsonUser.password) {
+                const validJsonPassword = await bcrypt.compare(password, jsonUser.password);
+                if (validJsonPassword) {
+                  console.log(`[Migration] Migrating user ${email} from JSON to external DB`);
+                  try {
+                    [user] = await db.insert(users).values({
                       username: jsonUser.username,
                       email: jsonUser.email,
+                      password: jsonUser.password,
                       avatar: jsonUser.avatar,
                       puntiRankiard: jsonUser.puntiRankiard,
-                    }
-                  });
+                      gamesPlayed: 0,
+                      gamesWon: 0,
+                      tutorialCompleted: false,
+                      isAdmin: jsonUser.isAdmin,
+                    }).returning();
+                    console.log(`[Migration] ✅ User ${email} migrated from JSON successfully`);
+                  } catch (migrationError) {
+                    console.error("[Migration] Error migrating user from JSON:", migrationError);
+                    const token = generateToken(jsonUser.id, jsonUser.email);
+                    return res.json({
+                      success: true,
+                      token,
+                      user: {
+                        id: jsonUser.id,
+                        username: jsonUser.username,
+                        email: jsonUser.email,
+                        avatar: jsonUser.avatar,
+                        puntiRankiard: jsonUser.puntiRankiard,
+                      }
+                    });
+                  }
                 }
               }
             }
@@ -372,23 +419,58 @@ export function registerAuthRoutes(app: Express) {
           }
         }
 
-        // Migration check for Google Auth
+        // Migration check for Google Auth — legacy DB first, then JSON
         if (!user) {
-          const jsonUser = jsonStorage.users.getByGoogleId(googleId) || (email ? jsonStorage.users.getByEmail(email) : undefined);
-          if (jsonUser) {
-            console.log(`[Migration] Migrating Google user ${email || googleId} from JSON to external DB`);
+          if (isLegacyDbAvailable() && legacyDb) {
             try {
-              [user] = await db.insert(users).values({
-                username: jsonUser.username,
-                email: jsonUser.email,
-                googleId: googleId,
-                avatar: jsonUser.avatar,
-                puntiRankiard: jsonUser.puntiRankiard,
-                isAdmin: jsonUser.isAdmin,
-              }).returning();
-              emitSync('users', 'insert', { ...jsonUser, googleId });
-            } catch (migrationError) {
-              console.error("[Migration] Error migrating Google user:", migrationError);
+              let [legacyUser] = await legacyDb.select().from(users).where(eq(users.googleId, googleId)).limit(1);
+              if (!legacyUser && email) {
+                const [legacyByEmail] = await legacyDb.select().from(users).where(eq(users.email, email)).limit(1);
+                if (legacyByEmail) legacyUser = legacyByEmail;
+              }
+              if (legacyUser) {
+                console.log(`[Migration] Migrating Google user ${email || googleId} from legacy DB to external DB`);
+                try {
+                  [user] = await db.insert(users).values({
+                    username: legacyUser.username,
+                    email: legacyUser.email,
+                    googleId: googleId,
+                    avatar: legacyUser.avatar,
+                    puntiRankiard: legacyUser.puntiRankiard,
+                    gamesPlayed: legacyUser.gamesPlayed,
+                    gamesWon: legacyUser.gamesWon,
+                    minutesPlayed: legacyUser.minutesPlayed,
+                    tutorialCompleted: legacyUser.tutorialCompleted,
+                    isAdmin: legacyUser.isAdmin,
+                  }).returning();
+                  console.log(`[Migration] ✅ Google user ${email || googleId} migrated successfully`);
+                } catch (migrationError) {
+                  console.error("[Migration] Error migrating Google user from legacy DB:", migrationError);
+                }
+              }
+            } catch (legacyErr) {
+              console.warn("[Migration] Could not query legacy DB for Google user:", legacyErr);
+            }
+          }
+
+          // Fallback: JSON storage
+          if (!user) {
+            const jsonUser = jsonStorage.users.getByGoogleId(googleId) || (email ? jsonStorage.users.getByEmail(email) : undefined);
+            if (jsonUser) {
+              console.log(`[Migration] Migrating Google user ${email || googleId} from JSON to external DB`);
+              try {
+                [user] = await db.insert(users).values({
+                  username: jsonUser.username,
+                  email: jsonUser.email,
+                  googleId: googleId,
+                  avatar: jsonUser.avatar,
+                  puntiRankiard: jsonUser.puntiRankiard,
+                  isAdmin: jsonUser.isAdmin,
+                }).returning();
+                emitSync('users', 'insert', { ...jsonUser, googleId });
+              } catch (migrationError) {
+                console.error("[Migration] Error migrating Google user from JSON:", migrationError);
+              }
             }
           }
         }
