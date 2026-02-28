@@ -969,20 +969,36 @@ export class GameManager {
           const mosseIds = (deckRow.mosseCards as string[]) || [];
           const bonusIds = (deckRow.bonusCards as string[]) || [];
           // Build Card objects from card IDs
+          // CARD_DATA[deckType] is an array of URL strings (not objects)
+          // Card IDs are in format "personaggi-5", "mosse-12", etc.
+          const allMods = jsonStorage.cardModifications.getAll();
+          const modMap = new Map(allMods.map((m: any) => [m.originalCardId, m]));
           const buildCards = (ids: string[], deckType: string): Card[] => {
+            const deckUrls = (CARD_DATA as any)[deckType] as string[] || [];
             return ids.map(id => {
-              const allCards = (CARD_DATA as any)[deckType] || [];
-              const cardData = allCards.find((c: any) => c.id === id);
-              if (!cardData) return null;
+              // Extract index from id: "personaggi-5" → 5
+              const parts = id.split('-');
+              const index = parseInt(parts[parts.length - 1]);
+              if (isNaN(index) || index < 0 || index >= deckUrls.length) return null;
+              const imageUrl = deckUrls[index];
+              if (!imageUrl) return null;
+              const mod = modMap.get(id) as any;
+              // Extract default name from URL filename
+              const urlParts = imageUrl.split('/');
+              const filename = urlParts[urlParts.length - 1] || '';
+              const defaultName = decodeURIComponent(filename)
+                .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+                .replace(/[-_]/g, ' ')
+                .trim();
               return {
                 id: `${id}-${Math.random().toString(36).substr(2, 6)}`,
                 type: deckType,
-                frontImage: cardData.frontImage || '',
+                frontImage: mod?.imageUrl || imageUrl,
                 backImage: (DECK_BACK_IMAGES as any)[deckType] || '',
                 owner: '',
-                name: cardData.name,
-                pti: cardData.pti,
-                stars: cardData.stars,
+                name: mod?.name || defaultName,
+                pti: mod?.pti ?? undefined,
+                stars: mod?.stars ?? undefined,
               } as Card;
             }).filter(Boolean) as Card[];
           };

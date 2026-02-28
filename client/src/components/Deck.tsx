@@ -18,11 +18,18 @@ const DeckComponent: React.FC<DeckProps> = ({ name, backImage, type }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [deckCards, setDeckCards] = useState<any[]>([]);
   const [isLoadingDeck, setIsLoadingDeck] = useState(false);
-  
+
+  const isDraftMode = (gameState as any)?.isDraftMode || false;
+  const playerDraftDeckCounts = (gameState as any)?.playerDraftDeckCounts || {};
+
   // Use deckCounts for faster access (pre-calculated on server)
-  // Fallback to array length for backward compatibility
+  // In draft mode, show the player's personal deck count
   const deckType = type === 'personaggi_speciali' ? 'personaggiSpeciali' : type;
-  const remainingCards = (gameState as any)?.deckCounts?.[deckType] ?? gameState?.decks?.[type]?.length ?? 0;
+  const sharedRemaining = (gameState as any)?.deckCounts?.[deckType] ?? gameState?.decks?.[type]?.length ?? 0;
+  const personalRemaining = isDraftMode && playerName && playerDraftDeckCounts[playerName]
+    ? (playerDraftDeckCounts[playerName][type] ?? 0)
+    : null;
+  const remainingCards = personalRemaining !== null ? personalRemaining : sharedRemaining;
 
   // Handle Escape key to close modal
   useEffect(() => {

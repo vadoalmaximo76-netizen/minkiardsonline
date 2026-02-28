@@ -48,6 +48,7 @@ const RoundTableComponent: React.FC = () => {
   
   const currentTurnPlayer = gameState?.turnOrder?.[gameState?.currentTurnIndex ?? 0] || '';
   const isMyTurn = currentTurnPlayer === playerName;
+  const isDraftMode = (gameState as any)?.isDraftMode || false;
 
   const fieldCards = gameState?.field || [];
   const players = gameState?.players || {};
@@ -312,7 +313,13 @@ const RoundTableComponent: React.FC = () => {
         
         {/* Center Area - Decks with protection zone - centered vertically */}
         <div className="absolute top-[45%] sm:top-[45%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
-          <div data-tutorial="decks" className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-3 md:gap-4 items-start justify-center zone-decks rounded-lg sm:rounded-xl p-2 sm:p-3 md:p-4 backdrop-blur-sm">
+          {isDraftMode && (
+            <div className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap bg-gradient-to-r from-teal-600 to-cyan-600 text-white text-[10px] sm:text-xs font-black px-2 py-0.5 rounded-full shadow-lg shadow-teal-500/30 flex items-center gap-1">
+              <span>🃏</span>
+              <span>DRAFT — MAZZO PERSONALE</span>
+            </div>
+          )}
+          <div data-tutorial="decks" className={`grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-3 md:gap-4 items-start justify-center zone-decks rounded-lg sm:rounded-xl p-2 sm:p-3 md:p-4 backdrop-blur-sm ${isDraftMode ? 'ring-1 ring-teal-500/40' : ''}`}>
             <Deck
               name="PERSONAGGI"
               backImage="https://i.imgur.com/r1rfUAB.png"

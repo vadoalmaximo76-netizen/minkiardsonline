@@ -115,6 +115,7 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
   const currentTurnPlayer = gameState?.turnOrder?.[gameState?.currentTurnIndex ?? 0] || '';
   const isMyTurn = currentTurnPlayer === playerName;
   const myHand = players[playerName]?.hand || [];
+  const isDraftMode = (gameState as any)?.isDraftMode || false;
 
   const turnOrder = gameState?.turnOrder || [];
 
@@ -825,18 +826,25 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
 
         {/* === MIDDLE ZONE: Decks === */}
         <div className="flex-1 flex items-center justify-center min-h-0 px-2">
-          <div className="deck-tap-area flex gap-2 sm:gap-3 items-start justify-center p-3 sm:p-4 rounded-2xl zone-depth zone-middle">
-            <div className="deck-tap-area scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-center">
-              <Deck name="PERSONAGGI" backImage="https://i.imgur.com/r1rfUAB.png" type="personaggi" />
-            </div>
-            <div className="deck-tap-area scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-center">
-              <Deck name="MOSSE" backImage="https://i.imgur.com/6MUXCZO.png" type="mosse" />
-            </div>
-            <div className="deck-tap-area scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-center">
-              <Deck name="BONUS" backImage="https://i.imgur.com/lEROr3r.png" type="bonus" />
-            </div>
-            <div className="deck-tap-area scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-center">
-              <Deck name="SPECIALI" backImage="https://i.imgur.com/ipVd57A.png" type="personaggi_speciali" />
+          <div className={`deck-tap-area flex flex-col items-center gap-1 p-3 sm:p-4 rounded-2xl zone-depth zone-middle ${isDraftMode ? 'ring-1 ring-teal-500/40' : ''}`}>
+            {isDraftMode && (
+              <div className="text-[9px] sm:text-[10px] font-black text-teal-300 bg-teal-900/50 px-2 py-0.5 rounded-full flex items-center gap-1 whitespace-nowrap">
+                <span>🃏</span><span>DRAFT — MAZZO PERSONALE</span>
+              </div>
+            )}
+            <div className="flex gap-2 sm:gap-3 items-start justify-center">
+              <div className="deck-tap-area scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-center">
+                <Deck name="PERSONAGGI" backImage="https://i.imgur.com/r1rfUAB.png" type="personaggi" />
+              </div>
+              <div className="deck-tap-area scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-center">
+                <Deck name="MOSSE" backImage="https://i.imgur.com/6MUXCZO.png" type="mosse" />
+              </div>
+              <div className="deck-tap-area scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-center">
+                <Deck name="BONUS" backImage="https://i.imgur.com/lEROr3r.png" type="bonus" />
+              </div>
+              <div className="deck-tap-area scale-[0.55] sm:scale-[0.65] md:scale-[0.75] origin-center">
+                <Deck name="SPECIALI" backImage="https://i.imgur.com/ipVd57A.png" type="personaggi_speciali" />
+              </div>
             </div>
           </div>
         </div>
