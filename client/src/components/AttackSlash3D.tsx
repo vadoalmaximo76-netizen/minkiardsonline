@@ -95,7 +95,7 @@ export const AttackSlash3D: React.FC<AttackSlash3DProps> = ({
 
   useEffect(() => {
     if (isVisible) {
-      const timer = setTimeout(onComplete, isCritical ? 1800 : 1400);
+      const timer = setTimeout(onComplete, isCritical ? 1000 : 800);
       return () => clearTimeout(timer);
     }
   }, [isVisible, onComplete, isCritical]);

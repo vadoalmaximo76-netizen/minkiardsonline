@@ -289,7 +289,7 @@ export const CardAnimation: React.FC<CardAnimationProps> = ({
 }) => {
   useEffect(() => {
     if (isVisible) {
-      const timer = setTimeout(onComplete, 3000);
+      const timer = setTimeout(onComplete, 1500);
       return () => clearTimeout(timer);
     }
   }, [isVisible, onComplete]);
@@ -393,8 +393,8 @@ export const CardAnimation: React.FC<CardAnimationProps> = ({
     <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
       <div className={`absolute inset-0 bg-gradient-radial ${getBackgroundGradient()} animate-pulse`} />
       
-      <div className="absolute inset-0">
-        <Canvas camera={{ position: [0, 0, 5], fov: 60 }}>
+      <div className="absolute inset-0" style={{ pointerEvents: 'none' }}>
+        <Canvas camera={{ position: [0, 0, 5], fov: 60 }} style={{ pointerEvents: 'none' }}>
           <Animation3DScene type={animationType} />
         </Canvas>
       </div>

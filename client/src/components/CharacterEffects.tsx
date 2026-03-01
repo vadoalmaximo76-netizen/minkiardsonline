@@ -215,7 +215,7 @@ export const CharacterEffects: React.FC<CharacterEffectProps> = ({
 }) => {
   useEffect(() => {
     if (isVisible) {
-      const duration = effectType === 'attack' ? 1500 : 2500;
+      const duration = effectType === 'attack' ? 800 : 1200;
       const timer = setTimeout(onComplete, duration);
       return () => clearTimeout(timer);
     }
@@ -246,8 +246,8 @@ export const CharacterEffects: React.FC<CharacterEffectProps> = ({
     <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
       <div className={`absolute inset-0 bg-gradient-radial ${getBackgroundGradient()}`} />
       
-      <div className="absolute inset-0">
-        <Canvas camera={{ position: [0, 0, 5], fov: 60 }}>
+      <div className="absolute inset-0" style={{ pointerEvents: 'none' }}>
+        <Canvas camera={{ position: [0, 0, 5], fov: 60 }} style={{ pointerEvents: 'none' }}>
           {effectType === 'attack' ? <AttackEffect /> : <DeathEffect />}
         </Canvas>
       </div>

@@ -61,7 +61,7 @@ export function CustomAnimationOverlay({ isVisible, cardName, animationDescripti
       }));
       setParticles(newParticles);
       
-      const timer = setTimeout(onComplete, 3000);
+      const timer = setTimeout(onComplete, 1500);
       return () => clearTimeout(timer);
     }
   }, [isVisible, onComplete]);
