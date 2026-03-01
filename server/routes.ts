@@ -11703,12 +11703,17 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       if (!Array.isArray(personaggiCards) || !Array.isArray(mosseCards) || !Array.isArray(bonusCards)) {
         return res.status(400).json({ error: 'Formato mazzo non valido' });
       }
-      const isComplete = personaggiCards.length === 33 && mosseCards.length === 33 && bonusCards.length === 33;
-      // Calculate total cost using jsonStorage (primary source for draftCost set by admin)
+      const isComplete = personaggiCards.length >= 33 && mosseCards.length >= 33 && bonusCards.length >= 33;
+      // Calculate total cost: base cards use cardModifications, custom cards use customCards table
       const allCardIds = [...personaggiCards, ...mosseCards, ...bonusCards];
       const allMods = jsonStorage.cardModifications.getAll();
       const costMap = new Map(allMods.map((m: any) => [m.originalCardId, (m.draftCost as number) || 0]));
-      const totalCostSpent = allCardIds.reduce((sum, id) => sum + (costMap.get(id) || 0), 0);
+      const allCustom = jsonStorage.customCards.getAll() as any[];
+      const customCostMap = new Map(allCustom.map((c: any) => [`custom-${c.id}`, (c.draftCost as number) || 0]));
+      const totalCostSpent = allCardIds.reduce((sum, id) => {
+        if (id.startsWith('custom-')) return sum + (customCostMap.get(id) || 0);
+        return sum + (costMap.get(id) || 0);
+      }, 0);
       // Check if user has enough credits
       const credits = await getOrCreateDraftCredits(currentUser.id);
       const totalAvailable = credits.freeCredits + credits.paidCredits + currentUser.puntiRankiard;
@@ -11740,6 +11745,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       const cards: any[] = [];
       const deckTypes = ['personaggi', 'mosse', 'bonus'] as const;
 
+      // 1. Base game cards
       for (const deckType of deckTypes) {
         const deckUrls: string[] = (CARD_DATA as any)[deckType] || [];
         deckUrls.forEach((imageUrl: string, index: number) => {
@@ -11765,6 +11771,22 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
             stars: mod?.stars ?? null,
             draftCost: (mod as any)?.draftCost ?? 0,
           });
+        });
+      }
+
+      // 2. Permanently created custom cards (personaggi/mosse/bonus only)
+      const allCustomCards = jsonStorage.customCards.getAll();
+      for (const cc of allCustomCards as any[]) {
+        if (!['personaggi', 'mosse', 'bonus'].includes(cc.deckType)) continue;
+        cards.push({
+          id: `custom-${cc.id}`,
+          deckType: cc.deckType,
+          name: cc.name,
+          imageUrl: cc.imageData, // base64 or URL
+          pti: cc.pti ?? null,
+          stars: cc.stars ?? null,
+          draftCost: cc.draftCost ?? 0,
+          isCustom: true,
         });
       }
 

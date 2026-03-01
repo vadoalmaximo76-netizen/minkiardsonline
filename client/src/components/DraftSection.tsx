@@ -139,7 +139,7 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
   const availableCredits = status ? status.totalCredits + status.puntiRankiard : 0;
   const totalCost = totalCostSelected();
   const canAfford = totalCost <= availableCredits;
-  const isComplete = selectedCards.personaggi.length === 33 && selectedCards.mosse.length === 33 && selectedCards.bonus.length === 33;
+  const isComplete = selectedCards.personaggi.length >= 33 && selectedCards.mosse.length >= 33 && selectedCards.bonus.length >= 33;
   const totalSelected = selectedCards.personaggi.length + selectedCards.mosse.length + selectedCards.bonus.length;
 
   const filteredAndSortedCards = useMemo(() => {
@@ -171,11 +171,6 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
       const current = prev[dt];
       if (current.includes(card.id)) {
         return { ...prev, [dt]: current.filter(id => id !== card.id) };
-      }
-      if (current.length >= 33) {
-        setSaveMessage({ type: 'error', text: `Hai già 33 ${dt} nel mazzo. Rimuovine una prima.` });
-        setTimeout(() => setSaveMessage(null), 3000);
-        return prev;
       }
       return { ...prev, [dt]: [...current, card.id] };
     });
@@ -210,7 +205,7 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
 
   const handleSave = async () => {
     if (!isComplete) {
-      setSaveMessage({ type: 'error', text: 'Il mazzo deve avere esattamente 33 personaggi, 33 mosse e 33 bonus.' });
+      setSaveMessage({ type: 'error', text: 'Il mazzo deve avere almeno 33 personaggi, 33 mosse e 33 bonus.' });
       setTimeout(() => setSaveMessage(null), 5000);
       return;
     }
@@ -417,7 +412,7 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
                     <div className={`flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r ${color} bg-opacity-20 border-b border-white/10`}>
                       <Icon className="w-4 h-4 text-white" />
                       <span className="text-white font-bold text-sm">{label}</span>
-                      <span className={`text-xs ml-1 font-semibold ${deckCards.length === 33 ? 'text-green-300' : 'text-white/50'}`}>{deckCards.length}/33</span>
+                      <span className={`text-xs ml-1 font-semibold ${deckCards.length >= 33 ? 'text-green-300' : 'text-white/50'}`}>{deckCards.length} {deckCards.length < 33 ? `(min 33)` : '✓'}</span>
                       <div className="ml-auto flex items-center gap-2">
                         {missing > 0 && (
                           <button
@@ -572,7 +567,7 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                 {filteredAndSortedCards.map(card => {
                   const selected = selectedCards[card.deckType].includes(card.id);
-                  const full = selectedCards[card.deckType].length >= 33 && !selected;
+                  const full = false; // No upper limit — minimum is 33 per type
                   const isFree = card.draftCost === 0;
                   return (
                     <div

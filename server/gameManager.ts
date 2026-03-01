@@ -973,10 +973,40 @@ export class GameManager {
           // Card IDs are in format "personaggi-5", "mosse-12", etc.
           const allMods = jsonStorage.cardModifications.getAll();
           const modMap = new Map(allMods.map((m: any) => [m.originalCardId, m]));
+          const allCustomCards = jsonStorage.customCards.getAll() as any[];
+          const customCardMap = new Map(allCustomCards.map((c: any) => [`custom-${c.id}`, c]));
           const buildCards = (ids: string[], deckType: string): Card[] => {
             const deckUrls = (CARD_DATA as any)[deckType] as string[] || [];
             return ids.map(id => {
-              // Extract index from id: "personaggi-5" → 5
+              // Handle permanently created custom cards (id = "custom-N")
+              if (id.startsWith('custom-')) {
+                const cc = customCardMap.get(id) as any;
+                if (!cc) return null;
+                const card: Card = {
+                  id: `${id}-${Math.random().toString(36).substr(2, 6)}`,
+                  type: deckType,
+                  frontImage: cc.imageData || '',
+                  backImage: (DECK_BACK_IMAGES as any)[deckType] || '',
+                  owner: '',
+                  name: cc.name || 'Carta',
+                  pti: cc.pti ?? 0,
+                  stars: cc.stars ?? 0,
+                  effect: cc.effect || undefined,
+                  audioUrl: cc.audioUrl || undefined,
+                  youtubeUrl: cc.youtubeUrl || undefined,
+                  mosseDamageValue: cc.mosseDamageValue ?? undefined,
+                  mosseDamageEffect: cc.mosseDamageEffect || undefined,
+                  mosseCharacterOverrides: cc.mosseCharacterOverrides || undefined,
+                  mosseRestrictedFrom: cc.mosseRestrictedFrom || undefined,
+                  mosseRestrictedAgainst: cc.mosseRestrictedAgainst || undefined,
+                  mosseTargetingMode: cc.mosseTargetingMode || undefined,
+                  mosseTargetCount: cc.mosseTargetCount ?? undefined,
+                  mosseCanCounter: cc.mosseCanCounter ?? false,
+                  mosseCanBeCountered: cc.mosseCanBeCountered ?? false,
+                } as Card;
+                return card;
+              }
+              // Handle base game cards (id = "personaggi-5")
               const parts = id.split('-');
               const index = parseInt(parts[parts.length - 1]);
               if (isNaN(index) || index < 0 || index >= deckUrls.length) return null;
