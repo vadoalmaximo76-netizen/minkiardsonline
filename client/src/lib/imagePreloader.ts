@@ -4,16 +4,9 @@ let cloudinaryCloudName: string | null = null;
 
 async function fetchCloudinaryConfig() {
   try {
-    const res = await fetch('/api/integrations-status');
+    const res = await fetch('/api/cloudinary-cloud-name');
     const data = await res.json();
-    if (data.cloudinary) {
-      const configRes = await fetch('/api/optimize-image?url=test&size=card');
-      const configData = await configRes.json();
-      if (configData.optimized && configData.optimized !== 'test') {
-        const match = configData.optimized.match(/res\.cloudinary\.com\/([^/]+)/);
-        if (match) cloudinaryCloudName = match[1];
-      }
-    }
+    if (data.cloudName) cloudinaryCloudName = data.cloudName;
   } catch {
   }
 }

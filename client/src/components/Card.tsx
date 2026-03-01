@@ -8,6 +8,7 @@ import { X, Palette } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { FloatingNumber } from "./FloatingNumber";
+import { getOptimizedUrl } from "../lib/imagePreloader";
 import { SkinSelectionPanel } from "./SkinSelectionPanel";
 
 let _cardIdCounter = 0;
@@ -1177,7 +1178,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           }}
         >
           <img 
-            src={appliedSkinUrl || card.frontImage} 
+            src={getOptimizedUrl(appliedSkinUrl || card.frontImage, 'preview')} 
             alt="Card preview"
             className="w-full rounded-lg"
             style={{ maxHeight: '350px', objectFit: 'contain' }}
@@ -1336,7 +1337,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           onClick={handleCardClick}
         >
           <img
-            src={showBack || card.faceDown ? card.backImage : (appliedSkinUrl || card.frontImage)}
+            src={getOptimizedUrl(showBack || card.faceDown ? card.backImage : (appliedSkinUrl || card.frontImage), 'card')}
             alt="Card"
             loading="eager"
             decoding="async"

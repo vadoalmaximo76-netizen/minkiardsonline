@@ -11581,6 +11581,11 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     }
   });
 
+  // === CLOUDINARY CLOUD NAME ROUTE (fast, no redirect) ===
+  app.get('/api/cloudinary-cloud-name', (req, res) => {
+    res.json({ cloudName: process.env.CLOUDINARY_CLOUD_NAME || null });
+  });
+
   // === CLOUDINARY IMAGE OPTIMIZATION ROUTE ===
   app.get('/api/optimize-image', (req, res) => {
     try {

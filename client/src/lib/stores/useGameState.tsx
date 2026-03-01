@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { shallow } from "zustand/shallow";
 import { socket } from "../socket";
+import { preloadImages, getOptimizedUrl } from "../imagePreloader";
 
 // Debounce game state updates for performance on slow connections
 let gameStateUpdateTimeout: NodeJS.Timeout | null = null;
@@ -149,8 +150,25 @@ export const useGameState = create<GameStateStore>()(
         
         // Apply immediately - no delays
         set({ gameState: newGameState });
-        
+
+        // Preload card images for the current player's hand and all field cards
         const currentPlayerName = get().playerName;
+        try {
+          const urlsToPreload: string[] = [];
+          if (currentPlayerName && newGameState.hands?.[currentPlayerName]) {
+            for (const card of newGameState.hands[currentPlayerName]) {
+              if (card.frontImage) urlsToPreload.push(getOptimizedUrl(card.frontImage, 'card'));
+              if (card.backImage) urlsToPreload.push(getOptimizedUrl(card.backImage, 'card'));
+            }
+          }
+          if (newGameState.field) {
+            for (const card of newGameState.field) {
+              if (card.frontImage) urlsToPreload.push(getOptimizedUrl(card.frontImage, 'card'));
+            }
+          }
+          if (urlsToPreload.length > 0) preloadImages(urlsToPreload);
+        } catch {}
+
         if (currentPlayerName && (newGameState as any).prSpentThisGame) {
           const serverSpent = (newGameState as any).prSpentThisGame[currentPlayerName] || 0;
           if (serverSpent > get().prSpentThisGame) {
