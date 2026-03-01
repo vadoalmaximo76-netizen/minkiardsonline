@@ -890,6 +890,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
 
     const handleNextTurn = ({ nextPlayer }: { nextPlayer: string }) => {
+      if (turnTimerIntervalRef.current) clearInterval(turnTimerIntervalRef.current);
+      setTurnTimerState({ active: false, seconds: 30, playerName: '', isWarning: false });
       setNextTurnPlayer(nextPlayer);
       setNextTurnVisible(true);
       if (nextPlayer === playerName) {
