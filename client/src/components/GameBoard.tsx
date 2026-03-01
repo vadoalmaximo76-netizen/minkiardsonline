@@ -136,6 +136,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [leavingPlayer, setLeavingPlayer] = useState<string>("");
   const [turnTimerState, setTurnTimerState] = useState<{ active: boolean; seconds: number; playerName: string; isWarning: boolean }>({ active: false, seconds: 30, playerName: '', isWarning: false });
   const turnTimerIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+  const timerPlayerRef = React.useRef<string>('');
   const [rematchState, setRematchState] = useState<{ votes: number; total: number; voters: string[]; declined: boolean; declinedBy: string; expired: boolean; newGameId: string | null }>({ votes: 0, total: 0, voters: [], declined: false, declinedBy: '', expired: false, newGameId: null });
   const [superDiceOpen, setSuperDiceOpen] = useState(false);
   const [showCpuControls, setShowCpuControls] = useState(false);
@@ -890,8 +891,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
 
     const handleNextTurn = ({ nextPlayer }: { nextPlayer: string }) => {
-      if (turnTimerIntervalRef.current) clearInterval(turnTimerIntervalRef.current);
-      setTurnTimerState({ active: false, seconds: 30, playerName: '', isWarning: false });
+      // Only clear if the timer is still for the OLD player.
+      // turn-timer-start (emitted by the server BEFORE next-turn) may have already
+      // set timerPlayerRef.current to nextPlayer — in that case, don't touch it.
+      if (timerPlayerRef.current !== nextPlayer) {
+        if (turnTimerIntervalRef.current) clearInterval(turnTimerIntervalRef.current);
+        timerPlayerRef.current = '';
+        setTurnTimerState({ active: false, seconds: 30, playerName: '', isWarning: false });
+      }
       setNextTurnPlayer(nextPlayer);
       setNextTurnVisible(true);
       if (nextPlayer === playerName) {
@@ -1827,6 +1834,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     // ── Turn Timer ──────────────────────────────────────────────────────────
     const startTurnCountdown = (totalSeconds: number, timerPlayerName: string) => {
       if (turnTimerIntervalRef.current) clearInterval(turnTimerIntervalRef.current);
+      timerPlayerRef.current = timerPlayerName;
       let remaining = totalSeconds;
       setTurnTimerState({ active: true, seconds: remaining, playerName: timerPlayerName, isWarning: remaining <= 10 });
       turnTimerIntervalRef.current = setInterval(() => {
