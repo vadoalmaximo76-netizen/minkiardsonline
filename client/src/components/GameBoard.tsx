@@ -70,6 +70,7 @@ import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
 import { useBackgroundEffect } from "../lib/stores/useBackgroundEffect";
 import { socket } from "../lib/socket";
+import { getOptimizedUrl, onCloudNameReady } from "../lib/imagePreloader";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star, Hand, Music, Shuffle, User, LogOut, Target, Trophy, SkipForward, ScrollText, Settings, MoreVertical, BookOpen, UserPlus, RotateCcw, PlusCircle, ChevronDown, Palette } from "lucide-react";
@@ -94,6 +95,8 @@ interface GameBoardProps {
 }
 
 export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogout, authToken, onBack, onLeaveGame }) => {
+  const [, _forceCloudUpdate] = useState(0);
+  useEffect(() => onCloudNameReady(() => _forceCloudUpdate(n => n + 1)), []);
   const [chatOpen, setChatOpen] = useState(false);
   const [soundSettingsOpen, setSoundSettingsOpen] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
@@ -2293,7 +2296,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 >
                   {target.frontImage ? (
                     <img 
-                      src={target.frontImage} 
+                      src={getOptimizedUrl(target.frontImage, 'card')} 
                       alt="Target" 
                       className="w-full h-32 object-cover rounded mb-2"
                     />
@@ -2351,7 +2354,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 >
                   {card.frontImage ? (
                     <img 
-                      src={card.frontImage} 
+                      src={getOptimizedUrl(card.frontImage, 'card')} 
                       alt="Graveyard Card" 
                       className="w-full h-32 object-cover rounded mb-2"
                     />
@@ -2609,7 +2612,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   >
                     {card.frontImage ? (
                       <img
-                        src={card.frontImage}
+                        src={getOptimizedUrl(card.frontImage, 'card')}
                         alt={card.name}
                         className="w-full h-auto rounded object-contain max-h-32"
                         loading="lazy"
@@ -2773,7 +2776,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   >
                     {card.frontImage ? (
                       <img 
-                        src={card.frontImage} 
+                        src={getOptimizedUrl(card.frontImage, 'card')} 
                         alt="Target Card" 
                         className="w-full h-32 object-cover rounded mb-2"
                       />
@@ -2868,7 +2871,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   >
                     <div className="flex flex-col items-center gap-2">
                       {char.frontImage && (
-                        <img src={char.frontImage} alt={char.name} className="w-16 h-20 object-cover rounded" />
+                        <img src={getOptimizedUrl(char.frontImage, 'card')} alt={char.name} className="w-16 h-20 object-cover rounded" />
                       )}
                       <span className="text-white font-bold text-sm text-center">{char.name}</span>
                       <span className={`text-xs ${char.owner === playerName ? 'text-green-400' : 'text-red-400'}`}>
@@ -2933,7 +2936,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   <div key={charId} className="bg-gray-800/80 rounded-lg p-4 border border-amber-500/50">
                     <div className="flex items-center gap-3 mb-3">
                       {char.frontImage && (
-                        <img src={char.frontImage} alt={char.name} className="w-12 h-16 object-cover rounded" />
+                        <img src={getOptimizedUrl(char.frontImage, 'card')} alt={char.name} className="w-12 h-16 object-cover rounded" />
                       )}
                       <span className="text-white font-bold">{char.name}</span>
                     </div>
@@ -3186,7 +3189,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                     }`}
                   >
                     <img 
-                      src={target.frontImage} 
+                      src={getOptimizedUrl(target.frontImage, 'card')} 
                       alt={target.name}
                       className="w-full h-24 object-contain rounded mb-1"
                     />
@@ -3254,7 +3257,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   {cards.map(card => (
                     <div key={card.id} className="bg-black/40 rounded-lg p-2 border border-cyan-500/30 text-center">
                       {card.frontImage && (
-                        <img src={card.frontImage} alt={card.name} className="w-full h-24 sm:h-32 object-contain rounded mb-1" />
+                        <img src={getOptimizedUrl(card.frontImage, 'card')} alt={card.name} className="w-full h-24 sm:h-32 object-contain rounded mb-1" />
                       )}
                       <p className="text-xs sm:text-sm text-white font-bold truncate">{card.name}</p>
                       <p className="text-xs text-cyan-300">{card.type}</p>
@@ -3312,7 +3315,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                       }`}
                     >
                       <img 
-                        src={char.frontImage} 
+                        src={getOptimizedUrl(char.frontImage, 'card')} 
                         alt={char.name}
                         className="w-full h-20 object-contain rounded mb-1"
                       />
@@ -3933,7 +3936,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                     }}
                     className="cursor-pointer rounded-lg border-2 border-transparent hover:border-amber-400 active:border-amber-400 active:scale-95 transition-all hover:scale-105 p-1 bg-black/30"
                   >
-                    <img src={card.frontImage} alt={card.name || 'Card'} className="w-full h-28 object-contain rounded" />
+                    <img src={getOptimizedUrl(card.frontImage, 'card')} alt={card.name || 'Card'} className="w-full h-28 object-contain rounded" />
                     {card.name && <p className="text-white text-[10px] text-center mt-1 truncate">{card.name}</p>}
                   </div>
                 ))}

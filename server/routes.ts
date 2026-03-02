@@ -654,7 +654,7 @@ async function executeCpuDuelAttackSequence(
     });
     
     const duelAttackResult = await gameManager.executeMossaAttack(
-      gameId, initiatorPlayer, duelCardId, opponentCharacterId, duelloDmg
+      gameId, initiatorPlayer, duelCardId, opponentCharacterId, duelloDmg, false, undefined, 0, null, false, true
     );
     
     if (duelAttackResult.success && duelAttackResult.result?.requiresDefenseResponse) {

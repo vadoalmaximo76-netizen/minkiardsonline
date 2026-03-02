@@ -9454,7 +9454,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   }
 
   // NEW: Authoritative MOSSE attack execution
-  async executeMossaAttack(gameId: string, attackerName: string, mosseCardId: string, targetCardId: string, damageValue: number, isHandTarget: boolean | number = false, defenseRequestEmitter?: (data: any) => void | string | null, starsToRemove: number = 0, mosseEffect?: string | null, isFurtoAttack: boolean = false): Promise<{ success: boolean; result?: any; error?: string }> {
+  async executeMossaAttack(gameId: string, attackerName: string, mosseCardId: string, targetCardId: string, damageValue: number, isHandTarget: boolean | number = false, defenseRequestEmitter?: (data: any) => void | string | null, starsToRemove: number = 0, mosseEffect?: string | null, isFurtoAttack: boolean = false, isDuelAttack: boolean = false): Promise<{ success: boolean; result?: any; error?: string }> {
     // Handle legacy calls where isHandTarget might be starsToRemove number
     if (typeof isHandTarget === 'number') {
       starsToRemove = isHandTarget;
@@ -9478,7 +9478,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
 
     // Find MOSSE card on field (should be played first)
-    const mosseCard = game.field.find(c => c.id === mosseCardId && c.owner === attackerName && c.type === 'mosse');
+    // isDuelAttack allows BONUS cards (e.g. DUELLO card) to deal damage like a MOSSE
+    const mosseCard = game.field.find(c => 
+      c.id === mosseCardId && c.owner === attackerName && 
+      (c.type === 'mosse' || (isDuelAttack && c.type === 'bonus'))
+    );
     if (!mosseCard) {
       return { success: false, error: 'MOSSE card not found on field or not owned by attacker' };
     }
@@ -12370,6 +12374,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if (game.activeDuel.character1Id === cardId || game.activeDuel.character2Id === cardId) {
           const duel = game.activeDuel;
           const winnerPlayer = cardId === duel.character1Id ? duel.player2 : duel.player1;
+          const duelCurrentTurn = duel.currentTurn; // Save before endDuel clears it
           console.log(`⚔️ DUELLO (moveToGraveyard): Character ${cardId} died - ending duel. Winner: ${winnerPlayer}`);
           this.endDuel(gameId, `Character death in moveToGraveyard (${cardId})`);
           const ioGlobal = (global as any).io;
@@ -12384,6 +12389,20 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               winner: winnerPlayer,
               reason: 'character_death'
             });
+            // Auto-end turn after duel ends due to character death
+            // Delay to allow the duel-ended animation to play
+            setTimeout(() => {
+              const freshGame = this.games.get(gameId);
+              if (!freshGame || freshGame.activeDuel?.active) return; // Duel re-started or game gone
+              const nextPlayer = this.endTurn(gameId, duelCurrentTurn);
+              if (nextPlayer) {
+                ioGlobal.to(gameId).emit('next-turn', { nextPlayer });
+                const freshState = this.games.get(gameId);
+                if (freshState && freshState.players[nextPlayer]?.isCPU) {
+                  setTimeout(() => this.processCPUTurn(gameId, nextPlayer, ioGlobal), 2000);
+                }
+              }
+            }, 3500);
           }
         }
       }

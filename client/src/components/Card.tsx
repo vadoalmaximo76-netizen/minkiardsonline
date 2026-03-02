@@ -8,7 +8,7 @@ import { X, Palette } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { FloatingNumber } from "./FloatingNumber";
-import { getOptimizedUrl } from "../lib/imagePreloader";
+import { getOptimizedUrl, onCloudNameReady } from "../lib/imagePreloader";
 import { SkinSelectionPanel } from "./SkinSelectionPanel";
 
 let _cardIdCounter = 0;
@@ -140,6 +140,8 @@ interface CardProps {
 
 
 const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, onCardPlayed }) => {
+  const [, forceUpdate] = useState(0);
+  useEffect(() => onCloudNameReady(() => forceUpdate(n => n + 1)), []);
   const [cardText, setCardText] = useState(card.text || "");
   const [showActions, setShowActions] = useState(false);
   const [showPlayerSelect, setShowPlayerSelect] = useState(false);
@@ -1643,7 +1645,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                     }}
                   >
                     <img 
-                      src={target.frontImage} 
+                      src={getOptimizedUrl(target.frontImage, 'card')} 
                       alt="Character"
                       style={{ 
                         width: '120px', 
@@ -1740,7 +1742,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                     }}
                   >
                     <img 
-                      src={target.frontImage} 
+                      src={getOptimizedUrl(target.frontImage, 'card')} 
                       alt="Character"
                       style={{ 
                         width: '120px', 
@@ -2029,7 +2031,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                   >
                     <div style={{ position: 'relative' }}>
                       <img 
-                        src={character.frontImage} 
+                        src={getOptimizedUrl(character.frontImage, 'card')} 
                         alt={cardName}
                         style={{ 
                           width: '80px', 
@@ -2137,7 +2139,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                   {gameState.field.find((c: any) => c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')) ? (
                     <>
                       <img 
-                        src={gameState.field.find((c: any) => c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'))?.frontImage}
+                        src={getOptimizedUrl(gameState.field.find((c: any) => c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'))?.frontImage || '', 'card')}
                         alt="Attaccante"
                         className="w-24 h-32 rounded-xl border-2 border-green-500 object-cover shadow-lg"
                         onError={(e) => (e.currentTarget.style.display = 'none')}
@@ -2161,7 +2163,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
               {selectedMosseCard ? (
                 <>
                   <img 
-                    src={selectedMosseCard.frontImage}
+                    src={getOptimizedUrl(selectedMosseCard.frontImage, 'card')}
                     alt="MOSSE"
                     className="w-28 h-36 rounded-xl border-4 border-yellow-500 object-cover shadow-lg"
                     onError={(e) => (e.currentTarget.style.display = 'none')}
@@ -2185,7 +2187,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                   {targetCards.map((tc: any) => (
                     <div key={tc.id} className="flex flex-col items-center">
                       <img 
-                        src={tc.frontImage}
+                        src={getOptimizedUrl(tc.frontImage, 'card')}
                         alt="Bersaglio"
                         className="w-16 h-20 rounded-lg border-2 border-red-500 object-cover shadow-lg"
                         onError={(e) => (e.currentTarget.style.display = 'none')}
@@ -2209,7 +2211,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                   ) : (
                     <>
                       <img 
-                        src={targetCard.frontImage}
+                        src={getOptimizedUrl(targetCard.frontImage, 'card')}
                         alt="Difensore"
                         className="w-24 h-32 rounded-xl border-2 border-red-500 object-cover shadow-lg"
                         onError={(e) => (e.currentTarget.style.display = 'none')}

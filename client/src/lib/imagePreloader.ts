@@ -1,17 +1,37 @@
 const imageCache = new Map<string, HTMLImageElement>();
 
-let cloudinaryCloudName: string | null = null;
+const STORAGE_KEY = 'minkiards_cloudinary_cloud_name';
+
+// Load from localStorage immediately (synchronous, instant on repeat visits)
+let cloudinaryCloudName: string | null = localStorage.getItem(STORAGE_KEY) || null;
+
+// Listeners to notify components when cloud name becomes available
+const listeners = new Set<() => void>();
+
+export function onCloudNameReady(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
 
 async function fetchCloudinaryConfig() {
   try {
     const res = await fetch('/api/cloudinary-cloud-name');
     const data = await res.json();
-    if (data.cloudName) cloudinaryCloudName = data.cloudName;
+    if (data.cloudName && data.cloudName !== cloudinaryCloudName) {
+      cloudinaryCloudName = data.cloudName;
+      localStorage.setItem(STORAGE_KEY, cloudinaryCloudName);
+      // Notify all subscribers so they can re-render with optimized URLs
+      listeners.forEach(fn => fn());
+    }
   } catch {
   }
 }
 
 fetchCloudinaryConfig();
+
+export function getCloudinaryCloudName(): string | null {
+  return cloudinaryCloudName;
+}
 
 export function getOptimizedUrl(originalUrl: string, size: 'thumb' | 'card' | 'preview' | 'full' = 'card'): string {
   if (!cloudinaryCloudName || !originalUrl || originalUrl.startsWith('data:')) return originalUrl;
