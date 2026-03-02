@@ -8,7 +8,7 @@ import { X, Palette } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { FloatingNumber } from "./FloatingNumber";
-import { getOptimizedUrl, onCloudNameReady } from "../lib/imagePreloader";
+import { getOptimizedUrl, onCloudNameReady, getCloudinaryCloudName } from "../lib/imagePreloader";
 import { SkinSelectionPanel } from "./SkinSelectionPanel";
 
 let _cardIdCounter = 0;
@@ -141,7 +141,13 @@ interface CardProps {
 
 const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, onCardPlayed }) => {
   const [, forceUpdate] = useState(0);
-  useEffect(() => onCloudNameReady(() => forceUpdate(n => n + 1)), []);
+  // Only listen for cloudName if it wasn't available at mount (prevents double-loading)
+  const cloudNameReadyAtMount = useRef(!!getCloudinaryCloudName());
+  useEffect(() => {
+    if (!cloudNameReadyAtMount.current) {
+      return onCloudNameReady(() => forceUpdate(n => n + 1));
+    }
+  }, []);
   const [cardText, setCardText] = useState(card.text || "");
   const [showActions, setShowActions] = useState(false);
   const [showPlayerSelect, setShowPlayerSelect] = useState(false);
@@ -1184,6 +1190,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
             alt="Card preview"
             className="w-full rounded-lg"
             style={{ maxHeight: '350px', objectFit: 'contain' }}
+            onError={(e) => { const t = e.currentTarget; const orig = appliedSkinUrl || card.frontImage; if (t.src !== orig) { t.onerror = null; t.src = orig; } }}
           />
           {cardText && (
             <div className="mt-1 bg-black/90 text-white text-xs p-2 rounded-lg max-w-full">
@@ -1343,6 +1350,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
             alt="Card"
             loading="eager"
             decoding="async"
+            onError={(e) => { const t = e.currentTarget; const orig = (showBack || card.faceDown) ? card.backImage : (appliedSkinUrl || card.frontImage); if (t.src !== orig) { t.onerror = null; t.src = orig; } }}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             className={`w-20 h-auto aspect-[2/3] sm:w-20 md:w-20 lg:w-24 card-master object-cover rounded-xl bg-slate-700

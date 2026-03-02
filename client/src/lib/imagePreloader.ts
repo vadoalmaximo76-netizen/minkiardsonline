@@ -37,9 +37,9 @@ export function getOptimizedUrl(originalUrl: string, size: 'thumb' | 'card' | 'p
   if (!cloudinaryCloudName || !originalUrl || originalUrl.startsWith('data:')) return originalUrl;
   
   const sizeMap: Record<string, string> = {
-    thumb: 'w_80,h_120,c_fill,q_auto,f_auto',
-    card: 'w_160,h_240,c_fill,q_auto,f_auto',
-    preview: 'w_400,h_600,c_fill,q_auto,f_auto',
+    thumb: 'w_80,h_120,c_limit,q_auto,f_auto',
+    card: 'w_160,h_240,c_limit,q_auto,f_auto',
+    preview: 'w_400,h_600,c_limit,q_auto,f_auto',
     full: 'q_auto,f_auto',
   };
   
