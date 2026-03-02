@@ -65,12 +65,12 @@ export const EvolutionAnimation: React.FC<EvolutionAnimationProps> = ({
   const config = TYPE_CONFIG[type] || TYPE_CONFIG.evolution;
 
   const energyParticles = useMemo(() =>
-    [...Array(40)].map((_, i) => ({
+    [...Array(30)].map((_, i) => ({
       x: Math.random() * 100,
       y: Math.random() * 100,
       size: 3 + Math.random() * 8,
-      delay: Math.random() * 2,
-      duration: 1.5 + Math.random() * 2,
+      delay: Math.random() * 0.5,
+      duration: 0.8 + Math.random() * 0.8,
       color: config.particleColors[i % config.particleColors.length]
     })), [type]
   );
@@ -79,17 +79,17 @@ export const EvolutionAnimation: React.FC<EvolutionAnimationProps> = ({
     [...Array(8)].map((_, i) => ({
       angle: (i / 8) * 360,
       length: 80 + Math.random() * 120,
-      delay: Math.random() * 1.5,
+      delay: Math.random() * 0.4,
       width: 2 + Math.random() * 3
     })), []
   );
 
   const ringParticles = useMemo(() =>
-    [...Array(24)].map((_, i) => ({
-      angle: (i / 24) * 360,
+    [...Array(16)].map((_, i) => ({
+      angle: (i / 16) * 360,
       distance: 100 + Math.random() * 60,
       size: 4 + Math.random() * 6,
-      delay: i * 0.08,
+      delay: i * 0.04,
       color: config.particleColors[i % config.particleColors.length]
     })), [type]
   );
@@ -101,14 +101,14 @@ export const EvolutionAnimation: React.FC<EvolutionAnimationProps> = ({
     }
 
     setPhase(1);
-    const t2 = setTimeout(() => setPhase(2), 800);
-    const t3 = setTimeout(() => setPhase(3), 1800);
-    const t4 = setTimeout(() => setPhase(4), 2800);
-    const t5 = setTimeout(() => setPhase(5), 4200);
+    const t2 = setTimeout(() => setPhase(2), 350);
+    const t3 = setTimeout(() => setPhase(3), 800);
+    const t4 = setTimeout(() => setPhase(4), 1300);
+    const t5 = setTimeout(() => setPhase(5), 1900);
     const t6 = setTimeout(() => {
       setPhase(0);
       onComplete?.();
-    }, 5500);
+    }, 2500);
 
     return () => {
       clearTimeout(t2);
@@ -118,6 +118,11 @@ export const EvolutionAnimation: React.FC<EvolutionAnimationProps> = ({
       clearTimeout(t6);
     };
   }, [isVisible, onComplete]);
+
+  const handleSkip = () => {
+    setPhase(0);
+    onComplete?.();
+  };
 
   if (!isVisible || phase === 0) return null;
 
@@ -137,6 +142,22 @@ export const EvolutionAnimation: React.FC<EvolutionAnimationProps> = ({
         }
       `}</style>
       <div className="fixed inset-0 z-[9999] pointer-events-none" style={{ perspective: '1000px' }}>
+      <button
+        onClick={handleSkip}
+        className="absolute bottom-6 right-6 z-10 pointer-events-auto"
+        style={{
+          background: 'rgba(0,0,0,0.6)',
+          border: '1px solid rgba(255,255,255,0.25)',
+          color: 'rgba(255,255,255,0.7)',
+          padding: '6px 16px',
+          borderRadius: '20px',
+          fontSize: '13px',
+          cursor: 'pointer',
+          backdropFilter: 'blur(4px)'
+        }}
+      >
+        Salta ▶
+      </button>
       <div
         className="absolute inset-0"
         style={{

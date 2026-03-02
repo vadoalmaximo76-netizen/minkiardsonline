@@ -69,44 +69,49 @@ export const FusionAnimation: React.FC<FusionAnimationProps> = ({
   const config = FUSION_CONFIG[fusionType] || FUSION_CONFIG.fusione;
 
   const mergeParticles = useMemo(() =>
-    [...Array(50)].map((_, i) => ({
+    [...Array(30)].map((_, i) => ({
       x: Math.random() * 100,
       y: Math.random() * 100,
       size: 2 + Math.random() * 7,
-      delay: Math.random() * 2,
-      duration: 1 + Math.random() * 2,
+      delay: Math.random() * 0.5,
+      duration: 0.6 + Math.random() * 0.8,
       color: config.particleColors[i % config.particleColors.length]
     })), [fusionType]
   );
 
   const spiralParticles = useMemo(() =>
-    [...Array(30)].map((_, i) => {
-      const angle = (i / 30) * Math.PI * 4;
-      const radius = 5 + (i / 30) * 20;
+    [...Array(20)].map((_, i) => {
+      const angle = (i / 20) * Math.PI * 4;
+      const radius = 5 + (i / 20) * 20;
       return {
         x: 50 + Math.cos(angle) * radius,
         y: 50 + Math.sin(angle) * radius,
         size: 3 + Math.random() * 5,
-        delay: i * 0.05,
+        delay: i * 0.03,
         color: config.particleColors[i % config.particleColors.length]
       };
     }), [fusionType]
   );
 
   const dnaHelixParticles = useMemo(() =>
-    [...Array(20)].map((_, i) => {
-      const t = i / 20;
+    [...Array(12)].map((_, i) => {
+      const t = i / 12;
       return {
         x1: 50 + Math.cos(t * Math.PI * 3) * 12,
         y1: 20 + t * 60,
         x2: 50 - Math.cos(t * Math.PI * 3) * 12,
         y2: 20 + t * 60,
         size: 4 + Math.random() * 4,
-        delay: t * 1.5,
+        delay: t * 0.5,
         color: config.particleColors[i % config.particleColors.length]
       };
     }), [fusionType]
   );
+
+  const handleSkip = () => {
+    setPhase(0);
+    onComplete?.();
+  };
 
   useEffect(() => {
     if (!isVisible) {
@@ -115,15 +120,15 @@ export const FusionAnimation: React.FC<FusionAnimationProps> = ({
     }
 
     setPhase(1);
-    const t2 = setTimeout(() => setPhase(2), 600);
-    const t3 = setTimeout(() => setPhase(3), 1600);
-    const t4 = setTimeout(() => setPhase(4), 2800);
-    const t5 = setTimeout(() => setPhase(5), 4000);
-    const t6 = setTimeout(() => setPhase(6), 5200);
+    const t2 = setTimeout(() => setPhase(2), 300);
+    const t3 = setTimeout(() => setPhase(3), 800);
+    const t4 = setTimeout(() => setPhase(4), 1400);
+    const t5 = setTimeout(() => setPhase(5), 1900);
+    const t6 = setTimeout(() => setPhase(6), 2500);
     const t7 = setTimeout(() => {
       setPhase(0);
       onComplete?.();
-    }, 6500);
+    }, 3200);
 
     return () => {
       clearTimeout(t2);
@@ -232,6 +237,22 @@ export const FusionAnimation: React.FC<FusionAnimationProps> = ({
       `}</style>
 
       <div className="fixed inset-0 z-[9999] pointer-events-none" style={{ perspective: '1200px' }}>
+        <button
+          onClick={handleSkip}
+          className="absolute bottom-6 right-6 z-10 pointer-events-auto"
+          style={{
+            background: 'rgba(0,0,0,0.6)',
+            border: '1px solid rgba(255,255,255,0.25)',
+            color: 'rgba(255,255,255,0.7)',
+            padding: '6px 16px',
+            borderRadius: '20px',
+            fontSize: '13px',
+            cursor: 'pointer',
+            backdropFilter: 'blur(4px)'
+          }}
+        >
+          Salta ▶
+        </button>
         <div
           className="absolute inset-0"
           style={{
