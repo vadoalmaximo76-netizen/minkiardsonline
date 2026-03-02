@@ -6598,32 +6598,26 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         
         if (snapshot) {
           // Restore field
-          game.field = JSON.parse(JSON.stringify(snapshot.field));
+          game.field = structuredClone(snapshot.field);
           // Restore hands
           for (const [pName, hand] of Object.entries(snapshot.hands)) {
             if (game.players[pName]) {
-              game.players[pName].hand = JSON.parse(JSON.stringify(hand));
+              game.players[pName].hand = structuredClone(hand as any);
             }
           }
           // Restore graveyard
-          game.graveyard = JSON.parse(JSON.stringify(snapshot.graveyard));
+          game.graveyard = structuredClone(snapshot.graveyard);
           // Restore turn state
           if (snapshot.turnOrder) game.turnOrder = [...snapshot.turnOrder];
           if (snapshot.currentTurnIndex !== undefined) game.currentTurnIndex = snapshot.currentTurnIndex;
           // Restore delayed deaths and timed effects
-          if (snapshot.delayedDeaths) game.delayedDeaths = JSON.parse(JSON.stringify(snapshot.delayedDeaths));
-          if (snapshot.timedEffects) game.timedEffects = JSON.parse(JSON.stringify(snapshot.timedEffects));
+          if (snapshot.delayedDeaths) game.delayedDeaths = structuredClone(snapshot.delayedDeaths);
+          if (snapshot.timedEffects) game.timedEffects = structuredClone(snapshot.timedEffects);
           // Restore restrictions
-          if (snapshot.cardPlayRestrictions) (game as any).cardPlayRestrictions = JSON.parse(JSON.stringify(snapshot.cardPlayRestrictions));
+          if (snapshot.cardPlayRestrictions) (game as any).cardPlayRestrictions = structuredClone(snapshot.cardPlayRestrictions);
           else delete (game as any).cardPlayRestrictions;
-          if (snapshot.peaceRestrictions) (game as any).peaceRestrictions = JSON.parse(JSON.stringify(snapshot.peaceRestrictions));
+          if (snapshot.peaceRestrictions) (game as any).peaceRestrictions = structuredClone(snapshot.peaceRestrictions);
           else delete (game as any).peaceRestrictions;
-          // Restore decks if available
-          if (snapshot.decks && game.decks) {
-            for (const [key, deck] of Object.entries(snapshot.decks)) {
-              if ((game.decks as any)[key]) (game.decks as any)[key] = JSON.parse(JSON.stringify(deck));
-            }
-          }
           // Remove snapshots after the restored point
           (game as any).stateSnapshots = snapshots.slice(0, targetIndex);
           
@@ -12126,7 +12120,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     
     const player = game.players[playerName];
     const hasBeenUsed = player.usedCardsThisTurn?.includes(frontImage) || false;
-    console.log(`hasCardTypeBeenUsed: ${playerName}, ${frontImage} = ${hasBeenUsed}, usedCards: ${JSON.stringify(player.usedCardsThisTurn)}`);
     return hasBeenUsed;
   }
 
@@ -12145,7 +12138,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     
     if (!player.usedCardsThisTurn.includes(frontImage)) {
       player.usedCardsThisTurn.push(frontImage);
-      console.log(`${playerName} marked card type ${frontImage} as used this turn. UsedCards: ${JSON.stringify(player.usedCardsThisTurn)}`);
     }
   }
 
@@ -17694,24 +17686,21 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     // Track turns played stat
     this.trackPlayerStat(gameState, playerName, 'turnsPlayed');
 
-    // Save game state snapshot for REPLAY card (full state for atomic rollback)
+    // Save game state snapshot for time_travel card effect (lightweight clone via structuredClone)
     if (!(gameState as any).stateSnapshots) (gameState as any).stateSnapshots = [];
     const snapshot = {
       turnNumber: gameState.currentTurnIndex,
-      field: JSON.parse(JSON.stringify(gameState.field)),
+      field: structuredClone(gameState.field),
       hands: Object.fromEntries(
-        Object.entries(gameState.players).map(([name, p]) => [name, JSON.parse(JSON.stringify((p as any).hand))])
+        Object.entries(gameState.players).map(([name, p]) => [name, structuredClone((p as any).hand)])
       ),
-      graveyard: JSON.parse(JSON.stringify(gameState.graveyard)),
+      graveyard: structuredClone(gameState.graveyard),
       currentTurnIndex: gameState.currentTurnIndex,
       turnOrder: [...gameState.turnOrder],
-      delayedDeaths: gameState.delayedDeaths ? JSON.parse(JSON.stringify(gameState.delayedDeaths)) : [],
-      timedEffects: gameState.timedEffects ? JSON.parse(JSON.stringify(gameState.timedEffects)) : [],
-      cardPlayRestrictions: (gameState as any).cardPlayRestrictions ? JSON.parse(JSON.stringify((gameState as any).cardPlayRestrictions)) : undefined,
-      peaceRestrictions: (gameState as any).peaceRestrictions ? JSON.parse(JSON.stringify((gameState as any).peaceRestrictions)) : undefined,
-      decks: gameState.decks ? Object.fromEntries(
-        Object.entries(gameState.decks).map(([key, deck]) => [key, JSON.parse(JSON.stringify(deck))])
-      ) : undefined,
+      delayedDeaths: gameState.delayedDeaths ? structuredClone(gameState.delayedDeaths) : [],
+      timedEffects: gameState.timedEffects ? structuredClone(gameState.timedEffects) : [],
+      cardPlayRestrictions: (gameState as any).cardPlayRestrictions ? structuredClone((gameState as any).cardPlayRestrictions) : undefined,
+      peaceRestrictions: (gameState as any).peaceRestrictions ? structuredClone((gameState as any).peaceRestrictions) : undefined,
       timestamp: Date.now()
     };
     (gameState as any).stateSnapshots.push(snapshot);

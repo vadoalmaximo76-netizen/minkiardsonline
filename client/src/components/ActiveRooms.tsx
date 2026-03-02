@@ -47,7 +47,7 @@ export function ActiveRooms({ playerName, userId, avatarId, onBack, onJoinRoom, 
 
   useEffect(() => {
     fetchRooms();
-    const interval = setInterval(fetchRooms, 5000);
+    const interval = setInterval(fetchRooms, 15000);
 
     socket.on('join-request-approved', ({ gameId }) => {
       if (pendingApproval === gameId) {

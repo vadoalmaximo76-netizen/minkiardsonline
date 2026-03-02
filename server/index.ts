@@ -1,5 +1,6 @@
 import childProcess from 'child_process';
 import express, { type Request, Response, NextFunction } from "express";
+import compression from "compression";
 import { registerRoutes } from "./routes";
 import { registerAuthRoutes } from "./auth";
 import { setupVite, serveStatic, log } from "./vite";
@@ -28,6 +29,7 @@ process.on('unhandledRejection', (reason) => {
 });
 
 const app = express();
+app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
