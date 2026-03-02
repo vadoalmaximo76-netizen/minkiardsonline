@@ -1446,7 +1446,35 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           } else if (mosseOnField) {
             // MOSSE card is on field - execute attack with forced duel target
             console.log(`⚔️ DUELLO: CPU ${this.playerName} executing MOSSE attack on ${opponentCharacterId}`);
-            return await this.executeMovesCardAndDrawReplacement(mosseOnField.id, gameState, 'mosse', opponentCharacterId);
+            const duelAttackAction = await this.executeMovesCardAndDrawReplacement(mosseOnField.id, gameState, 'mosse', opponentCharacterId);
+            // Attack executed atomically (returns null) — schedule endTurn to advance duel turn
+            if (!duelAttackAction && this.gameManager && this.socketEmitter) {
+              const io = this.socketEmitter;
+              const gm = this.gameManager;
+              const gid = this.gameId;
+              const pName = this.playerName;
+              const mosseId = mosseOnField.id;
+              setTimeout(() => {
+                const freshGs = gm.getGameState(gid);
+                if (!freshGs) return;
+                const stillOnField = freshGs.field.find((c: any) => c.id === mosseId && c.owner === pName);
+                if (stillOnField) gm.returnToDeck(gid, mosseId, pName);
+                const duelState = gm.getDuelState(gid);
+                if (duelState && duelState.active) {
+                  const nxt = gm.endTurn(gid, pName);
+                  if (nxt) {
+                    io.to(gid).emit('next-turn', { nextPlayer: nxt });
+                    const gs = gm.getSanitizedGameState(gid);
+                    if (gs) io.to(gid).emit('game-state-update', gs);
+                    const fg = gm.getGameState(gid);
+                    if (fg && fg.players[nxt]?.isCPU) {
+                      setTimeout(() => gm.processCPUTurn(gid, nxt, io), 2000);
+                    }
+                  }
+                }
+              }, 2000);
+            }
+            return duelAttackAction;
           }
         }
       }

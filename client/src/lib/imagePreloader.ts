@@ -19,7 +19,7 @@ async function fetchCloudinaryConfig() {
     const data = await res.json();
     if (data.cloudName && data.cloudName !== cloudinaryCloudName) {
       cloudinaryCloudName = data.cloudName;
-      localStorage.setItem(STORAGE_KEY, cloudinaryCloudName);
+      localStorage.setItem(STORAGE_KEY, cloudinaryCloudName as string);
       // Notify all subscribers so they can re-render with optimized URLs
       listeners.forEach(fn => fn());
     }

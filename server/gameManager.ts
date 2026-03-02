@@ -879,7 +879,7 @@ export class GameManager {
           const card: Card = {
             id: cardId,
             type: cardRecord.deckType as 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali',
-            frontImage: cardRecord.imageData,
+            frontImage: `/api/card-image/${cardRecord.id}`,
             backImage: this.getBackImageForDeck(cardRecord.deckType),
             owner: '',
             name: cardRecord.name || undefined, // Store the custom name separately
@@ -991,7 +991,7 @@ export class GameManager {
                 const card: Card = {
                   id: `${id}-${Math.random().toString(36).substr(2, 6)}`,
                   type: deckType,
-                  frontImage: cc.imageData || '',
+                  frontImage: cc.id ? `/api/card-image/${cc.id}` : (cc.imageData || ''),
                   backImage: (DECK_BACK_IMAGES as any)[deckType] || '',
                   owner: '',
                   name: cc.name || 'Carta',
@@ -2219,6 +2219,17 @@ Rispondi SOLO in JSON:`;
     return true;
   }
 
+  // Strip base64 data URIs from card frontImage to avoid bloating Socket.IO payloads.
+  // Permanent custom cards use IDs like "permanent-bonus-3" or "custom-3-abc".
+  private stripBase64FromCard(card: any): any {
+    if (!card || !card.frontImage || !card.frontImage.startsWith('data:')) return card;
+    const permMatch = card.id?.match(/permanent-[a-z_]+-(\d+)/);
+    if (permMatch) return { ...card, frontImage: `/api/card-image/${permMatch[1]}` };
+    const customMatch = card.id?.match(/^custom-(\d+)/);
+    if (customMatch) return { ...card, frontImage: `/api/card-image/${customMatch[1]}` };
+    return { ...card, frontImage: '' };
+  }
+
   // Get sanitized game state for Socket.IO transmission (removes circular references)
   // Optimized to reduce payload size for slow connections
   getSanitizedGameState(gameId: string): any {
@@ -2240,8 +2251,8 @@ Rispondi SOLO in JSON:`;
         personaggiSpeciali: gameState.decks.personaggi_speciali.length
       },
       players: {} as Record<string, any>,
-      field: gameState.field,
-      graveyard: gameState.graveyard,
+      field: gameState.field.map((c: any) => this.stripBase64FromCard(c)),
+      graveyard: gameState.graveyard.map((c: any) => this.stripBase64FromCard(c)),
       scenarioCardsActive: gameState.scenarioCardsActive,
       matchId: gameState.matchId,
       eventCounter: gameState.eventCounter,
@@ -2283,7 +2294,7 @@ Rispondi SOLO in JSON:`;
     for (const [playerName, player] of Object.entries(gameState.players)) {
       sanitized.players[playerName] = {
         name: player.name,
-        hand: player.hand,
+        hand: player.hand.map((c: any) => this.stripBase64FromCard(c)),
         handCount: player.hand.length,
         socketId: player.socketId,
         isCPU: player.isCPU,
@@ -12400,6 +12411,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             setTimeout(() => {
               const freshGame = this.games.get(gameId);
               if (!freshGame || freshGame.activeDuel?.active) return; // Duel re-started or game gone
+              // Prevent double endTurn: only advance if it's still duelCurrentTurn's turn
+              const nowCurrentPlayer = freshGame.turnOrder[freshGame.currentTurnIndex];
+              if (nowCurrentPlayer !== duelCurrentTurn) {
+                console.log(`⚔️ DUELLO (moveToGraveyard): Turn already advanced to ${nowCurrentPlayer}, skipping duplicate endTurn for ${duelCurrentTurn}`);
+                return;
+              }
               const nextPlayer = this.endTurn(gameId, duelCurrentTurn);
               if (nextPlayer) {
                 ioGlobal.to(gameId).emit('next-turn', { nextPlayer });

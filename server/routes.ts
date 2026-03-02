@@ -7328,6 +7328,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
   
   // Get all permanent custom cards (JSON storage)
+  // Serve custom card images by numeric ID (avoids sending base64 in game state)
+  app.get('/api/card-image/:id', (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: 'Invalid id' });
+      const card = jsonStorage.customCards.getById(id);
+      if (!card || !card.imageData) return res.status(404).json({ error: 'Not found' });
+      const mimeMatch = card.imageData.match(/^data:(image\/\w+);base64,/);
+      const mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
+      const base64Data = card.imageData.replace(/^data:image\/\w+;base64,/, '');
+      const buffer = Buffer.from(base64Data, 'base64');
+      res.setHeader('Content-Type', mimeType);
+      res.setHeader('Cache-Control', 'public, max-age=604800'); // 7 days
+      res.send(buffer);
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to serve image' });
+    }
+  });
+
   app.get('/api/custom-cards', async (req, res) => {
     try {
       const deckType = req.query.deckType as string | undefined;

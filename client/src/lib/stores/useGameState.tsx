@@ -155,8 +155,9 @@ export const useGameState = create<GameStateStore>()(
         const currentPlayerName = get().playerName;
         try {
           const urlsToPreload: string[] = [];
-          if (currentPlayerName && newGameState.hands?.[currentPlayerName]) {
-            for (const card of newGameState.hands[currentPlayerName]) {
+          const playerData = currentPlayerName && (newGameState.players as any)?.[currentPlayerName];
+          if (playerData?.hand) {
+            for (const card of playerData.hand) {
               if (card.frontImage) urlsToPreload.push(getOptimizedUrl(card.frontImage, 'card'));
               if (card.backImage) urlsToPreload.push(getOptimizedUrl(card.backImage, 'card'));
             }
