@@ -478,7 +478,13 @@ export class GameManager {
         io3.to(gameId).emit('next-turn', { nextPlayer, reason: 'timeout' });
         const updatedState = this.getSanitizedGameState(gameId);
         if (updatedState) io3.to(gameId).emit('game-state-update', updatedState);
-        this.startTurnTimer(gameId, nextPlayer);
+        const updatedGame = this.games.get(gameId);
+        if (updatedGame && updatedGame.players[nextPlayer]?.isCPU) {
+          console.log(`⏰ Timer timeout → next player is CPU (${nextPlayer}), triggering CPU turn`);
+          setTimeout(() => this.processCPUTurn(gameId, nextPlayer, io3), 2000);
+        } else {
+          this.startTurnTimer(gameId, nextPlayer);
+        }
       }
     }, this.TURN_TIMEOUT_SECONDS * 1000);
     this.turnTimers.set(gameId, timer);
