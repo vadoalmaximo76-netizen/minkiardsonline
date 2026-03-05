@@ -9236,6 +9236,23 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
 
       case 'return_all_to_hand': {
+        // CONDIZIONE: L'effetto si attiva solo se il giocatore ha un personaggio in campo
+        const hasCharacterOnField = game.field.some(
+          c => c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (!hasCharacterOnField) {
+          console.log(`✋ RETURN ALL TO HAND: ${playerName} has no character on field — effect blocked`);
+          const ioBlock = (global as any).io;
+          if (ioBlock) {
+            ioBlock.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-return-all-blocked`,
+              playerName: 'Sistema',
+              message: `❌ Effetto non attivabile: ${playerName} non ha nessun personaggio in campo!`,
+              timestamp: Date.now()
+            });
+          }
+          break;
+        }
         const playerFieldCards = game.field.filter(c => c.owner === playerName);
         for (const fieldCard of playerFieldCards) {
           game.field = game.field.filter(c => c.id !== fieldCard.id);
@@ -9247,12 +9264,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           game.players[playerName]?.hand.push(fieldCard);
           console.log(`✋ RETURN ALL TO HAND: ${fieldCard.name || fieldCard.id} returned to ${playerName}'s hand (saved PTI=${fieldCard.pti})`);
         }
+        // Segnala auto-fine turno: il giocatore non può rigiocare carte nello stesso turno
+        (game as any).pendingAutoEndTurn = playerName;
+        console.log(`✋ RETURN ALL TO HAND: pendingAutoEndTurn set for ${playerName}`);
         const io = (global as any).io;
         if (io) {
           io.to(gameId).emit('chat-message', {
             id: `${Date.now()}-return-all`,
             playerName: 'Sistema',
-            message: `✋ Tutte le carte di ${playerName} tornano in mano!`,
+            message: `✋ Tutte le carte di ${playerName} tornano in mano! Il turno terminerà automaticamente.`,
             timestamp: Date.now()
           });
         }
@@ -23079,6 +23099,16 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         (card as any).counterMosseOnField = false;
         console.log(`⚔️ DUELLO cleanup: cleared counterMosseOnField on ${card.id} (owner: ${card.owner})`);
       }
+    }
+
+    // Return MOSSE cards left on field by duel participants to their decks
+    const mossesOnField = game.field.filter(
+      (c: any) => c.type === 'mosse' && duelPlayers.includes(c.owner || '')
+    );
+    for (const mosseCard of mossesOnField) {
+      game.field = game.field.filter((c: any) => c.id !== mosseCard.id);
+      game.decks.mosse.unshift(mosseCard);
+      console.log(`⚔️ DUELLO cleanup: returned MOSSE card ${mosseCard.id} (owner: ${mosseCard.owner}) to deck`);
     }
   }
 

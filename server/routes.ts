@@ -727,9 +727,64 @@ async function executeCpuDuelAttackSequence(
       }
     }
   } else {
-    console.log(`⚔️ DUELLO: CPU ${cpuName} has no MOSSE card in hand for follow-up`);
+    // No MOSSE in hand — try to draw one from the deck and attack with it
+    console.log(`⚔️ DUELLO: CPU ${cpuName} has no MOSSE in hand — drawing from deck`);
+    const drawnMosse = await gameManager.pickCard(gameId, 'mosse', initiatorPlayer);
+    if (drawnMosse) {
+      const gs2b = gameManager.getGameState(gameId);
+      const drawnMosseCard = gs2b?.players[initiatorPlayer]?.hand?.find((c: any) => c.type === 'mosse');
+      if (drawnMosseCard) {
+        const mossePlayResult = await gameManager.playCard(gameId, drawnMosseCard.id, initiatorPlayer);
+        if (mossePlayResult.card) {
+          await emitCardPlayed(io, gameId, mossePlayResult.card, initiatorPlayer);
+          emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
+          await delay(1500);
+
+          const duelState3b = gameManager.getDuelState(gameId);
+          if (!duelState3b || !duelState3b.active) {
+            console.log(`⚔️ DUELLO: Duel ended before drawn MOSSE attack, ending turn`);
+            const nxt = gameManager.endTurn(gameId, cpuName);
+            if (nxt) {
+              io.to(gameId).emit('next-turn', { nextPlayer: nxt });
+              const gs = gameManager.getGameState(gameId);
+              if (gs && gs.players[nxt]?.isCPU) setTimeout(() => gameManager.processCPUTurn(gameId, nxt, io), 2000);
+            }
+            return;
+          }
+
+          const gs3b = gameManager.getGameState(gameId);
+          const drawnMosseOnField = gs3b?.field.find((c: any) => c.id === drawnMosseCard.id && c.owner === initiatorPlayer);
+          if (drawnMosseOnField) {
+            const cpuChar3b = gs3b?.field.find((c: any) =>
+              c.owner === initiatorPlayer && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+            );
+            const mosseDmg3b = (drawnMosseOnField.mosseDamageValue || 100) * getStars(cpuChar3b);
+            console.log(`⚔️ DUELLO: CPU ${cpuName} attacking with drawn MOSSE, damage=${mosseDmg3b}`);
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-duel-drawn-mosse-attack`,
+              playerName: cpuName,
+              message: `⚔️ Attacco con carta MOSSE pescata! Danno: ${mosseDmg3b}`,
+              timestamp: Date.now()
+            });
+            await gameManager.processMosseDamage(gameId, initiatorPlayer, opponentCharacterId, mosseDmg3b, drawnMosseCard.id, io, false, false, false, false, 0, undefined);
+            gameManager.returnToDeck(gameId, drawnMosseCard.id, initiatorPlayer);
+            emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
+          }
+        }
+      }
+    } else {
+      console.log(`⚔️ DUELLO: CPU ${cpuName} — MOSSE deck also empty, skipping follow-up attack`);
+    }
   }
-  
+
+  // Switch duel turn to opponent before advancing main turn
+  // (so the opponent knows it's their duel turn on their next main turn)
+  const duelStateFinal = gameManager.getDuelState(gameId);
+  if (duelStateFinal && duelStateFinal.active) {
+    console.log(`⚔️ DUELLO: Switching duel turn from ${initiatorPlayer} to opponent after attack sequence`);
+    gameManager.switchDuelTurn(gameId);
+  }
+
   await delay(1500);
   const nxt = gameManager.endTurn(gameId, cpuName);
   if (nxt) {
@@ -2370,7 +2425,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // IMMEDIATE: Send game state update for responsiveness (no throttle)
         const gameState = gameManager.getSanitizedGameState(gameId);
         emitImmediateGameState(io, gameId, gameState);
-        
+
+        // BONUS-19 AUTO-END-TURN: after return_all_to_hand the turn must end immediately
+        // so the player cannot re-play cards from hand in the same turn
+        const gameForAutoEnd = gameManager.getGameState(gameId);
+        if (gameForAutoEnd && (gameForAutoEnd as any).pendingAutoEndTurn === playerName) {
+          delete (gameForAutoEnd as any).pendingAutoEndTurn;
+          console.log(`✋ BONUS-19: Auto-ending turn for ${playerName} after return_all_to_hand`);
+          const nextPlayer = gameManager.endTurn(gameId, playerName);
+          if (nextPlayer) {
+            io.to(gameId).emit('next-turn', { nextPlayer });
+            const freshState = gameManager.getGameState(gameId);
+            if (freshState && freshState.players[nextPlayer]?.isCPU) {
+              setTimeout(() => gameManager.processCPUTurn(gameId, nextPlayer, io), 2000);
+            }
+          }
+          emitImmediateGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
+          return;
+        }
+
         // Check for pending interactive effects (like graveyard selection)
         const pendingEffect = gameManager.getPendingEffect(gameId, playerName);
         if (pendingEffect && pendingEffect.type === 'resurrect_choice') {
