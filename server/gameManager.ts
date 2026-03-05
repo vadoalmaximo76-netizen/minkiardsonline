@@ -2788,6 +2788,25 @@ Rispondi SOLO in JSON:`;
         }
       }
       
+      // MOZZARELLINATO check: prevent replacing a mozzarellinato character (bonus-20)
+      if (isPersonaggio) {
+        const mozzChar = this.getPlayerActiveCharacter(game, playerName);
+        if (mozzChar && (mozzChar as any).isMozzarellinato) {
+          const mozzName = mozzChar.name || this.getCardNameFromUrl(mozzChar.frontImage || '');
+          const ioMozzBlock = (global as any).io;
+          if (ioMozzBlock) {
+            ioMozzBlock.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-mozz-block`,
+              playerName: 'Sistema',
+              message: `🧀 MOZZARELLINATO! ${mozzName} è bloccato in posizione e non può essere sostituito!`,
+              timestamp: Date.now()
+            });
+          }
+          console.log(`🧀 MOZZARELLINATO BLOCKED: Cannot replace ${mozzName}`);
+          return {};
+        }
+      }
+
       // Card is allowed - remove from hand and place on field
       player.hand.splice(cardIndex, 1);
       card.faceDown = false;
@@ -3271,12 +3290,18 @@ Rispondi SOLO in JSON:`;
       }
     }
 
+    // ============ RECOVER ORIGINAL PTI PATTERN (bonus-55) ============
+    if (/recupera\s+tutti\s+i\s+pti\s+originali|pti\s+originali\s+recuper|torna\s+ai\s+pti\s+originali/i.test(text) &&
+        !actions.some(a => a.type === 'recover_original_pti')) {
+      actions.push({ type: 'recover_original_pti', target: 'self', value: 0, description: 'Recupera tutti i PTI originali del personaggio' });
+    }
+
     // ============ HEAL PATTERNS ============
     // Pre-detect complex effect patterns that handle PTI internally to avoid double-counting
     const isKebabText = /kebab.*raddoppi|raddoppi.*kebab|mossa.*kebab.*vale.*per/i.test(text);
     const isMirrorText = /ogni.*bonus.*mossa.*effetto.*anche.*personaggio.*scelta|ha\s+effetto\s+anche\s+su.*personaggio.*scelta/i.test(text);
-    // Skip when kebab_buff or mirror_effect text detected (avoids double-counting conditional PTI values)
-    if (!isKebabText && !isMirrorText && !actions.some(a => a.type === 'kebab_buff' || a.type === 'mirror_effect') &&
+    // Skip when kebab_buff or mirror_effect or recover_original_pti text detected (avoids double-counting)
+    if (!isKebabText && !isMirrorText && !actions.some(a => a.type === 'kebab_buff' || a.type === 'mirror_effect' || a.type === 'recover_original_pti') &&
         (text.includes('cura') || text.includes('guarisce') || text.includes('ripristina pti') || 
         text.includes('rigenera') || text.includes('recupera') || text.includes('guadagna pti') ||
         text.includes('ottiene pti') || text.includes('vita +') || text.includes('+ pti') ||
@@ -3814,6 +3839,25 @@ Rispondi SOLO in JSON:`;
     if (text.includes('si clona') || text.includes('clona se stesso') || text.includes('si duplica') ||
         text.includes('crea una copia di se') || text.includes('crea un clone') || text.includes('si sdoppia') || text.includes('clonazione')) {
       actions.push({ type: 'clone_self', target: 'self', value: 1, description: 'Si clona sul campo' });
+    }
+
+    // ============ MOZZARELLINATO PATTERN (bonus-20) ============
+    if (/fissa.*personaggio.*posizione|non\s+pu[oò].*essere.*spostato|mozzarellinat/i.test(text) &&
+        !actions.some(a => a.type === 'mozzarellinato')) {
+      const isTempMozz = /goghi/i.test(text);
+      actions.push({ type: 'mozzarellinato', target: 'self', value: isTempMozz ? 3 : 0, description: 'Personaggio fissato in posizione (non può essere sostituito o rubato)' });
+    }
+
+    // ============ ATTACK INTERCEPTOR PATTERN (bonus-29) ============
+    if (/ribaltare|confermare.*attacc|intercett.*attack|ribalt.*attacc|pu[oò]\s+ribaltare\s+o\s+confermare/i.test(text) &&
+        !actions.some(a => a.type === 'attack_interceptor')) {
+      actions.push({ type: 'attack_interceptor', target: 'self', value: 0, description: 'Intercettore attacchi: può ribaltare o confermare il prossimo attacco avversario' });
+    }
+
+    // ============ DEFENSE INTERCEPTOR PATTERN (bonus-45) ============
+    if (/quando.*avversario.*respinge|respinge.*mossa.*moltiplicat|difensore.*subisce.*moltiplicata|annulla.*difesa.*moltiplicat|carta\s+difesa.*moltiplicat/i.test(text) &&
+        !actions.some(a => a.type === 'defense_interceptor')) {
+      actions.push({ type: 'defense_interceptor', target: 'self', value: 2, description: 'Intercettore difesa: annulla la difesa avversaria e moltiplica il danno x2 (x5 con Maestra Vanda)' });
     }
 
     // ============ HALVE/DOUBLE PATTERNS ============
@@ -4983,7 +5027,7 @@ Rispondi SOLO in JSON:`;
             }
             
             // Apply effect using centralized handler
-            this.applyDiceConsequence(gameId, selectedChar.id, effectToApply, true);
+            this.applyDiceConsequence(gameId, selectedChar.id, effectToApply, true, cardOwner);
             
             if (io) {
               io.to(gameId).emit('chat-message', {
@@ -6079,16 +6123,69 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       case 'discard':
         // Discard cards from hand or field
         if (action.target === 'opponents' || action.target === 'all') {
-          // Discard random cards from each opponent's hand
-          for (const [opponentName, opponent] of Object.entries(game.players)) {
-            if (opponentName === playerName && action.target === 'opponents') continue;
-            const discardCount = Math.min(action.value || 1, opponent.hand.length);
-            for (let i = 0; i < discardCount; i++) {
-              if (opponent.hand.length > 0) {
-                const randomIndex = Math.floor(Math.random() * opponent.hand.length);
-                const discardedCard = opponent.hand.splice(randomIndex, 1)[0];
-                game.graveyard.push(discardedCard);
-                console.log(`🗑️ Custom effect: ${opponentName} discarded ${discardedCard.name || discardedCard.id}`);
+          const discardValue = action.value || 1;
+          const isLargeDiscard = discardValue >= 5; // bonus-130: large opponent discard
+          const isDiscardCPU = this.isPlayerCPU(gameId, playerName);
+          
+          if (isLargeDiscard && !isDiscardCPU) {
+            // bonus-130: Human player — show opponent selection panel, then randomly discard from chosen opponent
+            const opponentsForDiscard = game.turnOrder.filter((p: string) => p !== playerName);
+            if (opponentsForDiscard.length === 1) {
+              // Only one opponent, skip selection and discard directly
+              const targetOpponent = game.players[opponentsForDiscard[0]];
+              const discardCount = Math.min(discardValue, targetOpponent.hand.length);
+              for (let i = 0; i < discardCount; i++) {
+                if (targetOpponent.hand.length > 0) {
+                  const randomIndex = Math.floor(Math.random() * targetOpponent.hand.length);
+                  const discardedCard = targetOpponent.hand.splice(randomIndex, 1)[0];
+                  game.graveyard.push(discardedCard);
+                }
+              }
+              const ioDiscard130 = (global as any).io;
+              if (ioDiscard130) {
+                ioDiscard130.to(gameId).emit('chat-message', {
+                  id: `${Date.now()}-discard-130`,
+                  playerName: 'Sistema',
+                  message: `🗑️ ${playerName} ha fatto scartare ${discardCount} carte a ${opponentsForDiscard[0]}!`,
+                  timestamp: Date.now()
+                });
+              }
+            } else {
+              // Multiple opponents: show selection panel
+              const ioDiscard130Multi = (global as any).io;
+              if (ioDiscard130Multi) {
+                // Store pending discard so swap-confirm handler can apply it
+                (game as any).pendingDiscard130 = { playerName, discardCount: discardValue, cardId: card.id };
+                ioDiscard130Multi.to(gameId).emit('show-swap-selection', {
+                  cardId: card.id,
+                  cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+                  playerName,
+                  otherPlayers: opponentsForDiscard,
+                  effectDescription: `DISCARD-${discardValue}: Scegli l'avversario a cui far scartare ${discardValue} carte`,
+                  discardCount: discardValue
+                });
+                ioDiscard130Multi.to(gameId).emit('chat-message', {
+                  id: `${Date.now()}-discard-130-pending`,
+                  playerName: 'Sistema',
+                  message: `🗑️ ${playerName} deve scegliere quale avversario fa scartare ${discardValue} carte!`,
+                  timestamp: Date.now()
+                });
+              }
+              console.log(`🗑️ DISCARD-130 (Human): Showing player selection panel`);
+              break;
+            }
+          } else {
+            // Default: Discard random cards from each opponent's hand
+            for (const [opponentName, opponent] of Object.entries(game.players)) {
+              if (opponentName === playerName && action.target === 'opponents') continue;
+              const discardCount = Math.min(discardValue, opponent.hand.length);
+              for (let i = 0; i < discardCount; i++) {
+                if (opponent.hand.length > 0) {
+                  const randomIndex = Math.floor(Math.random() * opponent.hand.length);
+                  const discardedCard = opponent.hand.splice(randomIndex, 1)[0];
+                  game.graveyard.push(discardedCard);
+                  console.log(`🗑️ Custom effect: ${opponentName} discarded ${discardedCard.name || discardedCard.id}`);
+                }
               }
             }
           }
@@ -6734,26 +6831,34 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
 
       case 'baratto': {
+        const io = (global as any).io;
+        const isCPUBaratto = this.isPlayerCPU(gameId, playerName);
         const opponents = Object.keys(game.players).filter(p => p !== playerName);
         if (opponents.length > 0) {
-          const targetPlayer = opponents[Math.floor(Math.random() * opponents.length)];
-          const myHand = [...game.players[playerName].hand];
-          const theirHand = [...game.players[targetPlayer].hand];
-          const myFieldCards = game.field.filter((c: Card) => c.owner === playerName);
-          const theirFieldCards = game.field.filter((c: Card) => c.owner === targetPlayer);
-          game.players[playerName].hand = theirHand.map(c => ({ ...c, owner: playerName }));
-          game.players[targetPlayer].hand = myHand.map(c => ({ ...c, owner: targetPlayer }));
-          for (const c of myFieldCards) { c.owner = targetPlayer; }
-          for (const c of theirFieldCards) { c.owner = playerName; }
-          console.log(`🔄 BARATTO: ${playerName} and ${targetPlayer} swapped ALL cards!`);
-          const io = (global as any).io;
-          if (io) {
-            io.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-baratto`,
-              playerName: 'Sistema',
-              message: `🔄 BARATTO! ${playerName} e ${targetPlayer} hanno scambiato TUTTE le loro carte (campo e mano)!`,
-              timestamp: Date.now()
-            });
+          if (isCPUBaratto) {
+            // CPU: pick random opponent
+            const targetPlayer = opponents[Math.floor(Math.random() * opponents.length)];
+            const result = this.processSwapEffect(gameId, playerName, targetPlayer, io);
+            console.log(`🔄 BARATTO (CPU): ${playerName} swapped with ${targetPlayer}, result: ${result.success}`);
+          } else {
+            // Human: show player selection panel
+            const otherPlayers = game.turnOrder.filter((p: string) => p !== playerName);
+            if (io) {
+              io.to(gameId).emit('show-swap-selection', {
+                cardId: card.id,
+                cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+                playerName,
+                otherPlayers,
+                effectDescription: 'BARATTO: Scambia tutte le tue carte (campo e mano) con un avversario a scelta'
+              });
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-baratto-pending`,
+                playerName: 'Sistema',
+                message: `🔄 BARATTO! ${playerName} deve scegliere un avversario con cui scambiare TUTTE le carte!`,
+                timestamp: Date.now()
+              });
+            }
+            console.log(`🔄 BARATTO (Human): Showing player selection panel for ${playerName}`);
           }
         }
         break;
@@ -6803,9 +6908,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           for (const c of game.field) {
             if (c.owner === minPlayer && (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.pti != null) {
               const oldPti = c.pti;
+              const oldStars = c.stars || 0;
               c.pti = c.pti * 2;
+              c.stars = oldStars * 2;
               this.updateCardTextWithPTI(c);
-              console.log(`⚰️ CIMITERO VUOTO: ${c.name} PTI doubled ${oldPti} → ${c.pti}`);
+              console.log(`⚰️ CIMITERO VUOTO: ${c.name} PTI doubled ${oldPti} → ${c.pti}, stelle ${oldStars} → ${c.stars}`);
             }
           }
           const io = (global as any).io;
@@ -6875,10 +6982,20 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const peaceTurns = 3;
         const turnsMatch = action.description?.match(/(\d+)\s*turni/i);
         const turns = turnsMatch ? parseInt(turnsMatch[1]) : peaceTurns;
-        const enemyChar = game.field.find((c: Card) => 
+        const enemyCharsCorr = game.field.filter((c: Card) => 
           c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.pti != null
         );
-        if (enemyChar) {
+        const ioCorruzione = (global as any).io;
+        
+        if (enemyCharsCorr.length === 0) {
+          console.log(`💰 CORRUZIONE: No enemy characters on field`);
+          break;
+        }
+
+        const isCPUCorruzione = this.isPlayerCPU(gameId, playerName);
+        if (isCPUCorruzione) {
+          // CPU: pick first enemy character
+          const enemyChar = enemyCharsCorr[0];
           enemyChar.pti = (enemyChar.pti || 0) + ptiGift;
           this.updateCardTextWithPTI(enemyChar);
           if (!(game as any).peaceRestrictions) (game as any).peaceRestrictions = [];
@@ -6888,16 +7005,55 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             turnsRemaining: turns,
             timestamp: Date.now()
           });
-          console.log(`💰 CORRUZIONE: ${enemyChar.name} gained ${ptiGift} PTI, ${enemyChar.owner} can't attack ${playerName} for ${turns} turns`);
-          const io = (global as any).io;
-          if (io) {
-            io.to(gameId).emit('chat-message', {
+          console.log(`💰 CORRUZIONE (CPU): ${enemyChar.name} gained ${ptiGift} PTI, ${enemyChar.owner} can't attack ${playerName} for ${turns} turns`);
+          if (ioCorruzione) {
+            ioCorruzione.to(gameId).emit('chat-message', {
               id: `${Date.now()}-corruzione`,
               playerName: 'Sistema',
               message: `💰 CORRUZIONE! ${playerName} ha dato ${ptiGift} PTI a ${enemyChar.name} di ${enemyChar.owner}. ${enemyChar.owner} non può attaccare ${playerName} per ${turns} turni!`,
               timestamp: Date.now()
             });
           }
+        } else {
+          // Human: show target selection panel
+          const corrSelectionId = `corruzione-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          if (!game.pendingTargetSelections) game.pendingTargetSelections = new Map();
+          game.pendingTargetSelections.set(corrSelectionId, {
+            cardId: card.id,
+            cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+            owner: playerName,
+            effectText: 'corruzione',
+            corrutionPtiGift: ptiGift,
+            corrutionTurns: turns,
+            maxTargets: 1,
+            timestamp: Date.now()
+          } as any);
+          if (ioCorruzione) {
+            ioCorruzione.to(gameId).emit('show-custom-target-selection', {
+              selectionId: corrSelectionId,
+              cardId: card.id,
+              cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+              owner: playerName,
+              availableTargets: enemyCharsCorr.map((c: Card) => ({
+                id: c.id,
+                name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
+                owner: c.owner,
+                frontImage: c.frontImage || '',
+                pti: c.pti || 0,
+                stars: c.stars || 0
+              })),
+              maxSelections: 1,
+              title: `💰 CORRUZIONE — Dai ${ptiGift} PTI`,
+              subtitle: `Il personaggio scelto riceve ${ptiGift} PTI ma il suo proprietario non potrà attaccarti per ${turns} turni`
+            });
+            ioCorruzione.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-corruzione-pending`,
+              playerName: 'Sistema',
+              message: `💰 CORRUZIONE! ${playerName} deve scegliere quale personaggio corrompere!`,
+              timestamp: Date.now()
+            });
+          }
+          console.log(`💰 CORRUZIONE (Human): Showing target selection panel for ${playerName}`);
         }
         break;
       }
@@ -7132,6 +7288,69 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           console.log(`🧬 CLONE SELF: No active character found for ${playerName}`);
         }
         break;
+
+      case 'mozzarellinato': {
+        // bonus-20: Fix a character in position — cannot be replaced, stolen, or moved
+        const mozzChar = this.getPlayerActiveCharacter(game, playerName);
+        if (mozzChar) {
+          (mozzChar as any).isMozzarellinato = true;
+          // Temporary version (e.g. GOGHI) uses action.value turns
+          if (action.value && action.value > 0) {
+            (mozzChar as any).mozzarellinatoTurns = action.value;
+          }
+          const mozzCharName = mozzChar.name || this.getCardNameFromUrl(mozzChar.frontImage || '');
+          const durationTxt = action.value && action.value > 0 ? ` per ${action.value} turni` : ' permanentemente';
+          const ioMozz = (global as any).io;
+          if (ioMozz) {
+            ioMozz.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-mozzarellinato`,
+              playerName: 'Sistema',
+              message: `🧀 MOZZARELLINATO! ${mozzCharName} è stato fissato in posizione${durationTxt}! Non può essere sostituito, rubato o spostato.`,
+              timestamp: Date.now()
+            });
+          }
+          console.log(`🧀 MOZZARELLINATO: ${mozzCharName} isMozzarellinato=true${action.value ? ` for ${action.value} turns` : ''}`);
+        }
+        break;
+      }
+
+      case 'attack_interceptor': {
+        // bonus-29: Register this player as an attack interceptor for the next opponent attack
+        if (!(game as any).attackInterceptors) (game as any).attackInterceptors = [];
+        // Remove existing interceptor from this player (only one active at a time)
+        (game as any).attackInterceptors = (game as any).attackInterceptors.filter((i: any) => i.playerName !== playerName);
+        (game as any).attackInterceptors.push({ playerName, cardId: card.id, timestamp: Date.now() });
+        const ioInterceptor = (global as any).io;
+        if (ioInterceptor) {
+          ioInterceptor.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-attack-interceptor`,
+            playerName: 'Sistema',
+            message: `🛡️ INTERCETTORE! ${playerName} può ribaltare o confermare il prossimo attacco avversario!`,
+            timestamp: Date.now()
+          });
+        }
+        console.log(`🛡️ ATTACK_INTERCEPTOR: ${playerName} registered as interceptor with card ${card.id}`);
+        break;
+      }
+
+      case 'defense_interceptor': {
+        // bonus-45: Register this player as a defense interceptor (annuls opponent defense and multiplies damage)
+        const myCharForInterceptor = this.getPlayerActiveCharacter(game, playerName);
+        const isMaestraVanda = /maestra\s*vanda/i.test(myCharForInterceptor?.name || this.getCardNameFromUrl(myCharForInterceptor?.frontImage || ''));
+        const multiplier = isMaestraVanda ? 5 : (action.value || 2);
+        (game as any).defenseInterceptor = { playerName, cardId: card.id, multiplier, timestamp: Date.now() };
+        const ioDefInterceptor = (global as any).io;
+        if (ioDefInterceptor) {
+          ioDefInterceptor.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-defense-interceptor`,
+            playerName: 'Sistema',
+            message: `⚡ INTERCETTORE DIFESA! ${playerName} può annullare la prossima difesa avversaria e moltiplicare il danno x${multiplier}${isMaestraVanda ? ' (MAESTRA VANDA!)' : ''}!`,
+            timestamp: Date.now()
+          });
+        }
+        console.log(`⚡ DEFENSE_INTERCEPTOR: ${playerName} registered with multiplier ${multiplier}`);
+        break;
+      }
 
       // ============ NEW CUSTOM EFFECTS ============
       
@@ -7892,7 +8111,53 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         break;
       }
 
+      case 'recover_original_pti': {
+        // bonus-55: Recover original PTI of the active character
+        const recoverChar = this.getPlayerActiveCharacter(game, playerName);
+        if (recoverChar) {
+          const originalPti = (recoverChar as any).originalPti || (recoverChar as any).ptiValue || recoverChar.pti || 0;
+          const oldPtiRec = recoverChar.pti || 0;
+          recoverChar.pti = originalPti;
+          this.updateCardTextWithPTI(recoverChar);
+          const recoverName = recoverChar.name || this.getCardNameFromUrl(recoverChar.frontImage || '');
+          console.log(`💊 RECOVER ORIGINAL PTI: ${recoverName} ${oldPtiRec} → ${originalPti}`);
+          const ioRecover = (global as any).io;
+          if (ioRecover) {
+            ioRecover.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-recover-pti`,
+              playerName: 'Sistema',
+              message: `💊 ${recoverName} ha recuperato tutti i PTI originali! (${oldPtiRec} → ${originalPti} PTI)`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        break;
+      }
+
       case 'evolution': {
+        // bonus-52 conditional check: if effect says "non ha meno della metà dei PTI originali"
+        const effectTextForEvo = (card as any).effect || (card as any).text || '';
+        const hasConditionalEvo = /non\s+ha\s+meno\s+della\s+met[aà]|almeno\s+met[aà].*pti|pti.*met[aà].*original/i.test(effectTextForEvo);
+        if (hasConditionalEvo) {
+          const evoChar = this.getPlayerActiveCharacter(game, playerName);
+          if (evoChar) {
+            const origPti = (evoChar as any).originalPti || (evoChar as any).ptiValue || evoChar.pti || 0;
+            const halfOrig = Math.floor(origPti / 2);
+            const currentPtiEvo = evoChar.pti || 0;
+            if (currentPtiEvo < halfOrig) {
+              const ioEvoBlock = (global as any).io;
+              if (ioEvoBlock) {
+                ioEvoBlock.to(gameId).emit('chat-message', {
+                  id: `${Date.now()}-evo-blocked`,
+                  playerName: 'Sistema',
+                  message: `❌ Evoluzione annullata: ${evoChar.name || 'personaggio'} ha ${currentPtiEvo} PTI, servono almeno ${halfOrig} PTI (metà degli originali: ${origPti}).`,
+                  timestamp: Date.now()
+                });
+              }
+              break;
+            }
+          }
+        }
         this.handleEvolutionTransformation(game, gameId, playerName, 'evolution');
         break;
       }
@@ -8803,7 +9068,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const gambleChar = this.getPlayerActiveCharacter(game, playerName);
         if (gambleChar && gambleChar.pti != null) {
           const win = Math.random() >= 0.5;
-          const amount = action.value || 100;
+          const amount = Math.min(action.value || 100, 999999);
           if (win) {
             gambleChar.pti += amount;
             this.updateCardTextWithPTI(gambleChar);
@@ -9212,10 +9477,25 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       case 'steal_character': {
         const io = (global as any).io;
         const enemyChars = game.field.filter((c: Card) => 
-          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          c.owner !== playerName && 
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+          !(c as any).isMozzarellinato   // bonus-20: cannot steal mozzarellinato characters
         );
         if (enemyChars.length === 0) {
-          console.log('🚫 STEAL CHARACTER: No enemy characters on field');
+          // Check if characters exist but are mozzarellinato
+          const allEnemyChars = game.field.filter((c: Card) => c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+          if (allEnemyChars.some((c: Card) => (c as any).isMozzarellinato)) {
+            const ioMozzSteal = (global as any).io;
+            if (ioMozzSteal) {
+              ioMozzSteal.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-mozz-steal-block`,
+                playerName: 'Sistema',
+                message: `🧀 MOZZARELLINATO! Il personaggio avversario è bloccato in posizione e non può essere rubato!`,
+                timestamp: Date.now()
+              });
+            }
+          }
+          console.log('🚫 STEAL CHARACTER: No enemy characters on field (or all mozzarellinato)');
           break;
         }
         const isCPU = this.isPlayerCPU(gameId, playerName);
@@ -9563,6 +9843,109 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       if (blocked) {
         console.log(`💰 CORRUZIONE BLOCK: ${attackerName} cannot attack ${targetOwnerName} for ${blocked.turnsRemaining} more turns`);
         return { success: false, error: `💰 CORRUZIONE: Non puoi attaccare ${targetOwnerName} per altri ${blocked.turnsRemaining} turni!` };
+      }
+    }
+
+    // BONUS-29 ATTACK INTERCEPTOR CHECK: Check if any player has registered as attack interceptor
+    // (only for non-duel, non-hand-target, regular attacks)
+    if (!isDuelAttack && !isHandTarget && (game as any).attackInterceptors?.length > 0) {
+      const interceptors = (game as any).attackInterceptors as Array<{playerName: string; cardId: string; timestamp: number}>;
+      // Interceptor must be a third party (not attacker, not defender)
+      const validInterceptor = interceptors.find(i => i.playerName !== attackerName && i.playerName !== targetOwnerName);
+      if (validInterceptor) {
+        const interceptorIssCPU = this.isPlayerCPU(gameId, validInterceptor.playerName);
+        const attackId = `intercept-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+        
+        if (interceptorIssCPU) {
+          // CPU: 50% chance to reverse, 50% confirm
+          const choice = Math.random() < 0.5 ? 'conferma' : 'ribalta';
+          // Remove interceptor
+          (game as any).attackInterceptors = interceptors.filter(i => i.playerName !== validInterceptor.playerName);
+          if (choice === 'ribalta') {
+            // Apply damage to ATTACKER instead of defender
+            const ioIntercept = (global as any).io;
+            if (ioIntercept) {
+              ioIntercept.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-interceptor-ribalta`,
+                playerName: 'Sistema',
+                message: `🛡️ INTERCETTORE! ${validInterceptor.playerName} ha RIBALTATO l'attacco! ${attackerName} subisce ${damageValue} danni invece di ${targetOwnerName}!`,
+                timestamp: Date.now()
+              });
+            }
+            // Apply damage to attacker's character
+            const attackerChar = this.getPlayerActiveCharacter(game, attackerName);
+            if (attackerChar) {
+              const oldPti = attackerChar.pti || 0;
+              attackerChar.pti = Math.max(0, oldPti - damageValue);
+              this.updateCardTextWithPTI(attackerChar);
+              if (attackerChar.pti <= 0) {
+                this.moveToGraveyard(gameId, attackerChar.id, attackerName, validInterceptor.playerName);
+              }
+            }
+            const gameStateInterc = this.getSanitizedGameState(gameId);
+            const ioInterc = (global as any).io;
+            if (ioInterc) ioInterc.to(gameId).emit('game-state-update', gameStateInterc);
+            return { success: true };
+          }
+          // Otherwise confirm: continue with normal attack (fall through)
+          const ioIntercept = (global as any).io;
+          if (ioIntercept) {
+            ioIntercept.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-interceptor-conferma`,
+              playerName: 'Sistema',
+              message: `🛡️ INTERCETTORE! ${validInterceptor.playerName} ha CONFERMATO l'attacco! Danno raddoppiato a ${damageValue * 2}!`,
+              timestamp: Date.now()
+            });
+          }
+          damageValue = damageValue * 2;
+        } else {
+          // Human: pause attack, show interceptor panel
+          if (!(game as any).pendingInterceptedAttacks) (game as any).pendingInterceptedAttacks = new Map();
+          (game as any).pendingInterceptedAttacks.set(attackId, {
+            attackerName,
+            targetOwnerName,
+            targetCardId,
+            mosseCardId,
+            originalDamage: damageValue,
+            damageValue,
+            isHandTarget,
+            starsToRemove,
+            mosseEffect,
+            interceptorPlayer: validInterceptor.playerName,
+            timestamp: Date.now()
+          });
+          const ioInterceptHuman = (global as any).io;
+          if (ioInterceptHuman) {
+            ioInterceptHuman.to(gameId).emit('show-attack-interceptor-panel', {
+              attackId,
+              interceptorPlayer: validInterceptor.playerName,
+              attackerName,
+              targetOwnerName,
+              damage: damageValue,
+              targetCardName: targetCard.name || this.getCardNameFromUrl(targetCard.frontImage || '')
+            });
+            ioInterceptHuman.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-interceptor-pending`,
+              playerName: 'Sistema',
+              message: `🛡️ INTERCETTORE! ${validInterceptor.playerName} ha la possibilità di ribaltare o confermare l'attacco di ${attackerName}!`,
+              timestamp: Date.now()
+            });
+          }
+          // Remove interceptor (used up)
+          (game as any).attackInterceptors = interceptors.filter(i => i.playerName !== validInterceptor.playerName);
+          console.log(`🛡️ ATTACK INTERCEPTOR: Pausing attack ${attackId} for human interceptor ${validInterceptor.playerName}`);
+          // Auto-timeout after 15s: if no response, continue attack normally
+          const timeoutId = setTimeout(async () => {
+            const pendingAttacks = (game as any).pendingInterceptedAttacks as Map<string, any>;
+            if (pendingAttacks?.has(attackId)) {
+              pendingAttacks.delete(attackId);
+              console.log(`🛡️ ATTACK INTERCEPTOR TIMEOUT: Continuing attack ${attackId} without interception`);
+              await this.executeMossaAttack(gameId, attackerName, mosseCardId, targetCardId, damageValue, isHandTarget, defenseRequestEmitter, starsToRemove, mosseEffect, isFurtoAttack, isDuelAttack);
+            }
+          }, 15000);
+          (game as any)._interceptorTimeout = timeoutId;
+          return { success: true };
+        }
       }
     }
 
@@ -12229,8 +12612,32 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const game = this.games.get(gameId);
     if (!game) return { success: false };
 
-    // INSURANCE CHECK: Before moving to graveyard, check if the card has insurance
+    // RESURRECTION CHECK: Before insurance, check if the card has reserved resurrection PTI (bonus-7)
     const cardToCheck = game.field.find(c => c.id === cardId);
+    if (cardToCheck) {
+      const resurrectionPti = (cardToCheck as any).resurrectionPti || 0;
+      if (resurrectionPti > 0) {
+        cardToCheck.pti = resurrectionPti;
+        (cardToCheck as any).ptiValue = resurrectionPti;
+        (cardToCheck as any).resurrectionPti = 0;
+        const cardNameRez = cardToCheck.name || this.getCardNameFromUrl(cardToCheck.frontImage);
+        const currentStarsRez = cardToCheck.stars || 0;
+        cardToCheck.text = `PTI: ${resurrectionPti} | Stelle: ${currentStarsRez} | ♻️ Resurrezione!`;
+        const ioRez = (global as any).io;
+        if (ioRez) {
+          ioRez.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-resurrection-trigger`,
+            playerName: 'Sistema',
+            message: `♻️ RESURREZIONE! ${cardNameRez} stava per morire ma ha recuperato ${resurrectionPti} PTI riservati!`,
+            timestamp: Date.now()
+          });
+        }
+        console.log(`♻️ RESURRECTION TRIGGERED in moveToGraveyard! ${cardNameRez} restored to ${resurrectionPti} PTI`);
+        return { success: true, insuranceTriggered: true };
+      }
+    }
+
+    // INSURANCE CHECK: Before moving to graveyard, check if the card has insurance
     if (cardToCheck) {
       const insurancePti = (cardToCheck as any).insurancePti || 0;
       if (insurancePti > 0) {
@@ -12614,6 +13021,26 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
       } else {
         message = `📋 ${cardName}: Nessun bersaglio nemico trovato per infliggere ${ptiValue} danni`;
+      }
+    } else if (effectLower.includes('non muore') || effectLower.includes('pti vengono tolti') || effectLower.includes('riservat')) {
+      // bonus-7: Reserve PTI for resurrection - subtract from char but store for later recovery
+      if (activeChar) {
+        const charNameRez = activeChar.name || this.getCardNameFromUrl(activeChar.frontImage);
+        const currentPtiRez = activeChar.pti || 0;
+        const safePtiValue = Math.min(ptiValue, currentPtiRez);
+        const newPtiRez = currentPtiRez - safePtiValue;
+        activeChar.pti = newPtiRez;
+        (activeChar as any).ptiValue = newPtiRez;
+        (activeChar as any).resurrectionPti = ((activeChar as any).resurrectionPti || 0) + safePtiValue;
+        this.updateCardTextWithPTI(activeChar);
+        activeChar.text = `PTI: ${newPtiRez} | Stelle: ${activeChar.stars || 0} | ♻️ Riservati: ${(activeChar as any).resurrectionPti}`;
+        message = `♻️ PTI RISERVATI! ${charNameRez} perde ${safePtiValue} PTI (${currentPtiRez} → ${newPtiRez}). Se morirà, recupererà ${(activeChar as any).resurrectionPti} PTI!`;
+        console.log(`♻️ Resurrection PTI set: ${charNameRez} → resurrectionPti=${(activeChar as any).resurrectionPti}`);
+        if (newPtiRez <= 0) {
+          this.triggerInsuranceOrDeath(gameId, activeChar, playerName);
+        }
+      } else {
+        message = `📋 ${cardName}: Nessun personaggio trovato per i PTI riservati`;
       }
     } else {
       message = `📋 ${cardName}: Effetto applicato con ${ptiValue} PTI`;
@@ -13340,7 +13767,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     for (const targetCard of charsToAffect) {
       const charName = targetCard.name || this.getCardNameFromUrl(targetCard.frontImage || '');
       affectedNames.push(charName);
-      this.applyDiceConsequence(gameId, targetCard.id, effectToApply, true);
+      this.applyDiceConsequence(gameId, targetCard.id, effectToApply, true, rollingPlayer);
     }
     
     // Emit dice animation to all players
@@ -13951,10 +14378,34 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       
       if (result.success) {
         console.log(`🔗 FUSION ENEMY: ${leaderName} fused with ${enemyName} using proper Fondi!`);
+        // bonus-5: +500 PTI bonus post-fusione + clone dell'avversario
+        const fusedChar = this.getPlayerActiveCharacter(game, playerName);
+        if (fusedChar) {
+          fusedChar.pti = (fusedChar.pti || 0) + 500;
+          this.updateCardTextWithPTI(fusedChar);
+          console.log(`🔗 FUSION ENEMY: +500 PTI bonus → ${fusedChar.pti}`);
+        }
+        // Crea clone per l'avversario
+        const enemyOwner = selectedEnemy.owner || '';
+        if (enemyOwner && enemyOwner !== playerName && game.players[enemyOwner]) {
+          const cloneChar = fusedChar || leaderChar;
+          const cloneId = `clone-enemy-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+          const cloneCard: any = {
+            ...JSON.parse(JSON.stringify(cloneChar || leaderChar)),
+            id: cloneId,
+            owner: enemyOwner,
+            pti: Math.floor((cloneChar?.pti || leaderChar.pti || 100) / 2),
+            stars: Math.floor(((cloneChar?.stars || leaderChar.stars || 1)) / 2),
+            isClone: true,
+          };
+          game.field.push(cloneCard);
+          this.updateCardTextWithPTI(cloneCard);
+          console.log(`🔗 FUSION ENEMY: Clone created for ${enemyOwner} with ${cloneCard.pti} PTI`);
+        }
         io.to(gameId).emit('chat-message', {
           id: `${Date.now()}-fusion-enemy`,
           playerName: 'Sistema',
-          message: `🔗 FUSIONE! ${leaderName} si è fuso con ${enemyName}! I PTI e le stelle sono stati sommati!`,
+          message: `🔗 FUSIONE! ${leaderName} si è fuso con ${enemyName}! +500 PTI bonus e un clone è stato creato per l'avversario!`,
           timestamp: Date.now()
         });
       } else {
@@ -14158,6 +14609,38 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const gameState = this.getSanitizedGameState(gameId);
       io.to(gameId).emit('game-state-update', gameState);
       return { success: true, message: `Dividi applicato a ${targetCharName}!` };
+    }
+
+    // ============ CORRUZIONE HANDLER ============
+    if (selectionId.startsWith('corruzione-') || selection.effectText === 'corruzione') {
+      const targetChar = targetCards[0];
+      if (!targetChar) {
+        game.pendingTargetSelections.delete(selectionId);
+        return { success: false, message: 'Nessun bersaglio selezionato per la corruzione' };
+      }
+      const corruptionPtiGift = (selection as any).corrutionPtiGift || 50;
+      const corruptionTurns = (selection as any).corrutionTurns || 3;
+      targetChar.pti = (targetChar.pti || 0) + corruptionPtiGift;
+      this.updateCardTextWithPTI(targetChar);
+      if (!(game as any).peaceRestrictions) (game as any).peaceRestrictions = [];
+      (game as any).peaceRestrictions.push({
+        protectedPlayer: playerName,
+        restrictedPlayer: targetChar.owner,
+        turnsRemaining: corruptionTurns,
+        timestamp: Date.now()
+      });
+      const corrCharName = targetChar.name || this.getCardNameFromUrl(targetChar.frontImage || '');
+      console.log(`💰 CORRUZIONE (Human): ${corrCharName} gained ${corruptionPtiGift} PTI, ${targetChar.owner} can't attack ${playerName} for ${corruptionTurns} turns`);
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-corruzione`,
+        playerName: 'Sistema',
+        message: `💰 CORRUZIONE! ${playerName} ha dato ${corruptionPtiGift} PTI a ${corrCharName} di ${targetChar.owner}. ${targetChar.owner} non può attaccare ${playerName} per ${corruptionTurns} turni!`,
+        timestamp: Date.now()
+      });
+      game.pendingTargetSelections.delete(selectionId);
+      const gameStateCorruzione = this.getSanitizedGameState(gameId);
+      io.to(gameId).emit('game-state-update', gameStateCorruzione);
+      return { success: true, message: `Corruzione applicata a ${corrCharName}!` };
     }
 
     // Check if effect contains DADO_AUTOMATICO - if so, trigger auto dice with pre-selected targets
@@ -14500,7 +14983,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const gambleChar = targetCard;
         if (gambleChar && gambleChar.pti != null) {
           const win = Math.random() >= 0.5;
-          const amount = action.value || 100;
+          const amount = Math.min(action.value || 100, 999999);
           if (win) {
             gambleChar.pti += amount;
             this.updateCardTextWithPTI(gambleChar);
@@ -14837,7 +15320,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     for (const char of charsToAffect) {
       const charName = char.name || this.getCardNameFromUrl(char.frontImage || '');
       // Apply consequence
-      this.applyDiceConsequence(gameId, char.id, actualEffect, false);
+      this.applyDiceConsequence(gameId, char.id, actualEffect, false, playerName);
       results.push({
         charId: char.id,
         charName,
@@ -14920,11 +15403,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
 
     // Apply effects
+    const diceRollingPlayer = diceEffect.initiatorPlayer || '';
     for (const winner of winners) {
-      this.applyDiceConsequence(gameId, winner.characterId, diceEffect.correctEffect, true);
+      this.applyDiceConsequence(gameId, winner.characterId, diceEffect.correctEffect, true, diceRollingPlayer);
     }
     for (const loser of losers) {
-      this.applyDiceConsequence(gameId, loser.characterId, diceEffect.wrongEffect, false);
+      this.applyDiceConsequence(gameId, loser.characterId, diceEffect.wrongEffect, false, diceRollingPlayer);
     }
 
     // Emit result to all players
@@ -14955,7 +15439,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   }
 
   // DICE SYSTEM: Apply consequence based on effect string
-  private applyDiceConsequence(gameId: string, characterId: string, effectStr: string, isCorrect: boolean): void {
+  private applyDiceConsequence(gameId: string, characterId: string, effectStr: string, isCorrect: boolean, rollingPlayer?: string): void {
     const game = this.games.get(gameId);
     if (!game) return;
 
@@ -14968,10 +15452,50 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     // Parse known effects
     const effectLower = effectStr.toLowerCase();
 
+    // Combined PTI + stars loss: "Perde X PTI e perde Y stella/stelle" (bonus-6 face 5)
+    const combinedLossMatch = effectStr.match(/perde\s+(\d+)\s+pti.*?perde\s+(\d+)\s+stell/i);
+    if (combinedLossMatch) {
+      const ptiLoss = parseInt(combinedLossMatch[1]);
+      const starLoss = parseInt(combinedLossMatch[2]);
+      const currentPTI = card.pti || this.extractPTIFromNote(card.text || '');
+      const currentStars = card.stars || this.extractStarsFromNote(card.text || '');
+      const newPTI = Math.max(0, currentPTI - ptiLoss);
+      const newStars = Math.max(0, currentStars - starLoss);
+      card.pti = newPTI;
+      card.stars = newStars;
+      card.text = `PTI: ${newPTI} | Stelle: ${newStars}`;
+      console.log(`🎲 ${cardName} lost ${ptiLoss} PTI and ${starLoss} stars → PTI: ${newPTI}, Stelle: ${newStars}`);
+      if (newPTI <= 0) {
+        this.moveToGraveyard(gameId, characterId, card.owner, 'DADO');
+      }
+      return;
+    }
+
     if (effectLower.includes('morte') || effectLower.includes('death')) {
-      // Death
-      console.log(`🎲💀 ${cardName} dies from dice effect`);
-      this.moveToGraveyard(gameId, characterId, card.owner, 'DADO');
+      const isCoinvolti = effectLower.includes('coinvolti') || effectLower.includes('entrambi');
+      const isSelfOnly = effectLower.includes('che usa questa carta') || effectLower.includes('del giocatore');
+
+      if (isSelfOnly && rollingPlayer) {
+        // Kill only the rolling player's own character (faces 3-4 of bonus-64)
+        const rollerChar = game.field.find((c: any) => c.owner === rollingPlayer && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+        if (rollerChar) {
+          console.log(`🎲💀 ${rollerChar.name || rollerChar.id} (roller) dies from dice effect (self-only)`);
+          this.moveToGraveyard(gameId, rollerChar.id, rollingPlayer, 'DADO');
+        }
+      } else {
+        // Kill the target character
+        console.log(`🎲💀 ${cardName} dies from dice effect`);
+        this.moveToGraveyard(gameId, characterId, card.owner, 'DADO');
+
+        if (isCoinvolti && rollingPlayer && rollingPlayer !== card.owner) {
+          // Also kill the rolling player's own character (faces 1-2 of bonus-64)
+          const rollerChar = game.field.find((c: any) => c.owner === rollingPlayer && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+          if (rollerChar) {
+            console.log(`🎲💀 ${rollerChar.name || rollerChar.id} (roller) also dies — COINVOLTI`);
+            this.moveToGraveyard(gameId, rollerChar.id, rollingPlayer, 'DADO_COINVOLTI');
+          }
+        }
+      }
       return;
     }
 
@@ -18008,6 +18532,28 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       if ((gameState as any).peaceRestrictions.length === 0) delete (gameState as any).peaceRestrictions;
     }
 
+    // MOZZARELLINATO: Decrement temporary mozzarellinato turn counters (bonus-20)
+    for (const fieldCard of gameState.field) {
+      if ((fieldCard as any).isMozzarellinato && (fieldCard as any).mozzarellinatoTurns > 0) {
+        (fieldCard as any).mozzarellinatoTurns--;
+        if ((fieldCard as any).mozzarellinatoTurns <= 0) {
+          (fieldCard as any).isMozzarellinato = false;
+          delete (fieldCard as any).mozzarellinatoTurns;
+          const mozzExpiredName = (fieldCard as any).name || this.getCardNameFromUrl((fieldCard as any).frontImage || '');
+          const ioMozzExp = (global as any).io;
+          if (ioMozzExp) {
+            ioMozzExp.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-mozz-expired`,
+              playerName: 'Sistema',
+              message: `🧀 MOZZARELLINATO scaduto! ${mozzExpiredName} può ora essere sostituito o rubato.`,
+              timestamp: Date.now()
+            });
+          }
+          console.log(`🧀 MOZZARELLINATO expired for ${mozzExpiredName}`);
+        }
+      }
+    }
+
     // Check if there's an active duel
     if (gameState.activeDuel && gameState.activeDuel.active) {
       const duel = gameState.activeDuel;
@@ -19680,6 +20226,38 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       attacker, defender, targetCardId, mosseCardId, damage,
       clearedTimeout, timestamp: new Date().toISOString()
     });
+
+    // BONUS-45 DEFENSE INTERCEPTOR CHECK: if a third-party has registered a defense interceptor
+    if (defends && (game as any).defenseInterceptor) {
+      const defInter = (game as any).defenseInterceptor as { playerName: string; cardId: string; multiplier: number };
+      // Interceptor must be a third party (not attacker, not defender)
+      if (defInter.playerName !== attacker && defInter.playerName !== defender) {
+        // Clear the interceptor
+        delete (game as any).defenseInterceptor;
+        const interMultiplier = defInter.multiplier || 2;
+        const interceptedDamage = (damage || 0) * interMultiplier;
+        console.log(`⚡ DEFENSE INTERCEPTOR: ${defInter.playerName} annulled defense by ${defender}! Damage ${damage} → ${interceptedDamage} (x${interMultiplier})`);
+        if (io) {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-defense-interceptor-trigger`,
+            playerName: 'Sistema',
+            message: `⚡ INTERCETTORE DIFESA! ${defInter.playerName} ha annullato la difesa di ${defender}! Il danno è moltiplicato x${interMultiplier}: ${damage} → ${interceptedDamage} PTI!`,
+            timestamp: Date.now()
+          });
+        }
+        // Skip normal defense processing — apply multiplied damage directly
+        // Re-use the processMosseDamage path: apply damage to defender's character
+        await this.processMosseDamage(gameId, attacker, targetCardId, interceptedDamage, mosseCardId, io, false, false, false, false, starsToRemove, mosseEffect || undefined);
+        this.returnToDeck(gameId, mosseCardId, attacker);
+        const nextPlayerInterc = this.endTurn(gameId, attacker);
+        if (nextPlayerInterc && io) {
+          io.to(gameId).emit('next-turn', { nextPlayer: nextPlayerInterc });
+        }
+        const updatedStateInterc = this.getSanitizedGameState(gameId);
+        if (io) io.to(gameId).emit('game-state-update', updatedStateInterc);
+        return true;
+      }
+    }
 
     if (defends) {
       // DEFENSE SUCCESSFUL: Block attack and return MOSSE card

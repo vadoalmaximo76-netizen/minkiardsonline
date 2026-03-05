@@ -653,14 +653,8 @@ async function executeCpuDuelAttackSequence(
       timestamp: Date.now()
     });
     
-    const duelAttackResult = await gameManager.executeMossaAttack(
-      gameId, initiatorPlayer, duelCardId, opponentCharacterId, duelloDmg, false, undefined, 0, null, false, true
-    );
-    
-    if (duelAttackResult.success && duelAttackResult.result?.requiresDefenseResponse) {
-      await gameManager.emitDefenseRequest(gameId, io);
-    }
-    
+    // Apply DUELLO card damage DIRECTLY (bypass pendingDefense to avoid premature duel turn switch)
+    await gameManager.processMosseDamage(gameId, initiatorPlayer, opponentCharacterId, duelloDmg, duelCardId, io, false, false, false, false, 0, undefined);
     gameManager.returnToDeck(gameId, duelCardId, initiatorPlayer);
     emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
   }
@@ -726,14 +720,8 @@ async function executeCpuDuelAttackSequence(
           timestamp: Date.now()
         });
         
-        const mosseAttackResult = await gameManager.executeMossaAttack(
-          gameId, initiatorPlayer, mosseInHand.id, opponentCharacterId, mosseDmg
-        );
-        
-        if (mosseAttackResult.success && mosseAttackResult.result?.requiresDefenseResponse) {
-          await gameManager.emitDefenseRequest(gameId, io);
-        }
-        
+        // Apply MOSSE damage DIRECTLY (bypass pendingDefense to avoid double duel turn switch)
+        await gameManager.processMosseDamage(gameId, initiatorPlayer, opponentCharacterId, mosseDmg, mosseInHand.id, io, false, false, false, false, 0, undefined);
         gameManager.returnToDeck(gameId, mosseInHand.id, initiatorPlayer);
         emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
       }
@@ -3039,22 +3027,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // Handle swap/baratto selection - swap all cards with selected player
+    // BONUS-29: Attack interceptor response (conferma/ribalta/ignora)
+    socket.on('interceptor-response', async ({ attackId, choice, playerName }: { attackId: string; choice: 'conferma' | 'ribalta' | 'ignora'; playerName: string }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = gameManager.getGameState(gameId);
+      if (!game) return;
+
+      const pendingAttacks = (game as any).pendingInterceptedAttacks as Map<string, any> | undefined;
+      if (!pendingAttacks?.has(attackId)) {
+        console.log(`⚠️ interceptor-response: attackId ${attackId} not found`);
+        return;
+      }
+      const pending = pendingAttacks.get(attackId)!;
+      pendingAttacks.delete(attackId);
+
+      // Cancel the auto-timeout
+      if ((game as any)._interceptorTimeout) {
+        clearTimeout((game as any)._interceptorTimeout);
+        delete (game as any)._interceptorTimeout;
+      }
+
+      console.log(`🛡️ INTERCEPTOR RESPONSE: ${playerName} chose '${choice}' for attack ${attackId}`);
+
+      if (choice === 'ribalta') {
+        // Apply original damage to ATTACKER instead of defender
+        // Find the attacker's character card on field
+        const currentGame = gameManager.getGameState(gameId);
+        const attackerChar = currentGame?.field?.find((c: any) => 
+          c.owner === pending.attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (!attackerChar) {
+          // Attacker has no character — just end turn
+          gameManager.returnToDeck(gameId, pending.mosseCardId, pending.attackerName);
+          const nextPlayer = gameManager.endTurn(gameId, pending.attackerName);
+          if (nextPlayer) io.to(gameId).emit('next-turn', { nextPlayer });
+        } else {
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-interceptor-ribalta-human`,
+            playerName: 'Sistema',
+            message: `🛡️ INTERCETTORE! ${playerName} ha RIBALTATO l'attacco! ${pending.attackerName} subisce ${pending.originalDamage} danni invece di ${pending.targetOwnerName}!`,
+            timestamp: Date.now()
+          });
+          await gameManager.processMosseDamage(gameId, pending.interceptorPlayer, attackerChar.id, pending.originalDamage, pending.mosseCardId, io, false, false, false, false, 0, undefined);
+          gameManager.returnToDeck(gameId, pending.mosseCardId, pending.attackerName);
+          const nextPlayer = gameManager.endTurn(gameId, pending.attackerName);
+          if (nextPlayer) io.to(gameId).emit('next-turn', { nextPlayer });
+        }
+      } else if (choice === 'conferma') {
+        // Continue with doubled damage
+        const doubledDamage = pending.originalDamage * 2;
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-interceptor-conferma-human`,
+          playerName: 'Sistema',
+          message: `🛡️ INTERCETTORE! ${playerName} ha CONFERMATO l'attacco! Danno raddoppiato a ${doubledDamage}!`,
+          timestamp: Date.now()
+        });
+        await gameManager.executeMossaAttack(gameId, pending.attackerName, pending.mosseCardId, pending.targetCardId, doubledDamage, pending.isHandTarget, undefined, pending.starsToRemove, pending.mosseEffect, false, false);
+      } else {
+        // 'ignora': continue with original damage (no interception)
+        await gameManager.executeMossaAttack(gameId, pending.attackerName, pending.mosseCardId, pending.targetCardId, pending.originalDamage, pending.isHandTarget, undefined, pending.starsToRemove, pending.mosseEffect, false, false);
+      }
+
+      const updatedState = gameManager.getSanitizedGameState(gameId);
+      emitImmediateGameState(io, gameId, updatedState);
+    });
+
     socket.on('swap-confirm', ({ cardId, targetPlayer, playerName }: { cardId: string, targetPlayer: string, playerName: string }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
-      if (gameId) {
-        console.log(`🔄 ${playerName} confirmed swap with ${targetPlayer}`);
-        const result = gameManager.processSwapEffect(gameId, playerName, targetPlayer, io);
-        if (result.success) {
-          const gameState = gameManager.getSanitizedGameState(gameId);
-          emitImmediateGameState(io, gameId, gameState);
-          
+      if (!gameId) return;
+
+      const game = gameManager.getGameState(gameId);
+      if (!game) return;
+
+      // Check if this is a DISCARD-130 pending action
+      const pendingDiscard = (game as any).pendingDiscard130;
+      if (pendingDiscard && pendingDiscard.playerName === playerName) {
+        console.log(`🗑️ DISCARD-130 (swap-confirm): ${playerName} chose ${targetPlayer} to discard ${pendingDiscard.discardCount} cards`);
+        delete (game as any).pendingDiscard130;
+        const targetOpponent = game.players[targetPlayer];
+        if (targetOpponent) {
+          const discardCount = Math.min(pendingDiscard.discardCount, targetOpponent.hand.length);
+          for (let i = 0; i < discardCount; i++) {
+            if (targetOpponent.hand.length > 0) {
+              const randomIndex = Math.floor(Math.random() * targetOpponent.hand.length);
+              const discardedCard = targetOpponent.hand.splice(randomIndex, 1)[0];
+              game.graveyard.push(discardedCard);
+            }
+          }
           io.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-swap`,
+            id: `${Date.now()}-discard-130`,
             playerName: 'Sistema',
-            message: result.message || `🔄 BARATTO! ${playerName} ha scambiato tutte le carte con ${targetPlayer}!`,
+            message: `🗑️ ${playerName} ha fatto scartare ${discardCount} carte casuali a ${targetPlayer}!`,
             timestamp: Date.now()
           });
         }
+        const gameState = gameManager.getSanitizedGameState(gameId);
+        emitImmediateGameState(io, gameId, gameState);
+        return;
+      }
+
+      console.log(`🔄 ${playerName} confirmed swap with ${targetPlayer}`);
+      const result = gameManager.processSwapEffect(gameId, playerName, targetPlayer, io);
+      if (result.success) {
+        const gameState = gameManager.getSanitizedGameState(gameId);
+        emitImmediateGameState(io, gameId, gameState);
+        
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-swap`,
+          playerName: 'Sistema',
+          message: result.message || `🔄 BARATTO! ${playerName} ha scambiato tutte le carte con ${targetPlayer}!`,
+          timestamp: Date.now()
+        });
       }
     });
 

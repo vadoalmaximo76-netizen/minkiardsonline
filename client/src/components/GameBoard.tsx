@@ -23,6 +23,7 @@ import { LeaveGameNotification } from "./LeaveGameNotification";
 import { SuperDice } from "./SuperDice";
 import { TransferRequestDialog } from "./TransferRequestDialog";
 import { DefenseDialog } from "./DefenseDialog";
+import { AttackInterceptorPanel } from "./AttackInterceptorPanel";
 import { ClashBattle } from "./ClashBattle";
 import { CPUDamageDialog } from "./CPUDamageDialog";
 import { DuelBattleOverlay } from "./DuelBattleOverlay";
@@ -4421,6 +4422,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
         {/* Defense System Dialog */}
         <DefenseDialog />
+        <AttackInterceptorPanel />
         
         {/* Clash Battle - Equal damage tap battle */}
         {clashBattleData?.visible && (
