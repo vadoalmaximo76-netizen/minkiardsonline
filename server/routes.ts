@@ -12312,6 +12312,206 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     }
   });
 
+  // POST /api/draft/generate-initial-deck - genera automaticamente il mazzo iniziale
+  app.post('/api/draft/generate-initial-deck', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'User not found' });
+
+      const credits = await getOrCreateDraftCredits(currentUser.id);
+      const totalAvailable = credits.freeCredits + credits.paidCredits + currentUser.puntiRankiard;
+      if (totalAvailable < 495) {
+        return res.status(400).json({ error: 'Crediti insufficienti per generare il mazzo iniziale.' });
+      }
+
+      // Build full card pool from CARD_DATA + modifications
+      const modifications = jsonStorage.cardModifications.getAll();
+      const modMap = new Map(modifications.map((m: any) => [m.originalCardId, m]));
+
+      const deckTypes = ['personaggi', 'mosse', 'bonus'] as const;
+      const cardsByType: Record<string, Array<{ id: string; draftCost: number; imageUrl: string; name: string }>> = {};
+
+      for (const deck of deckTypes) {
+        const deckData = (CARD_DATA as any)[deck] || [];
+        cardsByType[deck] = [];
+        deckData.forEach((imageUrl: string, index: number) => {
+          const cardId = `${deck}-${index}`;
+          const mod = modMap.get(cardId) as any;
+          if (mod?.isDeleted) return;
+          const urlParts = imageUrl.split('/');
+          const filename = urlParts[urlParts.length - 1];
+          const originalName = decodeURIComponent(filename).replace(/\.(png|jpg|jpeg|gif|webp)$/i, '').replace(/[-_]/g, ' ').trim();
+          cardsByType[deck].push({
+            id: cardId,
+            draftCost: mod?.draftCost ?? 0,
+            imageUrl: (mod?.imageUrl || imageUrl),
+            name: mod?.name || originalName,
+          });
+        });
+      }
+
+      // Algorithm: select 33 cards per type with total cost in [495, 500]
+      const TARGET_MIN = 495;
+      const TARGET_MAX = 500;
+      const COUNT = 33;
+
+      const getRarity = (cost: number): string => {
+        if (cost === 0) return 'comune';
+        if (cost <= 5) return 'rara';
+        if (cost <= 20) return 'epica';
+        return 'leggendaria';
+      };
+
+      const selectedByType: Record<string, typeof cardsByType[string]> = {};
+      for (const deck of deckTypes) {
+        const pool = [...cardsByType[deck]].sort((a, b) => a.draftCost - b.draftCost);
+        selectedByType[deck] = pool.slice(0, Math.min(COUNT, pool.length));
+      }
+
+      // Upgrade cards greedily to reach target range [495, 500]
+      const calcTotal = () => Object.values(selectedByType).flat().reduce((s, c) => s + c.draftCost, 0);
+      let total = calcTotal();
+      const MAX_ITER = 3000;
+      let iter = 0;
+
+      while (total < TARGET_MIN && iter < MAX_ITER) {
+        iter++;
+        const deck = deckTypes[iter % 3];
+        const selected = selectedByType[deck];
+        const selectedIds = new Set(selected.map(c => c.id));
+        const notSelected = cardsByType[deck].filter(c => !selectedIds.has(c.id));
+        if (notSelected.length === 0) continue;
+
+        // Find cheapest selected card
+        const cheapestIdx = selected.reduce((minI, c, i, arr) => c.draftCost < arr[minI].draftCost ? i : minI, 0);
+        const cheapest = selected[cheapestIdx];
+        const maxNewCost = TARGET_MAX - total + cheapest.draftCost;
+
+        const candidates = notSelected.filter(c => c.draftCost > cheapest.draftCost && c.draftCost <= maxNewCost);
+        if (candidates.length === 0) continue;
+        const candidate = candidates[Math.floor(Math.random() * candidates.length)];
+        selected[cheapestIdx] = candidate;
+        total = calcTotal();
+      }
+
+      // Shuffle each selected array for randomness in display order
+      for (const deck of deckTypes) {
+        for (let i = selectedByType[deck].length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [selectedByType[deck][i], selectedByType[deck][j]] = [selectedByType[deck][j], selectedByType[deck][i]];
+        }
+      }
+
+      const finalTotal = calcTotal();
+
+      // Deduct credits
+      let remaining = finalTotal;
+      let newPaid = credits.paidCredits;
+      let newFree = credits.freeCredits;
+      let rankiardDeducted = 0;
+      if (newPaid >= remaining) {
+        newPaid -= remaining; remaining = 0;
+      } else {
+        remaining -= newPaid; newPaid = 0;
+        if (newFree >= remaining) {
+          newFree -= remaining; remaining = 0;
+        } else {
+          remaining -= newFree; newFree = 0;
+          rankiardDeducted = remaining;
+        }
+      }
+      await db.update(userDraftCredits).set({ paidCredits: newPaid, freeCredits: newFree, updatedAt: new Date() })
+        .where(eq(userDraftCredits.userId, currentUser.id));
+      if (rankiardDeducted > 0) {
+        await db.update(users).set({ puntiRankiard: Math.max(0, currentUser.puntiRankiard - rankiardDeducted) })
+          .where(eq(users.id, currentUser.id));
+      }
+
+      // Save the deck
+      const personaggiCards = selectedByType['personaggi'].map(c => c.id);
+      const mosseCards = selectedByType['mosse'].map(c => c.id);
+      const bonusCards = selectedByType['bonus'].map(c => c.id);
+
+      const existing = await db.select().from(draftDecks).where(eq(draftDecks.userId, currentUser.id)).limit(1);
+      if (existing.length > 0) {
+        await db.update(draftDecks).set({ personaggiCards, mosseCards, bonusCards, isComplete: true, totalCostSpent: finalTotal, savedAt: new Date() })
+          .where(eq(draftDecks.userId, currentUser.id));
+      } else {
+        await db.insert(draftDecks).values({ userId: currentUser.id, personaggiCards, mosseCards, bonusCards, isComplete: true, totalCostSpent: finalTotal });
+      }
+
+      // Return card data formatted for RevealedCard animation
+      const toRevealedCards = (deck: string, cards: typeof cardsByType[string]) =>
+        cards.map(c => ({
+          cardId: c.id,
+          deckType: deck,
+          rarity: getRarity(c.draftCost),
+          frontImage: c.imageUrl,
+          name: c.name,
+          draftCost: c.draftCost,
+          isDuplicate: false,
+        }));
+
+      res.json({
+        success: true,
+        totalCost: finalTotal,
+        personaggiCards: toRevealedCards('personaggi', selectedByType['personaggi']),
+        mosseCards: toRevealedCards('mosse', selectedByType['mosse']),
+        bonusCards: toRevealedCards('bonus', selectedByType['bonus']),
+      });
+    } catch (error) {
+      console.error('Error generating initial deck:', error);
+      res.status(500).json({ error: 'Errore nella generazione del mazzo iniziale' });
+    }
+  });
+
+  // POST /api/draft/unlock-custom-deck - paga 1000 crediti per sbloccare la creazione personalizzata
+  app.post('/api/draft/unlock-custom-deck', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'User not found' });
+
+      const credits = await getOrCreateDraftCredits(currentUser.id);
+      const totalAvailable = credits.freeCredits + credits.paidCredits + currentUser.puntiRankiard;
+      const UNLOCK_COST = 1000;
+      if (totalAvailable < UNLOCK_COST) {
+        return res.status(400).json({ error: 'Crediti insufficienti', needed: UNLOCK_COST, available: totalAvailable });
+      }
+
+      // Deduct 1000 credits
+      let remaining = UNLOCK_COST;
+      let newPaid = credits.paidCredits;
+      let newFree = credits.freeCredits;
+      let rankiardDeducted = 0;
+      if (newPaid >= remaining) {
+        newPaid -= remaining; remaining = 0;
+      } else {
+        remaining -= newPaid; newPaid = 0;
+        if (newFree >= remaining) {
+          newFree -= remaining; remaining = 0;
+        } else {
+          remaining -= newFree; newFree = 0;
+          rankiardDeducted = remaining;
+        }
+      }
+      await db.update(userDraftCredits).set({ paidCredits: newPaid, freeCredits: newFree, updatedAt: new Date() })
+        .where(eq(userDraftCredits.userId, currentUser.id));
+      if (rankiardDeducted > 0) {
+        await db.update(users).set({ puntiRankiard: Math.max(0, currentUser.puntiRankiard - rankiardDeducted) })
+          .where(eq(users.id, currentUser.id));
+      }
+
+      res.json({ success: true, creditsSpent: UNLOCK_COST });
+    } catch (error) {
+      console.error('Error unlocking custom deck:', error);
+      res.status(500).json({ error: 'Errore nello sblocco mazzo personalizzato' });
+    }
+  });
+
   // POST /api/draft/deck/add-card - aggiunge una singola carta direttamente al mazzo
   app.post('/api/draft/deck/add-card', authMiddleware, async (req, res) => {
     try {

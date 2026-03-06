@@ -164,6 +164,15 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
   const [claimingMission, setClaimingMission] = useState<string | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Initial deck setup state
+  const [showInitialChoice, setShowInitialChoice] = useState(false);
+  const [generatingInitialDeck, setGeneratingInitialDeck] = useState(false);
+  const [initialPackQueue, setInitialPackQueue] = useState<Array<{ pack: PackType; cards: RevealedCard[] }>>([]);
+  const [currentInitialPack, setCurrentInitialPack] = useState<{ pack: PackType; cards: RevealedCard[] } | null>(null);
+  const [unlockingCustom, setUnlockingCustom] = useState(false);
+  const [showInsufficientMsg, setShowInsufficientMsg] = useState(false);
+  const [initialDeckError, setInitialDeckError] = useState<string | null>(null);
+
   const fetchCollection = useCallback(async () => {
     try {
       const res = await fetch('/api/draft/collection', { headers: getAuthHeaders() });
@@ -233,9 +242,11 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
         fetch('/api/draft/deck', { headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' }, cache: 'no-store' }),
         fetch('/api/draft/cards'),
       ]);
+      let parsedUserId: number | null = null;
       if (statusRes.ok) {
         const s = await statusRes.json();
         setStatus(s);
+        parsedUserId = s.userId || null;
       }
       if (deckRes.ok) {
         const d = await deckRes.json();
@@ -244,6 +255,13 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
           mosse: d.mosseCards || [],
           bonus: d.bonusCards || [],
         });
+        // Detect first-time deck builder
+        const isDeckEmpty = !(d.personaggiCards?.length) && !(d.mosseCards?.length) && !(d.bonusCards?.length);
+        const resolvedId = parsedUserId ?? userId;
+        const setupKey = `draftSetupDone_${resolvedId}`;
+        if (isDeckEmpty && !localStorage.getItem(setupKey)) {
+          setShowInitialChoice(true);
+        }
       }
       if (cardsRes.ok) {
         const cards = await cardsRes.json();
@@ -341,6 +359,91 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
     fetchPacks();
     fetchPackHistory();
     fetchMissions();
+  };
+
+  // Process initial pack animation queue
+  useEffect(() => {
+    if (!currentInitialPack && initialPackQueue.length > 0) {
+      const [next, ...rest] = initialPackQueue;
+      setCurrentInitialPack(next);
+      setInitialPackQueue(rest);
+    }
+  }, [currentInitialPack, initialPackQueue]);
+
+  const handleInitialPackClose = () => {
+    setCurrentInitialPack(null);
+    if (initialPackQueue.length === 0) {
+      fetchAll();
+      fetchCollection();
+    }
+  };
+
+  const INITIAL_BASE_PACK: PackType = {
+    id: 'initial',
+    name: 'Mazzo Iniziale',
+    creditsRequired: 0,
+    cardCount: 33,
+    description: 'Il tuo primo mazzo automatico!',
+    gradient: 'from-purple-700 to-teal-600',
+    glowColor: 'rgba(139, 92, 246, 0.6)',
+    composition: '33 carte',
+  };
+
+  const handleGenerateInitialDeck = async () => {
+    setGeneratingInitialDeck(true);
+    setInitialDeckError(null);
+    try {
+      const res = await fetch('/api/draft/generate-initial-deck', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setInitialDeckError(data.error || 'Errore nella generazione del mazzo');
+        return;
+      }
+      const resolvedId = (status as any)?.userId ?? userId;
+      localStorage.setItem(`draftSetupDone_${resolvedId}`, '1');
+      setShowInitialChoice(false);
+      const queue = [
+        { pack: { ...INITIAL_BASE_PACK, name: 'Personaggi – Mazzo Iniziale' }, cards: data.personaggiCards as RevealedCard[] },
+        { pack: { ...INITIAL_BASE_PACK, name: 'Mosse – Mazzo Iniziale' }, cards: data.mosseCards as RevealedCard[] },
+        { pack: { ...INITIAL_BASE_PACK, name: 'Bonus – Mazzo Iniziale' }, cards: data.bonusCards as RevealedCard[] },
+      ];
+      setInitialPackQueue(queue);
+    } catch (e: any) {
+      setInitialDeckError(e.message || 'Errore di rete');
+    } finally {
+      setGeneratingInitialDeck(false);
+    }
+  };
+
+  const handleUnlockCustomDeck = async () => {
+    const totalAvailable = status ? status.totalCredits + status.puntiRankiard : 0;
+    if (totalAvailable < 1000) {
+      setShowInsufficientMsg(true);
+      return;
+    }
+    setUnlockingCustom(true);
+    try {
+      const res = await fetch('/api/draft/unlock-custom-deck', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const resolvedId = (status as any)?.userId ?? userId;
+        localStorage.setItem(`draftSetupDone_${resolvedId}`, '1');
+        setShowInitialChoice(false);
+        await fetchAll();
+      } else {
+        setShowInsufficientMsg(true);
+      }
+    } catch (e) {
+      setShowInsufficientMsg(true);
+    } finally {
+      setUnlockingCustom(false);
+    }
   };
 
   const claimDailyCard = async () => {
@@ -613,8 +716,124 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
         ) : <div className="w-24" />}
       </div>
 
+      {/* Initial deck choice screen */}
+      {showInitialChoice && !loading && (
+        <div className="relative z-20 flex-1 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-2xl">
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-600 to-teal-600 mb-4 shadow-lg shadow-purple-900/40">
+                <Sparkles className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-black text-white mb-2">Benvenuto nel Draft!</h2>
+              <p className="text-white/60 text-sm max-w-md mx-auto">
+                È la tua prima volta qui. Scegli come costruire il tuo mazzo da 99 carte.
+              </p>
+              {status && (
+                <div className="inline-flex items-center gap-2 mt-3 bg-teal-900/30 border border-teal-500/30 rounded-xl px-3 py-1.5">
+                  <Coins className="w-4 h-4 text-teal-400" />
+                  <span className="text-teal-300 font-semibold text-sm">
+                    {(status.totalCredits + status.puntiRankiard).toLocaleString()} crediti disponibili
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Opzione 1: Genera automaticamente */}
+              <div className="bg-gradient-to-br from-teal-900/50 to-cyan-900/30 border border-teal-500/40 rounded-2xl p-5 flex flex-col gap-3 hover:border-teal-400/60 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-teal-600/40 flex items-center justify-center flex-shrink-0">
+                    <Shuffle className="w-5 h-5 text-teal-300" />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-bold text-base">Genera mazzo iniziale</h3>
+                    <p className="text-teal-400 text-xs font-medium">~495-500 crediti</p>
+                  </div>
+                </div>
+                <p className="text-white/60 text-sm leading-relaxed">
+                  Il sistema seleziona automaticamente 33 personaggi, 33 mosse e 33 bonus casuali usando quasi tutti i tuoi crediti iniziali.
+                </p>
+                <div className="mt-auto">
+                  {initialDeckError && (
+                    <p className="text-red-400 text-xs mb-2">{initialDeckError}</p>
+                  )}
+                  <button
+                    onClick={handleGenerateInitialDeck}
+                    disabled={generatingInitialDeck}
+                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white font-bold text-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {generatingInitialDeck ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Generazione...
+                      </>
+                    ) : (
+                      <>
+                        <Shuffle className="w-4 h-4" />
+                        Genera mazzo iniziale
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Opzione 2: Mazzo personalizzato */}
+              <div className="bg-gradient-to-br from-purple-900/50 to-indigo-900/30 border border-purple-500/40 rounded-2xl p-5 flex flex-col gap-3 hover:border-purple-400/60 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-600/40 flex items-center justify-center flex-shrink-0">
+                    <Sparkles className="w-5 h-5 text-purple-300" />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-bold text-base">Crea il tuo mazzo personalizzato</h3>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <Lock className="w-3 h-3 text-amber-400" />
+                      <p className="text-amber-400 text-xs font-medium">Costa 1000 crediti per sbloccare</p>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-white/60 text-sm leading-relaxed">
+                  Paga 1000 crediti (sommando crediti e Punti Rankiard) per accedere alla selezione manuale di ogni carta del tuo mazzo.
+                </p>
+                {showInsufficientMsg && (
+                  <div className="flex items-start gap-2 bg-red-900/30 border border-red-500/40 rounded-xl p-3">
+                    <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-red-300 text-xs leading-relaxed">
+                      Non hai abbastanza crediti. Acquistane altri nell'apposita sezione Crediti oppure accumula Punti Rankiard giocando.
+                    </p>
+                  </div>
+                )}
+                <div className="mt-auto">
+                  {status && (
+                    <p className="text-white/40 text-xs mb-2">
+                      Disponibili: {(status.totalCredits + status.puntiRankiard).toLocaleString()} / 1000
+                    </p>
+                  )}
+                  <button
+                    onClick={handleUnlockCustomDeck}
+                    disabled={unlockingCustom}
+                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {unlockingCustom ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Sblocco in corso...
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="w-4 h-4" />
+                        Crea il tuo mazzo personalizzato
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tabs */}
-      <div className="relative z-10 flex border-b border-white/10 bg-black/10 flex-shrink-0 overflow-x-auto">
+      <div className={`relative z-10 flex border-b border-white/10 bg-black/10 flex-shrink-0 overflow-x-auto${showInitialChoice ? ' hidden' : ''}`}>
         {([
           { key: 'deck', label: 'Mazzo', icon: Package, badge: totalSelected > 0 ? `${totalSelected}/99` : null },
           { key: 'shop', label: 'Negozio', icon: ShoppingCart, badge: null },
@@ -651,7 +870,7 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
             <p className="text-white/50 text-sm">Caricamento...</p>
           </div>
         </div>
-      ) : (
+      ) : showInitialChoice ? null : (
         <div className="relative z-10 flex-1 overflow-y-auto p-4">
 
           {/* ===== TAB: IL MIO MAZZO ===== */}
@@ -1652,6 +1871,15 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
           cards={packAnimation.cards}
           onClose={handleAnimationClose}
           onCardAdded={fetchDeck}
+        />
+      )}
+
+      {currentInitialPack && (
+        <PackOpeningAnimation
+          pack={currentInitialPack.pack}
+          cards={currentInitialPack.cards}
+          onClose={handleInitialPackClose}
+          onCardAdded={() => {}}
         />
       )}
     </div>
