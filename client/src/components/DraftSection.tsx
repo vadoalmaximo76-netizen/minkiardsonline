@@ -1622,15 +1622,29 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
       )}
 
       {/* Marketplace Tab */}
-      {activeTab === 'marketplace' && (
-        <div className="relative z-10 flex-1 overflow-y-auto p-3 sm:p-4">
-          <Marketplace
-            userId={userId || 0}
-            username={playerName}
-            onClose={() => setActiveTab('deck')}
-          />
-        </div>
-      )}
+      {activeTab === 'marketplace' && (() => {
+        const marketplaceCollection = ownedCardDetails.map(item => {
+          const meta = allCards.find(c => c.id === item.cardId);
+          return {
+            cardId: item.cardId,
+            cardName: meta?.name || item.cardId,
+            cardType: item.deckType || meta?.deckType || '',
+            cardRarity: item.rarity || 'comune',
+            cardImageUrl: meta?.imageUrl,
+            count: 1,
+          };
+        });
+        return (
+          <div className="relative z-10 flex-1 overflow-y-auto p-3 sm:p-4">
+            <Marketplace
+              userId={userId || 0}
+              username={playerName}
+              onClose={() => setActiveTab('deck')}
+              preloadedCollection={marketplaceCollection}
+            />
+          </div>
+        );
+      })()}
 
       {packAnimation && (
         <PackOpeningAnimation

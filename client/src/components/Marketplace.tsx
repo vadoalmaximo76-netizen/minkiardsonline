@@ -24,6 +24,7 @@ interface MarketplaceProps {
   userId: number;
   username: string;
   onClose: () => void;
+  preloadedCollection?: UserCard[];
 }
 
 interface Listing {
@@ -55,7 +56,7 @@ function getAuthHeaders(): Record<string, string> {
     : { 'Content-Type': 'application/json' };
 }
 
-export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
+export function Marketplace({ userId, username, onClose, preloadedCollection }: MarketplaceProps) {
   const [activeTab, setActiveTab] = React.useState("explore");
   const [filterType, setFilterType] = React.useState<string>("ALL");
   const [filterRarity, setFilterRarity] = React.useState<string>("ALL");
@@ -337,22 +338,30 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
             </TabsContent>
 
             <TabsContent value="sell" className="h-full m-0 overflow-y-auto">
-              <div className="p-6 pt-2 flex flex-col gap-6 min-h-full">
+              {(() => {
+                const collection = (preloadedCollection && preloadedCollection.length > 0)
+                  ? preloadedCollection
+                  : myCollection;
+                const isLoading = !preloadedCollection && isLoadingCollection;
+                return (
+                <div className="p-6 pt-2 flex flex-col gap-6 min-h-full">
                 <div className="flex flex-col lg:flex-row gap-6">
                   <div className="flex-1 flex flex-col gap-3">
-                    <h3 className="text-sm font-medium text-slate-400">Seleziona una carta dalla tua collezione</h3>
+                    <h3 className="text-sm font-medium text-slate-400">
+                      Seleziona una carta ({collection.length} disponibili)
+                    </h3>
                     <div className="bg-white/5 rounded-lg border border-white/10 p-4">
-                      {isLoadingCollection ? (
+                      {isLoading ? (
                         <div className="flex items-center justify-center h-40">
                           <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
                         </div>
-                      ) : myCollection.length === 0 ? (
+                      ) : collection.length === 0 ? (
                         <div className="text-center py-10 text-slate-500 text-sm">
                           Non hai carte nella tua collezione.
                         </div>
                       ) : (
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-72 overflow-y-auto">
-                          {myCollection.map((card) => (
+                          {collection.map((card) => (
                             <div
                               key={card.cardId}
                               onClick={() => setSelectedCardForSale(card.cardId)}
@@ -379,7 +388,7 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
 
                   <div className="lg:w-72 bg-white/5 rounded-lg border border-white/10 p-6 flex flex-col gap-6 justify-center">
                     {selectedCardForSale && (() => {
-                      const card = myCollection.find(c => c.cardId === selectedCardForSale);
+                      const card = collection.find(c => c.cardId === selectedCardForSale);
                       return card ? (
                         <div className="text-center">
                           <div className="text-xs text-slate-400 mb-1">Carta selezionata</div>
@@ -407,7 +416,7 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
                       disabled={!selectedCardForSale || sellPrice < 50 || sellPrice > 5000 || listMutation.isPending}
                       onClick={() => {
                         if (!selectedCardForSale) return;
-                        const card = myCollection.find(c => c.cardId === selectedCardForSale);
+                        const card = collection.find(c => c.cardId === selectedCardForSale);
                         if (!card) return;
                         listMutation.mutate({
                           cardId: card.cardId,
@@ -424,7 +433,9 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
                     </Button>
                   </div>
                 </div>
-              </div>
+                </div>
+                );
+              })()}
             </TabsContent>
           </div>
         </Tabs>
