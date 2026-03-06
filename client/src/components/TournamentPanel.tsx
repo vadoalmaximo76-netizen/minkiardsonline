@@ -36,6 +36,7 @@ export function TournamentPanel({ userId, username, onClose }: TournamentPanelPr
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null);
   const [bracketData, setBracketData] = useState<{ tournament: Tournament; matches: TournamentMatch[] } | null>(null);
   const [loading, setLoading] = useState(false);
+  const authToken = localStorage.getItem('authToken');
 
   // Create Form State
   const [formData, setFormData] = useState({
@@ -91,7 +92,10 @@ export function TournamentPanel({ userId, username, onClose }: TournamentPanelPr
 
   const handleJoin = async (id: number) => {
     try {
-      const res = await fetch(`/api/tournaments/${id}/join`, { method: 'POST' });
+      const res = await fetch(`/api/tournaments/${id}/join`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
       const data = await res.json();
       if (data.success) {
         fetchTournaments();
@@ -105,7 +109,10 @@ export function TournamentPanel({ userId, username, onClose }: TournamentPanelPr
 
   const handleStart = async (id: number) => {
     try {
-      const res = await fetch(`/api/tournaments/${id}/start`, { method: 'POST' });
+      const res = await fetch(`/api/tournaments/${id}/start`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
       const data = await res.json();
       if (data.success) {
         fetchTournaments();
@@ -123,7 +130,10 @@ export function TournamentPanel({ userId, username, onClose }: TournamentPanelPr
     try {
       const res = await fetch('/api/tournaments', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
         body: JSON.stringify(formData),
       });
       const data = await res.json();
