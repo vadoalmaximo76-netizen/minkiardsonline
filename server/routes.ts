@@ -12354,33 +12354,75 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
 
       const COUNT = 33;
 
-      const getRarity = (cost: number): string => {
-        if (cost === 0) return 'comune';
-        if (cost <= 5) return 'rara';
-        if (cost <= 20) return 'epica';
+      // Rarity bucket helper — uses percentile ranks within each type's sorted pool
+      // so the buckets adapt to whatever cost distribution exists in the game.
+      const shuffle = <T>(arr: T[]): T[] => {
+        const a = [...arr];
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      };
+      const pickRandom = <T>(arr: T[], n: number): T[] => shuffle(arr).slice(0, Math.min(n, arr.length));
+
+      const getRarity = (deck: string, cardId: string, sortedPool: typeof cardsByType[string]): string => {
+        const idx = sortedPool.findIndex(c => c.id === cardId);
+        const pct = sortedPool.length > 0 ? idx / sortedPool.length : 0;
+        if (pct < 0.60) return 'comune';
+        if (pct < 0.80) return 'rara';
+        if (pct < 0.95) return 'epica';
         return 'leggendaria';
       };
 
-      // Randomly select 33 cards per type. Shuffle the pool, then pick 33.
-      // We don't try to hit an exact budget — instead, we cap the deduction at
-      // what the user actually has (totalAvailable), so we never overdraft.
-      const selectedByType: Record<string, typeof cardsByType[string]> = {};
+      // Sort each type's pool by draftCost ASC so percentile-based rarity makes sense
+      const sortedByType: Record<string, typeof cardsByType[string]> = {};
       for (const deck of deckTypes) {
-        const pool = [...cardsByType[deck]];
-        // Fisher-Yates shuffle
-        for (let i = pool.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [pool[i], pool[j]] = [pool[j], pool[i]];
-        }
-        selectedByType[deck] = pool.slice(0, Math.min(COUNT, pool.length));
+        sortedByType[deck] = [...cardsByType[deck]].sort((a, b) => a.draftCost - b.draftCost);
       }
 
-      const calcTotal = () => Object.values(selectedByType).flat().reduce((s, c) => s + c.draftCost, 0);
-      const rawTotal = calcTotal();
+      // Rarity composition per type (33 slots each = 99 total):
+      //   26 comune  (cheapest 60% of pool, picked randomly within that range)
+      //    5 rara    (60-80th percentile)
+      //    1 epica   (80-95th percentile)
+      //    1 legg    for one random deck type only (top 5%) → max 1 legendary total
+      //   (the type without legendary uses 27 comune instead of 26+1)
+      const legendaryDeck = deckTypes[Math.floor(Math.random() * deckTypes.length)];
 
-      // Deduct at most totalAvailable — if the deck costs more than the user has,
-      // we charge everything they have and still save the deck so they can play.
-      const creditToDeduct = Math.min(rawTotal, totalAvailable);
+      const selectedByType: Record<string, typeof cardsByType[string]> = {};
+      for (const deck of deckTypes) {
+        const pool = sortedByType[deck];
+        const n = pool.length;
+        const comuneBucket     = pool.slice(0, Math.floor(n * 0.60));
+        const raraBucket       = pool.slice(Math.floor(n * 0.60), Math.floor(n * 0.80));
+        const epicaBucket      = pool.slice(Math.floor(n * 0.80), Math.floor(n * 0.95));
+        const legBucket        = pool.slice(Math.floor(n * 0.95));
+
+        const isLegDeck = deck === legendaryDeck;
+        const comuneSlots = isLegDeck ? 26 : 27;
+        const legSlots    = isLegDeck ? 1 : 0;
+
+        let selected = [
+          ...pickRandom(comuneBucket, comuneSlots),
+          ...pickRandom(raraBucket,   5),
+          ...pickRandom(epicaBucket,  1),
+          ...pickRandom(legBucket,    legSlots),
+        ];
+
+        // Fallback: if buckets are smaller than slots (very few cards), fill from cheapest remaining
+        if (selected.length < COUNT) {
+          const usedIds = new Set(selected.map(c => c.id));
+          const extras = pool.filter(c => !usedIds.has(c.id)).slice(0, COUNT - selected.length);
+          selected = [...selected, ...extras];
+        }
+
+        selectedByType[deck] = shuffle(selected); // shuffle final order for display
+      }
+
+      // Flat cost of the selected cards (for reference/logging only).
+      // We charge the user their full initial budget (min 500 / totalAvailable),
+      // regardless of per-card costs, because the deck IS the "initial pack bundle".
+      const creditToDeduct = Math.min(500, totalAvailable);
 
       // Deduct credits
       let remaining = creditToDeduct;
@@ -12405,6 +12447,22 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
           .where(eq(users.id, currentUser.id));
       }
 
+      // Add all 99 selected cards to the user's collection so they are "owned"
+      // (owned cards cost 0 when the deck is re-saved via the PUT endpoint).
+      for (const deck of deckTypes) {
+        for (const card of selectedByType[deck]) {
+          const rarity = getRarity(deck, card.id, sortedByType[deck]);
+          try {
+            await db.insert(userCardCollection).values({
+              userId: currentUser.id,
+              cardId: card.id,
+              deckType: deck,
+              rarity,
+            }).onConflictDoNothing();
+          } catch (_) {}
+        }
+      }
+
       // Save the deck
       const personaggiCards = selectedByType['personaggi'].map(c => c.id);
       const mosseCards = selectedByType['mosse'].map(c => c.id);
@@ -12412,10 +12470,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
 
       const existing = await db.select().from(draftDecks).where(eq(draftDecks.userId, currentUser.id)).limit(1);
       if (existing.length > 0) {
-        await db.update(draftDecks).set({ personaggiCards, mosseCards, bonusCards, isComplete: true, totalCostSpent: creditToDeduct, savedAt: new Date() })
+        await db.update(draftDecks).set({ personaggiCards, mosseCards, bonusCards, isComplete: true, totalCostSpent: 0, savedAt: new Date() })
           .where(eq(draftDecks.userId, currentUser.id));
       } else {
-        await db.insert(draftDecks).values({ userId: currentUser.id, personaggiCards, mosseCards, bonusCards, isComplete: true, totalCostSpent: creditToDeduct });
+        await db.insert(draftDecks).values({ userId: currentUser.id, personaggiCards, mosseCards, bonusCards, isComplete: true, totalCostSpent: 0 });
       }
 
       // Return card data formatted for RevealedCard animation
@@ -12423,7 +12481,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         cards.map(c => ({
           cardId: c.id,
           deckType: deck,
-          rarity: getRarity(c.draftCost),
+          rarity: getRarity(deck, c.id, sortedByType[deck]),
           frontImage: c.imageUrl,
           name: c.name,
           draftCost: c.draftCost,
