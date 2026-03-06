@@ -3,7 +3,7 @@ import { AddCardsModal } from './AddCardsModal';
 import { AdminTooltipsPanel } from './AdminTooltipsPanel';
 import { OcrReviewPanel } from './OcrReviewPanel';
 import { Button } from './ui/button';
-import { Info, Eye, Coins, Check, X } from 'lucide-react';
+import { Info, Eye, Coins, Check, X, Zap } from 'lucide-react';
 
 interface CardAdminPanelProps {
   onBack: () => void;
@@ -142,15 +142,56 @@ function AdminDraftCreditsPanel({ onClose }: { onClose: () => void }) {
   );
 }
 
+interface AutoCostResult {
+  updated: number;
+  skipped: number;
+  byType: Record<string, number>;
+}
+
 export function CardAdminPanel({ onBack }: CardAdminPanelProps) {
   const [showTooltipsPanel, setShowTooltipsPanel] = useState(false);
   const [showOcrPanel, setShowOcrPanel] = useState(false);
   const [showCreditsPanel, setShowCreditsPanel] = useState(false);
+  const [showAutoCostDialog, setShowAutoCostDialog] = useState(false);
+  const [autoCostOverride, setAutoCostOverride] = useState(false);
+  const [autoCostRunning, setAutoCostRunning] = useState(false);
+  const [autoCostResult, setAutoCostResult] = useState<AutoCostResult | null>(null);
+  const [autoCostError, setAutoCostError] = useState<string | null>(null);
   const authToken = localStorage.getItem('authToken');
+
+  const runAutoCost = async () => {
+    setAutoCostRunning(true);
+    setAutoCostResult(null);
+    setAutoCostError(null);
+    try {
+      const res = await fetch('/api/admin/auto-assign-draft-costs', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ overrideExisting: autoCostOverride }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setAutoCostResult(data);
+      } else {
+        setAutoCostError(data.error || 'Errore sconosciuto');
+      }
+    } catch (e: any) {
+      setAutoCostError(e.message || 'Errore di rete');
+    } finally {
+      setAutoCostRunning(false);
+    }
+  };
 
   return (
     <>
       <div className="fixed top-4 right-4 z-[60] flex gap-2 flex-wrap justify-end">
+        <Button
+          onClick={() => { setShowAutoCostDialog(true); setAutoCostResult(null); setAutoCostError(null); }}
+          className="bg-orange-600 hover:bg-orange-700 text-white"
+          size="sm"
+        >
+          <Zap size={16} className="mr-1" /> Costi Draft Auto
+        </Button>
         <Button
           onClick={() => setShowCreditsPanel(true)}
           className="bg-teal-600 hover:bg-teal-700 text-white"
@@ -193,6 +234,84 @@ export function CardAdminPanel({ onBack }: CardAdminPanelProps) {
         <AdminDraftCreditsPanel
           onClose={() => setShowCreditsPanel(false)}
         />
+      )}
+      {showAutoCostDialog && (
+        <div className="fixed inset-0 bg-black/80 z-[75] flex items-center justify-center p-4">
+          <div className="bg-gray-800 rounded-2xl p-6 w-full max-w-md border border-white/10">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-white font-bold text-lg flex items-center gap-2">
+                <Zap className="w-5 h-5 text-orange-400" /> Auto-assegna Costi Draft
+              </h2>
+              <button onClick={() => setShowAutoCostDialog(false)} className="text-white/50 hover:text-white">
+                <X />
+              </button>
+            </div>
+            {!autoCostResult ? (
+              <>
+                <p className="text-white/70 text-sm mb-4">
+                  Calcola e salva automaticamente un costo draft (1–100) per ogni carta in base alla sua potenza.
+                  I personaggi usano PTI e stelle, le mosse usano il danno e gli effetti speciali, le bonus usano il testo dell'effetto.
+                </p>
+                <label className="flex items-center gap-2 text-white/80 text-sm mb-5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={autoCostOverride}
+                    onChange={e => setAutoCostOverride(e.target.checked)}
+                    className="w-4 h-4 accent-orange-500"
+                  />
+                  Sovrascrivi costi già impostati manualmente
+                </label>
+                {autoCostError && (
+                  <div className="bg-red-900/50 text-red-300 text-sm rounded px-3 py-2 mb-3">{autoCostError}</div>
+                )}
+                <div className="flex gap-3 justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAutoCostDialog(false)}
+                    className="border-white/20 text-white/70"
+                  >
+                    Annulla
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={runAutoCost}
+                    disabled={autoCostRunning}
+                    className="bg-orange-600 hover:bg-orange-700 text-white"
+                  >
+                    {autoCostRunning ? 'Elaborazione...' : 'Avvia'}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="bg-green-900/40 border border-green-500/30 rounded-xl p-4 mb-4">
+                  <div className="text-green-300 font-bold text-base mb-2 flex items-center gap-2">
+                    <Check className="w-4 h-4" /> Completato!
+                  </div>
+                  <div className="text-white text-sm mb-1">
+                    <span className="font-semibold text-orange-300">{autoCostResult.updated}</span> costi assegnati,{' '}
+                    <span className="text-white/50">{autoCostResult.skipped}</span> saltate
+                  </div>
+                  <div className="text-white/60 text-xs mt-2 space-y-0.5">
+                    {Object.entries(autoCostResult.byType).map(([type, count]) => (
+                      <div key={type}>• {type}: {count} carte</div>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    onClick={() => setShowAutoCostDialog(false)}
+                    className="bg-gray-600 hover:bg-gray-500 text-white"
+                  >
+                    Chiudi
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
     </>
   );

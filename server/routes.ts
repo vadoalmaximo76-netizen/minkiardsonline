@@ -11366,6 +11366,141 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     }
   });
 
+  app.post('/api/admin/auto-assign-draft-costs', authMiddleware, async (req, res) => {
+    try {
+      const userEmail = (req as any).user?.email;
+      if (!userEmail || userEmail.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ success: false, error: 'Accesso negato' });
+      }
+
+      const { overrideExisting = false } = req.body;
+
+      const extractCardName = (url: string): string => {
+        const parts = url.split('/');
+        const filename = parts[parts.length - 1];
+        return filename
+          .toLowerCase()
+          .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+          .replace(/[-_]/g, ' ')
+          .split(' ')
+          .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+      };
+
+      const calcPersonaggoCost = (cardName: string, mod: any): number => {
+        const cached = getPersonaggioFromCache(cardName);
+        const pti = cached?.pti || mod?.pti || 0;
+        const stars = cached?.stars || mod?.stars || 1;
+        return Math.max(1, Math.min(50, Math.round((pti / 3000) * 40 + (stars / 4) * 10)));
+      };
+
+      const calcMosseCost = (mod: any): number => {
+        const dmgEffect = mod?.mosseDamageEffect || '';
+        const effectText = (mod?.effect || '').toLowerCase();
+        const dmg = mod?.mosseDamageValue || 0;
+
+        let cost = 10;
+        if (dmgEffect === 'death') cost = 90;
+        else if (dmgEffect === 'set_5_pti') cost = 85;
+        else if (dmgEffect === 'halve_pti') cost = 70;
+        else if (dmgEffect === 'zero_stars') cost = 60;
+        else if (dmgEffect === 'remove_1_star') cost = 50;
+        else if (dmg >= 500) cost = 80;
+        else if (dmg >= 200) cost = 60;
+        else if (dmg >= 100) cost = 40;
+        else if (dmg >= 50) cost = 25;
+        else if (dmg >= 20) cost = 15;
+        else if (dmg > 0) cost = 8;
+
+        if (/ripetut|continuo|veleno|tossico|persisten|ogni\s+turno/.test(effectText)) {
+          cost = Math.min(cost + 20, 100);
+        }
+        if (/tutti.*personaggi|danni.*tutti|tutti.*subiscono|tutti.*perdono/.test(effectText)) {
+          cost = Math.min(cost + 15, 100);
+        }
+        return Math.max(1, Math.min(100, cost));
+      };
+
+      const calcBonusCost = (mod: any): number => {
+        const effectText = (mod?.effect || '').toLowerCase();
+        if (!effectText) return 10;
+
+        if (/distruzione\s*totale|reset.*all.*mazzo|tutti.*tornano.*mazzo|tutti.*mazz/.test(effectText)) return 90;
+        if (/ruba|sottrae.*carta.*avversar|pren.*carta.*avversar/.test(effectText)) return 65;
+        if (/respinge|riflette\s*danno|annulla\s*danno|blocca\s*danno|schiva|scudo\s*danno/.test(effectText)) return 60;
+        if (/clona|copia\s*perso|duplica\s*perso/.test(effectText)) return 55;
+        if (/salta\s*turno|blocca\s*turno|impedisce.*turno/.test(effectText)) return 45;
+        if (/tutti.*personaggi.*stelle|stelle.*a\s*tutti|tutti.*guadagn.*stelle|guadagna.*[234]\s*stelle/.test(effectText)) return 45;
+        if (/raddoppia\s*pti|moltiplic.*pti|\*2.*pti|x2.*pti/.test(effectText)) return 70;
+        if (/stella|stelle|stars/.test(effectText)) return 40;
+        if (/cimitero|riporta.*mano|ritorna.*mano|recuper.*carta/.test(effectText)) return 30;
+        if (/ritorna\s*campo|torna\s*campo|rimanda\s*campo/.test(effectText)) return 35;
+        if (/evolv|trasform/.test(effectText)) return 50;
+        if (/scommessa|random|casuale|dado/.test(effectText)) return 20;
+        if (/tutti.*giocatori|tutti.*subiscono|effetto.*globale/.test(effectText)) return 55;
+
+        if (/aumenta.*pti|guadagna.*pti|\+\d+.*pti|\d+\s*pti/.test(effectText)) {
+          const m = effectText.match(/(\d+)\s*pti/);
+          const bonus = m ? parseInt(m[1]) : 100;
+          return Math.max(5, Math.min(50, Math.round(bonus / 50)));
+        }
+
+        if (/condizione|se\s+.*allora|dipende\s+da/.test(effectText)) return 25;
+        return 10;
+      };
+
+      let updated = 0;
+      let skipped = 0;
+      const byType: Record<string, number> = { personaggi: 0, mosse: 0, bonus: 0, personaggi_speciali: 0 };
+
+      const deckTypes: Array<{ key: string; deckType: string }> = [
+        { key: 'personaggi', deckType: 'personaggi' },
+        { key: 'mosse', deckType: 'mosse' },
+        { key: 'bonus', deckType: 'bonus' },
+        { key: 'personaggi_speciali', deckType: 'personaggi_speciali' },
+      ];
+
+      for (const { key, deckType } of deckTypes) {
+        const cardUrls: string[] = (CARD_DATA as any)[key] || [];
+        cardUrls.forEach((url: string, index: number) => {
+          const cardId = `${key === 'personaggi_speciali' ? 'personaggi_speciali' : deckType}-${index}`;
+          const mod = jsonStorage.cardModifications.getByOriginalCardId(cardId) as any;
+
+          if (!overrideExisting && mod?.draftCost && mod.draftCost > 0) {
+            skipped++;
+            return;
+          }
+
+          const cardName = extractCardName(url);
+          let cost = 10;
+
+          if (deckType === 'personaggi' || deckType === 'personaggi_speciali') {
+            cost = calcPersonaggoCost(cardName, mod);
+            if (deckType === 'personaggi_speciali' && cost < 10) cost = 10;
+          } else if (deckType === 'mosse') {
+            cost = calcMosseCost(mod);
+          } else if (deckType === 'bonus') {
+            cost = calcBonusCost(mod);
+          }
+
+          jsonStorage.cardModifications.upsert(cardId, {
+            draftCost: cost,
+            deckType,
+            modifiedBy: userEmail,
+          } as any);
+
+          updated++;
+          byType[key] = (byType[key] || 0) + 1;
+        });
+      }
+
+      res.json({ success: true, updated, skipped, byType });
+    } catch (error: any) {
+      console.error('Error in auto-assign-draft-costs:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   app.get('/api/admin/contextual-tooltips', authMiddleware, async (req, res) => {
     try {
       const userEmail = req.user?.email;
