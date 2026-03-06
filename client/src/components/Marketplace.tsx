@@ -223,12 +223,11 @@ function SellTabContent({ onListSuccess }: SellTabContentProps) {
             </div>
           )}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-300">Prezzo (50 - 5000 crediti)</label>
+            <label className="text-sm font-medium text-slate-300">Prezzo (crediti)</label>
             <div className="flex items-center gap-3">
               <Input
                 type="number"
-                min={50}
-                max={5000}
+                min={1}
                 value={price}
                 onChange={(e) => setPrice(parseInt(e.target.value) || 0)}
                 className="bg-black/40 border-white/20"
@@ -238,7 +237,7 @@ function SellTabContent({ onListSuccess }: SellTabContentProps) {
           </div>
           <Button
             className="w-full h-12 text-base"
-            disabled={!selectedCard || price < 50 || price > 5000 || listMutation.isPending}
+            disabled={!selectedCard || price <= 0 || listMutation.isPending}
             onClick={() => {
               if (!selectedCard || !card) return;
               listMutation.mutate({

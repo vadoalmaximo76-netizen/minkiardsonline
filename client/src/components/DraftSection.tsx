@@ -2277,16 +2277,16 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
 
               {/* Sell section */}
               <div className="w-full bg-black/30 rounded-xl border border-white/10 p-3 mb-3">
-                <div className="text-white/40 text-[10px] mb-1.5">Prezzo di vendita (50–5000 crediti)</div>
+                <div className="text-white/40 text-[10px] mb-1.5">Prezzo di vendita (crediti)</div>
                 <div className="flex items-center gap-2">
                   <input
-                    type="number" min={50} max={5000} value={cvSellPrice}
+                    type="number" min={1} value={cvSellPrice}
                     onChange={e => setCvSellPrice(parseInt(e.target.value) || 0)}
                     className="flex-1 px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-amber-400/50"
                   />
                   <button
                     onClick={handleCardViewerSell}
-                    disabled={cvSelling || cvSellPrice < 50 || cvSellPrice > 5000}
+                    disabled={cvSelling || cvSellPrice <= 0}
                     className="px-3 py-1.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold rounded-lg text-xs disabled:opacity-50 transition-all"
                   >
                     {cvSelling ? '...' : 'Vendi'}

@@ -667,14 +667,14 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded, autoAd
                           if (dupState === 'price_input') return (
                             <div className="flex flex-col items-center gap-1 mt-0.5" style={{ fontSize: '9px' }}>
                               <input
-                                type="number" min="50" max="5000"
+                                type="number" min="1"
                                 value={dupPrices[card.cardId] ?? String(halfCr * 2)}
                                 onChange={e => setDupPrices(prev => ({ ...prev, [card.cardId]: e.target.value }))}
                                 className="w-16 text-center text-white bg-white/10 border border-white/30 rounded px-1 py-0.5 text-xs"
                                 style={{ fontSize: '9px' }}
                               />
                               <div className="flex gap-1">
-                                <button onClick={() => resolveDuplicate(card, 'list', parseInt(dupPrices[card.cardId] ?? String(halfCr * 2)) || 50)}
+                                <button onClick={() => resolveDuplicate(card, 'list', parseInt(dupPrices[card.cardId] ?? String(halfCr * 2)) || 1)}
                                   className="px-1.5 py-0.5 rounded bg-purple-500/30 border border-purple-400/50 text-purple-300 hover:bg-purple-500/50" style={{ fontSize: '9px' }}>
                                   Vendi
                                 </button>

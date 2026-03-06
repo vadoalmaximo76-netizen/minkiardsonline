@@ -13812,7 +13812,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       const user = (req as any).user;
       const { cardId, cardName, cardType, cardRarity, cardImageUrl, priceCredits, cardPti, cardStars, originalCost } = req.body;
       if (!cardId || !cardName || !cardType || !priceCredits) return res.status(400).json({ error: 'Dati mancanti' });
-      if (priceCredits < 50 || priceCredits > 5000) return res.status(400).json({ error: 'Prezzo deve essere tra 50 e 5000 crediti' });
+      if (priceCredits <= 0 || priceCredits > 100000) return res.status(400).json({ error: 'Prezzo non valido' });
       const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
       if (!currentUser) return res.status(404).json({ error: 'Utente non trovato' });
       // Verify user owns card: either in userCardCollection (pack-opened) OR in their draft deck
