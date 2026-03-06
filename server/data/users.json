@@ -24,5 +24,18 @@
     "resetPasswordExpires": null,
     "id": 2,
     "createdAt": "2026-03-06T20:45:15.264Z"
+  },
+  {
+    "username": "Gino87",
+    "email": "ginocontapassi@gmail.com",
+    "password": "$2b$10$M/da2m211C7IomTn.PJQmuzNNfpdXK22h.jkzNq0vDhrvgfu588Vi",
+    "googleId": null,
+    "avatar": "fox",
+    "puntiRankiard": 0,
+    "isAdmin": false,
+    "resetPasswordToken": null,
+    "resetPasswordExpires": null,
+    "id": 3,
+    "createdAt": "2026-03-06T20:57:31.828Z"
   }
 ]

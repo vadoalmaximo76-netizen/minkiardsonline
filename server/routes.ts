@@ -12352,10 +12352,6 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         });
       }
 
-      // Algorithm: select 33 cards per type with total cost in [TARGET_MIN, TARGET_MAX]
-      // Cap TARGET_MAX to what the user actually has so we never overspend
-      const TARGET_MAX = Math.min(500, totalAvailable);
-      const TARGET_MIN = Math.max(0, TARGET_MAX - 5);
       const COUNT = 33;
 
       const getRarity = (cost: number): string => {
@@ -12365,97 +12361,29 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         return 'leggendaria';
       };
 
+      // Randomly select 33 cards per type. Shuffle the pool, then pick 33.
+      // We don't try to hit an exact budget — instead, we cap the deduction at
+      // what the user actually has (totalAvailable), so we never overdraft.
       const selectedByType: Record<string, typeof cardsByType[string]> = {};
       for (const deck of deckTypes) {
-        const pool = [...cardsByType[deck]].sort((a, b) => a.draftCost - b.draftCost);
+        const pool = [...cardsByType[deck]];
+        // Fisher-Yates shuffle
+        for (let i = pool.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
         selectedByType[deck] = pool.slice(0, Math.min(COUNT, pool.length));
       }
 
       const calcTotal = () => Object.values(selectedByType).flat().reduce((s, c) => s + c.draftCost, 0);
-      let total = calcTotal();
-      const MAX_ITER = 5000;
-      let iter = 0;
+      const rawTotal = calcTotal();
 
-      // Phase 1 (DOWNGRADE): if initial cheapest selection already exceeds budget, replace the
-      // most expensive selected card with the next cheapest available card not yet selected.
-      // This ensures the deck never exceeds TARGET_MAX (500) before we even try to upgrade.
-      while (total > TARGET_MAX && iter < MAX_ITER) {
-        iter++;
-        // Find the card with the highest cost across all types
-        let worstDeck = deckTypes[0];
-        let worstCost = -1;
-        let worstIdx = 0;
-        for (const deck of deckTypes) {
-          for (let i = 0; i < selectedByType[deck].length; i++) {
-            if (selectedByType[deck][i].draftCost > worstCost) {
-              worstCost = selectedByType[deck][i].draftCost;
-              worstDeck = deck;
-              worstIdx = i;
-            }
-          }
-        }
-        if (worstCost <= 0) break; // all cards are free, can't reduce further
-        const selectedIds = new Set(selectedByType[worstDeck].map(c => c.id));
-        // Find a cheaper alternative not already selected (prefer highest cost that still reduces total)
-        const cheaper = cardsByType[worstDeck]
-          .filter(c => !selectedIds.has(c.id) && c.draftCost < worstCost)
-          .sort((a, b) => b.draftCost - a.draftCost);
-        if (cheaper.length === 0) {
-          // No cheaper card available for this type — replace with the cheapest selected card (cost 0)
-          // by picking the cheapest free card we might have missed
-          const free = cardsByType[worstDeck].filter(c => !selectedIds.has(c.id) && c.draftCost === 0);
-          if (free.length > 0) {
-            selectedByType[worstDeck][worstIdx] = free[Math.floor(Math.random() * free.length)];
-          } else {
-            break; // truly stuck
-          }
-        } else {
-          selectedByType[worstDeck][worstIdx] = cheaper[0];
-        }
-        total = calcTotal();
-      }
-
-      // Phase 2 (UPGRADE): now that total <= 500, upgrade cheap cards to approach [495, 500]
-      iter = 0;
-      while (total < TARGET_MIN && iter < MAX_ITER) {
-        iter++;
-        const deck = deckTypes[iter % 3];
-        const selected = selectedByType[deck];
-        const selectedIds = new Set(selected.map(c => c.id));
-        const notSelected = cardsByType[deck].filter(c => !selectedIds.has(c.id));
-        if (notSelected.length === 0) continue;
-
-        // Find cheapest selected card to replace
-        const cheapestIdx = selected.reduce((minI, c, i, arr) => c.draftCost < arr[minI].draftCost ? i : minI, 0);
-        const cheapest = selected[cheapestIdx];
-        const budget = TARGET_MAX - total;
-        const maxReplacementCost = cheapest.draftCost + budget;
-
-        const candidates = notSelected.filter(c => c.draftCost > cheapest.draftCost && c.draftCost <= maxReplacementCost);
-        if (candidates.length === 0) continue;
-        const candidate = candidates[Math.floor(Math.random() * candidates.length)];
-        selected[cheapestIdx] = candidate;
-        total = calcTotal();
-      }
-
-      // Shuffle each selected array for randomness in display order
-      for (const deck of deckTypes) {
-        for (let i = selectedByType[deck].length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [selectedByType[deck][i], selectedByType[deck][j]] = [selectedByType[deck][j], selectedByType[deck][i]];
-        }
-      }
-
-      const finalTotal = calcTotal();
-
-      // Safety guard: should never exceed available credits due to the algorithm above
-      if (finalTotal > totalAvailable) {
-        console.error(`generate-initial-deck: finalTotal ${finalTotal} exceeds totalAvailable ${totalAvailable}`);
-        return res.status(500).json({ error: 'Errore interno: il costo calcolato supera i crediti disponibili.' });
-      }
+      // Deduct at most totalAvailable — if the deck costs more than the user has,
+      // we charge everything they have and still save the deck so they can play.
+      const creditToDeduct = Math.min(rawTotal, totalAvailable);
 
       // Deduct credits
-      let remaining = finalTotal;
+      let remaining = creditToDeduct;
       let newPaid = credits.paidCredits;
       let newFree = credits.freeCredits;
       let rankiardDeducted = 0;
@@ -12484,10 +12412,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
 
       const existing = await db.select().from(draftDecks).where(eq(draftDecks.userId, currentUser.id)).limit(1);
       if (existing.length > 0) {
-        await db.update(draftDecks).set({ personaggiCards, mosseCards, bonusCards, isComplete: true, totalCostSpent: finalTotal, savedAt: new Date() })
+        await db.update(draftDecks).set({ personaggiCards, mosseCards, bonusCards, isComplete: true, totalCostSpent: creditToDeduct, savedAt: new Date() })
           .where(eq(draftDecks.userId, currentUser.id));
       } else {
-        await db.insert(draftDecks).values({ userId: currentUser.id, personaggiCards, mosseCards, bonusCards, isComplete: true, totalCostSpent: finalTotal });
+        await db.insert(draftDecks).values({ userId: currentUser.id, personaggiCards, mosseCards, bonusCards, isComplete: true, totalCostSpent: creditToDeduct });
       }
 
       // Return card data formatted for RevealedCard animation
@@ -12504,7 +12432,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
 
       res.json({
         success: true,
-        totalCost: finalTotal,
+        totalCost: creditToDeduct,
         personaggiCards: toRevealedCards('personaggi', selectedByType['personaggi']),
         mosseCards: toRevealedCards('mosse', selectedByType['mosse']),
         bonusCards: toRevealedCards('bonus', selectedByType['bonus']),
