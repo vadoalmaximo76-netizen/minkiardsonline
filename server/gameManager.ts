@@ -9497,7 +9497,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             id: `timed-${Date.now()}-${playerName}`,
             sourcePlayer: playerName,
             sourceCardId: card?.id || '',
-            sourceCardName: card?.name || 'Carta sconosciuta',
+            sourceCardName: card?.name || this.getCardNameFromUrl(card?.frontImage || '') || 'Carta sconosciuta',
             turnsRemaining: delayValue,
             actions: delayedActions,
             createdAt: Date.now()
@@ -17144,7 +17144,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             id: `timed-${Date.now()}-${playerName}`,
             sourcePlayer: playerName,
             sourceCardId: sourceCard?.id || '',
-            sourceCardName: sourceCard?.name || 'Carta sconosciuta',
+            sourceCardName: sourceCard?.name || this.getCardNameFromUrl(sourceCard?.frontImage || '') || 'Carta sconosciuta',
             turnsRemaining: delayVal,
             actions: delayedActs,
             createdAt: Date.now()
