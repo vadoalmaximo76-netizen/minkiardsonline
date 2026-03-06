@@ -48,6 +48,7 @@ export function ClubPanel({ userId, username, onClose }: ClubPanelProps) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
+  const authToken = localStorage.getItem('authToken');
 
   // Create Form State
   const [newName, setNewName] = useState('');
@@ -125,7 +126,10 @@ export function ClubPanel({ userId, username, onClose }: ClubPanelProps) {
       setSubmitting(true);
       const res = await fetch('/api/clans', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
         body: JSON.stringify({
           name: newName,
           tag: newTag.toUpperCase(),
@@ -160,7 +164,10 @@ export function ClubPanel({ userId, username, onClose }: ClubPanelProps) {
   const handleJoinClan = async (clanId: number) => {
     try {
       setSubmitting(true);
-      const res = await fetch(`/api/clans/${clanId}/join`, { method: 'POST' });
+      const res = await fetch(`/api/clans/${clanId}/join`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
       if (!res.ok) throw new Error('Failed to join');
       
       toast({ title: "Benvenuto!", description: "Ti sei unito al club." });
@@ -176,7 +183,10 @@ export function ClubPanel({ userId, username, onClose }: ClubPanelProps) {
   const handleLeaveClan = async (clanId: number) => {
     try {
       setSubmitting(true);
-      const res = await fetch(`/api/clans/${clanId}/leave`, { method: 'POST' });
+      const res = await fetch(`/api/clans/${clanId}/leave`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
       if (!res.ok) throw new Error('Failed to leave');
       
       toast({ title: "Uscito", description: "Hai lasciato il club." });
