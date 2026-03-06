@@ -1071,10 +1071,26 @@ export class GameManager {
               if (mod) {
                 this.applyModificationToCard(card, mod);
               }
-              // Apply growth on top of (possibly modified) base stats
-              if (growth) {
-                if (growth.extraPti > 0) card.pti = (card.pti ?? 0) + growth.extraPti;
-                if (growth.extraStars > 0) card.stars = (card.stars ?? 0) + growth.extraStars;
+              // Apply growth on top of (possibly modified) base stats.
+              // If the card has no mod, look up the base PTI from the personaggi cache so that
+              // growth is added to the real base value, not to zero.
+              if (growth && deckType === 'personaggi') {
+                if (growth.extraPti > 0) {
+                  let basePti = card.pti;
+                  if (basePti == null) {
+                    const cached = getPersonaggioFromCache(defaultName);
+                    basePti = cached?.pti ?? 0;
+                  }
+                  card.pti = basePti + growth.extraPti;
+                }
+                if (growth.extraStars > 0) {
+                  let baseStars = card.stars;
+                  if (baseStars == null) {
+                    const cached = getPersonaggioFromCache(defaultName);
+                    baseStars = cached?.stars ?? 1;
+                  }
+                  card.stars = baseStars + growth.extraStars;
+                }
               }
               return card;
             }).filter(Boolean) as Card[];
@@ -12508,6 +12524,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         delete card._returnedToHand;
         delete card._savedPti;
         delete card._savedStars;
+        return;
+      }
+
+      // DRAFT MODE CARDS: If card was built by buildCards() for a personal draft deck, it already
+      // has growth-inclusive PTI/stars applied. Preserve them and skip the base-stat overwrite.
+      if (card.draftBaseId && card.pti != null) {
+        const stars = card.stars ?? 1;
+        card.originalPti = card.originalPti ?? card.pti;
+        card.text = `PTI: ${card.pti} | Stelle: ${stars} | PTI originali: ${card.originalPti}`;
+        card.stars = stars;
+        console.log(`✅ Draft card ${card.id} (${card.draftBaseId}) preserving growth stats: pti=${card.pti}, stars=${stars}`);
         return;
       }
 

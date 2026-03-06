@@ -13644,10 +13644,21 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       if (priceCredits < 50 || priceCredits > 5000) return res.status(400).json({ error: 'Prezzo deve essere tra 50 e 5000 crediti' });
       const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
       if (!currentUser) return res.status(404).json({ error: 'Utente non trovato' });
-      // Verify user owns card in collection
+      // Verify user owns card: either in userCardCollection (pack-opened) OR in their draft deck
       const owned = await db.select().from(userCardCollection)
         .where(and(eq(userCardCollection.userId, currentUser.id), eq(userCardCollection.cardId, cardId)));
-      if (owned.length === 0) return res.status(403).json({ error: 'Non possiedi questa carta' });
+      if (owned.length === 0) {
+        // Also check if card is in the user's draft deck (cards added during deck building)
+        const deckRows = await db.select().from(draftDecks).where(eq(draftDecks.userId, currentUser.id)).limit(1);
+        if (deckRows.length === 0) return res.status(403).json({ error: 'Non possiedi questa carta' });
+        const deck = deckRows[0];
+        const allDeckCards = [
+          ...((deck.personaggiCards as string[]) || []),
+          ...((deck.mosseCards as string[]) || []),
+          ...((deck.bonusCards as string[]) || []),
+        ];
+        if (!allDeckCards.includes(cardId)) return res.status(403).json({ error: 'Non possiedi questa carta' });
+      }
       // Check for active listing of the same card
       const existing = await db.select().from(cardTradeListings)
         .where(and(eq(cardTradeListings.sellerId, currentUser.id), eq(cardTradeListings.cardId, cardId), eq(cardTradeListings.status, 'active')));
