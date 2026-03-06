@@ -63,6 +63,17 @@ const RARITY_CONFIG = {
   },
 };
 
+function getAudioCtx(): AudioContext | null {
+  const state = useAudio.getState();
+  if (state.isMuted) return null;
+  const ctx = state.audioContext;
+  if (!ctx) return null;
+  if (ctx.state === 'suspended') {
+    ctx.resume().catch(() => {});
+  }
+  return ctx;
+}
+
 export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded }: PackOpeningAnimationProps) {
   const [phase, setPhase] = useState<Phase>('shaking');
   const [revealedCount, setRevealedCount] = useState(0);
@@ -76,7 +87,7 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded }: Pack
   const phaseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rumbleStopRef = useRef<(() => void) | null>(null);
 
-  const { audioContext, isMuted } = useAudio();
+  const { initAudioContext } = useAudio();
 
   const clearTimers = () => {
     if (revealTimer.current) clearTimeout(revealTimer.current);
@@ -84,8 +95,8 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded }: Pack
   };
 
   const startRumble = useCallback(() => {
-    if (isMuted || !audioContext) return;
-    const ctx = audioContext;
+    const ctx = getAudioCtx();
+    if (!ctx) return;
     const masterGain = ctx.createGain();
     masterGain.gain.setValueAtTime(0, ctx.currentTime);
     masterGain.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 0.5);
@@ -132,11 +143,11 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded }: Pack
         }, 350);
       } catch {}
     };
-  }, [audioContext, isMuted]);
+  }, []);
 
   const playPackBurst = useCallback(() => {
-    if (isMuted || !audioContext) return;
-    const ctx = audioContext;
+    const ctx = getAudioCtx();
+    if (!ctx) return;
     const t = ctx.currentTime;
 
     const boomOsc = ctx.createOscillator();
@@ -184,11 +195,11 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded }: Pack
         osc.stop(ct + 0.25);
       }, i * 60);
     });
-  }, [audioContext, isMuted]);
+  }, []);
 
   const playRevealSound = useCallback((rarity: RevealedCard['rarity']) => {
-    if (isMuted || !audioContext) return;
-    const ctx = audioContext;
+    const ctx = getAudioCtx();
+    if (!ctx) return;
     const t = ctx.currentTime;
 
     if (rarity === 'comune') {
@@ -220,7 +231,6 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded }: Pack
           g1.connect(ctx.destination);
           osc1.start(ct);
           osc1.stop(ct + 0.3);
-
           osc2.type = 'triangle';
           osc2.frequency.setValueAtTime(freq * 2, ct);
           g2.gain.setValueAtTime(0.06, ct);
@@ -300,10 +310,19 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded }: Pack
         boomOsc.stop(ct + 0.8);
       }, 200);
     }
-  }, [audioContext, isMuted]);
+  }, []);
 
   useEffect(() => {
-    startRumble();
+    initAudioContext();
+    const storeCtx = useAudio.getState().audioContext;
+    if (storeCtx && storeCtx.state === 'suspended') {
+      storeCtx.resume().catch(() => {});
+    }
+
+    const startDelay = setTimeout(() => {
+      startRumble();
+    }, 50);
+
     phaseTimer.current = setTimeout(() => {
       if (rumbleStopRef.current) rumbleStopRef.current();
       setPhase('opening');
@@ -322,6 +341,7 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded }: Pack
       }, 400);
     }, 900);
     return () => {
+      clearTimeout(startDelay);
       clearTimers();
       if (rumbleStopRef.current) rumbleStopRef.current();
     };
