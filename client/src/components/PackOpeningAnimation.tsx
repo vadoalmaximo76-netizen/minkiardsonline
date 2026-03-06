@@ -12,6 +12,8 @@ export interface RevealedCard {
   isDuplicate?: boolean;
   duplicateCredits?: number;
   halfRefundCredits?: number;
+  pti?: number;
+  stars?: number;
 }
 
 export interface PackType {
@@ -421,6 +423,9 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded, autoAd
           cardImageUrl: card.frontImage,
           halfRefundCredits: card.halfRefundCredits ?? card.duplicateCredits ?? 0,
           priceCredits: priceCredits ?? 50,
+          cardPti: card.pti ?? null,
+          cardStars: card.stars ?? null,
+          originalCost: card.draftCost ?? null,
         }),
       });
       if (res.ok) {

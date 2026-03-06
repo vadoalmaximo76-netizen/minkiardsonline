@@ -13143,13 +13143,23 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
             .replace(/[-_]/g, ' ')
             .trim();
 
+          let basePti: number | null = mod?.pti ?? null;
+          let baseStars: number | null = mod?.stars ?? null;
+          if (deckType === 'personaggi' && (basePti == null || baseStars == null)) {
+            const cardName = mod?.name || defaultName;
+            const cached = getPersonaggioFromCache(cardName);
+            if (cached) {
+              if (basePti == null) basePti = cached.pti ?? null;
+              if (baseStars == null) baseStars = cached.stars ?? null;
+            }
+          }
           cards.push({
             id: cardId,
             deckType,
             name: mod?.name || defaultName,
             imageUrl: mod?.imageUrl || imageUrl,
-            pti: mod?.pti ?? null,
-            stars: mod?.stars ?? null,
+            pti: basePti,
+            stars: baseStars,
             draftCost: (mod as any)?.draftCost ?? 0,
           });
         });
@@ -13299,8 +13309,8 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     leggendaria: { min: 66, max: 999 },
   };
 
-  function buildCardPoolByRarity(): Record<string, Array<{ cardId: string; deckType: string; draftCost: number; frontImage: string; name: string }>> {
-    const pool: Record<string, Array<{ cardId: string; deckType: string; draftCost: number; frontImage: string; name: string }>> = {
+  function buildCardPoolByRarity(): Record<string, Array<{ cardId: string; deckType: string; draftCost: number; frontImage: string; name: string; pti?: number; stars?: number }>> {
+    const pool: Record<string, Array<{ cardId: string; deckType: string; draftCost: number; frontImage: string; name: string; pti?: number; stars?: number }>> = {
       comune: [], rara: [], epica: [], leggendaria: [],
     };
     const allMods = jsonStorage.cardModifications.getAll();
@@ -13324,12 +13334,24 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
           : draftCost >= 41 ? 'epica'
           : draftCost >= 21 ? 'rara'
           : 'comune';
+        let pti: number | undefined;
+        let stars: number | undefined;
+        if (deckType === 'personaggi') {
+          const cardName = mod?.name || extractName(imageUrl);
+          const cached = getPersonaggioFromCache(cardName);
+          if (cached) {
+            pti = cached.pti ?? undefined;
+            stars = cached.stars ?? undefined;
+          }
+        }
         pool[rarity].push({
           cardId,
           deckType,
           draftCost,
           frontImage: (mod as any)?.imageUrl || imageUrl,
           name: mod?.name || extractName(imageUrl),
+          pti,
+          stars,
         });
       });
     }
@@ -13376,7 +13398,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
 
       // Pick random cards for each slot, avoiding duplicates within the pack
       const usedCardIds = new Set<string>();
-      const pickedCards: Array<{ cardId: string; deckType: string; rarity: string; frontImage: string; name: string; draftCost: number }> = [];
+      const pickedCards: Array<{ cardId: string; deckType: string; rarity: string; frontImage: string; name: string; draftCost: number; pti?: number; stars?: number }> = [];
 
       for (const slot of pack.slots) {
         const pool = cardPool[slot.rarity] || cardPool['comune'];
@@ -13497,6 +13519,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
           .where(and(eq(cardTradeListings.sellerId, currentUser.id), eq(cardTradeListings.cardId, cardId), eq(cardTradeListings.status, 'active')));
         if (existing.length > 0) return res.status(409).json({ error: 'Hai già un annuncio attivo per questa carta' });
 
+        const { cardPti, cardStars, originalCost } = req.body;
         const [listing] = await db.insert(cardTradeListings).values({
           sellerId: currentUser.id,
           sellerName: currentUser.username,
@@ -13506,6 +13529,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
           cardRarity: cardRarity || 'comune',
           cardImageUrl: cardImageUrl || null,
           priceCredits: price,
+          cardPti: cardPti ?? null,
+          cardStars: cardStars ?? null,
+          originalCost: originalCost ?? null,
         }).returning();
         console.log(`✅ Duplicate listed: ${currentUser.username} listed ${cardId} for ${price} credits`);
         return res.json({ success: true, listing });
@@ -13784,7 +13810,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     try {
       if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
       const user = (req as any).user;
-      const { cardId, cardName, cardType, cardRarity, cardImageUrl, priceCredits } = req.body;
+      const { cardId, cardName, cardType, cardRarity, cardImageUrl, priceCredits, cardPti, cardStars, originalCost } = req.body;
       if (!cardId || !cardName || !cardType || !priceCredits) return res.status(400).json({ error: 'Dati mancanti' });
       if (priceCredits < 50 || priceCredits > 5000) return res.status(400).json({ error: 'Prezzo deve essere tra 50 e 5000 crediti' });
       const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
@@ -13815,6 +13841,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         cardRarity: cardRarity || 'comune',
         cardImageUrl: cardImageUrl || null,
         priceCredits,
+        cardPti: cardPti ?? null,
+        cardStars: cardStars ?? null,
+        originalCost: originalCost ?? null,
       }).returning();
       res.status(201).json(listing);
     } catch (error) {

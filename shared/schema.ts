@@ -706,6 +706,9 @@ export const cardTradeListings = pgTable("card_trade_listings", {
   cardRarity: text("card_rarity").notNull().default("comune"),
   cardImageUrl: text("card_image_url"),
   priceCredits: integer("price_credits").notNull(),
+  cardPti: integer("card_pti"),
+  cardStars: integer("card_stars"),
+  originalCost: integer("original_cost"),
   status: text("status").notNull().default("active"), // active | sold | cancelled
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

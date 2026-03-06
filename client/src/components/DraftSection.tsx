@@ -625,13 +625,26 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
     const card = deckCards[cardViewer.index];
     if (!card) return;
     const rarity = ownedCardDetails.find(d => d.cardId === card.id)?.rarity || 'comune';
+    const growth = cardViewer.deckType === 'personaggi' ? growthData[card.id] : undefined;
+    const effectivePti = card.pti != null ? card.pti + (growth?.extraPti ?? 0) : null;
+    const effectiveStars = card.stars != null ? card.stars + (growth?.extraStars ?? 0) : null;
     setCvSelling(true);
     setCvSellMsg(null);
     try {
       const res = await fetch('/api/marketplace/list', {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ cardId: card.id, cardName: card.name, cardType: cardViewer.deckType, cardRarity: rarity, cardImageUrl: card.imageUrl, priceCredits: cvSellPrice }),
+        body: JSON.stringify({
+          cardId: card.id,
+          cardName: card.name,
+          cardType: cardViewer.deckType,
+          cardRarity: rarity,
+          cardImageUrl: card.imageUrl,
+          priceCredits: cvSellPrice,
+          cardPti: effectivePti,
+          cardStars: effectiveStars,
+          originalCost: card.draftCost ?? null,
+        }),
       });
       if (res.ok) {
         setCvSellMsg({ type: 'success', text: 'Carta messa in vendita nel marketplace!' });
@@ -2268,7 +2281,7 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                 <div className="flex items-center gap-2">
                   <input
                     type="number" min={50} max={5000} value={cvSellPrice}
-                    onChange={e => setCvSellPrice(Math.max(50, Math.min(5000, parseInt(e.target.value) || 50)))}
+                    onChange={e => setCvSellPrice(parseInt(e.target.value) || 0)}
                     className="flex-1 px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-amber-400/50"
                   />
                   <button

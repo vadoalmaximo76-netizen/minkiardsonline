@@ -37,6 +37,9 @@ interface Listing {
   cardRarity: string;
   cardImageUrl?: string;
   priceCredits: number;
+  cardPti?: number | null;
+  cardStars?: number | null;
+  originalCost?: number | null;
   createdAt: string;
 }
 
@@ -47,6 +50,9 @@ interface UserCard {
   cardRarity: string;
   cardImageUrl?: string;
   count: number;
+  pti?: number | null;
+  stars?: number | null;
+  draftCost?: number;
 }
 
 function getAuthHeaders(): Record<string, string> {
@@ -86,16 +92,19 @@ async function fetchUserCollection(): Promise<UserCard[]> {
     ? await cardsRes.json()
     : [];
 
-  const cardMap = new Map(cardsData.map(c => [c.id, c]));
+  const cardMap = new Map(cardsData.map((c: any) => [c.id, c]));
 
   return collData.map(item => {
-    const meta = cardMap.get(item.cardId);
+    const meta = cardMap.get(item.cardId) as any;
     return {
       cardId: item.cardId,
       cardName: meta?.name || item.cardId,
       cardType: item.deckType || meta?.deckType || '',
       cardRarity: item.rarity || 'comune',
       cardImageUrl: meta?.imageUrl,
+      pti: meta?.pti ?? null,
+      stars: meta?.stars ?? null,
+      draftCost: meta?.draftCost ?? 0,
       count: 1,
     };
   });
@@ -132,7 +141,7 @@ function SellTabContent({ onListSuccess }: SellTabContentProps) {
   }, [load]);
 
   const listMutation = useMutation({
-    mutationFn: async (data: { cardId: string; cardName: string; cardType: string; cardRarity: string; cardImageUrl?: string; priceCredits: number }) => {
+    mutationFn: async (data: { cardId: string; cardName: string; cardType: string; cardRarity: string; cardImageUrl?: string; priceCredits: number; cardPti?: number | null; cardStars?: number | null; originalCost?: number | null }) => {
       const res = await fetch("/api/marketplace/list", {
         method: "POST",
         headers: getAuthHeaders(),
@@ -239,6 +248,9 @@ function SellTabContent({ onListSuccess }: SellTabContentProps) {
                 cardRarity: card.cardRarity,
                 cardImageUrl: card.cardImageUrl,
                 priceCredits: price,
+                cardPti: card.pti ?? null,
+                cardStars: card.stars ?? null,
+                originalCost: card.draftCost ?? null,
               });
             }}
           >
@@ -386,7 +398,7 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-6">
                     {filteredExploreListings.map((listing) => (
                       <Card key={listing.id} className="bg-white/5 border-white/10 overflow-hidden hover:border-purple-500/50 transition-colors">
-                        <CardHeader className="p-3">
+                        <CardHeader className="p-3 pb-2">
                           <div className="aspect-[3/4] rounded-md bg-slate-800 relative mb-2 overflow-hidden">
                             {listing.cardImageUrl ? (
                               <img src={listing.cardImageUrl} alt={listing.cardName} className="w-full h-full object-cover" />
@@ -398,12 +410,27 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
                             </Badge>
                           </div>
                           <CardTitle className="text-sm font-bold truncate">{listing.cardName}</CardTitle>
-                          <p className="text-xs text-slate-400">{listing.cardType} • Venduto da {listing.sellerName}</p>
+                          <p className="text-xs text-slate-500">{listing.cardType} • da {listing.sellerName}</p>
+                          {listing.cardType === 'personaggi' && (listing.cardPti != null || listing.cardStars != null) && (
+                            <div className="flex items-center gap-2 mt-1">
+                              {listing.cardPti != null && (
+                                <span className="text-teal-300 text-xs font-bold">PTI {listing.cardPti}</span>
+                              )}
+                              {listing.cardStars != null && listing.cardStars > 0 && (
+                                <span className="text-yellow-300 text-xs font-bold">{'⭐'.repeat(Math.min(listing.cardStars, 7))}</span>
+                              )}
+                            </div>
+                          )}
                         </CardHeader>
-                        <CardFooter className="p-3 pt-0 flex justify-between items-center">
-                          <span className="text-yellow-400 font-bold flex items-center gap-1">
-                            {listing.priceCredits} <span className="text-[10px]">CREDITI</span>
-                          </span>
+                        <CardFooter className="p-3 pt-1 flex justify-between items-center">
+                          <div className="flex flex-col">
+                            {listing.originalCost != null && listing.originalCost > listing.priceCredits && (
+                              <span className="text-slate-500 text-[10px] line-through leading-none mb-0.5">{listing.originalCost} cr</span>
+                            )}
+                            <span className="text-yellow-400 font-bold flex items-center gap-1 text-sm">
+                              {listing.priceCredits} <span className="text-[10px]">CR</span>
+                            </span>
+                          </div>
                           <Button size="sm" onClick={() => setPurchaseConfirm(listing)} className="bg-purple-600 hover:bg-purple-500 border-none">
                             Acquista
                           </Button>
@@ -429,7 +456,7 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-6">
                     {myListings.map((listing) => (
                       <Card key={listing.id} className="bg-white/5 border-white/10 overflow-hidden border-blue-500/30">
-                        <CardHeader className="p-3">
+                        <CardHeader className="p-3 pb-2">
                           <div className="aspect-[3/4] rounded-md bg-slate-800 relative mb-2 overflow-hidden">
                             {listing.cardImageUrl && <img src={listing.cardImageUrl} className="w-full h-full object-cover" />}
                             <Badge className={cn("absolute top-2 right-2", getRarityColor(listing.cardRarity))}>
@@ -437,7 +464,23 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
                             </Badge>
                           </div>
                           <CardTitle className="text-sm font-bold truncate">{listing.cardName}</CardTitle>
-                          <p className="text-xs text-slate-400">{listing.cardType} • In vendita per {listing.priceCredits} crediti</p>
+                          <p className="text-xs text-slate-500">{listing.cardType}</p>
+                          {listing.cardType === 'personaggi' && (listing.cardPti != null || listing.cardStars != null) && (
+                            <div className="flex items-center gap-2 mt-1">
+                              {listing.cardPti != null && (
+                                <span className="text-teal-300 text-xs font-bold">PTI {listing.cardPti}</span>
+                              )}
+                              {listing.cardStars != null && listing.cardStars > 0 && (
+                                <span className="text-yellow-300 text-xs font-bold">{'⭐'.repeat(Math.min(listing.cardStars, 7))}</span>
+                              )}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 mt-1">
+                            {listing.originalCost != null && listing.originalCost > listing.priceCredits && (
+                              <span className="text-slate-500 text-xs line-through">{listing.originalCost} cr</span>
+                            )}
+                            <span className="text-yellow-400 font-bold text-sm">{listing.priceCredits} <span className="text-[10px] font-normal">CR</span></span>
+                          </div>
                         </CardHeader>
                         <CardFooter className="p-3 pt-0">
                           <Button
