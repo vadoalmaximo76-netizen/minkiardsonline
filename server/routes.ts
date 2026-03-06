@@ -13393,15 +13393,12 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         .from(userCardCollection).where(eq(userCardCollection.userId, currentUser.id));
       const existingSet = new Set(existingCollection.map(r => r.cardId));
 
-      const DUPLICATE_CREDITS: Record<string, number> = { comune: 10, rara: 25, epica: 50, leggendaria: 100 };
-      let totalDuplicateCredits = 0;
       const duplicateCardIds = new Set<string>();
 
-      // Add cards to user's collection (ignore duplicates via conflict handling)
+      // Add non-duplicate cards to collection; mark duplicates for user to resolve
       for (const card of pickedCards) {
         if (existingSet.has(card.cardId)) {
           duplicateCardIds.add(card.cardId);
-          totalDuplicateCredits += DUPLICATE_CREDITS[card.rarity] || 10;
         } else {
           try {
             await db.insert(userCardCollection).values({
@@ -13414,19 +13411,12 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         }
       }
 
-      // Award duplicate credits
-      if (totalDuplicateCredits > 0) {
-        await db.update(userDraftCredits)
-          .set({ freeCredits: newFree + totalDuplicateCredits, updatedAt: new Date() })
-          .where(eq(userDraftCredits.userId, currentUser.id));
-        newFree += totalDuplicateCredits;
-      }
-
-      // Mark cards as duplicates in response
+      // Mark cards as duplicates in response — user will choose refund or list
       const cardsWithDuplicateInfo = pickedCards.map(c => ({
         ...c,
         isDuplicate: duplicateCardIds.has(c.cardId),
-        duplicateCredits: duplicateCardIds.has(c.cardId) ? (DUPLICATE_CREDITS[c.rarity] || 10) : 0,
+        halfRefundCredits: duplicateCardIds.has(c.cardId) ? Math.floor((c.draftCost || 0) / 2) : 0,
+        duplicateCredits: duplicateCardIds.has(c.cardId) ? Math.floor((c.draftCost || 0) / 2) : 0, // kept for history display
       }));
 
       // Record pack opening
@@ -13435,13 +13425,63 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         packId,
         creditsSpent: pack.creditsRequired,
         cardsObtained: cardsWithDuplicateInfo,
-        duplicatesCredits: totalDuplicateCredits,
+        duplicatesCredits: 0,
       });
 
-      res.json({ success: true, cards: cardsWithDuplicateInfo, duplicatesCreditsEarned: totalDuplicateCredits });
+      res.json({ success: true, cards: cardsWithDuplicateInfo, duplicatesCreditsEarned: 0 });
     } catch (error: any) {
       console.error('Error opening pack:', error);
       res.status(500).json({ error: 'Errore nell\'apertura del pacchetto' });
+    }
+  });
+
+  // POST /api/draft/resolve-duplicate - user chooses: refund half cost OR list on marketplace
+  app.post('/api/draft/resolve-duplicate', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'Utente non trovato' });
+
+      const { action, cardId, cardName, cardType, cardRarity, cardImageUrl, halfRefundCredits, priceCredits } = req.body;
+      if (!action || !cardId) return res.status(400).json({ error: 'Dati mancanti' });
+
+      if (action === 'refund') {
+        const amount = Math.max(0, halfRefundCredits || 0);
+        if (amount > 0) {
+          await db.update(userDraftCredits)
+            .set({ freeCredits: sql`free_credits + ${amount}`, updatedAt: new Date() })
+            .where(eq(userDraftCredits.userId, currentUser.id));
+        }
+        console.log(`✅ Duplicate refund: ${currentUser.username} received ${amount} credits for ${cardId}`);
+        return res.json({ success: true, creditsRefunded: amount });
+      }
+
+      if (action === 'list') {
+        const price = Math.max(50, Math.min(5000, priceCredits || 50));
+        // Check no active listing already exists for this card
+        const existing = await db.select().from(cardTradeListings)
+          .where(and(eq(cardTradeListings.sellerId, currentUser.id), eq(cardTradeListings.cardId, cardId), eq(cardTradeListings.status, 'active')));
+        if (existing.length > 0) return res.status(409).json({ error: 'Hai già un annuncio attivo per questa carta' });
+
+        const [listing] = await db.insert(cardTradeListings).values({
+          sellerId: currentUser.id,
+          sellerName: currentUser.username,
+          cardId,
+          cardName: cardName || cardId,
+          cardType: cardType || 'personaggi',
+          cardRarity: cardRarity || 'comune',
+          cardImageUrl: cardImageUrl || null,
+          priceCredits: price,
+        }).returning();
+        console.log(`✅ Duplicate listed: ${currentUser.username} listed ${cardId} for ${price} credits`);
+        return res.json({ success: true, listing });
+      }
+
+      return res.status(400).json({ error: 'Azione non valida' });
+    } catch (error) {
+      console.error('Error resolving duplicate:', error);
+      res.status(500).json({ error: 'Errore nella gestione del duplicato' });
     }
   });
 
