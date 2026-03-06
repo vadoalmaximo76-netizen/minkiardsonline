@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { ArrowLeft, Shuffle, ShoppingCart, CreditCard, Search, Plus, Minus, CheckCircle, AlertCircle, Coins, Users, Swords, Zap, Package, Check, Trophy, X, SortAsc, SortDesc, Sparkles, Trash2, Filter, Gift, Star, Lock, ChevronDown, ChevronUp, Clock, Target, Flame, BookOpen, Save, RotateCcw, Calendar, Ticket, Store } from 'lucide-react';
+import { ArrowLeft, Shuffle, ShoppingCart, CreditCard, Search, Plus, Minus, CheckCircle, AlertCircle, Coins, Users, Swords, Zap, Package, Check, Trophy, X, SortAsc, SortDesc, Sparkles, Trash2, Filter, Gift, Star, Lock, ChevronDown, ChevronUp, Clock, Target, Flame, BookOpen, Save, RotateCcw, Calendar, Ticket, Store, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import { PackOpeningAnimation, PackType, RevealedCard } from './PackOpeningAnimation';
 import { SeasonPass } from './SeasonPass';
 import { Marketplace } from './Marketplace';
@@ -26,6 +26,7 @@ interface DraftStatus {
   paidCredits: number;
   totalCredits: number;
   puntiRankiard: number;
+  isAdmin?: boolean;
   deck: {
     personaggiCount: number;
     mosseCount: number;
@@ -166,6 +167,17 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
 
   // Draft character growth data
   const [growthData, setGrowthData] = useState<Record<string, { extraPti: number; extraStars: number }>>({});
+
+  // Card viewer popup
+  const [cardViewer, setCardViewer] = useState<{ deckType: 'personaggi' | 'mosse' | 'bonus'; index: number } | null>(null);
+  const [cvSellPrice, setCvSellPrice] = useState(50);
+  const [cvSelling, setCvSelling] = useState(false);
+  const [cvSellMsg, setCvSellMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Admin mission editing
+  const [editingMission, setEditingMission] = useState<string | null>(null);
+  const [missionEditForm, setMissionEditForm] = useState({ name: '', description: '', rewardCredits: 0, requirement: 1, icon: '' });
+  const [missionSaving, setMissionSaving] = useState(false);
 
   // Initial deck setup state
   const [showInitialChoice, setShowInitialChoice] = useState(false);
@@ -602,6 +614,50 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
     setSelectedCards(prev => ({ ...prev, [deckType]: prev[deckType].filter(id => id !== cardId) }));
   };
 
+  const handleCardViewerSell = async () => {
+    if (!cardViewer) return;
+    const deckCards = selectedCards[cardViewer.deckType].map(id => getCardById(id)).filter(Boolean) as DraftCard[];
+    const card = deckCards[cardViewer.index];
+    if (!card) return;
+    const rarity = ownedCardDetails.find(d => d.cardId === card.id)?.rarity || 'comune';
+    setCvSelling(true);
+    setCvSellMsg(null);
+    try {
+      const res = await fetch('/api/marketplace/list', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ cardId: card.id, cardName: card.name, cardType: cardViewer.deckType, cardRarity: rarity, cardImageUrl: card.imageUrl, priceCredits: cvSellPrice }),
+      });
+      if (res.ok) {
+        setCvSellMsg({ type: 'success', text: 'Carta messa in vendita nel marketplace!' });
+        setTimeout(() => { setCvSellMsg(null); setCardViewer(null); }, 2000);
+      } else {
+        const e = await res.json();
+        setCvSellMsg({ type: 'error', text: e.error || 'Errore nella vendita' });
+      }
+    } catch {
+      setCvSellMsg({ type: 'error', text: 'Errore di connessione' });
+    } finally {
+      setCvSelling(false);
+    }
+  };
+
+  const handleMissionSave = async (code: string) => {
+    setMissionSaving(true);
+    try {
+      const res = await fetch(`/api/draft/missions/templates/${code}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(missionEditForm),
+      });
+      if (res.ok) {
+        setEditingMission(null);
+        fetchMissions();
+      }
+    } catch {}
+    setMissionSaving(false);
+  };
+
   const clearDeckType = (deckType: 'personaggi' | 'mosse' | 'bonus') => {
     setSelectedCards(prev => ({ ...prev, [deckType]: [] }));
   };
@@ -950,6 +1006,32 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                 </div>
               )}
 
+              {/* Save button at top */}
+              <div>
+                <button
+                  onClick={handleSave}
+                  disabled={saving || !isComplete || !canAfford}
+                  className={`w-full py-4 rounded-xl font-bold text-base transition-all flex items-center justify-center gap-2 ${
+                    isComplete && canAfford
+                      ? 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-white shadow-lg shadow-teal-500/30 active:scale-[0.99]'
+                      : 'bg-white/10 text-white/30 cursor-not-allowed'
+                  }`}
+                >
+                  {saving ? (
+                    <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Salvataggio...</>
+                  ) : isComplete ? (
+                    <><CheckCircle className="w-5 h-5" />Salva mazzo</>
+                  ) : (
+                    <><Package className="w-5 h-5" />Completa il mazzo (33 per tipo)</>
+                  )}
+                </button>
+                {!isComplete && (
+                  <p className="text-white/40 text-xs text-center mt-2">
+                    Mancano: {Math.max(0, 33 - selectedCards.personaggi.length)} personaggi · {Math.max(0, 33 - selectedCards.mosse.length)} mosse · {Math.max(0, 33 - selectedCards.bonus.length)} bonus
+                  </p>
+                )}
+              </div>
+
               {/* Deck lists */}
               {DECK_TYPES.map(({ key, label, icon: Icon, color }) => {
                 const deckCards = selectedCards[key].map(id => getCardById(id)).filter(Boolean) as DraftCard[];
@@ -990,7 +1072,7 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                       </div>
                     ) : (
                       <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-11 gap-1.5 p-3">
-                        {deckCards.map(card => {
+                        {deckCards.map((card, cardIdx) => {
                           const growth = key === 'personaggi' ? growthData[card.id] : undefined;
                           const growthTitle = growth
                             ? `\n🌱 Crescita: +${growth.extraPti} PTI${growth.extraStars > 0 ? `, +${growth.extraStars} ⭐` : ''}`
@@ -998,13 +1080,13 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                           return (
                           <div
                             key={card.id}
-                            className="relative group rounded-lg overflow-hidden bg-black/30 border border-white/10 hover:border-red-400/50 transition-all cursor-pointer"
-                            onClick={() => removeCard(card.id, key)}
-                            title={`${card.name}${card.draftCost > 0 ? ` — ${card.draftCost} crediti` : ' — Gratuita'}${growthTitle}\nClicca per rimuovere`}
+                            className="relative group rounded-lg overflow-hidden bg-black/30 border border-white/10 hover:border-teal-400/50 transition-all cursor-pointer"
+                            onClick={() => setCardViewer({ deckType: key, index: cardIdx })}
+                            title={`${card.name}${card.draftCost > 0 ? ` — ${card.draftCost} crediti` : ' — Gratuita'}${growthTitle}\nClicca per dettagli`}
                           >
                             <img src={card.imageUrl} alt={card.name} className="w-full aspect-[2/3] object-cover" loading="lazy" />
-                            <div className="absolute inset-0 bg-red-900/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                              <Minus className="w-5 h-5 text-white drop-shadow" />
+                            <div className="absolute inset-0 bg-teal-900/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <Search className="w-4 h-4 text-white drop-shadow" />
                             </div>
                             {card.draftCost > 0 && (
                               <div className="absolute top-0.5 right-0.5 bg-teal-900/90 text-teal-300 text-[10px] px-1 py-0.5 rounded font-bold leading-none">
@@ -1043,32 +1125,6 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                 );
               })}
 
-              {/* Save button */}
-              <div>
-                <button
-                  onClick={handleSave}
-                  disabled={saving || !isComplete || !canAfford}
-                  className={`w-full py-4 rounded-xl font-bold text-base transition-all flex items-center justify-center gap-2 ${
-                    isComplete && canAfford
-                      ? 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-white shadow-lg shadow-teal-500/30 active:scale-[0.99]'
-                      : 'bg-white/10 text-white/30 cursor-not-allowed'
-                  }`}
-                >
-                  {saving ? (
-                    <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Salvataggio...</>
-                  ) : isComplete ? (
-                    <><CheckCircle className="w-5 h-5" />Salva mazzo</>
-                  ) : (
-                    <><Package className="w-5 h-5" />Completa il mazzo (33 per tipo)</>
-                  )}
-                </button>
-                {!isComplete && (
-                  <p className="text-white/40 text-xs text-center mt-2">
-                    Mancano: {Math.max(0, 33 - selectedCards.personaggi.length)} personaggi · {Math.max(0, 33 - selectedCards.mosse.length)} mosse · {Math.max(0, 33 - selectedCards.bonus.length)} bonus
-                  </p>
-                )}
-              </div>
-
               {/* === Missioni Draft === */}
               {missions.length > 0 && (
                 <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
@@ -1081,35 +1137,81 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                   </div>
                   <div className="divide-y divide-white/5">
                     {missions.map(m => (
-                      <div key={m.code} className={`px-4 py-3 flex items-center gap-3 ${m.claimed ? 'opacity-50' : ''}`}>
-                        <div className="text-xl flex-shrink-0">{m.icon}</div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-white/90 text-sm font-semibold">{m.name}</span>
-                            {m.claimed && <CheckCircle className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />}
+                      <div key={m.code} className={`${m.claimed ? 'opacity-50' : ''}`}>
+                        <div className="px-4 py-3 flex items-center gap-3">
+                          <div className="text-xl flex-shrink-0">{m.icon}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-white/90 text-sm font-semibold">{m.name}</span>
+                              {m.claimed && <CheckCircle className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />}
+                              {status?.isAdmin && editingMission !== m.code && (
+                                <button
+                                  onClick={() => { setEditingMission(m.code); setMissionEditForm({ name: m.name, description: m.description, rewardCredits: m.rewardCredits, requirement: m.requirement, icon: m.icon }); }}
+                                  className="ml-1 p-0.5 rounded text-white/20 hover:text-purple-300 transition-colors"
+                                  title="Modifica missione (admin)"
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                            <p className="text-white/50 text-xs">{m.description}</p>
+                            <div className="mt-1.5 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${m.completed ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-gradient-to-r from-purple-500 to-teal-500'}`}
+                                style={{ width: `${Math.min(100, (m.progress / m.requirement) * 100)}%` }}
+                              />
+                            </div>
+                            <div className="text-white/40 text-[10px] mt-0.5">{m.progress}/{m.requirement}</div>
                           </div>
-                          <p className="text-white/50 text-xs">{m.description}</p>
-                          <div className="mt-1.5 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all ${m.completed ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-gradient-to-r from-purple-500 to-teal-500'}`}
-                              style={{ width: `${Math.min(100, (m.progress / m.requirement) * 100)}%` }}
-                            />
+                          <div className="flex-shrink-0 text-right">
+                            <div className="text-teal-400 text-xs font-bold mb-1">+{m.rewardCredits} cr</div>
+                            {m.completed && !m.claimed && (
+                              <button
+                                onClick={() => claimMission(m.code)}
+                                disabled={claimingMission === m.code}
+                                className="text-xs px-2.5 py-1 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-white font-bold rounded-lg transition-all disabled:opacity-50"
+                              >
+                                {claimingMission === m.code ? '...' : 'Riscuoti'}
+                              </button>
+                            )}
+                            {m.claimed && <span className="text-green-400 text-xs">✓ Riscossa</span>}
                           </div>
-                          <div className="text-white/40 text-[10px] mt-0.5">{m.progress}/{m.requirement}</div>
                         </div>
-                        <div className="flex-shrink-0 text-right">
-                          <div className="text-teal-400 text-xs font-bold mb-1">+{m.rewardCredits} cr</div>
-                          {m.completed && !m.claimed && (
-                            <button
-                              onClick={() => claimMission(m.code)}
-                              disabled={claimingMission === m.code}
-                              className="text-xs px-2.5 py-1 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-white font-bold rounded-lg transition-all disabled:opacity-50"
-                            >
-                              {claimingMission === m.code ? '...' : 'Riscuoti'}
-                            </button>
-                          )}
-                          {m.claimed && <span className="text-green-400 text-xs">✓ Riscossa</span>}
-                        </div>
+                        {status?.isAdmin && editingMission === m.code && (
+                          <div className="mx-4 mb-3 p-3 bg-purple-900/20 border border-purple-500/30 rounded-xl space-y-2">
+                            <p className="text-purple-300 text-xs font-bold uppercase tracking-wide">Modifica Missione (Admin)</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-white/50 text-[10px]">Icona</label>
+                                <input type="text" value={missionEditForm.icon} onChange={e => setMissionEditForm(f => ({ ...f, icon: e.target.value }))} maxLength={4} className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-purple-400/50" placeholder="🎯" />
+                              </div>
+                              <div>
+                                <label className="text-white/50 text-[10px]">Ricompensa (crediti)</label>
+                                <input type="number" min={1} max={9999} value={missionEditForm.rewardCredits} onChange={e => setMissionEditForm(f => ({ ...f, rewardCredits: parseInt(e.target.value) || 0 }))} className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-purple-400/50" />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="text-white/50 text-[10px]">Nome</label>
+                              <input type="text" value={missionEditForm.name} onChange={e => setMissionEditForm(f => ({ ...f, name: e.target.value }))} maxLength={60} className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-purple-400/50" />
+                            </div>
+                            <div>
+                              <label className="text-white/50 text-[10px]">Descrizione</label>
+                              <input type="text" value={missionEditForm.description} onChange={e => setMissionEditForm(f => ({ ...f, description: e.target.value }))} maxLength={120} className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-purple-400/50" />
+                            </div>
+                            <div>
+                              <label className="text-white/50 text-[10px]">Obiettivo (numero)</label>
+                              <input type="number" min={1} max={999} value={missionEditForm.requirement} onChange={e => setMissionEditForm(f => ({ ...f, requirement: parseInt(e.target.value) || 1 }))} className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-purple-400/50" />
+                            </div>
+                            <div className="flex gap-2">
+                              <button onClick={() => handleMissionSave(m.code)} disabled={missionSaving} className="flex-1 py-1.5 bg-purple-600/50 hover:bg-purple-600/70 border border-purple-500/50 rounded-lg text-purple-200 font-bold text-xs transition-all disabled:opacity-50">
+                                {missionSaving ? '...' : 'Salva'}
+                              </button>
+                              <button onClick={() => setEditingMission(null)} className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white/50 text-xs transition-all">
+                                Annulla
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1909,6 +2011,7 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
           cards={packAnimation.cards}
           onClose={handleAnimationClose}
           onCardAdded={fetchDeck}
+          autoAddToDeck={true}
         />
       )}
 
@@ -1920,6 +2023,101 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
           onCardAdded={() => {}}
         />
       )}
+
+      {/* Card Viewer Popup */}
+      {cardViewer && (() => {
+        const deckCards = selectedCards[cardViewer.deckType].map(id => getCardById(id)).filter(Boolean) as DraftCard[];
+        const card = deckCards[cardViewer.index];
+        if (!card) return null;
+        const growth = cardViewer.deckType === 'personaggi' ? growthData[card.id] : undefined;
+        const rarity = ownedCardDetails.find(d => d.cardId === card.id)?.rarity || 'comune';
+        const deckTypeLabel = DECK_TYPES.find(d => d.key === cardViewer.deckType)?.label || cardViewer.deckType;
+        const rarityColors: Record<string, string> = { comune: 'text-gray-300', rara: 'text-blue-300', epica: 'text-purple-300', leggendaria: 'text-yellow-300' };
+        const hasPrev = cardViewer.index > 0;
+        const hasNext = cardViewer.index < deckCards.length - 1;
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => setCardViewer(null)}>
+            <div className="relative bg-slate-900 border border-white/20 rounded-2xl p-4 max-w-xs w-full mx-4 flex flex-col items-center shadow-2xl" onClick={e => e.stopPropagation()}>
+              <button onClick={() => setCardViewer(null)} className="absolute top-3 right-3 text-white/30 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+
+              {/* Navigation arrows */}
+              <div className="flex items-center gap-3 w-full mb-3">
+                <button disabled={!hasPrev} onClick={() => setCardViewer(prev => prev ? { ...prev, index: prev.index - 1 } : null)} className="p-2 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-20 disabled:cursor-not-allowed transition-all">
+                  <ChevronLeft className="w-5 h-5 text-white" />
+                </button>
+                <div className="flex-1 text-center text-white/40 text-xs">{cardViewer.index + 1} / {deckCards.length} {deckTypeLabel}</div>
+                <button disabled={!hasNext} onClick={() => setCardViewer(prev => prev ? { ...prev, index: prev.index + 1 } : null)} className="p-2 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-20 disabled:cursor-not-allowed transition-all">
+                  <ChevronRight className="w-5 h-5 text-white" />
+                </button>
+              </div>
+
+              {/* Card image */}
+              <div className="w-full max-w-[180px] aspect-[2/3] rounded-xl overflow-hidden border border-white/20 mb-3 shadow-lg">
+                <img src={card.imageUrl} alt={card.name} className="w-full h-full object-cover" />
+              </div>
+
+              {/* Card info */}
+              <div className="text-white font-bold text-base mb-0.5">{card.name}</div>
+              <div className={`text-xs mb-1 capitalize ${rarityColors[rarity] || 'text-white/50'}`}>{deckTypeLabel} · {rarity}{card.draftCost > 0 ? ` · ${card.draftCost} cr` : ' · Gratuita'}</div>
+
+              {/* PTI/Stars for personaggi */}
+              {cardViewer.deckType === 'personaggi' && (card.pti != null || card.stars != null) && (
+                <div className="flex items-center gap-3 mb-2">
+                  {card.pti != null && (
+                    <div className="text-teal-300 text-sm font-bold">
+                      PTI: {card.pti + (growth?.extraPti || 0)}
+                      {growth?.extraPti ? <span className="text-emerald-400 text-xs ml-1">(+{growth.extraPti})</span> : null}
+                    </div>
+                  )}
+                  {card.stars != null && (
+                    <div className="text-yellow-300 text-sm font-bold">
+                      {'⭐'.repeat(Math.min(card.stars + (growth?.extraStars || 0), 7))}
+                      {growth?.extraStars ? <span className="text-emerald-400 text-xs ml-1">(+{growth.extraStars})</span> : null}
+                    </div>
+                  )}
+                </div>
+              )}
+              {growth && (growth.extraPti > 0 || growth.extraStars > 0) && (
+                <div className="text-emerald-400 text-xs mb-2 bg-emerald-900/30 border border-emerald-500/30 rounded-lg px-2 py-1">
+                  🌱 Crescita: {growth.extraPti > 0 ? `+${growth.extraPti} PTI` : ''}{growth.extraPti > 0 && growth.extraStars > 0 ? ', ' : ''}{growth.extraStars > 0 ? `+${growth.extraStars} ⭐` : ''}
+                </div>
+              )}
+
+              {/* Sell section */}
+              <div className="w-full bg-black/30 rounded-xl border border-white/10 p-3 mb-3">
+                <div className="text-white/40 text-[10px] mb-1.5">Prezzo di vendita (50–5000 crediti)</div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number" min={50} max={5000} value={cvSellPrice}
+                    onChange={e => setCvSellPrice(Math.max(50, Math.min(5000, parseInt(e.target.value) || 50)))}
+                    className="flex-1 px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-amber-400/50"
+                  />
+                  <button
+                    onClick={handleCardViewerSell}
+                    disabled={cvSelling || cvSellPrice < 50 || cvSellPrice > 5000}
+                    className="px-3 py-1.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold rounded-lg text-xs disabled:opacity-50 transition-all"
+                  >
+                    {cvSelling ? '...' : 'Vendi'}
+                  </button>
+                </div>
+                {cvSellMsg && (
+                  <div className={`mt-1.5 text-xs ${cvSellMsg.type === 'success' ? 'text-green-400' : 'text-red-400'}`}>{cvSellMsg.text}</div>
+                )}
+              </div>
+
+              {/* Elimina button */}
+              <button
+                onClick={() => { removeCard(card.id, cardViewer.deckType); setCardViewer(null); }}
+                className="w-full py-2.5 bg-red-900/30 hover:bg-red-900/50 border border-red-500/30 rounded-xl text-red-300 font-bold text-sm flex items-center justify-center gap-2 transition-all"
+              >
+                <Minus className="w-4 h-4" />Elimina dal mazzo
+              </button>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

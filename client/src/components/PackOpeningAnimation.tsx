@@ -29,6 +29,7 @@ interface PackOpeningAnimationProps {
   cards: RevealedCard[];
   onClose: () => void;
   onCardAdded?: () => void;
+  autoAddToDeck?: boolean;
 }
 
 type Phase = 'shaking' | 'opening' | 'revealing' | 'done';
@@ -76,7 +77,7 @@ function getAudioCtx(): AudioContext | null {
   return ctx;
 }
 
-export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded }: PackOpeningAnimationProps) {
+export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded, autoAddToDeck }: PackOpeningAnimationProps) {
   const [phase, setPhase] = useState<Phase>('shaking');
   const [revealedCount, setRevealedCount] = useState(0);
   const [flippedCards, setFlippedCards] = useState<Set<number>>(new Set());
@@ -399,6 +400,11 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded }: Pack
       setAddStates(prev => ({ ...prev, [key]: 'idle' }));
     }
   };
+
+  useEffect(() => {
+    if (phase !== 'done' || !autoAddToDeck) return;
+    cards.filter(c => !c.isDuplicate).forEach(card => addToDeck(card));
+  }, [phase]);
 
   const getCardCols = () => {
     if (cards.length <= 5) return cards.length;

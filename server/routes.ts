@@ -48,6 +48,41 @@ import {
   trackGameEvent 
 } from "./missionsAndAchievements";
 
+const DRAFT_MISSIONS_PATH = path.join(process.cwd(), 'server', 'data', 'draftMissions.json');
+
+interface DraftMissionTemplate {
+  code: string;
+  name: string;
+  description: string;
+  requirement: number;
+  rewardCredits: number;
+  icon: string;
+  progressKey: string;
+}
+
+function getDraftMissions(): DraftMissionTemplate[] {
+  try {
+    const raw = fs.readFileSync(DRAFT_MISSIONS_PATH, 'utf-8');
+    return JSON.parse(raw);
+  } catch {
+    return [
+      { code: 'open_pack_1', name: 'Primo Pacchetto', description: 'Apri 1 pacchetto', requirement: 1, rewardCredits: 50, icon: '📦', progressKey: 'packCount' },
+      { code: 'open_pack_5', name: 'Collezionista', description: 'Apri 5 pacchetti', requirement: 5, rewardCredits: 200, icon: '🎁', progressKey: 'packCount' },
+      { code: 'complete_draft_deck', name: 'Maestro del Draft', description: 'Completa il mazzo (33+33+33)', requirement: 1, rewardCredits: 500, icon: '🏆', progressKey: 'deckComplete' },
+      { code: 'get_epic_card', name: "Caccia all'Epica", description: 'Ottieni 1 carta Epica', requirement: 1, rewardCredits: 150, icon: '💜', progressKey: 'epicCount' },
+      { code: 'daily_card_3', name: 'Fedele al Gioco', description: 'Riscatta la carta giornaliera 3 volte', requirement: 3, rewardCredits: 100, icon: '🌟', progressKey: 'dailyCount' },
+    ];
+  }
+}
+
+function saveDraftMissions(missions: DraftMissionTemplate[]): void {
+  try {
+    fs.writeFileSync(DRAFT_MISSIONS_PATH, JSON.stringify(missions, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('[DraftMissions] Failed to save:', e);
+  }
+}
+
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "lucaforte94@gmail.com";
 
 // Initialize OpenAI
@@ -12227,12 +12262,14 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       const credits = await getOrCreateDraftCredits(currentUser.id);
       const deckRows = await db.select().from(draftDecks).where(eq(draftDecks.userId, currentUser.id)).limit(1);
       const deck = deckRows[0] || null;
+      const isAdminUser = await checkAdminAccess({ userId: currentUser.id, email: currentUser.email });
       res.json({
         userId: currentUser.id,
         freeCredits: credits.freeCredits,
         paidCredits: credits.paidCredits,
         totalCredits: credits.freeCredits + credits.paidCredits,
         puntiRankiard: currentUser.puntiRankiard,
+        isAdmin: isAdminUser,
         deck: deck ? {
           personaggiCount: (deck.personaggiCards as string[]).length,
           mosseCount: (deck.mosseCards as string[]).length,
@@ -12831,13 +12868,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
       if (!currentUser) return res.status(404).json({ error: 'User not found' });
 
-      const DRAFT_MISSIONS = [
-        { code: 'open_pack_1', name: 'Primo Pacchetto', description: 'Apri 1 pacchetto', requirement: 1, rewardCredits: 50, icon: '📦' },
-        { code: 'open_pack_5', name: 'Collezionista', description: 'Apri 5 pacchetti', requirement: 5, rewardCredits: 200, icon: '🎁' },
-        { code: 'complete_draft_deck', name: 'Maestro del Draft', description: 'Completa il mazzo (33+33+33)', requirement: 1, rewardCredits: 500, icon: '🏆' },
-        { code: 'get_epic_card', name: 'Caccia all\'Epica', description: 'Ottieni 1 carta Epica', requirement: 1, rewardCredits: 150, icon: '💜' },
-        { code: 'daily_card_3', name: 'Fedele al Gioco', description: 'Riscatta la carta giornaliera 3 volte', requirement: 3, rewardCredits: 100, icon: '🌟' },
-      ];
+      const DRAFT_MISSIONS = getDraftMissions();
 
       // Get pack opening count
       const packOpenings = await db.select().from(draftPackOpenings).where(eq(draftPackOpenings.userId, currentUser.id));
@@ -12856,12 +12887,11 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         .where(and(eq(draftPackOpenings.userId, currentUser.id), eq(draftPackOpenings.packId, 'daily')));
       const dailyCount = dailyClaimRows.length;
 
-      const progressMap: Record<string, number> = {
-        open_pack_1: packCount,
-        open_pack_5: packCount,
-        complete_draft_deck: deckComplete,
-        get_epic_card: epicCards.length,
-        daily_card_3: dailyCount,
+      const progressByKey: Record<string, number> = {
+        packCount,
+        deckComplete,
+        epicCount: epicCards.length,
+        dailyCount,
       };
 
       // Get claimed missions from draftPackOpenings with packId='mission_claimed'
@@ -12869,12 +12899,15 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         .where(and(eq(draftPackOpenings.userId, currentUser.id), eq(draftPackOpenings.packId, 'mission_claimed')));
       const claimedSet = new Set((claimedRows.map(r => (r.cardsObtained as any[])[0]?.missionCode)).filter(Boolean));
 
-      const missions = DRAFT_MISSIONS.map(m => ({
-        ...m,
-        progress: Math.min(progressMap[m.code] || 0, m.requirement),
-        completed: (progressMap[m.code] || 0) >= m.requirement,
-        claimed: claimedSet.has(m.code),
-      }));
+      const missions = DRAFT_MISSIONS.map(m => {
+        const prog = progressByKey[m.progressKey] ?? 0;
+        return {
+          ...m,
+          progress: Math.min(prog, m.requirement),
+          completed: prog >= m.requirement,
+          claimed: claimedSet.has(m.code),
+        };
+      });
 
       res.json(missions);
     } catch (error) {
@@ -12891,15 +12924,8 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       if (!currentUser) return res.status(404).json({ error: 'User not found' });
       const { code } = req.params;
 
-      const DRAFT_MISSIONS: Record<string, { requirement: number; rewardCredits: number; progressKey: string }> = {
-        open_pack_1: { requirement: 1, rewardCredits: 50, progressKey: 'packCount' },
-        open_pack_5: { requirement: 5, rewardCredits: 200, progressKey: 'packCount' },
-        complete_draft_deck: { requirement: 1, rewardCredits: 500, progressKey: 'deckComplete' },
-        get_epic_card: { requirement: 1, rewardCredits: 150, progressKey: 'epicCount' },
-        daily_card_3: { requirement: 3, rewardCredits: 100, progressKey: 'dailyCount' },
-      };
-
-      const mission = DRAFT_MISSIONS[code];
+      const allDraftMissions = getDraftMissions();
+      const mission = allDraftMissions.find(m => m.code === code);
       if (!mission) return res.status(400).json({ error: 'Missione non valida' });
 
       // Check if already claimed
@@ -12947,6 +12973,41 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       res.json({ success: true, creditsEarned: mission.rewardCredits });
     } catch (error) {
       res.status(500).json({ error: 'Errore riscatto missione' });
+    }
+  });
+
+  // GET /api/draft/missions/templates - admin: get all mission templates
+  app.get('/api/draft/missions/templates', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const isAdmin = await checkAdminAccess({ userId: user.userId, email: user.email });
+      if (!isAdmin) return res.status(403).json({ error: 'Non autorizzato' });
+      res.json(getDraftMissions());
+    } catch (error) {
+      res.status(500).json({ error: 'Errore recupero template missioni' });
+    }
+  });
+
+  // PUT /api/draft/missions/templates/:code - admin: update a mission template
+  app.put('/api/draft/missions/templates/:code', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const isAdmin = await checkAdminAccess({ userId: user.userId, email: user.email });
+      if (!isAdmin) return res.status(403).json({ error: 'Non autorizzato' });
+      const { code } = req.params;
+      const { name, description, rewardCredits, requirement, icon } = req.body;
+      const missions = getDraftMissions();
+      const idx = missions.findIndex(m => m.code === code);
+      if (idx === -1) return res.status(404).json({ error: 'Missione non trovata' });
+      if (name !== undefined) missions[idx].name = String(name).slice(0, 60);
+      if (description !== undefined) missions[idx].description = String(description).slice(0, 120);
+      if (rewardCredits !== undefined) missions[idx].rewardCredits = Math.max(1, Math.min(9999, Number(rewardCredits) || 0));
+      if (requirement !== undefined) missions[idx].requirement = Math.max(1, Math.min(999, Number(requirement) || 1));
+      if (icon !== undefined) missions[idx].icon = String(icon).slice(0, 4);
+      saveDraftMissions(missions);
+      res.json({ success: true, mission: missions[idx] });
+    } catch (error) {
+      res.status(500).json({ error: 'Errore aggiornamento missione' });
     }
   });
 
