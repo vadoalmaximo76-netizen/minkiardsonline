@@ -10,7 +10,7 @@ import { db, legacyDb, isDatabaseAvailable, isLegacyDbAvailable } from "./db";
 import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth } from "../shared/schema";
 import { jsonStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray } from "drizzle-orm";
-import { CARD_DATA } from "../client/src/lib/cardData";
+import { CARD_DATA, DECK_BACK_IMAGES } from "../client/src/lib/cardData";
 import { authMiddleware, ADMIN_FALLBACK, JWT_SECRET } from "./auth";
 import { setPlayerOnline, rateLimit as redisRateLimit, isRedisConfigured, updateLeaderboard as redisUpdateLeaderboard, cacheGet, cacheSet } from "./redis";
 import { getOptimizedCardUrl, isCloudinaryConfigured } from "./cloudinary";
@@ -8750,6 +8750,39 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // ============= CARD SKINS ENDPOINTS =============
 
   // Get all card names for skin assignment (organized by deck)
+  // GET /api/all-card-images - returns all unique card image URLs for offline caching
+  app.get('/api/all-card-images', async (req, res) => {
+    try {
+      const allUrls = new Set<string>();
+      // All card images from CARD_DATA
+      for (const urls of Object.values(CARD_DATA)) {
+        if (Array.isArray(urls)) {
+          for (const url of urls) {
+            if (typeof url === 'string' && url.startsWith('http')) allUrls.add(url);
+          }
+        }
+      }
+      // Back images
+      for (const url of Object.values(DECK_BACK_IMAGES)) {
+        if (typeof url === 'string') allUrls.add(url);
+      }
+      // Custom card images from DB
+      if (isDatabaseAvailable()) {
+        try {
+          const customs = await db.select({ imageUrl: customCards.imageUrl }).from(customCards);
+          for (const c of customs) {
+            if (c.imageUrl && c.imageUrl.startsWith('http')) allUrls.add(c.imageUrl);
+          }
+        } catch (_) {}
+      }
+      const urls = Array.from(allUrls);
+      res.json({ urls, total: urls.length });
+    } catch (error) {
+      console.error('Error fetching all card images:', error);
+      res.status(500).json({ error: 'Errore nel recupero immagini' });
+    }
+  });
+
   app.get('/api/all-card-names', async (req, res) => {
     try {
       // Helper function to extract card name from URL

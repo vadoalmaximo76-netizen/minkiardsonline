@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, User, Trophy, Clock, Target, Users, Edit3, Save, X, Key, Mail, Camera, Award, Gamepad2, Star, TrendingUp, Shield, Palette, Crown, Settings, MessageCircle, Bell } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ArrowLeft, User, Trophy, Clock, Target, Users, Edit3, Save, X, Key, Mail, Camera, Award, Gamepad2, Star, TrendingUp, Shield, Palette, Crown, Settings, MessageCircle, Bell, Download, WifiOff, CheckCircle2, Trash2 } from 'lucide-react';
+import { isOfflineCacheSupported, downloadAllCardImages, getOfflineStats, clearOfflineImages } from '../lib/offlineImageCache';
 import { AVATARS } from '../lib/avatars';
 import { ClanPanel } from './ClanPanel';
 import { CardSkinsPanel } from './CardSkinsPanel';
@@ -58,6 +59,11 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
   const [isAdmin, setIsAdmin] = useState(false);
   const [showMessagesPanel, setShowMessagesPanel] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
+
+  const [offlineStats, setOfflineStats] = useState<{ cached: number; total: number; enabled: boolean } | null>(null);
+  const [offlineDownloading, setOfflineDownloading] = useState(false);
+  const [offlineProgress, setOfflineProgress] = useState({ done: 0, total: 0 });
+  const offlineAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -143,6 +149,44 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
     } catch (error) {
       console.error('Error fetching unread count:', error);
     }
+  };
+
+  useEffect(() => {
+    if (isOfflineCacheSupported()) {
+      getOfflineStats().then(setOfflineStats).catch(() => {});
+    }
+  }, []);
+
+  const handleStartDownload = async () => {
+    if (offlineDownloading) return;
+    const controller = new AbortController();
+    offlineAbortRef.current = controller;
+    setOfflineDownloading(true);
+    setOfflineProgress({ done: 0, total: 0 });
+    try {
+      await downloadAllCardImages(
+        (done, total) => setOfflineProgress({ done, total }),
+        controller.signal
+      );
+      const stats = await getOfflineStats();
+      setOfflineStats(stats);
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') console.error('Download error:', err);
+    } finally {
+      setOfflineDownloading(false);
+      offlineAbortRef.current = null;
+    }
+  };
+
+  const handleCancelDownload = () => {
+    offlineAbortRef.current?.abort();
+    setOfflineDownloading(false);
+  };
+
+  const handleClearCache = async () => {
+    await clearOfflineImages();
+    const stats = await getOfflineStats();
+    setOfflineStats(stats);
   };
 
   const handleSaveProfile = async () => {
@@ -466,6 +510,83 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
                 </div>
                 <NotificationSettings authToken={localStorage.getItem('authToken')} />
               </div>
+            </div>
+
+            {/* Carte Offline */}
+            <div className="bg-gradient-to-r from-emerald-900/30 to-slate-800/50 rounded-2xl p-5 border border-emerald-500/20">
+              <div className="flex items-center gap-3 mb-4">
+                <WifiOff className="w-6 h-6 text-emerald-400" />
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Carte Offline</h3>
+                  <p className="text-white/70 text-sm font-medium">Scarica le immagini per caricarle senza internet</p>
+                </div>
+                {offlineStats?.enabled && (
+                  <span className="ml-auto flex items-center gap-1 text-emerald-400 text-sm font-semibold">
+                    <CheckCircle2 className="w-4 h-4" /> Attivo
+                  </span>
+                )}
+              </div>
+
+              {!isOfflineCacheSupported() ? (
+                <p className="text-white/50 text-sm">Non supportato su questo browser.</p>
+              ) : (
+                <>
+                  {offlineStats && (
+                    <p className="text-white/60 text-sm mb-3">
+                      {offlineStats.cached} / {offlineStats.total} immagini in cache
+                    </p>
+                  )}
+
+                  {offlineDownloading ? (
+                    <div className="space-y-2">
+                      <p className="text-white/70 text-sm">
+                        Scaricamento in corso… {offlineProgress.done} / {offlineProgress.total || '…'}
+                      </p>
+                      {offlineProgress.total > 0 && (
+                        <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+                          <div
+                            className="bg-emerald-400 h-2 rounded-full transition-all duration-200"
+                            style={{ width: `${Math.round((offlineProgress.done / offlineProgress.total) * 100)}%` }}
+                          />
+                        </div>
+                      )}
+                      <button
+                        onClick={handleCancelDownload}
+                        className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-xl text-sm font-medium transition-colors"
+                      >
+                        Annulla
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {!offlineStats?.enabled && (
+                        <button
+                          onClick={handleStartDownload}
+                          className="flex items-center gap-2 px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 rounded-xl text-sm font-medium transition-colors"
+                        >
+                          <Download className="w-4 h-4" /> Scarica carte
+                        </button>
+                      )}
+                      {offlineStats && offlineStats.cached > 0 && (
+                        <button
+                          onClick={handleClearCache}
+                          className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-300 rounded-xl text-sm font-medium transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" /> Rimuovi cache
+                        </button>
+                      )}
+                      {offlineStats?.enabled && (
+                        <button
+                          onClick={handleStartDownload}
+                          className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/15 text-white/60 rounded-xl text-sm font-medium transition-colors"
+                        >
+                          <Download className="w-4 h-4" /> Aggiorna
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
 
             {/* Card Skins & Seasonal Pass */}

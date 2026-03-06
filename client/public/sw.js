@@ -1,17 +1,58 @@
-const CACHE_NAME = 'minkiards-v1';
+const IMAGE_CACHE_NAME = 'minkiards-images-v1';
+
+// Card image hosts to intercept and serve from cache
+function isCardImageRequest(url) {
+  return (
+    url.includes('postimg.cc') ||
+    url.includes('i.imgur.com') ||
+    url.includes('res.cloudinary.com')
+  );
+}
 
 self.addEventListener('install', function(event) {
-  console.log('[SW] Installing push notification service worker...');
+  console.log('[SW] Installing service worker...');
   self.skipWaiting();
 });
 
 self.addEventListener('activate', function(event) {
-  console.log('[SW] Push notification service worker activated');
+  console.log('[SW] Service worker activated');
   event.waitUntil(self.clients.claim());
 });
 
 self.addEventListener('fetch', function(event) {
+  const url = event.request.url;
+
+  if (isCardImageRequest(url)) {
+    event.respondWith(
+      caches.open(IMAGE_CACHE_NAME).then(function(cache) {
+        return cache.match(event.request).then(function(cached) {
+          if (cached) {
+            return cached;
+          }
+          return fetch(event.request).then(function(response) {
+            if (response && response.status === 200) {
+              cache.put(event.request, response.clone());
+            }
+            return response;
+          }).catch(function() {
+            return new Response('', { status: 404 });
+          });
+        });
+      })
+    );
+    return;
+  }
+
   event.respondWith(fetch(event.request));
+});
+
+// Handle messages from main thread
+self.addEventListener('message', function(event) {
+  if (event.data && event.data.type === 'CLEAR_IMAGE_CACHE') {
+    caches.delete(IMAGE_CACHE_NAME).then(function() {
+      if (event.source) event.source.postMessage({ type: 'IMAGE_CACHE_CLEARED' });
+    });
+  }
 });
 
 self.addEventListener('push', function(event) {
