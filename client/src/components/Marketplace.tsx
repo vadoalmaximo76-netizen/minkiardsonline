@@ -341,8 +341,8 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
             </TabsList>
           </div>
 
-          <div className="flex-1 overflow-hidden">
-            <TabsContent value="explore" className="h-full m-0 p-6 pt-2 flex flex-col gap-4">
+          <div className="flex-1 overflow-y-auto">
+            <TabsContent value="explore" className="m-0 p-6 pt-2 flex flex-col gap-4">
               <div className="flex flex-wrap gap-4 items-center bg-white/5 p-3 rounded-lg border border-white/10">
                 <div className="flex items-center gap-2">
                   <Filter className="w-4 h-4 text-purple-400" />
@@ -415,8 +415,8 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="mine" className="h-full m-0 p-6 pt-2">
-              <ScrollArea className="h-full">
+            <TabsContent value="mine" className="m-0 p-6 pt-2">
+              <ScrollArea>
                 {isLoadingMyListings ? (
                   <div className="flex items-center justify-center h-40">
                     <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
@@ -457,7 +457,7 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="sell" className="h-full m-0 overflow-y-auto">
+            <TabsContent value="sell" className="m-0">
               <SellTabContent
                 onListSuccess={() => {
                   loadMyListings();
