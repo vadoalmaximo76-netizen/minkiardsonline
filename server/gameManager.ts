@@ -2694,10 +2694,8 @@ Rispondi SOLO in JSON:`;
 
     const card = deck.pop()!;
     card.owner = playerName;
-    // For draft personaggi cards: ensure card.text (and pti/stars) is set at draw time
-    // so that stats are visible in hand, not only after playing to field.
     if (game.isDraftMode && card.type === 'personaggi' && card.draftBaseId) {
-      this.autoAnalyzePersonaggioCardSync(card, playerName);
+      await this.applyDraftGrowthAtDraw(game, card, playerName);
     }
     game.players[playerName].hand.push(card);
 
@@ -2735,7 +2733,7 @@ Rispondi SOLO in JSON:`;
     const card = deck.pop()!;
     card.owner = playerName;
     if (game.isDraftMode && card.type === 'personaggi' && card.draftBaseId) {
-      this.autoAnalyzePersonaggioCardSync(card, playerName);
+      await this.applyDraftGrowthAtDraw(game, card, playerName);
     }
     game.players[playerName].hand.push(card);
 
@@ -2776,7 +2774,7 @@ Rispondi SOLO in JSON:`;
         const card = deck.pop()!;
         card.owner = playerName;
         if (game.isDraftMode && card.type === 'personaggi' && card.draftBaseId) {
-          this.autoAnalyzePersonaggioCardSync(card, playerName);
+          await this.applyDraftGrowthAtDraw(game, card, playerName);
         }
         game.players[playerName].hand.push(card);
 
@@ -12529,6 +12527,39 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   private extractStarsFromNote(note: string): number {
     const match = note.match(/Stelle:\s*(\d+)/i);
     return match ? parseInt(match[1]) : 0;
+  }
+
+  // Apply draft growth from DB to a card before analyzing it at draw time.
+  // This handles restored games where card.pti may be the stale base value (no growth).
+  private async applyDraftGrowthAtDraw(game: GameState, card: any, playerName: string): Promise<void> {
+    try {
+      if (!card.draftBaseId) return;
+      const userId = game.playerUserIds.get(playerName);
+      if (!userId || !isDatabaseAvailable()) {
+        this.autoAnalyzePersonaggioCardSync(card, playerName);
+        return;
+      }
+      const growthRows = await db.select().from(draftCharacterGrowth)
+        .where(and(eq(draftCharacterGrowth.userId, userId), eq(draftCharacterGrowth.cardId, card.draftBaseId)));
+      if (growthRows.length > 0) {
+        const row = growthRows[0];
+        const cached = getPersonaggioFromCache(card.name || '');
+        const basePti = cached?.pti ?? card.pti ?? 0;
+        const baseStars = cached?.stars ?? card.stars ?? 1;
+        const growthPti = row.extraPti ?? 0;
+        const growthStars = row.extraStars ?? 0;
+        card.pti = basePti + growthPti;
+        card.stars = baseStars + growthStars;
+        card.originalPti = basePti;
+        card.text = `PTI: ${card.pti} | Stelle: ${card.stars} | PTI originali: ${card.originalPti}`;
+        console.log(`✅ applyDraftGrowthAtDraw ${card.id} (${card.draftBaseId}): basePti=${basePti}, +${growthPti} growth → pti=${card.pti}, stars=${card.stars}`);
+      } else {
+        this.autoAnalyzePersonaggioCardSync(card, playerName);
+      }
+    } catch (err) {
+      console.error(`❌ applyDraftGrowthAtDraw error for ${card.draftBaseId}:`, err);
+      this.autoAnalyzePersonaggioCardSync(card, playerName);
+    }
   }
 
   // AUTO-ANALYZE PERSONAGGI CARDS FOR ALL PLAYERS (using cache - synchronous)
