@@ -13011,6 +13011,58 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     }
   });
 
+  // DELETE /api/draft/missions/templates/:code - admin: delete a mission template
+  app.delete('/api/draft/missions/templates/:code', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const isAdmin = await checkAdminAccess({ userId: user.userId, email: user.email });
+      if (!isAdmin) return res.status(403).json({ error: 'Non autorizzato' });
+      const { code } = req.params;
+      const missions = getDraftMissions();
+      const idx = missions.findIndex(m => m.code === code);
+      if (idx === -1) return res.status(404).json({ error: 'Missione non trovata' });
+      missions.splice(idx, 1);
+      saveDraftMissions(missions);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Errore eliminazione missione' });
+    }
+  });
+
+  // POST /api/draft/missions/templates - admin: create a new mission template
+  app.post('/api/draft/missions/templates', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const isAdmin = await checkAdminAccess({ userId: user.userId, email: user.email });
+      if (!isAdmin) return res.status(403).json({ error: 'Non autorizzato' });
+      const { code, name, description, rewardCredits, requirement, icon, progressKey } = req.body;
+
+      const VALID_PROGRESS_KEYS = ['packCount', 'deckComplete', 'epicCount', 'dailyCount'];
+      if (!code || !name || !progressKey) return res.status(400).json({ error: 'code, name e progressKey sono obbligatori' });
+      const sanitizedCode = String(code).toLowerCase().replace(/[^a-z0-9_]/g, '_').slice(0, 40);
+      if (!sanitizedCode) return res.status(400).json({ error: 'Codice non valido' });
+      if (!VALID_PROGRESS_KEYS.includes(progressKey)) return res.status(400).json({ error: `progressKey deve essere uno tra: ${VALID_PROGRESS_KEYS.join(', ')}` });
+
+      const missions = getDraftMissions();
+      if (missions.some(m => m.code === sanitizedCode)) return res.status(409).json({ error: 'Esiste già una missione con questo codice' });
+
+      const newMission = {
+        code: sanitizedCode,
+        name: String(name).slice(0, 60),
+        description: String(description || '').slice(0, 120),
+        rewardCredits: Math.max(1, Math.min(9999, Number(rewardCredits) || 100)),
+        requirement: Math.max(1, Math.min(999, Number(requirement) || 1)),
+        icon: String(icon || '🎯').slice(0, 4),
+        progressKey: String(progressKey),
+      };
+      missions.push(newMission);
+      saveDraftMissions(missions);
+      res.status(201).json(newMission);
+    } catch (error) {
+      res.status(500).json({ error: 'Errore creazione missione' });
+    }
+  });
+
   // GET /api/draft/cards - all cards with their draft costs
   app.get('/api/draft/cards', async (req, res) => {
     try {

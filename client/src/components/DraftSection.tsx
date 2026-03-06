@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { ArrowLeft, Shuffle, ShoppingCart, CreditCard, Search, Plus, Minus, CheckCircle, AlertCircle, Coins, Users, Swords, Zap, Package, Check, Trophy, X, SortAsc, SortDesc, Sparkles, Trash2, Filter, Gift, Star, Lock, ChevronDown, ChevronUp, Clock, Target, Flame, BookOpen, Save, RotateCcw, Calendar, Ticket, Store, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
+import { ArrowLeft, Shuffle, ShoppingCart, CreditCard, Search, Plus, Minus, CheckCircle, AlertCircle, Coins, Users, Swords, Zap, Package, Check, Trophy, X, SortAsc, SortDesc, Sparkles, Trash2, Filter, Gift, Star, Lock, ChevronDown, ChevronUp, Clock, Target, Flame, BookOpen, Save, RotateCcw, Calendar, Ticket, Store, ChevronLeft, ChevronRight, Pencil, Copy } from 'lucide-react';
 import { PackOpeningAnimation, PackType, RevealedCard } from './PackOpeningAnimation';
 import { SeasonPass } from './SeasonPass';
 import { Marketplace } from './Marketplace';
@@ -178,6 +178,11 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
   const [editingMission, setEditingMission] = useState<string | null>(null);
   const [missionEditForm, setMissionEditForm] = useState({ name: '', description: '', rewardCredits: 0, requirement: 1, icon: '' });
   const [missionSaving, setMissionSaving] = useState(false);
+  const [confirmDeleteMission, setConfirmDeleteMission] = useState<string | null>(null);
+  const [creatingMission, setCreatingMission] = useState(false);
+  const [missionCreateForm, setMissionCreateForm] = useState({ code: '', name: '', description: '', rewardCredits: 100, requirement: 1, icon: '🎯', progressKey: 'packCount' });
+  const [missionCreating, setMissionCreating] = useState(false);
+  const [missionCreateError, setMissionCreateError] = useState<string | null>(null);
 
   // Initial deck setup state
   const [showInitialChoice, setShowInitialChoice] = useState(false);
@@ -658,6 +663,59 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
     setMissionSaving(false);
   };
 
+  const handleMissionDelete = async (code: string) => {
+    try {
+      const res = await fetch(`/api/draft/missions/templates/${code}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      if (res.ok) {
+        setConfirmDeleteMission(null);
+        fetchMissions();
+      }
+    } catch {}
+  };
+
+  const handleMissionDuplicate = (m: any) => {
+    setMissionCreateForm({
+      code: '',
+      name: m.name + ' (copia)',
+      description: m.description,
+      rewardCredits: m.rewardCredits,
+      requirement: m.requirement,
+      icon: m.icon,
+      progressKey: m.progressKey,
+    });
+    setMissionCreateError(null);
+    setCreatingMission(true);
+  };
+
+  const handleMissionCreate = async () => {
+    setMissionCreating(true);
+    setMissionCreateError(null);
+    try {
+      const res = await fetch('/api/draft/missions/templates', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(missionCreateForm),
+      });
+      if (res.ok) {
+        setCreatingMission(false);
+        setMissionCreateForm({ code: '', name: '', description: '', rewardCredits: 100, requirement: 1, icon: '🎯', progressKey: 'packCount' });
+        fetchMissions();
+      } else {
+        const e = await res.json();
+        setMissionCreateError(e.error || 'Errore nella creazione');
+      }
+    } catch {
+      setMissionCreateError('Errore di connessione');
+    }
+    setMissionCreating(false);
+  };
+
+  const autoCodeFromName = (name: string) =>
+    name.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '').slice(0, 40);
+
   const clearDeckType = (deckType: 'personaggi' | 'mosse' | 'bonus') => {
     setSelectedCards(prev => ({ ...prev, [deckType]: [] }));
   };
@@ -1126,32 +1184,128 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
               })}
 
               {/* === Missioni Draft === */}
-              {missions.length > 0 && (
+              {(missions.length > 0 || status?.isAdmin) && (
                 <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                  {/* Header */}
                   <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
                     <Target className="w-4 h-4 text-purple-400" />
                     <span className="text-white/80 font-bold text-sm">Missioni Draft</span>
                     <span className="text-white/40 text-xs ml-1">
                       {missions.filter(m => m.claimed).length}/{missions.length} completate
                     </span>
+                    {status?.isAdmin && (
+                      <button
+                        onClick={() => { setCreatingMission(true); setMissionCreateForm({ code: '', name: '', description: '', rewardCredits: 100, requirement: 1, icon: '🎯', progressKey: 'packCount' }); setMissionCreateError(null); }}
+                        className="ml-auto flex items-center gap-1 text-[10px] px-2 py-1 bg-teal-600/30 hover:bg-teal-600/50 border border-teal-500/30 rounded-lg text-teal-300 font-semibold transition-all"
+                        title="Crea nuova missione"
+                      >
+                        <Plus className="w-3 h-3" />Nuova
+                      </button>
+                    )}
                   </div>
+
+                  {/* Create mission form */}
+                  {status?.isAdmin && creatingMission && (
+                    <div className="mx-4 my-3 p-3 bg-teal-900/20 border border-teal-500/30 rounded-xl space-y-2">
+                      <p className="text-teal-300 text-xs font-bold uppercase tracking-wide">Nuova Missione (Admin)</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-white/50 text-[10px]">Icona</label>
+                          <input type="text" value={missionCreateForm.icon} onChange={e => setMissionCreateForm(f => ({ ...f, icon: e.target.value }))} maxLength={4} className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-teal-400/50" placeholder="🎯" />
+                        </div>
+                        <div>
+                          <label className="text-white/50 text-[10px]">Ricompensa (crediti)</label>
+                          <input type="number" min={1} max={9999} value={missionCreateForm.rewardCredits} onChange={e => setMissionCreateForm(f => ({ ...f, rewardCredits: parseInt(e.target.value) || 0 }))} className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-teal-400/50" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-white/50 text-[10px]">Nome</label>
+                        <input
+                          type="text"
+                          value={missionCreateForm.name}
+                          onChange={e => setMissionCreateForm(f => ({ ...f, name: e.target.value, code: f.code || autoCodeFromName(e.target.value) }))}
+                          maxLength={60}
+                          className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-teal-400/50"
+                          placeholder="Nome della missione"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-white/50 text-[10px]">Descrizione</label>
+                        <input type="text" value={missionCreateForm.description} onChange={e => setMissionCreateForm(f => ({ ...f, description: e.target.value }))} maxLength={120} className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-teal-400/50" placeholder="Descrizione per i giocatori" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-white/50 text-[10px]">Obiettivo (numero)</label>
+                          <input type="number" min={1} max={999} value={missionCreateForm.requirement} onChange={e => setMissionCreateForm(f => ({ ...f, requirement: parseInt(e.target.value) || 1 }))} className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-teal-400/50" />
+                        </div>
+                        <div>
+                          <label className="text-white/50 text-[10px]">Tipo di progresso</label>
+                          <select value={missionCreateForm.progressKey} onChange={e => setMissionCreateForm(f => ({ ...f, progressKey: e.target.value }))} className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-teal-400/50">
+                            <option value="packCount">Pacchetti aperti</option>
+                            <option value="deckComplete">Mazzo completato</option>
+                            <option value="epicCount">Carte Epiche ottenute</option>
+                            <option value="dailyCount">Carte giornaliere riscattate</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-white/50 text-[10px]">Codice univoco (auto-generato)</label>
+                        <input type="text" value={missionCreateForm.code} onChange={e => setMissionCreateForm(f => ({ ...f, code: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_') }))} maxLength={40} className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white/70 text-xs focus:outline-none focus:border-teal-400/50 font-mono" placeholder="codice_univoco" />
+                      </div>
+                      {missionCreateError && <p className="text-red-400 text-xs">{missionCreateError}</p>}
+                      <div className="flex gap-2">
+                        <button onClick={handleMissionCreate} disabled={missionCreating || !missionCreateForm.name || !missionCreateForm.code} className="flex-1 py-1.5 bg-teal-600/50 hover:bg-teal-600/70 border border-teal-500/50 rounded-lg text-teal-200 font-bold text-xs transition-all disabled:opacity-50">
+                          {missionCreating ? '...' : 'Crea'}
+                        </button>
+                        <button onClick={() => setCreatingMission(false)} className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white/50 text-xs transition-all">Annulla</button>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="divide-y divide-white/5">
                     {missions.map(m => (
                       <div key={m.code} className={`${m.claimed ? 'opacity-50' : ''}`}>
                         <div className="px-4 py-3 flex items-center gap-3">
                           <div className="text-xl flex-shrink-0">{m.icon}</div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1 flex-wrap">
                               <span className="text-white/90 text-sm font-semibold">{m.name}</span>
                               {m.claimed && <CheckCircle className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />}
                               {status?.isAdmin && editingMission !== m.code && (
-                                <button
-                                  onClick={() => { setEditingMission(m.code); setMissionEditForm({ name: m.name, description: m.description, rewardCredits: m.rewardCredits, requirement: m.requirement, icon: m.icon }); }}
-                                  className="ml-1 p-0.5 rounded text-white/20 hover:text-purple-300 transition-colors"
-                                  title="Modifica missione (admin)"
-                                >
-                                  <Pencil className="w-3 h-3" />
-                                </button>
+                                <>
+                                  {/* Pencil — edit */}
+                                  <button
+                                    onClick={() => { setEditingMission(m.code); setConfirmDeleteMission(null); setMissionEditForm({ name: m.name, description: m.description, rewardCredits: m.rewardCredits, requirement: m.requirement, icon: m.icon }); }}
+                                    className="p-0.5 rounded text-purple-400/70 hover:text-purple-300 transition-colors"
+                                    title="Modifica missione"
+                                  >
+                                    <Pencil className="w-3 h-3" />
+                                  </button>
+                                  {/* Duplicate */}
+                                  <button
+                                    onClick={() => handleMissionDuplicate(m)}
+                                    className="p-0.5 rounded text-teal-400/60 hover:text-teal-300 transition-colors"
+                                    title="Duplica come base per nuova missione"
+                                  >
+                                    <Copy className="w-3 h-3" />
+                                  </button>
+                                  {/* Delete with confirmation */}
+                                  {confirmDeleteMission !== m.code ? (
+                                    <button
+                                      onClick={() => setConfirmDeleteMission(m.code)}
+                                      className="p-0.5 rounded text-white/30 hover:text-red-400 transition-colors"
+                                      title="Elimina missione"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  ) : (
+                                    <span className="flex items-center gap-1 ml-1">
+                                      <span className="text-red-400 text-[10px]">Elimina?</span>
+                                      <button onClick={() => handleMissionDelete(m.code)} className="text-[10px] px-1.5 py-0.5 bg-red-600/60 hover:bg-red-600/80 rounded text-white font-bold transition-all">Sì</button>
+                                      <button onClick={() => setConfirmDeleteMission(null)} className="text-[10px] px-1.5 py-0.5 bg-white/10 hover:bg-white/20 rounded text-white/50 transition-all">No</button>
+                                    </span>
+                                  )}
+                                </>
                               )}
                             </div>
                             <p className="text-white/50 text-xs">{m.description}</p>
