@@ -108,15 +108,20 @@ interface SellTabContentProps {
 function SellTabContent({ onListSuccess }: SellTabContentProps) {
   const [collection, setCollection] = React.useState<UserCard[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [debugMsg, setDebugMsg] = React.useState('avvio...');
   const [selectedCard, setSelectedCard] = React.useState<string | null>(null);
   const [price, setPrice] = React.useState(50);
   const { toast } = useToast();
 
   const load = React.useCallback(async () => {
     setIsLoading(true);
+    setDebugMsg('fetch in corso...');
     try {
       const cards = await fetchUserCollection();
       setCollection(cards);
+      setDebugMsg(`caricato: ${cards.length} carte`);
+    } catch (e: any) {
+      setDebugMsg(`errore: ${e?.message || e}`);
     } finally {
       setIsLoading(false);
     }
@@ -155,12 +160,13 @@ function SellTabContent({ onListSuccess }: SellTabContentProps) {
         <div className="flex-1 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium text-slate-400">
-              Seleziona una carta ({isLoading ? "..." : collection.length} disponibili)
+              Seleziona una carta ({isLoading ? <span className="text-yellow-400">caricamento...</span> : <span className="text-green-400 font-bold">{collection.length}</span>} disponibili)
             </h3>
             <Button variant="ghost" size="sm" onClick={load} disabled={isLoading} className="gap-1 text-xs text-slate-400 hover:text-white">
               <RefreshCw className={cn("w-3 h-3", isLoading && "animate-spin")} /> Ricarica
             </Button>
           </div>
+          <div className="text-[10px] text-slate-600">{debugMsg}</div>
           <div className="bg-white/5 rounded-lg border border-white/10 p-4">
             {isLoading ? (
               <div className="flex items-center justify-center h-40">
