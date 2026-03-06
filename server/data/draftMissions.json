@@ -1,7 +1,47 @@
 [
-  { "code": "open_pack_1", "name": "Primo Pacchetto", "description": "Apri 1 pacchetto", "requirement": 1, "rewardCredits": 50, "icon": "📦", "progressKey": "packCount" },
-  { "code": "open_pack_5", "name": "Collezionista", "description": "Apri 5 pacchetti", "requirement": 5, "rewardCredits": 200, "icon": "🎁", "progressKey": "packCount" },
-  { "code": "complete_draft_deck", "name": "Maestro del Draft", "description": "Completa il mazzo (33+33+33)", "requirement": 1, "rewardCredits": 500, "icon": "🏆", "progressKey": "deckComplete" },
-  { "code": "get_epic_card", "name": "Caccia all'Epica", "description": "Ottieni 1 carta Epica", "requirement": 1, "rewardCredits": 150, "icon": "💜", "progressKey": "epicCount" },
-  { "code": "daily_card_3", "name": "Fedele al Gioco", "description": "Riscatta la carta giornaliera 3 volte", "requirement": 3, "rewardCredits": 100, "icon": "🌟", "progressKey": "dailyCount" }
+  {
+    "code": "open_pack_1",
+    "name": "Primo Pacchetto",
+    "description": "Apri 1 pacchetto",
+    "requirement": 1,
+    "rewardCredits": 25,
+    "icon": "📦",
+    "progressKey": "packCount"
+  },
+  {
+    "code": "open_pack_5",
+    "name": "Collezionista",
+    "description": "Apri 5 pacchetti e 1 te lo regaliamo noi",
+    "requirement": 5,
+    "rewardCredits": 150,
+    "icon": "🎁",
+    "progressKey": "packCount"
+  },
+  {
+    "code": "complete_draft_deck",
+    "name": "Chi ben comincia...",
+    "description": "Completa il mazzo e ricevi un regalo di buon augurio",
+    "requirement": 1,
+    "rewardCredits": 10,
+    "icon": "🏆",
+    "progressKey": "deckComplete"
+  },
+  {
+    "code": "get_epic_card",
+    "name": "Caccia all'Epica",
+    "description": "Ottieni 1 carta Epica",
+    "requirement": 1,
+    "rewardCredits": 5,
+    "icon": "💜",
+    "progressKey": "epicCount"
+  },
+  {
+    "code": "daily_card_3",
+    "name": "Fedele al Gioco",
+    "description": "Riscatta la carta giornaliera per un mese",
+    "requirement": 30,
+    "rewardCredits": 100,
+    "icon": "🌟",
+    "progressKey": "dailyCount"
+  }
 ]
