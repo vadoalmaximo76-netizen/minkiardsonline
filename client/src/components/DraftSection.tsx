@@ -114,7 +114,7 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
     try {
       const [statusRes, deckRes, cardsRes] = await Promise.all([
         fetch('/api/draft/status', { headers: getAuthHeaders() }),
-        fetch('/api/draft/deck', { headers: getAuthHeaders() }),
+        fetch('/api/draft/deck', { headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' }, cache: 'no-store' }),
         fetch('/api/draft/cards'),
       ]);
       if (statusRes.ok) {
@@ -178,6 +178,23 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
       setOpeningPackId(null);
     }
   };
+
+  const fetchDeck = useCallback(async () => {
+    try {
+      const res = await fetch('/api/draft/deck', {
+        headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+        cache: 'no-store',
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setSelectedCards({
+          personaggi: d.personaggiCards || [],
+          mosse: d.mosseCards || [],
+          bonus: d.bonusCards || [],
+        });
+      }
+    } catch {}
+  }, []);
 
   const handleAnimationClose = () => {
     setPackAnimation(null);
@@ -965,6 +982,7 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
           pack={packAnimation.pack}
           cards={packAnimation.cards}
           onClose={handleAnimationClose}
+          onCardAdded={fetchDeck}
         />
       )}
     </div>

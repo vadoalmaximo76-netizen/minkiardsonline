@@ -26,6 +26,7 @@ interface PackOpeningAnimationProps {
   pack: PackType;
   cards: RevealedCard[];
   onClose: () => void;
+  onCardAdded?: () => void;
 }
 
 type Phase = 'shaking' | 'opening' | 'revealing' | 'done';
@@ -62,7 +63,7 @@ const RARITY_CONFIG = {
   },
 };
 
-export function PackOpeningAnimation({ pack, cards, onClose }: PackOpeningAnimationProps) {
+export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded }: PackOpeningAnimationProps) {
   const [phase, setPhase] = useState<Phase>('shaking');
   const [revealedCount, setRevealedCount] = useState(0);
   const [flippedCards, setFlippedCards] = useState<Set<number>>(new Set());
@@ -368,6 +369,7 @@ export function PackOpeningAnimation({ pack, cards, onClose }: PackOpeningAnimat
       const data = await res.json();
       if (res.ok && data.success) {
         setAddStates(prev => ({ ...prev, [key]: 'added' }));
+        onCardAdded?.();
       } else {
         setAddStates(prev => ({ ...prev, [key]: 'idle' }));
       }
