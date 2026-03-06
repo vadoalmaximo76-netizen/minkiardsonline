@@ -129,7 +129,8 @@ export function Marketplace({ userId, username, onClose, preloadedCollection }: 
 
   React.useEffect(() => {
     if (activeTab === "mine") loadMyListings();
-  }, [activeTab, loadMyListings]);
+    if (activeTab === "sell") loadCollection();
+  }, [activeTab, loadMyListings, loadCollection]);
 
   const buyMutation = useMutation({
     mutationFn: async (listingId: number) => {
@@ -342,7 +343,7 @@ export function Marketplace({ userId, username, onClose, preloadedCollection }: 
                 const collection = (preloadedCollection && preloadedCollection.length > 0)
                   ? preloadedCollection
                   : myCollection;
-                const isLoading = !preloadedCollection && isLoadingCollection;
+                const isLoading = isLoadingCollection && collection.length === 0;
                 return (
                 <div className="p-6 pt-2 flex flex-col gap-6 min-h-full">
                 <div className="flex flex-col lg:flex-row gap-6">
