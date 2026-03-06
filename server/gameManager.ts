@@ -2694,6 +2694,11 @@ Rispondi SOLO in JSON:`;
 
     const card = deck.pop()!;
     card.owner = playerName;
+    // For draft personaggi cards: ensure card.text (and pti/stars) is set at draw time
+    // so that stats are visible in hand, not only after playing to field.
+    if (game.isDraftMode && card.type === 'personaggi' && card.draftBaseId) {
+      this.autoAnalyzePersonaggioCardSync(card, playerName);
+    }
     game.players[playerName].hand.push(card);
 
     // Record pick card event
@@ -2729,6 +2734,9 @@ Rispondi SOLO in JSON:`;
 
     const card = deck.pop()!;
     card.owner = playerName;
+    if (game.isDraftMode && card.type === 'personaggi' && card.draftBaseId) {
+      this.autoAnalyzePersonaggioCardSync(card, playerName);
+    }
     game.players[playerName].hand.push(card);
 
     // Record pick card event
@@ -2767,6 +2775,9 @@ Rispondi SOLO in JSON:`;
       if (deck && deck.length > 0) {
         const card = deck.pop()!;
         card.owner = playerName;
+        if (game.isDraftMode && card.type === 'personaggi' && card.draftBaseId) {
+          this.autoAnalyzePersonaggioCardSync(card, playerName);
+        }
         game.players[playerName].hand.push(card);
 
         // Record each pick card event
