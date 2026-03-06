@@ -180,7 +180,7 @@ export const DuelBattleOverlay: React.FC = () => {
         setShowVictory(null);
         setShowIntro(false);
         isDuelEndingRef.current = false;
-      }, 5000);
+      }, 3000);
     };
 
     const handleCardAttacked = (data: { attackerName: string; damageValue: number; targetCardId: string }) => {
@@ -243,7 +243,7 @@ export const DuelBattleOverlay: React.FC = () => {
           setShowVictory(null);
           setShowIntro(false);
           isDuelEndingRef.current = false;
-        }, 5000);
+        }, 3000);
       } else if (c2 && c2.pti <= 0) {
         console.log(`⚔️ DUEL OVERLAY: Character 2 (${c2.name}) PTI=0, ending duel client-side`);
         isDuelEndingRef.current = true;
@@ -254,7 +254,7 @@ export const DuelBattleOverlay: React.FC = () => {
           setShowVictory(null);
           setShowIntro(false);
           isDuelEndingRef.current = false;
-        }, 5000);
+        }, 3000);
       } else if ((!c1 && char1) || (!c2 && char2)) {
         const missingIsChar1 = !c1 && char1;
         const winner = missingIsChar1 ? duelState.player2 : duelState.player1;
@@ -267,7 +267,7 @@ export const DuelBattleOverlay: React.FC = () => {
           setShowVictory(null);
           setShowIntro(false);
           isDuelEndingRef.current = false;
-        }, 5000);
+        }, 3000);
       }
     }
   }, [duelState, gameState?.field, findCharInfo]);
