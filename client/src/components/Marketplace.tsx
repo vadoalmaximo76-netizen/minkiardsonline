@@ -10,14 +10,14 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ShoppingCart, Trash2, Tag, Filter } from "lucide-react";
+import { Loader2, Trash2, Tag, Filter, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface MarketplaceProps {
@@ -56,15 +56,200 @@ function getAuthHeaders(): Record<string, string> {
     : { 'Content-Type': 'application/json' };
 }
 
-export function Marketplace({ userId, username, onClose, preloadedCollection }: MarketplaceProps) {
+function getRarityColor(rarity: string) {
+  switch ((rarity || '').toLowerCase()) {
+    case "leggendaria": return "bg-yellow-500 border-yellow-400 text-black shadow-[0_0_10px_rgba(234,179,8,0.5)]";
+    case "epica": return "bg-purple-600 border-purple-400 text-white shadow-[0_0_10px_rgba(147,51,234,0.5)]";
+    case "rara": return "bg-blue-600 border-blue-400 text-white shadow-[0_0_10px_rgba(37,99,235,0.5)]";
+    default: return "bg-gray-500 border-gray-400 text-white";
+  }
+}
+
+async function fetchUserCollection(): Promise<UserCard[]> {
+  const token = localStorage.getItem('authToken');
+  const headers: Record<string, string> = token
+    ? { Authorization: `Bearer ${token}`, 'Cache-Control': 'no-cache' }
+    : { 'Cache-Control': 'no-cache' };
+
+  const [collectionRes, cardsRes] = await Promise.all([
+    fetch("/api/draft/collection", { headers, cache: 'no-store' }),
+    fetch("/api/draft/cards", { cache: 'no-store' }),
+  ]);
+
+  if (!collectionRes.ok) {
+    console.warn('[Marketplace] /api/draft/collection returned', collectionRes.status);
+    return [];
+  }
+
+  const collData: Array<{ cardId: string; deckType: string; rarity: string }> = await collectionRes.json();
+  const cardsData: Array<{ id: string; name: string; deckType: string; imageUrl?: string }> = cardsRes.ok
+    ? await cardsRes.json()
+    : [];
+
+  const cardMap = new Map(cardsData.map(c => [c.id, c]));
+
+  return collData.map(item => {
+    const meta = cardMap.get(item.cardId);
+    return {
+      cardId: item.cardId,
+      cardName: meta?.name || item.cardId,
+      cardType: item.deckType || meta?.deckType || '',
+      cardRarity: item.rarity || 'comune',
+      cardImageUrl: meta?.imageUrl,
+      count: 1,
+    };
+  });
+}
+
+interface SellTabContentProps {
+  onListSuccess: () => void;
+}
+
+function SellTabContent({ onListSuccess }: SellTabContentProps) {
+  const [collection, setCollection] = React.useState<UserCard[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [selectedCard, setSelectedCard] = React.useState<string | null>(null);
+  const [price, setPrice] = React.useState(50);
+  const { toast } = useToast();
+
+  const load = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const cards = await fetchUserCollection();
+      setCollection(cards);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    load();
+  }, [load]);
+
+  const listMutation = useMutation({
+    mutationFn: async (data: { cardId: string; cardName: string; cardType: string; cardRarity: string; cardImageUrl?: string; priceCredits: number }) => {
+      const res = await fetch("/api/marketplace/list", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Errore creazione annuncio"); }
+    },
+    onSuccess: () => {
+      toast({ title: "Annuncio creato", description: "La tua carta è ora in vendita nel marketplace." });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketplace"] });
+      setSelectedCard(null);
+      setPrice(50);
+      onListSuccess();
+    },
+    onError: (error: Error) => {
+      toast({ title: "Errore nella creazione dell'annuncio", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const card = collection.find(c => c.cardId === selectedCard);
+
+  return (
+    <div className="p-6 pt-2 flex flex-col gap-6 h-full overflow-y-auto">
+      <div className="flex flex-col lg:flex-row gap-6">
+        <div className="flex-1 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium text-slate-400">
+              Seleziona una carta ({isLoading ? "..." : collection.length} disponibili)
+            </h3>
+            <Button variant="ghost" size="sm" onClick={load} disabled={isLoading} className="gap-1 text-xs text-slate-400 hover:text-white">
+              <RefreshCw className={cn("w-3 h-3", isLoading && "animate-spin")} /> Ricarica
+            </Button>
+          </div>
+          <div className="bg-white/5 rounded-lg border border-white/10 p-4">
+            {isLoading ? (
+              <div className="flex items-center justify-center h-40">
+                <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+                <span className="ml-3 text-slate-400 text-sm">Caricamento collezione...</span>
+              </div>
+            ) : collection.length === 0 ? (
+              <div className="text-center py-10 text-slate-500 text-sm">
+                <p>Non hai carte nella tua collezione.</p>
+                <p className="text-xs mt-1 text-slate-600">Apri pacchetti nel tab "Pacchetti" per ottenere carte.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-72 overflow-y-auto">
+                {collection.map((c) => (
+                  <div
+                    key={c.cardId}
+                    onClick={() => setSelectedCard(c.cardId)}
+                    className={cn(
+                      "p-2 rounded-lg border-2 cursor-pointer transition-all",
+                      selectedCard === c.cardId
+                        ? "bg-purple-500/20 border-purple-500"
+                        : "bg-black/40 border-transparent hover:border-white/20"
+                    )}
+                  >
+                    <div className="aspect-[3/4] bg-slate-800 rounded mb-2 overflow-hidden relative">
+                      {c.cardImageUrl && <img src={c.cardImageUrl} className="w-full h-full object-cover" alt={c.cardName} />}
+                    </div>
+                    <div className="text-xs font-bold truncate">{c.cardName}</div>
+                    <Badge className={cn("text-[10px] h-4 mt-1 px-1", getRarityColor(c.cardRarity || "comune"))}>
+                      {c.cardRarity}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="lg:w-72 bg-white/5 rounded-lg border border-white/10 p-6 flex flex-col gap-6 justify-center">
+          {card && (
+            <div className="text-center">
+              <div className="text-xs text-slate-400 mb-1">Carta selezionata</div>
+              <div className="font-bold text-sm truncate">{card.cardName}</div>
+              <Badge className={cn("text-[10px] mt-1", getRarityColor(card.cardRarity || "comune"))}>{card.cardRarity}</Badge>
+            </div>
+          )}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-300">Prezzo (50 - 5000 crediti)</label>
+            <div className="flex items-center gap-3">
+              <Input
+                type="number"
+                min={50}
+                max={5000}
+                value={price}
+                onChange={(e) => setPrice(parseInt(e.target.value) || 0)}
+                className="bg-black/40 border-white/20"
+              />
+              <span className="text-yellow-400 font-bold text-sm">CR</span>
+            </div>
+          </div>
+          <Button
+            className="w-full h-12 text-base"
+            disabled={!selectedCard || price < 50 || price > 5000 || listMutation.isPending}
+            onClick={() => {
+              if (!selectedCard || !card) return;
+              listMutation.mutate({
+                cardId: card.cardId,
+                cardName: card.cardName,
+                cardType: card.cardType,
+                cardRarity: card.cardRarity,
+                cardImageUrl: card.cardImageUrl,
+                priceCredits: price,
+              });
+            }}
+          >
+            {listMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Tag className="w-5 h-5 mr-2" />}
+            Metti in vendita
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
   const [activeTab, setActiveTab] = React.useState("explore");
   const [filterType, setFilterType] = React.useState<string>("ALL");
   const [filterRarity, setFilterRarity] = React.useState<string>("ALL");
   const [purchaseConfirm, setPurchaseConfirm] = React.useState<Listing | null>(null);
-  const [sellPrice, setSellPrice] = React.useState<number>(50);
-  const [selectedCardForSale, setSelectedCardForSale] = React.useState<string | null>(null);
-  const [myCollection, setMyCollection] = React.useState<UserCard[]>([]);
-  const [isLoadingCollection, setIsLoadingCollection] = React.useState(false);
   const [myListings, setMyListings] = React.useState<Listing[]>([]);
   const [isLoadingMyListings, setIsLoadingMyListings] = React.useState(false);
   const { toast } = useToast();
@@ -92,45 +277,9 @@ export function Marketplace({ userId, username, onClose, preloadedCollection }: 
     finally { setIsLoadingMyListings(false); }
   }, []);
 
-  const loadCollection = React.useCallback(async () => {
-    setIsLoadingCollection(true);
-    try {
-      const token = localStorage.getItem('authToken');
-      const headers: Record<string, string> = {
-        'Cache-Control': 'no-cache',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      };
-      const [collectionRes, cardsRes] = await Promise.all([
-        fetch("/api/draft/collection", { headers, cache: 'no-store' }),
-        fetch("/api/draft/cards", { cache: 'no-store' }),
-      ]);
-      if (!collectionRes.ok) return;
-      const collection: Array<{ cardId: string; deckType: string; rarity: string }> = await collectionRes.json();
-      const allCards: Array<{ id: string; name: string; deckType: string; imageUrl?: string }> = cardsRes.ok ? await cardsRes.json() : [];
-      const cardMap = new Map(allCards.map(c => [c.id, c]));
-      setMyCollection(collection.map((item) => {
-        const meta = cardMap.get(item.cardId);
-        return {
-          cardId: item.cardId,
-          cardName: meta?.name || item.cardId,
-          cardType: item.deckType || meta?.deckType || '',
-          cardRarity: item.rarity || 'comune',
-          cardImageUrl: meta?.imageUrl,
-          count: 1,
-        };
-      }));
-    } catch (_) {}
-    finally { setIsLoadingCollection(false); }
-  }, []);
-
-  React.useEffect(() => {
-    loadCollection();
-  }, []);
-
   React.useEffect(() => {
     if (activeTab === "mine") loadMyListings();
-    if (activeTab === "sell") loadCollection();
-  }, [activeTab, loadMyListings, loadCollection]);
+  }, [activeTab, loadMyListings]);
 
   const buyMutation = useMutation({
     mutationFn: async (listingId: number) => {
@@ -145,7 +294,6 @@ export function Marketplace({ userId, username, onClose, preloadedCollection }: 
       toast({ title: "Acquisto completato!", description: "La carta è stata aggiunta alla tua collezione." });
       queryClient.invalidateQueries({ queryKey: ["/api/marketplace"] });
       setPurchaseConfirm(null);
-      loadCollection();
     },
     onError: (error: Error) => {
       toast({ title: "Errore durante l'acquisto", description: error.message, variant: "destructive" });
@@ -167,41 +315,6 @@ export function Marketplace({ userId, username, onClose, preloadedCollection }: 
     },
   });
 
-  const listMutation = useMutation({
-    mutationFn: async (data: { cardId: string; cardName: string; cardType: string; cardRarity: string; cardImageUrl?: string; priceCredits: number }) => {
-      const token = localStorage.getItem('authToken');
-      const res = await fetch("/api/marketplace/list", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Errore creazione annuncio"); }
-    },
-    onSuccess: () => {
-      toast({ title: "Annuncio creato", description: "La tua carta è ora in vendita nel marketplace." });
-      queryClient.invalidateQueries({ queryKey: ["/api/marketplace"] });
-      setSelectedCardForSale(null);
-      setSellPrice(50);
-      loadMyListings();
-      setActiveTab("mine");
-    },
-    onError: (error: Error) => {
-      toast({ title: "Errore nella creazione dell'annuncio", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const getRarityColor = (rarity: string) => {
-    switch (rarity.toLowerCase()) {
-      case "leggendaria": return "bg-yellow-500 border-yellow-400 text-black shadow-[0_0_10px_rgba(234,179,8,0.5)]";
-      case "epica": return "bg-purple-600 border-purple-400 text-white shadow-[0_0_10px_rgba(147,51,234,0.5)]";
-      case "rara": return "bg-blue-600 border-blue-400 text-white shadow-[0_0_10px_rgba(37,99,235,0.5)]";
-      default: return "bg-gray-500 border-gray-400 text-white";
-    }
-  };
-
   const filteredExploreListings = listings.filter(l => l.sellerId !== userId);
 
   return (
@@ -213,7 +326,7 @@ export function Marketplace({ userId, username, onClose, preloadedCollection }: 
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
           <div className="px-6 border-b border-white/10">
             <TabsList className="bg-white/5 border border-white/10 mb-4">
               <TabsTrigger value="explore">Esplora</TabsTrigger>
@@ -321,9 +434,9 @@ export function Marketplace({ userId, username, onClose, preloadedCollection }: 
                           <p className="text-xs text-slate-400">{listing.cardType} • In vendita per {listing.priceCredits} crediti</p>
                         </CardHeader>
                         <CardFooter className="p-3 pt-0">
-                          <Button 
-                            variant="destructive" 
-                            size="sm" 
+                          <Button
+                            variant="destructive"
+                            size="sm"
                             className="w-full gap-2"
                             onClick={() => cancelMutation.mutate(listing.id)}
                             disabled={cancelMutation.isPending}
@@ -338,105 +451,13 @@ export function Marketplace({ userId, username, onClose, preloadedCollection }: 
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="sell" className="h-full m-0 overflow-y-auto">
-              {(() => {
-                const collection = (preloadedCollection && preloadedCollection.length > 0)
-                  ? preloadedCollection
-                  : myCollection;
-                const isLoading = isLoadingCollection && collection.length === 0;
-                return (
-                <div className="p-6 pt-2 flex flex-col gap-6 min-h-full">
-                <div className="flex flex-col lg:flex-row gap-6">
-                  <div className="flex-1 flex flex-col gap-3">
-                    <h3 className="text-sm font-medium text-slate-400">
-                      Seleziona una carta ({collection.length} disponibili)
-                    </h3>
-                    <div className="bg-white/5 rounded-lg border border-white/10 p-4">
-                      {isLoading ? (
-                        <div className="flex items-center justify-center h-40">
-                          <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
-                        </div>
-                      ) : collection.length === 0 ? (
-                        <div className="text-center py-10 text-slate-500 text-sm">
-                          Non hai carte nella tua collezione.
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-72 overflow-y-auto">
-                          {collection.map((card) => (
-                            <div
-                              key={card.cardId}
-                              onClick={() => setSelectedCardForSale(card.cardId)}
-                              className={cn(
-                                "p-2 rounded-lg border-2 cursor-pointer transition-all",
-                                selectedCardForSale === card.cardId
-                                  ? "bg-purple-500/20 border-purple-500"
-                                  : "bg-black/40 border-transparent hover:border-white/20"
-                              )}
-                            >
-                              <div className="aspect-[3/4] bg-slate-800 rounded mb-2 overflow-hidden relative">
-                                {card.cardImageUrl && <img src={card.cardImageUrl} className="w-full h-full object-cover" />}
-                              </div>
-                              <div className="text-xs font-bold truncate">{card.cardName}</div>
-                              <Badge className={cn("text-[10px] h-4 mt-1 px-1", getRarityColor(card.cardRarity || "comune"))}>
-                                {card.cardRarity}
-                              </Badge>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="lg:w-72 bg-white/5 rounded-lg border border-white/10 p-6 flex flex-col gap-6 justify-center">
-                    {selectedCardForSale && (() => {
-                      const card = collection.find(c => c.cardId === selectedCardForSale);
-                      return card ? (
-                        <div className="text-center">
-                          <div className="text-xs text-slate-400 mb-1">Carta selezionata</div>
-                          <div className="font-bold text-sm truncate">{card.cardName}</div>
-                          <Badge className={cn("text-[10px] mt-1", getRarityColor(card.cardRarity || "comune"))}>{card.cardRarity}</Badge>
-                        </div>
-                      ) : null;
-                    })()}
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-300">Prezzo (50 - 5000 crediti)</label>
-                      <div className="flex items-center gap-3">
-                        <Input
-                          type="number"
-                          min={50}
-                          max={5000}
-                          value={sellPrice}
-                          onChange={(e) => setSellPrice(parseInt(e.target.value) || 0)}
-                          className="bg-black/40 border-white/20"
-                        />
-                        <span className="text-yellow-400 font-bold text-sm">CR</span>
-                      </div>
-                    </div>
-                    <Button
-                      className="w-full h-12 text-base"
-                      disabled={!selectedCardForSale || sellPrice < 50 || sellPrice > 5000 || listMutation.isPending}
-                      onClick={() => {
-                        if (!selectedCardForSale) return;
-                        const card = collection.find(c => c.cardId === selectedCardForSale);
-                        if (!card) return;
-                        listMutation.mutate({
-                          cardId: card.cardId,
-                          cardName: card.cardName,
-                          cardType: card.cardType,
-                          cardRarity: card.cardRarity,
-                          cardImageUrl: card.cardImageUrl,
-                          priceCredits: sellPrice,
-                        });
-                      }}
-                    >
-                      {listMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Tag className="w-5 h-5 mr-2" />}
-                      Metti in vendita
-                    </Button>
-                  </div>
-                </div>
-                </div>
-                );
-              })()}
+            <TabsContent value="sell" className="h-full m-0">
+              <SellTabContent
+                onListSuccess={() => {
+                  loadMyListings();
+                  setActiveTab("mine");
+                }}
+              />
             </TabsContent>
           </div>
         </Tabs>
@@ -451,7 +472,7 @@ export function Marketplace({ userId, username, onClose, preloadedCollection }: 
             </DialogHeader>
             <DialogFooter className="gap-2 mt-4">
               <Button variant="outline" onClick={() => setPurchaseConfirm(null)}>Annulla</Button>
-              <Button 
+              <Button
                 onClick={() => purchaseConfirm && buyMutation.mutate(purchaseConfirm.id)}
                 disabled={buyMutation.isPending}
                 className="bg-green-600 hover:bg-green-500 border-none"
