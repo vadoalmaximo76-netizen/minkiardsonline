@@ -777,14 +777,6 @@ async function executeCpuDuelAttackSequence(
     }
   }
 
-  // Switch duel turn to opponent before advancing main turn
-  // (so the opponent knows it's their duel turn on their next main turn)
-  const duelStateFinal = gameManager.getDuelState(gameId);
-  if (duelStateFinal && duelStateFinal.active) {
-    console.log(`⚔️ DUELLO: Switching duel turn from ${initiatorPlayer} to opponent after attack sequence`);
-    gameManager.switchDuelTurn(gameId);
-  }
-
   await delay(1500);
   const nxt = gameManager.endTurn(gameId, cpuName);
   if (nxt) {

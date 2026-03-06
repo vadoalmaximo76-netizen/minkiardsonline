@@ -22817,31 +22817,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         console.log(`PTI ABSORPTION SKIPPED: No attacker character found for ${attackerName}`);
       }
 
-      // DUELLO: End duel if the dead character was involved in an active duel
-      if (game?.activeDuel && game.activeDuel.active) {
-        if (this.isInDuel(gameId, targetCardId)) {
-          const duel = game.activeDuel;
-          const winnerPlayer = targetCard.id === duel.character1Id ? duel.player2 : duel.player1;
-          
-          console.log(`⚔️ DUELLO: Character ${targetCardId} died - ending duel. Winner: ${winnerPlayer}`);
-          
-          io.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-duel-end`,
-            playerName: 'Sistema',
-            message: `⚔️ DUELLO TERMINATO! ${winnerPlayer} vince per eliminazione dell'avversario!`,
-            timestamp: Date.now()
-          });
-          
-          this.endDuel(gameId, `Character death (${targetCardId})`);
-          
-          // Broadcast duel ended event
-          io.to(gameId).emit('duel-ended', {
-            winner: winnerPlayer,
-            reason: 'character_death'
-          });
-        }
-      }
-
       // Send updated game state IMMEDIATELY
       const finalGameState = this.getSanitizedGameState(gameId);
       io.to(gameId).emit('game-state-update', finalGameState);
