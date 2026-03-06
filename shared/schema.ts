@@ -521,6 +521,7 @@ export const playerPassProgress = pgTable("player_pass_progress", {
   currentLevel: integer("current_level").notNull().default(1),
   currentXp: integer("current_xp").notNull().default(0),
   hasPremium: boolean("has_premium").notNull().default(false),
+  claimedLevels: jsonb("claimed_levels").default([]),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 

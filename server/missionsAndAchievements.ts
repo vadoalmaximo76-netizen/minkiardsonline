@@ -3,6 +3,7 @@ import { playerAchievements, playerDailyMissions, users } from "../shared/schema
 import { eq, and, sql } from "drizzle-orm";
 import { jsonStorage } from "./jsonStorage";
 import { emitSync } from "./dbSync";
+import { awardSeasonPassXP } from "./seasonPassHelper";
 
 export async function initializeMissionsAndAchievements() {
   console.log('🎯 Initializing missions and achievements system from JSON...');
@@ -164,7 +165,19 @@ export async function updateMissionProgress(usernameOrEmail: string, type: strin
       });
     }
   }
-  
+
+  // Award Season Pass XP for each completed mission
+  if (completedMissions.length > 0) {
+    const userRow = await db.select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, usernameOrEmail))
+      .limit(1)
+      .catch(() => []);
+    if (userRow.length > 0) {
+      awardSeasonPassXP(userRow[0].id, 200 * completedMissions.length).catch(() => {});
+    }
+  }
+
   return completedMissions;
 }
 

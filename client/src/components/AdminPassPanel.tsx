@@ -28,6 +28,8 @@ interface AdminPassPanelProps {
 }
 
 const REWARD_TYPES = [
+  { value: 'credits', label: 'Crediti Draft' },
+  { value: 'pack', label: 'Pacchetto Carte' },
   { value: 'rankiard', label: 'Punti Rankiard' },
   { value: 'skin', label: 'Skin Carta' },
   { value: 'card', label: 'Carta Esclusiva' },

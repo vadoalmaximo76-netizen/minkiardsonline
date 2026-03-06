@@ -13117,7 +13117,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         progress = inserted;
       }
 
-      const claimedLevels: number[] = [];
+      const claimedLevels: number[] = Array.isArray(progress.claimedLevels) ? (progress.claimedLevels as number[]) : [];
       res.json({ pass: activePasses, rewards, progress: { ...progress, claimedLevels } });
     } catch (error) {
       console.error('Error season-pass:', error);
@@ -13130,24 +13130,69 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
       const user = (req as any).user;
       const level = parseInt(req.params.level);
+      if (isNaN(level) || level < 1) return res.status(400).json({ error: 'Livello non valido' });
+
       const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
       if (!currentUser) return res.status(404).json({ error: 'Utente non trovato' });
+
       const [activePasses] = await db.select().from(seasonalPasses).where(eq(seasonalPasses.isActive, true)).limit(1) as any[];
       if (!activePasses) return res.status(404).json({ error: 'Nessun pass attivo' });
+
       const [progress] = await db.select().from(playerPassProgress)
         .where(and(eq(playerPassProgress.userId, currentUser.id), eq(playerPassProgress.passId, activePasses.id))).limit(1);
       if (!progress) return res.status(404).json({ error: 'Progresso non trovato' });
+
       if (level > (progress.currentLevel || 1)) return res.status(400).json({ error: 'Livello non ancora raggiunto' });
-      // Award credits for the reward at this level
+
+      const claimedLevels: number[] = Array.isArray(progress.claimedLevels) ? (progress.claimedLevels as number[]) : [];
+      if (claimedLevels.includes(level)) return res.status(400).json({ error: 'Livello già riscattato' });
+
       const [reward] = await db.select().from(passRewards)
         .where(and(eq(passRewards.passId, activePasses.id), eq(passRewards.level, level))).limit(1);
-      if (reward && reward.rewardType === 'credits') {
+
+      if (!reward) return res.status(404).json({ error: 'Nessuna ricompensa per questo livello' });
+
+      if (reward.isPremium && !progress.hasPremium) {
+        return res.status(400).json({ error: 'Richiede il pass premium' });
+      }
+
+      // Eroga la ricompensa in base al tipo
+      if (reward.rewardType === 'credits') {
         const creditAmount = parseInt(reward.rewardValue) || 0;
         if (creditAmount > 0) {
-          await db.update(userDraftCredits).set({ freeCredits: sql`free_credits + ${creditAmount}` }).where(eq(userDraftCredits.userId, currentUser.id));
+          const existing = await db.select().from(userDraftCredits).where(eq(userDraftCredits.userId, currentUser.id)).limit(1);
+          if (existing.length > 0) {
+            await db.update(userDraftCredits).set({ freeCredits: sql`free_credits + ${creditAmount}` }).where(eq(userDraftCredits.userId, currentUser.id));
+          } else {
+            await db.insert(userDraftCredits).values({ userId: currentUser.id, freeCredits: creditAmount, paidCredits: 0 });
+          }
+        }
+      } else if (reward.rewardType === 'rankiard') {
+        const points = parseInt(reward.rewardValue) || 0;
+        if (points > 0) {
+          await db.update(users)
+            .set({ puntiRankiard: sql`punti_rankiard + ${points}` })
+            .where(eq(users.id, currentUser.id));
+        }
+      } else if (reward.rewardType === 'pack') {
+        // Per ora converte il pacco in crediti equivalenti
+        const packCredits: Record<string, number> = { bronzo: 200, argento: 400, oro: 800, diamante: 1500 };
+        const credits = packCredits[reward.rewardValue?.toLowerCase()] || 200;
+        const existing = await db.select().from(userDraftCredits).where(eq(userDraftCredits.userId, currentUser.id)).limit(1);
+        if (existing.length > 0) {
+          await db.update(userDraftCredits).set({ freeCredits: sql`free_credits + ${credits}` }).where(eq(userDraftCredits.userId, currentUser.id));
+        } else {
+          await db.insert(userDraftCredits).values({ userId: currentUser.id, freeCredits: credits, paidCredits: 0 });
         }
       }
-      res.json({ success: true, reward: reward || null });
+
+      // Segna il livello come riscattato
+      const updatedClaimed = [...claimedLevels, level];
+      await db.update(playerPassProgress)
+        .set({ claimedLevels: updatedClaimed } as any)
+        .where(and(eq(playerPassProgress.userId, currentUser.id), eq(playerPassProgress.passId, activePasses.id)));
+
+      res.json({ success: true, reward });
     } catch (error) {
       console.error('Error claiming pass level:', error);
       res.status(500).json({ error: 'Errore nel riscatto' });

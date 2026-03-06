@@ -39,18 +39,29 @@ interface SeasonPassData {
   rewards: Reward[];
 }
 
-const XP_PER_LEVEL = 500;
+const XP_PER_LEVEL = 1000;
 
 const getRewardIcon = (type: string) => {
   switch (type) {
-    case "credits":
-      return "💰";
-    case "pack":
-      return "📦";
-    case "cosmetic":
-      return "🎨";
-    default:
-      return "🎁";
+    case "credits": return "💰";
+    case "pack": return "📦";
+    case "rankiard": return "⭐";
+    case "skin": return "🎨";
+    case "card": return "🃏";
+    case "title": return "🏆";
+    case "avatar": return "👤";
+    case "xp_boost": return "🚀";
+    default: return "🎁";
+  }
+};
+
+const getRewardLabel = (type: string, value: string | number) => {
+  const v = String(value);
+  switch (type) {
+    case "credits": return `+${v} 💰`;
+    case "pack": return v.charAt(0).toUpperCase() + v.slice(1);
+    case "rankiard": return `+${v} ⭐`;
+    default: return v;
   }
 };
 
@@ -204,7 +215,9 @@ export function SeasonPass({ userId, onClose }: SeasonPassProps) {
                       {isClaimed && <CheckCircle2 className="w-4 h-4 absolute top-2 right-2 text-green-500" />}
                       
                       <span className="text-2xl">{reward ? getRewardIcon(reward.rewardType) : "—"}</span>
-                      <span className="text-xs font-bold text-yellow-500">{reward?.rewardValue || ""}</span>
+                      <span className="text-xs font-bold text-yellow-500 text-center px-1 leading-tight">
+                        {reward ? getRewardLabel(reward.rewardType, reward.rewardValue) : ""}
+                      </span>
                       
                       {canClaim && (
                         <Button 
@@ -260,7 +273,9 @@ export function SeasonPass({ userId, onClose }: SeasonPassProps) {
                       {isClaimed && <CheckCircle2 className="w-4 h-4 absolute top-2 right-2 text-green-500" />}
                       
                       <span className="text-2xl">{reward ? getRewardIcon(reward.rewardType) : "—"}</span>
-                      <span className="text-xs font-bold text-slate-300">{reward?.rewardValue || ""}</span>
+                      <span className="text-xs font-bold text-slate-300 text-center px-1 leading-tight">
+                        {reward ? getRewardLabel(reward.rewardType, reward.rewardValue) : ""}
+                      </span>
                       
                       {canClaim && (
                         <Button 

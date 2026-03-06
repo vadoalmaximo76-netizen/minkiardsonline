@@ -4,6 +4,7 @@ import { matches, gameEvents, personaggi, customCards, cardModifications, users,
 import { eq, ilike, sql, and } from 'drizzle-orm';
 import { CPUPlayer } from './cpuPlayer';
 import { trackGameEvent } from './missionsAndAchievements';
+import { awardSeasonPassXP } from './seasonPassHelper';
 import { getPersonaggioFromCache } from './personaggiCache';
 import { jsonStorage } from './jsonStorage';
 import { emitSync } from './dbSync';
@@ -1909,9 +1910,19 @@ Rispondi SOLO in JSON:`;
       const humanPlayers = Object.keys(game.players).filter(p => !game.players[p].isCPU);
       for (const player of humanPlayers) {
         this.trackPlayerEventAsync(gameId, player, 'game_played', {});
+        // Award Season Pass XP for playing a match
+        const playerId = game.playerUserIds.get(player);
+        if (playerId) {
+          awardSeasonPassXP(playerId, 100).catch(() => {});
+        }
       }
       if (winnerPlayer && !game.players[winnerPlayer]?.isCPU) {
         this.trackPlayerEventAsync(gameId, winnerPlayer, 'game_won', {});
+        // Award Season Pass bonus XP for winning
+        const winnerId = game.playerUserIds.get(winnerPlayer);
+        if (winnerId) {
+          awardSeasonPassXP(winnerId, 150).catch(() => {});
+        }
       }
 
       // Emit rewards data to all players in the game room
