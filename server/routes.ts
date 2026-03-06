@@ -7,7 +7,7 @@ import jwt from "jsonwebtoken";
 import fs from "fs";
 import path from "path";
 import { db, legacyDb, isDatabaseAvailable, isLegacyDbAvailable } from "./db";
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory } from "../shared/schema";
 import { jsonStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray } from "drizzle-orm";
 import { CARD_DATA } from "../client/src/lib/cardData";
@@ -61,6 +61,20 @@ const voiceChatRooms = new Map<string, Map<string, string>>(); // gameId -> Map(
 // Rematch voting state
 const rematchVotes = new Map<string, Set<string>>(); // gameId -> Set(playerName)
 const rematchTimers = new Map<string, NodeJS.Timeout>(); // gameId -> expiry timer
+
+// Spectator socket tracking (per game) for spectator-only chat
+const spectatorSocketIds = new Map<string, Set<string>>(); // gameId -> Set(socketId)
+
+// Best of 3 series tracking
+interface Bo3Series {
+  player1: string;
+  player2: string;
+  wins: { [playerName: string]: number };
+  format: number; // 3 = first to 2 wins
+  gameCount: number;
+}
+const rematchSeriesMap = new Map<string, Bo3Series>(); // seriesId -> series data
+const gameToSeriesMap = new Map<string, string>(); // gameId -> seriesId
 
 // Throttled game state updates to reduce broadcast frequency
 const pendingStateUpdates = new Map<string, NodeJS.Timeout>();
@@ -1236,7 +1250,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('join-game', async ({ gameId, playerName, avatarId, userId, authToken, isDraftMode }) => {
+    socket.on('join-game', async ({ gameId, playerName, avatarId, userId, authToken, isDraftMode, turnTimerSeconds }) => {
       // SECURITY: For reconnection to existing games, require authenticated identity
       // Use socket.data.userId if already authenticated, or verify authToken if provided
       let validatedUserId = socket.data?.userId;
@@ -1331,6 +1345,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`Player ${playerName} associated with userId ${validatedUserId} for stats tracking`);
       } else {
         console.log(`Player ${playerName} has no userId - stats will not be tracked`);
+      }
+
+      // Apply configurable turn timer (only the creator can set it, on first join)
+      const gameForTimer = gameManager.getGame(gameId);
+      if (gameForTimer && gameForTimer.creatorName === playerName && turnTimerSeconds !== undefined) {
+        const validSeconds = [0, 15, 30, 60].includes(turnTimerSeconds) ? turnTimerSeconds : 30;
+        gameManager.setTurnTimeoutSeconds(gameId, validSeconds);
+        console.log(`⏱️ Turn timer set to ${validSeconds}s for game ${gameId} by ${playerName}`);
       }
       
       // Send current game state to the player (now includes permanent cards)
@@ -1465,6 +1487,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         socket.data.isSpectator = true;
         socket.data.spectatorName = spectatorName;
         socket.data.gameId = gameId;
+
+        // Track spectator socket for spectator-only chat
+        if (!spectatorSocketIds.has(gameId)) spectatorSocketIds.set(gameId, new Set());
+        spectatorSocketIds.get(gameId)!.add(socket.id);
         
         // Send game state to spectator
         const gameState = gameManager.getSanitizedGameState(gameId);
@@ -1502,9 +1528,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         socket.data.isSpectator = false;
         socket.data.spectatorName = undefined;
         socket.data.gameId = undefined;
+        // Remove from spectator tracking
+        if (spectatorSocketIds.has(gameId)) {
+          spectatorSocketIds.get(gameId)!.delete(socket.id);
+        }
       } catch (error) {
         console.error('Error leaving spectator mode:', error);
       }
+    });
+
+    // Spectator-only chat (visible only to other spectators, not to players)
+    socket.on('spectator-chat-message', ({ message }: { message: string }) => {
+      if (!socket.data.isSpectator || !socket.data.gameId || !socket.data.spectatorName) return;
+      const gameId = socket.data.gameId as string;
+      const spectatorName = socket.data.spectatorName as string;
+      const spectatorIds = spectatorSocketIds.get(gameId);
+      if (!spectatorIds || spectatorIds.size === 0) return;
+
+      const payload = {
+        id: `spec-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        spectatorName,
+        message: message.slice(0, 200),
+        timestamp: Date.now(),
+      };
+
+      // Emit only to spectator sockets in this game
+      spectatorIds.forEach(socketId => {
+        io.to(socketId).emit('spectator-chat-message', payload);
+      });
     });
 
     // Request to join an active room (requires creator approval)
@@ -5644,6 +5695,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             io.to(gameId).emit('game-victory', { winner });
             // Award Rankiard points
             gameManager.completeMatch(gameId, winner);
+            // Best of 3 series tracking
+            const _seriesId = gameToSeriesMap.get(gameId);
+            if (_seriesId) {
+              const _series = rematchSeriesMap.get(_seriesId);
+              if (_series) {
+                _series.wins[winner] = (_series.wins[winner] || 0) + 1;
+                const _toWin = Math.ceil(_series.format / 2);
+                io.to(gameId).emit('series-score-update', { seriesId: _seriesId, player1: _series.player1, player2: _series.player2, wins: { ..._series.wins }, toWin: _toWin });
+                if (_series.wins[winner] >= _toWin) {
+                  io.to(gameId).emit('series-ended', { winner, wins: { ..._series.wins } });
+                  gameToSeriesMap.delete(gameId);
+                  rematchSeriesMap.delete(_seriesId);
+                }
+              }
+            }
           }
         }
       }
@@ -6703,6 +6769,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             io.to(gameId).emit('game-victory', { winner });
             // Award Rankiard points
             gameManager.completeMatch(gameId, winner);
+            // Best of 3 series tracking
+            const _seriesId2 = gameToSeriesMap.get(gameId);
+            if (_seriesId2) {
+              const _series2 = rematchSeriesMap.get(_seriesId2);
+              if (_series2) {
+                _series2.wins[winner] = (_series2.wins[winner] || 0) + 1;
+                const _toWin2 = Math.ceil(_series2.format / 2);
+                io.to(gameId).emit('series-score-update', { seriesId: _seriesId2, player1: _series2.player1, player2: _series2.player2, wins: { ..._series2.wins }, toWin: _toWin2 });
+                if (_series2.wins[winner] >= _toWin2) {
+                  io.to(gameId).emit('series-ended', { winner, wins: { ..._series2.wins } });
+                  gameToSeriesMap.delete(gameId);
+                  rematchSeriesMap.delete(_seriesId2);
+                }
+              }
+            }
           }
           
           // Update game state
@@ -7382,7 +7463,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       rematchVotes.delete(gameId);
       if (rematchTimers.has(gameId)) { clearTimeout(rematchTimers.get(gameId)!); rematchTimers.delete(gameId); }
       io.to(gameId).emit('rematch-declined', { declinedBy: playerName });
+      // If in a series, abandon it
+      const seriesId = gameToSeriesMap.get(gameId);
+      if (seriesId) {
+        rematchSeriesMap.delete(seriesId);
+        gameToSeriesMap.delete(gameId);
+      }
       console.log(`[REMATCH] ${playerName} declined rematch in ${gameId}`);
+    });
+
+    // ─── BEST OF 3 SERIES ─────────────────────────────────────────────────────
+    // Voting map for Bo3 proposals (separate from regular rematch)
+    const bo3Votes = new Map<string, Set<string>>();
+
+    socket.on('request-bo3', ({ gameId, playerName }: { gameId: string; playerName: string }) => {
+      const game = gameManager.getGame(gameId);
+      if (!game) return;
+      if (!bo3Votes.has(gameId)) bo3Votes.set(gameId, new Set());
+      const votes = bo3Votes.get(gameId)!;
+      votes.add(playerName);
+      const humanPlayers = Object.values(game.players).filter((p: any) => !p.cpuInstance);
+      io.to(gameId).emit('bo3-vote-update', { votes: votes.size, total: humanPlayers.length, voters: Array.from(votes) });
+      console.log(`[BO3] ${playerName} voted Bo3 in ${gameId} (${votes.size}/${humanPlayers.length})`);
+
+      if (votes.size >= humanPlayers.length) {
+        bo3Votes.delete(gameId);
+        const playerNames = humanPlayers.map((p: any) => p.name);
+        const newGameId = `${gameId}-bo3-${Date.now()}`;
+        const seriesId = `series-${Date.now()}`;
+        const series: Bo3Series = {
+          player1: playerNames[0] || '',
+          player2: playerNames[1] || '',
+          wins: {},
+          format: 3,
+          gameCount: 2, // this is game 2 in series
+        };
+        rematchSeriesMap.set(seriesId, series);
+        gameToSeriesMap.set(newGameId, seriesId);
+        io.to(gameId).emit('bo3-series-started', { seriesId, newGameId, player1: series.player1, player2: series.player2 });
+        console.log(`[BO3] Series started! ${series.player1} vs ${series.player2}, new game: ${newGameId}`);
+      }
+    });
+
+    socket.on('decline-bo3', ({ gameId, playerName }: { gameId: string; playerName: string }) => {
+      bo3Votes.delete(gameId);
+      io.to(gameId).emit('bo3-declined', { declinedBy: playerName });
     });
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -10594,6 +10719,95 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     }
   });
 
+  // ============ USER STATS API ============
+  app.get('/api/stats/:username', async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile" });
+      }
+
+      const { username } = req.params;
+      
+      // Get user data
+      const [userRecord] = await db.select().from(users).where(eq(users.username, username)).limit(1);
+      if (!userRecord) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const email = userRecord.email;
+
+      // Get match history for win/loss sequence
+      const matchHistory = await db.select()
+        .from(matches)
+        .orderBy(desc(matches.startedAt))
+        .limit(10);
+
+      const recentResults = matchHistory
+        .filter(m => {
+          const players = m.players as string[];
+          return Array.isArray(players) && players.includes(username);
+        })
+        .map(m => {
+          if (m.winnerPlayer === username) return 'win';
+          return 'loss';
+        });
+
+      // Get missions and achievements counts
+      const missions = await db.select()
+        .from(playerDailyMissions)
+        .where(and(
+          eq(playerDailyMissions.usernameOrEmail, email || ''),
+          eq(playerDailyMissions.completed, true)
+        ));
+      
+      const achievements = await db.select()
+        .from(playerAchievements)
+        .where(and(
+          eq(playerAchievements.usernameOrEmail, email || ''),
+          eq(playerAchievements.completed, true)
+        ));
+
+      // Get top card types (mocked logic or based on cardCollection if available)
+      // For now, let's look at cardCollection to see what they have
+      const collection = await db.select()
+        .from(userCardCollection)
+        .where(eq(userCardCollection.userId, userRecord.id));
+      
+      const typeCounts: Record<string, number> = {};
+      collection.forEach(item => {
+        const type = item.deckType || 'unknown';
+        typeCounts[type] = (typeCounts[type] || 0) + 1;
+      });
+
+      const topCardTypes = Object.entries(typeCounts)
+        .map(([type, count]) => ({ type, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+
+      const winRate = userRecord.gamesPlayed > 0 
+        ? Math.round((userRecord.gamesWon / userRecord.gamesPlayed) * 100) 
+        : 0;
+
+      res.json({
+        gamesPlayed: userRecord.gamesPlayed,
+        gamesWon: userRecord.gamesWon,
+        winRate,
+        puntiRankiard: userRecord.puntiRankiard,
+        missionsCompleted: missions.length,
+        achievementsCompleted: achievements.length,
+        topCardTypes: topCardTypes.length > 0 ? topCardTypes : [
+          { type: 'personaggi', count: 12 },
+          { type: 'mosse', count: 8 },
+          { type: 'bonus', count: 5 }
+        ],
+        recentResults: recentResults.length > 0 ? recentResults : ['win', 'win', 'loss', 'win', 'loss']
+      });
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+      res.status(500).json({ error: 'Failed to fetch stats' });
+    }
+  });
+
   app.get('/api/user-stats/:userId', async (req, res) => {
     try {
       if (!isDatabaseAvailable()) {
@@ -12878,6 +13092,252 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: 'Errore nel rifiuto acquisto' });
+    }
+  });
+
+  // ─── SEASON-PASS AGGREGATED ENDPOINT ─────────────────────────────────────────
+  // Wrapper that combines pass + rewards + progress in one call for the SeasonPass component
+  app.get('/api/season-pass', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json({ pass: null });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'Utente non trovato' });
+
+      const [activePasses] = await db.select().from(seasonalPasses).where(eq(seasonalPasses.isActive, true)).limit(1) as any[];
+      if (!activePasses) return res.json({ pass: null });
+
+      const rewards = await db.select().from(passRewards).where(eq(passRewards.passId, activePasses.id)).orderBy(passRewards.level);
+
+      let [progress] = await db.select().from(playerPassProgress)
+        .where(and(eq(playerPassProgress.userId, currentUser.id), eq(playerPassProgress.passId, activePasses.id)))
+        .limit(1);
+      if (!progress) {
+        const [inserted] = await db.insert(playerPassProgress).values({ userId: currentUser.id, passId: activePasses.id }).returning();
+        progress = inserted;
+      }
+
+      const claimedLevels: number[] = [];
+      res.json({ pass: activePasses, rewards, progress: { ...progress, claimedLevels } });
+    } catch (error) {
+      console.error('Error season-pass:', error);
+      res.status(500).json({ error: 'Errore pass stagionale' });
+    }
+  });
+
+  app.post('/api/season-pass/claim/:level', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const level = parseInt(req.params.level);
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'Utente non trovato' });
+      const [activePasses] = await db.select().from(seasonalPasses).where(eq(seasonalPasses.isActive, true)).limit(1) as any[];
+      if (!activePasses) return res.status(404).json({ error: 'Nessun pass attivo' });
+      const [progress] = await db.select().from(playerPassProgress)
+        .where(and(eq(playerPassProgress.userId, currentUser.id), eq(playerPassProgress.passId, activePasses.id))).limit(1);
+      if (!progress) return res.status(404).json({ error: 'Progresso non trovato' });
+      if (level > (progress.currentLevel || 1)) return res.status(400).json({ error: 'Livello non ancora raggiunto' });
+      // Award credits for the reward at this level
+      const [reward] = await db.select().from(passRewards)
+        .where(and(eq(passRewards.passId, activePasses.id), eq(passRewards.level, level))).limit(1);
+      if (reward && reward.rewardType === 'credits') {
+        const creditAmount = parseInt(reward.rewardValue) || 0;
+        if (creditAmount > 0) {
+          await db.update(userDraftCredits).set({ freeCredits: sql`free_credits + ${creditAmount}` }).where(eq(userDraftCredits.userId, currentUser.id));
+        }
+      }
+      res.json({ success: true, reward: reward || null });
+    } catch (error) {
+      console.error('Error claiming pass level:', error);
+      res.status(500).json({ error: 'Errore nel riscatto' });
+    }
+  });
+
+  // ─── TOURNAMENT BRACKET ENDPOINT ─────────────────────────────────────────────
+  app.get('/api/tournaments/:id/bracket', async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json({ tournament: null, matches: [] });
+      const tournamentId = parseInt(req.params.id);
+      const [tournament] = await db.select().from(tournaments).where(eq(tournaments.id, tournamentId)).limit(1);
+      if (!tournament) return res.status(404).json({ error: 'Torneo non trovato' });
+
+      const tournamentMatchesList = await db.select().from(tournamentMatches)
+        .where(eq(tournamentMatches.tournamentId, tournamentId))
+        .orderBy(tournamentMatches.round, tournamentMatches.matchNumber);
+
+      // Enrich matches with player names
+      const playerIds = new Set<number>();
+      tournamentMatchesList.forEach(m => {
+        if (m.player1Id) playerIds.add(m.player1Id);
+        if (m.player2Id) playerIds.add(m.player2Id);
+        if (m.winnerId) playerIds.add(m.winnerId);
+      });
+
+      const playerList = playerIds.size > 0
+        ? await db.select({ id: users.id, username: users.username }).from(users).where(inArray(users.id, Array.from(playerIds)))
+        : [];
+      const playerMap = Object.fromEntries(playerList.map(p => [p.id, p.username]));
+
+      const enrichedMatches = tournamentMatchesList.map(m => ({
+        ...m,
+        player1Name: m.player1Id ? playerMap[m.player1Id] : null,
+        player2Name: m.player2Id ? playerMap[m.player2Id] : null,
+        winnerName: m.winnerId ? playerMap[m.winnerId] : null,
+      }));
+
+      res.json({ tournament, matches: enrichedMatches });
+    } catch (error) {
+      console.error('Error fetching bracket:', error);
+      res.status(500).json({ error: 'Errore bracket torneo' });
+    }
+  });
+
+  // ─── MARKETPLACE (CARD TRADING) ───────────────────────────────────────────────
+  app.get('/api/marketplace', async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json([]);
+      const { type, rarity } = req.query as { type?: string; rarity?: string };
+      let query = db.select().from(cardTradeListings).where(eq(cardTradeListings.status, 'active')) as any;
+      const conditions: any[] = [eq(cardTradeListings.status, 'active')];
+      if (type) conditions.push(eq(cardTradeListings.cardType, type));
+      if (rarity) conditions.push(eq(cardTradeListings.cardRarity, rarity));
+      const listings = await db.select().from(cardTradeListings)
+        .where(conditions.length === 1 ? conditions[0] : and(...conditions))
+        .orderBy(desc(cardTradeListings.createdAt))
+        .limit(100);
+      res.json(listings);
+    } catch (error) {
+      console.error('Error fetching marketplace:', error);
+      res.status(500).json({ error: 'Errore marketplace' });
+    }
+  });
+
+  app.get('/api/marketplace/mine', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json([]);
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'Utente non trovato' });
+      const listings = await db.select().from(cardTradeListings)
+        .where(and(eq(cardTradeListings.sellerId, currentUser.id), eq(cardTradeListings.status, 'active')))
+        .orderBy(desc(cardTradeListings.createdAt));
+      res.json(listings);
+    } catch (error) {
+      res.status(500).json({ error: 'Errore annunci personali' });
+    }
+  });
+
+  app.post('/api/marketplace/list', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const { cardId, cardName, cardType, cardRarity, cardImageUrl, priceCredits } = req.body;
+      if (!cardId || !cardName || !cardType || !priceCredits) return res.status(400).json({ error: 'Dati mancanti' });
+      if (priceCredits < 50 || priceCredits > 5000) return res.status(400).json({ error: 'Prezzo deve essere tra 50 e 5000 crediti' });
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'Utente non trovato' });
+      // Verify user owns card in collection
+      const owned = await db.select().from(userCardCollection)
+        .where(and(eq(userCardCollection.userId, currentUser.id), eq(userCardCollection.cardId, cardId)));
+      if (owned.length === 0) return res.status(403).json({ error: 'Non possiedi questa carta' });
+      // Check for active listing of the same card
+      const existing = await db.select().from(cardTradeListings)
+        .where(and(eq(cardTradeListings.sellerId, currentUser.id), eq(cardTradeListings.cardId, cardId), eq(cardTradeListings.status, 'active')));
+      if (existing.length > 0) return res.status(409).json({ error: 'Hai già un annuncio attivo per questa carta' });
+      const [listing] = await db.insert(cardTradeListings).values({
+        sellerId: currentUser.id,
+        sellerName: currentUser.username,
+        cardId, cardName, cardType,
+        cardRarity: cardRarity || 'comune',
+        cardImageUrl: cardImageUrl || null,
+        priceCredits,
+      }).returning();
+      res.status(201).json(listing);
+    } catch (error) {
+      console.error('Error listing card:', error);
+      res.status(500).json({ error: 'Errore nella creazione annuncio' });
+    }
+  });
+
+  app.post('/api/marketplace/buy/:listingId', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const listingId = parseInt(req.params.listingId);
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'Utente non trovato' });
+
+      const [listing] = await db.select().from(cardTradeListings)
+        .where(and(eq(cardTradeListings.id, listingId), eq(cardTradeListings.status, 'active'))).limit(1);
+      if (!listing) return res.status(404).json({ error: 'Annuncio non trovato' });
+      if (listing.sellerId === currentUser.id) return res.status(403).json({ error: 'Non puoi acquistare la tua carta' });
+
+      // Check buyer has enough credits
+      const [buyerCredits] = await db.select().from(userDraftCredits).where(eq(userDraftCredits.userId, currentUser.id)).limit(1);
+      const totalCredits = (buyerCredits?.freeCredits || 0) + (buyerCredits?.paidCredits || 0);
+      if (totalCredits < listing.priceCredits) return res.status(400).json({ error: 'Crediti insufficienti' });
+
+      // Transfer credits: deduct from buyer
+      const deductFree = Math.min(listing.priceCredits, buyerCredits?.freeCredits || 0);
+      const deductPaid = listing.priceCredits - deductFree;
+      await db.update(userDraftCredits).set({
+        freeCredits: sql`free_credits - ${deductFree}`,
+        paidCredits: sql`paid_credits - ${deductPaid}`,
+      }).where(eq(userDraftCredits.userId, currentUser.id));
+
+      // Add credits to seller
+      await db.update(userDraftCredits).set({ freeCredits: sql`free_credits + ${listing.priceCredits}` })
+        .where(eq(userDraftCredits.userId, listing.sellerId));
+
+      // Transfer card: ensure buyer has it in collection
+      await db.insert(userCardCollection).values({
+        userId: currentUser.id, cardId: listing.cardId, deckType: listing.cardType, rarity: listing.cardRarity,
+      }).onConflictDoNothing();
+
+      // Mark listing as sold
+      await db.update(cardTradeListings).set({ status: 'sold' }).where(eq(cardTradeListings.id, listingId));
+
+      // Record trade history
+      await db.insert(cardTradeHistory).values({
+        listingId, buyerId: currentUser.id, buyerName: currentUser.username, creditsSpent: listing.priceCredits,
+      });
+
+      res.json({ success: true, cardName: listing.cardName });
+    } catch (error) {
+      console.error('Error buying card:', error);
+      res.status(500).json({ error: 'Errore nell\'acquisto' });
+    }
+  });
+
+  app.delete('/api/marketplace/:listingId', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const listingId = parseInt(req.params.listingId);
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'Utente non trovato' });
+      const [listing] = await db.select().from(cardTradeListings)
+        .where(and(eq(cardTradeListings.id, listingId), eq(cardTradeListings.sellerId, currentUser.id))).limit(1);
+      if (!listing) return res.status(404).json({ error: 'Annuncio non trovato' });
+      await db.update(cardTradeListings).set({ status: 'cancelled' }).where(eq(cardTradeListings.id, listingId));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Errore cancellazione annuncio' });
+    }
+  });
+
+  app.get('/api/user/collection', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json([]);
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'Utente non trovato' });
+      const collection = await db.select().from(userCardCollection)
+        .where(eq(userCardCollection.userId, currentUser.id));
+      res.json(collection);
+    } catch (error) {
+      res.status(500).json({ error: 'Errore collezione utente' });
     }
   });
 

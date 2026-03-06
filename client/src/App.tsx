@@ -318,7 +318,7 @@ function App() {
     }
   };
 
-  const handleRoomSubmit = (roomCode: string, isDraftMode?: boolean) => {
+  const handleRoomSubmit = (roomCode: string, isDraftMode?: boolean, turnTimerSeconds?: number) => {
     const newGameId = `room-${roomCode}`;
     console.log(`Attempting to join room: ${newGameId} with player: ${playerName}${isDraftMode ? ' [DRAFT]' : ''}`);
     
@@ -336,7 +336,8 @@ function App() {
       playerName, 
       avatarId: pendingAvatar,
       userId: authenticatedUser?.id,
-      isDraftMode: isDraftMode || false
+      isDraftMode: isDraftMode || false,
+      turnTimerSeconds: turnTimerSeconds ?? 30
     });
   };
 
@@ -585,6 +586,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <DraftSection
           playerName={playerName}
+          userId={authenticatedUser?.id}
           onBack={() => setCurrentSection('home')}
         />
       </QueryClientProvider>

@@ -98,5 +98,155 @@
     "requirement": 3,
     "rewardPoints": 30,
     "difficulty": "medium"
+  },
+  {
+    "id": 11,
+    "code": "win_duel_1",
+    "name": "Duellante",
+    "description": "Vinci 1 duello",
+    "type": "duels_won",
+    "requirement": 1,
+    "rewardPoints": 35,
+    "difficulty": "easy"
+  },
+  {
+    "id": 12,
+    "code": "win_duel_3",
+    "name": "Maestro del Duello",
+    "description": "Vinci 3 duelli",
+    "type": "duels_won",
+    "requirement": 3,
+    "rewardPoints": 60,
+    "difficulty": "hard"
+  },
+  {
+    "id": 13,
+    "code": "use_bonus_5",
+    "name": "Mago del Bonus",
+    "description": "Usa 5 carte BONUS",
+    "type": "bonus_used",
+    "requirement": 5,
+    "rewardPoints": 35,
+    "difficulty": "easy"
+  },
+  {
+    "id": 14,
+    "code": "use_mosse_10",
+    "name": "Stratega",
+    "description": "Usa 10 carte MOSSE",
+    "type": "mosse_used",
+    "requirement": 10,
+    "rewardPoints": 40,
+    "difficulty": "medium"
+  },
+  {
+    "id": 15,
+    "code": "deal_damage_1000",
+    "name": "Macchina da Guerra",
+    "description": "Infliggi 1000 danni",
+    "type": "damage_dealt",
+    "requirement": 1000,
+    "rewardPoints": 35,
+    "difficulty": "medium"
+  },
+  {
+    "id": 16,
+    "code": "deal_damage_3000",
+    "name": "Devastatore",
+    "description": "Infliggi 3000 danni totali",
+    "type": "damage_dealt",
+    "requirement": 3000,
+    "rewardPoints": 70,
+    "difficulty": "hard"
+  },
+  {
+    "id": 17,
+    "code": "eliminate_5",
+    "name": "Cacciatore di Taglie",
+    "description": "Elimina 5 personaggi",
+    "type": "eliminations",
+    "requirement": 5,
+    "rewardPoints": 55,
+    "difficulty": "hard"
+  },
+  {
+    "id": 18,
+    "code": "play_game_1",
+    "name": "Avventura Quotidiana",
+    "description": "Gioca almeno 1 partita",
+    "type": "games_played",
+    "requirement": 1,
+    "rewardPoints": 15,
+    "difficulty": "easy"
+  },
+  {
+    "id": 19,
+    "code": "play_game_5",
+    "name": "Maratoneta",
+    "description": "Gioca 5 partite",
+    "type": "games_played",
+    "requirement": 5,
+    "rewardPoints": 50,
+    "difficulty": "hard"
+  },
+  {
+    "id": 20,
+    "code": "play_cards_5",
+    "name": "Prime Mosse",
+    "description": "Gioca 5 carte",
+    "type": "cards_played",
+    "requirement": 5,
+    "rewardPoints": 15,
+    "difficulty": "easy"
+  },
+  {
+    "id": 21,
+    "code": "play_cards_50",
+    "name": "Mazzo Furioso",
+    "description": "Gioca 50 carte",
+    "type": "cards_played",
+    "requirement": 50,
+    "rewardPoints": 65,
+    "difficulty": "hard"
+  },
+  {
+    "id": 22,
+    "code": "eliminate_1",
+    "name": "Prima Eliminazione",
+    "description": "Elimina 1 personaggio",
+    "type": "eliminations",
+    "requirement": 1,
+    "rewardPoints": 20,
+    "difficulty": "easy"
+  },
+  {
+    "id": 23,
+    "code": "deal_damage_250",
+    "name": "Primo Sangue",
+    "description": "Infliggi 250 danni",
+    "type": "damage_dealt",
+    "requirement": 250,
+    "rewardPoints": 18,
+    "difficulty": "easy"
+  },
+  {
+    "id": 24,
+    "code": "use_mosse_3",
+    "name": "Tattico Iniziante",
+    "description": "Usa 3 carte MOSSE",
+    "type": "mosse_used",
+    "requirement": 3,
+    "rewardPoints": 18,
+    "difficulty": "easy"
+  },
+  {
+    "id": 25,
+    "code": "win_3",
+    "name": "Tre Vittorie",
+    "description": "Vinci 3 partite",
+    "type": "wins",
+    "requirement": 3,
+    "rewardPoints": 75,
+    "difficulty": "hard"
   }
 ]

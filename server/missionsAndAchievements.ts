@@ -74,7 +74,7 @@ async function assignDailyMissions(usernameOrEmail: string) {
   }
   
   const shuffled = [...allTemplates].sort(() => Math.random() - 0.5);
-  const missionCount = Math.min(3, shuffled.length);
+  const missionCount = Math.min(5, shuffled.length);
   const selected = shuffled.slice(0, missionCount);
   
   for (const template of selected) {
@@ -357,6 +357,10 @@ export async function trackGameEvent(usernameOrEmail: string, eventType: string,
         const result = await updateAchievementProgress(usernameOrEmail, code, 1);
         if (result) completedAchievements.push(result);
       }
+      break;
+
+    case 'duel_won':
+      completedMissions.push(...await updateMissionProgress(usernameOrEmail, 'duels_won', 1));
       break;
   }
   

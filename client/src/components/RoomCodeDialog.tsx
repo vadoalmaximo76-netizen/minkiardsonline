@@ -1,30 +1,38 @@
 import React, { useState } from "react";
 import { Button } from "./ui/button";
-import { Shuffle, Shield, Check } from "lucide-react";
+import { Shuffle, Shield, Check, Clock } from "lucide-react";
 
 interface RoomCodeDialogProps {
   open: boolean;
-  onSubmit: (roomCode: string, isDraftMode?: boolean) => void;
+  onSubmit: (roomCode: string, isDraftMode?: boolean, turnTimerSeconds?: number) => void;
 }
 
 type GameMode = 'classic' | 'draft';
 
+const TIMER_OPTIONS = [
+  { value: 15, label: '15s', desc: 'Veloce' },
+  { value: 30, label: '30s', desc: 'Standard' },
+  { value: 60, label: '60s', desc: 'Rilassato' },
+  { value: 0, label: '∞', desc: 'Illimitato' },
+];
+
 export const RoomCodeDialog: React.FC<RoomCodeDialogProps> = ({ open, onSubmit }) => {
   const [roomCode, setRoomCode] = useState("");
   const [gameMode, setGameMode] = useState<GameMode>('classic');
+  const [turnTimer, setTurnTimer] = useState<number>(30);
 
   if (!open) return null;
 
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
     if (roomCode.trim()) {
-      onSubmit(roomCode.trim().toUpperCase(), gameMode === 'draft');
+      onSubmit(roomCode.trim().toUpperCase(), gameMode === 'draft', turnTimer);
     }
   };
 
   const handleCreate = () => {
     const newRoomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    onSubmit(newRoomCode, gameMode === 'draft');
+    onSubmit(newRoomCode, gameMode === 'draft', turnTimer);
   };
 
   return (
@@ -82,6 +90,31 @@ export const RoomCodeDialog: React.FC<RoomCodeDialogProps> = ({ open, onSubmit }
               Assicurati di avere un mazzo completo salvato nella sezione Draft prima di giocare.
             </p>
           )}
+        </div>
+
+        {/* Timer configurabile */}
+        <div className="mb-5">
+          <p className="text-white/70 text-sm font-semibold mb-3 flex items-center gap-2">
+            <Clock className="w-4 h-4" />
+            Timer per turno
+          </p>
+          <div className="grid grid-cols-4 gap-2">
+            {TIMER_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setTurnTimer(opt.value)}
+                className={`flex flex-col items-center py-2 px-1 rounded-xl border-2 transition-all ${
+                  turnTimer === opt.value
+                    ? 'border-purple-500 bg-purple-900/30 text-white'
+                    : 'border-white/10 bg-white/5 text-white/60 hover:border-white/30 hover:bg-white/10'
+                }`}
+              >
+                <span className="font-bold text-sm">{opt.label}</span>
+                <span className="text-xs opacity-70">{opt.desc}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Join room */}

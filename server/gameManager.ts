@@ -307,6 +307,7 @@ interface GameState {
   playerDeathModifiers: Map<string, number>; // Per-player death limit modifiers (+/- deaths)
   playerStats: Map<string, { cardsPlayed: number; damageDealt: number; damageReceived: number; turnsPlayed: number }>; // Per-player game stats
   lastAction?: { type: string; playerName: string; cardName?: string; cardImageUrl?: string; cardDeckType?: string; targetPlayer?: string; damage?: number }; // Track last significant action for final blow replay
+  turnTimeoutSeconds?: number; // Configurable turn timer (0 = disabled), defaults to 30
   requiresApproval?: boolean; // Whether new players need creator approval to join
   creatorName?: string; // Name of the room creator
   creatorSocketId?: string; // Socket ID of the room creator
@@ -443,19 +444,27 @@ export class GameManager {
     // Don't start timer if duel is active
     if (gameState.activeDuel?.active) return;
 
+    // Use per-game timeout, 0 means disabled
+    const timeoutSeconds = gameState.turnTimeoutSeconds !== undefined
+      ? gameState.turnTimeoutSeconds
+      : this.TURN_TIMEOUT_SECONDS;
+    if (timeoutSeconds === 0) return; // Timer disabled
+
     const io = (global as any).io;
     if (io) {
-      io.to(gameId).emit('turn-timer-start', { playerName, seconds: this.TURN_TIMEOUT_SECONDS });
+      io.to(gameId).emit('turn-timer-start', { playerName, seconds: timeoutSeconds });
     }
 
-    // Warning at 10 seconds remaining (20s delay)
-    const warningTimer = setTimeout(() => {
-      const io2 = (global as any).io;
-      if (io2) {
-        io2.to(gameId).emit('turn-timer-warning', { playerName, seconds: 10 });
-      }
-    }, (this.TURN_TIMEOUT_SECONDS - 10) * 1000);
-    this.turnWarningTimers.set(gameId, warningTimer);
+    // Warning at 10 seconds remaining (only if timer > 15s)
+    if (timeoutSeconds > 15) {
+      const warningTimer = setTimeout(() => {
+        const io2 = (global as any).io;
+        if (io2) {
+          io2.to(gameId).emit('turn-timer-warning', { playerName, seconds: 10 });
+        }
+      }, (timeoutSeconds - 10) * 1000);
+      this.turnWarningTimers.set(gameId, warningTimer);
+    }
 
     // Auto end turn at timeout
     const timer = setTimeout(() => {
@@ -486,12 +495,19 @@ export class GameManager {
           this.startTurnTimer(gameId, nextPlayer);
         }
       }
-    }, this.TURN_TIMEOUT_SECONDS * 1000);
+    }, timeoutSeconds * 1000);
     this.turnTimers.set(gameId, timer);
   }
 
   getGame(gameId: string): GameState | undefined {
     return this.games.get(gameId);
+  }
+
+  setTurnTimeoutSeconds(gameId: string, seconds: number): void {
+    const game = this.games.get(gameId);
+    if (game) {
+      game.turnTimeoutSeconds = seconds;
+    }
   }
 
   private async getUserEmail(userId: number): Promise<string | null> {
@@ -2280,6 +2296,8 @@ Rispondi SOLO in JSON:`;
         consecutiveTurns: gameState.activeDuel.consecutiveTurns,
         active: gameState.activeDuel.active
       } : undefined,
+      turnTimeoutSeconds: gameState.turnTimeoutSeconds !== undefined ? gameState.turnTimeoutSeconds : 30,
+      creatorName: gameState.creatorName,
       isDraftMode: gameState.isDraftMode || false,
       playerDraftDeckCounts: gameState.isDraftMode && gameState.playerDraftDecks
         ? Object.fromEntries(Object.entries(gameState.playerDraftDecks).map(([name, decks]) => [name, {

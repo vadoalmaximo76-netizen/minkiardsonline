@@ -681,3 +681,36 @@ export type CreditPurchase = typeof creditPurchases.$inferSelect;
 export type UserCardCollection = typeof userCardCollection.$inferSelect;
 export type DraftPackOpening = typeof draftPackOpenings.$inferSelect;
 export type DraftDeckPreset = typeof draftDeckPresets.$inferSelect;
+
+// Card Marketplace listings
+export const cardTradeListings = pgTable("card_trade_listings", {
+  id: serial("id").primaryKey(),
+  sellerId: integer("seller_id").notNull(),
+  sellerName: text("seller_name").notNull(),
+  cardId: text("card_id").notNull(),
+  cardName: text("card_name").notNull(),
+  cardType: text("card_type").notNull(),
+  cardRarity: text("card_rarity").notNull().default("comune"),
+  cardImageUrl: text("card_image_url"),
+  priceCredits: integer("price_credits").notNull(),
+  status: text("status").notNull().default("active"), // active | sold | cancelled
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Card Marketplace trade history
+export const cardTradeHistory = pgTable("card_trade_history", {
+  id: serial("id").primaryKey(),
+  listingId: integer("listing_id").notNull(),
+  buyerId: integer("buyer_id").notNull(),
+  buyerName: text("buyer_name").notNull(),
+  creditsSpent: integer("credits_spent").notNull(),
+  tradedAt: timestamp("traded_at").notNull().defaultNow(),
+});
+
+export const insertCardTradeListingSchema = createInsertSchema(cardTradeListings).omit({ id: true, createdAt: true });
+export const insertCardTradeHistorySchema = createInsertSchema(cardTradeHistory).omit({ id: true, tradedAt: true });
+
+export type CardTradeListing = typeof cardTradeListings.$inferSelect;
+export type CardTradeHistory = typeof cardTradeHistory.$inferSelect;
+export type InsertCardTradeListing = z.infer<typeof insertCardTradeListingSchema>;
+export type InsertCardTradeHistory = z.infer<typeof insertCardTradeHistorySchema>;

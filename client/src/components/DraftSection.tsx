@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { ArrowLeft, Shuffle, ShoppingCart, CreditCard, Search, Plus, Minus, CheckCircle, AlertCircle, Coins, Users, Swords, Zap, Package, Check, Trophy, X, SortAsc, SortDesc, Sparkles, Trash2, Filter, Gift, Star, Lock, ChevronDown, ChevronUp, Clock, Target, Flame, BookOpen, Save, RotateCcw, Calendar } from 'lucide-react';
+import { ArrowLeft, Shuffle, ShoppingCart, CreditCard, Search, Plus, Minus, CheckCircle, AlertCircle, Coins, Users, Swords, Zap, Package, Check, Trophy, X, SortAsc, SortDesc, Sparkles, Trash2, Filter, Gift, Star, Lock, ChevronDown, ChevronUp, Clock, Target, Flame, BookOpen, Save, RotateCcw, Calendar, Ticket, Store } from 'lucide-react';
 import { PackOpeningAnimation, PackType, RevealedCard } from './PackOpeningAnimation';
+import { SeasonPass } from './SeasonPass';
+import { Marketplace } from './Marketplace';
 
 interface DraftSectionProps {
   onBack: () => void;
   playerName: string;
+  userId?: number;
 }
 
 interface DraftCard {
@@ -113,8 +116,8 @@ function getAuthHeaders(): Record<string, string> {
     : { 'Content-Type': 'application/json' };
 }
 
-export function DraftSection({ onBack, playerName }: DraftSectionProps) {
-  const [activeTab, setActiveTab] = useState<'deck' | 'shop' | 'credits' | 'packs' | 'collection'>('deck');
+export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) {
+  const [activeTab, setActiveTab] = useState<'deck' | 'shop' | 'credits' | 'packs' | 'collection' | 'pass' | 'marketplace'>('deck');
   const [status, setStatus] = useState<DraftStatus | null>(null);
   const [allCards, setAllCards] = useState<DraftCard[]>([]);
   const [selectedCards, setSelectedCards] = useState<{ personaggi: string[]; mosse: string[]; bonus: string[] }>({ personaggi: [], mosse: [], bonus: [] });
@@ -618,6 +621,8 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
           { key: 'packs', label: 'Pacchetti', icon: Gift, badge: dailyCardStatus?.available ? '!' : null },
           { key: 'collection', label: 'Collezione', icon: BookOpen, badge: ownedCardIds.size > 0 ? `${ownedCardIds.size}` : null },
           { key: 'credits', label: 'Crediti', icon: CreditCard, badge: null },
+          { key: 'pass', label: 'Pass', icon: Ticket, badge: null },
+          { key: 'marketplace', label: 'Mercato', icon: Store, badge: null },
         ] as const).map(({ key, label, icon: Icon, badge }) => (
           <button
             key={key}
@@ -1603,6 +1608,27 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
             </div>
           )}
 
+        </div>
+      )}
+
+      {/* Pass Stagionale Tab */}
+      {activeTab === 'pass' && (
+        <div className="relative z-10 flex-1 overflow-y-auto p-3 sm:p-4">
+          <SeasonPass
+            userId={userId || 0}
+            onClose={() => setActiveTab('deck')}
+          />
+        </div>
+      )}
+
+      {/* Marketplace Tab */}
+      {activeTab === 'marketplace' && (
+        <div className="relative z-10 flex-1 overflow-y-auto p-3 sm:p-4">
+          <Marketplace
+            userId={userId || 0}
+            username={playerName}
+            onClose={() => setActiveTab('deck')}
+          />
         </div>
       )}
 

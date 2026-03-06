@@ -54,6 +54,7 @@ import { GameLog } from "./GameLog";
 import { MissionsPanel } from "./MissionsPanel";
 import { AchievementsPanel } from "./AchievementsPanel";
 import { RankiardLeaderboard } from "./RankiardLeaderboard";
+import StatsPanel from "./StatsPanel";
 import { ProfilePanel } from "./ProfilePanel";
 import { CollectionPanel } from "./CollectionPanel";
 import { TableThemeSelector } from "./TableThemeSelector";
@@ -75,7 +76,7 @@ import { socket } from "../lib/socket";
 import { getOptimizedUrl, onCloudNameReady, getCloudinaryCloudName } from "../lib/imagePreloader";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
-import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star, Hand, Music, Shuffle, User, LogOut, Target, Trophy, SkipForward, ScrollText, Settings, MoreVertical, BookOpen, UserPlus, RotateCcw, PlusCircle, ChevronDown, Palette } from "lucide-react";
+import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, Skull, X, ExternalLink, Crown, Star, Hand, Music, Shuffle, User, LogOut, Target, Trophy, SkipForward, ScrollText, Settings, MoreVertical, BookOpen, UserPlus, RotateCcw, PlusCircle, ChevronDown, Palette, BarChart2 } from "lucide-react";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 
@@ -104,6 +105,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       return onCloudNameReady(() => _forceCloudUpdate(n => n + 1));
     }
   }, []);
+
+  // Request browser notification permission for turn alerts
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+  }, []);
+
   const [chatOpen, setChatOpen] = useState(false);
   const [soundSettingsOpen, setSoundSettingsOpen] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
@@ -152,6 +161,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const turnTimerIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
   const timerPlayerRef = React.useRef<string>('');
   const [rematchState, setRematchState] = useState<{ votes: number; total: number; voters: string[]; declined: boolean; declinedBy: string; expired: boolean; newGameId: string | null }>({ votes: 0, total: 0, voters: [], declined: false, declinedBy: '', expired: false, newGameId: null });
+  const [bo3State, setBo3State] = useState<{ votes: number; total: number; voters: string[]; declined: boolean; declinedBy: string; seriesScore: { [name: string]: number }; seriesEnded: boolean; seriesWinner: string; seriesStarted: boolean; newGameId: string | null }>({ votes: 0, total: 0, voters: [], declined: false, declinedBy: '', seriesScore: {}, seriesEnded: false, seriesWinner: '', seriesStarted: false, newGameId: null });
+  const [showStatsPanel, setShowStatsPanel] = useState(false);
   const [superDiceOpen, setSuperDiceOpen] = useState(false);
   const [showCpuControls, setShowCpuControls] = useState(false);
   const [is3DMode, setIs3DMode] = useState(false);
@@ -917,6 +928,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       setNextTurnVisible(true);
       if (nextPlayer === playerName) {
         playMyTurn();
+        // Browser notification when tab is in background
+        if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+          try {
+            new Notification('MINKIARDS - Tocca a te!', {
+              body: 'È il tuo turno, muoviti!',
+              icon: '/favicon.ico',
+              tag: 'minkiards-turn',
+              renotify: true,
+            });
+          } catch (_) {}
+        }
       } else {
         playTurnChange();
       }
@@ -1897,6 +1919,30 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('rematch-ready', handleRematchReady);
     socket.on('rematch-declined', handleRematchDeclined);
     socket.on('rematch-expired', handleRematchExpired);
+    // ── Best of 3 ────────────────────────────────────────────────────────────
+    const handleBo3VoteUpdate = ({ votes, total, voters }: { votes: number; total: number; voters: string[] }) => {
+      setBo3State(prev => ({ ...prev, votes, total, voters }));
+    };
+    const handleBo3SeriesStarted = ({ seriesId, newGameId, player1, player2 }: { seriesId: string; newGameId: string; player1: string; player2: string }) => {
+      setBo3State(prev => ({ ...prev, seriesStarted: true, newGameId }));
+      setTimeout(() => {
+        window.location.href = `${window.location.origin}?gameId=${newGameId}`;
+      }, 2500);
+    };
+    const handleBo3Declined = ({ declinedBy }: { declinedBy: string }) => {
+      setBo3State(prev => ({ ...prev, declined: true, declinedBy }));
+    };
+    const handleSeriesScoreUpdate = ({ player1, player2, wins }: { player1: string; player2: string; wins: { [k: string]: number } }) => {
+      setBo3State(prev => ({ ...prev, seriesScore: wins }));
+    };
+    const handleSeriesEnded = ({ winner, wins }: { winner: string; wins: { [k: string]: number } }) => {
+      setBo3State(prev => ({ ...prev, seriesEnded: true, seriesWinner: winner, seriesScore: wins }));
+    };
+    socket.on('bo3-vote-update', handleBo3VoteUpdate);
+    socket.on('bo3-series-started', handleBo3SeriesStarted);
+    socket.on('bo3-declined', handleBo3Declined);
+    socket.on('series-score-update', handleSeriesScoreUpdate);
+    socket.on('series-ended', handleSeriesEnded);
     // ────────────────────────────────────────────────────────────────────────
 
     return () => {
@@ -1907,6 +1953,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('rematch-ready', handleRematchReady);
       socket.off('rematch-declined', handleRematchDeclined);
       socket.off('rematch-expired', handleRematchExpired);
+      socket.off('bo3-vote-update', handleBo3VoteUpdate);
+      socket.off('bo3-series-started', handleBo3SeriesStarted);
+      socket.off('bo3-declined', handleBo3Declined);
+      socket.off('series-score-update', handleSeriesScoreUpdate);
+      socket.off('series-ended', handleSeriesEnded);
       socket.off('game-reset', handleGameReset);
       socket.off('card-shown', handleCardShown);
       socket.off('card-show-confirmed', handleCardShowConfirmed);
@@ -2083,6 +2134,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           setUserRankiardPoints(newTotal);
         }}
       />
+
+      {/* Stats Panel */}
+      {showStatsPanel && authenticatedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <StatsPanel
+              username={authenticatedUser.username}
+              userId={authenticatedUser.id}
+              onClose={() => setShowStatsPanel(false)}
+            />
+          </div>
+        </div>
+      )}
       
       {/* Rankiard Leaderboard */}
       <RankiardLeaderboard
@@ -3646,6 +3710,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                       </button>
                       {authenticatedUser && (
                         <>
+                          <button onClick={() => { setShowStatsPanel(true); setHeaderMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors">
+                            <BarChart2 size={16} className="text-blue-400 flex-shrink-0" />
+                            Statistiche
+                          </button>
                           <button onClick={() => { setMissionsOpen(true); setHeaderMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors">
                             <Target size={16} className="text-emerald-400 flex-shrink-0" />
                             Missioni
@@ -4130,33 +4198,88 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         )}
 
         {/* Rematch Panel (overlaid over game end rewards) */}
-        {gameEndRewards.visible && !rematchState.newGameId && (
+        {/* Series Score Badge */}
+        {Object.keys(bo3State.seriesScore).length > 0 && !bo3State.seriesEnded && (
+          <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[150] bg-black/80 backdrop-blur-sm border border-yellow-500/40 rounded-full px-4 py-1.5 flex items-center gap-3 text-sm font-bold">
+            <span className="text-yellow-400">🏆 Serie Bo3</span>
+            {Object.entries(bo3State.seriesScore).map(([name, wins]) => (
+              <span key={name} className={name === playerName ? 'text-green-400' : 'text-red-400'}>
+                {name}: {wins}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Series Ended overlay */}
+        {bo3State.seriesEnded && (
+          <div className="fixed inset-0 bg-black/85 z-[350] flex items-center justify-center">
+            <div className="bg-gradient-to-br from-yellow-900 to-amber-900 border-2 border-yellow-400 rounded-2xl p-10 text-center shadow-2xl max-w-sm w-full mx-4">
+              <p className="text-5xl mb-4">🏆</p>
+              <p className="text-3xl font-black text-yellow-300 mb-2">Serie completata!</p>
+              <p className="text-xl text-white font-bold mb-4">{bo3State.seriesWinner} vince la serie!</p>
+              <div className="flex justify-center gap-6 text-lg mb-6">
+                {Object.entries(bo3State.seriesScore).map(([name, wins]) => (
+                  <span key={name} className={`font-bold ${name === bo3State.seriesWinner ? 'text-yellow-300' : 'text-white/60'}`}>
+                    {name}: {wins}
+                  </span>
+                ))}
+              </div>
+              <button
+                onClick={() => setBo3State(prev => ({ ...prev, seriesEnded: false }))}
+                className="bg-yellow-600 hover:bg-yellow-500 text-white font-bold px-8 py-2 rounded-xl"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        )}
+
+        {gameEndRewards.visible && !rematchState.newGameId && !bo3State.seriesStarted && (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex flex-col items-center gap-3 pointer-events-auto">
             {rematchState.declined ? (
               <div className="bg-red-900/90 border border-red-500 text-white px-6 py-3 rounded-xl text-center shadow-xl">
                 <p className="font-bold">❌ Rivincita rifiutata</p>
                 <p className="text-sm text-red-200">{rematchState.declinedBy} non vuole rigiocare</p>
               </div>
+            ) : bo3State.declined ? (
+              <div className="bg-red-900/90 border border-red-500 text-white px-6 py-3 rounded-xl text-center shadow-xl">
+                <p className="font-bold">❌ Best of 3 rifiutato</p>
+                <p className="text-sm text-red-200">{bo3State.declinedBy} non vuole la serie</p>
+              </div>
             ) : rematchState.expired ? (
               <div className="bg-gray-900/90 border border-gray-500 text-white px-6 py-3 rounded-xl text-center shadow-xl">
                 <p className="text-sm">⏰ Il tempo per la rivincita è scaduto</p>
               </div>
-            ) : rematchState.voters.includes(playerName) ? (
+            ) : bo3State.voters.includes(playerName || '') ? (
+              <div className="bg-purple-900/90 border border-purple-500 text-white px-6 py-3 rounded-xl text-center shadow-xl animate-pulse">
+                <p className="font-bold">⏳ In attesa per Bo3...</p>
+                <p className="text-sm text-purple-200">{bo3State.votes}/{bo3State.total} pronti</p>
+              </div>
+            ) : rematchState.voters.includes(playerName || '') ? (
               <div className="bg-yellow-900/90 border border-yellow-500 text-white px-6 py-3 rounded-xl text-center shadow-xl animate-pulse">
                 <p className="font-bold">⏳ In attesa degli altri...</p>
                 <p className="text-sm text-yellow-200">{rematchState.votes}/{rematchState.total} hanno accettato</p>
               </div>
             ) : (
-              <div className="flex gap-3">
-                <button
-                  onClick={() => socket.emit('request-rematch', { gameId, playerName })}
-                  className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 text-white font-bold px-6 py-3 rounded-xl shadow-xl shadow-orange-500/30 transition-all hover:scale-105 flex items-center gap-2"
-                >
-                  🔄 Rivincita!
-                </button>
+              <div className="flex flex-col items-center gap-2">
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => socket.emit('request-rematch', { gameId, playerName })}
+                    className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 text-white font-bold px-6 py-3 rounded-xl shadow-xl shadow-orange-500/30 transition-all hover:scale-105 flex items-center gap-2"
+                  >
+                    🔄 Rivincita!
+                  </button>
+                  <button
+                    onClick={() => socket.emit('request-bo3', { gameId, playerName })}
+                    className="bg-gradient-to-r from-purple-600 to-violet-700 hover:from-purple-500 hover:to-violet-600 text-white font-bold px-5 py-3 rounded-xl shadow-xl shadow-purple-500/30 transition-all hover:scale-105 flex items-center gap-2"
+                    title="Proponi serie Best of 3 — vince chi vince 2 partite"
+                  >
+                    🏆 Best of 3
+                  </button>
+                </div>
                 <button
                   onClick={() => socket.emit('decline-rematch', { gameId, playerName })}
-                  className="bg-gray-700/80 hover:bg-gray-600/80 text-white/70 hover:text-white font-medium px-4 py-3 rounded-xl transition-all text-sm"
+                  className="bg-gray-700/80 hover:bg-gray-600/80 text-white/70 hover:text-white font-medium px-4 py-2 rounded-xl transition-all text-sm"
                 >
                   No grazie
                 </button>

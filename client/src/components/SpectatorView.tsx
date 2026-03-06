@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Eye, Users, MessageSquare, X, Skull, Crown } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { ArrowLeft, Eye, Users, MessageSquare, X, Skull, Crown, Send } from 'lucide-react';
 import { socket } from '../lib/socket';
 import { CardAnimation } from './CardAnimation';
 import { CharacterEffects } from './CharacterEffects';
@@ -156,6 +156,10 @@ export function SpectatorView({ gameId, spectatorName, onLeave }: SpectatorViewP
   const [showChat, setShowChat] = useState(false);
   const [chatMessages, setChatMessages] = useState<Array<{ player: string; message: string; timestamp: number }>>([]);
   const [spectatorCount, setSpectatorCount] = useState(0);
+  const [showSpectatorChat, setShowSpectatorChat] = useState(false);
+  const [spectatorChatMessages, setSpectatorChatMessages] = useState<Array<{ id: string; spectatorName: string; message: string; timestamp: number }>>([]);
+  const [spectatorChatInput, setSpectatorChatInput] = useState('');
+  const spectatorChatEndRef = useRef<HTMLDivElement>(null);
   
   const [showCardAnimation, setShowCardAnimation] = useState(false);
   const [animationCardName, setAnimationCardName] = useState('');
@@ -260,12 +264,18 @@ export function SpectatorView({ gameId, spectatorName, onLeave }: SpectatorViewP
       setShowCharacterEffect(true);
     };
 
+    const handleSpectatorChatMessage = (data: { id: string; spectatorName: string; message: string; timestamp: number }) => {
+      setSpectatorChatMessages(prev => [...prev.slice(-99), data]);
+      setTimeout(() => spectatorChatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+    };
+
     socket.on('spectator-joined', handleSpectatorJoined);
     socket.on('spectator-error', handleSpectatorError);
     socket.on('game-state-update', handleGameStateUpdate);
     socket.on('chat-message', handleChatMessage);
     socket.on('spectator-joined-notification', handleSpectatorJoinedNotification);
     socket.on('spectator-left-notification', handleSpectatorLeftNotification);
+    socket.on('spectator-chat-message', handleSpectatorChatMessage);
     socket.on('card-animation-trigger', handleCardAnimationTrigger);
     socket.on('custom-animation-trigger', handleCustomAnimationTrigger);
     socket.on('card-attacked', handleCardAttacked);
@@ -283,6 +293,7 @@ export function SpectatorView({ gameId, spectatorName, onLeave }: SpectatorViewP
       socket.off('chat-message', handleChatMessage);
       socket.off('spectator-joined-notification', handleSpectatorJoinedNotification);
       socket.off('spectator-left-notification', handleSpectatorLeftNotification);
+      socket.off('spectator-chat-message', handleSpectatorChatMessage);
       socket.off('card-animation-trigger', handleCardAnimationTrigger);
       socket.off('custom-animation-trigger', handleCustomAnimationTrigger);
       socket.off('card-attacked', handleCardAttacked);
@@ -297,6 +308,13 @@ export function SpectatorView({ gameId, spectatorName, onLeave }: SpectatorViewP
   const handleLeave = () => {
     socket.emit('leave-spectator', { gameId, spectatorName });
     onLeave();
+  };
+
+  const sendSpectatorMessage = () => {
+    const msg = spectatorChatInput.trim();
+    if (!msg) return;
+    socket.emit('spectator-chat-message', { message: msg });
+    setSpectatorChatInput('');
   };
 
   const { regularCards, attachedCardsMap, cardsByPlayer } = useMemo(() => {
@@ -440,6 +458,7 @@ export function SpectatorView({ gameId, spectatorName, onLeave }: SpectatorViewP
             
             <button
               onClick={() => setShowChat(!showChat)}
+              title="Chat di gioco (sola lettura)"
               className={`p-2 sm:p-3 rounded-xl transition-colors border ${
                 showChat 
                   ? 'bg-purple-500/30 border-purple-500/50 text-purple-300' 
@@ -447,6 +466,23 @@ export function SpectatorView({ gameId, spectatorName, onLeave }: SpectatorViewP
               }`}
             >
               <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+
+            <button
+              onClick={() => setShowSpectatorChat(!showSpectatorChat)}
+              title="Chat Spettatori (solo tra spettatori)"
+              className={`p-2 sm:p-3 rounded-xl transition-colors border relative ${
+                showSpectatorChat
+                  ? 'bg-violet-500/30 border-violet-500/50 text-violet-300'
+                  : 'bg-slate-800/80 border-white/10 text-white hover:bg-slate-700/80'
+              }`}
+            >
+              <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
+              {spectatorChatMessages.length > 0 && !showSpectatorChat && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-violet-500 rounded-full text-white text-[9px] flex items-center justify-center font-bold">
+                  {Math.min(spectatorChatMessages.length, 9)}
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -643,9 +679,9 @@ export function SpectatorView({ gameId, spectatorName, onLeave }: SpectatorViewP
       <EmojiReactions gameId={gameId} playerName={spectatorName} />
 
       {showChat && (
-        <div className="fixed bottom-4 right-4 w-72 sm:w-80 bg-slate-800/95 backdrop-blur-sm rounded-2xl border border-white/10 shadow-2xl z-50">
+        <div className={`fixed bottom-4 w-72 sm:w-80 bg-slate-800/95 backdrop-blur-sm rounded-2xl border border-white/10 shadow-2xl z-50 ${showSpectatorChat ? 'right-[22rem] sm:right-[22rem]' : 'right-4'}`}>
           <div className="p-3 border-b border-white/10 flex items-center justify-between">
-            <span className="text-white font-medium text-sm">Chat della Partita</span>
+            <span className="text-white font-medium text-sm">💬 Chat di Gioco</span>
             <button onClick={() => setShowChat(false)} className="text-slate-400 hover:text-white">
               <X className="w-5 h-5" />
             </button>
@@ -661,6 +697,51 @@ export function SpectatorView({ gameId, spectatorName, onLeave }: SpectatorViewP
                 </div>
               ))
             )}
+          </div>
+        </div>
+      )}
+
+      {showSpectatorChat && (
+        <div className="fixed bottom-4 right-4 w-72 sm:w-80 bg-violet-900/95 backdrop-blur-sm rounded-2xl border border-violet-500/30 shadow-2xl z-50 flex flex-col">
+          <div className="p-3 border-b border-violet-500/30 flex items-center justify-between">
+            <span className="text-violet-200 font-medium text-sm flex items-center gap-1.5">
+              <Eye className="w-4 h-4 text-violet-400" />
+              Chat Spettatori
+            </span>
+            <button onClick={() => setShowSpectatorChat(false)} className="text-violet-400 hover:text-white">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="h-48 sm:h-56 overflow-y-auto p-3 space-y-2">
+            {spectatorChatMessages.length === 0 ? (
+              <p className="text-violet-400/60 text-center text-xs italic">Solo gli spettatori vedono questa chat</p>
+            ) : (
+              spectatorChatMessages.map((msg) => (
+                <div key={msg.id} className="text-sm">
+                  <span className={`font-medium ${msg.spectatorName === spectatorName ? 'text-violet-300' : 'text-violet-400'}`}>
+                    👁 {msg.spectatorName}:
+                  </span>
+                  <span className="text-white/90 ml-1.5">{msg.message}</span>
+                </div>
+              ))
+            )}
+            <div ref={spectatorChatEndRef} />
+          </div>
+          <div className="p-2 border-t border-violet-500/30 flex gap-2">
+            <input
+              className="flex-1 bg-violet-800/50 border border-violet-600/40 rounded-lg px-3 py-1.5 text-sm text-white placeholder-violet-400/50 focus:outline-none focus:border-violet-400"
+              placeholder="Scrivi agli spettatori..."
+              value={spectatorChatInput}
+              onChange={e => setSpectatorChatInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') sendSpectatorMessage(); }}
+              maxLength={200}
+            />
+            <button
+              onClick={sendSpectatorMessage}
+              className="bg-violet-600 hover:bg-violet-500 text-white rounded-lg px-3 py-1.5 transition-colors"
+            >
+              <Send className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Gamepad2, GraduationCap, Users, User, Trophy, Clock, Star, Award, Sparkles, Settings, Shuffle } from 'lucide-react';
+import { Gamepad2, GraduationCap, Users, User, Trophy, Clock, Star, Award, Sparkles, Settings, Shuffle, Shield } from 'lucide-react';
 import { TournamentPanel } from './TournamentPanel';
+import { ClubPanel } from './ClubPanel';
 import { SeasonalEventsPanel } from './SeasonalEventsPanel';
 import { RankiardLeaderboard } from './RankiardLeaderboard';
 
@@ -37,6 +38,7 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
   const [showTournaments, setShowTournaments] = useState(false);
   const [showSeasonalEvents, setShowSeasonalEvents] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showClubs, setShowClubs] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -119,6 +121,18 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
       badge: 'Competitivo',
       badgeIcon: Award,
       action: () => setShowTournaments(true)
+    },
+    {
+      id: 'clubs' as const,
+      title: 'Club',
+      subtitle: 'Gilde di giocatori e classifiche interne',
+      icon: Shield,
+      gradient: 'from-teal-600 via-cyan-500 to-blue-600',
+      hoverGradient: 'hover:from-teal-500 hover:via-cyan-400 hover:to-blue-500',
+      shadowColor: 'shadow-teal-500/30',
+      badge: 'Comunità',
+      badgeIcon: Shield,
+      action: () => setShowClubs(true)
     },
     {
       id: 'events' as const,
@@ -278,13 +292,22 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
       </div>
 
       {/* Tournament Panel */}
-      <TournamentPanel
-        isOpen={showTournaments}
-        onClose={() => setShowTournaments(false)}
-        authToken={localStorage.getItem('authToken')}
-        userId={userId}
-        onJoinMatch={onJoinTournamentMatch}
-      />
+      {showTournaments && (
+        <TournamentPanel
+          userId={userId || 0}
+          username={playerName}
+          onClose={() => setShowTournaments(false)}
+        />
+      )}
+
+      {/* Club Panel */}
+      {showClubs && (
+        <ClubPanel
+          userId={userId || 0}
+          username={playerName}
+          onClose={() => setShowClubs(false)}
+        />
+      )}
 
       {/* Seasonal Events Panel */}
       <SeasonalEventsPanel
