@@ -2508,7 +2508,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`ChooseSpecificCard result for ${playerName}:`, success);
         
         if (success) {
-          // Look up PERSONAGGI data using fast cache
+          // Look up PERSONAGGI data using fast cache, applying draft growth if applicable
           if (deckType === 'personaggi' || deckType === 'personaggi_speciali') {
             const game = gameManager.getGameState(gameId);
             const pickedCard = game?.players[playerName]?.hand.find((c: any) => c.id === cardId);
@@ -2517,7 +2517,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 const cardName = getCardNameFromImageUrl(pickedCard.frontImage).replace(/-/g, ' ');
                 const dbData = getPersonaggioFromCache(cardName);
                 if (dbData && dbData.pti !== null && dbData.stars !== null) {
-                  pickedCard.text = `PTI: ${dbData.pti} | Stelle: ${dbData.stars}`;
+                  const basePti = dbData.pti;
+                  const baseStars = dbData.stars;
+                  let finalPti = basePti;
+                  let finalStars = baseStars;
+                  // For draft personaggi cards, apply growth from DB
+                  if (pickedCard.draftBaseId && isDatabaseAvailable()) {
+                    const userId = (game as any)?.playerUserIds?.get(playerName);
+                    if (userId) {
+                      const growthRows = await db.select().from(draftCharacterGrowth)
+                        .where(and(eq(draftCharacterGrowth.userId, userId), eq(draftCharacterGrowth.cardId, pickedCard.draftBaseId)));
+                      if (growthRows.length > 0) {
+                        finalPti = basePti + (growthRows[0].extraPti ?? 0);
+                        finalStars = baseStars + (growthRows[0].extraStars ?? 0);
+                        console.log(`✅ choose-specific-card growth: ${pickedCard.draftBaseId} basePti=${basePti} +${growthRows[0].extraPti} → ${finalPti}, stars ${baseStars} +${growthRows[0].extraStars} → ${finalStars}`);
+                      }
+                    }
+                  }
+                  pickedCard.pti = finalPti;
+                  pickedCard.stars = finalStars;
+                  pickedCard.originalPti = basePti;
+                  pickedCard.text = `PTI: ${finalPti} | Stelle: ${finalStars} | PTI originali: ${basePti}`;
                 }
               } catch (error) {
                 console.error('Error querying cache for card on choose:', error);
