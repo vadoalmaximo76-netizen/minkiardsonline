@@ -336,86 +336,93 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="sell" className="h-full m-0 p-6 pt-2 flex flex-col gap-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 overflow-hidden">
-                <div className="flex flex-col gap-4 overflow-hidden">
-                  <h3 className="text-sm font-medium text-slate-400">Seleziona una carta dalla tua collezione</h3>
-                  <ScrollArea className="flex-1 bg-white/5 rounded-lg border border-white/10 p-4">
-                    {isLoadingCollection ? (
-                      <div className="flex items-center justify-center h-40">
-                        <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-2 gap-3">
-                        {myCollection.map((card) => (
-                          <div 
-                            key={card.cardId}
-                            onClick={() => setSelectedCardForSale(card.cardId)}
-                            className={cn(
-                              "p-2 rounded-lg border-2 cursor-pointer transition-all",
-                              selectedCardForSale === card.cardId 
-                                ? "bg-purple-500/20 border-purple-500" 
-                                : "bg-black/40 border-transparent hover:border-white/20"
-                            )}
-                          >
-                            <div className="aspect-[3/4] bg-slate-800 rounded mb-2 overflow-hidden relative">
-                              {card.cardImageUrl && <img src={card.cardImageUrl} className="w-full h-full object-cover" />}
-                              <Badge className="absolute top-1 right-1 h-5 px-1 bg-black/60">x{card.count}</Badge>
+            <TabsContent value="sell" className="h-full m-0 overflow-y-auto">
+              <div className="p-6 pt-2 flex flex-col gap-6 min-h-full">
+                <div className="flex flex-col lg:flex-row gap-6">
+                  <div className="flex-1 flex flex-col gap-3">
+                    <h3 className="text-sm font-medium text-slate-400">Seleziona una carta dalla tua collezione</h3>
+                    <div className="bg-white/5 rounded-lg border border-white/10 p-4">
+                      {isLoadingCollection ? (
+                        <div className="flex items-center justify-center h-40">
+                          <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+                        </div>
+                      ) : myCollection.length === 0 ? (
+                        <div className="text-center py-10 text-slate-500 text-sm">
+                          Non hai carte nella tua collezione.
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-72 overflow-y-auto">
+                          {myCollection.map((card) => (
+                            <div
+                              key={card.cardId}
+                              onClick={() => setSelectedCardForSale(card.cardId)}
+                              className={cn(
+                                "p-2 rounded-lg border-2 cursor-pointer transition-all",
+                                selectedCardForSale === card.cardId
+                                  ? "bg-purple-500/20 border-purple-500"
+                                  : "bg-black/40 border-transparent hover:border-white/20"
+                              )}
+                            >
+                              <div className="aspect-[3/4] bg-slate-800 rounded mb-2 overflow-hidden relative">
+                                {card.cardImageUrl && <img src={card.cardImageUrl} className="w-full h-full object-cover" />}
+                              </div>
+                              <div className="text-xs font-bold truncate">{card.cardName}</div>
+                              <Badge className={cn("text-[10px] h-4 mt-1 px-1", getRarityColor(card.cardRarity || "comune"))}>
+                                {card.cardRarity}
+                              </Badge>
                             </div>
-                            <div className="text-xs font-bold truncate">{card.cardName}</div>
-                            <Badge className={cn("text-[10px] h-4 mt-1 px-1", getRarityColor(card.cardRarity || "comune"))}>
-                              {card.cardRarity}
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {!isLoadingCollection && myCollection.length === 0 && (
-                      <div className="text-center py-10 text-slate-500 text-sm">
-                        Non hai carte nella tua collezione.
-                      </div>
-                    )}
-                  </ScrollArea>
-                </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-                <div className="bg-white/5 rounded-lg border border-white/10 p-6 flex flex-col gap-6 justify-center">
-                  <div className="space-y-4">
+                  <div className="lg:w-72 bg-white/5 rounded-lg border border-white/10 p-6 flex flex-col gap-6 justify-center">
+                    {selectedCardForSale && (() => {
+                      const card = myCollection.find(c => c.cardId === selectedCardForSale);
+                      return card ? (
+                        <div className="text-center">
+                          <div className="text-xs text-slate-400 mb-1">Carta selezionata</div>
+                          <div className="font-bold text-sm truncate">{card.cardName}</div>
+                          <Badge className={cn("text-[10px] mt-1", getRarityColor(card.cardRarity || "comune"))}>{card.cardRarity}</Badge>
+                        </div>
+                      ) : null;
+                    })()}
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-slate-300">Prezzo di vendita (50 - 5000 crediti)</label>
+                      <label className="text-sm font-medium text-slate-300">Prezzo (50 - 5000 crediti)</label>
                       <div className="flex items-center gap-3">
-                        <Input 
-                          type="number" 
-                          min={50} 
-                          max={5000} 
+                        <Input
+                          type="number"
+                          min={50}
+                          max={5000}
                           value={sellPrice}
                           onChange={(e) => setSellPrice(parseInt(e.target.value) || 0)}
                           className="bg-black/40 border-white/20"
                         />
-                        <span className="text-yellow-400 font-bold">CREDITI</span>
+                        <span className="text-yellow-400 font-bold text-sm">CR</span>
                       </div>
                     </div>
+                    <Button
+                      className="w-full h-12 text-base"
+                      disabled={!selectedCardForSale || sellPrice < 50 || sellPrice > 5000 || listMutation.isPending}
+                      onClick={() => {
+                        if (!selectedCardForSale) return;
+                        const card = myCollection.find(c => c.cardId === selectedCardForSale);
+                        if (!card) return;
+                        listMutation.mutate({
+                          cardId: card.cardId,
+                          cardName: card.cardName,
+                          cardType: card.cardType,
+                          cardRarity: card.cardRarity,
+                          cardImageUrl: card.cardImageUrl,
+                          priceCredits: sellPrice,
+                        });
+                      }}
+                    >
+                      {listMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Tag className="w-5 h-5 mr-2" />}
+                      Metti in vendita
+                    </Button>
                   </div>
-
-                  <Button 
-                    className="w-full h-12 text-lg" 
-                    disabled={!selectedCardForSale || sellPrice < 50 || sellPrice > 5000 || listMutation.isPending}
-                    onClick={() => {
-                      if (!selectedCardForSale) return;
-                      const card = myCollection.find(c => c.cardId === selectedCardForSale);
-                      if (!card) return;
-                      listMutation.mutate({
-                        cardId: card.cardId,
-                        cardName: card.cardName,
-                        cardType: card.cardType,
-                        cardRarity: card.cardRarity,
-                        cardImageUrl: card.cardImageUrl,
-                        priceCredits: sellPrice,
-                      });
-                    }}
-                  >
-                    {listMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Tag className="w-5 h-5 mr-2" />}
-                    Metti in vendita
-                  </Button>
                 </div>
               </div>
             </TabsContent>
