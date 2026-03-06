@@ -18456,6 +18456,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             message: `⏳💥 EFFETTO RITARDATO ATTIVATO! ${te.sourceCardName} di ${te.sourcePlayer}: ${actionDescs}`,
             timestamp: Date.now()
           });
+          io.to(gameId).emit('timed-effect-activated', {
+            cardName: te.sourceCardName || 'Carta Sconosciuta',
+            cardId: te.sourceCardId,
+            sourcePlayer: te.sourcePlayer,
+            description: actionDescs,
+            timestamp: Date.now()
+          });
         }
         
         // Resolve source card from field for context
@@ -18900,6 +18907,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             id: `${Date.now()}-timed-effect-trigger`,
             playerName: 'Sistema',
             message: `⏳💥 EFFETTO RITARDATO ATTIVATO! ${te.sourceCardName} di ${te.sourcePlayer}: ${actionDescs}`,
+            timestamp: Date.now()
+          });
+          io.to(gameId).emit('timed-effect-activated', {
+            cardName: te.sourceCardName || 'Carta Sconosciuta',
+            cardId: te.sourceCardId,
+            sourcePlayer: te.sourcePlayer,
+            description: actionDescs,
             timestamp: Date.now()
           });
         }

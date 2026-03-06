@@ -20,6 +20,7 @@ import { AddCardsModal } from "./AddCardsModal";
 import { PlayerOrderNotification } from "./PlayerOrderNotification";
 import { NextTurnNotification } from "./NextTurnNotification";
 import { LeaveGameNotification } from "./LeaveGameNotification";
+import { TimedEffectBanner } from "./TimedEffectBanner";
 import { SuperDice } from "./SuperDice";
 import { TransferRequestDialog } from "./TransferRequestDialog";
 import { DefenseDialog } from "./DefenseDialog";
@@ -123,6 +124,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [notificationPlayer, setNotificationPlayer] = useState<string>("");
   const [notificationCardCount, setNotificationCardCount] = useState<number>(0);
   const [notificationTitle, setNotificationTitle] = useState<string>("");
+  const [timedEffectBannerVisible, setTimedEffectBannerVisible] = useState(false);
+  const [timedEffectBannerCard, setTimedEffectBannerCard] = useState<string>("");
+  const [timedEffectBannerPlayer, setTimedEffectBannerPlayer] = useState<string>("");
+  const [timedEffectBannerDesc, setTimedEffectBannerDesc] = useState<string>("");
   const [unreadMessages, setUnreadMessages] = useState<number>(0);
   const [scenarioCardsActive, setScenarioCardsActive] = useState<boolean>(false);
   const [showRotationWarning, setShowRotationWarning] = useState(true);
@@ -971,7 +976,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('evolution-dice-roll', handleEvolutionDiceRoll);
     
+    const handleTimedEffectActivated = ({ cardName, sourcePlayer, description }: { cardName: string; sourcePlayer: string; description: string }) => {
+      setTimedEffectBannerCard(cardName);
+      setTimedEffectBannerPlayer(sourcePlayer);
+      setTimedEffectBannerDesc(description);
+      setTimedEffectBannerVisible(true);
+    };
+
     socket.on('graveyard-milestone', handleGraveyardMilestone);
+    socket.on('timed-effect-activated', handleTimedEffectActivated);
     socket.on('chat-message', handleChatMessage);
     socket.on('scenario-cards-toggled', handleScenarioCardsToggled);
     socket.on('card-attacked', handleCardAttacked);
@@ -1902,6 +1915,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('evolution-dice-roll', handleEvolutionDiceRoll);
       socket.off('dice-window-opened', handleDiceWindowOpen);
       socket.off('graveyard-milestone', handleGraveyardMilestone);
+      socket.off('timed-effect-activated', handleTimedEffectActivated);
       socket.off('chat-message', handleChatMessage);
       socket.off('scenario-cards-toggled', handleScenarioCardsToggled);
       socket.off('card-attacked', handleCardAttacked);
@@ -4259,6 +4273,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           cardCount={notificationCardCount}
           title={notificationTitle}
           onClose={() => setNotificationVisible(false)}
+        />
+
+        {/* Timed Effect Activated Banner */}
+        <TimedEffectBanner
+          isVisible={timedEffectBannerVisible}
+          cardName={timedEffectBannerCard}
+          sourcePlayer={timedEffectBannerPlayer}
+          description={timedEffectBannerDesc}
+          onClose={() => setTimedEffectBannerVisible(false)}
         />
 
         {/* Rankiard Modal */}
