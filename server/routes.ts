@@ -12053,6 +12053,60 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     }
   });
 
+  // POST /api/draft/deck/add-card - aggiunge una singola carta direttamente al mazzo
+  app.post('/api/draft/deck/add-card', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'User not found' });
+      const { cardId, deckType } = req.body;
+      if (!cardId || !deckType) return res.status(400).json({ error: 'cardId e deckType richiesti' });
+
+      const existing = await db.select().from(draftDecks).where(eq(draftDecks.userId, currentUser.id)).limit(1);
+      let personaggiCards: string[] = [];
+      let mosseCards: string[] = [];
+      let bonusCards: string[] = [];
+
+      if (existing.length > 0) {
+        personaggiCards = (existing[0].personaggiCards as string[]) || [];
+        mosseCards = (existing[0].mosseCards as string[]) || [];
+        bonusCards = (existing[0].bonusCards as string[]) || [];
+      }
+
+      if (deckType === 'personaggi' || deckType === 'personaggi_speciali') {
+        if (!personaggiCards.includes(cardId)) personaggiCards = [...personaggiCards, cardId];
+      } else if (deckType === 'mosse') {
+        if (!mosseCards.includes(cardId)) mosseCards = [...mosseCards, cardId];
+      } else if (deckType === 'bonus') {
+        if (!bonusCards.includes(cardId)) bonusCards = [...bonusCards, cardId];
+      } else {
+        return res.status(400).json({ error: 'deckType non valido' });
+      }
+
+      const isComplete = personaggiCards.length >= 33 && mosseCards.length >= 33 && bonusCards.length >= 33;
+
+      if (existing.length > 0) {
+        await db.update(draftDecks)
+          .set({ personaggiCards, mosseCards, bonusCards, isComplete, savedAt: new Date() })
+          .where(eq(draftDecks.userId, currentUser.id));
+      } else {
+        await db.insert(draftDecks).values({
+          userId: currentUser.id, personaggiCards, mosseCards, bonusCards, isComplete, totalCostSpent: 0,
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Carta aggiunta al mazzo',
+        counts: { personaggi: personaggiCards.length, mosse: mosseCards.length, bonus: bonusCards.length },
+      });
+    } catch (error) {
+      console.error('Error adding card to deck:', error);
+      res.status(500).json({ error: "Errore nell'aggiunta carta al mazzo" });
+    }
+  });
+
   // GET /api/draft/cards - all cards with their draft costs
   app.get('/api/draft/cards', async (req, res) => {
     try {
