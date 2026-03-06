@@ -12322,8 +12322,8 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
 
       const credits = await getOrCreateDraftCredits(currentUser.id);
       const totalAvailable = credits.freeCredits + credits.paidCredits + currentUser.puntiRankiard;
-      if (totalAvailable < 495) {
-        return res.status(400).json({ error: 'Crediti insufficienti per generare il mazzo iniziale.' });
+      if (totalAvailable < 1) {
+        return res.status(400).json({ error: 'Nessun credito disponibile per generare il mazzo.' });
       }
 
       // Build full card pool from CARD_DATA + modifications
@@ -12352,9 +12352,10 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         });
       }
 
-      // Algorithm: select 33 cards per type with total cost in [495, 500]
-      const TARGET_MIN = 495;
-      const TARGET_MAX = 500;
+      // Algorithm: select 33 cards per type with total cost in [TARGET_MIN, TARGET_MAX]
+      // Cap TARGET_MAX to what the user actually has so we never overspend
+      const TARGET_MAX = Math.min(500, totalAvailable);
+      const TARGET_MIN = Math.max(0, TARGET_MAX - 5);
       const COUNT = 33;
 
       const getRarity = (cost: number): string => {
@@ -12370,12 +12371,52 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         selectedByType[deck] = pool.slice(0, Math.min(COUNT, pool.length));
       }
 
-      // Upgrade cards greedily to reach target range [495, 500]
       const calcTotal = () => Object.values(selectedByType).flat().reduce((s, c) => s + c.draftCost, 0);
       let total = calcTotal();
-      const MAX_ITER = 3000;
+      const MAX_ITER = 5000;
       let iter = 0;
 
+      // Phase 1 (DOWNGRADE): if initial cheapest selection already exceeds budget, replace the
+      // most expensive selected card with the next cheapest available card not yet selected.
+      // This ensures the deck never exceeds TARGET_MAX (500) before we even try to upgrade.
+      while (total > TARGET_MAX && iter < MAX_ITER) {
+        iter++;
+        // Find the card with the highest cost across all types
+        let worstDeck = deckTypes[0];
+        let worstCost = -1;
+        let worstIdx = 0;
+        for (const deck of deckTypes) {
+          for (let i = 0; i < selectedByType[deck].length; i++) {
+            if (selectedByType[deck][i].draftCost > worstCost) {
+              worstCost = selectedByType[deck][i].draftCost;
+              worstDeck = deck;
+              worstIdx = i;
+            }
+          }
+        }
+        if (worstCost <= 0) break; // all cards are free, can't reduce further
+        const selectedIds = new Set(selectedByType[worstDeck].map(c => c.id));
+        // Find a cheaper alternative not already selected (prefer highest cost that still reduces total)
+        const cheaper = cardsByType[worstDeck]
+          .filter(c => !selectedIds.has(c.id) && c.draftCost < worstCost)
+          .sort((a, b) => b.draftCost - a.draftCost);
+        if (cheaper.length === 0) {
+          // No cheaper card available for this type — replace with the cheapest selected card (cost 0)
+          // by picking the cheapest free card we might have missed
+          const free = cardsByType[worstDeck].filter(c => !selectedIds.has(c.id) && c.draftCost === 0);
+          if (free.length > 0) {
+            selectedByType[worstDeck][worstIdx] = free[Math.floor(Math.random() * free.length)];
+          } else {
+            break; // truly stuck
+          }
+        } else {
+          selectedByType[worstDeck][worstIdx] = cheaper[0];
+        }
+        total = calcTotal();
+      }
+
+      // Phase 2 (UPGRADE): now that total <= 500, upgrade cheap cards to approach [495, 500]
+      iter = 0;
       while (total < TARGET_MIN && iter < MAX_ITER) {
         iter++;
         const deck = deckTypes[iter % 3];
@@ -12384,12 +12425,13 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         const notSelected = cardsByType[deck].filter(c => !selectedIds.has(c.id));
         if (notSelected.length === 0) continue;
 
-        // Find cheapest selected card
+        // Find cheapest selected card to replace
         const cheapestIdx = selected.reduce((minI, c, i, arr) => c.draftCost < arr[minI].draftCost ? i : minI, 0);
         const cheapest = selected[cheapestIdx];
-        const maxNewCost = TARGET_MAX - total + cheapest.draftCost;
+        const budget = TARGET_MAX - total;
+        const maxReplacementCost = cheapest.draftCost + budget;
 
-        const candidates = notSelected.filter(c => c.draftCost > cheapest.draftCost && c.draftCost <= maxNewCost);
+        const candidates = notSelected.filter(c => c.draftCost > cheapest.draftCost && c.draftCost <= maxReplacementCost);
         if (candidates.length === 0) continue;
         const candidate = candidates[Math.floor(Math.random() * candidates.length)];
         selected[cheapestIdx] = candidate;
@@ -12405,6 +12447,12 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       }
 
       const finalTotal = calcTotal();
+
+      // Safety guard: should never exceed available credits due to the algorithm above
+      if (finalTotal > totalAvailable) {
+        console.error(`generate-initial-deck: finalTotal ${finalTotal} exceeds totalAvailable ${totalAvailable}`);
+        return res.status(500).json({ error: 'Errore interno: il costo calcolato supera i crediti disponibili.' });
+      }
 
       // Deduct credits
       let remaining = finalTotal;

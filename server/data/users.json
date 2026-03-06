@@ -11,5 +11,18 @@
     "resetPasswordExpires": null,
     "id": 1,
     "createdAt": "2026-02-28T13:42:40.852Z"
+  },
+  {
+    "username": "Danny Spaccachiodi",
+    "email": "mircomartello1@gmail.com",
+    "password": "$2b$10$tu2gN9hptML41ZScWD6ltuOkzk9yg/FugFjP.gLjR57kD57ofAJtK",
+    "googleId": null,
+    "avatar": "lightning",
+    "puntiRankiard": 0,
+    "isAdmin": false,
+    "resetPasswordToken": null,
+    "resetPasswordExpires": null,
+    "id": 2,
+    "createdAt": "2026-03-06T20:45:15.264Z"
   }
 ]
