@@ -677,7 +677,16 @@ async function executeCpuDuelAttackSequence(
   
   const duelState2 = gameManager.getDuelState(gameId);
   if (!duelState2 || !duelState2.active) {
-    console.log(`⚔️ DUELLO: Duel ended after DUELLO attack, skipping follow-up MOSSE`);
+    // Check if the duel ended because opponent character died (moveToGraveyard handles endTurn)
+    const gs2check = gameManager.getGameState(gameId);
+    const opponentStillOnField = gs2check?.field?.find((c: any) => c.id === opponentCharacterId);
+    if (!opponentStillOnField) {
+      // Character died from DUELLO card → moveToGraveyard's 3500ms timeout handles endTurn
+      console.log(`⚔️ DUELLO: Opponent died from DUELLO card - death handler will advance turn`);
+      return;
+    }
+    // Duel ended for another reason (interruption, etc.) → manually end turn
+    console.log(`⚔️ DUELLO: Duel ended after DUELLO attack (no character death), ending turn`);
     const nxt = gameManager.endTurn(gameId, cpuName);
     if (nxt) {
       io.to(gameId).emit('next-turn', { nextPlayer: nxt });
@@ -736,6 +745,16 @@ async function executeCpuDuelAttackSequence(
         
         // Apply MOSSE damage DIRECTLY (bypass pendingDefense to avoid double duel turn switch)
         await gameManager.processMosseDamage(gameId, initiatorPlayer, opponentCharacterId, mosseDmg, mosseInHand.id, io, false, false, false, false, 0, undefined);
+        
+        // Check if duel ended (opponent character died from MOSSE attack)
+        const duelStateAfterMosse = gameManager.getDuelState(gameId);
+        if (!duelStateAfterMosse || !duelStateAfterMosse.active) {
+          console.log(`⚔️ DUELLO: Opponent died from follow-up MOSSE attack - moveToGraveyard will handle endTurn`);
+          gameManager.returnToDeck(gameId, mosseInHand.id, initiatorPlayer);
+          emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
+          return; // moveToGraveyard's 3500ms timeout handles endTurn
+        }
+        
         gameManager.returnToDeck(gameId, mosseInHand.id, initiatorPlayer);
         emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
       }
@@ -781,6 +800,16 @@ async function executeCpuDuelAttackSequence(
               timestamp: Date.now()
             });
             await gameManager.processMosseDamage(gameId, initiatorPlayer, opponentCharacterId, mosseDmg3b, drawnMosseCard.id, io, false, false, false, false, 0, undefined);
+            
+            // Check if duel ended (opponent character died from drawn MOSSE attack)
+            const duelStateAfterDrawnMosse = gameManager.getDuelState(gameId);
+            if (!duelStateAfterDrawnMosse || !duelStateAfterDrawnMosse.active) {
+              console.log(`⚔️ DUELLO: Opponent died from drawn MOSSE attack - moveToGraveyard will handle endTurn`);
+              gameManager.returnToDeck(gameId, drawnMosseCard.id, initiatorPlayer);
+              emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
+              return; // moveToGraveyard's 3500ms timeout handles endTurn
+            }
+            
             gameManager.returnToDeck(gameId, drawnMosseCard.id, initiatorPlayer);
             emitThrottledGameState(io, gameId, gameManager.getSanitizedGameState(gameId));
           }
@@ -792,6 +821,30 @@ async function executeCpuDuelAttackSequence(
   }
 
   await delay(1500);
+  
+  // Final check: if duel ended during our attacks (e.g., DUELLO card killed character), let moveToGraveyard handle endTurn
+  const finalDuelState = gameManager.getDuelState(gameId);
+  if (!finalDuelState || !finalDuelState.active) {
+    // Duel already ended - check if it was due to character death (moveToGraveyard handles endTurn)
+    // or some other reason where we need to end the turn manually
+    const freshGs = gameManager.getGameState(gameId);
+    const nowCurrentPlayer = freshGs?.turnOrder[freshGs?.currentTurnIndex];
+    if (nowCurrentPlayer === cpuName) {
+      console.log(`⚔️ DUELLO: Duel ended, CPU still has turn - manually ending turn`);
+      const nxt = gameManager.endTurn(gameId, cpuName);
+      if (nxt) {
+        io.to(gameId).emit('next-turn', { nextPlayer: nxt });
+        const gs = gameManager.getGameState(gameId);
+        if (gs && gs.players[nxt]?.isCPU) {
+          setTimeout(() => gameManager.processCPUTurn(gameId, nxt, io), 2000);
+        }
+      }
+    } else {
+      console.log(`⚔️ DUELLO: Duel ended, turn already advanced to ${nowCurrentPlayer} - no action needed`);
+    }
+    return;
+  }
+  
   const nxt = gameManager.endTurn(gameId, cpuName);
   if (nxt) {
     io.to(gameId).emit('next-turn', { nextPlayer: nxt });

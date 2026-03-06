@@ -155,7 +155,7 @@ function SellTabContent({ onListSuccess }: SellTabContentProps) {
   const card = collection.find(c => c.cardId === selectedCard);
 
   return (
-    <div className="p-6 pt-2 flex flex-col gap-6 h-full overflow-y-auto">
+    <div className="p-6 pt-2 flex flex-col gap-6">
       <div className="flex flex-col lg:flex-row gap-6">
         <div className="flex-1 flex flex-col gap-3">
           <div className="flex items-center justify-between">
@@ -457,7 +457,7 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="sell" className="h-full m-0">
+            <TabsContent value="sell" className="h-full m-0 overflow-y-auto">
               <SellTabContent
                 onListSuccess={() => {
                   loadMyListings();
