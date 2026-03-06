@@ -24,7 +24,6 @@ interface MarketplaceProps {
   userId: number;
   username: string;
   onClose: () => void;
-  preloadedCollection?: UserCard[];
 }
 
 interface Listing {
@@ -56,7 +55,7 @@ function getAuthHeaders(): Record<string, string> {
     : { 'Content-Type': 'application/json' };
 }
 
-export function Marketplace({ userId, username, onClose, preloadedCollection }: MarketplaceProps) {
+export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
   const [activeTab, setActiveTab] = React.useState("explore");
   const [filterType, setFilterType] = React.useState<string>("ALL");
   const [filterRarity, setFilterRarity] = React.useState<string>("ALL");
@@ -95,9 +94,14 @@ export function Marketplace({ userId, username, onClose, preloadedCollection }: 
   const loadCollection = React.useCallback(async () => {
     setIsLoadingCollection(true);
     try {
+      const token = localStorage.getItem('authToken');
+      const headers: Record<string, string> = {
+        'Cache-Control': 'no-cache',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
       const [collectionRes, cardsRes] = await Promise.all([
-        fetch("/api/draft/collection", { headers: getAuthHeaders() }),
-        fetch("/api/draft/cards"),
+        fetch("/api/draft/collection", { headers, cache: 'no-store' }),
+        fetch("/api/draft/cards", { cache: 'no-store' }),
       ]);
       if (!collectionRes.ok) return;
       const collection: Array<{ cardId: string; deckType: string; rarity: string }> = await collectionRes.json();
@@ -108,8 +112,8 @@ export function Marketplace({ userId, username, onClose, preloadedCollection }: 
         return {
           cardId: item.cardId,
           cardName: meta?.name || item.cardId,
-          cardType: item.deckType,
-          cardRarity: item.rarity,
+          cardType: item.deckType || meta?.deckType || '',
+          cardRarity: item.rarity || 'comune',
           cardImageUrl: meta?.imageUrl,
           count: 1,
         };
@@ -119,15 +123,12 @@ export function Marketplace({ userId, username, onClose, preloadedCollection }: 
   }, []);
 
   React.useEffect(() => {
-    if (activeTab === "sell") {
-      if (preloadedCollection) {
-        setMyCollection(preloadedCollection);
-      } else {
-        loadCollection();
-      }
-    }
+    loadCollection();
+  }, []);
+
+  React.useEffect(() => {
     if (activeTab === "mine") loadMyListings();
-  }, [activeTab, loadCollection, loadMyListings, preloadedCollection]);
+  }, [activeTab, loadMyListings]);
 
   const buyMutation = useMutation({
     mutationFn: async (listingId: number) => {
