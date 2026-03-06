@@ -40,6 +40,7 @@ import { YouTubeVideoModal } from "./YouTubeVideoModal";
 import { PickedCardModal } from "./PickedCardModal";
 import { SorosActivation } from "./SorosActivation";
 import { CharacterEffects } from "./CharacterEffects";
+import { getDamageEffectType, AttackEffectType } from "../lib/attackEffects";
 import { trackGameStarted, trackGameEnded, trackCardPlayed, trackFeatureUsed, identifyPlayer, trackVoiceChatUsed } from "../lib/posthog";
 import { TutorialOverlay } from "./TutorialOverlay";
 import { AdBanner, InterstitialAd } from "./AdBanner";
@@ -277,6 +278,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
   const [attackEffectVisible, setAttackEffectVisible] = useState(false);
   const [attackedCharacterName, setAttackedCharacterName] = useState<string>("");
+  const [attackEffectType, setAttackEffectType] = useState<AttackEffectType>('physical');
   const [attackSlash3D, setAttackSlash3D] = useState<{ visible: boolean; attackerName: string; targetName: string; damage: number }>({ visible: false, attackerName: '', targetName: '', damage: 0 });
   const [cinematicFlash, setCinematicFlash] = useState<{ visible: boolean; type: 'attack' | 'heal' }>({ visible: false, type: 'attack' });
   const [cardShatter3D, setCardShatter3D] = useState<{ visible: boolean; cardImage: string; cardName: string }>({ visible: false, cardImage: '', cardName: '' });
@@ -702,6 +704,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       const dmg = damageValue || 0;
       console.log(`${attacker} attacked ${defender}'s ${target} for ${dmg} damage`);
       setAttackedCharacterName(target);
+      setAttackEffectType(getDamageEffectType(dmg));
       setAttackEffectVisible(false);
       setTimeout(() => {
         setAttackEffectKey(prev => prev + 1);
@@ -794,6 +797,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
     const handleSpecialMoveOverlay = (data: { moveName: string; damage: number; attackerName: string; playerName: string; category: string | null }) => {
       console.log(`💥 Special move overlay: ${data.attackerName} uses ${data.moveName} for ${data.damage} damage`);
+      setAttackEffectType(getDamageEffectType(data.damage, data.moveName));
       setSpecialMoveOverlay({
         visible: true,
         moveName: data.moveName,
@@ -4117,7 +4121,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         <CharacterEffects
           key={`attack-${attackEffectKey}`}
           isVisible={attackEffectVisible}
-          effectType="attack"
+          effectType={attackEffectType}
           characterName={attackedCharacterName}
           onComplete={() => setAttackEffectVisible(false)}
         />
