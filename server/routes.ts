@@ -13780,10 +13780,48 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       await db.update(userDraftCredits).set({ freeCredits: sql`free_credits + ${listing.priceCredits}` })
         .where(eq(userDraftCredits.userId, listing.sellerId));
 
-      // Transfer card: ensure buyer has it in collection
+      // Transfer card: add to buyer's collection registry
       await db.insert(userCardCollection).values({
         userId: currentUser.id, cardId: listing.cardId, deckType: listing.cardType, rarity: listing.cardRarity,
       }).onConflictDoNothing();
+
+      // Add card to buyer's active draft deck
+      const buyerDeckRows = await db.select().from(draftDecks).where(eq(draftDecks.userId, currentUser.id)).limit(1);
+      let bPersonaggi: string[] = [];
+      let bMosse: string[] = [];
+      let bBonus: string[] = [];
+      if (buyerDeckRows.length > 0) {
+        bPersonaggi = (buyerDeckRows[0].personaggiCards as string[]) || [];
+        bMosse = (buyerDeckRows[0].mosseCards as string[]) || [];
+        bBonus = (buyerDeckRows[0].bonusCards as string[]) || [];
+      }
+      const cardType = listing.cardType;
+      if (cardType === 'personaggi' || cardType === 'personaggi_speciali') {
+        if (!bPersonaggi.includes(listing.cardId)) bPersonaggi = [...bPersonaggi, listing.cardId];
+      } else if (cardType === 'mosse') {
+        if (!bMosse.includes(listing.cardId)) bMosse = [...bMosse, listing.cardId];
+      } else if (cardType === 'bonus') {
+        if (!bBonus.includes(listing.cardId)) bBonus = [...bBonus, listing.cardId];
+      }
+      const bIsComplete = bPersonaggi.length >= 33 && bMosse.length >= 33 && bBonus.length >= 33;
+      if (buyerDeckRows.length > 0) {
+        await db.update(draftDecks).set({ personaggiCards: bPersonaggi, mosseCards: bMosse, bonusCards: bBonus, isComplete: bIsComplete, savedAt: new Date() })
+          .where(eq(draftDecks.userId, currentUser.id));
+      } else {
+        await db.insert(draftDecks).values({ userId: currentUser.id, personaggiCards: bPersonaggi, mosseCards: bMosse, bonusCards: bBonus, isComplete: bIsComplete, totalCostSpent: 0 });
+      }
+
+      // Remove card from seller's collection and deck
+      await db.delete(userCardCollection).where(and(eq(userCardCollection.userId, listing.sellerId), eq(userCardCollection.cardId, listing.cardId)));
+      const sellerDeckRows = await db.select().from(draftDecks).where(eq(draftDecks.userId, listing.sellerId)).limit(1);
+      if (sellerDeckRows.length > 0) {
+        const sPersonaggi = ((sellerDeckRows[0].personaggiCards as string[]) || []).filter((id: string) => id !== listing.cardId);
+        const sMosse = ((sellerDeckRows[0].mosseCards as string[]) || []).filter((id: string) => id !== listing.cardId);
+        const sBonus = ((sellerDeckRows[0].bonusCards as string[]) || []).filter((id: string) => id !== listing.cardId);
+        const sIsComplete = sPersonaggi.length >= 33 && sMosse.length >= 33 && sBonus.length >= 33;
+        await db.update(draftDecks).set({ personaggiCards: sPersonaggi, mosseCards: sMosse, bonusCards: sBonus, isComplete: sIsComplete, savedAt: new Date() })
+          .where(eq(draftDecks.userId, listing.sellerId));
+      }
 
       // Mark listing as sold
       await db.update(cardTradeListings).set({ status: 'sold' }).where(eq(cardTradeListings.id, listingId));
@@ -13793,6 +13831,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         listingId, buyerId: currentUser.id, buyerName: currentUser.username, creditsSpent: listing.priceCredits,
       });
 
+      console.log(`✅ Marketplace sale: ${listing.cardName} (${listing.cardId}) sold by ${listing.sellerName} to ${currentUser.username} for ${listing.priceCredits} crediti`);
       res.json({ success: true, cardName: listing.cardName });
     } catch (error) {
       console.error('Error buying card:', error);
