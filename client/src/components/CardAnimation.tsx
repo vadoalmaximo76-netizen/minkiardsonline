@@ -287,12 +287,15 @@ export const CardAnimation: React.FC<CardAnimationProps> = ({
   cardName,
   onComplete
 }) => {
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
   useEffect(() => {
     if (isVisible) {
-      const timer = setTimeout(onComplete, 1500);
+      const timer = setTimeout(() => onCompleteRef.current(), 3000);
       return () => clearTimeout(timer);
     }
-  }, [isVisible, onComplete]);
+  }, [isVisible]);
 
   if (!isVisible) return null;
 
