@@ -7,7 +7,7 @@ import jwt from "jsonwebtoken";
 import fs from "fs";
 import path from "path";
 import { db, legacyDb, isDatabaseAvailable, isLegacyDbAvailable } from "./db";
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings } from "../shared/schema";
 import { jsonStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray } from "drizzle-orm";
 import { CARD_DATA } from "../client/src/lib/cardData";
@@ -12016,12 +12016,19 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       }
       const isComplete = personaggiCards.length >= 33 && mosseCards.length >= 33 && bonusCards.length >= 33;
       // Calculate total cost: base cards use cardModifications, custom cards use customCards table
+      // Cards in user's collection (obtained via packs) are free
       const allCardIds = [...personaggiCards, ...mosseCards, ...bonusCards];
       const allMods = jsonStorage.cardModifications.getAll();
       const costMap = new Map(allMods.map((m: any) => [m.originalCardId, (m.draftCost as number) || 0]));
       const allCustom = jsonStorage.customCards.getAll() as any[];
       const customCostMap = new Map(allCustom.map((c: any) => [`custom-${c.id}`, (c.draftCost as number) || 0]));
+      // Fetch owned cards (from pack openings) — these cost 0
+      const ownedRows = isDatabaseAvailable()
+        ? await db.select({ cardId: userCardCollection.cardId }).from(userCardCollection).where(eq(userCardCollection.userId, currentUser.id))
+        : [];
+      const ownedSet = new Set(ownedRows.map(r => r.cardId));
       const totalCostSpent = allCardIds.reduce((sum, id) => {
+        if (ownedSet.has(id)) return sum; // owned cards are free
         if (id.startsWith('custom-')) return sum + (customCostMap.get(id) || 0);
         return sum + (costMap.get(id) || 0);
       }, 0);
@@ -12153,6 +12160,242 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       res.json({ success: true, purchaseId: purchase.id, message: 'Acquisto registrato. I crediti saranno aggiunti dopo approvazione admin.' });
     } catch (error) {
       res.status(500).json({ error: 'Errore nella creazione acquisto' });
+    }
+  });
+
+  // ===== CARD PACK SYSTEM =====
+
+  const PACK_TYPES = [
+    {
+      id: 'bronzo',
+      name: 'Pacchetto Bronzo',
+      creditsRequired: 150,
+      cardCount: 5,
+      description: 'Il pacchetto base per iniziare la tua collezione',
+      gradient: 'linear-gradient(135deg, #92400e, #b45309, #d97706)',
+      glowColor: '#b45309',
+      composition: '4 Comuni + 1 Rara',
+      slots: [
+        { rarity: 'comune' }, { rarity: 'comune' }, { rarity: 'comune' }, { rarity: 'comune' },
+        { rarity: 'rara' },
+      ],
+    },
+    {
+      id: 'argento',
+      name: 'Pacchetto Argento',
+      creditsRequired: 400,
+      cardCount: 7,
+      description: 'Più carte rare per ampliare il tuo mazzo',
+      gradient: 'linear-gradient(135deg, #374151, #6b7280, #9ca3af)',
+      glowColor: '#9ca3af',
+      composition: '3 Comuni + 3 Rare + 1 Epica',
+      slots: [
+        { rarity: 'comune' }, { rarity: 'comune' }, { rarity: 'comune' },
+        { rarity: 'rara' }, { rarity: 'rara' }, { rarity: 'rara' },
+        { rarity: 'epica' },
+      ],
+    },
+    {
+      id: 'oro',
+      name: 'Pacchetto Oro',
+      creditsRequired: 900,
+      cardCount: 10,
+      description: 'Carte potenti con possibilità di leggendarie',
+      gradient: 'linear-gradient(135deg, #78350f, #d97706, #fbbf24)',
+      glowColor: '#f59e0b',
+      composition: '3 Comuni + 4 Rare + 2 Epiche + 1 Leggendaria',
+      slots: [
+        { rarity: 'comune' }, { rarity: 'comune' }, { rarity: 'comune' },
+        { rarity: 'rara' }, { rarity: 'rara' }, { rarity: 'rara' }, { rarity: 'rara' },
+        { rarity: 'epica' }, { rarity: 'epica' },
+        { rarity: 'leggendaria' },
+      ],
+    },
+    {
+      id: 'diamante',
+      name: 'Pacchetto Diamante',
+      creditsRequired: 2000,
+      cardCount: 12,
+      description: 'Le carte più potenti del gioco garantite',
+      gradient: 'linear-gradient(135deg, #1e3a5f, #1d4ed8, #38bdf8)',
+      glowColor: '#38bdf8',
+      composition: '2 Comuni + 4 Rare + 4 Epiche + 2 Leggendarie',
+      slots: [
+        { rarity: 'comune' }, { rarity: 'comune' },
+        { rarity: 'rara' }, { rarity: 'rara' }, { rarity: 'rara' }, { rarity: 'rara' },
+        { rarity: 'epica' }, { rarity: 'epica' }, { rarity: 'epica' }, { rarity: 'epica' },
+        { rarity: 'leggendaria' }, { rarity: 'leggendaria' },
+      ],
+    },
+  ];
+
+  const RARITY_COST_RANGES: Record<string, { min: number; max: number }> = {
+    comune:      { min: 1,  max: 20 },
+    rara:        { min: 21, max: 40 },
+    epica:       { min: 41, max: 65 },
+    leggendaria: { min: 66, max: 999 },
+  };
+
+  function buildCardPoolByRarity(): Record<string, Array<{ cardId: string; deckType: string; draftCost: number; frontImage: string; name: string }>> {
+    const pool: Record<string, Array<{ cardId: string; deckType: string; draftCost: number; frontImage: string; name: string }>> = {
+      comune: [], rara: [], epica: [], leggendaria: [],
+    };
+    const allMods = jsonStorage.cardModifications.getAll();
+    const modMap = new Map(allMods.map((m: any) => [m.originalCardId, m]));
+
+    const extractName = (url: string) => {
+      const parts = url.split('/');
+      const filename = parts[parts.length - 1];
+      return decodeURIComponent(filename).replace(/\.(png|jpg|jpeg|gif|webp)$/i, '').replace(/[-_]/g, ' ').trim();
+    };
+
+    const deckTypes = ['personaggi', 'mosse', 'bonus'] as const;
+    for (const deckType of deckTypes) {
+      const urls: string[] = (CARD_DATA as any)[deckType] || [];
+      urls.forEach((imageUrl: string, index: number) => {
+        const cardId = `${deckType}-${index}`;
+        const mod = modMap.get(cardId);
+        if (mod?.isDeleted) return;
+        const draftCost = (mod as any)?.draftCost ?? 0;
+        const rarity = draftCost >= 66 ? 'leggendaria'
+          : draftCost >= 41 ? 'epica'
+          : draftCost >= 21 ? 'rara'
+          : 'comune';
+        pool[rarity].push({
+          cardId,
+          deckType,
+          draftCost,
+          frontImage: (mod as any)?.imageUrl || imageUrl,
+          name: mod?.name || extractName(imageUrl),
+        });
+      });
+    }
+    return pool;
+  }
+
+  // GET /api/draft/packs - list available packs with user's credit balance
+  app.get('/api/draft/packs', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!isDatabaseAvailable()) {
+        return res.json({ packs: PACK_TYPES, credits: { freeCredits: 0, paidCredits: 0, total: 0 } });
+      }
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'User not found' });
+      const credits = await getOrCreateDraftCredits(currentUser.id);
+      const total = credits.freeCredits + credits.paidCredits + currentUser.puntiRankiard;
+      res.json({ packs: PACK_TYPES, credits: { freeCredits: credits.freeCredits, paidCredits: credits.paidCredits, rankiardPoints: currentUser.puntiRankiard, total } });
+    } catch (error) {
+      res.status(500).json({ error: 'Errore nel recupero pacchetti' });
+    }
+  });
+
+  // POST /api/draft/open-pack - buy and open a pack
+  app.post('/api/draft/open-pack', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'User not found' });
+
+      const { packId } = req.body;
+      const pack = PACK_TYPES.find(p => p.id === packId);
+      if (!pack) return res.status(400).json({ error: 'Pacchetto non valido' });
+
+      const credits = await getOrCreateDraftCredits(currentUser.id);
+      const totalAvailable = credits.freeCredits + credits.paidCredits + currentUser.puntiRankiard;
+      if (totalAvailable < pack.creditsRequired) {
+        return res.status(400).json({ error: `Crediti insufficienti. Servono ${pack.creditsRequired} crediti.` });
+      }
+
+      // Build card pool by rarity
+      const cardPool = buildCardPoolByRarity();
+
+      // Pick random cards for each slot, avoiding duplicates within the pack
+      const usedCardIds = new Set<string>();
+      const pickedCards: Array<{ cardId: string; deckType: string; rarity: string; frontImage: string; name: string; draftCost: number }> = [];
+
+      for (const slot of pack.slots) {
+        const pool = cardPool[slot.rarity] || cardPool['comune'];
+        const available = pool.filter(c => !usedCardIds.has(c.cardId));
+        if (available.length === 0) {
+          const fallback = Object.values(cardPool).flat().filter(c => !usedCardIds.has(c.cardId));
+          if (fallback.length === 0) continue;
+          const chosen = fallback[Math.floor(Math.random() * fallback.length)];
+          usedCardIds.add(chosen.cardId);
+          pickedCards.push({ ...chosen, rarity: slot.rarity });
+        } else {
+          const chosen = available[Math.floor(Math.random() * available.length)];
+          usedCardIds.add(chosen.cardId);
+          pickedCards.push({ ...chosen, rarity: slot.rarity });
+        }
+      }
+
+      // Deduct credits: use paidCredits first, then freeCredits
+      let remaining = pack.creditsRequired;
+      let newPaid = credits.paidCredits;
+      let newFree = credits.freeCredits;
+      let rankiardDeducted = 0;
+      if (newPaid >= remaining) {
+        newPaid -= remaining;
+        remaining = 0;
+      } else {
+        remaining -= newPaid;
+        newPaid = 0;
+        if (newFree >= remaining) {
+          newFree -= remaining;
+          remaining = 0;
+        } else {
+          remaining -= newFree;
+          newFree = 0;
+          rankiardDeducted = remaining;
+        }
+      }
+      await db.update(userDraftCredits).set({ paidCredits: newPaid, freeCredits: newFree, updatedAt: new Date() })
+        .where(eq(userDraftCredits.userId, currentUser.id));
+      if (rankiardDeducted > 0) {
+        await db.update(users).set({ puntiRankiard: Math.max(0, currentUser.puntiRankiard - rankiardDeducted) })
+          .where(eq(users.id, currentUser.id));
+      }
+
+      // Add cards to user's collection (ignore duplicates via conflict handling)
+      for (const card of pickedCards) {
+        try {
+          await db.insert(userCardCollection).values({
+            userId: currentUser.id,
+            cardId: card.cardId,
+            deckType: card.deckType,
+            rarity: card.rarity,
+          }).onConflictDoNothing();
+        } catch (_) {}
+      }
+
+      // Record pack opening
+      await db.insert(draftPackOpenings).values({
+        userId: currentUser.id,
+        packId,
+        creditsSpent: pack.creditsRequired,
+        cardsObtained: pickedCards,
+      });
+
+      res.json({ success: true, cards: pickedCards });
+    } catch (error: any) {
+      console.error('Error opening pack:', error);
+      res.status(500).json({ error: 'Errore nell\'apertura del pacchetto' });
+    }
+  });
+
+  // GET /api/draft/collection - get user's owned cards
+  app.get('/api/draft/collection', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json([]);
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'User not found' });
+      const collection = await db.select().from(userCardCollection).where(eq(userCardCollection.userId, currentUser.id));
+      res.json(collection);
+    } catch (error) {
+      res.status(500).json({ error: 'Errore nel recupero collezione' });
     }
   });
 

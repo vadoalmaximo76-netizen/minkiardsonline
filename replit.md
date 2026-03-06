@@ -4,6 +4,8 @@ MINKIARDS is a real-time multiplayer online card game built with React and Expre
 
 The game supports two play modes: **Classic** (shared central decks) and **Draft** (each player builds and uses a personal 33+33+33 deck using a credit system). A global leaderboard is accessible from the home screen. After a match ends, players can vote for an automatic rematch. An inactivity timer (30s per turn) automatically ends the turn if the active player doesn't act. Players can challenge each other directly from the leaderboard.
 
+The Draft mode includes a **Card Pack System**: players can spend credits to open card packs (Bronzo/Argento/Oro/Diamante) containing random cards sorted by rarity tiers (Comune/Rara/Epica/Leggendaria). Opening a pack triggers a premium FIFA-style full-screen animation with 3D card flips and rarity glow effects. Cards obtained from packs are stored in the user's collection and are free to use in the deck builder.
+
 # User Preferences
 
 Preferred communication style: Simple, everyday language.

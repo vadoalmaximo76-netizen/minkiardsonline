@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -635,6 +635,28 @@ export const creditPurchases = pgTable("credit_purchases", {
   processedAt: timestamp("processed_at"),
 });
 
+// Cards obtained by user via pack openings (owned collection)
+export const userCardCollection = pgTable("user_card_collection", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  cardId: text("card_id").notNull(),
+  deckType: text("deck_type").notNull(),
+  rarity: text("rarity").notNull().default("comune"),
+  obtainedAt: timestamp("obtained_at").notNull().defaultNow(),
+}, (table) => ({
+  userCardUnique: uniqueIndex("user_card_unique_idx").on(table.userId, table.cardId),
+}));
+
+// History of pack openings
+export const draftPackOpenings = pgTable("draft_pack_openings", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  packId: text("pack_id").notNull(),
+  creditsSpent: integer("credits_spent").notNull(),
+  cardsObtained: jsonb("cards_obtained").notNull().default([]),
+  openedAt: timestamp("opened_at").notNull().defaultNow(),
+});
+
 export const insertUserDraftCreditsSchema = createInsertSchema(userDraftCredits).omit({ id: true, updatedAt: true });
 export const insertDraftDeckSchema = createInsertSchema(draftDecks).omit({ id: true, savedAt: true });
 export const insertCreditPurchaseSchema = createInsertSchema(creditPurchases).omit({ id: true, createdAt: true, processedAt: true });
@@ -642,3 +664,5 @@ export const insertCreditPurchaseSchema = createInsertSchema(creditPurchases).om
 export type UserDraftCredits = typeof userDraftCredits.$inferSelect;
 export type DraftDeck = typeof draftDecks.$inferSelect;
 export type CreditPurchase = typeof creditPurchases.$inferSelect;
+export type UserCardCollection = typeof userCardCollection.$inferSelect;
+export type DraftPackOpening = typeof draftPackOpenings.$inferSelect;

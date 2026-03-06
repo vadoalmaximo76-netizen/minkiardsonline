@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ArrowLeft, Shuffle, ShoppingCart, CreditCard, Search, Plus, Minus, CheckCircle, AlertCircle, Coins, Users, Swords, Zap, Package, Check, Trophy, X, SortAsc, SortDesc, Sparkles, Trash2, Filter } from 'lucide-react';
+import { ArrowLeft, Shuffle, ShoppingCart, CreditCard, Search, Plus, Minus, CheckCircle, AlertCircle, Coins, Users, Swords, Zap, Package, Check, Trophy, X, SortAsc, SortDesc, Sparkles, Trash2, Filter, Gift, Star, Lock } from 'lucide-react';
+import { PackOpeningAnimation, PackType, RevealedCard } from './PackOpeningAnimation';
 
 interface DraftSectionProps {
   onBack: () => void;
@@ -14,6 +15,7 @@ interface DraftCard {
   pti?: number;
   stars?: number;
   draftCost: number;
+  userOwns?: boolean;
 }
 
 interface DraftStatus {
@@ -65,7 +67,7 @@ function getAuthHeaders(): Record<string, string> {
 }
 
 export function DraftSection({ onBack, playerName }: DraftSectionProps) {
-  const [activeTab, setActiveTab] = useState<'deck' | 'shop' | 'credits'>('deck');
+  const [activeTab, setActiveTab] = useState<'deck' | 'shop' | 'credits' | 'packs'>('deck');
   const [status, setStatus] = useState<DraftStatus | null>(null);
   const [allCards, setAllCards] = useState<DraftCard[]>([]);
   const [selectedCards, setSelectedCards] = useState<{ personaggi: string[]; mosse: string[]; bonus: string[] }>({ personaggi: [], mosse: [], bonus: [] });
@@ -81,6 +83,31 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
   const [purchaseMsg, setPurchaseMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [purchases, setPurchases] = useState<CreditPurchaseHistory[]>([]);
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
+  const [availablePacks, setAvailablePacks] = useState<PackType[]>([]);
+  const [ownedCardIds, setOwnedCardIds] = useState<Set<string>>(new Set());
+  const [openingPackId, setOpeningPackId] = useState<string | null>(null);
+  const [packAnimation, setPackAnimation] = useState<{ pack: PackType; cards: RevealedCard[] } | null>(null);
+  const [packError, setPackError] = useState<string | null>(null);
+
+  const fetchCollection = useCallback(async () => {
+    try {
+      const res = await fetch('/api/draft/collection', { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setOwnedCardIds(new Set((Array.isArray(data) ? data : []).map((c: any) => c.cardId)));
+      }
+    } catch (e) {}
+  }, []);
+
+  const fetchPacks = useCallback(async () => {
+    try {
+      const res = await fetch('/api/draft/packs', { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.packs) setAvailablePacks(data.packs);
+      }
+    } catch (e) {}
+  }, []);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -126,15 +153,47 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
   useEffect(() => {
     fetchAll();
     fetchPurchaseHistory();
-  }, [fetchAll, fetchPurchaseHistory]);
+    fetchCollection();
+    fetchPacks();
+  }, [fetchAll, fetchPurchaseHistory, fetchCollection, fetchPacks]);
+
+  const openPack = async (pack: PackType) => {
+    setOpeningPackId(pack.id);
+    setPackError(null);
+    try {
+      const res = await fetch('/api/draft/open-pack', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ packId: pack.id }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setPackAnimation({ pack, cards: data.cards as RevealedCard[] });
+      } else {
+        setPackError(data.error || 'Errore nell\'apertura del pacchetto');
+      }
+    } catch (e: any) {
+      setPackError(e.message || 'Errore di rete');
+    } finally {
+      setOpeningPackId(null);
+    }
+  };
+
+  const handleAnimationClose = () => {
+    setPackAnimation(null);
+    fetchAll();
+    fetchCollection();
+    fetchPacks();
+  };
 
   const totalCostSelected = useCallback(() => {
     const allSelected = [...selectedCards.personaggi, ...selectedCards.mosse, ...selectedCards.bonus];
     return allSelected.reduce((sum, id) => {
+      if (ownedCardIds.has(id)) return sum;
       const card = allCards.find(c => c.id === id);
       return sum + (card?.draftCost || 0);
     }, 0);
-  }, [selectedCards, allCards]);
+  }, [selectedCards, allCards, ownedCardIds]);
 
   const availableCredits = status ? status.totalCredits + status.puntiRankiard : 0;
   const totalCost = totalCostSelected();
@@ -184,7 +243,7 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
     setSelectedCards(prev => ({ ...prev, [deckType]: [] }));
   };
 
-  // Fill remaining slots with cheapest free cards
+  // Fill remaining slots with cheapest free cards (owned cards get priority)
   const fillFree = (deckType?: 'personaggi' | 'mosse' | 'bonus') => {
     const types = deckType ? [deckType] : (['personaggi', 'mosse', 'bonus'] as const);
     setSelectedCards(prev => {
@@ -195,7 +254,12 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
         if (needed <= 0) continue;
         const candidates = allCards
           .filter(c => c.deckType === dt && !current.has(c.id))
-          .sort((a, b) => a.draftCost - b.draftCost || a.name.localeCompare(b.name));
+          .sort((a, b) => {
+            const aOwned = ownedCardIds.has(a.id) ? -1 : 0;
+            const bOwned = ownedCardIds.has(b.id) ? -1 : 0;
+            if (aOwned !== bOwned) return aOwned - bOwned;
+            return a.draftCost - b.draftCost || a.name.localeCompare(b.name);
+          });
         const picked = candidates.slice(0, needed).map(c => c.id);
         next[dt] = [...current, ...picked];
       }
@@ -314,6 +378,7 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
         {([
           { key: 'deck', label: 'Il mio mazzo', icon: Package, badge: totalSelected > 0 ? `${totalSelected}/99` : null },
           { key: 'shop', label: 'Negozio', icon: ShoppingCart, badge: allCards.length > 0 ? `${allCards.length}` : null },
+          { key: 'packs', label: 'Pacchetti', icon: Gift, badge: ownedCardIds.size > 0 ? `${ownedCardIds.size}` : null },
           { key: 'credits', label: 'Crediti', icon: CreditCard, badge: null },
         ] as const).map(({ key, label, icon: Icon, badge }) => (
           <button
@@ -569,11 +634,13 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
                   const selected = selectedCards[card.deckType].includes(card.id);
                   const full = false; // No upper limit — minimum is 33 per type
                   const isFree = card.draftCost === 0;
+                  const isOwned = ownedCardIds.has(card.id);
                   return (
                     <div
                       key={card.id}
                       className={`relative rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
                         selected ? 'border-teal-400 shadow-lg shadow-teal-500/30 scale-[1.03]' :
+                        isOwned ? 'border-emerald-400/50 shadow-md shadow-emerald-500/20' :
                         full ? 'border-white/10 opacity-40 cursor-not-allowed' :
                         'border-white/10 hover:border-white/40 hover:scale-[1.02]'
                       }`}
@@ -594,7 +661,11 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
                       </div>
                       {/* Cost badge */}
                       <div className="absolute top-1.5 right-1.5">
-                        {isFree ? (
+                        {isOwned ? (
+                          <span className="flex items-center gap-0.5 bg-emerald-900/90 text-emerald-300 text-[10px] px-1.5 py-0.5 rounded font-bold border border-emerald-500/30">
+                            <Check className="w-2 h-2" />Posseduta
+                          </span>
+                        ) : isFree ? (
                           <span className="bg-green-900/90 text-green-300 text-[10px] px-1.5 py-0.5 rounded font-bold">FREE</span>
                         ) : (
                           <span className="flex items-center gap-0.5 bg-teal-900/90 text-teal-300 text-[10px] px-1.5 py-0.5 rounded font-bold">
@@ -634,6 +705,125 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
                   <Search className="w-8 h-8 text-white/20 mx-auto mb-3" />
                   <p className="text-white/40 text-sm">Nessuna carta trovata.</p>
                   {searchQuery && <button onClick={() => setSearchQuery('')} className="mt-2 text-teal-400 text-sm underline">Cancella ricerca</button>}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ===== TAB: PACCHETTI ===== */}
+          {activeTab === 'packs' && (
+            <div className="max-w-4xl mx-auto space-y-5">
+              <div className="text-center">
+                <h2 className="text-white font-bold text-xl flex items-center justify-center gap-2">
+                  <Gift className="w-5 h-5 text-teal-400" /> Apri Pacchetti
+                </h2>
+                <p className="text-white/50 text-sm mt-1">Spendi i tuoi crediti per ottenere carte casuali</p>
+                {status && (
+                  <div className="flex items-center justify-center gap-2 mt-2">
+                    <div className="flex items-center gap-1.5 bg-teal-900/40 border border-teal-500/30 rounded-lg px-3 py-1.5">
+                      <Coins className="w-3.5 h-3.5 text-teal-400" />
+                      <span className="text-teal-300 font-bold">{(status.totalCredits + status.puntiRankiard).toLocaleString()} crediti disponibili</span>
+                    </div>
+                    {ownedCardIds.size > 0 && (
+                      <div className="flex items-center gap-1.5 bg-emerald-900/40 border border-emerald-500/30 rounded-lg px-3 py-1.5">
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="text-emerald-300 font-bold">{ownedCardIds.size} carte in collezione</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {packError && (
+                <div className="bg-red-900/40 border border-red-500/30 rounded-xl px-4 py-3 text-red-300 text-sm text-center">
+                  {packError}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {availablePacks.map(pack => {
+                  const userTotal = status ? status.totalCredits + status.puntiRankiard : 0;
+                  const canBuy = userTotal >= pack.creditsRequired;
+                  const isOpening = openingPackId === pack.id;
+                  return (
+                    <div
+                      key={pack.id}
+                      className={`relative rounded-2xl overflow-hidden border transition-all ${canBuy ? 'border-white/20 hover:border-white/40 hover:scale-[1.01]' : 'border-white/10 opacity-70'}`}
+                      style={{ background: pack.gradient }}
+                    >
+                      <div className="absolute inset-0 opacity-10"
+                        style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(255,255,255,0.2) 3px, rgba(255,255,255,0.2) 4px)' }} />
+                      <div className="relative z-10 p-5">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <h3 className="text-white font-black text-lg">{pack.name}</h3>
+                            <p className="text-white/70 text-sm mt-0.5">{pack.description}</p>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-white font-black text-2xl">{pack.creditsRequired.toLocaleString()}</div>
+                            <div className="text-white/60 text-xs">crediti</div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-1.5 mb-4">
+                          {pack.composition.split(' + ').map((part, i) => {
+                            const rarityMap: Record<string, string> = {
+                              'Comuni': 'bg-gray-500/30 text-gray-200 border-gray-400/30',
+                              'Comune': 'bg-gray-500/30 text-gray-200 border-gray-400/30',
+                              'Rare': 'bg-blue-500/30 text-blue-200 border-blue-400/30',
+                              'Rara': 'bg-blue-500/30 text-blue-200 border-blue-400/30',
+                              'Epiche': 'bg-purple-500/30 text-purple-200 border-purple-400/30',
+                              'Epica': 'bg-purple-500/30 text-purple-200 border-purple-400/30',
+                              'Leggendarie': 'bg-yellow-500/30 text-yellow-200 border-yellow-400/30',
+                              'Leggendaria': 'bg-yellow-500/30 text-yellow-200 border-yellow-400/30',
+                            };
+                            const word = part.split(' ').slice(-1)[0];
+                            const cls = rarityMap[word] || 'bg-white/10 text-white/60 border-white/20';
+                            return (
+                              <span key={i} className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${cls}`}>{part}</span>
+                            );
+                          })}
+                        </div>
+
+                        <button
+                          onClick={() => canBuy && !isOpening && openPack(pack)}
+                          disabled={!canBuy || isOpening}
+                          className={`w-full py-2.5 rounded-xl font-bold text-sm transition-all ${
+                            canBuy && !isOpening
+                              ? 'bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm border border-white/30'
+                              : 'bg-black/30 text-white/40 cursor-not-allowed border border-white/10'
+                          }`}
+                        >
+                          {isOpening ? (
+                            <span className="flex items-center justify-center gap-2">
+                              <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                              Apertura in corso...
+                            </span>
+                          ) : !canBuy ? (
+                            <span className="flex items-center justify-center gap-1.5">
+                              <Lock className="w-3.5 h-3.5" />
+                              Crediti insufficienti
+                            </span>
+                          ) : (
+                            <span className="flex items-center justify-center gap-1.5">
+                              <Gift className="w-3.5 h-3.5" />
+                              Apri pacchetto
+                            </span>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {ownedCardIds.size > 0 && (
+                <div className="bg-emerald-900/20 border border-emerald-500/20 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle className="w-4 h-4 text-emerald-400" />
+                    <span className="text-emerald-300 font-semibold text-sm">Carte in collezione: {ownedCardIds.size}</span>
+                  </div>
+                  <p className="text-white/50 text-xs">Le carte già possedute sono gratuite nel deck builder. Vai al <button onClick={() => setActiveTab('shop')} className="text-teal-400 underline hover:text-teal-300">Negozio</button> per aggiungerle al tuo mazzo.</p>
                 </div>
               )}
             </div>
@@ -768,6 +958,14 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
           )}
 
         </div>
+      )}
+
+      {packAnimation && (
+        <PackOpeningAnimation
+          pack={packAnimation.pack}
+          cards={packAnimation.cards}
+          onClose={handleAnimationClose}
+        />
       )}
     </div>
   );
