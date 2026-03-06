@@ -1042,6 +1042,12 @@ export class GameManager {
                   mosseCanBeCountered: cc.mosseCanBeCountered ?? false,
                   draftBaseId: deckType === 'personaggi' ? id : undefined,
                 } as Card;
+                // Set card.text so PTI/stars are visible in hand/deck (not only when placed on field)
+                if (deckType === 'personaggi' && card.pti != null) {
+                  const stars = card.stars ?? 1;
+                  (card as any).originalPti = card.pti;
+                  card.text = `PTI: ${card.pti} | Stelle: ${stars} | PTI originali: ${card.pti}`;
+                }
                 return card;
               }
               // Handle base game cards (id = "personaggi-5")
@@ -1071,25 +1077,27 @@ export class GameManager {
               if (mod) {
                 this.applyModificationToCard(card, mod);
               }
-              // Apply growth on top of (possibly modified) base stats.
-              // If the card has no mod, look up the base PTI from the personaggi cache so that
-              // growth is added to the real base value, not to zero.
-              if (growth && deckType === 'personaggi') {
-                if (growth.extraPti > 0) {
-                  let basePti = card.pti;
-                  if (basePti == null) {
-                    const cached = getPersonaggioFromCache(defaultName);
-                    basePti = cached?.pti ?? 0;
-                  }
-                  card.pti = basePti + growth.extraPti;
+              if (deckType === 'personaggi') {
+                // Resolve base PTI/stars from cache if not already set by a mod
+                if (card.pti == null || card.stars == null) {
+                  const cached = getPersonaggioFromCache(defaultName);
+                  if (card.pti == null) card.pti = cached?.pti ?? undefined;
+                  if (card.stars == null) card.stars = cached?.stars ?? undefined;
                 }
-                if (growth.extraStars > 0) {
-                  let baseStars = card.stars;
-                  if (baseStars == null) {
-                    const cached = getPersonaggioFromCache(defaultName);
-                    baseStars = cached?.stars ?? 1;
+                // Apply growth on top of (possibly modified) base stats
+                if (growth) {
+                  if (growth.extraPti > 0) {
+                    card.pti = (card.pti ?? 0) + growth.extraPti;
                   }
-                  card.stars = baseStars + growth.extraStars;
+                  if (growth.extraStars > 0) {
+                    card.stars = (card.stars ?? 1) + growth.extraStars;
+                  }
+                }
+                // Set card.text so PTI/stars are visible even while the card is in hand/deck
+                if (card.pti != null) {
+                  const stars = card.stars ?? 1;
+                  card.originalPti = card.pti;
+                  card.text = `PTI: ${card.pti} | Stelle: ${stars} | PTI originali: ${card.pti}`;
                 }
               }
               return card;
