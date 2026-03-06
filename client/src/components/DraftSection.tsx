@@ -1628,6 +1628,17 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
             userId={userId || 0}
             username={playerName}
             onClose={() => setActiveTab('deck')}
+            preloadedCollection={ownedCardDetails.map(item => {
+              const meta = allCards.find(c => c.id === item.cardId);
+              return {
+                cardId: item.cardId,
+                cardName: meta?.name || item.cardId,
+                cardType: item.deckType,
+                cardRarity: item.rarity,
+                cardImageUrl: meta?.imageUrl,
+                count: 1,
+              };
+            })}
           />
         </div>
       )}

@@ -24,6 +24,7 @@ interface MarketplaceProps {
   userId: number;
   username: string;
   onClose: () => void;
+  preloadedCollection?: UserCard[];
 }
 
 interface Listing {
@@ -55,7 +56,7 @@ function getAuthHeaders(): Record<string, string> {
     : { 'Content-Type': 'application/json' };
 }
 
-export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
+export function Marketplace({ userId, username, onClose, preloadedCollection }: MarketplaceProps) {
   const [activeTab, setActiveTab] = React.useState("explore");
   const [filterType, setFilterType] = React.useState<string>("ALL");
   const [filterRarity, setFilterRarity] = React.useState<string>("ALL");
@@ -118,9 +119,15 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
   }, []);
 
   React.useEffect(() => {
-    if (activeTab === "sell") loadCollection();
+    if (activeTab === "sell") {
+      if (preloadedCollection) {
+        setMyCollection(preloadedCollection);
+      } else {
+        loadCollection();
+      }
+    }
     if (activeTab === "mine") loadMyListings();
-  }, [activeTab, loadCollection, loadMyListings]);
+  }, [activeTab, loadCollection, loadMyListings, preloadedCollection]);
 
   const buyMutation = useMutation({
     mutationFn: async (listingId: number) => {
