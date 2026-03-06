@@ -6,6 +6,15 @@ The game supports two play modes: **Classic** (shared central decks) and **Draft
 
 The Draft mode includes a **Card Pack System**: players can spend credits to open card packs (Bronzo/Argento/Oro/Diamante) containing random cards sorted by rarity tiers (Comune/Rara/Epica/Leggendaria). Opening a pack triggers a premium FIFA-style full-screen animation with 3D card flips and rarity glow effects. Cards obtained from packs are stored in the user's collection and are free to use in the deck builder.
 
+Draft mode advanced features:
+- **Tab Collezione**: visual grid of owned cards with type/rarity filters and sorted by rarity
+- **Carta del Giorno**: one free random card claimable every 24h (in Pacchetti tab) with countdown timer
+- **Storico Aperture**: collapsible last-10 pack openings history with rarity breakdown and duplicate credits
+- **Gestione Duplicati**: duplicate cards auto-award credits (comune=+10, rara=+25, epica=+50, leggendaria=+100) shown in PackOpeningAnimation with a badge
+- **Preset Mazzo**: save/load/delete up to 3 deck presets (in Mazzo tab)
+- **Offerte Settimanali**: 6 deterministic 50%-off card offers weekly (seeded by ISO week number), shown in Negozio tab
+- **Missioni Draft**: 5 draft-specific missions (open packs, complete deck, get epic card, daily card claims) with credit rewards, shown in Mazzo tab
+
 # User Preferences
 
 Preferred communication style: Simple, everyday language.

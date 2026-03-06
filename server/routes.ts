@@ -7,7 +7,7 @@ import jwt from "jsonwebtoken";
 import fs from "fs";
 import path from "path";
 import { db, legacyDb, isDatabaseAvailable, isLegacyDbAvailable } from "./db";
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets } from "../shared/schema";
 import { jsonStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray } from "drizzle-orm";
 import { CARD_DATA } from "../client/src/lib/cardData";
@@ -12107,6 +12107,342 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     }
   });
 
+  // GET /api/draft/daily-card - check daily free card availability
+  app.get('/api/draft/daily-card', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'User not found' });
+      const credits = await getOrCreateDraftCredits(currentUser.id);
+      const now = new Date();
+      const lastClaim = credits.lastDailyCardClaim ? new Date(credits.lastDailyCardClaim) : null;
+      const msIn24h = 24 * 60 * 60 * 1000;
+      const available = !lastClaim || (now.getTime() - lastClaim.getTime()) >= msIn24h;
+      const nextClaimAt = lastClaim ? new Date(lastClaim.getTime() + msIn24h) : now;
+      res.json({ available, nextClaimAt: available ? null : nextClaimAt, lastClaimAt: lastClaim });
+    } catch (error) {
+      res.status(500).json({ error: 'Errore controllo carta giornaliera' });
+    }
+  });
+
+  // POST /api/draft/claim-daily-card - claim the daily free card
+  app.post('/api/draft/claim-daily-card', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'User not found' });
+      const credits = await getOrCreateDraftCredits(currentUser.id);
+      const now = new Date();
+      const lastClaim = credits.lastDailyCardClaim ? new Date(credits.lastDailyCardClaim) : null;
+      const msIn24h = 24 * 60 * 60 * 1000;
+      if (lastClaim && (now.getTime() - lastClaim.getTime()) < msIn24h) {
+        const nextAt = new Date(lastClaim.getTime() + msIn24h);
+        return res.status(400).json({ error: 'Carta già riscattata oggi', nextClaimAt: nextAt });
+      }
+      // Pick a random card with weighted rarity
+      const roll = Math.random() * 100;
+      let rarity: string;
+      if (roll < 70) rarity = 'comune';
+      else if (roll < 90) rarity = 'rara';
+      else if (roll < 98) rarity = 'epica';
+      else rarity = 'leggendaria';
+      const cardPool = buildCardPoolByRarity();
+      const pool = cardPool[rarity] || cardPool['comune'];
+      if (pool.length === 0) return res.status(500).json({ error: 'Nessuna carta disponibile' });
+      const card = pool[Math.floor(Math.random() * pool.length)];
+      // Add to collection (ignore if already owned)
+      try {
+        await db.insert(userCardCollection).values({
+          userId: currentUser.id,
+          cardId: card.cardId,
+          deckType: card.deckType,
+          rarity,
+        }).onConflictDoNothing();
+      } catch (_) {}
+      // Update last claim timestamp
+      await db.update(userDraftCredits)
+        .set({ lastDailyCardClaim: now, updatedAt: now })
+        .where(eq(userDraftCredits.userId, currentUser.id));
+      // Record claim for mission tracking
+      await db.insert(draftPackOpenings).values({
+        userId: currentUser.id,
+        packId: 'daily',
+        creditsSpent: 0,
+        cardsObtained: [{ ...card, rarity }],
+        duplicatesCredits: 0,
+      });
+      const nextClaimAt = new Date(now.getTime() + msIn24h);
+      res.json({ success: true, card: { ...card, rarity }, nextClaimAt });
+    } catch (error) {
+      res.status(500).json({ error: 'Errore riscatto carta giornaliera' });
+    }
+  });
+
+  // GET /api/draft/pack-history - last 20 pack openings
+  app.get('/api/draft/pack-history', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json([]);
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'User not found' });
+      const history = await db.select().from(draftPackOpenings)
+        .where(eq(draftPackOpenings.userId, currentUser.id))
+        .orderBy(desc(draftPackOpenings.openedAt))
+        .limit(20);
+      res.json(history);
+    } catch (error) {
+      res.status(500).json({ error: 'Errore storico pacchetti' });
+    }
+  });
+
+  // GET /api/draft/weekly-offers - 6 discounted cards (50% off) rotating weekly
+  app.get('/api/draft/weekly-offers', async (req, res) => {
+    try {
+      const cardPool = buildCardPoolByRarity();
+      const allCards = Object.entries(cardPool).flatMap(([rarity, cards]) =>
+        cards.map(c => ({ ...c, rarity }))
+      ).filter(c => c.draftCost > 0);
+      if (allCards.length === 0) return res.json([]);
+      // Deterministic seed based on ISO week number
+      const now = new Date();
+      const startOfYear = new Date(now.getFullYear(), 0, 1);
+      const weekNum = Math.floor((now.getTime() - startOfYear.getTime()) / (7 * 24 * 60 * 60 * 1000));
+      const seed = now.getFullYear() * 1000 + weekNum;
+      // Seeded shuffle
+      let s = seed;
+      const seededRand = () => { s = (s * 1664525 + 1013904223) & 0xffffffff; return (s >>> 0) / 0x100000000; };
+      const shuffled = [...allCards].sort(() => seededRand() - 0.5);
+      const offers = shuffled.slice(0, 6).map(c => ({
+        ...c,
+        originalCost: c.draftCost,
+        discountedCost: Math.max(1, Math.floor(c.draftCost * 0.5)),
+      }));
+      // Days until next Monday
+      const day = now.getDay(); // 0=Sun
+      const daysUntilMonday = day === 0 ? 1 : (8 - day);
+      res.json({ offers, daysUntilReset: daysUntilMonday });
+    } catch (error) {
+      res.status(500).json({ error: 'Errore offerte settimanali' });
+    }
+  });
+
+  // GET /api/draft/deck/presets - list user's deck presets
+  app.get('/api/draft/deck/presets', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json([]);
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'User not found' });
+      const presets = await db.select().from(draftDeckPresets)
+        .where(eq(draftDeckPresets.userId, currentUser.id))
+        .orderBy(draftDeckPresets.createdAt);
+      res.json(presets);
+    } catch (error) {
+      res.status(500).json({ error: 'Errore recupero preset' });
+    }
+  });
+
+  // POST /api/draft/deck/presets - save current deck as preset
+  app.post('/api/draft/deck/presets', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'User not found' });
+      const { presetName } = req.body;
+      if (!presetName?.trim()) return res.status(400).json({ error: 'Nome preset richiesto' });
+      const existing = await db.select().from(draftDeckPresets).where(eq(draftDeckPresets.userId, currentUser.id));
+      if (existing.length >= 3) return res.status(400).json({ error: 'Massimo 3 preset consentiti' });
+      const [deck] = await db.select().from(draftDecks).where(eq(draftDecks.userId, currentUser.id)).limit(1);
+      const personaggiCards = deck?.personaggiCards as string[] || [];
+      const mosseCards = deck?.mosseCards as string[] || [];
+      const bonusCards = deck?.bonusCards as string[] || [];
+      const [preset] = await db.insert(draftDeckPresets).values({
+        userId: currentUser.id,
+        presetName: presetName.trim().slice(0, 20),
+        personaggiCards,
+        mosseCards,
+        bonusCards,
+      }).returning();
+      res.json({ success: true, preset });
+    } catch (error) {
+      res.status(500).json({ error: 'Errore salvataggio preset' });
+    }
+  });
+
+  // DELETE /api/draft/deck/presets/:id - delete a preset
+  app.delete('/api/draft/deck/presets/:id', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'User not found' });
+      const presetId = parseInt(req.params.id);
+      if (isNaN(presetId)) return res.status(400).json({ error: 'ID non valido' });
+      const [preset] = await db.select().from(draftDeckPresets).where(eq(draftDeckPresets.id, presetId)).limit(1);
+      if (!preset || preset.userId !== currentUser.id) return res.status(404).json({ error: 'Preset non trovato' });
+      await db.delete(draftDeckPresets).where(eq(draftDeckPresets.id, presetId));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Errore eliminazione preset' });
+    }
+  });
+
+  // POST /api/draft/deck/load-preset/:id - load preset into current deck
+  app.post('/api/draft/deck/load-preset/:id', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'User not found' });
+      const presetId = parseInt(req.params.id);
+      if (isNaN(presetId)) return res.status(400).json({ error: 'ID non valido' });
+      const [preset] = await db.select().from(draftDeckPresets).where(eq(draftDeckPresets.id, presetId)).limit(1);
+      if (!preset || preset.userId !== currentUser.id) return res.status(404).json({ error: 'Preset non trovato' });
+      const { personaggiCards, mosseCards, bonusCards } = preset;
+      const isComplete = (personaggiCards as string[]).length >= 33 && (mosseCards as string[]).length >= 33 && (bonusCards as string[]).length >= 33;
+      const [existingDeck] = await db.select().from(draftDecks).where(eq(draftDecks.userId, currentUser.id)).limit(1);
+      if (existingDeck) {
+        await db.update(draftDecks).set({ personaggiCards, mosseCards, bonusCards, isComplete, savedAt: new Date() })
+          .where(eq(draftDecks.userId, currentUser.id));
+      } else {
+        await db.insert(draftDecks).values({ userId: currentUser.id, personaggiCards, mosseCards, bonusCards, isComplete, totalCostSpent: 0 });
+      }
+      res.json({ success: true, personaggiCards, mosseCards, bonusCards });
+    } catch (error) {
+      res.status(500).json({ error: 'Errore caricamento preset' });
+    }
+  });
+
+  // GET /api/draft/missions - get draft-specific missions with progress
+  app.get('/api/draft/missions', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json([]);
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'User not found' });
+
+      const DRAFT_MISSIONS = [
+        { code: 'open_pack_1', name: 'Primo Pacchetto', description: 'Apri 1 pacchetto', requirement: 1, rewardCredits: 50, icon: '📦' },
+        { code: 'open_pack_5', name: 'Collezionista', description: 'Apri 5 pacchetti', requirement: 5, rewardCredits: 200, icon: '🎁' },
+        { code: 'complete_draft_deck', name: 'Maestro del Draft', description: 'Completa il mazzo (33+33+33)', requirement: 1, rewardCredits: 500, icon: '🏆' },
+        { code: 'get_epic_card', name: 'Caccia all\'Epica', description: 'Ottieni 1 carta Epica', requirement: 1, rewardCredits: 150, icon: '💜' },
+        { code: 'daily_card_3', name: 'Fedele al Gioco', description: 'Riscatta la carta giornaliera 3 volte', requirement: 3, rewardCredits: 100, icon: '🌟' },
+      ];
+
+      // Get pack opening count
+      const packOpenings = await db.select().from(draftPackOpenings).where(eq(draftPackOpenings.userId, currentUser.id));
+      const packCount = packOpenings.length;
+
+      // Get epic cards count
+      const epicCards = await db.select().from(userCardCollection)
+        .where(and(eq(userCardCollection.userId, currentUser.id), eq(userCardCollection.rarity, 'epica')));
+
+      // Get deck completion
+      const [deck] = await db.select().from(draftDecks).where(eq(draftDecks.userId, currentUser.id)).limit(1);
+      const deckComplete = deck?.isComplete ? 1 : 0;
+
+      // Daily card claims (count from userDraftCredits lastDailyCardClaim + pack openings with packId='daily')
+      const dailyClaimRows = await db.select().from(draftPackOpenings)
+        .where(and(eq(draftPackOpenings.userId, currentUser.id), eq(draftPackOpenings.packId, 'daily')));
+      const dailyCount = dailyClaimRows.length;
+
+      const progressMap: Record<string, number> = {
+        open_pack_1: packCount,
+        open_pack_5: packCount,
+        complete_draft_deck: deckComplete,
+        get_epic_card: epicCards.length,
+        daily_card_3: dailyCount,
+      };
+
+      // Get claimed missions from draftPackOpenings with packId='mission_claimed'
+      const claimedRows = await db.select().from(draftPackOpenings)
+        .where(and(eq(draftPackOpenings.userId, currentUser.id), eq(draftPackOpenings.packId, 'mission_claimed')));
+      const claimedSet = new Set((claimedRows.map(r => (r.cardsObtained as any[])[0]?.missionCode)).filter(Boolean));
+
+      const missions = DRAFT_MISSIONS.map(m => ({
+        ...m,
+        progress: Math.min(progressMap[m.code] || 0, m.requirement),
+        completed: (progressMap[m.code] || 0) >= m.requirement,
+        claimed: claimedSet.has(m.code),
+      }));
+
+      res.json(missions);
+    } catch (error) {
+      res.status(500).json({ error: 'Errore recupero missioni draft' });
+    }
+  });
+
+  // POST /api/draft/missions/claim/:code - claim mission reward
+  app.post('/api/draft/missions/claim/:code', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'User not found' });
+      const { code } = req.params;
+
+      const DRAFT_MISSIONS: Record<string, { requirement: number; rewardCredits: number; progressKey: string }> = {
+        open_pack_1: { requirement: 1, rewardCredits: 50, progressKey: 'packCount' },
+        open_pack_5: { requirement: 5, rewardCredits: 200, progressKey: 'packCount' },
+        complete_draft_deck: { requirement: 1, rewardCredits: 500, progressKey: 'deckComplete' },
+        get_epic_card: { requirement: 1, rewardCredits: 150, progressKey: 'epicCount' },
+        daily_card_3: { requirement: 3, rewardCredits: 100, progressKey: 'dailyCount' },
+      };
+
+      const mission = DRAFT_MISSIONS[code];
+      if (!mission) return res.status(400).json({ error: 'Missione non valida' });
+
+      // Check if already claimed
+      const claimedRows = await db.select().from(draftPackOpenings)
+        .where(and(eq(draftPackOpenings.userId, currentUser.id), eq(draftPackOpenings.packId, 'mission_claimed')));
+      const claimedSet = new Set((claimedRows.map(r => (r.cardsObtained as any[])[0]?.missionCode)).filter(Boolean));
+      if (claimedSet.has(code)) return res.status(400).json({ error: 'Missione già riscattata' });
+
+      // Compute current progress
+      let progress = 0;
+      if (mission.progressKey === 'packCount') {
+        const rows = await db.select().from(draftPackOpenings)
+          .where(and(eq(draftPackOpenings.userId, currentUser.id)));
+        progress = rows.filter(r => r.packId !== 'mission_claimed').length;
+      } else if (mission.progressKey === 'deckComplete') {
+        const [deck] = await db.select().from(draftDecks).where(eq(draftDecks.userId, currentUser.id)).limit(1);
+        progress = deck?.isComplete ? 1 : 0;
+      } else if (mission.progressKey === 'epicCount') {
+        const rows = await db.select().from(userCardCollection)
+          .where(and(eq(userCardCollection.userId, currentUser.id), eq(userCardCollection.rarity, 'epica')));
+        progress = rows.length;
+      } else if (mission.progressKey === 'dailyCount') {
+        const rows = await db.select().from(draftPackOpenings)
+          .where(and(eq(draftPackOpenings.userId, currentUser.id), eq(draftPackOpenings.packId, 'daily')));
+        progress = rows.length;
+      }
+
+      if (progress < mission.requirement) return res.status(400).json({ error: 'Missione non ancora completata' });
+
+      // Award credits
+      const credits = await getOrCreateDraftCredits(currentUser.id);
+      await db.update(userDraftCredits)
+        .set({ freeCredits: credits.freeCredits + mission.rewardCredits, updatedAt: new Date() })
+        .where(eq(userDraftCredits.userId, currentUser.id));
+
+      // Record claim
+      await db.insert(draftPackOpenings).values({
+        userId: currentUser.id,
+        packId: 'mission_claimed',
+        creditsSpent: 0,
+        cardsObtained: [{ missionCode: code }],
+        duplicatesCredits: 0,
+      });
+
+      res.json({ success: true, creditsEarned: mission.rewardCredits });
+    } catch (error) {
+      res.status(500).json({ error: 'Errore riscatto missione' });
+    }
+  });
+
   // GET /api/draft/cards - all cards with their draft costs
   app.get('/api/draft/cards', async (req, res) => {
     try {
@@ -12412,27 +12748,57 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
           .where(eq(users.id, currentUser.id));
       }
 
+      // Fetch existing collection to detect duplicates
+      const existingCollection = await db.select({ cardId: userCardCollection.cardId })
+        .from(userCardCollection).where(eq(userCardCollection.userId, currentUser.id));
+      const existingSet = new Set(existingCollection.map(r => r.cardId));
+
+      const DUPLICATE_CREDITS: Record<string, number> = { comune: 10, rara: 25, epica: 50, leggendaria: 100 };
+      let totalDuplicateCredits = 0;
+      const duplicateCardIds = new Set<string>();
+
       // Add cards to user's collection (ignore duplicates via conflict handling)
       for (const card of pickedCards) {
-        try {
-          await db.insert(userCardCollection).values({
-            userId: currentUser.id,
-            cardId: card.cardId,
-            deckType: card.deckType,
-            rarity: card.rarity,
-          }).onConflictDoNothing();
-        } catch (_) {}
+        if (existingSet.has(card.cardId)) {
+          duplicateCardIds.add(card.cardId);
+          totalDuplicateCredits += DUPLICATE_CREDITS[card.rarity] || 10;
+        } else {
+          try {
+            await db.insert(userCardCollection).values({
+              userId: currentUser.id,
+              cardId: card.cardId,
+              deckType: card.deckType,
+              rarity: card.rarity,
+            }).onConflictDoNothing();
+          } catch (_) {}
+        }
       }
+
+      // Award duplicate credits
+      if (totalDuplicateCredits > 0) {
+        await db.update(userDraftCredits)
+          .set({ freeCredits: newFree + totalDuplicateCredits, updatedAt: new Date() })
+          .where(eq(userDraftCredits.userId, currentUser.id));
+        newFree += totalDuplicateCredits;
+      }
+
+      // Mark cards as duplicates in response
+      const cardsWithDuplicateInfo = pickedCards.map(c => ({
+        ...c,
+        isDuplicate: duplicateCardIds.has(c.cardId),
+        duplicateCredits: duplicateCardIds.has(c.cardId) ? (DUPLICATE_CREDITS[c.rarity] || 10) : 0,
+      }));
 
       // Record pack opening
       await db.insert(draftPackOpenings).values({
         userId: currentUser.id,
         packId,
         creditsSpent: pack.creditsRequired,
-        cardsObtained: pickedCards,
+        cardsObtained: cardsWithDuplicateInfo,
+        duplicatesCredits: totalDuplicateCredits,
       });
 
-      res.json({ success: true, cards: pickedCards });
+      res.json({ success: true, cards: cardsWithDuplicateInfo, duplicatesCreditsEarned: totalDuplicateCredits });
     } catch (error: any) {
       console.error('Error opening pack:', error);
       res.status(500).json({ error: 'Errore nell\'apertura del pacchetto' });

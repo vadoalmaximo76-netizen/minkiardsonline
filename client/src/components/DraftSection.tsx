@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ArrowLeft, Shuffle, ShoppingCart, CreditCard, Search, Plus, Minus, CheckCircle, AlertCircle, Coins, Users, Swords, Zap, Package, Check, Trophy, X, SortAsc, SortDesc, Sparkles, Trash2, Filter, Gift, Star, Lock } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { ArrowLeft, Shuffle, ShoppingCart, CreditCard, Search, Plus, Minus, CheckCircle, AlertCircle, Coins, Users, Swords, Zap, Package, Check, Trophy, X, SortAsc, SortDesc, Sparkles, Trash2, Filter, Gift, Star, Lock, ChevronDown, ChevronUp, Clock, Target, Flame, BookOpen, Save, RotateCcw, Calendar } from 'lucide-react';
 import { PackOpeningAnimation, PackType, RevealedCard } from './PackOpeningAnimation';
 
 interface DraftSectionProps {
@@ -42,6 +42,53 @@ interface CreditPurchaseHistory {
   createdAt: string;
 }
 
+interface DailyCardStatus {
+  available: boolean;
+  nextClaimAt: string | null;
+  lastClaimAt: string | null;
+}
+
+interface PackHistoryEntry {
+  id: number;
+  packId: string;
+  creditsSpent: number;
+  cardsObtained: Array<{ cardId: string; rarity: string; name: string; deckType: string }>;
+  duplicatesCredits: number;
+  openedAt: string;
+}
+
+interface WeeklyOffer {
+  cardId: string;
+  deckType: string;
+  name: string;
+  frontImage: string;
+  draftCost: number;
+  rarity: string;
+  originalCost: number;
+  discountedCost: number;
+}
+
+interface DraftPreset {
+  id: number;
+  presetName: string;
+  personaggiCards: string[];
+  mosseCards: string[];
+  bonusCards: string[];
+  createdAt: string;
+}
+
+interface DraftMission {
+  code: string;
+  name: string;
+  description: string;
+  requirement: number;
+  rewardCredits: number;
+  icon: string;
+  progress: number;
+  completed: boolean;
+  claimed: boolean;
+}
+
 const CREDIT_PACKAGES = [
   { id: '100',  credits: 100,  priceEur: 1.00, label: '100 crediti', popular: false },
   { id: '500',  credits: 500,  priceEur: 5.00, label: '500 crediti', popular: false },
@@ -67,11 +114,11 @@ function getAuthHeaders(): Record<string, string> {
 }
 
 export function DraftSection({ onBack, playerName }: DraftSectionProps) {
-  const [activeTab, setActiveTab] = useState<'deck' | 'shop' | 'credits' | 'packs'>('deck');
+  const [activeTab, setActiveTab] = useState<'deck' | 'shop' | 'credits' | 'packs' | 'collection'>('deck');
   const [status, setStatus] = useState<DraftStatus | null>(null);
   const [allCards, setAllCards] = useState<DraftCard[]>([]);
   const [selectedCards, setSelectedCards] = useState<{ personaggi: string[]; mosse: string[]; bonus: string[] }>({ personaggi: [], mosse: [], bonus: [] });
-  const [shopFilter, setShopFilter] = useState<'all' | 'personaggi' | 'mosse' | 'bonus'>('all');
+  const [shopFilter, setShopFilter] = useState<'all' | 'personaggi' | 'mosse' | 'bonus' | 'offers'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('free-first');
   const [loading, setLoading] = useState(true);
@@ -88,14 +135,80 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
   const [openingPackId, setOpeningPackId] = useState<string | null>(null);
   const [packAnimation, setPackAnimation] = useState<{ pack: PackType; cards: RevealedCard[] } | null>(null);
   const [packError, setPackError] = useState<string | null>(null);
+  // Collection tab
+  const [collectionFilter, setCollectionFilter] = useState<'all' | 'personaggi' | 'mosse' | 'bonus'>('all');
+  const [collectionRarityFilter, setCollectionRarityFilter] = useState<'all' | 'comune' | 'rara' | 'epica' | 'leggendaria'>('all');
+  const [ownedCardDetails, setOwnedCardDetails] = useState<Array<{ cardId: string; rarity: string; deckType: string }>>([]);
+  // Daily card
+  const [dailyCardStatus, setDailyCardStatus] = useState<DailyCardStatus | null>(null);
+  const [dailyCountdown, setDailyCountdown] = useState('');
+  const [claimingDaily, setClaimingDaily] = useState(false);
+  const [dailyResult, setDailyResult] = useState<(RevealedCard & { rarity: string }) | null>(null);
+  // Pack history
+  const [packHistory, setPackHistory] = useState<PackHistoryEntry[]>([]);
+  const [showPackHistory, setShowPackHistory] = useState(false);
+  // Weekly offers
+  const [weeklyOffers, setWeeklyOffers] = useState<WeeklyOffer[]>([]);
+  const [daysUntilReset, setDaysUntilReset] = useState(0);
+  // Presets
+  const [presets, setPresets] = useState<DraftPreset[]>([]);
+  const [showPresetDialog, setShowPresetDialog] = useState(false);
+  const [presetNameInput, setPresetNameInput] = useState('');
+  const [presetLoading, setPresetLoading] = useState(false);
+  const [presetMsg, setPresetMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  // Missions
+  const [missions, setMissions] = useState<DraftMission[]>([]);
+  const [claimingMission, setClaimingMission] = useState<string | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchCollection = useCallback(async () => {
     try {
       const res = await fetch('/api/draft/collection', { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
-        setOwnedCardIds(new Set((Array.isArray(data) ? data : []).map((c: any) => c.cardId)));
+        const arr = Array.isArray(data) ? data : [];
+        setOwnedCardIds(new Set(arr.map((c: any) => c.cardId)));
+        setOwnedCardDetails(arr.map((c: any) => ({ cardId: c.cardId, rarity: c.rarity || 'comune', deckType: c.deckType || '' })));
       }
+    } catch (e) {}
+  }, []);
+
+  const fetchDailyCard = useCallback(async () => {
+    try {
+      const res = await fetch('/api/draft/daily-card', { headers: getAuthHeaders() });
+      if (res.ok) setDailyCardStatus(await res.json());
+    } catch (e) {}
+  }, []);
+
+  const fetchPackHistory = useCallback(async () => {
+    try {
+      const res = await fetch('/api/draft/pack-history', { headers: getAuthHeaders() });
+      if (res.ok) setPackHistory(await res.json());
+    } catch (e) {}
+  }, []);
+
+  const fetchWeeklyOffers = useCallback(async () => {
+    try {
+      const res = await fetch('/api/draft/weekly-offers');
+      if (res.ok) {
+        const data = await res.json();
+        setWeeklyOffers(data.offers || []);
+        setDaysUntilReset(data.daysUntilReset || 0);
+      }
+    } catch (e) {}
+  }, []);
+
+  const fetchPresets = useCallback(async () => {
+    try {
+      const res = await fetch('/api/draft/deck/presets', { headers: getAuthHeaders() });
+      if (res.ok) setPresets(await res.json());
+    } catch (e) {}
+  }, []);
+
+  const fetchMissions = useCallback(async () => {
+    try {
+      const res = await fetch('/api/draft/missions', { headers: getAuthHeaders() });
+      if (res.ok) setMissions(await res.json());
     } catch (e) {}
   }, []);
 
@@ -155,7 +268,29 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
     fetchPurchaseHistory();
     fetchCollection();
     fetchPacks();
-  }, [fetchAll, fetchPurchaseHistory, fetchCollection, fetchPacks]);
+    fetchDailyCard();
+    fetchPackHistory();
+    fetchWeeklyOffers();
+    fetchPresets();
+    fetchMissions();
+  }, [fetchAll, fetchPurchaseHistory, fetchCollection, fetchPacks, fetchDailyCard, fetchPackHistory, fetchWeeklyOffers, fetchPresets, fetchMissions]);
+
+  // Countdown timer for daily card
+  useEffect(() => {
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    const tick = () => {
+      if (!dailyCardStatus?.nextClaimAt) { setDailyCountdown(''); return; }
+      const diff = new Date(dailyCardStatus.nextClaimAt).getTime() - Date.now();
+      if (diff <= 0) { setDailyCountdown(''); fetchDailyCard(); return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setDailyCountdown(`${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`);
+    };
+    tick();
+    countdownRef.current = setInterval(tick, 1000);
+    return () => { if (countdownRef.current) clearInterval(countdownRef.current); };
+  }, [dailyCardStatus, fetchDailyCard]);
 
   const openPack = async (pack: PackType) => {
     setOpeningPackId(pack.id);
@@ -201,6 +336,90 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
     fetchAll();
     fetchCollection();
     fetchPacks();
+    fetchPackHistory();
+    fetchMissions();
+  };
+
+  const claimDailyCard = async () => {
+    setClaimingDaily(true);
+    setDailyResult(null);
+    try {
+      const res = await fetch('/api/draft/claim-daily-card', { method: 'POST', headers: getAuthHeaders() });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setDailyResult(data.card);
+        setDailyCardStatus({ available: false, nextClaimAt: data.nextClaimAt, lastClaimAt: new Date().toISOString() });
+        fetchCollection();
+        fetchMissions();
+      }
+    } catch (e) {}
+    setClaimingDaily(false);
+  };
+
+  const savePreset = async () => {
+    if (!presetNameInput.trim()) return;
+    setPresetLoading(true);
+    try {
+      const res = await fetch('/api/draft/deck/presets', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ presetName: presetNameInput }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setPresetMsg({ type: 'success', text: '✓ Preset salvato!' });
+        setShowPresetDialog(false);
+        setPresetNameInput('');
+        fetchPresets();
+      } else {
+        setPresetMsg({ type: 'error', text: data.error || 'Errore salvataggio' });
+      }
+    } catch (e) {
+      setPresetMsg({ type: 'error', text: 'Errore di rete' });
+    }
+    setPresetLoading(false);
+    setTimeout(() => setPresetMsg(null), 4000);
+  };
+
+  const deletePreset = async (id: number) => {
+    try {
+      const res = await fetch(`/api/draft/deck/presets/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      if (res.ok) { fetchPresets(); setPresetMsg({ type: 'success', text: '✓ Preset eliminato' }); setTimeout(() => setPresetMsg(null), 3000); }
+    } catch (e) {}
+  };
+
+  const loadPreset = async (id: number) => {
+    try {
+      const res = await fetch(`/api/draft/deck/load-preset/${id}`, { method: 'POST', headers: getAuthHeaders() });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSelectedCards({
+          personaggi: data.personaggiCards || [],
+          mosse: data.mosseCards || [],
+          bonus: data.bonusCards || [],
+        });
+        setPresetMsg({ type: 'success', text: '✓ Preset caricato nel mazzo!' });
+        setTimeout(() => setPresetMsg(null), 4000);
+      }
+    } catch (e) {}
+  };
+
+  const claimMission = async (code: string) => {
+    setClaimingMission(code);
+    try {
+      const res = await fetch(`/api/draft/missions/claim/${code}`, { method: 'POST', headers: getAuthHeaders() });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        fetchMissions();
+        fetchAll();
+      }
+    } catch (e) {}
+    setClaimingMission(null);
+  };
+
+  const buyWeeklyOffer = (offer: WeeklyOffer) => {
+    const card: DraftCard | undefined = allCards.find(c => c.id === offer.cardId);
+    if (card) toggleCard({ ...card, draftCost: offer.discountedCost });
   };
 
   const totalCostSelected = useCallback(() => {
@@ -220,6 +439,7 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
 
   const filteredAndSortedCards = useMemo(() => {
     let cards = allCards.filter(card => {
+      if (shopFilter === 'offers') return weeklyOffers.some(o => o.cardId === card.id);
       if (shopFilter !== 'all' && card.deckType !== shopFilter) return false;
       if (searchQuery && !card.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       return true;
@@ -391,26 +611,27 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
       </div>
 
       {/* Tabs */}
-      <div className="relative z-10 flex border-b border-white/10 bg-black/10 flex-shrink-0">
+      <div className="relative z-10 flex border-b border-white/10 bg-black/10 flex-shrink-0 overflow-x-auto">
         {([
-          { key: 'deck', label: 'Il mio mazzo', icon: Package, badge: totalSelected > 0 ? `${totalSelected}/99` : null },
-          { key: 'shop', label: 'Negozio', icon: ShoppingCart, badge: allCards.length > 0 ? `${allCards.length}` : null },
-          { key: 'packs', label: 'Pacchetti', icon: Gift, badge: ownedCardIds.size > 0 ? `${ownedCardIds.size}` : null },
+          { key: 'deck', label: 'Mazzo', icon: Package, badge: totalSelected > 0 ? `${totalSelected}/99` : null },
+          { key: 'shop', label: 'Negozio', icon: ShoppingCart, badge: null },
+          { key: 'packs', label: 'Pacchetti', icon: Gift, badge: dailyCardStatus?.available ? '!' : null },
+          { key: 'collection', label: 'Collezione', icon: BookOpen, badge: ownedCardIds.size > 0 ? `${ownedCardIds.size}` : null },
           { key: 'credits', label: 'Crediti', icon: CreditCard, badge: null },
         ] as const).map(({ key, label, icon: Icon, badge }) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-semibold transition-all relative ${
+            className={`flex-shrink-0 flex items-center justify-center gap-1.5 px-3 py-3 text-xs sm:text-sm font-semibold transition-all relative ${
               activeTab === key
                 ? 'text-teal-300 border-b-2 border-teal-400 bg-teal-500/10'
                 : 'text-white/50 hover:text-white/80'
             }`}
           >
             <Icon className="w-4 h-4 flex-shrink-0" />
-            <span>{label}</span>
+            <span className="hidden sm:inline">{label}</span>
             {badge && (
-              <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${activeTab === key ? 'bg-teal-500/30 text-teal-300' : 'bg-white/10 text-white/40'}`}>
+              <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${badge === '!' ? 'bg-amber-500 text-black animate-pulse' : activeTab === key ? 'bg-teal-500/30 text-teal-300' : 'bg-white/10 text-white/40'}`}>
                 {badge}
               </span>
             )}
@@ -561,7 +782,7 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
               })}
 
               {/* Save button */}
-              <div className="pb-6">
+              <div>
                 <button
                   onClick={handleSave}
                   disabled={saving || !isComplete || !canAfford}
@@ -585,12 +806,202 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
                   </p>
                 )}
               </div>
+
+              {/* === Missioni Draft === */}
+              {missions.length > 0 && (
+                <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                  <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
+                    <Target className="w-4 h-4 text-purple-400" />
+                    <span className="text-white/80 font-bold text-sm">Missioni Draft</span>
+                    <span className="text-white/40 text-xs ml-1">
+                      {missions.filter(m => m.claimed).length}/{missions.length} completate
+                    </span>
+                  </div>
+                  <div className="divide-y divide-white/5">
+                    {missions.map(m => (
+                      <div key={m.code} className={`px-4 py-3 flex items-center gap-3 ${m.claimed ? 'opacity-50' : ''}`}>
+                        <div className="text-xl flex-shrink-0">{m.icon}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-white/90 text-sm font-semibold">{m.name}</span>
+                            {m.claimed && <CheckCircle className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />}
+                          </div>
+                          <p className="text-white/50 text-xs">{m.description}</p>
+                          <div className="mt-1.5 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${m.completed ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-gradient-to-r from-purple-500 to-teal-500'}`}
+                              style={{ width: `${Math.min(100, (m.progress / m.requirement) * 100)}%` }}
+                            />
+                          </div>
+                          <div className="text-white/40 text-[10px] mt-0.5">{m.progress}/{m.requirement}</div>
+                        </div>
+                        <div className="flex-shrink-0 text-right">
+                          <div className="text-teal-400 text-xs font-bold mb-1">+{m.rewardCredits} cr</div>
+                          {m.completed && !m.claimed && (
+                            <button
+                              onClick={() => claimMission(m.code)}
+                              disabled={claimingMission === m.code}
+                              className="text-xs px-2.5 py-1 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-white font-bold rounded-lg transition-all disabled:opacity-50"
+                            >
+                              {claimingMission === m.code ? '...' : 'Riscuoti'}
+                            </button>
+                          )}
+                          {m.claimed && <span className="text-green-400 text-xs">✓ Riscossa</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* === Preset Mazzo === */}
+              <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden pb-4">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+                  <div className="flex items-center gap-2">
+                    <Save className="w-4 h-4 text-teal-400" />
+                    <span className="text-white/80 font-bold text-sm">Preset Mazzo</span>
+                    <span className="text-white/40 text-xs">{presets.length}/3</span>
+                  </div>
+                  {presets.length < 3 && (
+                    <button
+                      onClick={() => setShowPresetDialog(true)}
+                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-teal-600/30 hover:bg-teal-600/50 border border-teal-500/30 rounded-lg text-teal-300 font-semibold transition-all"
+                    >
+                      <Plus className="w-3 h-3" />Salva corrente
+                    </button>
+                  )}
+                </div>
+
+                {presetMsg && (
+                  <div className={`mx-4 mt-3 flex items-center gap-2 p-2.5 rounded-lg text-xs ${presetMsg.type === 'success' ? 'bg-green-900/40 border border-green-500/40 text-green-300' : 'bg-red-900/40 border border-red-500/40 text-red-300'}`}>
+                    {presetMsg.type === 'success' ? <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" /> : <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />}
+                    {presetMsg.text}
+                  </div>
+                )}
+
+                {showPresetDialog && (
+                  <div className="mx-4 mt-3 p-3 bg-black/30 border border-white/15 rounded-xl space-y-2">
+                    <p className="text-white/70 text-xs font-semibold">Nome preset (max 20 caratteri)</p>
+                    <input
+                      type="text"
+                      value={presetNameInput}
+                      onChange={e => setPresetNameInput(e.target.value.slice(0, 20))}
+                      placeholder="Es: Mazzo offensivo"
+                      maxLength={20}
+                      className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/30 text-sm focus:outline-none focus:border-teal-400/50"
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={savePreset} disabled={presetLoading || !presetNameInput.trim()} className="flex-1 py-2 bg-teal-600/50 hover:bg-teal-600/70 text-teal-200 font-semibold rounded-lg text-xs transition-all disabled:opacity-40">
+                        {presetLoading ? '...' : 'Salva'}
+                      </button>
+                      <button onClick={() => { setShowPresetDialog(false); setPresetNameInput(''); }} className="flex-1 py-2 bg-white/10 hover:bg-white/20 text-white/60 font-semibold rounded-lg text-xs transition-all">
+                        Annulla
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {presets.length === 0 ? (
+                  <div className="text-center py-6 px-4">
+                    <Save className="w-8 h-8 text-white/15 mx-auto mb-2" />
+                    <p className="text-white/30 text-sm">Nessun preset salvato</p>
+                    <p className="text-white/20 text-xs mt-1">Salva il tuo mazzo corrente come preset per ricaricarlo in seguito</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 px-4 pt-3">
+                    {presets.map(preset => (
+                      <div key={preset.id} className="bg-black/20 border border-white/10 rounded-xl p-3 flex items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white font-bold text-sm">{preset.presetName}</p>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <span className="text-purple-300 text-xs">{(preset.personaggiCards || []).length} personaggi</span>
+                            <span className="text-red-300 text-xs">{(preset.mosseCards || []).length} mosse</span>
+                            <span className="text-cyan-300 text-xs">{(preset.bonusCards || []).length} bonus</span>
+                          </div>
+                          <p className="text-white/30 text-[10px] mt-0.5">{new Date(preset.createdAt).toLocaleDateString('it-IT')}</p>
+                        </div>
+                        <div className="flex flex-col gap-1.5 flex-shrink-0">
+                          <button
+                            onClick={() => loadPreset(preset.id)}
+                            className="flex items-center gap-1 text-xs px-2.5 py-1 bg-teal-600/30 hover:bg-teal-600/50 border border-teal-500/30 text-teal-300 rounded-lg font-semibold transition-all"
+                          >
+                            <RotateCcw className="w-3 h-3" />Carica
+                          </button>
+                          <button
+                            onClick={() => deletePreset(preset.id)}
+                            className="flex items-center gap-1 text-xs px-2.5 py-1 bg-red-600/20 hover:bg-red-600/40 border border-red-500/20 text-red-400 rounded-lg font-semibold transition-all"
+                          >
+                            <Trash2 className="w-3 h-3" />Elimina
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
             </div>
           )}
 
           {/* ===== TAB: NEGOZIO CARTE ===== */}
           {activeTab === 'shop' && (
             <div className="max-w-5xl mx-auto space-y-3">
+
+              {/* === Offerte Settimanali === */}
+              {weeklyOffers.length > 0 && (
+                <div className="bg-gradient-to-br from-amber-900/30 to-orange-900/20 border border-amber-500/30 rounded-2xl overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-amber-500/20">
+                    <div className="flex items-center gap-2">
+                      <Flame className="w-4 h-4 text-amber-400" />
+                      <span className="text-amber-300 font-bold text-sm">Offerte della Settimana</span>
+                      <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black">-50%</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="w-3 h-3 text-white/30" />
+                      <span className="text-white/40 text-xs">Scade tra {daysUntilReset}g</span>
+                      <button
+                        onClick={() => setShopFilter(shopFilter === 'offers' ? 'all' : 'offers')}
+                        className={`ml-2 text-xs px-2 py-0.5 rounded-full font-semibold transition-all ${shopFilter === 'offers' ? 'bg-amber-500 text-black' : 'bg-white/10 text-white/60 hover:bg-amber-500/20 hover:text-amber-300'}`}
+                      >
+                        {shopFilter === 'offers' ? 'Tutte' : 'Solo offerte'}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 p-3">
+                    {weeklyOffers.map(offer => {
+                      const isOwned = ownedCardIds.has(offer.cardId);
+                      const selected = selectedCards[offer.deckType as 'personaggi' | 'mosse' | 'bonus']?.includes(offer.cardId);
+                      return (
+                        <div
+                          key={offer.cardId}
+                          onClick={() => {
+                            const card = allCards.find(c => c.id === offer.cardId);
+                            if (card) toggleCard(card);
+                          }}
+                          className={`relative rounded-xl overflow-hidden border-2 cursor-pointer transition-all hover:scale-[1.03] ${
+                            selected ? 'border-amber-400 shadow-lg shadow-amber-500/30' :
+                            'border-amber-500/40 hover:border-amber-400/70'
+                          }`}
+                        >
+                          {offer.frontImage && <img src={offer.frontImage} alt={offer.name} className="w-full aspect-[2/3] object-cover" loading="lazy" />}
+                          <div className="absolute top-1 right-1 bg-red-600/90 text-white text-[9px] px-1 py-0.5 rounded font-black">-50%</div>
+                          {isOwned && <div className="absolute top-1 left-1 bg-emerald-700/90 text-emerald-200 text-[9px] px-1 py-0.5 rounded font-bold"><Check className="w-2 h-2 inline" /></div>}
+                          {selected && <div className="absolute inset-0 bg-amber-500/20 flex items-center justify-center"><div className="bg-amber-500/90 rounded-full p-1"><Check className="w-4 h-4 text-white" /></div></div>}
+                          <div className="bg-black/80 px-1.5 py-1">
+                            <p className="text-white text-[10px] font-semibold truncate">{offer.name}</p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-white/30 text-[9px] line-through">{offer.originalCost}</span>
+                              <span className="text-amber-400 text-[10px] font-black">{offer.discountedCost}</span>
+                              <Coins className="w-2 h-2 text-amber-400" />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Search + Sort */}
               <div className="flex flex-col sm:flex-row gap-2">
                 <div className="relative flex-1">
@@ -624,7 +1035,8 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
                   { f: 'personaggi' as const, label: `Personaggi (${deckTypeCardCounts.personaggi})`, sel: selectedCards.personaggi.length },
                   { f: 'mosse' as const, label: `Mosse (${deckTypeCardCounts.mosse})`, sel: selectedCards.mosse.length },
                   { f: 'bonus' as const, label: `Bonus (${deckTypeCardCounts.bonus})`, sel: selectedCards.bonus.length },
-                ]).map(({ f, label, sel }) => (
+                  ...(weeklyOffers.length > 0 ? [{ f: 'offers' as const, label: `🔥 Offerte (${weeklyOffers.length})` }] : []),
+                ]).map(({ f, label, sel }: { f: any; label: string; sel?: number }) => (
                   <button
                     key={f}
                     onClick={() => setShopFilter(f)}
@@ -730,6 +1142,64 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
           {/* ===== TAB: PACCHETTI ===== */}
           {activeTab === 'packs' && (
             <div className="max-w-4xl mx-auto space-y-5">
+
+              {/* === Carta del Giorno === */}
+              <div className={`relative overflow-hidden rounded-2xl border-2 p-4 transition-all ${dailyCardStatus?.available ? 'border-amber-400/60 bg-gradient-to-br from-amber-900/40 to-yellow-900/30' : 'border-white/15 bg-white/5'}`}>
+                {dailyCardStatus?.available && (
+                  <div className="absolute inset-0 pointer-events-none">
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-400/10 to-transparent animate-pulse" />
+                  </div>
+                )}
+                <div className="relative z-10 flex flex-col sm:flex-row items-center gap-4">
+                  <div className="flex-shrink-0 w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-400/30 flex items-center justify-center">
+                    <Calendar className="w-7 h-7 text-amber-400" />
+                  </div>
+                  <div className="flex-1 text-center sm:text-left">
+                    <h3 className="text-white font-bold text-base">Carta del Giorno</h3>
+                    <p className="text-white/50 text-xs mt-0.5">Una carta casuale gratuita ogni 24 ore</p>
+                    {!dailyCardStatus?.available && dailyCountdown && (
+                      <div className="flex items-center justify-center sm:justify-start gap-1.5 mt-1">
+                        <Clock className="w-3.5 h-3.5 text-white/40" />
+                        <span className="text-white/50 text-xs font-mono">Prossima tra {dailyCountdown}</span>
+                      </div>
+                    )}
+                  </div>
+                  {dailyCardStatus?.available ? (
+                    <button
+                      onClick={claimDailyCard}
+                      disabled={claimingDaily}
+                      className="flex-shrink-0 flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-bold rounded-xl transition-all shadow-lg shadow-amber-500/30 disabled:opacity-50"
+                    >
+                      {claimingDaily ? <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" /> : <Gift className="w-4 h-4" />}
+                      RISCATTA GRATIS
+                    </button>
+                  ) : (
+                    <div className="flex-shrink-0 text-center bg-black/30 rounded-xl px-4 py-2 border border-white/10">
+                      <div className="text-white/30 text-xs mb-0.5">Già riscattata</div>
+                      <div className="text-white/60 text-sm font-mono font-bold">{dailyCountdown || '—'}</div>
+                    </div>
+                  )}
+                </div>
+                {/* Daily result */}
+                {dailyResult && (
+                  <div className="mt-4 pt-4 border-t border-white/10 flex items-center gap-4">
+                    <div className="relative w-16 h-24 rounded-lg overflow-hidden border-2 border-amber-400/60 shadow-lg shadow-amber-500/30 flex-shrink-0">
+                      <img src={dailyResult.frontImage} alt={dailyResult.name} className="w-full h-full object-cover" />
+                    </div>
+                    <div>
+                      <p className="text-amber-300 font-bold text-sm">{dailyResult.name}</p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-semibold mt-1 inline-block ${
+                        dailyResult.rarity === 'leggendaria' ? 'bg-yellow-500/20 text-yellow-300' :
+                        dailyResult.rarity === 'epica' ? 'bg-purple-500/20 text-purple-300' :
+                        dailyResult.rarity === 'rara' ? 'bg-blue-500/20 text-blue-300' :
+                        'bg-gray-500/20 text-gray-300'
+                      }`}>{dailyResult.rarity.charAt(0).toUpperCase() + dailyResult.rarity.slice(1)}</span>
+                      <p className="text-white/50 text-xs mt-1">Aggiunta alla tua collezione!</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="text-center">
                 <h2 className="text-white font-bold text-xl flex items-center justify-center gap-2">
                   <Gift className="w-5 h-5 text-teal-400" /> Apri Pacchetti
@@ -843,8 +1313,167 @@ export function DraftSection({ onBack, playerName }: DraftSectionProps) {
                   <p className="text-white/50 text-xs">Le carte già possedute sono gratuite nel deck builder. Vai al <button onClick={() => setActiveTab('shop')} className="text-teal-400 underline hover:text-teal-300">Negozio</button> per aggiungerle al tuo mazzo.</p>
                 </div>
               )}
+
+              {/* === Storico Aperture === */}
+              {packHistory.length > 0 && (
+                <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                  <button
+                    onClick={() => setShowPackHistory(!showPackHistory)}
+                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-white/50" />
+                      <span className="text-white/80 font-semibold text-sm">Storico Aperture</span>
+                      <span className="text-white/40 text-xs">({packHistory.filter(h => h.packId !== 'daily' && h.packId !== 'mission_claimed').length} pacchetti)</span>
+                    </div>
+                    {showPackHistory ? <ChevronUp className="w-4 h-4 text-white/40" /> : <ChevronDown className="w-4 h-4 text-white/40" />}
+                  </button>
+                  {showPackHistory && (
+                    <div className="border-t border-white/10 divide-y divide-white/5">
+                      {packHistory.filter(h => h.packId !== 'daily' && h.packId !== 'mission_claimed').slice(0, 10).map((entry) => {
+                        const cards = Array.isArray(entry.cardsObtained) ? entry.cardsObtained : [];
+                        const byCrarity: Record<string, number> = {};
+                        cards.forEach((c: any) => { byCrarity[c.rarity] = (byCrarity[c.rarity] || 0) + 1; });
+                        return (
+                          <div key={entry.id} className="px-4 py-3 flex items-center gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-white/80 text-sm font-semibold capitalize">{entry.packId}</span>
+                                <span className="text-white/30 text-xs">{new Date(entry.openedAt).toLocaleDateString('it-IT')}</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                {Object.entries(byCrarity).map(([r, n]) => (
+                                  <span key={r} className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${r === 'leggendaria' ? 'bg-yellow-500/20 text-yellow-300' : r === 'epica' ? 'bg-purple-500/20 text-purple-300' : r === 'rara' ? 'bg-blue-500/20 text-blue-300' : 'bg-gray-500/20 text-gray-300'}`}>
+                                    {n} {r}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <div className="text-white/50 text-xs">-{entry.creditsSpent} cr</div>
+                              {entry.duplicatesCredits > 0 && (
+                                <div className="text-emerald-400 text-xs">+{entry.duplicatesCredits} cr duplicati</div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
+
+          {/* ===== TAB: COLLEZIONE ===== */}
+          {activeTab === 'collection' && (() => {
+            const RARITY_ORDER: Record<string, number> = { leggendaria: 0, epica: 1, rara: 2, comune: 3 };
+            const filteredOwned = ownedCardDetails
+              .filter(od => {
+                if (collectionFilter !== 'all' && od.deckType !== collectionFilter) return false;
+                if (collectionRarityFilter !== 'all' && od.rarity !== collectionRarityFilter) return false;
+                return true;
+              })
+              .sort((a, b) => (RARITY_ORDER[a.rarity] ?? 9) - (RARITY_ORDER[b.rarity] ?? 9));
+            const rarityCount = { comune: 0, rara: 0, epica: 0, leggendaria: 0 };
+            ownedCardDetails.forEach(od => { if (od.rarity in rarityCount) rarityCount[od.rarity as keyof typeof rarityCount]++; });
+            return (
+              <div className="max-w-5xl mx-auto space-y-4">
+                <div className="text-center">
+                  <h2 className="text-white font-bold text-xl flex items-center justify-center gap-2">
+                    <BookOpen className="w-5 h-5 text-teal-400" /> La mia Collezione
+                  </h2>
+                  <p className="text-white/50 text-sm mt-1">{ownedCardIds.size} carte possedute</p>
+                  <div className="flex items-center justify-center gap-2 mt-2 flex-wrap">
+                    {Object.entries(rarityCount).filter(([, n]) => n > 0).map(([r, n]) => (
+                      <span key={r} className={`text-xs px-2.5 py-1 rounded-full font-semibold ${r === 'leggendaria' ? 'bg-yellow-500/20 text-yellow-300' : r === 'epica' ? 'bg-purple-500/20 text-purple-300' : r === 'rara' ? 'bg-blue-500/20 text-blue-300' : 'bg-gray-500/20 text-gray-300'}`}>
+                        {n} {r}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex gap-1.5 flex-wrap">
+                    {([
+                      { f: 'all' as const, label: 'Tutte' },
+                      { f: 'personaggi' as const, label: 'Personaggi' },
+                      { f: 'mosse' as const, label: 'Mosse' },
+                      { f: 'bonus' as const, label: 'Bonus' },
+                    ]).map(({ f, label }) => (
+                      <button key={f} onClick={() => setCollectionFilter(f)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${collectionFilter === f ? 'bg-teal-500 text-white' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <select
+                    value={collectionRarityFilter}
+                    onChange={e => setCollectionRarityFilter(e.target.value as any)}
+                    className="bg-white/10 border border-white/20 rounded-xl text-white text-xs px-3 py-2 focus:outline-none focus:border-teal-400/50 cursor-pointer"
+                  >
+                    <option value="all" className="bg-gray-900">Tutte le rarità</option>
+                    <option value="leggendaria" className="bg-gray-900">Leggendarie</option>
+                    <option value="epica" className="bg-gray-900">Epiche</option>
+                    <option value="rara" className="bg-gray-900">Rare</option>
+                    <option value="comune" className="bg-gray-900">Comuni</option>
+                  </select>
+                </div>
+
+                {filteredOwned.length === 0 ? (
+                  <div className="text-center py-16">
+                    <BookOpen className="w-12 h-12 text-white/15 mx-auto mb-4" />
+                    <p className="text-white/40 text-sm">Nessuna carta in questa categoria</p>
+                    {ownedCardIds.size === 0 && <p className="text-white/30 text-xs mt-2">Apri pacchetti o riscatta la carta giornaliera per iniziare la tua collezione!</p>}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                    {filteredOwned.map(od => {
+                      const card = allCards.find(c => c.id === od.cardId);
+                      const inDeck = selectedCards[od.deckType as 'personaggi' | 'mosse' | 'bonus']?.includes(od.cardId);
+                      return (
+                        <div
+                          key={od.cardId}
+                          className={`relative rounded-xl overflow-hidden border-2 transition-all cursor-pointer hover:scale-[1.03] ${
+                            od.rarity === 'leggendaria' ? 'border-yellow-400/60 shadow-lg shadow-yellow-500/20' :
+                            od.rarity === 'epica' ? 'border-purple-400/60 shadow-lg shadow-purple-500/20' :
+                            od.rarity === 'rara' ? 'border-blue-400/40' :
+                            'border-white/15'
+                          }`}
+                          onClick={() => card && toggleCard(card)}
+                          title={`${card?.name || od.cardId}\n${od.rarity} · ${od.deckType}\nClicca per aggiungere al mazzo`}
+                        >
+                          {card?.imageUrl ? (
+                            <img src={card.imageUrl} alt={card.name} className="w-full aspect-[2/3] object-cover" loading="lazy" />
+                          ) : (
+                            <div className="w-full aspect-[2/3] bg-white/5 flex items-center justify-center">
+                              <span className="text-white/20 text-[10px]">?</span>
+                            </div>
+                          )}
+                          {/* Rarity badge */}
+                          <div className={`absolute top-0.5 right-0.5 text-[9px] px-1 py-0.5 rounded font-bold ${
+                            od.rarity === 'leggendaria' ? 'bg-yellow-500/80 text-yellow-100' :
+                            od.rarity === 'epica' ? 'bg-purple-500/80 text-purple-100' :
+                            od.rarity === 'rara' ? 'bg-blue-500/80 text-blue-100' :
+                            'bg-gray-600/80 text-gray-200'
+                          }`}>{od.rarity.charAt(0).toUpperCase()}</div>
+                          {/* In deck indicator */}
+                          {inDeck && (
+                            <div className="absolute top-0.5 left-0.5 bg-teal-500/90 rounded-full p-0.5">
+                              <Check className="w-2.5 h-2.5 text-white" />
+                            </div>
+                          )}
+                          <div className="bg-black/80 px-1 py-0.5">
+                            <p className="text-white text-[9px] font-semibold truncate leading-tight">{card?.name || od.cardId}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* ===== TAB: ACQUISTA CREDITI ===== */}
           {activeTab === 'credits' && (

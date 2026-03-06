@@ -605,6 +605,7 @@ export const userDraftCredits = pgTable("user_draft_credits", {
   userId: integer("user_id").notNull().unique(),
   freeCredits: integer("free_credits").notNull().default(500), // Initial 500 free
   paidCredits: integer("paid_credits").notNull().default(0),   // Purchased credits
+  lastDailyCardClaim: timestamp("last_daily_card_claim"),      // Last daily free card claim
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
@@ -654,15 +655,29 @@ export const draftPackOpenings = pgTable("draft_pack_openings", {
   packId: text("pack_id").notNull(),
   creditsSpent: integer("credits_spent").notNull(),
   cardsObtained: jsonb("cards_obtained").notNull().default([]),
+  duplicatesCredits: integer("duplicates_credits").notNull().default(0),
   openedAt: timestamp("opened_at").notNull().defaultNow(),
+});
+
+// Saved deck presets (max 3 per user)
+export const draftDeckPresets = pgTable("draft_deck_presets", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  presetName: text("preset_name").notNull(),
+  personaggiCards: jsonb("personaggi_cards").notNull().default([]),
+  mosseCards: jsonb("mosse_cards").notNull().default([]),
+  bonusCards: jsonb("bonus_cards").notNull().default([]),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const insertUserDraftCreditsSchema = createInsertSchema(userDraftCredits).omit({ id: true, updatedAt: true });
 export const insertDraftDeckSchema = createInsertSchema(draftDecks).omit({ id: true, savedAt: true });
 export const insertCreditPurchaseSchema = createInsertSchema(creditPurchases).omit({ id: true, createdAt: true, processedAt: true });
+export const insertDraftDeckPresetSchema = createInsertSchema(draftDeckPresets).omit({ id: true, createdAt: true });
 
 export type UserDraftCredits = typeof userDraftCredits.$inferSelect;
 export type DraftDeck = typeof draftDecks.$inferSelect;
 export type CreditPurchase = typeof creditPurchases.$inferSelect;
 export type UserCardCollection = typeof userCardCollection.$inferSelect;
 export type DraftPackOpening = typeof draftPackOpenings.$inferSelect;
+export type DraftDeckPreset = typeof draftDeckPresets.$inferSelect;

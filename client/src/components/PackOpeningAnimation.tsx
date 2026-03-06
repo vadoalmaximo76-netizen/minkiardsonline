@@ -9,6 +9,8 @@ export interface RevealedCard {
   frontImage: string;
   name: string;
   draftCost: number;
+  isDuplicate?: boolean;
+  duplicateCredits?: number;
 }
 
 export interface PackType {
@@ -604,26 +606,36 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded }: Pack
                         {rarityConfig.label}
                       </div>
                       <div className="text-white/60 text-xs text-center max-w-[100px] truncate">{card.name}</div>
-                      <button
-                        onClick={() => addToDeck(card)}
-                        disabled={addState === 'loading' || addState === 'added'}
-                        className={`btn-pop flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full transition-all mt-0.5 ${
-                          addState === 'added'
-                            ? 'bg-green-500/30 border border-green-400/50 text-green-300 cursor-default'
-                            : addState === 'loading'
-                            ? 'bg-white/10 border border-white/20 text-white/40 cursor-wait'
-                            : `border text-white hover:scale-105 active:scale-95 ${rarityConfig.bgClass} ${rarityConfig.textClass} hover:bg-white/20`
-                        }`}
-                        style={{ fontSize: '10px' }}
-                      >
-                        {addState === 'added' ? (
-                          <><Check size={10} /> Aggiunta</>
-                        ) : addState === 'loading' ? (
-                          <>...</>
-                        ) : (
-                          <><Plus size={10} /> Al mazzo</>
-                        )}
-                      </button>
+                      {card.isDuplicate ? (
+                        <div
+                          className="flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full mt-0.5 bg-emerald-500/20 border border-emerald-400/50 text-emerald-300"
+                          style={{ fontSize: '10px' }}
+                        >
+                          <Check size={10} />
+                          +{card.duplicateCredits || 0} cr
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => addToDeck(card)}
+                          disabled={addState === 'loading' || addState === 'added'}
+                          className={`btn-pop flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full transition-all mt-0.5 ${
+                            addState === 'added'
+                              ? 'bg-green-500/30 border border-green-400/50 text-green-300 cursor-default'
+                              : addState === 'loading'
+                              ? 'bg-white/10 border border-white/20 text-white/40 cursor-wait'
+                              : `border text-white hover:scale-105 active:scale-95 ${rarityConfig.bgClass} ${rarityConfig.textClass} hover:bg-white/20`
+                          }`}
+                          style={{ fontSize: '10px' }}
+                        >
+                          {addState === 'added' ? (
+                            <><Check size={10} /> Aggiunta</>
+                          ) : addState === 'loading' ? (
+                            <>...</>
+                          ) : (
+                            <><Plus size={10} /> Al mazzo</>
+                          )}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -631,29 +643,38 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded }: Pack
             })}
           </div>
 
-          {phase === 'done' && (
-            <div className="flex flex-col items-center gap-3 mt-2">
-              <div className="flex flex-wrap justify-center gap-3 text-xs">
-                {Object.entries(
-                  cards.reduce((acc, c) => { acc[c.rarity] = (acc[c.rarity] || 0) + 1; return acc; }, {} as Record<string, number>)
-                ).map(([rarity, count]) => (
-                  <span
-                    key={rarity}
-                    className={`px-3 py-1 rounded-full border font-semibold ${RARITY_CONFIG[rarity as keyof typeof RARITY_CONFIG]?.bgClass || ''} ${RARITY_CONFIG[rarity as keyof typeof RARITY_CONFIG]?.textClass || ''}`}
-                  >
-                    {count}× {RARITY_CONFIG[rarity as keyof typeof RARITY_CONFIG]?.label || rarity}
-                  </span>
-                ))}
+          {phase === 'done' && (() => {
+            const totalDupCredits = cards.reduce((s, c) => s + (c.isDuplicate ? (c.duplicateCredits || 0) : 0), 0);
+            return (
+              <div className="flex flex-col items-center gap-3 mt-2">
+                <div className="flex flex-wrap justify-center gap-3 text-xs">
+                  {Object.entries(
+                    cards.reduce((acc, c) => { acc[c.rarity] = (acc[c.rarity] || 0) + 1; return acc; }, {} as Record<string, number>)
+                  ).map(([rarity, count]) => (
+                    <span
+                      key={rarity}
+                      className={`px-3 py-1 rounded-full border font-semibold ${RARITY_CONFIG[rarity as keyof typeof RARITY_CONFIG]?.bgClass || ''} ${RARITY_CONFIG[rarity as keyof typeof RARITY_CONFIG]?.textClass || ''}`}
+                    >
+                      {count}× {RARITY_CONFIG[rarity as keyof typeof RARITY_CONFIG]?.label || rarity}
+                    </span>
+                  ))}
+                </div>
+                {totalDupCredits > 0 && (
+                  <div className="flex items-center gap-2 bg-emerald-900/40 border border-emerald-500/40 rounded-full px-4 py-1.5 text-sm font-bold text-emerald-300">
+                    <Check size={14} />
+                    +{totalDupCredits} crediti da duplicati
+                  </div>
+                )}
+                <button
+                  onClick={onClose}
+                  className="mt-1 flex items-center gap-2 bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-400 hover:to-teal-500 text-white font-bold px-8 py-3 rounded-full text-base shadow-lg transition-all hover:scale-105"
+                  style={{ boxShadow: '0 0 30px rgba(20,184,166,0.5)' }}
+                >
+                  <X size={16} /> Chiudi
+                </button>
               </div>
-              <button
-                onClick={onClose}
-                className="mt-1 flex items-center gap-2 bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-400 hover:to-teal-500 text-white font-bold px-8 py-3 rounded-full text-base shadow-lg transition-all hover:scale-105"
-                style={{ boxShadow: '0 0 30px rgba(20,184,166,0.5)' }}
-              >
-                <X size={16} /> Chiudi
-              </button>
-            </div>
-          )}
+            );
+          })()}
         </div>
       )}
     </div>
