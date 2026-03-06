@@ -3795,20 +3795,36 @@ Rispondi SOLO in JSON:`;
       actions.push({ type: 'execute', target: 'opponents', value: threshold, description: `Esecuzione se PTI < ${threshold}` });
     }
 
+    // ============ RESET ALL TO DECKS PATTERN (PRIORITY — must be before return_to_hand/deck) ============
+    if ((text.includes('tutti i giocatori') || text.includes('di tutti') || text.includes('tutti i gioc')) &&
+        (text.includes('tornano') || text.includes('tornino') || text.includes('rimescola')) &&
+        (text.includes('mazzo') || text.includes('mazzi'))) {
+      actions.push({ type: 'reset_all_to_decks', target: 'all', value: 0, description: 'Tutte le carte di tutti i giocatori tornano nei rispettivi mazzi' });
+    }
+
+    // ============ SHUFFLE ALL DECKS PATTERN ============
+    if (!actions.some(a => a.type === 'reset_all_to_decks') &&
+        (text.includes('si mischiano i mazzi') || text.includes('mischia tutti i mazzi') || text.includes('mischiano i mazzi') || text.includes('mazzi vengono mischiati'))) {
+      actions.push({ type: 'shuffle_all_decks', target: 'all', value: 0, description: 'Tutti i mazzi vengono mischiati' });
+    }
+
     // ============ RETURN TO HAND PATTERNS ============
-    if ((text.includes('ritorna') || text.includes('torna') || text.includes('rimetti') || text.includes('rimanda')) && 
+    if (!actions.some(a => a.type === 'reset_all_to_decks') &&
+        (text.includes('ritorna') || text.includes('torna') || text.includes('rimetti') || text.includes('rimanda')) && 
         (text.includes('mano') || text.includes('hand'))) {
       const value = extractNumber(text, 1);
       actions.push({ type: 'return_to_hand', target: 'any', value, description: `Rimanda ${value} carte in mano` });
     }
 
     // ============ RETURN TO DECK ENHANCED PATTERN ============
-    if (/torna.*nel\s+mazzo|metti.*nel\s+mazzo|rimetti.*mazzo|rimanda.*mazzo|riponi.*mazzo/i.test(text) && !actions.some(a => a.type === 'return_to_deck')) {
+    if (!actions.some(a => a.type === 'reset_all_to_decks') &&
+        /torna.*nel\s+mazzo|metti.*nel\s+mazzo|rimetti.*mazzo|rimanda.*mazzo|riponi.*mazzo/i.test(text) && !actions.some(a => a.type === 'return_to_deck')) {
       actions.push({ type: 'return_to_deck', target: 'self', value: 0, description: 'Rimanda la carta nel mazzo' });
     }
 
     // ============ RETURN TO DECK PATTERNS ============
-    if ((text.includes('ritorna') || text.includes('torna') || text.includes('rimetti') || text.includes('rimanda') || text.includes('rimescola') || text.includes('tornano') || text.includes('mischia')) && 
+    if (!actions.some(a => a.type === 'reset_all_to_decks') &&
+        (text.includes('ritorna') || text.includes('torna') || text.includes('rimetti') || text.includes('rimanda') || text.includes('rimescola') || text.includes('tornano') || text.includes('mischia')) && 
         (text.includes('mazzo') || text.includes('mazzi') || text.includes('deck'))) {
       const value = extractNumber(text, 1);
       if (!actions.some(a => a.type === 'return_to_deck')) {
@@ -7671,6 +7687,61 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         // Shuffle cards back into deck (simplified - just log)
         console.log(`🔀 Custom effect: Cards shuffled into deck!`);
         break;
+
+      case 'shuffle_all_decks': {
+        this.shuffleGameDecks(game);
+        console.log(`🔀 SHUFFLE ALL DECKS: All decks shuffled!`);
+        const ioShuffleAll = (global as any).io;
+        if (ioShuffleAll) {
+          ioShuffleAll.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-shuffle-all`,
+            playerName: 'Sistema',
+            message: `🔀 I mazzi sono stati mischiati!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      }
+
+      case 'reset_all_to_decks': {
+        const deckTypeMap: Record<string, keyof typeof game.decks> = {
+          'personaggi': 'personaggi',
+          'personaggi_speciali': 'personaggi_speciali',
+          'mosse': 'mosse',
+          'bonus': 'bonus'
+        };
+        for (const pName of Object.keys(game.players)) {
+          const pData = game.players[pName];
+          if (!pData) continue;
+          for (const handCard of pData.hand) {
+            const deckKey = deckTypeMap[handCard.type] ?? 'bonus';
+            if (game.decks[deckKey]) {
+              game.decks[deckKey].push(handCard);
+            }
+          }
+          pData.hand = [];
+        }
+        const fieldCards = [...game.field];
+        game.field = [];
+        for (const fieldCard of fieldCards) {
+          const deckKey = deckTypeMap[fieldCard.type] ?? 'bonus';
+          if (game.decks[deckKey]) {
+            game.decks[deckKey].push(fieldCard);
+          }
+        }
+        this.shuffleGameDecks(game);
+        console.log(`🌪️ RESET ALL TO DECKS: All hands and field cleared, decks shuffled!`);
+        const ioReset = (global as any).io;
+        if (ioReset) {
+          ioReset.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-reset-all`,
+            playerName: 'Sistema',
+            message: `🌪️ DISTRUZIONE TOTALE! Tutte le carte di tutti i giocatori tornano nei rispettivi mazzi e i mazzi vengono mischiati!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      }
 
       case 'search':
         // Search deck for specific card (simplified - draw)
