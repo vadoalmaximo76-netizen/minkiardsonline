@@ -164,6 +164,9 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
   const [claimingMission, setClaimingMission] = useState<string | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Draft character growth data
+  const [growthData, setGrowthData] = useState<Record<string, { extraPti: number; extraStars: number }>>({});
+
   // Initial deck setup state
   const [showInitialChoice, setShowInitialChoice] = useState(false);
   const [generatingInitialDeck, setGeneratingInitialDeck] = useState(false);
@@ -221,6 +224,22 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
     try {
       const res = await fetch('/api/draft/missions', { headers: getAuthHeaders() });
       if (res.ok) setMissions(await res.json());
+    } catch (e) {}
+  }, []);
+
+  const fetchGrowth = useCallback(async () => {
+    try {
+      const res = await fetch('/api/draft/growth', { headers: getAuthHeaders() });
+      if (res.ok) {
+        const rows: Array<{ cardId: string; extraPti: number; extraStars: number }> = await res.json();
+        const map: Record<string, { extraPti: number; extraStars: number }> = {};
+        for (const row of rows) {
+          if (row.extraPti > 0 || row.extraStars > 0) {
+            map[row.cardId] = { extraPti: row.extraPti, extraStars: row.extraStars };
+          }
+        }
+        setGrowthData(map);
+      }
     } catch (e) {}
   }, []);
 
@@ -294,7 +313,8 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
     fetchWeeklyOffers();
     fetchPresets();
     fetchMissions();
-  }, [fetchAll, fetchPurchaseHistory, fetchCollection, fetchPacks, fetchDailyCard, fetchPackHistory, fetchWeeklyOffers, fetchPresets, fetchMissions]);
+    fetchGrowth();
+  }, [fetchAll, fetchPurchaseHistory, fetchCollection, fetchPacks, fetchDailyCard, fetchPackHistory, fetchWeeklyOffers, fetchPresets, fetchMissions, fetchGrowth]);
 
   // Countdown timer for daily card
   useEffect(() => {
@@ -970,12 +990,17 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                       </div>
                     ) : (
                       <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-11 gap-1.5 p-3">
-                        {deckCards.map(card => (
+                        {deckCards.map(card => {
+                          const growth = key === 'personaggi' ? growthData[card.id] : undefined;
+                          const growthTitle = growth
+                            ? `\n🌱 Crescita: +${growth.extraPti} PTI${growth.extraStars > 0 ? `, +${growth.extraStars} ⭐` : ''}`
+                            : '';
+                          return (
                           <div
                             key={card.id}
                             className="relative group rounded-lg overflow-hidden bg-black/30 border border-white/10 hover:border-red-400/50 transition-all cursor-pointer"
                             onClick={() => removeCard(card.id, key)}
-                            title={`${card.name}${card.draftCost > 0 ? ` — ${card.draftCost} crediti` : ' — Gratuita'}\nClicca per rimuovere`}
+                            title={`${card.name}${card.draftCost > 0 ? ` — ${card.draftCost} crediti` : ' — Gratuita'}${growthTitle}\nClicca per rimuovere`}
                           >
                             <img src={card.imageUrl} alt={card.name} className="w-full aspect-[2/3] object-cover" loading="lazy" />
                             <div className="absolute inset-0 bg-red-900/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -986,8 +1011,21 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                                 {card.draftCost}
                               </div>
                             )}
+                            {growth && (growth.extraPti > 0 || growth.extraStars > 0) && (
+                              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-emerald-900/95 to-transparent px-1 pt-2 pb-0.5">
+                                <div className="flex items-center justify-center gap-0.5 flex-wrap">
+                                  {growth.extraPti > 0 && (
+                                    <span className="text-emerald-300 text-[9px] font-bold leading-none whitespace-nowrap">+{growth.extraPti} PTI</span>
+                                  )}
+                                  {growth.extraStars > 0 && (
+                                    <span className="text-yellow-300 text-[9px] font-bold leading-none whitespace-nowrap">+{growth.extraStars}⭐</span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        ))}
+                          );
+                        })}
                         {/* Empty slot placeholders */}
                         {missing > 0 && Array.from({ length: Math.min(missing, 5) }).map((_, i) => (
                           <div

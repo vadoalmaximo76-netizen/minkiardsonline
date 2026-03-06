@@ -37,5 +37,18 @@
     "resetPasswordExpires": null,
     "id": 3,
     "createdAt": "2026-03-06T20:57:31.828Z"
+  },
+  {
+    "username": "karim01",
+    "email": "karimabdul01@gmail.com",
+    "password": "$2b$10$x3V2Y8FoX9H/lE6q89TvteT3zL3qfstQYHVXMgKBEft9vIZ4ON6Ri",
+    "googleId": null,
+    "avatar": "tiger",
+    "puntiRankiard": 0,
+    "isAdmin": false,
+    "resetPasswordToken": null,
+    "resetPasswordExpires": null,
+    "id": 4,
+    "createdAt": "2026-03-06T21:09:45.666Z"
   }
 ]

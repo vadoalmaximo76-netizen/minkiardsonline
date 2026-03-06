@@ -7,7 +7,7 @@ import jwt from "jsonwebtoken";
 import fs from "fs";
 import path from "path";
 import { db, legacyDb, isDatabaseAvailable, isLegacyDbAvailable } from "./db";
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth } from "../shared/schema";
 import { jsonStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray } from "drizzle-orm";
 import { CARD_DATA } from "../client/src/lib/cardData";
@@ -12259,6 +12259,20 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       res.json(deckRows[0]);
     } catch (error) {
       res.status(500).json({ error: 'Errore nel recupero mazzo draft' });
+    }
+  });
+
+  // GET /api/draft/growth - get user's draft character growth data
+  app.get('/api/draft/growth', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'User not found' });
+      const growthRows = await db.select().from(draftCharacterGrowth).where(eq(draftCharacterGrowth.userId, currentUser.id));
+      res.json(growthRows);
+    } catch (error) {
+      res.status(500).json({ error: 'Errore nel recupero dati crescita' });
     }
   });
 

@@ -1,6 +1,6 @@
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from '../client/src/lib/cardData';
 import { db, isDatabaseAvailable } from './db';
-import { matches, gameEvents, personaggi, customCards, cardModifications, users, gameStates, cardSkins, tournamentMatches, tournaments, draftDecks, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
+import { matches, gameEvents, personaggi, customCards, cardModifications, users, gameStates, cardSkins, tournamentMatches, tournaments, draftDecks, draftCharacterGrowth, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
 import { eq, ilike, sql, and } from 'drizzle-orm';
 import { CPUPlayer } from './cpuPlayer';
 import { trackGameEvent } from './missionsAndAchievements';
@@ -23,6 +23,7 @@ interface Card {
   section?: string;
   turnCounter?: number;
   placedBy?: string;
+  draftBaseId?: string; // Base card ID for Draft growth tracking (e.g. "personaggi-5")
   pti?: number | null;
   stars?: number | null;
   // Fusion system
@@ -307,6 +308,7 @@ interface GameState {
   timedEffects: TimedEffect[]; // Generic delayed effects from Wizard cards (trigger after X turns)
   playerDeathModifiers: Map<string, number>; // Per-player death limit modifiers (+/- deaths)
   playerStats: Map<string, { cardsPlayed: number; damageDealt: number; damageReceived: number; turnsPlayed: number }>; // Per-player game stats
+  draftGrowthTracker?: Record<string, Record<string, { consecutiveTurns: number; maxConsecutiveTurns: number; killsThisMatch: number }>>; // Draft mode: per-player per-card growth tracking
   lastAction?: { type: string; playerName: string; cardName?: string; cardImageUrl?: string; cardDeckType?: string; targetPlayer?: string; damage?: number }; // Track last significant action for final blow replay
   turnTimeoutSeconds?: number; // Configurable turn timer (0 = disabled), defaults to 30
   requiresApproval?: boolean; // Whether new players need creator approval to join
@@ -998,6 +1000,17 @@ export class GameManager {
           const modMap = new Map(allMods.map((m: any) => [m.originalCardId, m]));
           const allCustomCards = jsonStorage.customCards.getAll() as any[];
           const customCardMap = new Map(allCustomCards.map((c: any) => [`custom-${c.id}`, c]));
+          // Load this player's growth data from DB for Draft mode
+          let growthMap: Map<string, { extraPti: number; extraStars: number }> = new Map();
+          if (isDatabaseAvailable()) {
+            try {
+              const growthRows = await db.select().from(draftCharacterGrowth).where(eq(draftCharacterGrowth.userId, authenticatedUserId));
+              for (const row of growthRows) {
+                growthMap.set(row.cardId, { extraPti: row.extraPti, extraStars: row.extraStars });
+              }
+            } catch (_) {}
+          }
+
           const buildCards = (ids: string[], deckType: string): Card[] => {
             const deckUrls = (CARD_DATA as any)[deckType] as string[] || [];
             return ids.map(id => {
@@ -1005,6 +1018,7 @@ export class GameManager {
               if (id.startsWith('custom-')) {
                 const cc = customCardMap.get(id) as any;
                 if (!cc) return null;
+                const growth = deckType === 'personaggi' ? growthMap.get(id) : undefined;
                 const card: Card = {
                   id: `${id}-${Math.random().toString(36).substr(2, 6)}`,
                   type: deckType,
@@ -1012,8 +1026,8 @@ export class GameManager {
                   backImage: (DECK_BACK_IMAGES as any)[deckType] || '',
                   owner: '',
                   name: cc.name || 'Carta',
-                  pti: cc.pti ?? 0,
-                  stars: cc.stars ?? 0,
+                  pti: (cc.pti ?? 0) + (growth?.extraPti ?? 0),
+                  stars: (cc.stars ?? 0) + (growth?.extraStars ?? 0),
                   effect: cc.effect || undefined,
                   audioUrl: cc.audioUrl || undefined,
                   youtubeUrl: cc.youtubeUrl || undefined,
@@ -1026,6 +1040,7 @@ export class GameManager {
                   mosseTargetCount: cc.mosseTargetCount ?? undefined,
                   mosseCanCounter: cc.mosseCanCounter ?? false,
                   mosseCanBeCountered: cc.mosseCanBeCountered ?? false,
+                  draftBaseId: deckType === 'personaggi' ? id : undefined,
                 } as Card;
                 return card;
               }
@@ -1043,6 +1058,7 @@ export class GameManager {
                 .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
                 .replace(/[-_]/g, ' ')
                 .trim();
+              const growth = deckType === 'personaggi' ? growthMap.get(id) : undefined;
               const card: Card = {
                 id: `${id}-${Math.random().toString(36).substr(2, 6)}`,
                 type: deckType,
@@ -1050,9 +1066,15 @@ export class GameManager {
                 backImage: (DECK_BACK_IMAGES as any)[deckType] || '',
                 owner: '',
                 name: defaultName,
+                draftBaseId: deckType === 'personaggi' ? id : undefined,
               };
               if (mod) {
                 this.applyModificationToCard(card, mod);
+              }
+              // Apply growth on top of (possibly modified) base stats
+              if (growth) {
+                if (growth.extraPti > 0) card.pti = (card.pti ?? 0) + growth.extraPti;
+                if (growth.extraStars > 0) card.stars = (card.stars ?? 0) + growth.extraStars;
               }
               return card;
             }).filter(Boolean) as Card[];
@@ -1062,6 +1084,10 @@ export class GameManager {
             mosse: buildCards(mosseIds, 'mosse'),
             bonus: buildCards(bonusIds, 'bonus'),
           };
+
+          // Initialize growth tracker for this player
+          if (!game.draftGrowthTracker) game.draftGrowthTracker = {};
+          game.draftGrowthTracker[playerName] = {};
           // Shuffle the player's personal decks
           const shuffle = (arr: Card[]) => {
             for (let i = arr.length - 1; i > 0; i--) {
@@ -1922,6 +1948,63 @@ Rispondi SOLO in JSON:`;
         const winnerId = game.playerUserIds.get(winnerPlayer);
         if (winnerId) {
           awardSeasonPassXP(winnerId, 150).catch(() => {});
+        }
+      }
+
+      // Draft mode: process and persist character growth
+      if (game.isDraftMode && game.draftGrowthTracker && isDatabaseAvailable()) {
+        const growthResults: Record<string, Array<{ cardId: string; cardName: string; ptiGained: number; starsGained: number }>> = {};
+        for (const [playerName, cardTrackers] of Object.entries(game.draftGrowthTracker)) {
+          const userId = game.playerUserIds.get(playerName);
+          if (!userId) continue;
+          const playerGrowth: Array<{ cardId: string; cardName: string; ptiGained: number; starsGained: number }> = [];
+          for (const [baseCardId, stats] of Object.entries(cardTrackers)) {
+            // Also check field cards that survived the match (they may have hit maxConsecutiveTurns on field)
+            // Their tracker was kept current so maxConsecutiveTurns reflects the best run
+            let ptiGained = 0;
+            let starsGained = 0;
+            if (stats.maxConsecutiveTurns >= 3) ptiGained += 5;
+            if (stats.killsThisMatch >= 5) starsGained += 1;
+            if (ptiGained === 0 && starsGained === 0) continue;
+            try {
+              // Upsert growth row
+              const existing = await db.select().from(draftCharacterGrowth)
+                .where(and(eq(draftCharacterGrowth.userId, userId), eq(draftCharacterGrowth.cardId, baseCardId)))
+                .limit(1);
+              if (existing.length > 0) {
+                await db.update(draftCharacterGrowth)
+                  .set({
+                    extraPti: existing[0].extraPti + ptiGained,
+                    extraStars: existing[0].extraStars + starsGained,
+                    updatedAt: new Date(),
+                  })
+                  .where(and(eq(draftCharacterGrowth.userId, userId), eq(draftCharacterGrowth.cardId, baseCardId)));
+              } else {
+                await db.insert(draftCharacterGrowth).values({
+                  userId,
+                  cardId: baseCardId,
+                  extraPti: ptiGained,
+                  extraStars: starsGained,
+                  updatedAt: new Date(),
+                });
+              }
+              // Get card name from deck for display
+              const cardName = game.graveyard.find(c => c.draftBaseId === baseCardId)?.name
+                || game.field.find(c => c.draftBaseId === baseCardId && c.owner === playerName)?.name
+                || baseCardId;
+              playerGrowth.push({ cardId: baseCardId, cardName, ptiGained, starsGained });
+              console.log(`🌱 Draft growth saved: ${playerName} - ${baseCardId}: +${ptiGained} PTI, +${starsGained} stelle`);
+            } catch (err) {
+              console.error(`Failed to save draft growth for ${playerName} - ${baseCardId}:`, err);
+            }
+          }
+          if (playerGrowth.length > 0) growthResults[playerName] = playerGrowth;
+        }
+        // Emit growth results to all players
+        const ioGrowth = (global as any).io;
+        if (ioGrowth && Object.keys(growthResults).length > 0) {
+          ioGrowth.to(gameId).emit('draft-growth-update', { growthResults });
+          console.log(`🌱 Draft growth results emitted for game ${gameId}`);
         }
       }
 
@@ -13045,6 +13128,26 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
       }
 
+      // Draft mode: reset consecutive turns for the dying card, and credit the kill to the attacker's active personaggi
+      if (game.isDraftMode && game.draftGrowthTracker) {
+        // Reset consecutive turns for the card that just died
+        if (card.draftBaseId && game.draftGrowthTracker[playerName]?.[card.draftBaseId]) {
+          game.draftGrowthTracker[playerName][card.draftBaseId].consecutiveTurns = 0;
+        }
+        // Credit kill to the attacker's current personaggi card on the field
+        if (attacker && attacker !== 'EFFETTO_CASUALE' && attacker !== 'MORTE_RITARDATA' && attacker !== 'SELF_DAMAGE' && (card.type === 'personaggi' || card.type === 'personaggi_speciali')) {
+          const attackerPersonaggi = game.field.find(c => c.type === 'personaggi' && c.owner === attacker && c.draftBaseId);
+          if (attackerPersonaggi?.draftBaseId) {
+            if (!game.draftGrowthTracker[attacker]) game.draftGrowthTracker[attacker] = {};
+            if (!game.draftGrowthTracker[attacker][attackerPersonaggi.draftBaseId]) {
+              game.draftGrowthTracker[attacker][attackerPersonaggi.draftBaseId] = { consecutiveTurns: 0, maxConsecutiveTurns: 0, killsThisMatch: 0 };
+            }
+            game.draftGrowthTracker[attacker][attackerPersonaggi.draftBaseId].killsThisMatch++;
+            console.log(`🌱 Draft growth: ${attackerPersonaggi.name || attackerPersonaggi.draftBaseId} killed ${card.name || card.draftBaseId} (total: ${game.draftGrowthTracker[attacker][attackerPersonaggi.draftBaseId].killsThisMatch} kills this match)`);
+          }
+        }
+      }
+
       // Check if player should be eliminated (only if it's a personaggi card)
       let eliminationCheck = false;
       if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && game.characterLimit !== 'unlimited') {
@@ -18837,6 +18940,24 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
         });
 
+        // Draft mode: track consecutive turns for personaggi cards
+        if (gameState.isDraftMode && gameState.draftGrowthTracker) {
+          gameState.field.forEach(card => {
+            if (card.type === 'personaggi' && card.owner === nextPlayer && card.draftBaseId) {
+              const tracker = gameState.draftGrowthTracker![nextPlayer];
+              if (tracker) {
+                if (!tracker[card.draftBaseId]) {
+                  tracker[card.draftBaseId] = { consecutiveTurns: 0, maxConsecutiveTurns: 0, killsThisMatch: 0 };
+                }
+                tracker[card.draftBaseId].consecutiveTurns++;
+                if (tracker[card.draftBaseId].consecutiveTurns > tracker[card.draftBaseId].maxConsecutiveTurns) {
+                  tracker[card.draftBaseId].maxConsecutiveTurns = tracker[card.draftBaseId].consecutiveTurns;
+                }
+              }
+            }
+          });
+        }
+
         // Check PTI thresholds for all characters on field
         if (gameState.ptiThresholds && gameState.ptiThresholds.length > 0) {
           for (const fieldCard of gameState.field) {
@@ -19025,7 +19146,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             card.turnCounter = (card.turnCounter || 0) + 1;
             
             // Update the card text to include turn count
-            // Remove previous turn count if it exists (e.g., " | 1 TURNO", " | 2 TURNI", etc.)
+            // Remove previous turn count if it exists (e.g., " | 1 TURNO", " | 2 TURNI", etc.")
             let cleanText = (card.text || '').replace(/\s\|\s\d+\sTURN[IO]/gi, '').trim();
             // Handle the case where the text IS just the turn count
             if (/^\d+\sTURN[IO]$/i.test(cleanText)) {
@@ -19035,6 +19156,23 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             card.text = cleanText ? `${cleanText} | ${suffix}` : suffix;
           }
         });
+
+        // Draft mode: track consecutive turns for personaggi cards
+        if (gameState.isDraftMode && gameState.draftGrowthTracker) {
+          gameState.field.forEach(card => {
+            if (card.type === 'personaggi' && card.owner === nextPlayer && card.draftBaseId) {
+              if (!gameState.draftGrowthTracker![nextPlayer]) gameState.draftGrowthTracker![nextPlayer] = {};
+              const tracker = gameState.draftGrowthTracker![nextPlayer];
+              if (!tracker[card.draftBaseId]) {
+                tracker[card.draftBaseId] = { consecutiveTurns: 0, maxConsecutiveTurns: 0, killsThisMatch: 0 };
+              }
+              tracker[card.draftBaseId].consecutiveTurns++;
+              if (tracker[card.draftBaseId].consecutiveTurns > tracker[card.draftBaseId].maxConsecutiveTurns) {
+                tracker[card.draftBaseId].maxConsecutiveTurns = tracker[card.draftBaseId].consecutiveTurns;
+              }
+            }
+          });
+        }
 
         // Found a non-eliminated player
         // Initialize usedCardsThisTurn and reset usedMosseOnBarrieraThisTurn for the next player
