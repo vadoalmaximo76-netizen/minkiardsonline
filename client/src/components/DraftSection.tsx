@@ -1132,15 +1132,21 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                       <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-11 gap-1.5 p-3">
                         {deckCards.map((card, cardIdx) => {
                           const growth = key === 'personaggi' ? growthData[card.id] : undefined;
-                          const growthTitle = growth
-                            ? `\n🌱 Crescita: +${growth.extraPti} PTI${growth.extraStars > 0 ? `, +${growth.extraStars} ⭐` : ''}`
+                          const totalPti = card.pti != null ? card.pti + (growth?.extraPti ?? 0) : undefined;
+                          const totalStars = card.stars != null ? card.stars + (growth?.extraStars ?? 0) : undefined;
+                          const hasGrowth = growth && (growth.extraPti > 0 || growth.extraStars > 0);
+                          const ptiTitle = totalPti != null
+                            ? `PTI: ${totalPti}${hasGrowth && growth.extraPti > 0 ? ` (base ${card.pti} +${growth.extraPti})` : ''}`
+                            : '';
+                          const starsTitle = totalStars != null
+                            ? `⭐ ${totalStars}${hasGrowth && growth.extraStars > 0 ? ` (base ${card.stars} +${growth.extraStars})` : ''}`
                             : '';
                           return (
                           <div
                             key={card.id}
                             className="relative group rounded-lg overflow-hidden bg-black/30 border border-white/10 hover:border-teal-400/50 transition-all cursor-pointer"
                             onClick={() => setCardViewer({ deckType: key, index: cardIdx })}
-                            title={`${card.name}${card.draftCost > 0 ? ` — ${card.draftCost} crediti` : ' — Gratuita'}${growthTitle}\nClicca per dettagli`}
+                            title={`${card.name}${card.draftCost > 0 ? ` — ${card.draftCost} crediti` : ' — Gratuita'}${ptiTitle ? `\n${ptiTitle}` : ''}${starsTitle ? `  ${starsTitle}` : ''}\nClicca per dettagli`}
                           >
                             <img src={card.imageUrl} alt={card.name} className="w-full aspect-[2/3] object-cover" loading="lazy" />
                             <div className="absolute inset-0 bg-teal-900/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -1151,14 +1157,18 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                                 {card.draftCost}
                               </div>
                             )}
-                            {growth && (growth.extraPti > 0 || growth.extraStars > 0) && (
-                              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-emerald-900/95 to-transparent px-1 pt-2 pb-0.5">
+                            {(totalPti != null || totalStars != null) && (
+                              <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t ${hasGrowth ? 'from-emerald-900/95' : 'from-black/80'} to-transparent px-1 pt-2 pb-0.5`}>
                                 <div className="flex items-center justify-center gap-0.5 flex-wrap">
-                                  {growth.extraPti > 0 && (
-                                    <span className="text-emerald-300 text-[9px] font-bold leading-none whitespace-nowrap">+{growth.extraPti} PTI</span>
+                                  {totalPti != null && (
+                                    <span className={`text-[9px] font-bold leading-none whitespace-nowrap ${hasGrowth && growth.extraPti > 0 ? 'text-emerald-300' : 'text-white/60'}`}>
+                                      {totalPti} PTI
+                                    </span>
                                   )}
-                                  {growth.extraStars > 0 && (
-                                    <span className="text-yellow-300 text-[9px] font-bold leading-none whitespace-nowrap">+{growth.extraStars}⭐</span>
+                                  {totalStars != null && totalStars > 0 && (
+                                    <span className={`text-[9px] font-bold leading-none whitespace-nowrap ${hasGrowth && growth.extraStars > 0 ? 'text-yellow-300' : 'text-white/50'}`}>
+                                      {'⭐'.repeat(Math.min(totalStars, 5))}
+                                    </span>
                                   )}
                                 </div>
                               </div>
@@ -1582,6 +1592,10 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                   const full = false; // No upper limit — minimum is 33 per type
                   const isFree = card.draftCost === 0;
                   const isOwned = ownedCardIds.has(card.id);
+                  const shopGrowth = card.deckType === 'personaggi' ? growthData[card.id] : undefined;
+                  const shopTotalPti = card.pti != null ? card.pti + (shopGrowth?.extraPti ?? 0) : undefined;
+                  const shopTotalStars = card.stars != null ? card.stars + (shopGrowth?.extraStars ?? 0) : undefined;
+                  const shopHasGrowth = shopGrowth && (shopGrowth.extraPti > 0 || shopGrowth.extraStars > 0);
                   return (
                     <div
                       key={card.id}
@@ -1637,9 +1651,18 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                       {/* Card info */}
                       <div className="bg-black/80 px-2 py-1.5">
                         <p className="text-white text-xs font-semibold truncate leading-tight">{card.name}</p>
-                        {(card.pti != null || card.stars != null) && (
-                          <p className="text-white/40 text-[10px] leading-tight">
-                            {card.pti != null ? `PTI: ${card.pti}` : ''}{card.stars ? ` · ★${card.stars}` : ''}
+                        {(shopTotalPti != null || shopTotalStars != null) && (
+                          <p className="text-[10px] leading-tight">
+                            {shopTotalPti != null && (
+                              <span className={shopHasGrowth && shopGrowth.extraPti > 0 ? 'text-emerald-400' : 'text-white/40'}>
+                                PTI: {shopTotalPti}
+                              </span>
+                            )}
+                            {shopTotalStars != null && shopTotalStars > 0 && (
+                              <span className={shopHasGrowth && shopGrowth.extraStars > 0 ? 'text-yellow-400' : 'text-white/40'}>
+                                {shopTotalPti != null ? ' · ' : ''}★{shopTotalStars}
+                              </span>
+                            )}
                           </p>
                         )}
                       </div>
