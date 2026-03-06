@@ -61,7 +61,7 @@ export function ClubPanel({ userId, username, onClose }: ClubPanelProps) {
       const res = await fetch('/api/clans');
       if (!res.ok) throw new Error('Failed to fetch clans');
       const data = await res.json();
-      setClans(data);
+      setClans(data.clans || []);
 
       // Find user's clan if they are in one
       // We need to check members for each clan or have a specific endpoint

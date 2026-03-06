@@ -500,7 +500,7 @@ export function AdminPassPanel({ isOpen, onClose, authToken }: AdminPassPanelPro
                       <label className="block text-sm text-amber-300 mb-1">Tipo Ricompensa *</label>
                       <select
                         value={rewardFormData.rewardType}
-                        onChange={(e) => setRewardFormData({ ...rewardFormData, rewardType: e.target.value })}
+                        onChange={(e) => setRewardFormData({ ...rewardFormData, rewardType: e.target.value, rewardValue: '' })}
                         className="w-full px-3 py-2 bg-amber-900/50 border border-amber-500/30 rounded-lg text-white"
                       >
                         {REWARD_TYPES.map(type => (
@@ -510,13 +510,36 @@ export function AdminPassPanel({ isOpen, onClose, authToken }: AdminPassPanelPro
                     </div>
                     <div>
                       <label className="block text-sm text-amber-300 mb-1">Valore *</label>
-                      <input
-                        type="text"
-                        value={rewardFormData.rewardValue}
-                        onChange={(e) => setRewardFormData({ ...rewardFormData, rewardValue: e.target.value })}
-                        className="w-full px-3 py-2 bg-amber-900/50 border border-amber-500/30 rounded-lg text-white"
-                        placeholder={rewardFormData.rewardType === 'rankiard' ? 'Es: 100' : 'Nome/ID ricompensa'}
-                      />
+                      {rewardFormData.rewardType === 'pack' ? (
+                        <select
+                          value={rewardFormData.rewardValue}
+                          onChange={(e) => setRewardFormData({ ...rewardFormData, rewardValue: e.target.value })}
+                          className="w-full px-3 py-2 bg-amber-900/50 border border-amber-500/30 rounded-lg text-white"
+                        >
+                          <option value="">Scegli pacchetto...</option>
+                          <option value="bronzo">Bronzo</option>
+                          <option value="argento">Argento</option>
+                          <option value="oro">Oro</option>
+                          <option value="diamante">Diamante</option>
+                        </select>
+                      ) : rewardFormData.rewardType === 'credits' || rewardFormData.rewardType === 'rankiard' || rewardFormData.rewardType === 'xp_boost' ? (
+                        <input
+                          type="number"
+                          min="1"
+                          value={rewardFormData.rewardValue}
+                          onChange={(e) => setRewardFormData({ ...rewardFormData, rewardValue: e.target.value })}
+                          className="w-full px-3 py-2 bg-amber-900/50 border border-amber-500/30 rounded-lg text-white"
+                          placeholder={rewardFormData.rewardType === 'credits' ? 'Es: 250' : rewardFormData.rewardType === 'rankiard' ? 'Es: 100' : 'Es: 2'}
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          value={rewardFormData.rewardValue}
+                          onChange={(e) => setRewardFormData({ ...rewardFormData, rewardValue: e.target.value })}
+                          className="w-full px-3 py-2 bg-amber-900/50 border border-amber-500/30 rounded-lg text-white"
+                          placeholder="Nome o ID ricompensa"
+                        />
+                      )}
                     </div>
                     <div className="flex items-center gap-2 pt-6">
                       <input

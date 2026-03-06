@@ -73,7 +73,10 @@ export function SeasonPass({ userId, onClose }: SeasonPassProps) {
 
   const fetchData = async () => {
     try {
-      const response = await fetch("/api/season-pass");
+      const token = localStorage.getItem('authToken');
+      const response = await fetch("/api/season-pass", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (!response.ok) throw new Error("Failed to fetch season pass data");
       const result = await response.json();
       setData(result);
@@ -91,8 +94,10 @@ export function SeasonPass({ userId, onClose }: SeasonPassProps) {
   const handleClaim = async (level: number) => {
     setClaiming(level);
     try {
+      const token = localStorage.getItem('authToken');
       const response = await fetch(`/api/season-pass/claim/${level}`, {
         method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!response.ok) {
         const err = await response.json();

@@ -74,16 +74,53 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
   const { data: myListings = [], isLoading: isLoadingMyListings } = useQuery<Listing[]>({
     queryKey: ["/api/marketplace/mine"],
     enabled: activeTab === "mine",
+    queryFn: async () => {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch("/api/marketplace/mine", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error("Failed to fetch my listings");
+      return res.json();
+    },
   });
 
   const { data: myCollection = [], isLoading: isLoadingCollection } = useQuery<UserCard[]>({
     queryKey: ["/api/user/collection"],
     enabled: activeTab === "sell",
+    queryFn: async () => {
+      const token = localStorage.getItem('authToken');
+      const [collectionRes, cardsRes] = await Promise.all([
+        fetch("/api/draft/collection", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }),
+        fetch("/api/draft/cards"),
+      ]);
+      if (!collectionRes.ok) throw new Error("Failed to fetch collection");
+      const collection: Array<{ cardId: string; deckType: string; rarity: string }> = await collectionRes.json();
+      const allCards: Array<{ id: string; name: string; deckType: string; imageUrl?: string }> = cardsRes.ok ? await cardsRes.json() : [];
+      const cardMap = new Map(allCards.map(c => [c.id, c]));
+      return collection.map((item) => {
+        const meta = cardMap.get(item.cardId);
+        return {
+          cardId: item.cardId,
+          cardName: meta?.name || item.cardId,
+          cardType: item.deckType,
+          cardRarity: item.rarity,
+          cardImageUrl: meta?.imageUrl,
+          count: 1,
+        } as UserCard;
+      });
+    },
   });
 
   const buyMutation = useMutation({
     mutationFn: async (listingId: number) => {
-      await apiRequest("POST", `/api/marketplace/buy/${listingId}`);
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`/api/marketplace/buy/${listingId}`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Errore acquisto"); }
     },
     onSuccess: () => {
       toast({ title: "Acquisto completato!", description: "La carta è stata aggiunta alla tua collezione." });
@@ -97,7 +134,12 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
 
   const cancelMutation = useMutation({
     mutationFn: async (listingId: number) => {
-      await apiRequest("DELETE", `/api/marketplace/${listingId}`);
+      const token = localStorage.getItem('authToken');
+      const res = await fetch(`/api/marketplace/${listingId}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Errore rimozione"); }
     },
     onSuccess: () => {
       toast({ title: "Annuncio rimosso", description: "La carta è tornata nella tua collezione." });
@@ -106,8 +148,17 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
   });
 
   const listMutation = useMutation({
-    mutationFn: async (data: { cardId: string; price: number }) => {
-      await apiRequest("POST", "/api/marketplace/list", data);
+    mutationFn: async (data: { cardId: string; cardName: string; cardType: string; cardRarity: string; cardImageUrl?: string; priceCredits: number }) => {
+      const token = localStorage.getItem('authToken');
+      const res = await fetch("/api/marketplace/list", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || "Errore creazione annuncio"); }
     },
     onSuccess: () => {
       toast({ title: "Annuncio creato", description: "La tua carta è ora in vendita nel marketplace." });
@@ -270,7 +321,7 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
             <TabsContent value="sell" className="h-full m-0 p-6 pt-2 flex flex-col gap-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 overflow-hidden">
                 <div className="flex flex-col gap-4 overflow-hidden">
-                  <h3 className="text-sm font-medium text-slate-400">Seleziona una carta (devi avere almeno un doppione)</h3>
+                  <h3 className="text-sm font-medium text-slate-400">Seleziona una carta dalla tua collezione</h3>
                   <ScrollArea className="flex-1 bg-white/5 rounded-lg border border-white/10 p-4">
                     {isLoadingCollection ? (
                       <div className="flex items-center justify-center h-40">
@@ -278,7 +329,7 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 gap-3">
-                        {myCollection.filter(c => c.count > 1).map((card) => (
+                        {myCollection.map((card) => (
                           <div 
                             key={card.cardId}
                             onClick={() => setSelectedCardForSale(card.cardId)}
@@ -301,9 +352,9 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
                         ))}
                       </div>
                     )}
-                    {!isLoadingCollection && myCollection.filter(c => c.count > 1).length === 0 && (
+                    {!isLoadingCollection && myCollection.length === 0 && (
                       <div className="text-center py-10 text-slate-500 text-sm">
-                        Non hai carte duplicabili in vendita.
+                        Non hai carte nella tua collezione.
                       </div>
                     )}
                   </ScrollArea>
@@ -330,7 +381,19 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
                   <Button 
                     className="w-full h-12 text-lg" 
                     disabled={!selectedCardForSale || sellPrice < 50 || sellPrice > 5000 || listMutation.isPending}
-                    onClick={() => selectedCardForSale && listMutation.mutate({ cardId: selectedCardForSale, price: sellPrice })}
+                    onClick={() => {
+                      if (!selectedCardForSale) return;
+                      const card = myCollection.find(c => c.cardId === selectedCardForSale);
+                      if (!card) return;
+                      listMutation.mutate({
+                        cardId: card.cardId,
+                        cardName: card.cardName,
+                        cardType: card.cardType,
+                        cardRarity: card.cardRarity,
+                        cardImageUrl: card.cardImageUrl,
+                        priceCredits: sellPrice,
+                      });
+                    }}
                   >
                     {listMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Tag className="w-5 h-5 mr-2" />}
                     Metti in vendita
