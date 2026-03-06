@@ -3068,6 +3068,21 @@ Rispondi SOLO in JSON:`;
         const singleActions = this.parseEffectKeywords(singleEffect.trim());
         actions.push(...singleActions);
       }
+      // POST-PROCESS: if there's a timed_effect AND reset_all_to_decks/shuffle_all_decks,
+      // merge the latter into the timed_effect's _delayedActions so they fire together after the delay
+      const timedAction = actions.find(a => a.type === 'timed_effect');
+      if (timedAction) {
+        const boardResetTypes = ['reset_all_to_decks', 'shuffle_all_decks'];
+        const toDelay = actions.filter(a => boardResetTypes.includes(a.type));
+        if (toDelay.length > 0) {
+          const existingDelayed = (timedAction as any)._delayedActions || [];
+          (timedAction as any)._delayedActions = [...existingDelayed, ...toDelay];
+          const filtered = actions.filter(a => !boardResetTypes.includes(a.type));
+          actions.length = 0;
+          actions.push(...filtered);
+          console.log(`⏳ MERGED ${toDelay.length} board-reset actions into timed_effect delayed actions`);
+        }
+      }
       return actions;
     }
     
@@ -7731,12 +7746,25 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         this.shuffleGameDecks(game);
         console.log(`🌪️ RESET ALL TO DECKS: All hands and field cleared, decks shuffled!`);
+        // Redistribute 1 starting card per type per player so the game can continue
+        for (const pName of Object.keys(game.players)) {
+          const pData = game.players[pName];
+          if (!pData) continue;
+          for (const deckType of ['personaggi', 'mosse', 'bonus'] as const) {
+            const deck = game.decks[deckType];
+            if (deck && deck.length > 0) {
+              const card = deck.shift()!;
+              pData.hand.push(card);
+            }
+          }
+          console.log(`🌪️ RESET: dealt initial 3 cards to ${pName}`);
+        }
         const ioReset = (global as any).io;
         if (ioReset) {
           ioReset.to(gameId).emit('chat-message', {
             id: `${Date.now()}-reset-all`,
             playerName: 'Sistema',
-            message: `🌪️ DISTRUZIONE TOTALE! Tutte le carte di tutti i giocatori tornano nei rispettivi mazzi e i mazzi vengono mischiati!`,
+            message: `🌪️ DISTRUZIONE TOTALE! Tutte le carte di tutti i giocatori tornano nei rispettivi mazzi e i mazzi vengono mischiati! A tutti vengono distribuite nuove carte.`,
             timestamp: Date.now()
           });
         }
