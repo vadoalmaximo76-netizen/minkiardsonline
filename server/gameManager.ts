@@ -6511,17 +6511,25 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // === NEW EFFECT HANDLERS ===
       
-      case 'damage_all':
+      case 'damage_all': {
         // Damage ALL characters on field (including allies)
-        for (const fieldCard of game.field) {
+        // Iterate over a snapshot so moveToGraveyard mutations don't affect the loop
+        const allCharsSnapshot = [...game.field];
+        for (const fieldCard of allCharsSnapshot) {
           if ((fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') && fieldCard.pti != null) {
             fieldCard.pti = Math.max(0, fieldCard.pti - (action.value || 100));
+            this.updateCardTextWithPTI(fieldCard);
             console.log(`💥 Custom effect: ${fieldCard.name || fieldCard.id} took ${action.value} damage (ALL), now at ${fieldCard.pti} PTI`);
+            if (fieldCard.pti <= 0) {
+              this.moveToGraveyard(gameId, fieldCard.id, fieldCard.owner || '', playerName);
+              console.log(`💀 Custom effect: ${fieldCard.name || fieldCard.id} died from damage_all`);
+            }
           }
         }
         break;
+      }
 
-      case 'damage_random':
+      case 'damage_random': {
         // Damage a random enemy character
         const enemyChars = game.field.filter(c => 
           c.owner !== playerName && 
@@ -6531,34 +6539,51 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if (enemyChars.length > 0) {
           const randomTarget = enemyChars[Math.floor(Math.random() * enemyChars.length)];
           randomTarget.pti = Math.max(0, (randomTarget.pti || 0) - (action.value || 100));
+          this.updateCardTextWithPTI(randomTarget);
           console.log(`🎲 Custom effect: ${randomTarget.name || randomTarget.id} took ${action.value} random damage, now at ${randomTarget.pti} PTI`);
+          if (randomTarget.pti <= 0) {
+            this.moveToGraveyard(gameId, randomTarget.id, randomTarget.owner || '', playerName);
+            console.log(`💀 Custom effect: ${randomTarget.name || randomTarget.id} died from damage_random`);
+          }
         }
         break;
+      }
 
-      case 'execute':
+      case 'execute': {
         // Instant kill if PTI below threshold
         const threshold = action.value || 300;
-        for (const fieldCard of game.field) {
+        const executeSnapshot = [...game.field];
+        for (const fieldCard of executeSnapshot) {
           if (fieldCard.owner !== playerName && 
               (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') &&
               fieldCard.pti != null && fieldCard.pti < threshold) {
             fieldCard.pti = 0;
+            this.updateCardTextWithPTI(fieldCard);
             console.log(`⚡ Custom effect: EXECUTED ${fieldCard.name || fieldCard.id} (PTI was below ${threshold})!`);
+            this.moveToGraveyard(gameId, fieldCard.id, fieldCard.owner || '', playerName);
           }
         }
         break;
+      }
 
-      case 'pierce':
+      case 'pierce': {
         // Damage ignoring shields/protection
-        for (const fieldCard of game.field) {
+        const pierceSnapshot = [...game.field];
+        for (const fieldCard of pierceSnapshot) {
           if (fieldCard.owner !== playerName && 
               (fieldCard.type === 'personaggi' || fieldCard.type === 'personaggi_speciali') &&
               fieldCard.pti != null) {
             fieldCard.pti = Math.max(0, fieldCard.pti - (action.value || 100));
+            this.updateCardTextWithPTI(fieldCard);
             console.log(`🗡️ Custom effect: PIERCED ${fieldCard.name || fieldCard.id} for ${action.value} damage (ignores shields)!`);
+            if (fieldCard.pti <= 0) {
+              this.moveToGraveyard(gameId, fieldCard.id, fieldCard.owner || '', playerName);
+              console.log(`💀 Custom effect: ${fieldCard.name || fieldCard.id} died from pierce`);
+            }
           }
         }
         break;
+      }
 
       case 'critical':
         // Mark player's active character as having critical chance
