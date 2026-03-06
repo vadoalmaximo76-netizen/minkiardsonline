@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 import {
   Dialog,
   DialogContent,
@@ -48,6 +48,13 @@ interface UserCard {
   count: number;
 }
 
+function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem('authToken');
+  return token
+    ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+    : { 'Content-Type': 'application/json' };
+}
+
 export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
   const [activeTab, setActiveTab] = React.useState("explore");
   const [filterType, setFilterType] = React.useState<string>("ALL");
@@ -55,6 +62,10 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
   const [purchaseConfirm, setPurchaseConfirm] = React.useState<Listing | null>(null);
   const [sellPrice, setSellPrice] = React.useState<number>(50);
   const [selectedCardForSale, setSelectedCardForSale] = React.useState<string | null>(null);
+  const [myCollection, setMyCollection] = React.useState<UserCard[]>([]);
+  const [isLoadingCollection, setIsLoadingCollection] = React.useState(false);
+  const [myListings, setMyListings] = React.useState<Listing[]>([]);
+  const [isLoadingMyListings, setIsLoadingMyListings] = React.useState(false);
   const { toast } = useToast();
 
   const { data: listings = [], isLoading: isLoadingListings } = useQuery<Listing[]>({
@@ -71,35 +82,27 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
     },
   });
 
-  const { data: myListings = [], isLoading: isLoadingMyListings } = useQuery<Listing[]>({
-    queryKey: ["/api/marketplace/mine"],
-    enabled: activeTab === "mine",
-    queryFn: async () => {
-      const token = localStorage.getItem('authToken');
-      const res = await fetch("/api/marketplace/mine", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) throw new Error("Failed to fetch my listings");
-      return res.json();
-    },
-  });
+  const loadMyListings = React.useCallback(async () => {
+    setIsLoadingMyListings(true);
+    try {
+      const res = await fetch("/api/marketplace/mine", { headers: getAuthHeaders() });
+      if (res.ok) setMyListings(await res.json());
+    } catch (_) {}
+    finally { setIsLoadingMyListings(false); }
+  }, []);
 
-  const { data: myCollection = [], isLoading: isLoadingCollection } = useQuery<UserCard[]>({
-    queryKey: ["/api/user/collection"],
-    enabled: activeTab === "sell",
-    queryFn: async () => {
-      const token = localStorage.getItem('authToken');
+  const loadCollection = React.useCallback(async () => {
+    setIsLoadingCollection(true);
+    try {
       const [collectionRes, cardsRes] = await Promise.all([
-        fetch("/api/draft/collection", {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }),
+        fetch("/api/draft/collection", { headers: getAuthHeaders() }),
         fetch("/api/draft/cards"),
       ]);
-      if (!collectionRes.ok) throw new Error("Failed to fetch collection");
+      if (!collectionRes.ok) return;
       const collection: Array<{ cardId: string; deckType: string; rarity: string }> = await collectionRes.json();
       const allCards: Array<{ id: string; name: string; deckType: string; imageUrl?: string }> = cardsRes.ok ? await cardsRes.json() : [];
       const cardMap = new Map(allCards.map(c => [c.id, c]));
-      return collection.map((item) => {
+      setMyCollection(collection.map((item) => {
         const meta = cardMap.get(item.cardId);
         return {
           cardId: item.cardId,
@@ -108,10 +111,16 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
           cardRarity: item.rarity,
           cardImageUrl: meta?.imageUrl,
           count: 1,
-        } as UserCard;
-      });
-    },
-  });
+        };
+      }));
+    } catch (_) {}
+    finally { setIsLoadingCollection(false); }
+  }, []);
+
+  React.useEffect(() => {
+    if (activeTab === "sell") loadCollection();
+    if (activeTab === "mine") loadMyListings();
+  }, [activeTab, loadCollection, loadMyListings]);
 
   const buyMutation = useMutation({
     mutationFn: async (listingId: number) => {
@@ -126,6 +135,7 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
       toast({ title: "Acquisto completato!", description: "La carta è stata aggiunta alla tua collezione." });
       queryClient.invalidateQueries({ queryKey: ["/api/marketplace"] });
       setPurchaseConfirm(null);
+      loadCollection();
     },
     onError: (error: Error) => {
       toast({ title: "Errore durante l'acquisto", description: error.message, variant: "destructive" });
@@ -143,7 +153,7 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
     },
     onSuccess: () => {
       toast({ title: "Annuncio rimosso", description: "La carta è tornata nella tua collezione." });
-      queryClient.invalidateQueries({ queryKey: ["/api/marketplace/mine"] });
+      loadMyListings();
     },
   });
 
@@ -163,9 +173,9 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
     onSuccess: () => {
       toast({ title: "Annuncio creato", description: "La tua carta è ora in vendita nel marketplace." });
       queryClient.invalidateQueries({ queryKey: ["/api/marketplace"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user/collection"] });
       setSelectedCardForSale(null);
       setSellPrice(50);
+      loadMyListings();
       setActiveTab("mine");
     },
     onError: (error: Error) => {
