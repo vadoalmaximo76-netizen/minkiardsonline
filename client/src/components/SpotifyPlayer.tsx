@@ -118,6 +118,10 @@ function buildYTPlayer() {
         e.target.loadPlaylist({ list: PLAYLIST_ID, listType: 'playlist', index: randomStart, startSeconds: 0 });
       },
       onStateChange: (e: any) => {
+        if (e.data === window.YT.PlayerState.ENDED) {
+          console.log('[YT] track ended — advancing to next');
+          try { e.target.nextVideo(); } catch {}
+        }
         if (e.data === window.YT.PlayerState.PLAYING) {
           const data = e.target.getVideoData();
           const videoId: string = data?.video_id ?? '';
@@ -274,8 +278,13 @@ export function SpotifyPlayer({ disabled = false }: { disabled?: boolean }) {
               const st = gs();
               if (st.player) {
                 const state: number = st.player.getPlayerState?.() ?? -1;
-                // -1=unstarted, 0=ended, 2=paused, 5=cued → start
-                if ([-1, 0, 2, 5].includes(state)) {
+                if (state === 0) {
+                  // ended → go to next shuffled track
+                  clearFade();
+                  st.player.setVolume(st.volume);
+                  st.player.nextVideo();
+                } else if ([-1, 2, 5].includes(state)) {
+                  // unstarted / paused / cued → resume current track
                   clearFade();
                   st.player.setVolume(st.volume);
                   st.player.playVideo();
