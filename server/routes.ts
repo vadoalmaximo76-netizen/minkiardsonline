@@ -13238,69 +13238,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
 
   // ===== CARD PACK SYSTEM =====
 
-  const PACK_TYPES = [
-    {
-      id: 'bronzo',
-      name: 'Pacchetto Bronzo',
-      creditsRequired: 150,
-      cardCount: 5,
-      description: 'Il pacchetto base per iniziare la tua collezione',
-      gradient: 'linear-gradient(135deg, #92400e, #b45309, #d97706)',
-      glowColor: '#b45309',
-      composition: '4 Comuni + 1 Rara',
-      slots: [
-        { rarity: 'comune' }, { rarity: 'comune' }, { rarity: 'comune' }, { rarity: 'comune' },
-        { rarity: 'rara' },
-      ],
-    },
-    {
-      id: 'argento',
-      name: 'Pacchetto Argento',
-      creditsRequired: 400,
-      cardCount: 7,
-      description: 'Più carte rare per ampliare il tuo mazzo',
-      gradient: 'linear-gradient(135deg, #374151, #6b7280, #9ca3af)',
-      glowColor: '#9ca3af',
-      composition: '3 Comuni + 3 Rare + 1 Epica',
-      slots: [
-        { rarity: 'comune' }, { rarity: 'comune' }, { rarity: 'comune' },
-        { rarity: 'rara' }, { rarity: 'rara' }, { rarity: 'rara' },
-        { rarity: 'epica' },
-      ],
-    },
-    {
-      id: 'oro',
-      name: 'Pacchetto Oro',
-      creditsRequired: 900,
-      cardCount: 10,
-      description: 'Carte potenti con possibilità di leggendarie',
-      gradient: 'linear-gradient(135deg, #78350f, #d97706, #fbbf24)',
-      glowColor: '#f59e0b',
-      composition: '3 Comuni + 4 Rare + 2 Epiche + 1 Leggendaria',
-      slots: [
-        { rarity: 'comune' }, { rarity: 'comune' }, { rarity: 'comune' },
-        { rarity: 'rara' }, { rarity: 'rara' }, { rarity: 'rara' }, { rarity: 'rara' },
-        { rarity: 'epica' }, { rarity: 'epica' },
-        { rarity: 'leggendaria' },
-      ],
-    },
-    {
-      id: 'diamante',
-      name: 'Pacchetto Diamante',
-      creditsRequired: 2000,
-      cardCount: 12,
-      description: 'Le carte più potenti del gioco garantite',
-      gradient: 'linear-gradient(135deg, #1e3a5f, #1d4ed8, #38bdf8)',
-      glowColor: '#38bdf8',
-      composition: '2 Comuni + 4 Rare + 4 Epiche + 2 Leggendarie',
-      slots: [
-        { rarity: 'comune' }, { rarity: 'comune' },
-        { rarity: 'rara' }, { rarity: 'rara' }, { rarity: 'rara' }, { rarity: 'rara' },
-        { rarity: 'epica' }, { rarity: 'epica' }, { rarity: 'epica' }, { rarity: 'epica' },
-        { rarity: 'leggendaria' }, { rarity: 'leggendaria' },
-      ],
-    },
-  ];
+  function getPackTypes() {
+    return jsonStorage.packs.getAll();
+  }
 
   const RARITY_COST_RANGES: Record<string, { min: number; max: number }> = {
     comune:      { min: 1,  max: 20 },
@@ -13363,13 +13303,13 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     try {
       const user = (req as any).user;
       if (!isDatabaseAvailable()) {
-        return res.json({ packs: PACK_TYPES, credits: { freeCredits: 0, paidCredits: 0, total: 0 } });
+        return res.json({ packs: getPackTypes(), credits: { freeCredits: 0, paidCredits: 0, total: 0 } });
       }
       const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
       if (!currentUser) return res.status(404).json({ error: 'User not found' });
       const credits = await getOrCreateDraftCredits(currentUser.id);
       const total = credits.freeCredits + credits.paidCredits + currentUser.puntiRankiard;
-      res.json({ packs: PACK_TYPES, credits: { freeCredits: credits.freeCredits, paidCredits: credits.paidCredits, rankiardPoints: currentUser.puntiRankiard, total } });
+      res.json({ packs: getPackTypes(), credits: { freeCredits: credits.freeCredits, paidCredits: credits.paidCredits, rankiardPoints: currentUser.puntiRankiard, total } });
     } catch (error) {
       res.status(500).json({ error: 'Errore nel recupero pacchetti' });
     }
@@ -13384,7 +13324,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       if (!currentUser) return res.status(404).json({ error: 'User not found' });
 
       const { packId } = req.body;
-      const pack = PACK_TYPES.find(p => p.id === packId);
+      const pack = getPackTypes().find((p: any) => p.id === packId);
       if (!pack) return res.status(400).json({ error: 'Pacchetto non valido' });
 
       const credits = await getOrCreateDraftCredits(currentUser.id);
@@ -13400,19 +13340,31 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       const usedCardIds = new Set<string>();
       const pickedCards: Array<{ cardId: string; deckType: string; rarity: string; frontImage: string; name: string; draftCost: number; pti?: number; stars?: number }> = [];
 
-      for (const slot of pack.slots) {
-        const pool = cardPool[slot.rarity] || cardPool['comune'];
-        const available = pool.filter(c => !usedCardIds.has(c.cardId));
+      for (const slot of (pack as any).slots) {
+        let slotRarity: string;
+        if (slot.alternatives && slot.alternatives.length > 0) {
+          const totalWeight = slot.alternatives.reduce((s: number, a: any) => s + (a.weight || 1), 0);
+          let rand = Math.random() * totalWeight;
+          slotRarity = slot.alternatives[0].rarity;
+          for (const alt of slot.alternatives) {
+            rand -= alt.weight;
+            if (rand <= 0) { slotRarity = alt.rarity; break; }
+          }
+        } else {
+          slotRarity = slot.rarity || 'comune';
+        }
+        const pool = cardPool[slotRarity] || cardPool['comune'];
+        const available = pool.filter((c: any) => !usedCardIds.has(c.cardId));
         if (available.length === 0) {
-          const fallback = Object.values(cardPool).flat().filter(c => !usedCardIds.has(c.cardId));
+          const fallback = Object.values(cardPool).flat().filter((c: any) => !usedCardIds.has(c.cardId));
           if (fallback.length === 0) continue;
-          const chosen = fallback[Math.floor(Math.random() * fallback.length)];
+          const chosen = fallback[Math.floor(Math.random() * fallback.length)] as any;
           usedCardIds.add(chosen.cardId);
-          pickedCards.push({ ...chosen, rarity: slot.rarity });
+          pickedCards.push({ ...chosen, rarity: slotRarity });
         } else {
           const chosen = available[Math.floor(Math.random() * available.length)];
           usedCardIds.add(chosen.cardId);
-          pickedCards.push({ ...chosen, rarity: slot.rarity });
+          pickedCards.push({ ...chosen, rarity: slotRarity });
         }
       }
 
@@ -13488,6 +13440,51 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       console.error('Error opening pack:', error);
       res.status(500).json({ error: 'Errore nell\'apertura del pacchetto' });
     }
+  });
+
+  // ===== ADMIN PACK MANAGEMENT =====
+
+  app.get('/api/admin/packs', authMiddleware, (req, res) => {
+    const user = (req as any).user;
+    if (!user?.isAdmin) return res.status(403).json({ error: 'Non autorizzato' });
+    res.json(getPackTypes());
+  });
+
+  app.post('/api/admin/packs', authMiddleware, (req, res) => {
+    const user = (req as any).user;
+    if (!user?.isAdmin) return res.status(403).json({ error: 'Non autorizzato' });
+    const { name, creditsRequired, description, gradient, glowColor, slots } = req.body;
+    if (!name || !creditsRequired || !slots || !Array.isArray(slots)) {
+      return res.status(400).json({ error: 'Dati mancanti' });
+    }
+    const newPack = jsonStorage.packs.create({ name, creditsRequired: parseInt(creditsRequired), cardCount: slots.length, description: description || '', gradient: gradient || '', glowColor: glowColor || '', slots });
+    res.json(newPack);
+  });
+
+  app.put('/api/admin/packs/:id', authMiddleware, (req, res) => {
+    const user = (req as any).user;
+    if (!user?.isAdmin) return res.status(403).json({ error: 'Non autorizzato' });
+    const { id } = req.params;
+    const { name, creditsRequired, description, gradient, glowColor, slots } = req.body;
+    const data: any = {};
+    if (name !== undefined) data.name = name;
+    if (creditsRequired !== undefined) data.creditsRequired = parseInt(creditsRequired);
+    if (description !== undefined) data.description = description;
+    if (gradient !== undefined) data.gradient = gradient;
+    if (glowColor !== undefined) data.glowColor = glowColor;
+    if (slots !== undefined && Array.isArray(slots)) data.slots = slots;
+    const updated = jsonStorage.packs.update(id, data);
+    if (!updated) return res.status(404).json({ error: 'Pacchetto non trovato' });
+    res.json(updated);
+  });
+
+  app.delete('/api/admin/packs/:id', authMiddleware, (req, res) => {
+    const user = (req as any).user;
+    if (!user?.isAdmin) return res.status(403).json({ error: 'Non autorizzato' });
+    const { id } = req.params;
+    const deleted = jsonStorage.packs.delete(id);
+    if (!deleted) return res.status(404).json({ error: 'Pacchetto non trovato' });
+    res.json({ success: true });
   });
 
   // POST /api/draft/resolve-duplicate - user chooses: refund half cost OR list on marketplace

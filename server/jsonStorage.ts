@@ -757,6 +757,44 @@ export const jsonStorage = {
     }
   },
 
+  packs: {
+    getAll(): PackConfig[] {
+      const stored = readJsonFile<PackConfig>('packs');
+      return stored.length > 0 ? stored : DEFAULT_PACKS;
+    },
+    save(packs: PackConfig[]): void {
+      ensureDataDir();
+      writeJsonFile('packs', packs);
+    },
+    create(data: Omit<PackConfig, 'id'> & { id?: string }): PackConfig {
+      const all = this.getAll();
+      const newPack: PackConfig = {
+        ...data,
+        id: data.id || `pack-${Date.now()}`,
+        cardCount: data.slots.length,
+      };
+      all.push(newPack);
+      this.save(all);
+      return newPack;
+    },
+    update(id: string, data: Partial<PackConfig>): PackConfig | null {
+      const all = this.getAll();
+      const index = all.findIndex(p => p.id === id);
+      if (index === -1) return null;
+      if (data.slots) data.cardCount = data.slots.length;
+      all[index] = { ...all[index], ...data };
+      this.save(all);
+      return all[index];
+    },
+    delete(id: string): boolean {
+      const all = this.getAll();
+      const filtered = all.filter(p => p.id !== id);
+      if (filtered.length === all.length) return false;
+      this.save(filtered);
+      return true;
+    },
+  },
+
   cardVersion: {
     getFilePath(): string {
       return path.join(DATA_DIR, 'cardVersion.json');
@@ -783,5 +821,65 @@ export const jsonStorage = {
     }
   }
 };
+
+export interface PackSlot {
+  rarity?: string;
+  alternatives?: { rarity: string; weight: number }[];
+}
+
+export interface PackConfig {
+  id: string;
+  name: string;
+  creditsRequired: number;
+  cardCount: number;
+  description: string;
+  gradient: string;
+  glowColor: string;
+  slots: PackSlot[];
+}
+
+const DEFAULT_PACKS: PackConfig[] = [
+  {
+    id: 'bronzo', name: 'Pacchetto Bronzo', creditsRequired: 75, cardCount: 5,
+    description: 'Il pacchetto base per iniziare la tua collezione',
+    gradient: 'linear-gradient(135deg, #92400e, #b45309, #d97706)', glowColor: '#b45309',
+    slots: [
+      { rarity: 'comune' }, { rarity: 'comune' }, { rarity: 'comune' }, { rarity: 'rara' },
+      { alternatives: [{ rarity: 'epica', weight: 90 }, { rarity: 'leggendaria', weight: 10 }] },
+    ],
+  },
+  {
+    id: 'argento', name: 'Pacchetto Argento', creditsRequired: 150, cardCount: 7,
+    description: 'Più carte rare per ampliare il tuo mazzo',
+    gradient: 'linear-gradient(135deg, #374151, #6b7280, #9ca3af)', glowColor: '#9ca3af',
+    slots: [
+      { rarity: 'comune' }, { rarity: 'comune' },
+      { rarity: 'rara' }, { rarity: 'rara' }, { rarity: 'rara' },
+      { rarity: 'epica' },
+      { alternatives: [{ rarity: 'epica', weight: 90 }, { rarity: 'leggendaria', weight: 10 }] },
+    ],
+  },
+  {
+    id: 'oro', name: 'Pacchetto Oro', creditsRequired: 300, cardCount: 10,
+    description: 'Carte potenti con possibilità di leggendarie',
+    gradient: 'linear-gradient(135deg, #78350f, #d97706, #fbbf24)', glowColor: '#f59e0b',
+    slots: [
+      { rarity: 'comune' }, { rarity: 'comune' }, { rarity: 'comune' },
+      { rarity: 'rara' }, { rarity: 'rara' }, { rarity: 'rara' }, { rarity: 'rara' },
+      { rarity: 'epica' }, { rarity: 'epica' }, { rarity: 'leggendaria' },
+    ],
+  },
+  {
+    id: 'diamante', name: 'Pacchetto Diamante', creditsRequired: 500, cardCount: 12,
+    description: 'Le carte più potenti del gioco garantite',
+    gradient: 'linear-gradient(135deg, #1e3a5f, #1d4ed8, #38bdf8)', glowColor: '#38bdf8',
+    slots: [
+      { rarity: 'comune' }, { rarity: 'comune' },
+      { rarity: 'rara' }, { rarity: 'rara' }, { rarity: 'rara' }, { rarity: 'rara' },
+      { rarity: 'epica' }, { rarity: 'epica' }, { rarity: 'epica' }, { rarity: 'epica' },
+      { rarity: 'leggendaria' }, { rarity: 'leggendaria' },
+    ],
+  },
+];
 
 export type { CustomCard, CardModification, CardSkin, PersonaggioCache, Achievement, MissionTemplate, TutorialStep, PlayerSkin, JsonUser };

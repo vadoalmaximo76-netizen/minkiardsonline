@@ -24,7 +24,8 @@ export interface PackType {
   description: string;
   gradient: string;
   glowColor: string;
-  composition: string;
+  composition?: string;
+  slots?: Array<{ rarity?: string; alternatives?: Array<{ rarity: string; weight: number }> }>;
 }
 
 interface PackOpeningAnimationProps {

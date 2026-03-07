@@ -14,6 +14,7 @@ Draft mode advanced features:
 - **Preset Mazzo**: save/load/delete up to 3 deck presets (in Mazzo tab)
 - **Offerte Settimanali**: 6 deterministic 50%-off card offers weekly (seeded by ISO week number), shown in Negozio tab
 - **Missioni Draft**: 5 draft-specific missions (open packs, complete deck, get epic card, daily card claims) with credit rewards, shown in Mazzo tab
+- **Admin Pack Management**: Admin users see a collapsible "Gestione Pacchetti" panel in the Packs tab with full CRUD (create/edit/delete packs). Slot format supports fixed rarities ("comune", "rara") and probabilistic slots ("epica:90/leggendaria:10"). Config persisted in server/data/packs.json via jsonStorage. API: GET/POST/PUT/DELETE /api/admin/packs.
 
 # User Preferences
 

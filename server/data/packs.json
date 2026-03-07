@@ -1,0 +1,80 @@
+[
+  {
+    "id": "bronzo",
+    "name": "Pacchetto Bronzo",
+    "creditsRequired": 75,
+    "cardCount": 5,
+    "description": "Il pacchetto base per iniziare la tua collezione",
+    "gradient": "linear-gradient(135deg, #92400e, #b45309, #d97706)",
+    "glowColor": "#b45309",
+    "slots": [
+      { "rarity": "comune" },
+      { "rarity": "comune" },
+      { "rarity": "comune" },
+      { "rarity": "rara" },
+      { "alternatives": [{ "rarity": "epica", "weight": 90 }, { "rarity": "leggendaria", "weight": 10 }] }
+    ]
+  },
+  {
+    "id": "argento",
+    "name": "Pacchetto Argento",
+    "creditsRequired": 150,
+    "cardCount": 7,
+    "description": "Più carte rare per ampliare il tuo mazzo",
+    "gradient": "linear-gradient(135deg, #374151, #6b7280, #9ca3af)",
+    "glowColor": "#9ca3af",
+    "slots": [
+      { "rarity": "comune" },
+      { "rarity": "comune" },
+      { "rarity": "rara" },
+      { "rarity": "rara" },
+      { "rarity": "rara" },
+      { "rarity": "epica" },
+      { "alternatives": [{ "rarity": "epica", "weight": 90 }, { "rarity": "leggendaria", "weight": 10 }] }
+    ]
+  },
+  {
+    "id": "oro",
+    "name": "Pacchetto Oro",
+    "creditsRequired": 300,
+    "cardCount": 10,
+    "description": "Carte potenti con possibilità di leggendarie",
+    "gradient": "linear-gradient(135deg, #78350f, #d97706, #fbbf24)",
+    "glowColor": "#f59e0b",
+    "slots": [
+      { "rarity": "comune" },
+      { "rarity": "comune" },
+      { "rarity": "comune" },
+      { "rarity": "rara" },
+      { "rarity": "rara" },
+      { "rarity": "rara" },
+      { "rarity": "rara" },
+      { "rarity": "epica" },
+      { "rarity": "epica" },
+      { "rarity": "leggendaria" }
+    ]
+  },
+  {
+    "id": "diamante",
+    "name": "Pacchetto Diamante",
+    "creditsRequired": 500,
+    "cardCount": 12,
+    "description": "Le carte più potenti del gioco garantite",
+    "gradient": "linear-gradient(135deg, #1e3a5f, #1d4ed8, #38bdf8)",
+    "glowColor": "#38bdf8",
+    "slots": [
+      { "rarity": "comune" },
+      { "rarity": "comune" },
+      { "rarity": "rara" },
+      { "rarity": "rara" },
+      { "rarity": "rara" },
+      { "rarity": "rara" },
+      { "rarity": "epica" },
+      { "rarity": "epica" },
+      { "rarity": "epica" },
+      { "rarity": "epica" },
+      { "rarity": "leggendaria" },
+      { "rarity": "leggendaria" }
+    ]
+  }
+]

@@ -151,6 +151,12 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
   // Pack history
   const [packHistory, setPackHistory] = useState<PackHistoryEntry[]>([]);
   const [showPackHistory, setShowPackHistory] = useState(false);
+  const [packAdminOpen, setPackAdminOpen] = useState(false);
+  const [packAdminList, setPackAdminList] = useState<PackType[]>([]);
+  const [packEditing, setPackEditing] = useState<string | null>(null);
+  const [packCreating, setPackCreating] = useState(false);
+  const emptyPackForm = { name: '', creditsRequired: 100, description: '', gradient: 'linear-gradient(135deg, #1a1a2e, #16213e)', glowColor: '#4a9eff', slotsText: 'comune\ncomune\nrara' };
+  const [packForm, setPackForm] = useState(emptyPackForm);
   // Weekly offers
   const [weeklyOffers, setWeeklyOffers] = useState<WeeklyOffer[]>([]);
   const [daysUntilReset, setDaysUntilReset] = useState(0);
@@ -218,6 +224,47 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
       if (res.ok) setPackHistory(await res.json());
     } catch (e) {}
   }, []);
+
+  const parseSlotsText = (text: string) => {
+    return text.split('\n').map(line => line.trim()).filter(Boolean).map(line => {
+      if (line.includes('/')) {
+        const alternatives = line.split('/').map(part => {
+          const [rarity, weight] = part.trim().split(':');
+          return { rarity: rarity.trim(), weight: parseInt(weight) || 50 };
+        });
+        return { alternatives };
+      }
+      return { rarity: line };
+    });
+  };
+
+  const slotsToText = (slots: any[]) => {
+    return slots.map(slot => {
+      if (slot.alternatives) {
+        return slot.alternatives.map((a: any) => `${a.rarity}:${a.weight}`).join('/');
+      }
+      return slot.rarity || 'comune';
+    }).join('\n');
+  };
+
+  const fetchAdminPacks = async () => {
+    try {
+      const res = await fetch('/api/admin/packs', { headers: getAuthHeaders() });
+      if (res.ok) setPackAdminList(await res.json());
+    } catch (e) {}
+  };
+
+  const savePackAdmin = async (id: string | null, data: any) => {
+    const url = id ? `/api/admin/packs/${id}` : '/api/admin/packs';
+    const method = id ? 'PUT' : 'POST';
+    const res = await fetch(url, { method, headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+    if (!res.ok) throw new Error('Errore salvataggio');
+    return res.json();
+  };
+
+  const deletePackAdmin = async (id: string) => {
+    await fetch(`/api/admin/packs/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+  };
 
   const fetchWeeklyOffers = useCallback(async () => {
     try {
@@ -1806,24 +1853,10 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                           </div>
                         </div>
 
-                        <div className="flex flex-wrap gap-1.5 mb-4">
-                          {pack.composition.split(' + ').map((part, i) => {
-                            const rarityMap: Record<string, string> = {
-                              'Comuni': 'bg-gray-500/30 text-gray-200 border-gray-400/30',
-                              'Comune': 'bg-gray-500/30 text-gray-200 border-gray-400/30',
-                              'Rare': 'bg-blue-500/30 text-blue-200 border-blue-400/30',
-                              'Rara': 'bg-blue-500/30 text-blue-200 border-blue-400/30',
-                              'Epiche': 'bg-purple-500/30 text-purple-200 border-purple-400/30',
-                              'Epica': 'bg-purple-500/30 text-purple-200 border-purple-400/30',
-                              'Leggendarie': 'bg-yellow-500/30 text-yellow-200 border-yellow-400/30',
-                              'Leggendaria': 'bg-yellow-500/30 text-yellow-200 border-yellow-400/30',
-                            };
-                            const word = part.split(' ').slice(-1)[0];
-                            const cls = rarityMap[word] || 'bg-white/10 text-white/60 border-white/20';
-                            return (
-                              <span key={i} className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${cls}`}>{part}</span>
-                            );
-                          })}
+                        <div className="flex items-center gap-2 mb-4">
+                          <span className="text-white/60 text-sm bg-white/10 border border-white/20 rounded-full px-3 py-1 font-semibold">
+                            📦 {pack.cardCount} carte
+                          </span>
                         </div>
 
                         <button
@@ -1865,6 +1898,87 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                     <span className="text-emerald-300 font-semibold text-sm">Carte in collezione: {ownedCardIds.size}</span>
                   </div>
                   <p className="text-white/50 text-xs">Le carte già possedute sono gratuite nel deck builder. Vai al <button onClick={() => setActiveTab('shop')} className="text-teal-400 underline hover:text-teal-300">Negozio</button> per aggiungerle al tuo mazzo.</p>
+                </div>
+              )}
+
+              {/* === Admin: Gestione Pacchetti === */}
+              {status?.isAdmin && (
+                <div className="bg-orange-900/20 border border-orange-500/30 rounded-xl overflow-hidden">
+                  <button
+                    onClick={async () => { if (!packAdminOpen) await fetchAdminPacks(); setPackAdminOpen(!packAdminOpen); setPackEditing(null); setPackCreating(false); }}
+                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-orange-500/10 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-orange-400 text-sm">⚙️</span>
+                      <span className="text-orange-300 font-semibold text-sm">Gestione Pacchetti (Admin)</span>
+                    </div>
+                    {packAdminOpen ? <ChevronUp className="w-4 h-4 text-orange-400/60" /> : <ChevronDown className="w-4 h-4 text-orange-400/60" />}
+                  </button>
+                  {packAdminOpen && (
+                    <div className="border-t border-orange-500/20 p-4 space-y-3">
+                      {/* Pack list */}
+                      {packAdminList.map(p => (
+                        <div key={p.id} className="bg-black/30 border border-white/10 rounded-lg p-3">
+                          {packEditing === p.id ? (
+                            <div className="space-y-2">
+                              <input value={packForm.name} onChange={e => setPackForm(f => ({ ...f, name: e.target.value }))} placeholder="Nome" className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50" />
+                              <div className="flex gap-2">
+                                <input type="number" value={packForm.creditsRequired} onChange={e => setPackForm(f => ({ ...f, creditsRequired: parseInt(e.target.value) || 0 }))} placeholder="Costo crediti" className="flex-1 px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50" />
+                                <input value={packForm.glowColor} onChange={e => setPackForm(f => ({ ...f, glowColor: e.target.value }))} placeholder="Glow #hex" className="flex-1 px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50" />
+                              </div>
+                              <input value={packForm.description} onChange={e => setPackForm(f => ({ ...f, description: e.target.value }))} placeholder="Descrizione" className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50" />
+                              <input value={packForm.gradient} onChange={e => setPackForm(f => ({ ...f, gradient: e.target.value }))} placeholder="CSS gradient" className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50" />
+                              <div>
+                                <div className="text-white/40 text-[10px] mb-1">Slot (uno per riga: "comune", "rara", "epica:90/leggendaria:10")</div>
+                                <textarea value={packForm.slotsText} onChange={e => setPackForm(f => ({ ...f, slotsText: e.target.value }))} rows={6} className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50 font-mono" />
+                              </div>
+                              <div className="flex gap-2">
+                                <button onClick={async () => { try { const slots = parseSlotsText(packForm.slotsText); await savePackAdmin(p.id, { name: packForm.name, creditsRequired: packForm.creditsRequired, description: packForm.description, gradient: packForm.gradient, glowColor: packForm.glowColor, slots }); await fetchAdminPacks(); const res2 = await fetch('/api/draft/packs', { headers: getAuthHeaders() }); if (res2.ok) { const d = await res2.json(); if (d.packs) setAvailablePacks(d.packs); } setPackEditing(null); } catch(e) { alert('Errore salvataggio'); } }} className="flex-1 px-3 py-1.5 bg-orange-500/30 border border-orange-400/50 text-orange-300 hover:bg-orange-500/50 rounded-lg text-xs font-semibold">Salva</button>
+                                <button onClick={() => setPackEditing(null)} className="px-3 py-1.5 bg-white/10 border border-white/20 text-white/60 hover:bg-white/20 rounded-lg text-xs">Annulla</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="text-white font-semibold text-sm">{p.name}</div>
+                                <div className="text-white/50 text-xs">{p.creditsRequired} cr · {p.cardCount} carte</div>
+                              </div>
+                              <div className="flex gap-1">
+                                <button onClick={() => { setPackEditing(p.id); setPackForm({ name: p.name, creditsRequired: p.creditsRequired, description: p.description || '', gradient: p.gradient || '', glowColor: p.glowColor || '', slotsText: slotsToText((p as any).slots || []) }); }} className="px-2.5 py-1 bg-blue-500/20 border border-blue-400/40 text-blue-300 hover:bg-blue-500/40 rounded text-xs">Modifica</button>
+                                <button onClick={async () => { if (confirm('Eliminare questo pacchetto?')) { await deletePackAdmin(p.id); await fetchAdminPacks(); const res2 = await fetch('/api/draft/packs', { headers: getAuthHeaders() }); if (res2.ok) { const d = await res2.json(); if (d.packs) setAvailablePacks(d.packs); } } }} className="px-2.5 py-1 bg-red-500/20 border border-red-400/40 text-red-300 hover:bg-red-500/40 rounded text-xs">Elimina</button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                      {/* Create new pack */}
+                      {packCreating ? (
+                        <div className="bg-black/30 border border-orange-400/30 rounded-lg p-3 space-y-2">
+                          <div className="text-orange-300 text-xs font-semibold mb-2">Nuovo Pacchetto</div>
+                          <input value={packForm.name} onChange={e => setPackForm(f => ({ ...f, name: e.target.value }))} placeholder="Nome" className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50" />
+                          <div className="flex gap-2">
+                            <input type="number" value={packForm.creditsRequired} onChange={e => setPackForm(f => ({ ...f, creditsRequired: parseInt(e.target.value) || 0 }))} placeholder="Costo crediti" className="flex-1 px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50" />
+                            <input value={packForm.glowColor} onChange={e => setPackForm(f => ({ ...f, glowColor: e.target.value }))} placeholder="Glow #hex" className="flex-1 px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50" />
+                          </div>
+                          <input value={packForm.description} onChange={e => setPackForm(f => ({ ...f, description: e.target.value }))} placeholder="Descrizione" className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50" />
+                          <input value={packForm.gradient} onChange={e => setPackForm(f => ({ ...f, gradient: e.target.value }))} placeholder="CSS gradient (es: linear-gradient(135deg, #1a1a2e, #16213e))" className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50" />
+                          <div>
+                            <div className="text-white/40 text-[10px] mb-1">Slot (uno per riga: "comune", "rara", "epica:90/leggendaria:10")</div>
+                            <textarea value={packForm.slotsText} onChange={e => setPackForm(f => ({ ...f, slotsText: e.target.value }))} rows={6} className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50 font-mono" />
+                          </div>
+                          <div className="flex gap-2">
+                            <button onClick={async () => { try { const slots = parseSlotsText(packForm.slotsText); await savePackAdmin(null, { name: packForm.name, creditsRequired: packForm.creditsRequired, description: packForm.description, gradient: packForm.gradient, glowColor: packForm.glowColor, slots }); await fetchAdminPacks(); const res2 = await fetch('/api/draft/packs', { headers: getAuthHeaders() }); if (res2.ok) { const d = await res2.json(); if (d.packs) setAvailablePacks(d.packs); } setPackCreating(false); setPackForm(emptyPackForm); } catch(e) { alert('Errore salvataggio'); } }} className="flex-1 px-3 py-1.5 bg-orange-500/30 border border-orange-400/50 text-orange-300 hover:bg-orange-500/50 rounded-lg text-xs font-semibold">Crea Pacchetto</button>
+                            <button onClick={() => { setPackCreating(false); setPackForm(emptyPackForm); }} className="px-3 py-1.5 bg-white/10 border border-white/20 text-white/60 hover:bg-white/20 rounded-lg text-xs">Annulla</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button onClick={() => { setPackCreating(true); setPackEditing(null); setPackForm(emptyPackForm); }} className="w-full py-2 bg-orange-500/20 border border-orange-400/40 text-orange-300 hover:bg-orange-500/30 rounded-lg text-sm font-semibold">
+                          + Crea nuovo pacchetto
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
