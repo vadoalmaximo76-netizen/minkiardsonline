@@ -477,44 +477,49 @@ function App() {
     }
   };
 
-  const isGameMode =
-    (currentSection === 'play' && !!gameId && !showRoomDialog) ||
-    currentSection === 'draft';
-
-  const renderSection = () => {
-    if (showAuthDialog && !authenticatedUser) {
-      return (
+  if (showAuthDialog && !authenticatedUser) {
+    return (
+      <QueryClientProvider client={queryClient}>
         <div className="min-h-screen bg-arena-deep flex items-center justify-center">
           <AuthDialog open={showAuthDialog} onSuccess={handleAuthSuccess} />
         </div>
-      );
-    }
+      </QueryClientProvider>
+    );
+  }
 
-    if (showNameDialog || !playerName) {
-      return (
+  if (showNameDialog || !playerName) {
+    return (
+      <QueryClientProvider client={queryClient}>
         <div className="min-h-screen bg-arena-deep flex items-center justify-center">
           <PlayerNameDialog
             open={showNameDialog}
             onSubmit={handleNameSubmit}
           />
         </div>
-      );
-    }
+      </QueryClientProvider>
+    );
+  }
 
-    if (currentSection === 'home') {
-      return (
-        <HomeScreen
+  // Show Home Screen
+  if (currentSection === 'home') {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <HomeScreen 
           playerName={playerName}
           userId={authenticatedUser?.id}
           onNavigate={handleNavigate}
           onJoinTournamentMatch={handleJoinTournamentMatch}
           userEmail={authenticatedUser?.email || undefined}
         />
-      );
-    }
+        <SpotifyPlayer disabled={false} />
+      </QueryClientProvider>
+    );
+  }
 
-    if (currentSection === 'training') {
-      return (
+  // Show Training Mode
+  if (currentSection === 'training') {
+    return (
+      <QueryClientProvider client={queryClient}>
         <TrainingMode
           playerName={playerName}
           userId={authenticatedUser?.id}
@@ -522,11 +527,15 @@ function App() {
           userEmail={authenticatedUser?.email}
           onBack={() => setCurrentSection('home')}
         />
-      );
-    }
+        <SpotifyPlayer disabled={false} />
+      </QueryClientProvider>
+    );
+  }
 
-    if (currentSection === 'spectator' && spectatingGameId) {
-      return (
+  // Show Spectator View
+  if (currentSection === 'spectator' && spectatingGameId) {
+    return (
+      <QueryClientProvider client={queryClient}>
         <SpectatorView
           gameId={spectatingGameId}
           spectatorName={playerName || 'Spettatore'}
@@ -535,27 +544,35 @@ function App() {
             setCurrentSection('rooms');
           }}
         />
-      );
-    }
+        <SpotifyPlayer disabled={false} />
+      </QueryClientProvider>
+    );
+  }
 
-    if (currentSection === 'rooms') {
-      return (
+  // Show Active Rooms
+  if (currentSection === 'rooms') {
+    return (
+      <QueryClientProvider client={queryClient}>
         <ActiveRooms
           playerName={playerName}
           userId={authenticatedUser?.id}
           avatarId={pendingAvatar}
           onBack={() => setCurrentSection('home')}
           onJoinRoom={handleJoinRoom}
-          onSpectate={(gId) => {
-            setSpectatingGameId(gId);
+          onSpectate={(gameId) => {
+            setSpectatingGameId(gameId);
             setCurrentSection('spectator');
           }}
         />
-      );
-    }
+        <SpotifyPlayer disabled={false} />
+      </QueryClientProvider>
+    );
+  }
 
-    if (currentSection === 'profile') {
-      return (
+  // Show Profile Section
+  if (currentSection === 'profile') {
+    return (
+      <QueryClientProvider client={queryClient}>
         <ProfileSection
           playerName={playerName}
           userId={authenticatedUser?.id}
@@ -565,47 +582,63 @@ function App() {
           onBack={() => setCurrentSection('home')}
           onUpdateProfile={handleUpdateProfile}
         />
-      );
-    }
+        <SpotifyPlayer disabled={false} />
+      </QueryClientProvider>
+    );
+  }
 
-    if (currentSection === 'draft') {
-      return (
+  // Show Draft Section (music disabled)
+  if (currentSection === 'draft') {
+    return (
+      <QueryClientProvider client={queryClient}>
         <DraftSection
           playerName={playerName}
           userId={authenticatedUser?.id}
           onBack={() => setCurrentSection('home')}
         />
-      );
-    }
+        <SpotifyPlayer disabled={true} />
+      </QueryClientProvider>
+    );
+  }
 
-    if (currentSection === 'leaderboard') {
-      return (
+  // Show Leaderboard Section
+  if (currentSection === 'leaderboard') {
+    return (
+      <QueryClientProvider client={queryClient}>
         <RankiardLeaderboard
           isOpen={true}
           onClose={() => setCurrentSection('home')}
           currentUserId={authenticatedUser?.id}
           currentGameId={gameId || undefined}
         />
-      );
-    }
+        <SpotifyPlayer disabled={false} />
+      </QueryClientProvider>
+    );
+  }
 
-    if (currentSection === 'admin') {
-      if (authenticatedUser?.email !== 'lucaforte94@gmail.com') {
-        setCurrentSection('home');
-        return null;
-      }
-      return (
-        <CardAdminPanel
+  // Show Admin Panel - uses CardAdminPanel for card management
+  if (currentSection === 'admin') {
+    if (authenticatedUser?.email !== 'lucaforte94@gmail.com') {
+      setCurrentSection('home');
+      return null;
+    }
+    return (
+      <QueryClientProvider client={queryClient}>
+        <CardAdminPanel 
           onBack={() => {
             setCurrentSection('home');
             window.history.pushState(null, '', window.location.origin);
           }}
         />
-      );
-    }
+        <SpotifyPlayer disabled={false} />
+      </QueryClientProvider>
+    );
+  }
 
-    if (currentSection === 'play' && (showRoomDialog || !gameId)) {
-      return (
+  // Show Room Dialog for Play section (only when in play mode)
+  if (currentSection === 'play' && (showRoomDialog || !gameId)) {
+    return (
+      <QueryClientProvider client={queryClient}>
         <div className="min-h-screen bg-arena-deep flex flex-col items-center justify-center">
           <button
             onClick={() => setCurrentSection('home')}
@@ -624,11 +657,10 @@ function App() {
             <AdBanner format="horizontal" className="mx-auto" />
           </div>
         </div>
-      );
-    }
-
-    return null;
-  };
+        <SpotifyPlayer disabled={false} />
+      </QueryClientProvider>
+    );
+  }
 
   const handleLogout = () => {
     localStorage.removeItem('authToken');
@@ -670,65 +702,54 @@ function App() {
     setGameInvitation(null);
   };
 
-  const sectionContent = renderSection();
-
   return (
     <TooltipProvider>
       <QueryClientProvider client={queryClient}>
-        {sectionContent !== null ? (
-          <div className="min-h-screen bg-arena-deep overflow-auto animate-view-enter">
-            {sectionContent}
-          </div>
-        ) : (
-          <div className="min-h-screen bg-arena-deep overflow-auto animate-view-enter">
-            {/* Game Invitation Notification */}
-            {gameInvitation && (
-              <div className="fixed top-4 right-4 z-50 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg shadow-2xl p-4 max-w-sm animate-pulse border-2 border-white/20">
-                <div className="text-white font-bold text-lg mb-2">Invito alla Partita!</div>
-                <div className="text-white/90 mb-3">
-                  <span className="font-semibold">{gameInvitation.senderUsername}</span> ti ha invitato a giocare!
-                </div>
-                <div className="text-white/70 text-sm mb-3">
-                  Stanza: {gameInvitation.roomCode}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleAcceptInvitation}
-                    className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg font-medium transition-colors"
-                  >
-                    Accetta
-                  </button>
-                  <button
-                    onClick={handleDeclineInvitation}
-                    className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg font-medium transition-colors"
-                  >
-                    Rifiuta
-                  </button>
-                </div>
+        <div className="min-h-screen bg-arena-deep overflow-auto animate-view-enter">
+          {/* Game Invitation Notification */}
+          {gameInvitation && (
+            <div className="fixed top-4 right-4 z-50 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg shadow-2xl p-4 max-w-sm animate-pulse border-2 border-white/20">
+              <div className="text-white font-bold text-lg mb-2">Invito alla Partita!</div>
+              <div className="text-white/90 mb-3">
+                <span className="font-semibold">{gameInvitation.senderUsername}</span> ti ha invitato a giocare!
               </div>
-            )}
-            <GameErrorBoundary>
-              <GameBoard
-                authenticatedUser={authenticatedUser}
-                onLogout={handleLogout}
-                authToken={localStorage.getItem('authToken')}
-                onBack={() => {
-                  setGameId('');
-                  setShowRoomDialog(false);
-                  setCurrentSection('home');
-                  sessionRestoredRef.current = false;
-                  window.history.pushState(null, '', window.location.origin);
-                }}
-                onLeaveGame={() => {
-                  sessionRestoredRef.current = false;
-                }}
-              />
-            </GameErrorBoundary>
-          </div>
-        )}
-        {authenticatedUser && (
-          <SpotifyPlayer disabled={isGameMode} />
-        )}
+              <div className="text-white/70 text-sm mb-3">
+                Stanza: {gameInvitation.roomCode}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleAcceptInvitation}
+                  className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg font-medium transition-colors"
+                >
+                  Accetta
+                </button>
+                <button
+                  onClick={handleDeclineInvitation}
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg font-medium transition-colors"
+                >
+                  Rifiuta
+                </button>
+              </div>
+            </div>
+          )}
+          <GameErrorBoundary>
+            <GameBoard 
+              authenticatedUser={authenticatedUser}
+              onLogout={handleLogout}
+              authToken={localStorage.getItem('authToken')}
+              onBack={() => {
+                setGameId('');
+                setShowRoomDialog(false);
+                setCurrentSection('home');
+                sessionRestoredRef.current = false;
+                window.history.pushState(null, '', window.location.origin);
+              }}
+              onLeaveGame={() => {
+                sessionRestoredRef.current = false;
+              }}
+            />
+          </GameErrorBoundary>
+        </div>
         <Toaster position="top-right" richColors />
       </QueryClientProvider>
     </TooltipProvider>
