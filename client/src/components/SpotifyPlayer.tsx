@@ -8,8 +8,10 @@ interface BannerInfo { title: string; artist: string; }
 interface MinkYTState {
   player: any;
   started: boolean;
+  volume: number;
   currentVideoId: string | null;
   bannerSubs: Set<(b: BannerInfo) => void>;
+  volSubs: Set<(v: number) => void>;
 }
 
 declare global {
@@ -22,79 +24,49 @@ declare global {
 
 function gs(): MinkYTState {
   if (!window.__minkYT) {
-    window.__minkYT = { player: null, started: false, currentVideoId: null, bannerSubs: new Set() };
+    window.__minkYT = {
+      player: null, started: false, volume: 80,
+      currentVideoId: null, bannerSubs: new Set(), volSubs: new Set(),
+    };
   }
   return window.__minkYT;
 }
 
+// Hidden off-screen div — YT API needs a real DOM node but we don't show it
 function getPlayerDiv(): HTMLDivElement {
   let el = document.getElementById(PLAYER_DIV_ID) as HTMLDivElement | null;
   if (!el) {
     el = document.createElement('div');
     el.id = PLAYER_DIV_ID;
     Object.assign(el.style, {
-      position: 'fixed',
-      bottom: '1.25rem',
-      right: '1.25rem',
-      width: '320px',
-      height: '80px',
-      zIndex: '99999',
-      borderRadius: '12px',
-      overflow: 'hidden',
-      opacity: '0',
-      pointerEvents: 'none',
-      transition: 'opacity 0.4s ease, transform 0.35s ease',
-      transform: 'translateY(10px)',
-      boxShadow: '0 6px 28px rgba(0,0,0,0.7)',
+      position: 'fixed', left: '-9999px', top: '-9999px',
+      width: '1px', height: '1px', overflow: 'hidden', pointerEvents: 'none',
     });
     document.body.appendChild(el);
   }
   return el;
 }
 
-function showPlayer() {
-  const el = getPlayerDiv();
-  el.style.opacity = '1';
-  el.style.pointerEvents = 'auto';
-  el.style.transform = 'translateY(0)';
-}
-
-function hidePlayer() {
-  const el = getPlayerDiv();
-  el.style.opacity = '0';
-  el.style.pointerEvents = 'none';
-  el.style.transform = 'translateY(10px)';
-}
-
 function buildYTPlayer() {
   const st = gs();
   if (st.player) return;
-
   const container = document.createElement('div');
   getPlayerDiv().appendChild(container);
 
   st.player = new window.YT.Player(container, {
-    height: '80',
-    width: '320',
+    height: '1', width: '1',
     playerVars: {
-      listType: 'playlist',
-      list: PLAYLIST_ID,
-      autoplay: 1,
-      controls: 1,
-      fs: 0,
-      modestbranding: 1,
-      rel: 0,
-      shuffle: 1,
+      listType: 'playlist', list: PLAYLIST_ID,
+      autoplay: 0, controls: 0, fs: 0,
+      modestbranding: 1, rel: 0,
       origin: window.location.origin,
     },
     events: {
       onReady: (e: any) => {
         console.log('[YT] player ready');
         e.target.setShuffle(true);
-        if (gs().started) {
-          e.target.playVideo();
-          showPlayer();
-        }
+        e.target.setVolume(gs().volume);
+        if (gs().started) e.target.playVideo();
       },
       onStateChange: (e: any) => {
         if (e.data === window.YT.PlayerState.PLAYING) {
@@ -102,7 +74,7 @@ function buildYTPlayer() {
           const videoId: string = data?.video_id ?? '';
           const title: string = data?.title ?? '';
           const artist: string = data?.author ?? '';
-          console.log('[YT] playing:', title, '|', artist);
+          console.log('[YT] playing:', title);
           if (videoId && videoId !== gs().currentVideoId) {
             gs().currentVideoId = videoId;
             gs().bannerSubs.forEach(fn => fn({ title, artist }));
@@ -115,45 +87,56 @@ function buildYTPlayer() {
 
 function initYT() {
   getPlayerDiv();
-  if (window.YT && window.YT.Player) {
-    buildYTPlayer();
-    return;
-  }
+  if (window.YT && window.YT.Player) { buildYTPlayer(); return; }
   if (document.getElementById('yt-iframe-api')) return;
   const sc = document.createElement('script');
   sc.id = 'yt-iframe-api';
   sc.src = 'https://www.youtube.com/iframe_api';
   document.head.appendChild(sc);
-  window.onYouTubeIframeAPIReady = () => {
-    console.log('[YT] IFrame API ready');
-    buildYTPlayer();
-  };
+  window.onYouTubeIframeAPIReady = () => { console.log('[YT] API ready'); buildYTPlayer(); };
 }
 
-function MusicIcon() {
+function MusicIcon({ size = 14 }: { size?: number }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="#FF0000" style={{ flexShrink: 0 }}>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="#FF0000" style={{ flexShrink: 0 }}>
       <path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/>
+    </svg>
+  );
+}
+
+function VolumeIcon({ vol }: { vol: number }) {
+  if (vol === 0) return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+      <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+    </svg>
+  );
+  if (vol < 50) return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+      <path d="M18.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/>
+    </svg>
+  );
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+      <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
     </svg>
   );
 }
 
 export function SpotifyPlayer({ disabled = false }: { disabled?: boolean }) {
   const [started, setStarted] = useState<boolean>(() => gs().started);
+  const [volume, setVolume] = useState<number>(() => gs().volume);
+  const [sliderOpen, setSliderOpen] = useState(false);
   const [banner, setBanner] = useState<BannerInfo | null>(null);
   const [bannerVisible, setBannerVisible] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    initYT();
-  }, []);
+  useEffect(() => { initYT(); }, []);
 
   useEffect(() => {
     if (disabled) {
-      hidePlayer();
       gs().player?.pauseVideo?.();
     } else if (started) {
-      showPlayer();
       gs().player?.playVideo?.();
     }
   }, [disabled, started]);
@@ -162,8 +145,8 @@ export function SpotifyPlayer({ disabled = false }: { disabled?: boolean }) {
     const cb = (b: BannerInfo) => {
       setBanner(b);
       setBannerVisible(true);
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => setBannerVisible(false), 5000);
+      if (bannerTimer.current) clearTimeout(bannerTimer.current);
+      bannerTimer.current = setTimeout(() => setBannerVisible(false), 5000);
     };
     gs().bannerSubs.add(cb);
     return () => { gs().bannerSubs.delete(cb); };
@@ -172,16 +155,27 @@ export function SpotifyPlayer({ disabled = false }: { disabled?: boolean }) {
   const handleStart = () => {
     gs().started = true;
     setStarted(true);
-    showPlayer();
     const p = gs().player;
-    if (p) {
-      p.playVideo?.();
-    } else {
-      initYT();
-    }
+    if (p) { p.setVolume(gs().volume); p.playVideo?.(); }
+    else initYT();
+  };
+
+  const handleVolume = (v: number) => {
+    gs().volume = v;
+    setVolume(v);
+    gs().player?.setVolume?.(v);
+  };
+
+  const openSlider = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    setSliderOpen(true);
+  };
+  const scheduleClose = () => {
+    closeTimer.current = setTimeout(() => setSliderOpen(false), 1200);
   };
 
   const showBtn = !started && !disabled;
+  const showVol = started && !disabled;
 
   return ReactDOM.createPortal(
     <>
@@ -198,10 +192,66 @@ export function SpotifyPlayer({ disabled = false }: { disabled?: boolean }) {
             boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
           }}
         >
-          <MusicIcon /> Avvia musica
+          <MusicIcon size={15} /> Avvia musica
         </button>
       )}
 
+      {/* Volume control button — appears after music starts */}
+      {showVol && (
+        <div
+          onMouseEnter={openSlider}
+          onMouseLeave={scheduleClose}
+          style={{
+            position: 'fixed', bottom: '1.25rem', right: '1.25rem',
+            zIndex: 100000, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem',
+          }}
+        >
+          {/* Vertical slider — visible when open */}
+          <div style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            background: 'rgba(0,0,0,0.88)', border: '1px solid rgba(255,255,255,0.15)',
+            borderRadius: '2rem', padding: '0.75rem 0.6rem',
+            backdropFilter: 'blur(14px)', boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
+            transition: 'opacity 0.2s ease, transform 0.2s ease',
+            opacity: sliderOpen ? 1 : 0,
+            transform: sliderOpen ? 'translateY(0)' : 'translateY(6px)',
+            pointerEvents: sliderOpen ? 'auto' : 'none',
+          }}>
+            <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.6rem', marginBottom: '0.3rem' }}>
+              {volume}%
+            </span>
+            <div style={{ height: '84px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <input
+                type="range" min={0} max={100} value={volume}
+                onChange={e => handleVolume(Number(e.target.value))}
+                style={{
+                  transform: 'rotate(-90deg)',
+                  width: '80px',
+                  cursor: 'pointer',
+                  accentColor: '#FF0000',
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Volume icon button */}
+          <button
+            onClick={() => setSliderOpen(v => !v)}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: '2.2rem', height: '2.2rem',
+              background: 'rgba(0,0,0,0.85)', border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: '50%', color: '#fff',
+              cursor: 'pointer', backdropFilter: 'blur(12px)',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.5)',
+            }}
+          >
+            <VolumeIcon vol={volume} />
+          </button>
+        </div>
+      )}
+
+      {/* Banner — bottom left, slide in on track change */}
       <div
         style={{
           position: 'fixed', bottom: '1.25rem', left: '1.25rem', zIndex: 99999,
@@ -215,7 +265,7 @@ export function SpotifyPlayer({ disabled = false }: { disabled?: boolean }) {
           pointerEvents: 'none',
         }}
       >
-        <MusicIcon />
+        <MusicIcon size={14} />
         <div style={{ minWidth: 0 }}>
           <div style={{ color: '#fff', fontSize: '0.75rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {banner?.title}

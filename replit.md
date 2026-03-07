@@ -63,7 +63,7 @@ A comprehensive sound effect system using the Web Audio API provides in-game eve
 
 ## Visual Systems
 - **Card Animation System**: Twenty-eight unique full-screen animations with synchronized audio for specific cards.
-- **Music Synchronization System**: Synchronized music player for all players in a game room with remote control.
+- **Background Music Player**: YouTube IFrame API player (playlist `PLX6i-6a7orEU-L1GdfUDtepT-pW4tYl4j`). "Avvia musica" button starts music; player iframe is hidden off-screen. A small volume button (bottom-right) reveals a vertical slider on hover. A slide-in banner (bottom-left, 5s) shows track title/artist on song change. State persists across section navigation via `window.__minkYT` singleton. Component: `client/src/components/SpotifyPlayer.tsx` (export: `SpotifyPlayer`).
 - **Player Avatar System**: 24 emoji-based avatars with server-side validation.
 - **Voice Chat System**: Real-time WebRTC peer-to-peer voice communication using Socket.IO for signaling.
 - **Evolution/Transformation Animation System**: A multi-phase, full-screen animation with 3D card flips, particles, and theming for character evolutions, transformations, or taroccata.
