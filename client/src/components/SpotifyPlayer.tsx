@@ -15,6 +15,7 @@ type BannerInfo = { title: string; artist: string; ts: number };
 declare global {
   interface Window {
     onSpotifyIframeApiReady?: (IFrameAPI: any) => void;
+    SpotifyIframeApi?: any;
     __minkSpotify?: {
       controller: SpotifyController | null;
       embedEl: HTMLDivElement | null;
@@ -22,13 +23,14 @@ declare global {
       started: boolean;
       disabled: boolean;
       currentTrackUri: string | null;
+      pendingPlay: boolean;
       renderSubs: Set<() => void>;
       bannerSubs: Set<(b: BannerInfo) => void>;
     };
   }
 }
 
-// ── Singleton stored on window so it survives Vite HMR hot-module-replacement ─
+// ── Singleton on window — survives Vite HMR ───────────────────────────────────
 function getState() {
   if (!window.__minkSpotify) {
     window.__minkSpotify = {
@@ -38,6 +40,7 @@ function getState() {
       started: false,
       disabled: false,
       currentTrackUri: null,
+      pendingPlay: false,
       renderSubs: new Set(),
       bannerSubs: new Set(),
     };
@@ -45,28 +48,22 @@ function getState() {
   return window.__minkSpotify;
 }
 
-// Convenience accessors (always go through getState() to stay in sync)
 function notifyRender() { getState().renderSubs.forEach(fn => fn()); }
 function notifyBanner(b: BannerInfo) { getState().bannerSubs.forEach(fn => fn(b)); }
 
-// ── Embed DOM element ─────────────────────────────────────────────────────────
-// Lives in document.body and is NEVER moved (moving reloads the iframe).
+// ── Embed element ─────────────────────────────────────────────────────────────
+// Lives in document.body and is NEVER moved — moving reloads the iframe.
 function getOrCreateEmbedEl(): HTMLDivElement {
   const s = getState();
   if (s.embedEl) return s.embedEl;
-
-  // Re-use an existing element from a previous module load (HMR scenario)
   const existing = document.getElementById('spotify-embed-wrapper') as HTMLDivElement | null;
-  if (existing) {
-    s.embedEl = existing;
-    return existing;
-  }
-
+  if (existing) { s.embedEl = existing; return existing; }
   const el = document.createElement('div');
   el.id = 'spotify-embed-wrapper';
+  // Initially hidden; becomes visible after music starts
   el.style.cssText = [
     'position:fixed',
-    'bottom:4rem',
+    'bottom:1.25rem',
     'right:1.25rem',
     'width:320px',
     'height:152px',
@@ -75,24 +72,32 @@ function getOrCreateEmbedEl(): HTMLDivElement {
     'overflow:hidden',
     'opacity:0',
     'pointer-events:none',
-    'transition:opacity 0.35s ease, transform 0.35s cubic-bezier(0.34,1.56,0.64,1)',
-    'transform:translateY(8px)',
-    'box-shadow:0 4px 24px rgba(0,0,0,0.7)',
+    'transition:opacity 0.4s ease, transform 0.4s cubic-bezier(0.34,1.56,0.64,1)',
+    'transform:translateY(10px)',
+    'box-shadow:0 6px 28px rgba(0,0,0,0.75)',
   ].join(';');
   document.body.appendChild(el);
   s.embedEl = el;
   return el;
 }
 
-function applyEmbedVisibility(show: boolean) {
+function showEmbed() {
   const el = getState().embedEl;
   if (!el) return;
-  el.style.opacity = show ? '1' : '0';
-  el.style.pointerEvents = show ? 'auto' : 'none';
-  el.style.transform = show ? 'translateY(0)' : 'translateY(8px)';
+  el.style.opacity = '1';
+  el.style.pointerEvents = 'auto';
+  el.style.transform = 'translateY(0)';
 }
 
-// ── Spotify Iframe API loader ─────────────────────────────────────────────────
+function hideEmbed() {
+  const el = getState().embedEl;
+  if (!el) return;
+  el.style.opacity = '0';
+  el.style.pointerEvents = 'none';
+  el.style.transform = 'translateY(10px)';
+}
+
+// ── Spotify API ───────────────────────────────────────────────────────────────
 function buildController(IFrameAPI: any) {
   const state = getState();
   const el = getOrCreateEmbedEl();
@@ -105,8 +110,7 @@ function buildController(IFrameAPI: any) {
 
       ctrl.addListener('playback_update', (e: any) => {
         const st = getState();
-        console.log('[Spotify] playback_update raw:', JSON.stringify(e));
-
+        console.log('[Spotify] playback_update:', JSON.stringify(e));
         const d = e?.data ?? e;
         const track = d?.track;
         const isPaused: boolean = d?.isPaused ?? true;
@@ -114,23 +118,28 @@ function buildController(IFrameAPI: any) {
         const title: string | undefined = track?.name;
         const artist: string | undefined = track?.artists?.[0]?.name;
 
-        console.log('[Spotify] parsed → isPaused:', isPaused, '| uri:', uri, '| title:', title, '| artist:', artist);
-
         if (!isPaused && !st.started) {
           st.started = true;
+          showEmbed();
           notifyRender();
         }
 
         if (uri && uri !== st.currentTrackUri && !isPaused && title && artist) {
           st.currentTrackUri = uri;
           if (!st.disabled) {
-            console.log('[Spotify] 🎵 Banner:', title, '-', artist);
             notifyBanner({ title, artist, ts: Date.now() });
           }
         }
       });
 
-      if (!state.disabled) ctrl.play();
+      // Play if requested before controller was ready, or if returning visitor
+      if (!state.disabled && (state.pendingPlay || !!localStorage.getItem(AUTOPLAY_KEY))) {
+        ctrl.play();
+        // Show the embed immediately — don't wait for playback_update event
+        state.started = true;
+        showEmbed();
+      }
+
       notifyRender();
     }
   );
@@ -139,20 +148,10 @@ function buildController(IFrameAPI: any) {
 function ensureSpotifyApi() {
   const s = getState();
   getOrCreateEmbedEl();
+  if (s.controller) return; // already alive
 
-  // Controller already alive — nothing to do
-  if (s.controller) return;
-
-  // Script already in DOM: re-register callback in case of HMR (previous
-  // onSpotifyIframeApiReady may have used a stale closure).
-  // The Spotify script exposes window.SpotifyIframeApi after it loads.
-  const W = window as any;
   if (document.getElementById('spotify-iframe-api')) {
-    if (W.SpotifyIframeApi) {
-      // API already loaded — build controller directly
-      buildController(W.SpotifyIframeApi);
-    }
-    // else: still loading, onSpotifyIframeApiReady will fire when ready
+    if (window.SpotifyIframeApi) buildController(window.SpotifyIframeApi); // HMR recovery
     return;
   }
 
@@ -163,7 +162,7 @@ function ensureSpotifyApi() {
   document.head.appendChild(script);
 
   window.onSpotifyIframeApiReady = (IFrameAPI: any) => {
-    (window as any).SpotifyIframeApi = IFrameAPI; // stash for HMR re-init
+    window.SpotifyIframeApi = IFrameAPI;
     buildController(IFrameAPI);
   };
 }
@@ -177,26 +176,21 @@ export function SpotifyPlayer({ disabled = false }: SpotifyPlayerProps) {
   const [, forceUpdate] = useState(0);
   const [banner, setBanner] = useState<BannerInfo | null>(null);
   const [bannerVisible, setBannerVisible] = useState(false);
-  const [embedOpen, setEmbedOpen] = useState(false);
   const bannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refresh = useCallback(() => forceUpdate(n => n + 1), []);
 
-  // Init API + subscribe to render signals
+  // Boot + subscribe to render signals
   useEffect(() => {
     const s = getState();
     s.renderSubs.add(refresh);
     ensureSpotifyApi();
-
-    // Controller already alive (HMR or nav back): attempt play if not started
-    if (s.ready && !s.disabled && !s.started && s.controller) {
-      s.controller.play();
-    }
-
+    // If controller is already live (nav-back), attempt play if not started
+    if (s.controller && !s.started && !s.disabled) s.controller.play();
     return () => { getState().renderSubs.delete(refresh); };
   }, [refresh]);
 
-  // Subscribe to track-change banner events
+  // Track-change banner subscription
   useEffect(() => {
     const onBanner = (b: BannerInfo) => {
       setBanner(b);
@@ -208,38 +202,28 @@ export function SpotifyPlayer({ disabled = false }: SpotifyPlayerProps) {
     return () => { getState().bannerSubs.delete(onBanner); };
   }, []);
 
-  // Sync disabled ↔ pause/resume
+  // Pause/resume when section changes (disabled prop)
   useEffect(() => {
     const s = getState();
     s.disabled = disabled;
     if (disabled) {
-      applyEmbedVisibility(false);
+      hideEmbed();
       s.controller?.pause();
     } else {
-      if (s.started) s.controller?.play();
+      if (s.started) { showEmbed(); s.controller?.play(); }
     }
   }, [disabled]);
 
-  // Sync embedOpen ↔ embed DOM visibility
-  useEffect(() => {
-    if (disabled) return;
-    applyEmbedVisibility(embedOpen);
-  }, [embedOpen, disabled]);
-
-  // Manual start: called when user clicks "Avvia musica"
+  // "Avvia musica" click
   const handleStart = () => {
     const s = getState();
-    if (!s.controller) return;
-    s.controller.play();
+    console.log('[Spotify] Avvia click — controller:', s.controller ? 'ready' : 'loading');
     s.started = true;
+    s.pendingPlay = true;
     localStorage.setItem(AUTOPLAY_KEY, '1');
-    setEmbedOpen(true);
+    showEmbed();
+    if (s.controller) s.controller.play();
     forceUpdate(n => n + 1);
-  };
-
-  // Toggle embed open/closed (volume button)
-  const handleToggleEmbed = () => {
-    setEmbedOpen(prev => !prev);
   };
 
   const s = getState();
@@ -247,7 +231,7 @@ export function SpotifyPlayer({ disabled = false }: SpotifyPlayerProps) {
 
   return ReactDOM.createPortal(
     <>
-      {/* ── "Avvia musica" pill — visible until playback actually starts ── */}
+      {/* "Avvia musica" — visible until user starts playback */}
       {showStartButton && (
         <button
           onClick={handleStart}
@@ -259,15 +243,16 @@ export function SpotifyPlayer({ disabled = false }: SpotifyPlayerProps) {
             display: 'flex',
             alignItems: 'center',
             gap: '0.45rem',
-            background: 'rgba(0,0,0,0.82)',
-            border: '1px solid rgba(29,185,84,0.55)',
+            background: 'rgba(0,0,0,0.85)',
+            border: '1px solid rgba(29,185,84,0.6)',
             borderRadius: '2rem',
-            padding: '0.45rem 0.9rem',
+            padding: '0.5rem 1rem',
             color: '#1DB954',
-            fontSize: '0.78rem',
-            fontWeight: 600,
+            fontSize: '0.8rem',
+            fontWeight: 700,
             cursor: 'pointer',
             backdropFilter: 'blur(12px)',
+            letterSpacing: '0.02em',
           }}
         >
           <SpotifyIcon />
@@ -275,37 +260,7 @@ export function SpotifyPlayer({ disabled = false }: SpotifyPlayerProps) {
         </button>
       )}
 
-      {/* ── Volume / player toggle — shown when music is playing ── */}
-      {s.started && !disabled && (
-        <button
-          onClick={handleToggleEmbed}
-          title={embedOpen ? 'Nascondi player' : 'Mostra player / Volume'}
-          style={{
-            position: 'fixed',
-            bottom: '1.25rem',
-            right: '1.25rem',
-            zIndex: 100000,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            background: embedOpen ? 'rgba(29,185,84,0.18)' : 'rgba(0,0,0,0.82)',
-            border: `1px solid ${embedOpen ? 'rgba(29,185,84,0.8)' : 'rgba(29,185,84,0.45)'}`,
-            borderRadius: '2rem',
-            padding: '0.45rem 0.85rem',
-            color: '#1DB954',
-            fontSize: '0.78rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            backdropFilter: 'blur(12px)',
-            transition: 'background 0.2s, border-color 0.2s',
-          }}
-        >
-          <SpotifyIcon />
-          {embedOpen ? 'Chiudi' : 'Volume'}
-        </button>
-      )}
-
-      {/* ── Track-change banner — bottom left, auto-hides after 5 s ── */}
+      {/* Track-change banner — bottom-left, 5 s auto-hide */}
       <div
         aria-live="polite"
         style={{
@@ -330,23 +285,10 @@ export function SpotifyPlayer({ disabled = false }: SpotifyPlayerProps) {
       >
         <SpotifyIcon />
         <div style={{ minWidth: 0 }}>
-          <div style={{
-            color: '#fff',
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}>
+          <div style={{ color: '#fff', fontSize: '0.75rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {banner?.title}
           </div>
-          <div style={{
-            color: 'rgba(255,255,255,0.52)',
-            fontSize: '0.67rem',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}>
+          <div style={{ color: 'rgba(255,255,255,0.52)', fontSize: '0.67rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {banner?.artist}
           </div>
         </div>
