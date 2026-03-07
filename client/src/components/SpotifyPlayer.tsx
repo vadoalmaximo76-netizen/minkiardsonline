@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 
-const DEFAULT_PLAYLIST_ID = '37i9dQZF1DX4jP4eebSWR9';
+const DEFAULT_PLAYLIST_ID = '0FM7kVe0ByicC44ACzvWbY';
 
 interface SpotifyPlayerProps {
   disabled?: boolean;
