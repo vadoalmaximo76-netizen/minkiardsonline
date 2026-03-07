@@ -11276,7 +11276,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
       const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
       if (!vapidPublicKey || !vapidPrivateKey) return;
-      const webpush = require('web-push');
+      const webpush = (await import('web-push')).default;
       webpush.setVapidDetails('mailto:vadoalmaximo76@gmail.com', vapidPublicKey, vapidPrivateKey);
       const subs = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, userId));
       const jsonPayload = JSON.stringify(payload);
@@ -11479,7 +11479,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
 
       // Send push notification to all subscribed users
       const allSubscriptions = await db.select().from(pushSubscriptions);
-      const webpush = require('web-push');
+      const webpush = (await import('web-push')).default;
       
       const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
       const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
@@ -13944,6 +13944,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         buyerName: currentUser.username,
         creditsEarned: listing.priceCredits
       });
+      io.emit('marketplace-updated', { listingId });
 
       console.log(`✅ Marketplace sale: ${listing.cardName} (${listing.cardId}) sold by ${listing.sellerName} to ${currentUser.username} for ${listing.priceCredits} crediti`);
       res.json({ success: true, cardName: listing.cardName });

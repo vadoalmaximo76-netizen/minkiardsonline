@@ -17,6 +17,7 @@ import { RankiardLeaderboard } from "./components/RankiardLeaderboard";
 import { useGameState } from "./lib/stores/useGameState";
 import { socket } from "./lib/socket";
 import { preloadCriticalImages } from "./lib/imagePreloader";
+import { Toaster } from "./components/ui/sonner";
 import "@fontsource/inter";
 import "./index.css";
 
@@ -741,6 +742,7 @@ function App() {
             />
           </GameErrorBoundary>
         </div>
+        <Toaster position="top-right" richColors />
       </QueryClientProvider>
     </TooltipProvider>
   );

@@ -1,4 +1,5 @@
 import * as React from "react";
+import { socket } from "../lib/socket";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import {
@@ -269,7 +270,19 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
   const [purchaseConfirm, setPurchaseConfirm] = React.useState<Listing | null>(null);
   const [myListings, setMyListings] = React.useState<Listing[]>([]);
   const [isLoadingMyListings, setIsLoadingMyListings] = React.useState(false);
+  const [credits, setCredits] = React.useState<number | null>(null);
   const { toast } = useToast();
+
+  const fetchCredits = React.useCallback(async () => {
+    const token = localStorage.getItem('authToken');
+    if (!token) return;
+    try {
+      const res = await fetch('/api/draft/status', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) { const d = await res.json(); setCredits((d.freeCredits || 0) + (d.paidCredits || 0)); }
+    } catch {}
+  }, []);
+
+  React.useEffect(() => { fetchCredits(); }, [fetchCredits]);
 
   const { data: listings = [], isLoading: isLoadingListings } = useQuery<Listing[]>({
     queryKey: ["/api/marketplace", filterType, filterRarity],
@@ -298,6 +311,28 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
     if (activeTab === "mine") loadMyListings();
   }, [activeTab, loadMyListings]);
 
+  React.useEffect(() => {
+    const handleMarketplaceUpdated = () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/marketplace"] });
+      loadMyListings();
+      fetchCredits();
+    };
+    const handleSale = (data: { sellerId: number; cardName: string; buyerName: string; creditsEarned: number }) => {
+      if (data.sellerId === userId) {
+        loadMyListings();
+        queryClient.invalidateQueries({ queryKey: ["/api/marketplace"] });
+        fetchCredits();
+        toast({ title: '💰 Carta venduta!', description: `${data.cardName} acquistata da ${data.buyerName} · +${data.creditsEarned} crediti`, duration: 7000 });
+      }
+    };
+    socket.on('marketplace-updated', handleMarketplaceUpdated);
+    socket.on('marketplace-sale', handleSale);
+    return () => {
+      socket.off('marketplace-updated', handleMarketplaceUpdated);
+      socket.off('marketplace-sale', handleSale);
+    };
+  }, [userId, loadMyListings, fetchCredits]);
+
   const buyMutation = useMutation({
     mutationFn: async (listingId: number) => {
       const token = localStorage.getItem('authToken');
@@ -311,6 +346,7 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
       toast({ title: "Acquisto completato!", description: "La carta è stata aggiunta alla tua collezione." });
       queryClient.invalidateQueries({ queryKey: ["/api/marketplace"] });
       setPurchaseConfirm(null);
+      fetchCredits();
     },
     onError: (error: Error) => {
       toast({ title: "Errore durante l'acquisto", description: error.message, variant: "destructive" });
@@ -338,9 +374,18 @@ export function Marketplace({ userId, username, onClose }: MarketplaceProps) {
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-4xl h-[80vh] bg-black/80 backdrop-blur-xl border-purple-500/30 text-white flex flex-col p-0 overflow-hidden">
         <DialogHeader className="p-6 pb-2">
-          <DialogTitle className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-blue-400 flex items-center gap-2">
-            <Tag className="w-6 h-6" /> Marketplace
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-blue-400 flex items-center gap-2">
+              <Tag className="w-6 h-6" /> Marketplace
+            </DialogTitle>
+            {credits !== null && (
+              <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-full px-3 py-1">
+                <span className="text-emerald-400 text-sm">💎</span>
+                <span className="text-emerald-300 font-bold text-sm">{credits.toLocaleString()}</span>
+                <span className="text-emerald-400/70 text-xs">crediti</span>
+              </div>
+            )}
+          </div>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
