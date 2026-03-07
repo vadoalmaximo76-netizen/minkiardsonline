@@ -134,6 +134,16 @@ export function SpotifyPlayer({ disabled = false }: SpotifyPlayerProps) {
   useEffect(() => {
     _renderSubs.add(refresh);
     ensureSpotifyApi();
+
+    // If controller is already ready (e.g. user navigated away and came back),
+    // attempt autoplay immediately and make embed visible
+    if (_ready && !_disabled) {
+      applyEmbedVisibility(true);
+      if (!_started && _controller) {
+        _controller.play();
+      }
+    }
+
     return () => { _renderSubs.delete(refresh); };
   }, [refresh]);
 
@@ -177,13 +187,13 @@ export function SpotifyPlayer({ disabled = false }: SpotifyPlayerProps) {
     forceUpdate(n => n + 1);
   };
 
-  // Show the button only before the controller is ready AND not disabled
-  // Once the controller loads, the embed itself is visible and playable
-  const showStartButton = !_ready && !disabled;
+  // Show the button whenever music hasn't started yet and player is not disabled.
+  // The button disappears as soon as playback actually begins (_started = true).
+  const showStartButton = !_started && !disabled;
 
   return ReactDOM.createPortal(
     <>
-      {/* ── "Avvia musica" pill — shown only while the embed is loading ── */}
+      {/* ── "Avvia musica" pill — visible until playback actually starts ── */}
       {showStartButton && (
         <button
           onClick={handleStart}
