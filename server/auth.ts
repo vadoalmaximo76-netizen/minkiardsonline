@@ -825,9 +825,10 @@ export function registerAuthRoutes(app: Express) {
         const { client, fromEmail } = await getUncachableResendClient();
         
         const toAddress = email;
+        console.log(`[ForgotPassword] Sending reset email to: ${toAddress} | from: ${fromEmail} | resetUrl: ${resetUrl}`);
         
         const result = await client.emails.send({
-          from: fromEmail || 'MINKIARDS <onboarding@resend.dev>',
+          from: fromEmail,
           to: toAddress,
           subject: 'Recupero Password MINKIARDS',
           html: `
@@ -847,11 +848,15 @@ export function registerAuthRoutes(app: Express) {
         });
 
         if (result.error) {
-          console.error("Resend API error:", JSON.stringify(result.error));
+          const errDetail = JSON.stringify(result.error);
+          console.error(`[ForgotPassword] Resend API error for ${toAddress}:`, errDetail);
+          if (errDetail.includes('domain') || errDetail.includes('verified') || errDetail.includes('authorized')) {
+            console.error('[ForgotPassword] HINT: The "from" domain is not verified in Resend. Set RESEND_FROM_EMAIL to an address on a domain you own and have verified at resend.com/domains');
+          }
           throw new Error(result.error.message || 'Email send failed');
         }
 
-        console.log("Password reset email sent successfully to:", toAddress, "ID:", result.data?.id);
+        console.log(`[ForgotPassword] ✅ Email sent successfully to: ${toAddress} | Resend ID: ${result.data?.id}`);
         
         res.json({ 
           success: true, 
