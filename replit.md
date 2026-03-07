@@ -15,6 +15,7 @@ Draft mode advanced features:
 - **Offerte Settimanali**: 6 deterministic 50%-off card offers weekly (seeded by ISO week number), shown in Negozio tab
 - **Missioni Draft**: 5 draft-specific missions (open packs, complete deck, get epic card, daily card claims) with credit rewards, shown in Mazzo tab
 - **Admin Pack Management**: Admin users see a collapsible "Gestione Pacchetti" panel in the Packs tab with full CRUD (create/edit/delete packs). Slot format supports fixed rarities ("comune", "rara") and probabilistic slots ("epica:90/leggendaria:10"). Config persisted in server/data/packs.json via jsonStorage. API: GET/POST/PUT/DELETE /api/admin/packs.
+- **Admin Users Panel**: Full user account management panel accessible from Profile > Pannello Admin > "Gestisci Account Utenti". Features: search/list all users (50 per page) with credits and PR counts; inline editing of draft credits (freeCredits + paidCredits) and puntiRankiard; ban user for customizable duration (1/3/7/30/90/3650 days) with reason; unban; delete account. Ban check on login returns HTTP 403 with ban expiry and reason. DB columns added: `users.banned_until` (timestamp) and `users.ban_reason` (text). API routes: GET /api/admin/users, PATCH /api/admin/users/:id/credits, PATCH /api/admin/users/:id/pr, POST /api/admin/users/:id/ban, POST /api/admin/users/:id/unban, DELETE /api/admin/users/:id.
 
 # User Preferences
 

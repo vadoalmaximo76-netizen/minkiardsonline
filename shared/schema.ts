@@ -15,6 +15,8 @@ export const users = pgTable("users", {
   minutesPlayed: integer("minutes_played").notNull().default(0), // Total minutes played
   tutorialCompleted: boolean("tutorial_completed").notNull().default(false), // Track if user completed the tutorial
   isAdmin: boolean("is_admin").notNull().default(false), // Admin flag for managing skins and events
+  bannedUntil: timestamp("banned_until"), // Null = not banned, future date = banned until
+  banReason: text("ban_reason"), // Reason shown to the user on login
   resetPasswordToken: text("reset_password_token"), // Token for password reset
   resetPasswordExpires: timestamp("reset_password_expires"), // Token expiration time
   createdAt: timestamp("created_at").notNull().defaultNow(),

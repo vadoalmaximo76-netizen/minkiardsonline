@@ -13633,6 +13633,179 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     }
   });
 
+  // ─── ADMIN USER MANAGEMENT ────────────────────────────────────────────────────
+
+  // GET /api/admin/users - list all users with pagination and search
+  app.get('/api/admin/users', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser || !currentUser.isAdmin) return res.status(403).json({ error: 'Admin required' });
+
+      const search = (req.query.search as string || '').trim().toLowerCase();
+      const page = Math.max(1, parseInt(req.query.page as string || '1', 10));
+      const limit = 50;
+      const offset = (page - 1) * limit;
+
+      let allUsers = await db.select({
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        avatar: users.avatar,
+        puntiRankiard: users.puntiRankiard,
+        gamesPlayed: users.gamesPlayed,
+        gamesWon: users.gamesWon,
+        isAdmin: users.isAdmin,
+        bannedUntil: users.bannedUntil,
+        banReason: users.banReason,
+        createdAt: users.createdAt,
+      }).from(users).orderBy(users.createdAt);
+
+      if (search) {
+        allUsers = allUsers.filter(u =>
+          u.username.toLowerCase().includes(search) ||
+          (u.email || '').toLowerCase().includes(search)
+        );
+      }
+
+      const total = allUsers.length;
+      const paginated = allUsers.slice(offset, offset + limit);
+
+      // Fetch credits for paginated users
+      const userIds = paginated.map(u => u.id);
+      const creditsMap: Record<number, { freeCredits: number; paidCredits: number }> = {};
+      if (userIds.length > 0) {
+        const creditsRows = await db.select().from(userDraftCredits).where(
+          inArray(userDraftCredits.userId, userIds)
+        );
+        for (const row of creditsRows) {
+          creditsMap[row.userId] = { freeCredits: row.freeCredits, paidCredits: row.paidCredits };
+        }
+      }
+
+      const result = paginated.map(u => ({
+        ...u,
+        totalCredits: (creditsMap[u.id]?.freeCredits || 0) + (creditsMap[u.id]?.paidCredits || 0),
+        freeCredits: creditsMap[u.id]?.freeCredits || 0,
+        paidCredits: creditsMap[u.id]?.paidCredits || 0,
+        isBanned: u.bannedUntil && new Date(u.bannedUntil) > new Date(),
+      }));
+
+      res.json({ users: result, total, page, pages: Math.ceil(total / limit) });
+    } catch (error) {
+      console.error('Error listing admin users:', error);
+      res.status(500).json({ error: 'Errore nel recupero utenti' });
+    }
+  });
+
+  // PATCH /api/admin/users/:id/credits - update draft credits
+  app.patch('/api/admin/users/:id/credits', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser || !currentUser.isAdmin) return res.status(403).json({ error: 'Admin required' });
+
+      const targetId = parseInt(req.params.id, 10);
+      const { freeCredits, paidCredits } = req.body;
+      if (isNaN(targetId)) return res.status(400).json({ error: 'ID non valido' });
+      if (typeof freeCredits !== 'number' || typeof paidCredits !== 'number') return res.status(400).json({ error: 'Valori non validi' });
+
+      const existing = await db.select().from(userDraftCredits).where(eq(userDraftCredits.userId, targetId)).limit(1);
+      if (existing.length === 0) {
+        await db.insert(userDraftCredits).values({ userId: targetId, freeCredits, paidCredits });
+      } else {
+        await db.update(userDraftCredits).set({ freeCredits, paidCredits, updatedAt: new Date() }).where(eq(userDraftCredits.userId, targetId));
+      }
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Errore aggiornamento crediti' });
+    }
+  });
+
+  // PATCH /api/admin/users/:id/pr - update puntiRankiard
+  app.patch('/api/admin/users/:id/pr', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser || !currentUser.isAdmin) return res.status(403).json({ error: 'Admin required' });
+
+      const targetId = parseInt(req.params.id, 10);
+      const { puntiRankiard } = req.body;
+      if (isNaN(targetId) || typeof puntiRankiard !== 'number') return res.status(400).json({ error: 'Valori non validi' });
+
+      await db.update(users).set({ puntiRankiard }).where(eq(users.id, targetId));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Errore aggiornamento PR' });
+    }
+  });
+
+  // POST /api/admin/users/:id/ban - ban a user
+  app.post('/api/admin/users/:id/ban', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser || !currentUser.isAdmin) return res.status(403).json({ error: 'Admin required' });
+
+      const targetId = parseInt(req.params.id, 10);
+      if (isNaN(targetId)) return res.status(400).json({ error: 'ID non valido' });
+
+      const { durationDays, reason } = req.body;
+      if (!durationDays || durationDays <= 0) return res.status(400).json({ error: 'Durata non valida' });
+
+      const bannedUntil = new Date();
+      bannedUntil.setDate(bannedUntil.getDate() + durationDays);
+
+      await db.execute(sql`UPDATE users SET banned_until = ${bannedUntil}, ban_reason = ${reason || null} WHERE id = ${targetId}`);
+      res.json({ success: true, bannedUntil });
+    } catch (error) {
+      console.error('Error banning user:', error);
+      res.status(500).json({ error: 'Errore nel ban utente' });
+    }
+  });
+
+  // POST /api/admin/users/:id/unban - unban a user
+  app.post('/api/admin/users/:id/unban', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser || !currentUser.isAdmin) return res.status(403).json({ error: 'Admin required' });
+
+      const targetId = parseInt(req.params.id, 10);
+      if (isNaN(targetId)) return res.status(400).json({ error: 'ID non valido' });
+
+      await db.execute(sql`UPDATE users SET banned_until = NULL, ban_reason = NULL WHERE id = ${targetId}`);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Errore nello sban utente' });
+    }
+  });
+
+  // DELETE /api/admin/users/:id - delete a user account
+  app.delete('/api/admin/users/:id', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser || !currentUser.isAdmin) return res.status(403).json({ error: 'Admin required' });
+
+      const targetId = parseInt(req.params.id, 10);
+      if (isNaN(targetId)) return res.status(400).json({ error: 'ID non valido' });
+      if (targetId === currentUser.id) return res.status(400).json({ error: 'Non puoi eliminare il tuo account' });
+
+      await db.delete(users).where(eq(users.id, targetId));
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      res.status(500).json({ error: 'Errore nell\'eliminazione utente' });
+    }
+  });
+
   // ─── SEASON-PASS AGGREGATED ENDPOINT ─────────────────────────────────────────
   // Wrapper that combines pass + rewards + progress in one call for the SeasonPass component
   app.get('/api/season-pass', authMiddleware, async (req, res) => {

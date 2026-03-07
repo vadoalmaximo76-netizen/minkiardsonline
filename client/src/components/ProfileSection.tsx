@@ -8,6 +8,7 @@ import { SeasonalPassPanel } from './SeasonalPassPanel';
 import { AdminSkinsPanel } from './AdminSkinsPanel';
 import { AdminEventsPanel } from './AdminEventsPanel';
 import { AdminPassPanel } from './AdminPassPanel';
+import { AdminUsersPanel } from './AdminUsersPanel';
 import PrivateMessagesPanel from './PrivateMessagesPanel';
 import NotificationSettings from './NotificationSettings';
 
@@ -74,6 +75,7 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
   const [showAdminSkinsPanel, setShowAdminSkinsPanel] = useState(false);
   const [showAdminEventsPanel, setShowAdminEventsPanel] = useState(false);
   const [showAdminPassPanel, setShowAdminPassPanel] = useState(false);
+  const [showAdminUsersPanel, setShowAdminUsersPanel] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showMessagesPanel, setShowMessagesPanel] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
@@ -658,6 +660,13 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
                   </div>
                   <div className="grid gap-2">
                     <button
+                      onClick={() => setShowAdminUsersPanel(true)}
+                      className="w-full px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Users className="w-4 h-4" />
+                      Gestisci Account Utenti
+                    </button>
+                    <button
                       onClick={() => setShowAdminSkinsPanel(true)}
                       className="w-full px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-xl font-medium transition-colors"
                     >
@@ -942,6 +951,11 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
             onClose={() => setShowAdminPassPanel(false)}
             authToken={localStorage.getItem('authToken')}
           />
+        )}
+
+        {/* Admin Users Panel */}
+        {isAdmin && showAdminUsersPanel && (
+          <AdminUsersPanel onClose={() => setShowAdminUsersPanel(false)} />
         )}
 
         {/* Private Messages Panel */}

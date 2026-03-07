@@ -290,6 +290,16 @@ export function registerAuthRoutes(app: Express) {
             return res.status(401).json({ error: "Email o password non corretti" });
           }
 
+          // Check if user is banned
+          if (user.bannedUntil && new Date(user.bannedUntil) > new Date()) {
+            const bannedUntil = new Date(user.bannedUntil);
+            const reason = user.banReason || 'Nessuna motivazione specificata';
+            const formattedDate = bannedUntil.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            return res.status(403).json({ 
+              error: `Account sospeso fino al ${formattedDate}. Motivo: ${reason}` 
+            });
+          }
+
           const token = generateToken(user.id, user.email);
 
           res.json({
