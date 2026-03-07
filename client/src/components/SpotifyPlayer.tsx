@@ -99,9 +99,6 @@ function buildYTPlayer() {
   st.player = new window.YT.Player(container, {
     height: '1', width: '1',
     playerVars: {
-      listType: 'playlist',
-      list: PLAYLIST_ID,
-      autoplay: 1,
       controls: 0,
       fs: 0,
       modestbranding: 1,
@@ -112,10 +109,10 @@ function buildYTPlayer() {
     events: {
       onReady: (e: any) => {
         const randomStart = Math.floor(Math.random() * 50);
-        console.log('[YT] player ready — shuffle start at index', randomStart);
-        e.target.setShuffle(true);
+        console.log('[YT] player ready — random start at index', randomStart);
         e.target.setVolume(gs().volume);
         e.target.loadPlaylist({ list: PLAYLIST_ID, listType: 'playlist', index: randomStart, startSeconds: 0 });
+        e.target.setShuffle(true);
       },
       onStateChange: (e: any) => {
         if (e.data === window.YT.PlayerState.ENDED) {
