@@ -19,26 +19,21 @@ declare global {
 // ── Singleton module-level state ──────────────────────────────────────────────
 let _controller: SpotifyController | null = null;
 let _embedEl: HTMLDivElement | null = null;
-let _started = false;
+let _ready = false;      // controller is ready
+let _started = false;    // audio has actually started playing
 let _disabled = false;
 let _currentTrackUri: string | null = null;
-let _autoplayBlocked = false;   // true = browser refused autoplay
-let _autoplayAttempted = false; // true = we already tried
 
 type BannerInfo = { title: string; artist: string; ts: number };
-let _lastBanner: BannerInfo | null = null;
 
 const _renderSubs: Set<() => void> = new Set();
 const _bannerSubs: Set<(b: BannerInfo) => void> = new Set();
 
 function notifyRender() { _renderSubs.forEach(fn => fn()); }
-function notifyBanner(b: BannerInfo) {
-  _lastBanner = b;
-  _bannerSubs.forEach(fn => fn(b));
-}
+function notifyBanner(b: BannerInfo) { _bannerSubs.forEach(fn => fn(b)); }
 
-// The embed wrapper lives in document.body and is NEVER moved.
-// It must stay in the visible viewport so the browser doesn't throttle its events.
+// The embed div lives in document.body and is NEVER moved (moving reloads the iframe).
+// Always positioned in the visible viewport so the browser doesn't throttle events.
 function getOrCreateEmbedEl(): HTMLDivElement {
   if (!_embedEl) {
     _embedEl = document.createElement('div');
@@ -52,27 +47,25 @@ function getOrCreateEmbedEl(): HTMLDivElement {
       'z-index:9997',
       'border-radius:12px',
       'overflow:hidden',
-      // Hidden initially, shown after first play
       'opacity:0',
       'pointer-events:none',
-      'transition:opacity 0.3s ease',
-      'box-shadow:0 4px 20px rgba(0,0,0,0.5)',
+      'transition:opacity 0.35s ease',
+      'box-shadow:0 4px 20px rgba(0,0,0,0.55)',
     ].join(';');
     document.body.appendChild(_embedEl);
   }
   return _embedEl;
 }
 
-function setEmbedVisible(visible: boolean) {
+function applyEmbedVisibility(show: boolean) {
   const el = _embedEl;
   if (!el) return;
-  el.style.opacity = visible ? '1' : '0';
-  el.style.pointerEvents = visible ? 'auto' : 'none';
+  el.style.opacity = show ? '1' : '0';
+  el.style.pointerEvents = show ? 'auto' : 'none';
 }
 
 function ensureSpotifyApi() {
-  // Pre-create the embed element so it's in the DOM early
-  getOrCreateEmbedEl();
+  getOrCreateEmbedEl(); // create & mount early so it's in the viewport
 
   if (document.getElementById('spotify-iframe-api')) return;
 
@@ -89,6 +82,7 @@ function ensureSpotifyApi() {
       { uri: `spotify:playlist:${PLAYLIST_ID}`, height: 80 },
       (ctrl: SpotifyController) => {
         _controller = ctrl;
+        _ready = true;
 
         ctrl.addListener('playback_update', (e: any) => {
           const track = e?.data?.track;
@@ -99,31 +93,22 @@ function ensureSpotifyApi() {
 
           if (!isPaused && !_started) {
             _started = true;
-            _autoplayBlocked = false;
             notifyRender();
           }
 
+          // Fire banner on track change while playing
           if (uri && uri !== _currentTrackUri && !isPaused && title && artist) {
             _currentTrackUri = uri;
             if (!_disabled) {
               notifyBanner({ title, artist, ts: Date.now() });
-              notifyRender();
             }
           }
         });
 
-        // ── Autoplay attempt ──────────────────────────────────────────────────
-        if (!_autoplayAttempted && !_disabled) {
-          _autoplayAttempted = true;
-          // Try immediately — works if browser allows it (return visitor / user gesture)
+        // Autoplay attempt — works for return visitors whose browser already
+        // trusts this origin. First-time visitors will see the embed paused.
+        if (!_disabled) {
           ctrl.play();
-          // After 2.5 s, check if playback actually started
-          setTimeout(() => {
-            if (!_started) {
-              _autoplayBlocked = true;
-              notifyRender(); // show the fallback "Avvia musica" button
-            }
-          }, 2500);
         }
 
         notifyRender();
@@ -145,14 +130,14 @@ export function SpotifyPlayer({ disabled = false }: SpotifyPlayerProps) {
 
   const refresh = useCallback(() => forceUpdate(n => n + 1), []);
 
-  // Init Spotify API once, subscribe to render signals
+  // Init API + subscribe to render signals
   useEffect(() => {
     _renderSubs.add(refresh);
     ensureSpotifyApi();
     return () => { _renderSubs.delete(refresh); };
   }, [refresh]);
 
-  // Subscribe to track-change events for banner
+  // Subscribe to track-change banner events
   useEffect(() => {
     const onBanner = (b: BannerInfo) => {
       setBanner(b);
@@ -164,43 +149,41 @@ export function SpotifyPlayer({ disabled = false }: SpotifyPlayerProps) {
     return () => { _bannerSubs.delete(onBanner); };
   }, []);
 
-  // Sync disabled → show/hide embed, pause/resume
+  // Sync disabled ↔ embed visibility + pause/resume
   useEffect(() => {
     _disabled = disabled;
-    setEmbedVisible(_started && !disabled);
-    if (!_controller) return;
     if (disabled) {
-      _controller.pause();
-    } else if (_started) {
-      _controller.play();
+      applyEmbedVisibility(false);
+      _controller?.pause();
+    } else {
+      applyEmbedVisibility(_ready);
+      if (_started) _controller?.play();
     }
   }, [disabled]);
 
-  // Show embed when started
+  // Keep embed visible whenever ready and not disabled (runs after every render)
   useEffect(() => {
-    if (_started && !disabled) setEmbedVisible(true);
+    if (_ready && !disabled) applyEmbedVisibility(true);
   });
 
+  // Manual start: called when user clicks "Avvia musica"
   const handleStart = () => {
     const ctrl = _controller;
     if (!ctrl) return;
     ctrl.play();
     _started = true;
-    _autoplayBlocked = false;
     localStorage.setItem(AUTOPLAY_KEY, '1');
-    setEmbedVisible(true);
+    applyEmbedVisibility(true);
     forceUpdate(n => n + 1);
   };
 
-  // Show the manual button only when:
-  // – music is not yet playing, AND
-  // – we're not mid-autoplay attempt (first 2.5s window), OR autoplay was definitively blocked
-  const midAttempt = _autoplayAttempted && !_autoplayBlocked && !_started;
-  const showStartButton = !_started && !disabled && !midAttempt;
+  // Show the button only before the controller is ready AND not disabled
+  // Once the controller loads, the embed itself is visible and playable
+  const showStartButton = !_ready && !disabled;
 
   return ReactDOM.createPortal(
     <>
-      {/* ── "Avvia musica" pill — appears before first play ── */}
+      {/* ── "Avvia musica" pill — shown only while the embed is loading ── */}
       {showStartButton && (
         <button
           onClick={handleStart}
