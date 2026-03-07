@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
 
 const PLAYLIST_ID = '0FM7kVe0ByicC44ACzvWbY';
+const AUTOPLAY_KEY = 'minkiards_music_started';
 
 interface SpotifyController {
   play: () => void;
@@ -21,6 +22,8 @@ let _embedEl: HTMLDivElement | null = null;
 let _started = false;
 let _disabled = false;
 let _currentTrackUri: string | null = null;
+let _autoplayBlocked = false;   // true = browser refused autoplay
+let _autoplayAttempted = false; // true = we already tried
 
 type BannerInfo = { title: string; artist: string; ts: number };
 let _lastBanner: BannerInfo | null = null;
@@ -88,7 +91,6 @@ function ensureSpotifyApi() {
         _controller = ctrl;
 
         ctrl.addListener('playback_update', (e: any) => {
-          // The Spotify embed API wraps event data as e.data.*
           const track = e?.data?.track;
           const isPaused: boolean = e?.data?.isPaused ?? true;
           const uri: string | undefined = track?.uri;
@@ -97,6 +99,7 @@ function ensureSpotifyApi() {
 
           if (!isPaused && !_started) {
             _started = true;
+            _autoplayBlocked = false;
             notifyRender();
           }
 
@@ -108,6 +111,20 @@ function ensureSpotifyApi() {
             }
           }
         });
+
+        // ── Autoplay attempt ──────────────────────────────────────────────────
+        if (!_autoplayAttempted && !_disabled) {
+          _autoplayAttempted = true;
+          // Try immediately — works if browser allows it (return visitor / user gesture)
+          ctrl.play();
+          // After 2.5 s, check if playback actually started
+          setTimeout(() => {
+            if (!_started) {
+              _autoplayBlocked = true;
+              notifyRender(); // show the fallback "Avvia musica" button
+            }
+          }, 2500);
+        }
 
         notifyRender();
       }
@@ -169,11 +186,17 @@ export function SpotifyPlayer({ disabled = false }: SpotifyPlayerProps) {
     if (!ctrl) return;
     ctrl.play();
     _started = true;
+    _autoplayBlocked = false;
+    localStorage.setItem(AUTOPLAY_KEY, '1');
     setEmbedVisible(true);
     forceUpdate(n => n + 1);
   };
 
-  const showStartButton = !_started && !disabled;
+  // Show the manual button only when:
+  // – music is not yet playing, AND
+  // – we're not mid-autoplay attempt (first 2.5s window), OR autoplay was definitively blocked
+  const midAttempt = _autoplayAttempted && !_autoplayBlocked && !_started;
+  const showStartButton = !_started && !disabled && !midAttempt;
 
   return ReactDOM.createPortal(
     <>
