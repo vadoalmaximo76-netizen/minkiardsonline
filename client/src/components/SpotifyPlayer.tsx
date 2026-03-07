@@ -99,6 +99,8 @@ function buildYTPlayer() {
   st.player = new window.YT.Player(container, {
     height: '1', width: '1',
     playerVars: {
+      listType: 'playlist',
+      list: PLAYLIST_ID,
       controls: 0,
       fs: 0,
       modestbranding: 1,
@@ -108,16 +110,26 @@ function buildYTPlayer() {
     },
     events: {
       onReady: (e: any) => {
-        const randomStart = Math.floor(Math.random() * 50);
-        console.log('[YT] player ready — random start at index', randomStart);
         e.target.setVolume(gs().volume);
-        e.target.loadPlaylist({ list: PLAYLIST_ID, listType: 'playlist', index: randomStart, startSeconds: 0 });
         e.target.setShuffle(true);
+        setTimeout(() => {
+          const playlist: string[] | null = e.target.getPlaylist();
+          const size = playlist?.length ?? 50;
+          const randomIndex = Math.floor(Math.random() * size);
+          console.log(`[YT] player ready — starting at index ${randomIndex}/${size}`);
+          e.target.playVideoAt(randomIndex);
+        }, 800);
       },
       onStateChange: (e: any) => {
         if (e.data === window.YT.PlayerState.ENDED) {
-          console.log('[YT] track ended — advancing to next');
-          try { e.target.nextVideo(); } catch {}
+          const playlist: string[] | null = e.target.getPlaylist();
+          const size = playlist?.length ?? 50;
+          const currentIndex: number = e.target.getPlaylistIndex() ?? 0;
+          let nextIndex: number;
+          do { nextIndex = Math.floor(Math.random() * size); }
+          while (nextIndex === currentIndex && size > 1);
+          console.log(`[YT] track ended — jumping to random index ${nextIndex}/${size}`);
+          try { e.target.playVideoAt(nextIndex); } catch {}
         }
         if (e.data === window.YT.PlayerState.PLAYING) {
           const data = e.target.getVideoData();
@@ -276,10 +288,15 @@ export function SpotifyPlayer({ disabled = false }: { disabled?: boolean }) {
               if (st.player) {
                 const state: number = st.player.getPlayerState?.() ?? -1;
                 if (state === 0) {
-                  // ended → go to next shuffled track
+                  // ended → jump to a new random track
                   clearFade();
                   st.player.setVolume(st.volume);
-                  st.player.nextVideo();
+                  const pl: string[] | null = st.player.getPlaylist?.() ?? null;
+                  const sz = pl?.length ?? 50;
+                  const cur: number = st.player.getPlaylistIndex?.() ?? 0;
+                  let nx: number;
+                  do { nx = Math.floor(Math.random() * sz); } while (nx === cur && sz > 1);
+                  st.player.playVideoAt(nx);
                 } else if ([-1, 2, 5].includes(state)) {
                   // unstarted / paused / cued → resume current track
                   clearFade();
