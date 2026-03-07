@@ -14,6 +14,7 @@ import { ResetPasswordPage } from "./components/ResetPasswordPage";
 import { CardAdminPanel } from "./components/CardAdminPanel";
 import { DraftSection } from "./components/DraftSection";
 import { RankiardLeaderboard } from "./components/RankiardLeaderboard";
+import { SpotifyPlayer } from "./components/SpotifyPlayer";
 import { useGameState } from "./lib/stores/useGameState";
 import { socket } from "./lib/socket";
 import { preloadCriticalImages } from "./lib/imagePreloader";
@@ -742,6 +743,14 @@ function App() {
             />
           </GameErrorBoundary>
         </div>
+        {authenticatedUser && (
+          <SpotifyPlayer
+            disabled={
+              (currentSection === 'play' && !!gameId && !showRoomDialog) ||
+              currentSection === 'draft'
+            }
+          />
+        )}
         <Toaster position="top-right" richColors />
       </QueryClientProvider>
     </TooltipProvider>
