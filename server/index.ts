@@ -1,4 +1,7 @@
 import childProcess from 'child_process';
+import fs from 'fs';
+import path, { dirname } from 'path';
+import { fileURLToPath } from 'url';
 import express, { type Request, Response, NextFunction } from "express";
 import compression from "compression";
 import { registerRoutes } from "./routes";
@@ -8,6 +11,16 @@ import { initSentry } from "./sentry";
 import { isRedisConfigured, setPlayerOnline, getOnlinePlayerCount } from "./redis";
 import { isCloudinaryConfigured } from "./cloudinary";
 import { isFreesoundConfigured } from "./freesound";
+
+// Auto-detect production mode: if dist/public exists and NODE_ENV is not explicitly set,
+// we are running from a compiled bundle in production.
+const __server_dir = dirname(fileURLToPath(import.meta.url));
+if (!process.env.NODE_ENV) {
+  const hasBuild = fs.existsSync(path.resolve(__server_dir, 'public'));
+  if (hasBuild) {
+    process.env.NODE_ENV = 'production';
+  }
+}
 
 // Patch child_process.spawn so all child processes run in their own process group.
 // This prevents SIGHUP sent to our process group from reaching esbuild (used by Vite).
