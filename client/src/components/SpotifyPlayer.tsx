@@ -1,35 +1,48 @@
 import React, { useEffect, useState, useRef } from 'react';
 import ReactDOM from 'react-dom';
 
-const PLAYLIST_ID = '0FM7kVe0ByicC44ACzvWbY';
+const PLAYLIST_ID = 'PLX6i-6a7orEU-L1GdfUDtepT-pW4tYl4j';
+const PLAYER_DIV_ID = 'mink-yt-player';
 
 interface BannerInfo { title: string; artist: string; }
-interface MinkState {
-  controller: any;
+interface MinkYTState {
+  player: any;
   started: boolean;
-  currentTrackUri: string | null;
+  currentVideoId: string | null;
   bannerSubs: Set<(b: BannerInfo) => void>;
 }
 
-declare global { interface Window { __minkS?: MinkState; SpotifyIframeApi?: any; onSpotifyIframeApiReady?: (api: any) => void; } }
-
-function gs(): MinkState {
-  if (!window.__minkS) {
-    window.__minkS = { controller: null, started: false, currentTrackUri: null, bannerSubs: new Set() };
+declare global {
+  interface Window {
+    __minkYT?: MinkYTState;
+    YT?: any;
+    onYouTubeIframeAPIReady?: () => void;
   }
-  return window.__minkS;
 }
 
-function getEmbed(): HTMLDivElement {
-  let el = document.getElementById('mink-spe') as HTMLDivElement | null;
+function gs(): MinkYTState {
+  if (!window.__minkYT) {
+    window.__minkYT = { player: null, started: false, currentVideoId: null, bannerSubs: new Set() };
+  }
+  return window.__minkYT;
+}
+
+function getPlayerDiv(): HTMLDivElement {
+  let el = document.getElementById(PLAYER_DIV_ID) as HTMLDivElement | null;
   if (!el) {
     el = document.createElement('div');
-    el.id = 'mink-spe';
+    el.id = PLAYER_DIV_ID;
     Object.assign(el.style, {
-      position: 'fixed', bottom: '1.25rem', right: '1.25rem',
-      width: '320px', height: '152px', zIndex: '99999',
-      borderRadius: '12px', overflow: 'hidden',
-      opacity: '0', pointerEvents: 'none',
+      position: 'fixed',
+      bottom: '1.25rem',
+      right: '1.25rem',
+      width: '320px',
+      height: '80px',
+      zIndex: '99999',
+      borderRadius: '12px',
+      overflow: 'hidden',
+      opacity: '0',
+      pointerEvents: 'none',
       transition: 'opacity 0.4s ease, transform 0.35s ease',
       transform: 'translateY(10px)',
       boxShadow: '0 6px 28px rgba(0,0,0,0.7)',
@@ -39,65 +52,88 @@ function getEmbed(): HTMLDivElement {
   return el;
 }
 
-function showEmbed() {
-  const el = getEmbed();
+function showPlayer() {
+  const el = getPlayerDiv();
   el.style.opacity = '1';
   el.style.pointerEvents = 'auto';
   el.style.transform = 'translateY(0)';
 }
 
-function initSpotify() {
+function hidePlayer() {
+  const el = getPlayerDiv();
+  el.style.opacity = '0';
+  el.style.pointerEvents = 'none';
+  el.style.transform = 'translateY(10px)';
+}
+
+function buildYTPlayer() {
   const st = gs();
-  if (st.controller) { if (st.started) showEmbed(); return; }
+  if (st.player) return;
 
-  const el = getEmbed();
+  const container = document.createElement('div');
+  getPlayerDiv().appendChild(container);
 
-  function build(API: any) {
-    if (gs().controller) return;
-    console.log('[Spotify] createController...');
-    API.createController(
-      el,
-      { uri: `spotify:playlist:${PLAYLIST_ID}`, height: 152 },
-      (ctrl: any) => {
-        console.log('[Spotify] controller ready');
-        gs().controller = ctrl;
-        ctrl.play();
-
-        ctrl.addListener('playback_update', (e: any) => {
-          const d = e?.data ?? e;
-          const paused: boolean = d?.isPaused ?? true;
-          const uri: string = d?.track?.uri ?? '';
-          const title: string = d?.track?.name ?? 'Spotify';
-          const artist: string = d?.track?.artists?.[0]?.name ?? '';
-          console.log('[Spotify] playback_update paused=%s title=%s', paused, title);
-          if (!paused && uri && uri !== gs().currentTrackUri) {
-            gs().currentTrackUri = uri;
+  st.player = new window.YT.Player(container, {
+    height: '80',
+    width: '320',
+    playerVars: {
+      listType: 'playlist',
+      list: PLAYLIST_ID,
+      autoplay: 1,
+      controls: 1,
+      fs: 0,
+      modestbranding: 1,
+      rel: 0,
+      shuffle: 1,
+      origin: window.location.origin,
+    },
+    events: {
+      onReady: (e: any) => {
+        console.log('[YT] player ready');
+        e.target.setShuffle(true);
+        if (gs().started) {
+          e.target.playVideo();
+          showPlayer();
+        }
+      },
+      onStateChange: (e: any) => {
+        if (e.data === window.YT.PlayerState.PLAYING) {
+          const data = e.target.getVideoData();
+          const videoId: string = data?.video_id ?? '';
+          const title: string = data?.title ?? '';
+          const artist: string = data?.author ?? '';
+          console.log('[YT] playing:', title, '|', artist);
+          if (videoId && videoId !== gs().currentVideoId) {
+            gs().currentVideoId = videoId;
             gs().bannerSubs.forEach(fn => fn({ title, artist }));
           }
-        });
-      }
-    );
-  }
+        }
+      },
+    },
+  });
+}
 
-  if (document.getElementById('spotify-iframe-api')) {
-    if (window.SpotifyIframeApi) build(window.SpotifyIframeApi);
+function initYT() {
+  getPlayerDiv();
+  if (window.YT && window.YT.Player) {
+    buildYTPlayer();
     return;
   }
+  if (document.getElementById('yt-iframe-api')) return;
   const sc = document.createElement('script');
-  sc.id = 'spotify-iframe-api';
-  sc.src = 'https://open.spotify.com/embed/iframe-api/v1';
-  sc.async = true;
+  sc.id = 'yt-iframe-api';
+  sc.src = 'https://www.youtube.com/iframe_api';
   document.head.appendChild(sc);
-  window.onSpotifyIframeApiReady = (API: any) => {
-    window.SpotifyIframeApi = API;
-    build(API);
+  window.onYouTubeIframeAPIReady = () => {
+    console.log('[YT] IFrame API ready');
+    buildYTPlayer();
   };
 }
 
-function SpotifyIcon() {
+function MusicIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="#1DB954" style={{ flexShrink: 0 }}>
-      <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="#FF0000" style={{ flexShrink: 0 }}>
+      <path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/>
     </svg>
   );
 }
@@ -109,12 +145,18 @@ export function SpotifyPlayer({ disabled = false }: { disabled?: boolean }) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    initSpotify();
+    initYT();
   }, []);
 
   useEffect(() => {
-    if (started && !disabled) showEmbed();
-  }, [started, disabled]);
+    if (disabled) {
+      hidePlayer();
+      gs().player?.pauseVideo?.();
+    } else if (started) {
+      showPlayer();
+      gs().player?.playVideo?.();
+    }
+  }, [disabled, started]);
 
   useEffect(() => {
     const cb = (b: BannerInfo) => {
@@ -130,9 +172,13 @@ export function SpotifyPlayer({ disabled = false }: { disabled?: boolean }) {
   const handleStart = () => {
     gs().started = true;
     setStarted(true);
-    showEmbed();
-    const ctrl = gs().controller;
-    if (ctrl) ctrl.play();
+    showPlayer();
+    const p = gs().player;
+    if (p) {
+      p.playVideo?.();
+    } else {
+      initYT();
+    }
   };
 
   const showBtn = !started && !disabled;
@@ -144,23 +190,23 @@ export function SpotifyPlayer({ disabled = false }: { disabled?: boolean }) {
           onClick={handleStart}
           style={{
             position: 'fixed', bottom: '1.25rem', right: '1.25rem',
-            zIndex: 100000, display: 'flex', alignItems: 'center', gap: '0.45rem',
-            background: 'rgba(0,0,0,0.85)', border: '1px solid rgba(29,185,84,0.6)',
-            borderRadius: '2rem', padding: '0.5rem 1rem',
-            color: '#1DB954', fontSize: '0.8rem', fontWeight: 700,
+            zIndex: 100000, display: 'flex', alignItems: 'center', gap: '0.5rem',
+            background: 'rgba(0,0,0,0.85)', border: '1px solid rgba(255,0,0,0.5)',
+            borderRadius: '2rem', padding: '0.5rem 1.1rem',
+            color: '#fff', fontSize: '0.8rem', fontWeight: 700,
             cursor: 'pointer', backdropFilter: 'blur(12px)',
             boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
           }}
         >
-          <SpotifyIcon /> Avvia musica
+          <MusicIcon /> Avvia musica
         </button>
       )}
 
       <div
         style={{
           position: 'fixed', bottom: '1.25rem', left: '1.25rem', zIndex: 99999,
-          maxWidth: '260px',
-          background: 'rgba(0,0,0,0.88)', border: '1px solid rgba(29,185,84,0.4)',
+          maxWidth: '270px',
+          background: 'rgba(0,0,0,0.88)', border: '1px solid rgba(255,0,0,0.35)',
           borderRadius: '12px', padding: '0.6rem 0.85rem',
           backdropFilter: 'blur(14px)', display: 'flex', alignItems: 'center', gap: '0.6rem',
           transition: 'transform 0.45s cubic-bezier(0.34,1.56,0.64,1), opacity 0.4s ease',
@@ -169,7 +215,7 @@ export function SpotifyPlayer({ disabled = false }: { disabled?: boolean }) {
           pointerEvents: 'none',
         }}
       >
-        <SpotifyIcon />
+        <MusicIcon />
         <div style={{ minWidth: 0 }}>
           <div style={{ color: '#fff', fontSize: '0.75rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {banner?.title}
