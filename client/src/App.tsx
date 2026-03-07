@@ -596,7 +596,7 @@ function App() {
           userId={authenticatedUser?.id}
           onBack={() => setCurrentSection('home')}
         />
-        <SpotifyPlayer disabled={true} />
+        <SpotifyPlayer disabled={false} />
       </QueryClientProvider>
     );
   }
