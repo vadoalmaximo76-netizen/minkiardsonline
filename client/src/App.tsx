@@ -328,6 +328,8 @@ function App() {
     console.log(`Attempting to join room: ${newGameId} with player: ${playerName}${isDraftMode ? ' [DRAFT]' : ''}`);
     
     setShowRoomDialog(false);
+    setShowDeckSelectDialog(false);
+    setPendingDraftParams(null);
 
     if (isDraftMode) {
       // For Draft mode: show deck selection first
@@ -677,7 +679,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <div className="min-h-screen bg-arena-deep flex flex-col items-center justify-center">
           <button
-            onClick={() => setCurrentSection('home')}
+            onClick={() => { setCurrentSection('home'); setShowDeckSelectDialog(false); setPendingDraftParams(null); }}
             className="absolute top-4 left-4 p-3 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-colors"
           >
             ← Indietro
@@ -686,13 +688,18 @@ function App() {
             <AdBanner format="horizontal" className="mx-auto" />
           </div>
           <RoomCodeDialog
-            open={showRoomDialog || !gameId}
+            open={(showRoomDialog || !gameId) && !showDeckSelectDialog}
             onSubmit={handleRoomSubmit}
           />
           <div className="w-full max-w-md mt-4">
             <AdBanner format="horizontal" className="mx-auto" />
           </div>
         </div>
+        <DeckSelectDialog
+          open={showDeckSelectDialog}
+          onClose={() => { setShowDeckSelectDialog(false); setPendingDraftParams(null); }}
+          onConfirm={handleDeckConfirmed}
+        />
         <SpotifyPlayer disabled={false} />
       </QueryClientProvider>
     );
