@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { ArrowLeft, Shuffle, ShoppingCart, CreditCard, Search, Plus, Minus, CheckCircle, AlertCircle, Coins, Users, Swords, Zap, Package, Check, Trophy, X, SortAsc, SortDesc, Sparkles, Trash2, Filter, Gift, Star, Lock, ChevronDown, ChevronUp, Clock, Target, Flame, BookOpen, Save, RotateCcw, Calendar, Ticket, Store, ChevronLeft, ChevronRight, Pencil, Copy } from 'lucide-react';
+import { ArrowLeft, Shuffle, ShoppingCart, CreditCard, Search, Plus, Minus, CheckCircle, AlertCircle, Coins, Users, Swords, Zap, Package, Check, Trophy, X, SortAsc, SortDesc, Sparkles, Trash2, Filter, Gift, Star, Lock, ChevronDown, ChevronUp, Clock, Target, Flame, Save, RotateCcw, Calendar, Ticket, Store, ChevronLeft, ChevronRight, Pencil, Copy } from 'lucide-react';
 import { PackOpeningAnimation, PackType, RevealedCard } from './PackOpeningAnimation';
 import { SeasonPass } from './SeasonPass';
 import { Marketplace } from './Marketplace';
@@ -121,7 +121,7 @@ function getAuthHeaders(): Record<string, string> {
 
 export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<'deck' | 'shop' | 'credits' | 'packs' | 'collection' | 'pass' | 'marketplace'>('deck');
+  const [activeTab, setActiveTab] = useState<'deck' | 'shop' | 'credits' | 'packs' | 'pass' | 'marketplace'>('deck');
   const [status, setStatus] = useState<DraftStatus | null>(null);
   const [allCards, setAllCards] = useState<DraftCard[]>([]);
   const [selectedCards, setSelectedCards] = useState<{ personaggi: string[]; mosse: string[]; bonus: string[] }>({ personaggi: [], mosse: [], bonus: [] });
@@ -142,9 +142,6 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
   const [openingPackId, setOpeningPackId] = useState<string | null>(null);
   const [packAnimation, setPackAnimation] = useState<{ pack: PackType; cards: RevealedCard[] } | null>(null);
   const [packError, setPackError] = useState<string | null>(null);
-  // Collection tab
-  const [collectionFilter, setCollectionFilter] = useState<'all' | 'personaggi' | 'mosse' | 'bonus'>('all');
-  const [collectionRarityFilter, setCollectionRarityFilter] = useState<'all' | 'comune' | 'rara' | 'epica' | 'leggendaria'>('all');
   const [ownedCardDetails, setOwnedCardDetails] = useState<Array<{ cardId: string; rarity: string; deckType: string }>>([]);
   // Daily card
   const [dailyCardStatus, setDailyCardStatus] = useState<DailyCardStatus | null>(null);
@@ -1077,7 +1074,6 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
           { key: 'deck', label: 'Mazzo', icon: Package, badge: totalSelected > 0 ? `${totalSelected}/99` : null },
           { key: 'shop', label: 'Negozio', icon: ShoppingCart, badge: null },
           { key: 'packs', label: 'Pacchetti', icon: Gift, badge: dailyCardStatus?.available ? '!' : null },
-          { key: 'collection', label: 'Collezione', icon: BookOpen, badge: ownedCardIds.size > 0 ? `${ownedCardIds.size}` : null },
           { key: 'credits', label: 'Crediti', icon: CreditCard, badge: null },
           { key: 'pass', label: 'Pass', icon: Ticket, badge: null },
           { key: 'marketplace', label: 'Mercato', icon: Store, badge: null },
@@ -2120,116 +2116,6 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
               )}
             </div>
           )}
-
-          {/* ===== TAB: COLLEZIONE ===== */}
-          {activeTab === 'collection' && (() => {
-            const RARITY_ORDER: Record<string, number> = { leggendaria: 0, epica: 1, rara: 2, comune: 3 };
-            const filteredOwned = ownedCardDetails
-              .filter(od => {
-                if (collectionFilter !== 'all' && od.deckType !== collectionFilter) return false;
-                if (collectionRarityFilter !== 'all' && od.rarity !== collectionRarityFilter) return false;
-                return true;
-              })
-              .sort((a, b) => (RARITY_ORDER[a.rarity] ?? 9) - (RARITY_ORDER[b.rarity] ?? 9));
-            const rarityCount = { comune: 0, rara: 0, epica: 0, leggendaria: 0 };
-            ownedCardDetails.forEach(od => { if (od.rarity in rarityCount) rarityCount[od.rarity as keyof typeof rarityCount]++; });
-            return (
-              <div className="max-w-5xl mx-auto space-y-4">
-                <div className="text-center">
-                  <h2 className="text-white font-bold text-xl flex items-center justify-center gap-2">
-                    <BookOpen className="w-5 h-5 text-teal-400" /> La mia Collezione
-                  </h2>
-                  <p className="text-white/50 text-sm mt-1">{ownedCardIds.size} carte possedute</p>
-                  <div className="flex items-center justify-center gap-2 mt-2 flex-wrap">
-                    {Object.entries(rarityCount).filter(([, n]) => n > 0).map(([r, n]) => (
-                      <span key={r} className={`text-xs px-2.5 py-1 rounded-full font-semibold ${r === 'leggendaria' ? 'bg-yellow-500/20 text-yellow-300' : r === 'epica' ? 'bg-purple-500/20 text-purple-300' : r === 'rara' ? 'bg-blue-500/20 text-blue-300' : 'bg-gray-500/20 text-gray-300'}`}>
-                        {n} {r}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <div className="flex gap-1.5 flex-wrap">
-                    {([
-                      { f: 'all' as const, label: 'Tutte' },
-                      { f: 'personaggi' as const, label: 'Personaggi' },
-                      { f: 'mosse' as const, label: 'Mosse' },
-                      { f: 'bonus' as const, label: 'Bonus' },
-                    ]).map(({ f, label }) => (
-                      <button key={f} onClick={() => setCollectionFilter(f)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${collectionFilter === f ? 'bg-teal-500 text-white' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}>
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  <select
-                    value={collectionRarityFilter}
-                    onChange={e => setCollectionRarityFilter(e.target.value as any)}
-                    className="bg-white/10 border border-white/20 rounded-xl text-white text-xs px-3 py-2 focus:outline-none focus:border-teal-400/50 cursor-pointer"
-                  >
-                    <option value="all" className="bg-gray-900">Tutte le rarità</option>
-                    <option value="leggendaria" className="bg-gray-900">Leggendarie</option>
-                    <option value="epica" className="bg-gray-900">Epiche</option>
-                    <option value="rara" className="bg-gray-900">Rare</option>
-                    <option value="comune" className="bg-gray-900">Comuni</option>
-                  </select>
-                </div>
-
-                {filteredOwned.length === 0 ? (
-                  <div className="text-center py-16">
-                    <BookOpen className="w-12 h-12 text-white/15 mx-auto mb-4" />
-                    <p className="text-white/40 text-sm">Nessuna carta in questa categoria</p>
-                    {ownedCardIds.size === 0 && <p className="text-white/30 text-xs mt-2">Apri pacchetti o riscatta la carta giornaliera per iniziare la tua collezione!</p>}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-                    {filteredOwned.map(od => {
-                      const card = allCards.find(c => c.id === od.cardId);
-                      const inDeck = selectedCards[od.deckType as 'personaggi' | 'mosse' | 'bonus']?.includes(od.cardId);
-                      return (
-                        <div
-                          key={od.cardId}
-                          className={`relative rounded-xl overflow-hidden border-2 transition-all cursor-pointer hover:scale-[1.03] ${
-                            od.rarity === 'leggendaria' ? 'border-yellow-400/60 shadow-lg shadow-yellow-500/20' :
-                            od.rarity === 'epica' ? 'border-purple-400/60 shadow-lg shadow-purple-500/20' :
-                            od.rarity === 'rara' ? 'border-blue-400/40' :
-                            'border-white/15'
-                          }`}
-                          onClick={() => card && toggleCard(card)}
-                          title={`${card?.name || od.cardId}\n${od.rarity} · ${od.deckType}\nClicca per aggiungere al mazzo`}
-                        >
-                          {card?.imageUrl ? (
-                            <img src={card.imageUrl} alt={card.name} className="w-full aspect-[2/3] object-cover" loading="lazy" />
-                          ) : (
-                            <div className="w-full aspect-[2/3] bg-white/5 flex items-center justify-center">
-                              <span className="text-white/20 text-[10px]">?</span>
-                            </div>
-                          )}
-                          {/* Rarity badge */}
-                          <div className={`absolute top-0.5 right-0.5 text-[9px] px-1 py-0.5 rounded font-bold ${
-                            od.rarity === 'leggendaria' ? 'bg-yellow-500/80 text-yellow-100' :
-                            od.rarity === 'epica' ? 'bg-purple-500/80 text-purple-100' :
-                            od.rarity === 'rara' ? 'bg-blue-500/80 text-blue-100' :
-                            'bg-gray-600/80 text-gray-200'
-                          }`}>{od.rarity.charAt(0).toUpperCase()}</div>
-                          {/* In deck indicator */}
-                          {inDeck && (
-                            <div className="absolute top-0.5 left-0.5 bg-teal-500/90 rounded-full p-0.5">
-                              <Check className="w-2.5 h-2.5 text-white" />
-                            </div>
-                          )}
-                          <div className="bg-black/80 px-1 py-0.5">
-                            <p className="text-white text-[9px] font-semibold truncate leading-tight">{card?.name || od.cardId}</p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
 
           {/* ===== TAB: ACQUISTA CREDITI ===== */}
           {activeTab === 'credits' && (
