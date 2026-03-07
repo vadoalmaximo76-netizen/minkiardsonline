@@ -209,7 +209,7 @@ export const GameEndRewardsPanel: React.FC<GameEndRewardsPanelProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 overflow-hidden" style={{ zIndex: 10000 }}>
+    <div className="fixed inset-0 bg-black/90 flex items-start justify-center p-4 pt-8 pb-32 overflow-y-auto" style={{ zIndex: 10000 }}>
       <AnimatePresence>
         {showCoins && coins.map((coin) => (
           <motion.div

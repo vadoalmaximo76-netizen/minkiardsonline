@@ -4239,7 +4239,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         )}
 
         {gameEndRewards.visible && !rematchState.newGameId && !bo3State.seriesStarted && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex flex-col items-center gap-3 pointer-events-auto">
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[11000] flex flex-col items-center gap-3 pointer-events-auto">
             {rematchState.declined ? (
               <div className="bg-red-900/90 border border-red-500 text-white px-6 py-3 rounded-xl text-center shadow-xl">
                 <p className="font-bold">❌ Rivincita rifiutata</p>
