@@ -13930,6 +13930,21 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         listingId, buyerId: currentUser.id, buyerName: currentUser.username, creditsSpent: listing.priceCredits,
       });
 
+      // Notify seller: push notification + socket event
+      sendPushToUser(listing.sellerId, {
+        title: '💰 Carta venduta!',
+        body: `${listing.cardName} è stata acquistata da ${currentUser.username} per ${listing.priceCredits} crediti`,
+        url: '/profile',
+        tag: 'marketplace-sale'
+      });
+      io.emit('marketplace-sale', {
+        sellerId: listing.sellerId,
+        cardName: listing.cardName,
+        cardImageUrl: listing.cardImageUrl,
+        buyerName: currentUser.username,
+        creditsEarned: listing.priceCredits
+      });
+
       console.log(`✅ Marketplace sale: ${listing.cardName} (${listing.cardId}) sold by ${listing.sellerName} to ${currentUser.username} for ${listing.priceCredits} crediti`);
       res.json({ success: true, cardName: listing.cardName });
     } catch (error) {
@@ -13952,6 +13967,46 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: 'Errore cancellazione annuncio' });
+    }
+  });
+
+  // Marketplace trade history for the current user (as buyer and seller)
+  app.get('/api/marketplace/my-history', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json([]);
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'Utente non trovato' });
+
+      // Get all history entries where this user was the buyer or seller
+      const history = await db
+        .select({
+          id: cardTradeHistory.id,
+          listingId: cardTradeHistory.listingId,
+          buyerId: cardTradeHistory.buyerId,
+          buyerName: cardTradeHistory.buyerName,
+          creditsSpent: cardTradeHistory.creditsSpent,
+          tradedAt: cardTradeHistory.tradedAt,
+          sellerId: cardTradeListings.sellerId,
+          sellerName: cardTradeListings.sellerName,
+          cardId: cardTradeListings.cardId,
+          cardName: cardTradeListings.cardName,
+          cardType: cardTradeListings.cardType,
+          cardRarity: cardTradeListings.cardRarity,
+          cardImageUrl: cardTradeListings.cardImageUrl,
+          cardPti: cardTradeListings.cardPti,
+          cardStars: cardTradeListings.cardStars,
+        })
+        .from(cardTradeHistory)
+        .innerJoin(cardTradeListings, eq(cardTradeHistory.listingId, cardTradeListings.id))
+        .where(or(eq(cardTradeHistory.buyerId, currentUser.id), eq(cardTradeListings.sellerId, currentUser.id)))
+        .orderBy(desc(cardTradeHistory.tradedAt))
+        .limit(50);
+
+      res.json(history);
+    } catch (error) {
+      console.error('Error fetching trade history:', error);
+      res.status(500).json({ error: 'Errore storico transazioni' });
     }
   });
 

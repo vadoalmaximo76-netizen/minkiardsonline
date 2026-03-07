@@ -13,7 +13,7 @@
     "name": "Collezionista",
     "description": "Apri 5 pacchetti e 1 te lo regaliamo noi",
     "requirement": 5,
-    "rewardCredits": 150,
+    "rewardCredits": 75,
     "icon": "🎁",
     "progressKey": "packCount"
   },

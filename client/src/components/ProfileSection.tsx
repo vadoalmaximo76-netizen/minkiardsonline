@@ -36,6 +36,24 @@ interface UserStats {
   friends: Array<{ id: number; username: string; avatar: string | null; online: boolean }>;
 }
 
+interface TradeHistoryEntry {
+  id: number;
+  listingId: number;
+  buyerId: number;
+  buyerName: string;
+  creditsSpent: number;
+  tradedAt: string;
+  sellerId: number;
+  sellerName: string;
+  cardId: string;
+  cardName: string;
+  cardType: string;
+  cardRarity: string;
+  cardImageUrl: string | null;
+  cardPti: number | null;
+  cardStars: number | null;
+}
+
 export function ProfileSection({ playerName, userId, userEmail, userAvatar, socket, onBack, onUpdateProfile }: ProfileSectionProps) {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,6 +82,8 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
   const [offlineDownloading, setOfflineDownloading] = useState(false);
   const [offlineProgress, setOfflineProgress] = useState({ done: 0, total: 0 });
   const offlineAbortRef = useRef<AbortController | null>(null);
+  const [tradeHistory, setTradeHistory] = useState<TradeHistoryEntry[]>([]);
+  const [showTradeHistory, setShowTradeHistory] = useState(false);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -71,9 +91,10 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
         const authToken = localStorage.getItem('authToken');
         if (!authToken) return;
 
-        const [profileRes, friendsRes] = await Promise.all([
+        const [profileRes, friendsRes, tradeHistRes] = await Promise.all([
           fetch('/api/profile', { headers: { 'Authorization': `Bearer ${authToken}` } }),
-          fetch('/api/friends', { headers: { 'Authorization': `Bearer ${authToken}` } })
+          fetch('/api/friends', { headers: { 'Authorization': `Bearer ${authToken}` } }),
+          fetch('/api/marketplace/my-history', { headers: { 'Authorization': `Bearer ${authToken}` } })
         ]);
 
         let profileData = null;
@@ -87,6 +108,11 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
         if (friendsRes.ok) {
           const data = await friendsRes.json();
           friendsData = data.friends || [];
+        }
+
+        if (tradeHistRes.ok) {
+          const data = await tradeHistRes.json();
+          setTradeHistory(Array.isArray(data) ? data : []);
         }
 
         if (profileData) {
@@ -672,6 +698,55 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Trade History */}
+            {tradeHistory.length > 0 && (
+              <div className="bg-slate-900/70 backdrop-blur-sm rounded-2xl border border-white/20 shadow-lg overflow-hidden">
+                <button
+                  onClick={() => setShowTradeHistory(!showTradeHistory)}
+                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-white/5 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <TrendingUp className="w-5 h-5 text-emerald-400" />
+                    <h3 className="text-lg font-semibold text-white">Storico Mercato</h3>
+                    <span className="text-white/40 text-sm">({tradeHistory.length} transazioni)</span>
+                  </div>
+                  <span className="text-white/40 text-lg">{showTradeHistory ? '▲' : '▼'}</span>
+                </button>
+                {showTradeHistory && (
+                  <div className="border-t border-white/10 divide-y divide-white/5">
+                    {tradeHistory.map(t => {
+                      const isSold = t.sellerId === userId;
+                      const rarityColor = t.cardRarity === 'leggendaria' ? 'text-yellow-300 bg-yellow-500/15' : t.cardRarity === 'epica' ? 'text-purple-300 bg-purple-500/15' : t.cardRarity === 'rara' ? 'text-blue-300 bg-blue-500/15' : 'text-slate-300 bg-slate-500/15';
+                      return (
+                        <div key={t.id} className="flex items-center gap-3 px-5 py-3">
+                          {t.cardImageUrl ? (
+                            <img src={t.cardImageUrl} alt={t.cardName} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-slate-700 flex-shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-white font-semibold text-sm truncate">{t.cardName}</span>
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${rarityColor}`}>{t.cardRarity}</span>
+                            </div>
+                            <div className="text-white/50 text-xs mt-0.5">
+                              {isSold ? `Venduta a ${t.buyerName}` : `Acquistata da ${t.sellerName}`} · {new Date(t.tradedAt).toLocaleDateString('it-IT')}
+                            </div>
+                          </div>
+                          <div className={`text-sm font-bold flex-shrink-0 ${isSold ? 'text-emerald-400' : 'text-rose-400'}`}>
+                            {isSold ? `+${t.creditsSpent}` : `-${t.creditsSpent}`} cr
+                          </div>
+                          <div className={`text-[10px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${isSold ? 'bg-emerald-500/20 text-emerald-300' : 'bg-blue-500/20 text-blue-300'}`}>
+                            {isSold ? 'Venduta' : 'Acquistata'}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 

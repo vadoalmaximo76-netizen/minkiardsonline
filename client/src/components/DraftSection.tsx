@@ -3,6 +3,7 @@ import { ArrowLeft, Shuffle, ShoppingCart, CreditCard, Search, Plus, Minus, Chec
 import { PackOpeningAnimation, PackType, RevealedCard } from './PackOpeningAnimation';
 import { SeasonPass } from './SeasonPass';
 import { Marketplace } from './Marketplace';
+import { socket } from '../lib/socket';
 
 interface DraftSectionProps {
   onBack: () => void;
@@ -151,6 +152,7 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
   // Pack history
   const [packHistory, setPackHistory] = useState<PackHistoryEntry[]>([]);
   const [showPackHistory, setShowPackHistory] = useState(false);
+  const [saleToast, setSaleToast] = useState<{ cardName: string; buyerName: string; creditsEarned: number } | null>(null);
   const [packAdminOpen, setPackAdminOpen] = useState(false);
   const [packAdminList, setPackAdminList] = useState<PackType[]>([]);
   const [packEditing, setPackEditing] = useState<string | null>(null);
@@ -453,6 +455,17 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
       setInitialPackQueue(rest);
     }
   }, [currentInitialPack, initialPackQueue]);
+
+  useEffect(() => {
+    const handleSale = (data: { sellerId: number; cardName: string; buyerName: string; creditsEarned: number }) => {
+      if (data.sellerId !== userId) return;
+      setSaleToast({ cardName: data.cardName, buyerName: data.buyerName, creditsEarned: data.creditsEarned });
+      fetchAll();
+      setTimeout(() => setSaleToast(null), 6000);
+    };
+    socket.on('marketplace-sale', handleSale);
+    return () => { socket.off('marketplace-sale', handleSale); };
+  }, [userId]);
 
   const handleInitialPackClose = () => {
     setCurrentInitialPack(null);
@@ -883,6 +896,26 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
         <div className="absolute w-[600px] h-[600px] rounded-full blur-[120px]" style={{ background: 'radial-gradient(circle, #0d9488, transparent 65%)', opacity: 0.15, top: '5%', left: '5%' }} />
         <div className="absolute w-[500px] h-[500px] rounded-full blur-[100px]" style={{ background: 'radial-gradient(circle, #7c3aed, transparent 65%)', opacity: 0.12, bottom: '10%', right: '5%' }} />
       </div>
+
+      {/* Sale notification toast */}
+      {saleToast && (
+        <div className="fixed top-4 right-4 z-[9999] bg-emerald-900/95 border border-emerald-500/50 rounded-2xl px-5 py-4 shadow-2xl max-w-xs animate-in slide-in-from-right">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-emerald-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span className="text-lg">💰</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-emerald-300 font-bold text-sm">Carta venduta!</div>
+              <div className="text-white/80 text-xs mt-0.5 truncate">{saleToast.cardName}</div>
+              <div className="text-white/50 text-xs mt-0.5">Acquistata da {saleToast.buyerName}</div>
+              <div className="text-emerald-400 font-bold text-sm mt-1">+{saleToast.creditsEarned} crediti</div>
+            </div>
+            <button onClick={() => setSaleToast(null)} className="text-white/30 hover:text-white/70 flex-shrink-0">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <div className="relative z-10 flex items-center justify-between px-4 py-3 border-b border-white/10 bg-black/20 backdrop-blur-sm flex-shrink-0">
