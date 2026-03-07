@@ -50,5 +50,18 @@
     "resetPasswordExpires": null,
     "id": 4,
     "createdAt": "2026-03-06T21:09:45.666Z"
+  },
+  {
+    "username": "Mike",
+    "email": "mikehermantraut@gmail.com",
+    "password": "$2b$10$ETwn3mBwS8hWl6/Owz0U0u.jYlQrl99Z9QixiKafOM7iZz/c60FNC",
+    "googleId": null,
+    "avatar": "star",
+    "puntiRankiard": 0,
+    "isAdmin": false,
+    "resetPasswordToken": null,
+    "resetPasswordExpires": null,
+    "id": 5,
+    "createdAt": "2026-03-07T10:12:37.935Z"
   }
 ]
