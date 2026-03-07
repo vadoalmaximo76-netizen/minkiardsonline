@@ -6,7 +6,6 @@ const PLAYLIST_ID = '0FM7kVe0ByicC44ACzvWbY';
 interface SpotifyController {
   play: () => void;
   pause: () => void;
-  setVolume: (vol: number) => void;
   addListener: (event: string, cb: (data: any) => void) => void;
 }
 
@@ -19,7 +18,6 @@ declare global {
 // ── Singleton state (survives component remounts) ─────────────────────────────
 let _controller: SpotifyController | null = null;
 let _iframeEl: HTMLDivElement | null = null;
-let _volume = 60;
 let _started = false;
 let _disabled = false;
 let _currentTrackUri: string | null = null;
@@ -56,7 +54,6 @@ function ensureSpotifyApi() {
       { uri: `spotify:playlist:${PLAYLIST_ID}`, height: 80 },
       (controller: SpotifyController) => {
         _controller = controller;
-        controller.setVolume(_volume / 100);
 
         controller.addListener('playback_update', (data: any) => {
           const uri = data?.data?.track?.uri;
@@ -110,10 +107,8 @@ export function SpotifyPlayer({ disabled = false }: SpotifyPlayerProps) {
     const ctrl = _controller;
     if (!ctrl) return;
     if (disabled) {
-      ctrl.setVolume(0);
       ctrl.pause();
     } else {
-      ctrl.setVolume(_volume / 100);
       if (_started) ctrl.play();
     }
   }, [disabled]);
@@ -127,15 +122,6 @@ export function SpotifyPlayer({ disabled = false }: SpotifyPlayerProps) {
       bannerTimer.current = setTimeout(() => setBannerVisible(false), 5000);
     }
   });
-
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseInt(e.target.value);
-    _volume = val;
-    forceUpdate(n => n + 1);
-    if (_controller && !_disabled) {
-      _controller.setVolume(val / 100);
-    }
-  };
 
   const handleStart = () => {
     if (_controller) {
@@ -174,38 +160,6 @@ export function SpotifyPlayer({ disabled = false }: SpotifyPlayerProps) {
           <SpotifyIcon />
           Avvia musica
         </button>
-      )}
-
-      {!disabled && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '1.25rem',
-            right: '1.25rem',
-            zIndex: 9998,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            background: 'rgba(0,0,0,0.70)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: '2rem',
-            padding: '0.4rem 0.8rem',
-            backdropFilter: 'blur(10px)',
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="rgba(255,255,255,0.5)">
-            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
-          </svg>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={_volume}
-            onChange={handleVolumeChange}
-            style={{ width: '70px', accentColor: '#1DB954', cursor: 'pointer' }}
-            title={`Volume: ${_volume}%`}
-          />
-        </div>
       )}
 
       <div
