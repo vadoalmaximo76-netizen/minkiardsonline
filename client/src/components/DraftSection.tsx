@@ -158,7 +158,7 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
   const [packAdminList, setPackAdminList] = useState<PackType[]>([]);
   const [packEditing, setPackEditing] = useState<string | null>(null);
   const [packCreating, setPackCreating] = useState(false);
-  const emptyPackForm = { name: '', creditsRequired: 100, description: '', gradient: 'linear-gradient(135deg, #1a1a2e, #16213e)', glowColor: '#4a9eff', slotsText: 'comune\ncomune\nrara' };
+  const emptyPackForm = { name: '', creditsRequired: 100, description: '', gradient: 'linear-gradient(135deg, #1a1a2e, #16213e)', glowColor: '#4a9eff', imageUrl: '', slotsText: 'comune\ncomune\nrara' };
   const [packForm, setPackForm] = useState(emptyPackForm);
   // Weekly offers
   const [weeklyOffers, setWeeklyOffers] = useState<WeeklyOffer[]>([]);
@@ -230,23 +230,29 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
 
   const parseSlotsText = (text: string) => {
     return text.split('\n').map(line => line.trim()).filter(Boolean).map(line => {
-      if (line.includes('/')) {
-        const alternatives = line.split('/').map(part => {
+      const atIdx = line.lastIndexOf('@');
+      const deckType = atIdx !== -1 ? line.slice(atIdx + 1).trim() || undefined : undefined;
+      const slotPart = atIdx !== -1 ? line.slice(0, atIdx).trim() : line;
+      if (slotPart.includes('/')) {
+        const alternatives = slotPart.split('/').map(part => {
           const [rarity, weight] = part.trim().split(':');
           return { rarity: rarity.trim(), weight: parseInt(weight) || 50 };
         });
-        return { alternatives };
+        return deckType ? { alternatives, deckType } : { alternatives };
       }
-      return { rarity: line };
+      return deckType ? { rarity: slotPart, deckType } : { rarity: slotPart };
     });
   };
 
   const slotsToText = (slots: any[]) => {
     return slots.map(slot => {
+      let base: string;
       if (slot.alternatives) {
-        return slot.alternatives.map((a: any) => `${a.rarity}:${a.weight}`).join('/');
+        base = slot.alternatives.map((a: any) => `${a.rarity}:${a.weight}`).join('/');
+      } else {
+        base = slot.rarity || 'comune';
       }
-      return slot.rarity || 'comune';
+      return slot.deckType ? `${base}@${slot.deckType}` : base;
     }).join('\n');
   };
 
@@ -1964,23 +1970,28 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                               </div>
                               <input value={packForm.description} onChange={e => setPackForm(f => ({ ...f, description: e.target.value }))} placeholder="Descrizione" className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50" />
                               <input value={packForm.gradient} onChange={e => setPackForm(f => ({ ...f, gradient: e.target.value }))} placeholder="CSS gradient" className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50" />
+                              <input value={packForm.imageUrl} onChange={e => setPackForm(f => ({ ...f, imageUrl: e.target.value }))} placeholder="URL immagine pacchetto (es: https://...)" className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50" />
                               <div>
-                                <div className="text-white/40 text-[10px] mb-1">Slot (uno per riga: "comune", "rara", "epica:90/leggendaria:10")</div>
+                                <div className="text-white/40 text-[10px] mb-1">Slot (uno per riga: "comune", "rara", "epica:90/leggendaria:10", con tipo "@personaggi")</div>
                                 <textarea value={packForm.slotsText} onChange={e => setPackForm(f => ({ ...f, slotsText: e.target.value }))} rows={6} className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50 font-mono" />
                               </div>
                               <div className="flex gap-2">
-                                <button onClick={async () => { try { const slots = parseSlotsText(packForm.slotsText); await savePackAdmin(p.id, { name: packForm.name, creditsRequired: packForm.creditsRequired, description: packForm.description, gradient: packForm.gradient, glowColor: packForm.glowColor, slots }); await fetchAdminPacks(); const res2 = await fetch('/api/draft/packs', { headers: getAuthHeaders() }); if (res2.ok) { const d = await res2.json(); if (d.packs) setAvailablePacks(d.packs); } setPackEditing(null); } catch(e) { alert('Errore salvataggio'); } }} className="flex-1 px-3 py-1.5 bg-orange-500/30 border border-orange-400/50 text-orange-300 hover:bg-orange-500/50 rounded-lg text-xs font-semibold">Salva</button>
+                                <button onClick={async () => { try { const slots = parseSlotsText(packForm.slotsText); await savePackAdmin(p.id, { name: packForm.name, creditsRequired: packForm.creditsRequired, description: packForm.description, gradient: packForm.gradient, glowColor: packForm.glowColor, imageUrl: packForm.imageUrl || undefined, slots }); await fetchAdminPacks(); const res2 = await fetch('/api/draft/packs', { headers: getAuthHeaders() }); if (res2.ok) { const d = await res2.json(); if (d.packs) setAvailablePacks(d.packs); } setPackEditing(null); } catch(e) { alert('Errore salvataggio'); } }} className="flex-1 px-3 py-1.5 bg-orange-500/30 border border-orange-400/50 text-orange-300 hover:bg-orange-500/50 rounded-lg text-xs font-semibold">Salva</button>
                                 <button onClick={() => setPackEditing(null)} className="px-3 py-1.5 bg-white/10 border border-white/20 text-white/60 hover:bg-white/20 rounded-lg text-xs">Annulla</button>
                               </div>
                             </div>
                           ) : (
-                            <div className="flex items-center justify-between">
-                              <div>
+                            <div className="flex items-center gap-3">
+                              {p.imageUrl && (
+                                <img src={p.imageUrl} alt={p.name} className="w-10 h-14 rounded-lg object-cover flex-shrink-0 opacity-90" />
+                              )}
+                              <div className="flex-1 min-w-0">
                                 <div className="text-white font-semibold text-sm">{p.name}</div>
                                 <div className="text-white/50 text-xs">{p.creditsRequired} cr · {p.cardCount} carte</div>
+                                {!p.imageUrl && <div className="text-orange-400/60 text-[10px] mt-0.5">⚠ nessuna immagine</div>}
                               </div>
-                              <div className="flex gap-1">
-                                <button onClick={() => { setPackEditing(p.id); setPackForm({ name: p.name, creditsRequired: p.creditsRequired, description: p.description || '', gradient: p.gradient || '', glowColor: p.glowColor || '', slotsText: slotsToText((p as any).slots || []) }); }} className="px-2.5 py-1 bg-blue-500/20 border border-blue-400/40 text-blue-300 hover:bg-blue-500/40 rounded text-xs">Modifica</button>
+                              <div className="flex gap-1 flex-shrink-0">
+                                <button onClick={() => { setPackEditing(p.id); setPackForm({ name: p.name, creditsRequired: p.creditsRequired, description: p.description || '', gradient: p.gradient || '', glowColor: p.glowColor || '', imageUrl: p.imageUrl || '', slotsText: slotsToText((p as any).slots || []) }); }} className="px-2.5 py-1 bg-blue-500/20 border border-blue-400/40 text-blue-300 hover:bg-blue-500/40 rounded text-xs">Modifica</button>
                                 <button onClick={async () => { if (confirm('Eliminare questo pacchetto?')) { await deletePackAdmin(p.id); await fetchAdminPacks(); const res2 = await fetch('/api/draft/packs', { headers: getAuthHeaders() }); if (res2.ok) { const d = await res2.json(); if (d.packs) setAvailablePacks(d.packs); } } }} className="px-2.5 py-1 bg-red-500/20 border border-red-400/40 text-red-300 hover:bg-red-500/40 rounded text-xs">Elimina</button>
                               </div>
                             </div>
@@ -1999,12 +2010,13 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                           </div>
                           <input value={packForm.description} onChange={e => setPackForm(f => ({ ...f, description: e.target.value }))} placeholder="Descrizione" className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50" />
                           <input value={packForm.gradient} onChange={e => setPackForm(f => ({ ...f, gradient: e.target.value }))} placeholder="CSS gradient (es: linear-gradient(135deg, #1a1a2e, #16213e))" className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50" />
+                          <input value={packForm.imageUrl} onChange={e => setPackForm(f => ({ ...f, imageUrl: e.target.value }))} placeholder="URL immagine pacchetto (es: https://...)" className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50" />
                           <div>
-                            <div className="text-white/40 text-[10px] mb-1">Slot (uno per riga: "comune", "rara", "epica:90/leggendaria:10")</div>
+                            <div className="text-white/40 text-[10px] mb-1">Slot (uno per riga: "comune", "rara", "epica:90/leggendaria:10", con tipo "@personaggi")</div>
                             <textarea value={packForm.slotsText} onChange={e => setPackForm(f => ({ ...f, slotsText: e.target.value }))} rows={6} className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50 font-mono" />
                           </div>
                           <div className="flex gap-2">
-                            <button onClick={async () => { try { const slots = parseSlotsText(packForm.slotsText); await savePackAdmin(null, { name: packForm.name, creditsRequired: packForm.creditsRequired, description: packForm.description, gradient: packForm.gradient, glowColor: packForm.glowColor, slots }); await fetchAdminPacks(); const res2 = await fetch('/api/draft/packs', { headers: getAuthHeaders() }); if (res2.ok) { const d = await res2.json(); if (d.packs) setAvailablePacks(d.packs); } setPackCreating(false); setPackForm(emptyPackForm); } catch(e) { alert('Errore salvataggio'); } }} className="flex-1 px-3 py-1.5 bg-orange-500/30 border border-orange-400/50 text-orange-300 hover:bg-orange-500/50 rounded-lg text-xs font-semibold">Crea Pacchetto</button>
+                            <button onClick={async () => { try { const slots = parseSlotsText(packForm.slotsText); await savePackAdmin(null, { name: packForm.name, creditsRequired: packForm.creditsRequired, description: packForm.description, gradient: packForm.gradient, glowColor: packForm.glowColor, imageUrl: packForm.imageUrl || undefined, slots }); await fetchAdminPacks(); const res2 = await fetch('/api/draft/packs', { headers: getAuthHeaders() }); if (res2.ok) { const d = await res2.json(); if (d.packs) setAvailablePacks(d.packs); } setPackCreating(false); setPackForm(emptyPackForm); } catch(e) { alert('Errore salvataggio'); } }} className="flex-1 px-3 py-1.5 bg-orange-500/30 border border-orange-400/50 text-orange-300 hover:bg-orange-500/50 rounded-lg text-xs font-semibold">Crea Pacchetto</button>
                             <button onClick={() => { setPackCreating(false); setPackForm(emptyPackForm); }} className="px-3 py-1.5 bg-white/10 border border-white/20 text-white/60 hover:bg-white/20 rounded-lg text-xs">Annulla</button>
                           </div>
                         </div>
