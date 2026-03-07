@@ -13459,11 +13459,11 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   app.post('/api/admin/packs', authMiddleware, async (req, res) => {
     const user = (req as any).user;
     if (!(await checkAdminAccess(user))) return res.status(403).json({ error: 'Non autorizzato' });
-    const { name, creditsRequired, description, gradient, glowColor, imageUrl, slots } = req.body;
+    const { name, creditsRequired, description, gradient, glowColor, imageUrl, textColor, slots } = req.body;
     if (!name || !creditsRequired || !slots || !Array.isArray(slots)) {
       return res.status(400).json({ error: 'Dati mancanti' });
     }
-    const newPack = jsonStorage.packs.create({ name, creditsRequired: parseInt(creditsRequired), cardCount: slots.length, description: description || '', gradient: gradient || '', glowColor: glowColor || '', imageUrl: imageUrl || undefined, slots });
+    const newPack = jsonStorage.packs.create({ name, creditsRequired: parseInt(creditsRequired), cardCount: slots.length, description: description || '', gradient: gradient || '', glowColor: glowColor || '', imageUrl: imageUrl || undefined, textColor: textColor || undefined, slots });
     res.json(newPack);
   });
 
@@ -13471,7 +13471,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     const user = (req as any).user;
     if (!(await checkAdminAccess(user))) return res.status(403).json({ error: 'Non autorizzato' });
     const { id } = req.params;
-    const { name, creditsRequired, description, gradient, glowColor, imageUrl, slots } = req.body;
+    const { name, creditsRequired, description, gradient, glowColor, imageUrl, textColor, slots } = req.body;
     const data: any = {};
     if (name !== undefined) data.name = name;
     if (creditsRequired !== undefined) data.creditsRequired = parseInt(creditsRequired);
@@ -13479,6 +13479,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     if (gradient !== undefined) data.gradient = gradient;
     if (glowColor !== undefined) data.glowColor = glowColor;
     if (imageUrl !== undefined) data.imageUrl = imageUrl || undefined;
+    if (textColor !== undefined) data.textColor = textColor || undefined;
     if (slots !== undefined && Array.isArray(slots)) data.slots = slots;
     const updated = jsonStorage.packs.update(id, data);
     if (!updated) return res.status(404).json({ error: 'Pacchetto non trovato' });

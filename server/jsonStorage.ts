@@ -837,6 +837,7 @@ export interface PackConfig {
   gradient: string;
   glowColor: string;
   imageUrl?: string;
+  textColor?: string;
   slots: PackSlot[];
 }
 

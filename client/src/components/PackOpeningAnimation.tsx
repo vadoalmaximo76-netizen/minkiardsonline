@@ -25,6 +25,7 @@ export interface PackType {
   gradient: string;
   glowColor: string;
   imageUrl?: string;
+  textColor?: string;
   composition?: string;
   slots?: Array<{ rarity?: string; alternatives?: Array<{ rarity: string; weight: number }>; deckType?: string }>;
 }

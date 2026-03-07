@@ -158,7 +158,7 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
   const [packAdminList, setPackAdminList] = useState<PackType[]>([]);
   const [packEditing, setPackEditing] = useState<string | null>(null);
   const [packCreating, setPackCreating] = useState(false);
-  const emptyPackForm = { name: '', creditsRequired: 100, description: '', gradient: 'linear-gradient(135deg, #1a1a2e, #16213e)', glowColor: '#4a9eff', imageUrl: '', slotsText: 'comune\ncomune\nrara' };
+  const emptyPackForm = { name: '', creditsRequired: 100, description: '', gradient: 'linear-gradient(135deg, #1a1a2e, #16213e)', glowColor: '#4a9eff', imageUrl: '', textColor: '#ffffff', slotsText: 'comune\ncomune\nrara' };
   const [packForm, setPackForm] = useState(emptyPackForm);
   // Weekly offers
   const [weeklyOffers, setWeeklyOffers] = useState<WeeklyOffer[]>([]);
@@ -1884,17 +1884,17 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between">
                               <div>
-                                <h3 className="text-white font-black text-lg leading-tight">{pack.name}</h3>
-                                <p className="text-white/70 text-sm mt-0.5">{pack.description}</p>
+                                <h3 className="font-black text-lg leading-tight" style={{ color: (pack as any).textColor || '#ffffff' }}>{pack.name}</h3>
+                                <p className="text-sm mt-0.5" style={{ color: (pack as any).textColor ? `${(pack as any).textColor}b3` : 'rgba(255,255,255,0.7)' }}>{pack.description}</p>
                               </div>
                               <div className="text-right ml-2 flex-shrink-0">
-                                <div className="text-white font-black text-2xl">{pack.creditsRequired.toLocaleString()}</div>
-                                <div className="text-white/60 text-xs">crediti</div>
+                                <div className="font-black text-2xl" style={{ color: (pack as any).textColor || '#ffffff' }}>{pack.creditsRequired.toLocaleString()}</div>
+                                <div className="text-xs" style={{ color: (pack as any).textColor ? `${(pack as any).textColor}99` : 'rgba(255,255,255,0.6)' }}>crediti</div>
                               </div>
                             </div>
 
                             <div className="flex items-center gap-2 mt-2 mb-3">
-                              <span className="text-white/60 text-sm bg-white/10 border border-white/20 rounded-full px-3 py-1 font-semibold">
+                              <span className="text-sm bg-white/10 border border-white/20 rounded-full px-3 py-1 font-semibold" style={{ color: (pack as any).textColor ? `${(pack as any).textColor}99` : 'rgba(255,255,255,0.6)' }}>
                                 📦 {pack.cardCount} carte
                               </span>
                             </div>
@@ -1971,12 +1971,17 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                               <input value={packForm.description} onChange={e => setPackForm(f => ({ ...f, description: e.target.value }))} placeholder="Descrizione" className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50" />
                               <input value={packForm.gradient} onChange={e => setPackForm(f => ({ ...f, gradient: e.target.value }))} placeholder="CSS gradient" className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50" />
                               <input value={packForm.imageUrl} onChange={e => setPackForm(f => ({ ...f, imageUrl: e.target.value }))} placeholder="URL immagine pacchetto (es: https://...)" className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50" />
+                              <div className="flex items-center gap-2">
+                                <label className="text-white/60 text-xs whitespace-nowrap">Colore testo</label>
+                                <input type="color" value={packForm.textColor || '#ffffff'} onChange={e => setPackForm(f => ({ ...f, textColor: e.target.value }))} className="w-8 h-8 rounded cursor-pointer border border-white/20 bg-transparent" />
+                                <input value={packForm.textColor || '#ffffff'} onChange={e => setPackForm(f => ({ ...f, textColor: e.target.value }))} placeholder="#ffffff" className="flex-1 px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50" />
+                              </div>
                               <div>
                                 <div className="text-white/40 text-[10px] mb-1">Slot (uno per riga: "comune", "rara", "epica:90/leggendaria:10", con tipo "@personaggi")</div>
                                 <textarea value={packForm.slotsText} onChange={e => setPackForm(f => ({ ...f, slotsText: e.target.value }))} rows={6} className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50 font-mono" />
                               </div>
                               <div className="flex gap-2">
-                                <button onClick={async () => { try { const slots = parseSlotsText(packForm.slotsText); await savePackAdmin(p.id, { name: packForm.name, creditsRequired: packForm.creditsRequired, description: packForm.description, gradient: packForm.gradient, glowColor: packForm.glowColor, imageUrl: packForm.imageUrl || undefined, slots }); await fetchAdminPacks(); const res2 = await fetch('/api/draft/packs', { headers: getAuthHeaders() }); if (res2.ok) { const d = await res2.json(); if (d.packs) setAvailablePacks(d.packs); } setPackEditing(null); } catch(e) { alert('Errore salvataggio'); } }} className="flex-1 px-3 py-1.5 bg-orange-500/30 border border-orange-400/50 text-orange-300 hover:bg-orange-500/50 rounded-lg text-xs font-semibold">Salva</button>
+                                <button onClick={async () => { try { const slots = parseSlotsText(packForm.slotsText); await savePackAdmin(p.id, { name: packForm.name, creditsRequired: packForm.creditsRequired, description: packForm.description, gradient: packForm.gradient, glowColor: packForm.glowColor, imageUrl: packForm.imageUrl || undefined, textColor: packForm.textColor || undefined, slots }); await fetchAdminPacks(); const res2 = await fetch('/api/draft/packs', { headers: getAuthHeaders() }); if (res2.ok) { const d = await res2.json(); if (d.packs) setAvailablePacks(d.packs); } setPackEditing(null); } catch(e) { alert('Errore salvataggio'); } }} className="flex-1 px-3 py-1.5 bg-orange-500/30 border border-orange-400/50 text-orange-300 hover:bg-orange-500/50 rounded-lg text-xs font-semibold">Salva</button>
                                 <button onClick={() => setPackEditing(null)} className="px-3 py-1.5 bg-white/10 border border-white/20 text-white/60 hover:bg-white/20 rounded-lg text-xs">Annulla</button>
                               </div>
                             </div>
@@ -1991,7 +1996,7 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                                 {!p.imageUrl && <div className="text-orange-400/60 text-[10px] mt-0.5">⚠ nessuna immagine</div>}
                               </div>
                               <div className="flex gap-1 flex-shrink-0">
-                                <button onClick={() => { setPackEditing(p.id); setPackForm({ name: p.name, creditsRequired: p.creditsRequired, description: p.description || '', gradient: p.gradient || '', glowColor: p.glowColor || '', imageUrl: p.imageUrl || '', slotsText: slotsToText((p as any).slots || []) }); }} className="px-2.5 py-1 bg-blue-500/20 border border-blue-400/40 text-blue-300 hover:bg-blue-500/40 rounded text-xs">Modifica</button>
+                                <button onClick={() => { setPackEditing(p.id); setPackForm({ name: p.name, creditsRequired: p.creditsRequired, description: p.description || '', gradient: p.gradient || '', glowColor: p.glowColor || '', imageUrl: p.imageUrl || '', textColor: (p as any).textColor || '#ffffff', slotsText: slotsToText((p as any).slots || []) }); }} className="px-2.5 py-1 bg-blue-500/20 border border-blue-400/40 text-blue-300 hover:bg-blue-500/40 rounded text-xs">Modifica</button>
                                 <button onClick={async () => { if (confirm('Eliminare questo pacchetto?')) { await deletePackAdmin(p.id); await fetchAdminPacks(); const res2 = await fetch('/api/draft/packs', { headers: getAuthHeaders() }); if (res2.ok) { const d = await res2.json(); if (d.packs) setAvailablePacks(d.packs); } } }} className="px-2.5 py-1 bg-red-500/20 border border-red-400/40 text-red-300 hover:bg-red-500/40 rounded text-xs">Elimina</button>
                               </div>
                             </div>
@@ -2011,12 +2016,17 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                           <input value={packForm.description} onChange={e => setPackForm(f => ({ ...f, description: e.target.value }))} placeholder="Descrizione" className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50" />
                           <input value={packForm.gradient} onChange={e => setPackForm(f => ({ ...f, gradient: e.target.value }))} placeholder="CSS gradient (es: linear-gradient(135deg, #1a1a2e, #16213e))" className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50" />
                           <input value={packForm.imageUrl} onChange={e => setPackForm(f => ({ ...f, imageUrl: e.target.value }))} placeholder="URL immagine pacchetto (es: https://...)" className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50" />
+                          <div className="flex items-center gap-2">
+                            <label className="text-white/60 text-xs whitespace-nowrap">Colore testo</label>
+                            <input type="color" value={packForm.textColor || '#ffffff'} onChange={e => setPackForm(f => ({ ...f, textColor: e.target.value }))} className="w-8 h-8 rounded cursor-pointer border border-white/20 bg-transparent" />
+                            <input value={packForm.textColor || '#ffffff'} onChange={e => setPackForm(f => ({ ...f, textColor: e.target.value }))} placeholder="#ffffff" className="flex-1 px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50" />
+                          </div>
                           <div>
                             <div className="text-white/40 text-[10px] mb-1">Slot (uno per riga: "comune", "rara", "epica:90/leggendaria:10", con tipo "@personaggi")</div>
                             <textarea value={packForm.slotsText} onChange={e => setPackForm(f => ({ ...f, slotsText: e.target.value }))} rows={6} className="w-full px-2 py-1.5 bg-black/40 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:border-orange-400/50 font-mono" />
                           </div>
                           <div className="flex gap-2">
-                            <button onClick={async () => { try { const slots = parseSlotsText(packForm.slotsText); await savePackAdmin(null, { name: packForm.name, creditsRequired: packForm.creditsRequired, description: packForm.description, gradient: packForm.gradient, glowColor: packForm.glowColor, imageUrl: packForm.imageUrl || undefined, slots }); await fetchAdminPacks(); const res2 = await fetch('/api/draft/packs', { headers: getAuthHeaders() }); if (res2.ok) { const d = await res2.json(); if (d.packs) setAvailablePacks(d.packs); } setPackCreating(false); setPackForm(emptyPackForm); } catch(e) { alert('Errore salvataggio'); } }} className="flex-1 px-3 py-1.5 bg-orange-500/30 border border-orange-400/50 text-orange-300 hover:bg-orange-500/50 rounded-lg text-xs font-semibold">Crea Pacchetto</button>
+                            <button onClick={async () => { try { const slots = parseSlotsText(packForm.slotsText); await savePackAdmin(null, { name: packForm.name, creditsRequired: packForm.creditsRequired, description: packForm.description, gradient: packForm.gradient, glowColor: packForm.glowColor, imageUrl: packForm.imageUrl || undefined, textColor: packForm.textColor || undefined, slots }); await fetchAdminPacks(); const res2 = await fetch('/api/draft/packs', { headers: getAuthHeaders() }); if (res2.ok) { const d = await res2.json(); if (d.packs) setAvailablePacks(d.packs); } setPackCreating(false); setPackForm(emptyPackForm); } catch(e) { alert('Errore salvataggio'); } }} className="flex-1 px-3 py-1.5 bg-orange-500/30 border border-orange-400/50 text-orange-300 hover:bg-orange-500/50 rounded-lg text-xs font-semibold">Crea Pacchetto</button>
                             <button onClick={() => { setPackCreating(false); setPackForm(emptyPackForm); }} className="px-3 py-1.5 bg-white/10 border border-white/20 text-white/60 hover:bg-white/20 rounded-lg text-xs">Annulla</button>
                           </div>
                         </div>
