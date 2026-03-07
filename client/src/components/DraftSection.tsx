@@ -327,9 +327,10 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
+      const bust = Date.now();
       const [statusRes, deckRes, cardsRes] = await Promise.all([
         fetch('/api/draft/status', { headers: getAuthHeaders() }),
-        fetch('/api/draft/deck', { headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' }, cache: 'no-store' }),
+        fetch(`/api/draft/deck?t=${bust}`, { headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache, no-store' }, cache: 'no-store' }),
         fetch('/api/draft/cards'),
       ]);
       let parsedUserId: number | null = null;
@@ -428,8 +429,8 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
 
   const fetchDeck = useCallback(async () => {
     try {
-      const res = await fetch('/api/draft/deck', {
-        headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache' },
+      const res = await fetch(`/api/draft/deck?t=${Date.now()}`, {
+        headers: { ...getAuthHeaders(), 'Cache-Control': 'no-cache, no-store' },
         cache: 'no-store',
       });
       if (res.ok) {
@@ -615,12 +616,13 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
       const data = await res.json();
       if (res.ok && data.success) {
         setSelectedCards({
-          personaggi: data.personaggiCards || [],
-          mosse: data.mosseCards || [],
-          bonus: data.bonusCards || [],
+          personaggi: (data.personaggiCards as string[]) || [],
+          mosse: (data.mosseCards as string[]) || [],
+          bonus: (data.bonusCards as string[]) || [],
         });
         setPresetMsg({ type: 'success', text: '✓ Preset caricato nel mazzo!' });
         setTimeout(() => setPresetMsg(null), 4000);
+        fetchDeck();
       }
     } catch (e) {}
   };

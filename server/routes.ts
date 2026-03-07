@@ -12340,6 +12340,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
   // GET /api/draft/deck - get user's full draft deck
   app.get('/api/draft/deck', authMiddleware, async (req, res) => {
     try {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
       const user = (req as any).user;
       const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
