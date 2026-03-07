@@ -13450,15 +13450,15 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
 
   // ===== ADMIN PACK MANAGEMENT =====
 
-  app.get('/api/admin/packs', authMiddleware, (req, res) => {
+  app.get('/api/admin/packs', authMiddleware, async (req, res) => {
     const user = (req as any).user;
-    if (!user?.isAdmin) return res.status(403).json({ error: 'Non autorizzato' });
+    if (!(await checkAdminAccess(user))) return res.status(403).json({ error: 'Non autorizzato' });
     res.json(getPackTypes());
   });
 
-  app.post('/api/admin/packs', authMiddleware, (req, res) => {
+  app.post('/api/admin/packs', authMiddleware, async (req, res) => {
     const user = (req as any).user;
-    if (!user?.isAdmin) return res.status(403).json({ error: 'Non autorizzato' });
+    if (!(await checkAdminAccess(user))) return res.status(403).json({ error: 'Non autorizzato' });
     const { name, creditsRequired, description, gradient, glowColor, imageUrl, slots } = req.body;
     if (!name || !creditsRequired || !slots || !Array.isArray(slots)) {
       return res.status(400).json({ error: 'Dati mancanti' });
@@ -13467,9 +13467,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     res.json(newPack);
   });
 
-  app.put('/api/admin/packs/:id', authMiddleware, (req, res) => {
+  app.put('/api/admin/packs/:id', authMiddleware, async (req, res) => {
     const user = (req as any).user;
-    if (!user?.isAdmin) return res.status(403).json({ error: 'Non autorizzato' });
+    if (!(await checkAdminAccess(user))) return res.status(403).json({ error: 'Non autorizzato' });
     const { id } = req.params;
     const { name, creditsRequired, description, gradient, glowColor, imageUrl, slots } = req.body;
     const data: any = {};
@@ -13485,9 +13485,9 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     res.json(updated);
   });
 
-  app.delete('/api/admin/packs/:id', authMiddleware, (req, res) => {
+  app.delete('/api/admin/packs/:id', authMiddleware, async (req, res) => {
     const user = (req as any).user;
-    if (!user?.isAdmin) return res.status(403).json({ error: 'Non autorizzato' });
+    if (!(await checkAdminAccess(user))) return res.status(403).json({ error: 'Non autorizzato' });
     const { id } = req.params;
     const deleted = jsonStorage.packs.delete(id);
     if (!deleted) return res.status(404).json({ error: 'Pacchetto non trovato' });
