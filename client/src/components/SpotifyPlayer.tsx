@@ -10,64 +10,151 @@ interface SpotifyController {
   addListener: (event: string, cb: (data: any) => void) => void;
 }
 
+type BannerInfo = { title: string; artist: string; ts: number };
+
 declare global {
   interface Window {
     onSpotifyIframeApiReady?: (IFrameAPI: any) => void;
+    __minkSpotify?: {
+      controller: SpotifyController | null;
+      embedEl: HTMLDivElement | null;
+      ready: boolean;
+      started: boolean;
+      disabled: boolean;
+      currentTrackUri: string | null;
+      renderSubs: Set<() => void>;
+      bannerSubs: Set<(b: BannerInfo) => void>;
+    };
   }
 }
 
-// ── Singleton module-level state ──────────────────────────────────────────────
-let _controller: SpotifyController | null = null;
-let _embedEl: HTMLDivElement | null = null;
-let _ready = false;      // controller is ready
-let _started = false;    // audio has actually started playing
-let _disabled = false;
-let _currentTrackUri: string | null = null;
-
-type BannerInfo = { title: string; artist: string; ts: number };
-
-const _renderSubs: Set<() => void> = new Set();
-const _bannerSubs: Set<(b: BannerInfo) => void> = new Set();
-
-function notifyRender() { _renderSubs.forEach(fn => fn()); }
-function notifyBanner(b: BannerInfo) { _bannerSubs.forEach(fn => fn(b)); }
-
-// The embed div lives in document.body and is NEVER moved (moving reloads the iframe).
-// Always positioned in the visible viewport so the browser doesn't throttle events.
-function getOrCreateEmbedEl(): HTMLDivElement {
-  if (!_embedEl) {
-    _embedEl = document.createElement('div');
-    _embedEl.id = 'spotify-embed-wrapper';
-    _embedEl.style.cssText = [
-      'position:fixed',
-      'bottom:1.25rem',
-      'right:1.25rem',
-      'width:320px',
-      'height:80px',
-      'z-index:9997',
-      'border-radius:12px',
-      'overflow:hidden',
-      'opacity:0',
-      'pointer-events:none',
-      'transition:opacity 0.35s ease',
-      'box-shadow:0 4px 20px rgba(0,0,0,0.55)',
-    ].join(';');
-    document.body.appendChild(_embedEl);
+// ── Singleton stored on window so it survives Vite HMR hot-module-replacement ─
+function getState() {
+  if (!window.__minkSpotify) {
+    window.__minkSpotify = {
+      controller: null,
+      embedEl: null,
+      ready: false,
+      started: false,
+      disabled: false,
+      currentTrackUri: null,
+      renderSubs: new Set(),
+      bannerSubs: new Set(),
+    };
   }
-  return _embedEl;
+  return window.__minkSpotify;
+}
+
+// Convenience accessors (always go through getState() to stay in sync)
+function notifyRender() { getState().renderSubs.forEach(fn => fn()); }
+function notifyBanner(b: BannerInfo) { getState().bannerSubs.forEach(fn => fn(b)); }
+
+// ── Embed DOM element ─────────────────────────────────────────────────────────
+// Lives in document.body and is NEVER moved (moving reloads the iframe).
+function getOrCreateEmbedEl(): HTMLDivElement {
+  const s = getState();
+  if (s.embedEl) return s.embedEl;
+
+  // Re-use an existing element from a previous module load (HMR scenario)
+  const existing = document.getElementById('spotify-embed-wrapper') as HTMLDivElement | null;
+  if (existing) {
+    s.embedEl = existing;
+    return existing;
+  }
+
+  const el = document.createElement('div');
+  el.id = 'spotify-embed-wrapper';
+  el.style.cssText = [
+    'position:fixed',
+    'bottom:4rem',
+    'right:1.25rem',
+    'width:320px',
+    'height:152px',
+    'z-index:99999',
+    'border-radius:12px',
+    'overflow:hidden',
+    'opacity:0',
+    'pointer-events:none',
+    'transition:opacity 0.35s ease, transform 0.35s cubic-bezier(0.34,1.56,0.64,1)',
+    'transform:translateY(8px)',
+    'box-shadow:0 4px 24px rgba(0,0,0,0.7)',
+  ].join(';');
+  document.body.appendChild(el);
+  s.embedEl = el;
+  return el;
 }
 
 function applyEmbedVisibility(show: boolean) {
-  const el = _embedEl;
+  const el = getState().embedEl;
   if (!el) return;
   el.style.opacity = show ? '1' : '0';
   el.style.pointerEvents = show ? 'auto' : 'none';
+  el.style.transform = show ? 'translateY(0)' : 'translateY(8px)';
+}
+
+// ── Spotify Iframe API loader ─────────────────────────────────────────────────
+function buildController(IFrameAPI: any) {
+  const state = getState();
+  const el = getOrCreateEmbedEl();
+  IFrameAPI.createController(
+    el,
+    { uri: `spotify:playlist:${PLAYLIST_ID}`, height: 152 },
+    (ctrl: SpotifyController) => {
+      state.controller = ctrl;
+      state.ready = true;
+
+      ctrl.addListener('playback_update', (e: any) => {
+        const st = getState();
+        console.log('[Spotify] playback_update raw:', JSON.stringify(e));
+
+        const d = e?.data ?? e;
+        const track = d?.track;
+        const isPaused: boolean = d?.isPaused ?? true;
+        const uri: string | undefined = track?.uri;
+        const title: string | undefined = track?.name;
+        const artist: string | undefined = track?.artists?.[0]?.name;
+
+        console.log('[Spotify] parsed → isPaused:', isPaused, '| uri:', uri, '| title:', title, '| artist:', artist);
+
+        if (!isPaused && !st.started) {
+          st.started = true;
+          notifyRender();
+        }
+
+        if (uri && uri !== st.currentTrackUri && !isPaused && title && artist) {
+          st.currentTrackUri = uri;
+          if (!st.disabled) {
+            console.log('[Spotify] 🎵 Banner:', title, '-', artist);
+            notifyBanner({ title, artist, ts: Date.now() });
+          }
+        }
+      });
+
+      if (!state.disabled) ctrl.play();
+      notifyRender();
+    }
+  );
 }
 
 function ensureSpotifyApi() {
-  getOrCreateEmbedEl(); // create & mount early so it's in the viewport
+  const s = getState();
+  getOrCreateEmbedEl();
 
-  if (document.getElementById('spotify-iframe-api')) return;
+  // Controller already alive — nothing to do
+  if (s.controller) return;
+
+  // Script already in DOM: re-register callback in case of HMR (previous
+  // onSpotifyIframeApiReady may have used a stale closure).
+  // The Spotify script exposes window.SpotifyIframeApi after it loads.
+  const W = window as any;
+  if (document.getElementById('spotify-iframe-api')) {
+    if (W.SpotifyIframeApi) {
+      // API already loaded — build controller directly
+      buildController(W.SpotifyIframeApi);
+    }
+    // else: still loading, onSpotifyIframeApiReady will fire when ready
+    return;
+  }
 
   const script = document.createElement('script');
   script.id = 'spotify-iframe-api';
@@ -76,44 +163,8 @@ function ensureSpotifyApi() {
   document.head.appendChild(script);
 
   window.onSpotifyIframeApiReady = (IFrameAPI: any) => {
-    const el = getOrCreateEmbedEl();
-    IFrameAPI.createController(
-      el,
-      { uri: `spotify:playlist:${PLAYLIST_ID}`, height: 80 },
-      (ctrl: SpotifyController) => {
-        _controller = ctrl;
-        _ready = true;
-
-        ctrl.addListener('playback_update', (e: any) => {
-          const track = e?.data?.track;
-          const isPaused: boolean = e?.data?.isPaused ?? true;
-          const uri: string | undefined = track?.uri;
-          const title: string | undefined = track?.name;
-          const artist: string | undefined = track?.artists?.[0]?.name;
-
-          if (!isPaused && !_started) {
-            _started = true;
-            notifyRender();
-          }
-
-          // Fire banner on track change while playing
-          if (uri && uri !== _currentTrackUri && !isPaused && title && artist) {
-            _currentTrackUri = uri;
-            if (!_disabled) {
-              notifyBanner({ title, artist, ts: Date.now() });
-            }
-          }
-        });
-
-        // Autoplay attempt — works for return visitors whose browser already
-        // trusts this origin. First-time visitors will see the embed paused.
-        if (!_disabled) {
-          ctrl.play();
-        }
-
-        notifyRender();
-      }
-    );
+    (window as any).SpotifyIframeApi = IFrameAPI; // stash for HMR re-init
+    buildController(IFrameAPI);
   };
 }
 // ─────────────────────────────────────────────────────────────────────────────
@@ -126,25 +177,23 @@ export function SpotifyPlayer({ disabled = false }: SpotifyPlayerProps) {
   const [, forceUpdate] = useState(0);
   const [banner, setBanner] = useState<BannerInfo | null>(null);
   const [bannerVisible, setBannerVisible] = useState(false);
+  const [embedOpen, setEmbedOpen] = useState(false);
   const bannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refresh = useCallback(() => forceUpdate(n => n + 1), []);
 
   // Init API + subscribe to render signals
   useEffect(() => {
-    _renderSubs.add(refresh);
+    const s = getState();
+    s.renderSubs.add(refresh);
     ensureSpotifyApi();
 
-    // If controller is already ready (e.g. user navigated away and came back),
-    // attempt autoplay immediately and make embed visible
-    if (_ready && !_disabled) {
-      applyEmbedVisibility(true);
-      if (!_started && _controller) {
-        _controller.play();
-      }
+    // Controller already alive (HMR or nav back): attempt play if not started
+    if (s.ready && !s.disabled && !s.started && s.controller) {
+      s.controller.play();
     }
 
-    return () => { _renderSubs.delete(refresh); };
+    return () => { getState().renderSubs.delete(refresh); };
   }, [refresh]);
 
   // Subscribe to track-change banner events
@@ -155,41 +204,46 @@ export function SpotifyPlayer({ disabled = false }: SpotifyPlayerProps) {
       if (bannerTimer.current) clearTimeout(bannerTimer.current);
       bannerTimer.current = setTimeout(() => setBannerVisible(false), 5000);
     };
-    _bannerSubs.add(onBanner);
-    return () => { _bannerSubs.delete(onBanner); };
+    getState().bannerSubs.add(onBanner);
+    return () => { getState().bannerSubs.delete(onBanner); };
   }, []);
 
-  // Sync disabled ↔ embed visibility + pause/resume
+  // Sync disabled ↔ pause/resume
   useEffect(() => {
-    _disabled = disabled;
+    const s = getState();
+    s.disabled = disabled;
     if (disabled) {
       applyEmbedVisibility(false);
-      _controller?.pause();
+      s.controller?.pause();
     } else {
-      applyEmbedVisibility(_ready);
-      if (_started) _controller?.play();
+      if (s.started) s.controller?.play();
     }
   }, [disabled]);
 
-  // Keep embed visible whenever ready and not disabled (runs after every render)
+  // Sync embedOpen ↔ embed DOM visibility
   useEffect(() => {
-    if (_ready && !disabled) applyEmbedVisibility(true);
-  });
+    if (disabled) return;
+    applyEmbedVisibility(embedOpen);
+  }, [embedOpen, disabled]);
 
   // Manual start: called when user clicks "Avvia musica"
   const handleStart = () => {
-    const ctrl = _controller;
-    if (!ctrl) return;
-    ctrl.play();
-    _started = true;
+    const s = getState();
+    if (!s.controller) return;
+    s.controller.play();
+    s.started = true;
     localStorage.setItem(AUTOPLAY_KEY, '1');
-    applyEmbedVisibility(true);
+    setEmbedOpen(true);
     forceUpdate(n => n + 1);
   };
 
-  // Show the button whenever music hasn't started yet and player is not disabled.
-  // The button disappears as soon as playback actually begins (_started = true).
-  const showStartButton = !_started && !disabled;
+  // Toggle embed open/closed (volume button)
+  const handleToggleEmbed = () => {
+    setEmbedOpen(prev => !prev);
+  };
+
+  const s = getState();
+  const showStartButton = !s.started && !disabled;
 
   return ReactDOM.createPortal(
     <>
@@ -201,7 +255,7 @@ export function SpotifyPlayer({ disabled = false }: SpotifyPlayerProps) {
             position: 'fixed',
             bottom: '1.25rem',
             right: '1.25rem',
-            zIndex: 9998,
+            zIndex: 100000,
             display: 'flex',
             alignItems: 'center',
             gap: '0.45rem',
@@ -221,6 +275,36 @@ export function SpotifyPlayer({ disabled = false }: SpotifyPlayerProps) {
         </button>
       )}
 
+      {/* ── Volume / player toggle — shown when music is playing ── */}
+      {s.started && !disabled && (
+        <button
+          onClick={handleToggleEmbed}
+          title={embedOpen ? 'Nascondi player' : 'Mostra player / Volume'}
+          style={{
+            position: 'fixed',
+            bottom: '1.25rem',
+            right: '1.25rem',
+            zIndex: 100000,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            background: embedOpen ? 'rgba(29,185,84,0.18)' : 'rgba(0,0,0,0.82)',
+            border: `1px solid ${embedOpen ? 'rgba(29,185,84,0.8)' : 'rgba(29,185,84,0.45)'}`,
+            borderRadius: '2rem',
+            padding: '0.45rem 0.85rem',
+            color: '#1DB954',
+            fontSize: '0.78rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            backdropFilter: 'blur(12px)',
+            transition: 'background 0.2s, border-color 0.2s',
+          }}
+        >
+          <SpotifyIcon />
+          {embedOpen ? 'Chiudi' : 'Volume'}
+        </button>
+      )}
+
       {/* ── Track-change banner — bottom left, auto-hides after 5 s ── */}
       <div
         aria-live="polite"
@@ -228,7 +312,7 @@ export function SpotifyPlayer({ disabled = false }: SpotifyPlayerProps) {
           position: 'fixed',
           bottom: '1.25rem',
           left: '1.25rem',
-          zIndex: 9999,
+          zIndex: 99999,
           maxWidth: '265px',
           background: 'rgba(0,0,0,0.88)',
           border: '1px solid rgba(29,185,84,0.4)',
