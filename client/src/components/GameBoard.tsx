@@ -2340,6 +2340,57 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           clearSession();
           window.location.href = window.location.origin;
         }}
+        rematchSection={!rematchState.newGameId && !bo3State.seriesStarted ? (
+          rematchState.declined ? (
+            <div className="bg-red-900/80 border border-red-500 text-white px-4 py-3 rounded-xl text-center">
+              <p className="font-bold">❌ Rivincita rifiutata</p>
+              <p className="text-sm text-red-200">{rematchState.declinedBy} non vuole rigiocare</p>
+            </div>
+          ) : bo3State.declined ? (
+            <div className="bg-red-900/80 border border-red-500 text-white px-4 py-3 rounded-xl text-center">
+              <p className="font-bold">❌ Best of 3 rifiutato</p>
+              <p className="text-sm text-red-200">{bo3State.declinedBy} non vuole la serie</p>
+            </div>
+          ) : rematchState.expired ? (
+            <div className="bg-gray-900/80 border border-gray-500 text-white px-4 py-3 rounded-xl text-center">
+              <p className="text-sm">⏰ Il tempo per la rivincita è scaduto</p>
+            </div>
+          ) : bo3State.voters.includes(playerName || '') ? (
+            <div className="bg-purple-900/80 border border-purple-500 text-white px-4 py-3 rounded-xl text-center animate-pulse">
+              <p className="font-bold">⏳ In attesa per Bo3...</p>
+              <p className="text-sm text-purple-200">{bo3State.votes}/{bo3State.total} pronti</p>
+            </div>
+          ) : rematchState.voters.includes(playerName || '') ? (
+            <div className="bg-yellow-900/80 border border-yellow-500 text-white px-4 py-3 rounded-xl text-center animate-pulse">
+              <p className="font-bold">⏳ In attesa degli altri...</p>
+              <p className="text-sm text-yellow-200">{rematchState.votes}/{rematchState.total} hanno accettato</p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2">
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => socket.emit('request-rematch', { gameId, playerName })}
+                  className="flex-1 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 text-white font-bold px-4 py-3 rounded-xl shadow-lg transition-all hover:scale-105 flex items-center justify-center gap-2"
+                >
+                  🔄 Rivincita!
+                </button>
+                <button
+                  onClick={() => socket.emit('request-bo3', { gameId, playerName })}
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-violet-700 hover:from-purple-500 hover:to-violet-600 text-white font-bold px-4 py-3 rounded-xl shadow-lg transition-all hover:scale-105 flex items-center justify-center gap-2"
+                  title="Proponi serie Best of 3 — vince chi vince 2 partite"
+                >
+                  🏆 Best of 3
+                </button>
+              </div>
+              <button
+                onClick={() => socket.emit('decline-rematch', { gameId, playerName })}
+                className="text-white/50 hover:text-white/80 font-medium px-4 py-2 transition-all text-sm"
+              >
+                No grazie
+              </button>
+            </div>
+          )
+        ) : undefined}
       />
 
       {/* Player Elimination Notification */}
@@ -4238,59 +4289,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           </div>
         )}
 
-        {gameEndRewards.visible && !rematchState.newGameId && !bo3State.seriesStarted && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[11000] flex flex-col items-center gap-3 pointer-events-auto">
-            {rematchState.declined ? (
-              <div className="bg-red-900/90 border border-red-500 text-white px-6 py-3 rounded-xl text-center shadow-xl">
-                <p className="font-bold">❌ Rivincita rifiutata</p>
-                <p className="text-sm text-red-200">{rematchState.declinedBy} non vuole rigiocare</p>
-              </div>
-            ) : bo3State.declined ? (
-              <div className="bg-red-900/90 border border-red-500 text-white px-6 py-3 rounded-xl text-center shadow-xl">
-                <p className="font-bold">❌ Best of 3 rifiutato</p>
-                <p className="text-sm text-red-200">{bo3State.declinedBy} non vuole la serie</p>
-              </div>
-            ) : rematchState.expired ? (
-              <div className="bg-gray-900/90 border border-gray-500 text-white px-6 py-3 rounded-xl text-center shadow-xl">
-                <p className="text-sm">⏰ Il tempo per la rivincita è scaduto</p>
-              </div>
-            ) : bo3State.voters.includes(playerName || '') ? (
-              <div className="bg-purple-900/90 border border-purple-500 text-white px-6 py-3 rounded-xl text-center shadow-xl animate-pulse">
-                <p className="font-bold">⏳ In attesa per Bo3...</p>
-                <p className="text-sm text-purple-200">{bo3State.votes}/{bo3State.total} pronti</p>
-              </div>
-            ) : rematchState.voters.includes(playerName || '') ? (
-              <div className="bg-yellow-900/90 border border-yellow-500 text-white px-6 py-3 rounded-xl text-center shadow-xl animate-pulse">
-                <p className="font-bold">⏳ In attesa degli altri...</p>
-                <p className="text-sm text-yellow-200">{rematchState.votes}/{rematchState.total} hanno accettato</p>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-2">
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => socket.emit('request-rematch', { gameId, playerName })}
-                    className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 text-white font-bold px-6 py-3 rounded-xl shadow-xl shadow-orange-500/30 transition-all hover:scale-105 flex items-center gap-2"
-                  >
-                    🔄 Rivincita!
-                  </button>
-                  <button
-                    onClick={() => socket.emit('request-bo3', { gameId, playerName })}
-                    className="bg-gradient-to-r from-purple-600 to-violet-700 hover:from-purple-500 hover:to-violet-600 text-white font-bold px-5 py-3 rounded-xl shadow-xl shadow-purple-500/30 transition-all hover:scale-105 flex items-center gap-2"
-                    title="Proponi serie Best of 3 — vince chi vince 2 partite"
-                  >
-                    🏆 Best of 3
-                  </button>
-                </div>
-                <button
-                  onClick={() => socket.emit('decline-rematch', { gameId, playerName })}
-                  className="bg-gray-700/80 hover:bg-gray-600/80 text-white/70 hover:text-white font-medium px-4 py-2 rounded-xl transition-all text-sm"
-                >
-                  No grazie
-                </button>
-              </div>
-            )}
-          </div>
-        )}
         {rematchState.newGameId && (
           <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center">
             <div className="bg-gradient-to-br from-yellow-900 to-orange-900 border-2 border-yellow-400 rounded-2xl p-8 text-center shadow-2xl animate-bounce">
