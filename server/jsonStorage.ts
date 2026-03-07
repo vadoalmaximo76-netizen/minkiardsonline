@@ -825,6 +825,7 @@ export const jsonStorage = {
 export interface PackSlot {
   rarity?: string;
   alternatives?: { rarity: string; weight: number }[];
+  deckType?: string;
 }
 
 export interface PackConfig {
@@ -835,6 +836,7 @@ export interface PackConfig {
   description: string;
   gradient: string;
   glowColor: string;
+  imageUrl?: string;
   slots: PackSlot[];
 }
 
@@ -843,6 +845,7 @@ const DEFAULT_PACKS: PackConfig[] = [
     id: 'bronzo', name: 'Pacchetto Bronzo', creditsRequired: 75, cardCount: 5,
     description: 'Il pacchetto base per iniziare la tua collezione',
     gradient: 'linear-gradient(135deg, #92400e, #b45309, #d97706)', glowColor: '#b45309',
+    imageUrl: 'https://i.ibb.co/5W0W5WKJ/1.png',
     slots: [
       { rarity: 'comune' }, { rarity: 'comune' }, { rarity: 'comune' }, { rarity: 'rara' },
       { alternatives: [{ rarity: 'epica', weight: 90 }, { rarity: 'leggendaria', weight: 10 }] },
@@ -852,6 +855,7 @@ const DEFAULT_PACKS: PackConfig[] = [
     id: 'argento', name: 'Pacchetto Argento', creditsRequired: 150, cardCount: 7,
     description: 'Più carte rare per ampliare il tuo mazzo',
     gradient: 'linear-gradient(135deg, #374151, #6b7280, #9ca3af)', glowColor: '#9ca3af',
+    imageUrl: 'https://i.ibb.co/p6Cbt7fd/2.png',
     slots: [
       { rarity: 'comune' }, { rarity: 'comune' },
       { rarity: 'rara' }, { rarity: 'rara' }, { rarity: 'rara' },
@@ -863,6 +867,7 @@ const DEFAULT_PACKS: PackConfig[] = [
     id: 'oro', name: 'Pacchetto Oro', creditsRequired: 300, cardCount: 10,
     description: 'Carte potenti con possibilità di leggendarie',
     gradient: 'linear-gradient(135deg, #78350f, #d97706, #fbbf24)', glowColor: '#f59e0b',
+    imageUrl: 'https://i.ibb.co/cSnZnh3Z/3.png',
     slots: [
       { rarity: 'comune' }, { rarity: 'comune' }, { rarity: 'comune' },
       { rarity: 'rara' }, { rarity: 'rara' }, { rarity: 'rara' }, { rarity: 'rara' },
@@ -873,11 +878,56 @@ const DEFAULT_PACKS: PackConfig[] = [
     id: 'diamante', name: 'Pacchetto Diamante', creditsRequired: 500, cardCount: 12,
     description: 'Le carte più potenti del gioco garantite',
     gradient: 'linear-gradient(135deg, #1e3a5f, #1d4ed8, #38bdf8)', glowColor: '#38bdf8',
+    imageUrl: 'https://i.ibb.co/CK6FB73q/4.png',
     slots: [
       { rarity: 'comune' }, { rarity: 'comune' },
       { rarity: 'rara' }, { rarity: 'rara' }, { rarity: 'rara' }, { rarity: 'rara' },
       { rarity: 'epica' }, { rarity: 'epica' }, { rarity: 'epica' }, { rarity: 'epica' },
       { rarity: 'leggendaria' }, { rarity: 'leggendaria' },
+    ],
+  },
+  {
+    id: 'personaggi', name: 'Pacchetto Personaggi', creditsRequired: 50, cardCount: 3,
+    description: 'Tre personaggi casuali tra comuni e rari',
+    gradient: 'linear-gradient(135deg, #064e3b, #065f46, #059669)', glowColor: '#059669',
+    imageUrl: 'https://i.ibb.co/Kc2qY7ST/5.png',
+    slots: [
+      { rarity: 'comune', deckType: 'personaggi' },
+      { rarity: 'comune', deckType: 'personaggi' },
+      { alternatives: [{ rarity: 'comune', weight: 50 }, { rarity: 'rara', weight: 50 }], deckType: 'personaggi' },
+    ],
+  },
+  {
+    id: 'mosse', name: 'Pacchetto Mosse', creditsRequired: 50, cardCount: 3,
+    description: 'Tre mosse casuali tra comuni e rare',
+    gradient: 'linear-gradient(135deg, #1e3a5f, #1e40af, #3b82f6)', glowColor: '#3b82f6',
+    imageUrl: 'https://i.ibb.co/p6T4dK4S/6.png',
+    slots: [
+      { rarity: 'comune', deckType: 'mosse' },
+      { rarity: 'comune', deckType: 'mosse' },
+      { alternatives: [{ rarity: 'comune', weight: 50 }, { rarity: 'rara', weight: 50 }], deckType: 'mosse' },
+    ],
+  },
+  {
+    id: 'bonus', name: 'Pacchetto Bonus', creditsRequired: 50, cardCount: 3,
+    description: 'Tre bonus casuali tra comuni e rari',
+    gradient: 'linear-gradient(135deg, #7c2d12, #c2410c, #f97316)', glowColor: '#f97316',
+    imageUrl: 'https://i.ibb.co/RGbhJgwR/7.png',
+    slots: [
+      { rarity: 'comune', deckType: 'bonus' },
+      { rarity: 'comune', deckType: 'bonus' },
+      { alternatives: [{ rarity: 'comune', weight: 50 }, { rarity: 'rara', weight: 50 }], deckType: 'bonus' },
+    ],
+  },
+  {
+    id: 'personaggi_speciali', name: 'Pacchetto Personaggi Speciali', creditsRequired: 50, cardCount: 3,
+    description: 'Tre personaggi speciali casuali tra rari ed epici',
+    gradient: 'linear-gradient(135deg, #3b0764, #7c3aed, #a855f7)', glowColor: '#a855f7',
+    imageUrl: 'https://i.ibb.co/99MRvfBX/8.png',
+    slots: [
+      { alternatives: [{ rarity: 'rara', weight: 60 }, { rarity: 'epica', weight: 40 }], deckType: 'personaggi' },
+      { alternatives: [{ rarity: 'rara', weight: 60 }, { rarity: 'epica', weight: 40 }], deckType: 'personaggi' },
+      { alternatives: [{ rarity: 'epica', weight: 70 }, { rarity: 'leggendaria', weight: 30 }], deckType: 'personaggi' },
     ],
   },
 ];

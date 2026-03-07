@@ -13353,10 +13353,16 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         } else {
           slotRarity = slot.rarity || 'comune';
         }
-        const pool = cardPool[slotRarity] || cardPool['comune'];
+        const slotDeckType: string | undefined = (slot as any).deckType;
+        const basePool = cardPool[slotRarity] || cardPool['comune'];
+        const filteredPool = slotDeckType ? basePool.filter((c: any) => c.deckType === slotDeckType) : basePool;
+        const pool = filteredPool.length > 0 ? filteredPool : basePool;
         const available = pool.filter((c: any) => !usedCardIds.has(c.cardId));
         if (available.length === 0) {
-          const fallback = Object.values(cardPool).flat().filter((c: any) => !usedCardIds.has(c.cardId));
+          const fallback = (slotDeckType
+            ? Object.values(cardPool).flat().filter((c: any) => c.deckType === slotDeckType)
+            : Object.values(cardPool).flat()
+          ).filter((c: any) => !usedCardIds.has(c.cardId));
           if (fallback.length === 0) continue;
           const chosen = fallback[Math.floor(Math.random() * fallback.length)] as any;
           usedCardIds.add(chosen.cardId);

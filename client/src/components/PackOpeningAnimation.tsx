@@ -24,8 +24,9 @@ export interface PackType {
   description: string;
   gradient: string;
   glowColor: string;
+  imageUrl?: string;
   composition?: string;
-  slots?: Array<{ rarity?: string; alternatives?: Array<{ rarity: string; weight: number }> }>;
+  slots?: Array<{ rarity?: string; alternatives?: Array<{ rarity: string; weight: number }>; deckType?: string }>;
 }
 
 interface PackOpeningAnimationProps {
@@ -483,10 +484,27 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded, autoAd
           70% { transform: scale(1.08); }
           100% { transform: scale(1); opacity: 1; }
         }
+        @keyframes glossSwipe {
+          0% { transform: translateX(-150%) skewX(-20deg); opacity: 0; }
+          15% { opacity: 1; }
+          85% { opacity: 1; }
+          100% { transform: translateX(250%) skewX(-20deg); opacity: 0; }
+        }
+        @keyframes glossPulse {
+          0%, 100% { opacity: 0.18; }
+          50% { opacity: 0.38; }
+        }
+        @keyframes packGlow {
+          0%, 100% { box-shadow: var(--pack-glow-base); }
+          50% { box-shadow: var(--pack-glow-intense); }
+        }
         .pack-shake { animation: packShake 0.8s ease-in-out infinite; }
         .card-float-in { animation: floatIn 0.5s ease-out forwards; }
         .rarity-pulse { animation: rarityPulse 1.5s ease-in-out infinite; }
         .btn-pop { animation: btnPop 0.3s ease-out forwards; }
+        .gloss-swipe { animation: glossSwipe 2.4s ease-in-out infinite; }
+        .gloss-pulse { animation: glossPulse 2s ease-in-out infinite; }
+        .pack-glow-anim { animation: packGlow 2s ease-in-out infinite; }
       `}</style>
 
       <div
@@ -517,28 +535,68 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded, autoAd
             }}
           >
             <div
-              className="w-44 h-64 rounded-2xl flex flex-col items-center justify-center shadow-2xl border border-white/20 relative overflow-hidden cursor-pointer"
+              className="pack-glow-anim w-48 h-72 rounded-2xl relative overflow-hidden cursor-pointer select-none"
               style={{
-                background: pack.gradient,
-                boxShadow: `0 0 60px ${pack.glowColor}60, 0 0 120px ${pack.glowColor}30`,
-              }}
+                '--pack-glow-base': `0 0 40px ${pack.glowColor}50, 0 0 80px ${pack.glowColor}25, inset 0 1px 0 rgba(255,255,255,0.25)`,
+                '--pack-glow-intense': `0 0 70px ${pack.glowColor}80, 0 0 140px ${pack.glowColor}40, 0 0 200px ${pack.glowColor}20, inset 0 1px 0 rgba(255,255,255,0.35)`,
+                background: pack.imageUrl ? undefined : pack.gradient,
+                boxShadow: `0 0 40px ${pack.glowColor}50, 0 0 80px ${pack.glowColor}25`,
+                border: '1px solid rgba(255,255,255,0.18)',
+              } as React.CSSProperties}
               onClick={phase === 'shaking' ? skipToEnd : undefined}
             >
+              {pack.imageUrl ? (
+                <img
+                  src={pack.imageUrl}
+                  alt={pack.name}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  draggable={false}
+                />
+              ) : (
+                <div
+                  className="absolute inset-0"
+                  style={{ background: pack.gradient }}
+                />
+              )}
+
               <div
-                className="absolute inset-0 opacity-30"
+                className="absolute inset-0"
                 style={{
-                  background: 'linear-gradient(135deg, rgba(255,255,255,0.3) 0%, transparent 50%, rgba(255,255,255,0.1) 100%)',
+                  background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 40%, transparent 60%, rgba(0,0,0,0.18) 100%)',
+                  zIndex: 2,
                 }}
               />
-              <div className="relative z-10 text-center px-4">
-                <div className="text-5xl mb-3">🃏</div>
-                <div className="text-white font-black text-xl tracking-wider drop-shadow-lg">{pack.name}</div>
-                <div className="text-white/70 text-sm mt-1">{cards.length} carte</div>
-              </div>
+
               <div
-                className="absolute inset-0 opacity-20"
+                className="gloss-pulse absolute inset-0"
                 style={{
-                  backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(255,255,255,0.1) 3px, rgba(255,255,255,0.1) 4px)',
+                  background: 'linear-gradient(135deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 30%, transparent 60%)',
+                  zIndex: 3,
+                }}
+              />
+
+              <div
+                className="gloss-swipe absolute inset-y-0 w-16"
+                style={{
+                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent)',
+                  zIndex: 4,
+                  left: 0,
+                }}
+              />
+
+              {!pack.imageUrl && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center z-5 px-4 text-center" style={{ zIndex: 5 }}>
+                  <div className="text-5xl mb-3">🃏</div>
+                  <div className="text-white font-black text-xl tracking-wider drop-shadow-lg">{pack.name}</div>
+                  <div className="text-white/70 text-sm mt-1">{cards.length} carte</div>
+                </div>
+              )}
+
+              <div
+                className="absolute inset-0"
+                style={{
+                  backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.025) 4px, rgba(255,255,255,0.025) 5px)',
+                  zIndex: 1,
                 }}
               />
             </div>

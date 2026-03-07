@@ -1859,49 +1859,68 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                       <div className="absolute inset-0 opacity-10"
                         style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(255,255,255,0.2) 3px, rgba(255,255,255,0.2) 4px)' }} />
                       <div className="relative z-10 p-5">
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <h3 className="text-white font-black text-lg">{pack.name}</h3>
-                            <p className="text-white/70 text-sm mt-0.5">{pack.description}</p>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-white font-black text-2xl">{pack.creditsRequired.toLocaleString()}</div>
-                            <div className="text-white/60 text-xs">crediti</div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 mb-4">
-                          <span className="text-white/60 text-sm bg-white/10 border border-white/20 rounded-full px-3 py-1 font-semibold">
-                            📦 {pack.cardCount} carte
-                          </span>
-                        </div>
-
-                        <button
-                          onClick={() => canBuy && !isOpening && openPack(pack)}
-                          disabled={!canBuy || isOpening}
-                          className={`w-full py-2.5 rounded-xl font-bold text-sm transition-all ${
-                            canBuy && !isOpening
-                              ? 'bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm border border-white/30'
-                              : 'bg-black/30 text-white/40 cursor-not-allowed border border-white/10'
-                          }`}
-                        >
-                          {isOpening ? (
-                            <span className="flex items-center justify-center gap-2">
-                              <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                              Apertura in corso...
-                            </span>
-                          ) : !canBuy ? (
-                            <span className="flex items-center justify-center gap-1.5">
-                              <Lock className="w-3.5 h-3.5" />
-                              Crediti insufficienti
-                            </span>
-                          ) : (
-                            <span className="flex items-center justify-center gap-1.5">
-                              <Gift className="w-3.5 h-3.5" />
-                              Apri pacchetto
-                            </span>
+                        <div className="flex items-start gap-4 mb-3">
+                          {pack.imageUrl && (
+                            <div className="flex-shrink-0 relative w-20 h-28 rounded-xl overflow-hidden shadow-lg"
+                              style={{ boxShadow: `0 0 18px ${pack.glowColor}60` }}>
+                              <img
+                                src={pack.imageUrl}
+                                alt={pack.name}
+                                className="absolute inset-0 w-full h-full object-cover"
+                                draggable={false}
+                              />
+                              <div className="absolute inset-0"
+                                style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%, rgba(0,0,0,0.15) 100%)' }} />
+                              <div className="absolute inset-y-0 left-0 w-5"
+                                style={{ background: 'linear-gradient(90deg, rgba(255,255,255,0.3), transparent)', borderRadius: '10px 0 0 10px' }} />
+                            </div>
                           )}
-                        </button>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <h3 className="text-white font-black text-lg leading-tight">{pack.name}</h3>
+                                <p className="text-white/70 text-sm mt-0.5">{pack.description}</p>
+                              </div>
+                              <div className="text-right ml-2 flex-shrink-0">
+                                <div className="text-white font-black text-2xl">{pack.creditsRequired.toLocaleString()}</div>
+                                <div className="text-white/60 text-xs">crediti</div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 mt-2 mb-3">
+                              <span className="text-white/60 text-sm bg-white/10 border border-white/20 rounded-full px-3 py-1 font-semibold">
+                                📦 {pack.cardCount} carte
+                              </span>
+                            </div>
+
+                            <button
+                              onClick={() => canBuy && !isOpening && openPack(pack)}
+                              disabled={!canBuy || isOpening}
+                              className={`w-full py-2.5 rounded-xl font-bold text-sm transition-all ${
+                                canBuy && !isOpening
+                                  ? 'bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm border border-white/30'
+                                  : 'bg-black/30 text-white/40 cursor-not-allowed border border-white/10'
+                              }`}
+                            >
+                              {isOpening ? (
+                                <span className="flex items-center justify-center gap-2">
+                                  <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                                  Apertura in corso...
+                                </span>
+                              ) : !canBuy ? (
+                                <span className="flex items-center justify-center gap-1.5">
+                                  <Lock className="w-3.5 h-3.5" />
+                                  Crediti insufficienti
+                                </span>
+                              ) : (
+                                <span className="flex items-center justify-center gap-1.5">
+                                  <Gift className="w-3.5 h-3.5" />
+                                  Apri pacchetto
+                                </span>
+                              )}
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   );
