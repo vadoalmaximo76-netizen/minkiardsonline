@@ -195,6 +195,7 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
 
   // Initial deck setup state
   const [showInitialChoice, setShowInitialChoice] = useState(false);
+  const [isNewDeckFlow, setIsNewDeckFlow] = useState(false);
   const [generatingInitialDeck, setGeneratingInitialDeck] = useState(false);
   const [initialPackQueue, setInitialPackQueue] = useState<Array<{ pack: PackType; cards: RevealedCard[] }>>([]);
   const [currentInitialPack, setCurrentInitialPack] = useState<{ pack: PackType; cards: RevealedCard[] } | null>(null);
@@ -518,6 +519,11 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
         { pack: { ...INITIAL_BASE_PACK, name: 'Bonus – Mazzo Iniziale' }, cards: data.bonusCards as RevealedCard[] },
       ];
       setInitialPackQueue(queue);
+      if (isNewDeckFlow) {
+        setIsNewDeckFlow(false);
+        setPresetNameInput('');
+        setTimeout(() => setShowPresetDialog(true), 400);
+      }
     } catch (e: any) {
       setInitialDeckError(e.message || 'Errore di rete');
     } finally {
@@ -543,6 +549,11 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
         localStorage.setItem(`draftSetupDone_${resolvedId}`, '1');
         setShowInitialChoice(false);
         await fetchAll();
+        if (isNewDeckFlow) {
+          setIsNewDeckFlow(false);
+          setPresetNameInput('');
+          setTimeout(() => setShowPresetDialog(true), 400);
+        }
       } else {
         setShowInsufficientMsg(true);
       }
@@ -937,13 +948,24 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
       {showInitialChoice && !loading && (
         <div className="relative z-20 flex-1 flex items-center justify-center p-4 overflow-y-auto">
           <div className="w-full max-w-2xl">
+            {isNewDeckFlow && (
+              <div className="mb-4">
+                <button
+                  onClick={() => { setShowInitialChoice(false); setIsNewDeckFlow(false); }}
+                  className="flex items-center gap-1.5 text-white/50 hover:text-white/80 text-sm transition-colors"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6"/></svg>
+                  Annulla
+                </button>
+              </div>
+            )}
             <div className="text-center mb-8">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-600 to-teal-600 mb-4 shadow-lg shadow-purple-900/40">
                 <Sparkles className="w-8 h-8 text-white" />
               </div>
-              <h2 className="text-2xl font-black text-white mb-2">Benvenuto nel Draft!</h2>
+              <h2 className="text-2xl font-black text-white mb-2">{isNewDeckFlow ? 'Crea nuovo mazzo' : 'Benvenuto nel Draft!'}</h2>
               <p className="text-white/60 text-sm max-w-md mx-auto">
-                È la tua prima volta qui. Scegli come costruire il tuo mazzo da 99 carte.
+                {isNewDeckFlow ? 'Scegli come costruire il nuovo mazzo da 99 carte. Verrà salvato con un nome a tua scelta.' : 'È la tua prima volta qui. Scegli come costruire il tuo mazzo da 99 carte.'}
               </p>
               {status && (
                 <div className="inline-flex items-center gap-2 mt-3 bg-teal-900/30 border border-teal-500/30 rounded-xl px-3 py-1.5">
@@ -1470,16 +1492,24 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                 <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
                   <div className="flex items-center gap-2">
                     <Save className="w-4 h-4 text-teal-400" />
-                    <span className="text-white/80 font-bold text-sm">Preset Mazzo</span>
+                    <span className="text-white/80 font-bold text-sm">I miei mazzi</span>
                     <span className="text-white/40 text-xs">{presets.length}/3</span>
                   </div>
                   {presets.length < 3 && (
-                    <button
-                      onClick={() => setShowPresetDialog(true)}
-                      className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-teal-600/30 hover:bg-teal-600/50 border border-teal-500/30 rounded-lg text-teal-300 font-semibold transition-all"
-                    >
-                      <Plus className="w-3 h-3" />Salva corrente
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => { setIsNewDeckFlow(true); setShowInitialChoice(true); setInitialDeckError(null); setShowInsufficientMsg(false); }}
+                        className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-amber-600/30 hover:bg-amber-600/50 border border-amber-500/30 rounded-lg text-amber-300 font-semibold transition-all"
+                      >
+                        <Plus className="w-3 h-3" />Nuovo mazzo
+                      </button>
+                      <button
+                        onClick={() => setShowPresetDialog(true)}
+                        className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-teal-600/30 hover:bg-teal-600/50 border border-teal-500/30 rounded-lg text-teal-300 font-semibold transition-all"
+                      >
+                        <Save className="w-3 h-3" />Salva corrente
+                      </button>
+                    </div>
                   )}
                 </div>
 

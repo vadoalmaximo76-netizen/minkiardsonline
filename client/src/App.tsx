@@ -13,6 +13,7 @@ import { SpectatorView } from "./components/SpectatorView";
 import { ResetPasswordPage } from "./components/ResetPasswordPage";
 import { CardAdminPanel } from "./components/CardAdminPanel";
 import { DraftSection } from "./components/DraftSection";
+import { DeckSelectDialog } from "./components/DeckSelectDialog";
 import { RankiardLeaderboard } from "./components/RankiardLeaderboard";
 import { SpotifyPlayer } from "./components/SpotifyPlayer";
 import { useGameState } from "./lib/stores/useGameState";
@@ -82,6 +83,8 @@ function App() {
   const [authenticatedUser, setAuthenticatedUser] = useState<AuthUser | null>(null);
   const [showNameDialog, setShowNameDialog] = useState(false);
   const [showRoomDialog, setShowRoomDialog] = useState(false);
+  const [showDeckSelectDialog, setShowDeckSelectDialog] = useState(false);
+  const [pendingDraftParams, setPendingDraftParams] = useState<{ gameId: string; playerName: string; avatarId: number | undefined; userId: number | undefined; turnTimerSeconds: number } | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [serverReady, setServerReady] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -324,8 +327,22 @@ function App() {
     const newGameId = `room-${roomCode}`;
     console.log(`Attempting to join room: ${newGameId} with player: ${playerName}${isDraftMode ? ' [DRAFT]' : ''}`);
     
-    setGameId(newGameId);
     setShowRoomDialog(false);
+
+    if (isDraftMode) {
+      // For Draft mode: show deck selection first
+      setPendingDraftParams({
+        gameId: newGameId,
+        playerName,
+        avatarId: pendingAvatar,
+        userId: authenticatedUser?.id,
+        turnTimerSeconds: turnTimerSeconds ?? 30,
+      });
+      setShowDeckSelectDialog(true);
+      return;
+    }
+
+    setGameId(newGameId);
     
     // Update URL to include room code
     const newUrl = `${window.location.origin}?game=${newGameId}`;
@@ -338,8 +355,27 @@ function App() {
       playerName, 
       avatarId: pendingAvatar,
       userId: authenticatedUser?.id,
-      isDraftMode: isDraftMode || false,
+      isDraftMode: false,
       turnTimerSeconds: turnTimerSeconds ?? 30
+    });
+  };
+
+  const handleDeckConfirmed = () => {
+    if (!pendingDraftParams) return;
+    const p = pendingDraftParams;
+    setShowDeckSelectDialog(false);
+    setPendingDraftParams(null);
+    setGameId(p.gameId);
+    const newUrl = `${window.location.origin}?game=${p.gameId}`;
+    window.history.pushState(null, '', newUrl);
+    console.log(`Emitting join-game (draft) for ${p.playerName} to ${p.gameId}`);
+    socket.emit('join-game', {
+      gameId: p.gameId,
+      playerName: p.playerName,
+      avatarId: p.avatarId,
+      userId: p.userId,
+      isDraftMode: true,
+      turnTimerSeconds: p.turnTimerSeconds,
     });
   };
 
@@ -750,6 +786,11 @@ function App() {
             />
           </GameErrorBoundary>
         </div>
+        <DeckSelectDialog
+          open={showDeckSelectDialog}
+          onClose={() => { setShowDeckSelectDialog(false); setPendingDraftParams(null); }}
+          onConfirm={handleDeckConfirmed}
+        />
         <Toaster position="top-right" richColors />
       </QueryClientProvider>
     </TooltipProvider>
