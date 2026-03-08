@@ -12864,8 +12864,36 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
         cardsObtained: [{ ...card, rarity }],
         duplicatesCredits: 0,
       });
+      // Build deckPresence for deck-based duplicate detection
+      const [activeDeckRowDaily] = await db.select().from(draftDecks).where(eq(draftDecks.userId, currentUser.id)).limit(1);
+      const userPresetRowsDaily = await db.select().from(draftDeckPresets).where(eq(draftDeckPresets.userId, currentUser.id));
+      const deckHasCardDaily = (deck: { personaggiCards: unknown; mosseCards: unknown; bonusCards: unknown }, cId: string, dType: string): boolean => {
+        let arr: string[] = [];
+        if (dType === 'personaggi' || dType === 'personaggi_speciali') arr = (deck.personaggiCards as string[]) || [];
+        else if (dType === 'mosse') arr = (deck.mosseCards as string[]) || [];
+        else if (dType === 'bonus') arr = (deck.bonusCards as string[]) || [];
+        return arr.includes(cId);
+      };
+      const dailyDeckPresence: Array<{ deckId: number | null; deckName: string; hasCard: boolean }> = [];
+      if (activeDeckRowDaily) {
+        dailyDeckPresence.push({ deckId: null, deckName: 'Mazzo attivo', hasCard: deckHasCardDaily(activeDeckRowDaily, card.cardId, card.deckType) });
+      }
+      for (const preset of userPresetRowsDaily) {
+        dailyDeckPresence.push({ deckId: preset.id, deckName: preset.presetName, hasCard: deckHasCardDaily(preset, card.cardId, card.deckType) });
+      }
+      const anyDeckHasDailyCard = dailyDeckPresence.some(d => d.hasCard);
+      const halfCostDaily = Math.floor((card.draftCost || 0) / 2);
       const nextClaimAt = new Date(now.getTime() + msIn24h);
-      res.json({ success: true, card: { ...card, rarity }, nextClaimAt });
+      res.json({
+        success: true,
+        card: {
+          ...card,
+          rarity,
+          deckPresence: dailyDeckPresence,
+          halfRefundCredits: anyDeckHasDailyCard ? halfCostDaily : 0,
+        },
+        nextClaimAt,
+      });
     } catch (error) {
       res.status(500).json({ error: 'Errore riscatto carta giornaliera' });
     }
@@ -13495,36 +13523,50 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
           .where(eq(users.id, currentUser.id));
       }
 
-      // Fetch existing collection to detect duplicates
-      const existingCollection = await db.select({ cardId: userCardCollection.cardId })
-        .from(userCardCollection).where(eq(userCardCollection.userId, currentUser.id));
-      const existingSet = new Set(existingCollection.map(r => r.cardId));
+      // Fetch user's active deck and presets for deck-based duplicate detection
+      const [activeDeckRow] = await db.select().from(draftDecks).where(eq(draftDecks.userId, currentUser.id)).limit(1);
+      const userPresetRows = await db.select().from(draftDeckPresets).where(eq(draftDeckPresets.userId, currentUser.id));
 
-      const duplicateCardIds = new Set<string>();
+      const deckHasCardFn = (deck: { personaggiCards: unknown; mosseCards: unknown; bonusCards: unknown }, cardId: string, deckType: string): boolean => {
+        let arr: string[] = [];
+        if (deckType === 'personaggi' || deckType === 'personaggi_speciali') arr = (deck.personaggiCards as string[]) || [];
+        else if (deckType === 'mosse') arr = (deck.mosseCards as string[]) || [];
+        else if (deckType === 'bonus') arr = (deck.bonusCards as string[]) || [];
+        return arr.includes(cardId);
+      };
 
-      // Add non-duplicate cards to collection; mark duplicates for user to resolve
+      // Add all cards to collection (record possession, ignore conflicts)
       for (const card of pickedCards) {
-        if (existingSet.has(card.cardId)) {
-          duplicateCardIds.add(card.cardId);
-        } else {
-          try {
-            await db.insert(userCardCollection).values({
-              userId: currentUser.id,
-              cardId: card.cardId,
-              deckType: card.deckType,
-              rarity: card.rarity,
-            }).onConflictDoNothing();
-          } catch (_) {}
-        }
+        try {
+          await db.insert(userCardCollection).values({
+            userId: currentUser.id,
+            cardId: card.cardId,
+            deckType: card.deckType,
+            rarity: card.rarity,
+          }).onConflictDoNothing();
+        } catch (_) {}
       }
 
-      // Mark cards as duplicates in response — user will choose refund or list
-      const cardsWithDuplicateInfo = pickedCards.map(c => ({
-        ...c,
-        isDuplicate: duplicateCardIds.has(c.cardId),
-        halfRefundCredits: duplicateCardIds.has(c.cardId) ? Math.floor((c.draftCost || 0) / 2) : 0,
-        duplicateCredits: duplicateCardIds.has(c.cardId) ? Math.floor((c.draftCost || 0) / 2) : 0, // kept for history display
-      }));
+      // Build per-card deck presence info and mark duplicates at deck level
+      const cardsWithDuplicateInfo = pickedCards.map(c => {
+        const deckPresence: Array<{ deckId: number | null; deckName: string; hasCard: boolean }> = [];
+        if (activeDeckRow) {
+          deckPresence.push({ deckId: null, deckName: 'Mazzo attivo', hasCard: deckHasCardFn(activeDeckRow, c.cardId, c.deckType) });
+        }
+        for (const preset of userPresetRows) {
+          deckPresence.push({ deckId: preset.id, deckName: preset.presetName, hasCard: deckHasCardFn(preset, c.cardId, c.deckType) });
+        }
+        const allDecksHaveCard = deckPresence.length > 0 && deckPresence.every(d => d.hasCard);
+        const anyDeckHasCard = deckPresence.some(d => d.hasCard);
+        const halfCost = Math.floor((c.draftCost || 0) / 2);
+        return {
+          ...c,
+          isDuplicate: allDecksHaveCard,
+          halfRefundCredits: anyDeckHasCard ? halfCost : 0,
+          duplicateCredits: anyDeckHasCard ? halfCost : 0,
+          deckPresence,
+        };
+      });
 
       // Record pack opening
       await db.insert(draftPackOpenings).values({

@@ -2,6 +2,12 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Zap, Plus, Check, Tag } from 'lucide-react';
 import { useAudio } from '../lib/stores/useAudio';
 
+export interface CardDeckPresence {
+  deckId: number | null;
+  deckName: string;
+  hasCard: boolean;
+}
+
 export interface RevealedCard {
   cardId: string;
   deckType: string;
@@ -14,6 +20,7 @@ export interface RevealedCard {
   halfRefundCredits?: number;
   pti?: number;
   stars?: number;
+  deckPresence?: CardDeckPresence[];
 }
 
 export interface PackType {
@@ -440,6 +447,8 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded, userPr
   const isCardResolved = (card: RevealedCard): boolean => {
     const dupState = dupStates[card.cardId];
     if (dupState === 'refunded' || dupState === 'listed') return true;
+    // Already in all decks from server data — no action needed
+    if (card.deckPresence && card.deckPresence.length > 0 && card.deckPresence.every(d => d.hasCard)) return true;
     const activeKey = `${card.cardId}__active`;
     if (deckAddStates[activeKey] === 'added') return true;
     if (userPresets) {
@@ -447,6 +456,9 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded, userPr
         if (deckAddStates[`${card.cardId}__p${p.id}`] === 'added') return true;
       }
     }
+    // No decks available — nothing to assign
+    const hasAnyDeck = (activeDeckCards) || (userPresets && userPresets.length > 0) || (card.deckPresence && card.deckPresence.length > 0);
+    if (!hasAnyDeck) return true;
     return false;
   };
 
@@ -667,7 +679,6 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded, userPr
               const isVisible = index < revealedCount + 1;
               const rarityConfig = RARITY_CONFIG[card.rarity];
               const isParticle = showParticles === index;
-              const addState = addStates[card.cardId] || 'idle';
 
               return (
                 <div
@@ -748,105 +759,97 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded, userPr
                       <div className="text-white/60 text-xs text-center max-w-[100px] truncate">{card.name}</div>
                       {(() => {
                         const dupState = dupStates[card.cardId] || 'idle';
-                        const halfCr = card.halfRefundCredits ?? card.duplicateCredits ?? Math.floor((card.draftCost || 0) / 2);
-                        const activeKey = `${card.cardId}__active`;
-                        const activeState = deckAddStates[activeKey] || 'idle';
-                        const alreadyInActive = activeDeckHasCard(card.cardId, card.deckType);
-                        const hasDecks = activeDeckCards || (userPresets && userPresets.length > 0);
+                        const halfCr = card.halfRefundCredits ?? 0;
+
+                        // Build effective deck presence combining server data and local checks
+                        const effectiveDecks: Array<{ deckId: number | null; deckName: string; hasCard: boolean }> = [];
+                        if (card.deckPresence && card.deckPresence.length > 0) {
+                          effectiveDecks.push(...card.deckPresence);
+                        } else {
+                          if (activeDeckCards) {
+                            effectiveDecks.push({ deckId: null, deckName: 'Mazzo attivo', hasCard: activeDeckHasCard(card.cardId, card.deckType) });
+                          }
+                          if (userPresets) {
+                            userPresets.forEach(p => {
+                              effectiveDecks.push({ deckId: p.id, deckName: p.presetName, hasCard: presetHasCard(p, card.cardId, card.deckType) });
+                            });
+                          }
+                        }
 
                         if (dupState === 'refunded') return (
-                          <div className="flex items-center gap-1 font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-300" style={{ fontSize: '9px' }}>
-                            <Check size={9} /> +{halfCr} cr
+                          <div className="flex items-center gap-1 font-bold px-2 py-1 rounded-lg bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-xs mt-1">
+                            <Check size={11} /> +{halfCr} crediti rimborsati
                           </div>
                         );
                         if (dupState === 'listed') return (
-                          <div className="flex items-center gap-1 font-bold px-2 py-0.5 rounded-full bg-purple-500/20 border border-purple-400/50 text-purple-300" style={{ fontSize: '9px' }}>
-                            <Tag size={9} /> In vendita
+                          <div className="flex items-center gap-1 font-bold px-2 py-1 rounded-lg bg-purple-500/20 border border-purple-400/50 text-purple-300 text-xs mt-1">
+                            <Tag size={11} /> In vendita
                           </div>
                         );
                         if (dupState === 'price_input') return (
-                          <div className="flex flex-col items-center gap-1 mt-0.5" style={{ fontSize: '9px' }}>
+                          <div className="flex flex-col items-center gap-1.5 mt-1 w-full">
                             <input
                               type="number" min="1"
-                              value={dupPrices[card.cardId] ?? String(halfCr * 2)}
+                              value={dupPrices[card.cardId] ?? String(halfCr * 2 || 50)}
                               onChange={e => setDupPrices(prev => ({ ...prev, [card.cardId]: e.target.value }))}
-                              className="w-16 text-center text-white bg-white/10 border border-white/30 rounded px-1 py-0.5"
-                              style={{ fontSize: '9px' }}
+                              className="w-20 text-center text-white bg-white/10 border border-white/30 rounded px-1 py-0.5 text-xs"
                             />
-                            <div className="flex gap-1">
-                              <button onClick={() => resolveDuplicate(card, 'list', parseInt(dupPrices[card.cardId] ?? String(halfCr * 2)) || 1)}
-                                className="px-1.5 py-0.5 rounded bg-purple-500/30 border border-purple-400/50 text-purple-300 hover:bg-purple-500/50" style={{ fontSize: '9px' }}>
+                            <div className="flex gap-1.5">
+                              <button onClick={() => resolveDuplicate(card, 'list', parseInt(dupPrices[card.cardId] ?? String(halfCr * 2 || 50)) || 50)}
+                                className="px-2 py-0.5 rounded-lg bg-purple-500/30 border border-purple-400/50 text-purple-300 hover:bg-purple-500/50 text-xs font-semibold">
                                 Vendi
                               </button>
                               <button onClick={() => setDupStates(prev => ({ ...prev, [card.cardId]: 'idle' }))}
-                                className="px-1.5 py-0.5 rounded bg-white/10 border border-white/20 text-white/50" style={{ fontSize: '9px' }}>
+                                className="px-2 py-0.5 rounded-lg bg-white/10 border border-white/20 text-white/50 text-xs">
                                 ✕
                               </button>
                             </div>
                           </div>
                         );
                         return (
-                          <div className="flex flex-col items-center gap-0.5 mt-0.5 w-full">
-                            {activeDeckCards && (
-                              alreadyInActive || activeState === 'added' ? (
-                                <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/30 w-full justify-center" style={{ fontSize: '8px' }}>
-                                  <Check size={8} /> Mazzo attivo
-                                </div>
-                              ) : (
-                                <button
-                                  onClick={() => addToSpecificDeck(card, null)}
-                                  disabled={activeState === 'loading'}
-                                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-teal-500/20 border border-teal-400/50 text-teal-300 hover:bg-teal-500/30 active:scale-95 transition-all w-full justify-center"
-                                  style={{ fontSize: '8px' }}
-                                >
-                                  {activeState === 'loading' ? '...' : <><Plus size={8} /> Mazzo attivo</>}
-                                </button>
-                              )
-                            )}
-                            {userPresets && userPresets.map(preset => {
-                              const pKey = `${card.cardId}__p${preset.id}`;
-                              const pState = deckAddStates[pKey] || 'idle';
-                              const alreadyInPreset = presetHasCard(preset, card.cardId, card.deckType);
-                              const shortName = preset.presetName.length > 10 ? preset.presetName.slice(0, 10) + '…' : preset.presetName;
-                              if (alreadyInPreset || pState === 'added') return (
-                                <div key={preset.id} className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/30 w-full justify-center" style={{ fontSize: '8px' }}>
-                                  <Check size={8} /> {shortName}
-                                </div>
-                              );
+                          <div className="flex flex-col items-center gap-1 mt-1 w-full">
+                            {effectiveDecks.length > 0 ? effectiveDecks.map((deck) => {
+                              const stateKey = deck.deckId === null ? `${card.cardId}__active` : `${card.cardId}__p${deck.deckId}`;
+                              const addState = deckAddStates[stateKey] || 'idle';
+                              const alreadyHas = deck.hasCard || addState === 'added';
+                              if (alreadyHas) {
+                                return (
+                                  <div key={String(deck.deckId)} className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-white/35 w-full justify-center text-xs">
+                                    <Check size={10} /> {deck.deckName}
+                                  </div>
+                                );
+                              }
                               return (
-                                <button key={preset.id}
-                                  onClick={() => addToSpecificDeck(card, preset.id)}
-                                  disabled={pState === 'loading'}
-                                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-blue-500/20 border border-blue-400/50 text-blue-300 hover:bg-blue-500/30 active:scale-95 transition-all w-full justify-center"
-                                  style={{ fontSize: '8px' }}
+                                <button
+                                  key={String(deck.deckId)}
+                                  onClick={() => addToSpecificDeck(card, deck.deckId)}
+                                  disabled={addState === 'loading'}
+                                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-teal-500/25 border border-teal-400/60 text-teal-200 hover:bg-teal-500/40 active:scale-95 transition-all w-full justify-center text-xs font-semibold"
                                 >
-                                  {pState === 'loading' ? '...' : <><Plus size={8} /> {shortName}</>}
+                                  {addState === 'loading' ? '...' : <><Plus size={10} /> Aggiungi al mazzo {deck.deckName}</>}
                                 </button>
                               );
-                            })}
-                            {!hasDecks && (
-                              <div className="text-white/30 text-center" style={{ fontSize: '8px' }}>Nessun mazzo</div>
+                            }) : (
+                              <div className="text-white/30 text-center text-xs">Nessun mazzo creato</div>
                             )}
-                            <div className="flex gap-1 mt-0.5 w-full justify-center">
-                              {halfCr > 0 && (
+                            {halfCr > 0 && (
+                              <div className="flex gap-1.5 mt-1 w-full justify-center border-t border-white/10 pt-1">
                                 <button
                                   onClick={() => resolveDuplicate(card, 'refund')}
                                   disabled={dupState === 'loading'}
-                                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 hover:bg-emerald-500/30 active:scale-95 transition-all"
-                                  style={{ fontSize: '8px' }}
+                                  className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 hover:bg-emerald-500/30 active:scale-95 transition-all text-xs"
                                 >
-                                  <Check size={7} /> +{halfCr}cr
+                                  <Check size={10} /> +{halfCr} cr
                                 </button>
-                              )}
-                              <button
-                                onClick={() => setDupStates(prev => ({ ...prev, [card.cardId]: 'price_input' }))}
-                                disabled={dupState === 'loading'}
-                                className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-purple-500/20 border border-purple-400/50 text-purple-300 hover:bg-purple-500/30 active:scale-95 transition-all"
-                                style={{ fontSize: '8px' }}
-                              >
-                                <Tag size={7} /> Vendi
-                              </button>
-                            </div>
+                                <button
+                                  onClick={() => setDupStates(prev => ({ ...prev, [card.cardId]: 'price_input' }))}
+                                  disabled={dupState === 'loading'}
+                                  className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-purple-500/20 border border-purple-400/50 text-purple-300 hover:bg-purple-500/30 active:scale-95 transition-all text-xs"
+                                >
+                                  <Tag size={10} /> Vendi
+                                </button>
+                              </div>
+                            )}
                           </div>
                         );
                       })()}

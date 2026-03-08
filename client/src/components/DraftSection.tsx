@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { ArrowLeft, Shuffle, ShoppingCart, CreditCard, Search, Plus, Minus, CheckCircle, AlertCircle, Coins, Users, Swords, Zap, Package, Check, Trophy, X, SortAsc, SortDesc, Sparkles, Trash2, Filter, Gift, Star, Lock, ChevronDown, ChevronUp, Clock, Target, Flame, Save, RotateCcw, Calendar, Ticket, Store, ChevronLeft, ChevronRight, Pencil, Copy } from 'lucide-react';
+import { ArrowLeft, Shuffle, ShoppingCart, CreditCard, Search, Plus, Minus, CheckCircle, AlertCircle, Coins, Users, Swords, Zap, Package, Check, Trophy, X, SortAsc, SortDesc, Sparkles, Trash2, Filter, Gift, Star, Lock, ChevronDown, ChevronUp, Clock, Target, Flame, Save, RotateCcw, Calendar, Ticket, Store, ChevronLeft, ChevronRight, Pencil, Copy, Tag } from 'lucide-react';
 import { PackOpeningAnimation, PackType, RevealedCard } from './PackOpeningAnimation';
 import { SeasonPass } from './SeasonPass';
 import { Marketplace } from './Marketplace';
@@ -148,6 +148,9 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
   const [dailyCountdown, setDailyCountdown] = useState('');
   const [claimingDaily, setClaimingDaily] = useState(false);
   const [dailyResult, setDailyResult] = useState<(RevealedCard & { rarity: string }) | null>(null);
+  const [dailyDeckAddStates, setDailyDeckAddStates] = useState<Record<string, 'idle' | 'loading' | 'added'>>({});
+  const [dailyDupState, setDailyDupState] = useState<'idle' | 'price_input' | 'loading' | 'refunded' | 'listed'>('idle');
+  const [dailyDupPrice, setDailyDupPrice] = useState('');
   // Pack history
   const [packHistory, setPackHistory] = useState<PackHistoryEntry[]>([]);
   const [showPackHistory, setShowPackHistory] = useState(false);
@@ -565,6 +568,9 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
   const claimDailyCard = async () => {
     setClaimingDaily(true);
     setDailyResult(null);
+    setDailyDeckAddStates({});
+    setDailyDupState('idle');
+    setDailyDupPrice('');
     try {
       const res = await fetch('/api/draft/claim-daily-card', { method: 'POST', headers: getAuthHeaders() });
       const data = await res.json();
@@ -576,6 +582,60 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
       }
     } catch (e) {}
     setClaimingDaily(false);
+  };
+
+  const addDailyCardToDeck = async (deckId: number | null) => {
+    if (!dailyResult) return;
+    const key = deckId === null ? 'active' : `p${deckId}`;
+    if (dailyDeckAddStates[key] === 'loading' || dailyDeckAddStates[key] === 'added') return;
+    setDailyDeckAddStates(prev => ({ ...prev, [key]: 'loading' }));
+    try {
+      const res = await fetch('/api/draft/add-card-to-preset', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ cardId: dailyResult.cardId, deckType: dailyResult.deckType, presetId: deckId }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setDailyDeckAddStates(prev => ({ ...prev, [key]: 'added' }));
+        fetchPresets();
+      } else {
+        setDailyDeckAddStates(prev => ({ ...prev, [key]: 'idle' }));
+      }
+    } catch {
+      setDailyDeckAddStates(prev => ({ ...prev, [key]: 'idle' }));
+    }
+  };
+
+  const resolveDailyDuplicate = async (action: 'refund' | 'list', priceCredits?: number) => {
+    if (!dailyResult) return;
+    setDailyDupState('loading');
+    try {
+      const halfCr = dailyResult.halfRefundCredits ?? 0;
+      const res = await fetch('/api/draft/resolve-duplicate', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          action,
+          cardId: dailyResult.cardId,
+          cardName: dailyResult.name,
+          cardType: dailyResult.deckType,
+          cardRarity: dailyResult.rarity,
+          cardImageUrl: dailyResult.frontImage,
+          halfRefundCredits: halfCr,
+          priceCredits: priceCredits ?? halfCr * 2,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setDailyDupState(action === 'refund' ? 'refunded' : 'listed');
+        if (action === 'refund') fetchAll();
+      } else {
+        setDailyDupState('idle');
+      }
+    } catch {
+      setDailyDupState('idle');
+    }
   };
 
   const savePreset = async () => {
@@ -1834,19 +1894,127 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                 </div>
                 {/* Daily result */}
                 {dailyResult && (
-                  <div className="mt-4 pt-4 border-t border-white/10 flex items-center gap-4">
-                    <div className="relative w-16 h-24 rounded-lg overflow-hidden border-2 border-amber-400/60 shadow-lg shadow-amber-500/30 flex-shrink-0">
-                      <img src={dailyResult.frontImage} alt={dailyResult.name} className="w-full h-full object-cover" />
-                    </div>
-                    <div>
-                      <p className="text-amber-300 font-bold text-sm">{dailyResult.name}</p>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-semibold mt-1 inline-block ${
-                        dailyResult.rarity === 'leggendaria' ? 'bg-yellow-500/20 text-yellow-300' :
-                        dailyResult.rarity === 'epica' ? 'bg-purple-500/20 text-purple-300' :
-                        dailyResult.rarity === 'rara' ? 'bg-blue-500/20 text-blue-300' :
-                        'bg-gray-500/20 text-gray-300'
-                      }`}>{dailyResult.rarity.charAt(0).toUpperCase() + dailyResult.rarity.slice(1)}</span>
-                      <p className="text-white/50 text-xs mt-1">Aggiunta alla tua collezione!</p>
+                  <div className="mt-4 pt-4 border-t border-white/10">
+                    <div className="flex items-start gap-4">
+                      <div className="relative w-16 h-24 rounded-lg overflow-hidden border-2 border-amber-400/60 shadow-lg shadow-amber-500/30 flex-shrink-0">
+                        <img src={dailyResult.frontImage} alt={dailyResult.name} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-amber-300 font-bold text-sm">{dailyResult.name}</p>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold mt-1 inline-block ${
+                          dailyResult.rarity === 'leggendaria' ? 'bg-yellow-500/20 text-yellow-300' :
+                          dailyResult.rarity === 'epica' ? 'bg-purple-500/20 text-purple-300' :
+                          dailyResult.rarity === 'rara' ? 'bg-blue-500/20 text-blue-300' :
+                          'bg-gray-500/20 text-gray-300'
+                        }`}>{dailyResult.rarity.charAt(0).toUpperCase() + dailyResult.rarity.slice(1)}</span>
+                        <div className="mt-2 flex flex-col gap-1">
+                          {(() => {
+                            const halfCr = dailyResult.halfRefundCredits ?? 0;
+                            const deckPresence = dailyResult.deckPresence ?? [];
+
+                            if (dailyDupState === 'refunded') return (
+                              <div className="flex items-center gap-1 font-bold px-2 py-1 rounded-lg bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-xs">
+                                <Check size={11} /> +{halfCr} crediti rimborsati
+                              </div>
+                            );
+                            if (dailyDupState === 'listed') return (
+                              <div className="flex items-center gap-1 font-bold px-2 py-1 rounded-lg bg-purple-500/20 border border-purple-400/50 text-purple-300 text-xs">
+                                <Tag size={11} /> In vendita sul marketplace
+                              </div>
+                            );
+                            if (dailyDupState === 'price_input') return (
+                              <div className="flex flex-col gap-1.5">
+                                <input
+                                  type="number" min="1"
+                                  value={dailyDupPrice || String(halfCr * 2 || 50)}
+                                  onChange={e => setDailyDupPrice(e.target.value)}
+                                  className="w-24 text-center text-white bg-white/10 border border-white/30 rounded px-2 py-1 text-xs"
+                                  placeholder="Prezzo"
+                                />
+                                <div className="flex gap-1.5">
+                                  <button onClick={() => resolveDailyDuplicate('list', parseInt(dailyDupPrice || String(halfCr * 2 || 50)) || 50)}
+                                    className="px-2 py-1 rounded-lg bg-purple-500/30 border border-purple-400/50 text-purple-300 hover:bg-purple-500/50 text-xs font-semibold">
+                                    Vendi
+                                  </button>
+                                  <button onClick={() => setDailyDupState('idle')}
+                                    className="px-2 py-1 rounded-lg bg-white/10 border border-white/20 text-white/50 text-xs">
+                                    ✕
+                                  </button>
+                                </div>
+                              </div>
+                            );
+
+                            return (
+                              <>
+                                {deckPresence.length > 0 ? deckPresence.map((deck) => {
+                                  const key = deck.deckId === null ? 'active' : `p${deck.deckId}`;
+                                  const addState = dailyDeckAddStates[key] || 'idle';
+                                  const alreadyHas = deck.hasCard || addState === 'added';
+                                  if (alreadyHas) {
+                                    return (
+                                      <div key={String(deck.deckId)} className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-white/35 text-xs">
+                                        <Check size={10} /> {deck.deckName}
+                                      </div>
+                                    );
+                                  }
+                                  return (
+                                    <button
+                                      key={String(deck.deckId)}
+                                      onClick={() => addDailyCardToDeck(deck.deckId)}
+                                      disabled={addState === 'loading'}
+                                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-teal-500/25 border border-teal-400/60 text-teal-200 hover:bg-teal-500/40 active:scale-95 transition-all text-xs font-semibold"
+                                    >
+                                      {addState === 'loading' ? '...' : <><Plus size={10} /> Aggiungi al mazzo {deck.deckName}</>}
+                                    </button>
+                                  );
+                                }) : (
+                                  presets.length === 0 ? (
+                                    <p className="text-white/40 text-xs">Nessun mazzo creato. Crea un mazzo dalla sezione Mazzi.</p>
+                                  ) : presets.map((preset) => {
+                                    const key = `p${preset.id}`;
+                                    const addState = dailyDeckAddStates[key] || 'idle';
+                                    if (addState === 'added') {
+                                      return (
+                                        <div key={preset.id} className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-white/35 text-xs">
+                                          <Check size={10} /> {preset.presetName}
+                                        </div>
+                                      );
+                                    }
+                                    return (
+                                      <button
+                                        key={preset.id}
+                                        onClick={() => addDailyCardToDeck(preset.id)}
+                                        disabled={addState === 'loading'}
+                                        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-teal-500/25 border border-teal-400/60 text-teal-200 hover:bg-teal-500/40 active:scale-95 transition-all text-xs font-semibold"
+                                      >
+                                        {addState === 'loading' ? '...' : <><Plus size={10} /> Aggiungi al mazzo {preset.presetName}</>}
+                                      </button>
+                                    );
+                                  })
+                                )}
+                                {halfCr > 0 && (
+                                  <div className="flex gap-1.5 mt-1 border-t border-white/10 pt-1">
+                                    <button
+                                      onClick={() => resolveDailyDuplicate('refund')}
+                                      disabled={dailyDupState === 'loading'}
+                                      className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 hover:bg-emerald-500/30 active:scale-95 transition-all text-xs"
+                                    >
+                                      <Check size={10} /> +{halfCr} cr
+                                    </button>
+                                    <button
+                                      onClick={() => setDailyDupState('price_input')}
+                                      disabled={dailyDupState === 'loading'}
+                                      className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-purple-500/20 border border-purple-400/50 text-purple-300 hover:bg-purple-500/30 active:scale-95 transition-all text-xs"
+                                    >
+                                      <Tag size={10} /> Vendi
+                                    </button>
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
