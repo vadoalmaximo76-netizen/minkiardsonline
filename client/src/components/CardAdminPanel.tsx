@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { AddCardsModal } from './AddCardsModal';
 import { AdminTooltipsPanel } from './AdminTooltipsPanel';
 import { OcrReviewPanel } from './OcrReviewPanel';
+import { DraftCostEditorPanel } from './DraftCostEditorPanel';
 import { Button } from './ui/button';
-import { Info, Eye, Coins, Check, X, Zap } from 'lucide-react';
+import { Info, Eye, Coins, Check, X, Zap, ListOrdered } from 'lucide-react';
 
 interface CardAdminPanelProps {
   onBack: () => void;
@@ -152,6 +153,7 @@ export function CardAdminPanel({ onBack }: CardAdminPanelProps) {
   const [showTooltipsPanel, setShowTooltipsPanel] = useState(false);
   const [showOcrPanel, setShowOcrPanel] = useState(false);
   const [showCreditsPanel, setShowCreditsPanel] = useState(false);
+  const [showDraftCostEditor, setShowDraftCostEditor] = useState(false);
   const [showAutoCostDialog, setShowAutoCostDialog] = useState(false);
   const [autoCostOverride, setAutoCostOverride] = useState(false);
   const [autoCostRunning, setAutoCostRunning] = useState(false);
@@ -185,6 +187,13 @@ export function CardAdminPanel({ onBack }: CardAdminPanelProps) {
   return (
     <>
       <div className="fixed top-4 right-4 z-[60] flex gap-2 flex-wrap justify-end">
+        <Button
+          onClick={() => setShowDraftCostEditor(true)}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white"
+          size="sm"
+        >
+          <ListOrdered size={16} className="mr-1" /> Editor Costi Draft
+        </Button>
         <Button
           onClick={() => { setShowAutoCostDialog(true); setAutoCostResult(null); setAutoCostError(null); }}
           className="bg-orange-600 hover:bg-orange-700 text-white"
@@ -233,6 +242,11 @@ export function CardAdminPanel({ onBack }: CardAdminPanelProps) {
       {showCreditsPanel && (
         <AdminDraftCreditsPanel
           onClose={() => setShowCreditsPanel(false)}
+        />
+      )}
+      {showDraftCostEditor && (
+        <DraftCostEditorPanel
+          onClose={() => setShowDraftCostEditor(false)}
         />
       )}
       {showAutoCostDialog && (
