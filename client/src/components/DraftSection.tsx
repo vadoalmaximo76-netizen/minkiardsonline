@@ -2291,7 +2291,8 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
           cards={packAnimation.cards}
           onClose={handleAnimationClose}
           onCardAdded={fetchDeck}
-          autoAddToDeck={true}
+          userPresets={presets}
+          activeDeckCards={selectedCards}
         />
       )}
 
@@ -2301,6 +2302,8 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
           cards={currentInitialPack.cards}
           onClose={handleInitialPackClose}
           onCardAdded={() => {}}
+          userPresets={presets}
+          activeDeckCards={selectedCards}
         />
       )}
 

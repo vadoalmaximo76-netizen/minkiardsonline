@@ -12726,6 +12726,78 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     }
   });
 
+  // POST /api/draft/add-card-to-preset - aggiunge carta al mazzo attivo o a un preset specifico
+  app.post('/api/draft/add-card-to-preset', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'User not found' });
+      const { cardId, deckType, presetId } = req.body;
+      if (!cardId || !deckType) return res.status(400).json({ error: 'cardId e deckType richiesti' });
+
+      if (!presetId) {
+        // Aggiungi al mazzo attivo
+        const existing = await db.select().from(draftDecks).where(eq(draftDecks.userId, currentUser.id)).limit(1);
+        let personaggiCards: string[] = [];
+        let mosseCards: string[] = [];
+        let bonusCards: string[] = [];
+        if (existing.length > 0) {
+          personaggiCards = (existing[0].personaggiCards as string[]) || [];
+          mosseCards = (existing[0].mosseCards as string[]) || [];
+          bonusCards = (existing[0].bonusCards as string[]) || [];
+        }
+        if (deckType === 'personaggi' || deckType === 'personaggi_speciali') {
+          if (!personaggiCards.includes(cardId)) personaggiCards = [...personaggiCards, cardId];
+        } else if (deckType === 'mosse') {
+          if (!mosseCards.includes(cardId)) mosseCards = [...mosseCards, cardId];
+        } else if (deckType === 'bonus') {
+          if (!bonusCards.includes(cardId)) bonusCards = [...bonusCards, cardId];
+        } else {
+          return res.status(400).json({ error: 'deckType non valido' });
+        }
+        const isComplete = personaggiCards.length >= 33 && mosseCards.length >= 33 && bonusCards.length >= 33;
+        if (existing.length > 0) {
+          await db.update(draftDecks)
+            .set({ personaggiCards, mosseCards, bonusCards, isComplete, savedAt: new Date() })
+            .where(eq(draftDecks.userId, currentUser.id));
+        } else {
+          await db.insert(draftDecks).values({ userId: currentUser.id, personaggiCards, mosseCards, bonusCards, isComplete, totalCostSpent: 0 });
+        }
+        return res.json({ success: true, message: 'Carta aggiunta al mazzo attivo' });
+      }
+
+      // Aggiungi al preset specificato
+      const [preset] = await db.select().from(draftDeckPresets)
+        .where(and(eq(draftDeckPresets.id, Number(presetId)), eq(draftDeckPresets.userId, currentUser.id)))
+        .limit(1);
+      if (!preset) return res.status(404).json({ error: 'Preset non trovato' });
+
+      let personaggiCards = (preset.personaggiCards as string[]) || [];
+      let mosseCards = (preset.mosseCards as string[]) || [];
+      let bonusCards = (preset.bonusCards as string[]) || [];
+
+      if (deckType === 'personaggi' || deckType === 'personaggi_speciali') {
+        if (!personaggiCards.includes(cardId)) personaggiCards = [...personaggiCards, cardId];
+      } else if (deckType === 'mosse') {
+        if (!mosseCards.includes(cardId)) mosseCards = [...mosseCards, cardId];
+      } else if (deckType === 'bonus') {
+        if (!bonusCards.includes(cardId)) bonusCards = [...bonusCards, cardId];
+      } else {
+        return res.status(400).json({ error: 'deckType non valido' });
+      }
+
+      await db.update(draftDeckPresets)
+        .set({ personaggiCards, mosseCards, bonusCards })
+        .where(eq(draftDeckPresets.id, Number(presetId)));
+
+      return res.json({ success: true, message: `Carta aggiunta al preset "${preset.presetName}"` });
+    } catch (error) {
+      console.error('Error adding card to preset:', error);
+      res.status(500).json({ error: "Errore nell'aggiunta carta al preset" });
+    }
+  });
+
   // GET /api/draft/daily-card - check daily free card availability
   app.get('/api/draft/daily-card', authMiddleware, async (req, res) => {
     try {
