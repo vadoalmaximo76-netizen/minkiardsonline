@@ -1946,51 +1946,61 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
 
                             return (
                               <>
-                                {deckPresence.length > 0 ? deckPresence.map((deck) => {
-                                  const key = deck.deckId === null ? 'active' : `p${deck.deckId}`;
-                                  const addState = dailyDeckAddStates[key] || 'idle';
-                                  const alreadyHas = deck.hasCard || addState === 'added';
-                                  if (alreadyHas) {
-                                    return (
-                                      <div key={String(deck.deckId)} className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-white/35 text-xs">
-                                        <Check size={10} /> {deck.deckName}
-                                      </div>
-                                    );
-                                  }
-                                  return (
-                                    <button
-                                      key={String(deck.deckId)}
-                                      onClick={() => addDailyCardToDeck(deck.deckId)}
-                                      disabled={addState === 'loading'}
-                                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-teal-500/25 border border-teal-400/60 text-teal-200 hover:bg-teal-500/40 active:scale-95 transition-all text-xs font-semibold"
-                                    >
-                                      {addState === 'loading' ? '...' : <><Plus size={10} /> Aggiungi al mazzo {deck.deckName}</>}
-                                    </button>
-                                  );
-                                }) : (
-                                  presets.length === 0 ? (
-                                    <p className="text-white/40 text-xs">Nessun mazzo creato. Crea un mazzo dalla sezione Mazzi.</p>
-                                  ) : presets.map((preset) => {
-                                    const key = `p${preset.id}`;
+                                {deckPresence.length > 0 ? (() => {
+                                  const anyDeckJustAdded = deckPresence.some(d => {
+                                    const k = d.deckId === null ? 'active' : `p${d.deckId}`;
+                                    return dailyDeckAddStates[k] === 'added';
+                                  });
+                                  return deckPresence.map((deck) => {
+                                    const key = deck.deckId === null ? 'active' : `p${deck.deckId}`;
                                     const addState = dailyDeckAddStates[key] || 'idle';
-                                    if (addState === 'added') {
+                                    if (deck.hasCard || addState === 'added') {
                                       return (
-                                        <div key={preset.id} className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-white/35 text-xs">
-                                          <Check size={10} /> {preset.presetName}
+                                        <div key={String(deck.deckId)} className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-white/35 text-xs">
+                                          <Check size={10} /> {deck.deckName}
                                         </div>
                                       );
                                     }
+                                    if (anyDeckJustAdded) return null;
                                     return (
                                       <button
-                                        key={preset.id}
-                                        onClick={() => addDailyCardToDeck(preset.id)}
+                                        key={String(deck.deckId)}
+                                        onClick={() => addDailyCardToDeck(deck.deckId)}
                                         disabled={addState === 'loading'}
                                         className="flex items-center gap-1 px-2 py-1 rounded-lg bg-teal-500/25 border border-teal-400/60 text-teal-200 hover:bg-teal-500/40 active:scale-95 transition-all text-xs font-semibold"
                                       >
-                                        {addState === 'loading' ? '...' : <><Plus size={10} /> Aggiungi al mazzo {preset.presetName}</>}
+                                        {addState === 'loading' ? '...' : <><Plus size={10} /> Aggiungi al mazzo {deck.deckName}</>}
                                       </button>
                                     );
-                                  })
+                                  });
+                                })() : (
+                                  presets.length === 0 ? (
+                                    <p className="text-white/40 text-xs">Nessun mazzo creato. Crea un mazzo dalla sezione Mazzi.</p>
+                                  ) : (() => {
+                                    const anyPresetAdded = presets.some(p => dailyDeckAddStates[`p${p.id}`] === 'added');
+                                    return presets.map((preset) => {
+                                      const key = `p${preset.id}`;
+                                      const addState = dailyDeckAddStates[key] || 'idle';
+                                      if (addState === 'added') {
+                                        return (
+                                          <div key={preset.id} className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-white/35 text-xs">
+                                            <Check size={10} /> {preset.presetName}
+                                          </div>
+                                        );
+                                      }
+                                      if (anyPresetAdded) return null;
+                                      return (
+                                        <button
+                                          key={preset.id}
+                                          onClick={() => addDailyCardToDeck(preset.id)}
+                                          disabled={addState === 'loading'}
+                                          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-teal-500/25 border border-teal-400/60 text-teal-200 hover:bg-teal-500/40 active:scale-95 transition-all text-xs font-semibold"
+                                        >
+                                          {addState === 'loading' ? '...' : <><Plus size={10} /> Aggiungi al mazzo {preset.presetName}</>}
+                                        </button>
+                                      );
+                                    });
+                                  })()
                                 )}
                                 {halfCr > 0 && (
                                   <div className="flex gap-1.5 mt-1 border-t border-white/10 pt-1">

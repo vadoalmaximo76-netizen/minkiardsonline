@@ -112,6 +112,8 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded, userPr
   const [dupPrices, setDupPrices] = useState<Record<string, string>>({});
   const revealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phaseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const rumbleStopRef = useRef<(() => void) | null>(null);
 
   const { initAudioContext } = useAudio();
@@ -378,6 +380,17 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded, userPr
     if (phase !== 'revealing') return;
     revealCard(0);
   }, [phase]);
+
+  useEffect(() => {
+    if (phase !== 'revealing' || revealedCount === 0) return;
+    const idx = revealedCount - 1;
+    const el = cardRefs.current[idx];
+    if (el) {
+      setTimeout(() => {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 200);
+    }
+  }, [revealedCount, phase]);
 
   const revealCard = (index: number) => {
     if (index >= cards.length) {
@@ -657,7 +670,7 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded, userPr
       )}
 
       {(phase === 'revealing' || phase === 'done') && (
-        <div className="w-full max-w-5xl px-4 flex flex-col items-center gap-6 overflow-y-auto max-h-screen py-12">
+        <div ref={scrollContainerRef} className="w-full max-w-5xl px-4 flex flex-col items-center gap-6 overflow-y-auto max-h-screen py-12">
           {phase === 'revealing' && (
             <div className="text-white/60 text-sm">
               {revealedCount}/{cards.length} carte rivelate
@@ -683,6 +696,7 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded, userPr
               return (
                 <div
                   key={card.cardId}
+                  ref={el => { cardRefs.current[index] = el; }}
                   className="relative flex flex-col items-center"
                   style={{
                     opacity: isVisible ? 1 : 0,
@@ -808,28 +822,34 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded, userPr
                         );
                         return (
                           <div className="flex flex-col items-center gap-1 mt-1 w-full">
-                            {effectiveDecks.length > 0 ? effectiveDecks.map((deck) => {
-                              const stateKey = deck.deckId === null ? `${card.cardId}__active` : `${card.cardId}__p${deck.deckId}`;
-                              const addState = deckAddStates[stateKey] || 'idle';
-                              const alreadyHas = deck.hasCard || addState === 'added';
-                              if (alreadyHas) {
+                            {effectiveDecks.length > 0 ? (() => {
+                              const anyJustAdded = effectiveDecks.some(d => {
+                                const sk = d.deckId === null ? `${card.cardId}__active` : `${card.cardId}__p${d.deckId}`;
+                                return deckAddStates[sk] === 'added';
+                              });
+                              return effectiveDecks.map((deck) => {
+                                const stateKey = deck.deckId === null ? `${card.cardId}__active` : `${card.cardId}__p${deck.deckId}`;
+                                const addState = deckAddStates[stateKey] || 'idle';
+                                if (deck.hasCard || addState === 'added') {
+                                  return (
+                                    <div key={String(deck.deckId)} className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-white/35 w-full justify-center text-xs">
+                                      <Check size={10} /> {deck.deckName}
+                                    </div>
+                                  );
+                                }
+                                if (anyJustAdded) return null;
                                 return (
-                                  <div key={String(deck.deckId)} className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/5 border border-white/10 text-white/35 w-full justify-center text-xs">
-                                    <Check size={10} /> {deck.deckName}
-                                  </div>
+                                  <button
+                                    key={String(deck.deckId)}
+                                    onClick={() => addToSpecificDeck(card, deck.deckId)}
+                                    disabled={addState === 'loading'}
+                                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-teal-500/25 border border-teal-400/60 text-teal-200 hover:bg-teal-500/40 active:scale-95 transition-all w-full justify-center text-xs font-semibold"
+                                  >
+                                    {addState === 'loading' ? '...' : <><Plus size={10} /> Aggiungi al mazzo {deck.deckName}</>}
+                                  </button>
                                 );
-                              }
-                              return (
-                                <button
-                                  key={String(deck.deckId)}
-                                  onClick={() => addToSpecificDeck(card, deck.deckId)}
-                                  disabled={addState === 'loading'}
-                                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-teal-500/25 border border-teal-400/60 text-teal-200 hover:bg-teal-500/40 active:scale-95 transition-all w-full justify-center text-xs font-semibold"
-                                >
-                                  {addState === 'loading' ? '...' : <><Plus size={10} /> Aggiungi al mazzo {deck.deckName}</>}
-                                </button>
-                              );
-                            }) : (
+                              });
+                            })() : (
                               <div className="text-white/30 text-center text-xs">Nessun mazzo creato</div>
                             )}
                             {halfCr > 0 && (
