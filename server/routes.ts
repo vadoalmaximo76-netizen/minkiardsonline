@@ -5394,7 +5394,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             io.to(gameId).emit('chat-message', {
               id: `${Date.now()}-contrattazione-start`,
               playerName: 'Sistema',
-              message: `🤝 CONTRATTAZIONE CLANDESTINA! ${attackerName} propone un accordo a ${targetOwner}. Danno base: ${contrattazione.baseDamage} PTI. Sono disponibili 3 offerte!`,
+              message: `🤝 CONTRATTAZIONE CLANDESTINA! ${attackerName} propone un accordo a ${targetOwner}. Danno base: ${contrattazione.baseDamage} PTI (100 × stelle). Sono disponibili 3 offerte!`,
               timestamp: Date.now()
             });
           }

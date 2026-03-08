@@ -126,7 +126,10 @@ export const ContrattazioneDialog: React.FC = () => {
 
         {/* Damage info */}
         <div className="bg-gray-800 rounded-lg p-3 mb-4 flex justify-between items-center">
-          <span className="text-gray-300 text-sm">Danno base</span>
+          <div>
+            <span className="text-gray-300 text-sm">Danno base</span>
+            <p className="text-xs text-gray-500">100 PTI × stelle attaccante</p>
+          </div>
           <span className="text-red-400 font-bold text-lg">{state.baseDamage} PTI</span>
         </div>
 

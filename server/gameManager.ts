@@ -20227,12 +20227,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const attackerChar = playerChars[0];
     const charName = (attackerChar?.name || this.getCardNameFromUrl(attackerChar?.frontImage || '')).toLowerCase();
     const isVuCumpra = /vu\s*cump/i.test(charName);
-    const baseDamage = isVuCumpra ? 200 : 100;
+    const basePerStar = isVuCumpra ? 200 : 100;
+    const attackerStars = this.extractStarsFromNote(attackerChar?.text || '') || attackerChar?.stars || 1;
+    const baseDamage = basePerStar * attackerStars;
 
     const negotiationId = `contrattazione-${Date.now()}`;
     game.pendingContrattazione = { negotiationId, attacker, defender, targetCardId, mosseCardId, baseDamage, offersLeft: 3 };
 
-    console.log(`🤝 CONTRATTAZIONE started: ${attacker} vs ${defender}, baseDamage=${baseDamage}${isVuCumpra ? ' (VU CUMPRA x2!)' : ''}`);
+    console.log(`🤝 CONTRATTAZIONE started: ${attacker} vs ${defender}, stars=${attackerStars}, basePerStar=${basePerStar}, baseDamage=${baseDamage}${isVuCumpra ? ' (VU CUMPRA x2!)' : ''}`);
     return { success: true, negotiationId, baseDamage };
   }
 
