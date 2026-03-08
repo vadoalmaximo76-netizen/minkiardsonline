@@ -5365,6 +5365,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
+        // CONTRATTAZIONE CLANDESTINA: Interactive negotiation — intercept before normal attack flow
+        if (mosseEffect === 'contrattazione_clandestina') {
+          const contrattazione = gameManager.startContrattazione(gameId, attackerName, targetOwner, targetCardId, mosseCardId);
+          if (contrattazione) {
+            // Move MOSSE card to graveyard so the card is visible
+            const gsForContrattazione = gameManager.getGameState(gameId);
+            if (gsForContrattazione) {
+              const mosseIdx = gsForContrattazione.players[attackerName]?.hand?.findIndex((c: any) => c.id === mosseCardId);
+              if (mosseIdx !== undefined && mosseIdx >= 0) {
+                const [mc] = gsForContrattazione.players[attackerName].hand.splice(mosseIdx, 1);
+                mc.isFaceUp = true;
+                mc.owner = attackerName;
+                gsForContrattazione.field.push(mc);
+              }
+            }
+            io.to(gameId).emit('contrattazione:start', {
+              negotiationId: contrattazione.negotiationId,
+              attacker: attackerName,
+              defender: targetOwner,
+              targetCardId,
+              mosseCardId,
+              baseDamage: contrattazione.baseDamage,
+              offersLeft: 3
+            });
+            const updatedGs = gameManager.getSanitizedGameState(gameId);
+            io.to(gameId).emit('game-state-update', updatedGs);
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-contrattazione-start`,
+              playerName: 'Sistema',
+              message: `🤝 CONTRATTAZIONE CLANDESTINA! ${attackerName} propone un accordo a ${targetOwner}. Danno base: ${contrattazione.baseDamage} PTI. Sono disponibili 3 offerte!`,
+              timestamp: Date.now()
+            });
+          }
+          return;
+        }
+
         const attackResult = await gameManager.executeMossaAttack(
           gameId, 
           attackerName, 
@@ -5842,6 +5878,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
     
+    // CONTRATTAZIONE CLANDESTINA: Attacker submits an offer
+    socket.on('contrattazione:offer', ({ negotiationId, offerDamage }: { negotiationId: string; offerDamage: number }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const pending = gameManager.getContrattazione(gameId);
+      if (!pending || pending.negotiationId !== negotiationId) return;
+      if (pending.offersLeft <= 0) return;
+
+      pending.lastOffer = offerDamage;
+      console.log(`🤝 CONTRATTAZIONE offer: ${pending.attacker} offers ${offerDamage} PTI (${pending.offersLeft} offers left)`);
+
+      io.to(gameId).emit('contrattazione:offer-received', {
+        negotiationId,
+        attacker: pending.attacker,
+        defender: pending.defender,
+        offerDamage,
+        offersLeft: pending.offersLeft,
+        baseDamage: pending.baseDamage
+      });
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-contrattazione-offer`,
+        playerName: 'Sistema',
+        message: `💸 ${pending.attacker} offre ${offerDamage} PTI di danno. Offerte rimanenti: ${pending.offersLeft}. ${pending.defender}, accetti?`,
+        timestamp: Date.now()
+      });
+    });
+
+    // CONTRATTAZIONE CLANDESTINA: Defender responds to an offer
+    socket.on('contrattazione:respond', async ({ negotiationId, accept }: { negotiationId: string; accept: boolean }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const pending = gameManager.getContrattazione(gameId);
+      if (!pending || pending.negotiationId !== negotiationId) return;
+
+      if (accept && pending.lastOffer !== undefined) {
+        // Accepted: apply the offered damage
+        const finalDamage = pending.lastOffer;
+        const { attacker, defender, targetCardId, mosseCardId } = pending;
+        gameManager.clearContrattazione(gameId);
+        console.log(`🤝✅ CONTRATTAZIONE accepted: ${finalDamage} PTI agreed`);
+        io.to(gameId).emit('contrattazione:resolved', { negotiationId, accepted: true, finalDamage, attacker, defender });
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-contrattazione-accepted`,
+          playerName: 'Sistema',
+          message: `✅ ACCORDO RAGGIUNTO! ${defender} accetta: ${finalDamage} PTI di danno.`,
+          timestamp: Date.now()
+        });
+        await gameManager.processMosseDamage(gameId, attacker, targetCardId, finalDamage, mosseCardId, io, false, false, false, false, 0);
+        const updatedGs = gameManager.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', updatedGs);
+      } else {
+        // Rejected
+        pending.offersLeft -= 1;
+        console.log(`🤝❌ CONTRATTAZIONE rejected: ${pending.offersLeft} offers remaining`);
+
+        if (pending.offersLeft <= 0) {
+          // All offers rejected: dice roll determines discount
+          const diceResult = Math.floor(Math.random() * 6) + 1;
+          const discountPct = diceResult * 10;
+          const finalDamage = Math.round(pending.baseDamage * (1 - discountPct / 100));
+          const { attacker, defender, targetCardId, mosseCardId, baseDamage } = pending;
+          gameManager.clearContrattazione(gameId);
+          console.log(`🎲 CONTRATTAZIONE no deal: dice=${diceResult}, discount=${discountPct}%, finalDamage=${finalDamage}`);
+          io.to(gameId).emit('contrattazione:resolved', { negotiationId, accepted: false, finalDamage, diceResult, discountPct, attacker, defender });
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-contrattazione-nodeal`,
+            playerName: 'Sistema',
+            message: `🎲 NESSUN ACCORDO! Il dado segna ${diceResult} (${discountPct}% di sconto). Danno finale: ${baseDamage} - ${discountPct}% = ${finalDamage} PTI!`,
+            timestamp: Date.now()
+          });
+          await gameManager.processMosseDamage(gameId, attacker, targetCardId, finalDamage, mosseCardId, io, false, false, false, false, 0);
+          const updatedGs = gameManager.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', updatedGs);
+        } else {
+          // More offers available: tell the attacker to try again
+          io.to(gameId).emit('contrattazione:rejected', {
+            negotiationId,
+            offersLeft: pending.offersLeft,
+            attacker: pending.attacker,
+            defender: pending.defender,
+            baseDamage: pending.baseDamage
+          });
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-contrattazione-rejected`,
+            playerName: 'Sistema',
+            message: `❌ ${pending.defender} rifiuta l'offerta! Offerte rimanenti: ${pending.offersLeft}. ${pending.attacker}, fai una nuova proposta.`,
+            timestamp: Date.now()
+          });
+        }
+      }
+    });
+
     // Manual return of MOSSE cards to deck bottom
     socket.on('return-mosse-to-deck', ({ cardId, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
@@ -8456,6 +8584,7 @@ mosseDamageEffect (string | null) — codici speciali disponibili:
   - "remove_1_star": rimuove 1 stella al bersaglio
   - "field_harvest_30": TUTTI i personaggi in campo (eccetto il bersaglio) perdono 30 PTI ciascuno; il danno al bersaglio = 30 × (numero personaggi non-bersaglio) × (somma stelle non-bersaglio)
   - "flat_5_chain_mosse": toglie FLAT 5 PTI a tutti i personaggi in campo tranne il personaggio dell'attaccante; poi ogni altro giocatore gioca automaticamente la sua prima MOSSE in mano contro tutti i suoi avversari
+  - "contrattazione_clandestina": danno base fisso 100 PTI (200 per Vu Cumprà); l'attaccante fa fino a 3 offerte di danno ridotto al difensore; se nessuna offerta viene accettata il dado decide lo sconto finale (1 faccia = 10%)
   - null: nessun effetto speciale, usa solo mosseDamageValue
 
 mosseTargetingMode (string | null) — chi viene colpito in automatico:

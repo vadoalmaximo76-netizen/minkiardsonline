@@ -24,6 +24,7 @@ import { TimedEffectBanner } from "./TimedEffectBanner";
 import { SuperDice } from "./SuperDice";
 import { TransferRequestDialog } from "./TransferRequestDialog";
 import { DefenseDialog } from "./DefenseDialog";
+import { ContrattazioneDialog } from "./ContrattazioneDialog";
 import { AttackInterceptorPanel } from "./AttackInterceptorPanel";
 import { ClashBattle } from "./ClashBattle";
 import { CPUDamageDialog } from "./CPUDamageDialog";
@@ -4570,6 +4571,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
         {/* Defense System Dialog */}
         <DefenseDialog />
+        <ContrattazioneDialog />
         <AttackInterceptorPanel />
         
         {/* Clash Battle - Equal damage tap battle */}

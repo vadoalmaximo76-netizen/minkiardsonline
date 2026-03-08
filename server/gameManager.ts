@@ -117,7 +117,7 @@ interface Card {
   appliedSkinUrl?: string | null; // Custom skin URL applied to this card
   // MOSSE damage auto-fill system
   mosseDamageValue?: number | null; // Numeric PTI damage (multiplied by attacker's stars)
-  mosseDamageEffect?: string | null; // Special effect: 'death', 'halve_pti', 'zero_stars', 'set_5_pti', 'remove_1_star'
+  mosseDamageEffect?: string | null; // Special effect: 'death', 'halve_pti', 'zero_stars', 'set_5_pti', 'remove_1_star', 'contrattazione_clandestina'
   mosseCharacterOverrides?: any[] | null; // Character-specific damage/effects [{characterId, characterName, usedBy: {damageValue, effect}, usedOn: {damageValue, effect}}]
   mosseRestrictedFrom?: string[] | null; // Array of character names that cannot use this move
   mosseRestrictedAgainst?: string[] | null; // Array of character names that this move cannot be used on
@@ -170,6 +170,17 @@ interface PendingDefense {
   isCounterAttackDefense?: boolean; // Whether this defense was created from a counter-attack (BONUS only, no re-counter)
   createdAt: Date;
   timeoutId?: NodeJS.Timeout;
+}
+
+interface PendingContrattazione {
+  negotiationId: string;
+  attacker: string;
+  defender: string;
+  targetCardId: string;
+  mosseCardId: string;
+  baseDamage: number;
+  offersLeft: number;
+  lastOffer?: number;
 }
 
 interface VoodooLink {
@@ -296,6 +307,7 @@ interface GameState {
   pointsAwarded: boolean; // Prevent duplicate Rankiard points awards
   pendingTransferRequests: TransferRequest[]; // Pending card transfer requests between human players
   pendingDefense?: PendingDefense; // Current pending defense request (only one at a time)
+  pendingContrattazione?: PendingContrattazione; // Active negotiation for contrattazione_clandestina
   voodooLinks: VoodooLink[]; // BAMBOLA VOODOO: Track linked characters
   activeDuel?: DuelState; // Current active duel state
   prSpentThisGame: Map<string, number>; // Track Rankiard points spent by each player during this game (resets each game)
@@ -20202,6 +20214,35 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     
     game.pendingDefense = undefined;
     console.log(`Defense request cleared for game ${gameId}`);
+  }
+
+  // ============ CONTRATTAZIONE CLANDESTINA ============
+  startContrattazione(gameId: string, attacker: string, defender: string, targetCardId: string, mosseCardId: string): { success: boolean; negotiationId: string; baseDamage: number } | null {
+    const game = this.games.get(gameId);
+    if (!game) return null;
+
+    const playerChars = game.field.filter((c: Card) =>
+      c.owner === attacker && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+    );
+    const attackerChar = playerChars[0];
+    const charName = (attackerChar?.name || this.getCardNameFromUrl(attackerChar?.frontImage || '')).toLowerCase();
+    const isVuCumpra = /vu\s*cump/i.test(charName);
+    const baseDamage = isVuCumpra ? 200 : 100;
+
+    const negotiationId = `contrattazione-${Date.now()}`;
+    game.pendingContrattazione = { negotiationId, attacker, defender, targetCardId, mosseCardId, baseDamage, offersLeft: 3 };
+
+    console.log(`🤝 CONTRATTAZIONE started: ${attacker} vs ${defender}, baseDamage=${baseDamage}${isVuCumpra ? ' (VU CUMPRA x2!)' : ''}`);
+    return { success: true, negotiationId, baseDamage };
+  }
+
+  getContrattazione(gameId: string): PendingContrattazione | undefined {
+    return this.games.get(gameId)?.pendingContrattazione;
+  }
+
+  clearContrattazione(gameId: string): void {
+    const game = this.games.get(gameId);
+    if (game) game.pendingContrattazione = undefined;
   }
 
   // Helper method to emit defense:request when Socket.IO is available
