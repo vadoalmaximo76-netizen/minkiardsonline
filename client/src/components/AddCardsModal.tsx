@@ -890,6 +890,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   const [availableCharacters, setAvailableCharacters] = useState<{id: string, name: string, imageUrl: string}[]>([]);
   const [allCharacterCards, setAllCharacterCards] = useState<{cardId: string, name: string, deckType: string}[]>([]);
   
+  const [isApplyingWizard, setIsApplyingWizard] = useState(false);
+
   // Effect Wizard state
   const [showEffectWizard, setShowEffectWizard] = useState(false);
   const [effectWizardTarget, setEffectWizardTarget] = useState<'new' | 'permanent' | 'existing'>('new');
@@ -987,22 +989,91 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
     setSavedEffects(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Apply all saved effects (combined) to the card
-  const applyEffectFromWizard = () => {
+  // Apply all saved effects (combined) to the card, and auto-configure structured MOSSE fields
+  const applyEffectFromWizard = async () => {
     const currentEffect = generateEffectDescription(effectWizard);
     const allEffects = currentEffect.trim() 
       ? [...savedEffects, currentEffect]
       : savedEffects;
     
     const combinedEffect = allEffects.join(' | ');
+
+    // Determine if the target card is a MOSSE so we can auto-configure structured fields
+    let isMosseCard = false;
+    if (effectWizardTarget === 'existing' && editingExistingCard) {
+      const card = existingCards.find(c => c.id === editingExistingCard);
+      isMosseCard = card?.deckType === 'mosse';
+    } else if (effectWizardTarget === 'new' && effectWizardCardIndex !== null) {
+      isMosseCard = (cards[effectWizardCardIndex] as any)?.deckType === 'mosse';
+    }
+
+    // Parse structured fields via AI for MOSSE cards
+    let structuredFields: {
+      mosseDamageValue: number | null;
+      mosseDamageEffect: string | null;
+      mosseTargetingMode: string | null;
+      mosseTargetCount: number | null;
+      mosseCanCounter: boolean;
+      mosseCanBeCountered: boolean;
+    } | null = null;
+
+    if (isMosseCard && combinedEffect.trim()) {
+      setIsApplyingWizard(true);
+      try {
+        const response = await fetch('/api/parse-mosse-structured-fields', {
+          method: 'POST',
+          headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ effectText: combinedEffect, deckType: 'mosse' })
+        });
+        const data = await response.json();
+        if (data.success && data.fields) {
+          structuredFields = data.fields;
+          console.log('🧠 Structured MOSSE fields from AI:', structuredFields, 'Reason:', data.reasoning);
+        }
+      } catch (err) {
+        console.error('Failed to parse MOSSE structured fields:', err);
+      } finally {
+        setIsApplyingWizard(false);
+      }
+    }
     
     if (effectWizardTarget === 'new' && effectWizardCardIndex !== null) {
       updateCardData(effectWizardCardIndex, 'effect', combinedEffect);
+      if (structuredFields) {
+        if (structuredFields.mosseDamageValue !== null) updateCardData(effectWizardCardIndex, 'mosseDamageValue', String(structuredFields.mosseDamageValue));
+        if (structuredFields.mosseDamageEffect) updateCardData(effectWizardCardIndex, 'mosseDamageEffect', structuredFields.mosseDamageEffect);
+        if (structuredFields.mosseTargetingMode) updateCardData(effectWizardCardIndex, 'mosseTargetingMode', structuredFields.mosseTargetingMode);
+        if (structuredFields.mosseTargetCount !== null) updateCardData(effectWizardCardIndex, 'mosseTargetCount', String(structuredFields.mosseTargetCount));
+        updateCardData(effectWizardCardIndex, 'mosseCanCounter', structuredFields.mosseCanCounter);
+        updateCardData(effectWizardCardIndex, 'mosseCanBeCountered', structuredFields.mosseCanBeCountered);
+      }
     } else if (effectWizardTarget === 'permanent') {
-      setEditForm(prev => ({ ...prev, effect: combinedEffect }));
+      setEditForm(prev => ({
+        ...prev,
+        effect: combinedEffect,
+        ...(structuredFields ? {
+          mosseDamageValue: structuredFields.mosseDamageValue !== null ? String(structuredFields.mosseDamageValue) : prev.mosseDamageValue,
+          mosseDamageEffect: structuredFields.mosseDamageEffect || prev.mosseDamageEffect,
+          mosseTargetingMode: structuredFields.mosseTargetingMode || prev.mosseTargetingMode,
+          mosseTargetCount: structuredFields.mosseTargetCount !== null ? String(structuredFields.mosseTargetCount) : prev.mosseTargetCount,
+          mosseCanCounter: structuredFields.mosseCanCounter,
+          mosseCanBeCountered: structuredFields.mosseCanBeCountered
+        } : {})
+      }));
     } else if (effectWizardTarget === 'existing') {
       setExistingEditForm(prev => {
-        const updatedForm = { ...prev, effect: combinedEffect };
+        const updatedForm = {
+          ...prev,
+          effect: combinedEffect,
+          ...(structuredFields ? {
+            mosseDamageValue: structuredFields.mosseDamageValue !== null ? String(structuredFields.mosseDamageValue) : prev.mosseDamageValue,
+            mosseDamageEffect: structuredFields.mosseDamageEffect || prev.mosseDamageEffect,
+            mosseTargetingMode: structuredFields.mosseTargetingMode || prev.mosseTargetingMode,
+            mosseTargetCount: structuredFields.mosseTargetCount !== null ? String(structuredFields.mosseTargetCount) : prev.mosseTargetCount,
+            mosseCanCounter: structuredFields.mosseCanCounter,
+            mosseCanBeCountered: structuredFields.mosseCanBeCountered
+          } : {})
+        };
         
         if (editingExistingCard) {
           const currentCard = existingCards.find(c => c.id === editingExistingCard);
@@ -4429,10 +4500,11 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                   </Button>
                   <Button
                     onClick={applyEffectFromWizard}
-                    className="bg-green-600 hover:bg-green-700 text-white"
+                    disabled={isApplyingWizard}
+                    className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-60"
                   >
                     <Sparkles size={16} className="mr-1" />
-                    {savedEffects.length > 0 ? `Applica ${savedEffects.length + 1} Effetti` : 'Applica Effetto'}
+                    {isApplyingWizard ? 'Analisi in corso...' : (savedEffects.length > 0 ? `Applica ${savedEffects.length + 1} Effetti` : 'Applica Effetto')}
                   </Button>
                 </div>
               )}

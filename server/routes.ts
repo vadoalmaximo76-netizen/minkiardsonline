@@ -8432,6 +8432,112 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
     }
   });
 
+  // Parse MOSSE effect text and return structured game fields
+  app.post('/api/parse-mosse-structured-fields', authMiddleware, async (req, res) => {
+    try {
+      const { effectText, deckType } = req.body;
+      if (!effectText || typeof effectText !== 'string') {
+        return res.status(400).json({ success: false, error: 'effectText required' });
+      }
+
+      const systemPrompt = `Sei un sistema che converte descrizioni testuali di carte MOSSE (attacchi) del gioco Minkiards nei campi strutturati del motore di gioco.
+
+CAMPI DISPONIBILI:
+
+mosseDamageValue (number | null):
+  - Valore base di danno PTI, moltiplicato per le stelle dell'attaccante a runtime
+  - Imposta null se il danno è calcolato dinamicamente o non esiste
+
+mosseDamageEffect (string | null) — codici speciali disponibili:
+  - "death": morte istantanea del bersaglio, ignora i PTI
+  - "halve_pti": dimezza i PTI del bersaglio
+  - "zero_stars": azzera le stelle del bersaglio
+  - "set_5_pti": imposta i PTI del bersaglio a 5
+  - "remove_1_star": rimuove 1 stella al bersaglio
+  - "field_harvest_30": TUTTI i personaggi in campo (eccetto il bersaglio) perdono 30 PTI ciascuno; il danno al bersaglio = 30 × (numero personaggi non-bersaglio) × (somma stelle non-bersaglio)
+  - "flat_5_chain_mosse": toglie FLAT 5 PTI a tutti i personaggi in campo tranne il personaggio dell'attaccante; poi ogni altro giocatore gioca automaticamente la sua prima MOSSE in mano contro tutti i suoi avversari
+  - null: nessun effetto speciale, usa solo mosseDamageValue
+
+mosseTargetingMode (string | null) — chi viene colpito in automatico:
+  - null: il giocatore sceglie manualmente il bersaglio
+  - "single": un nemico casuale
+  - "highest_pti": il nemico con più PTI
+  - "all_enemies": tutti i personaggi nemici in campo
+  - "all_characters": tutti i personaggi in campo (incluso il proprio)
+  - "all_except_attacker": tutti i personaggi in campo tranne il personaggio attivo dell'attaccante
+  - "specific_count": un numero specifico di bersagli (richede mosseTargetCount)
+
+mosseTargetCount (number | null):
+  - Numero di bersagli quando mosseTargetingMode è "specific_count", altrimenti null
+
+mosseCanCounter (boolean):
+  - true se questa MOSSE può essere usata per contrattaccare (respingere) un attacco nemico
+  - false se NON può essere usata come contrattacco
+
+mosseCanBeCountered (boolean):
+  - true se questa MOSSE può essere respinta/contrata dall'avversario
+  - false se NON può essere contrata
+
+REGOLE:
+1. Analizza attentamente il testo e mappa i concetti ai campi
+2. Se il testo descrive "morte istantanea" → mosseDamageEffect = "death"
+3. Se il testo descrive "dimezza PTI" → mosseDamageEffect = "halve_pti"
+4. Se il testo menziona un numero fisso di PTI come danno base moltiplicato per le stelle → mosseDamageValue = quel numero
+5. Se il testo dice "a tutti i nemici" o "tutti gli avversari" → mosseTargetingMode = "all_enemies"
+6. Se il testo dice "a tutti" incluso il proprio personaggio → mosseTargetingMode = "all_characters"
+7. Se dice "a tutti tranne il tuo personaggio" → mosseTargetingMode = "all_except_attacker"
+8. Se nessun mosseTargetingMode standard è appropriato → null (selezione manuale)
+9. Se l'effetto è troppo complesso per i codici esistenti, usa il codice più vicino e imposta mosseDamageValue se applicabile
+10. mosseCanCounter = false se l'effetto è molto potente/di campo; true per mosse di attacco semplici
+11. mosseCanBeCountered = false per effetti di campo o molto potenti; true per attacchi semplici
+
+Rispondi SOLO con JSON, nessun testo fuori dal JSON:
+{
+  "mosseDamageValue": number | null,
+  "mosseDamageEffect": string | null,
+  "mosseTargetingMode": string | null,
+  "mosseTargetCount": number | null,
+  "mosseCanCounter": boolean,
+  "mosseCanBeCountered": boolean,
+  "reasoning": "breve spiegazione delle scelte fatte"
+}`;
+
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Analizza questo testo di effetto MOSSE e restituisci i campi strutturati:\n\n${effectText}` }
+        ],
+        response_format: { type: 'json_object' },
+        max_tokens: 500
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        return res.json({ success: true, fields: { mosseDamageValue: null, mosseDamageEffect: null, mosseTargetingMode: null, mosseTargetCount: null, mosseCanCounter: true, mosseCanBeCountered: true } });
+      }
+
+      const parsed = JSON.parse(content);
+      console.log(`🧠 MOSSE structured fields parsed: ${JSON.stringify(parsed)}`);
+
+      res.json({
+        success: true,
+        fields: {
+          mosseDamageValue: parsed.mosseDamageValue ?? null,
+          mosseDamageEffect: parsed.mosseDamageEffect ?? null,
+          mosseTargetingMode: parsed.mosseTargetingMode ?? null,
+          mosseTargetCount: parsed.mosseTargetCount ?? null,
+          mosseCanCounter: parsed.mosseCanCounter ?? true,
+          mosseCanBeCountered: parsed.mosseCanBeCountered ?? true
+        },
+        reasoning: parsed.reasoning || ''
+      });
+    } catch (error) {
+      console.error('Error parsing MOSSE structured fields:', error);
+      res.status(500).json({ success: false, error: 'Failed to parse structured fields' });
+    }
+  });
+
   // Get Rankiard leaderboard - public endpoint
   app.get('/api/leaderboard', async (req, res) => {
     try {
