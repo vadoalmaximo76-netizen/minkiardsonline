@@ -153,6 +153,14 @@ function App() {
             console.log('Already in this game, skipping rejoin');
             return;
           }
+
+          // If we're already in the play view with any active game, the set-user-data auto-rejoin
+          // already restored the socket to the room — emitting join-game would interfere
+          const appSection = (window as any).__minkAppSection;
+          if (appSection === 'play' && currentGameId) {
+            console.log('Already in play view — skipping active-game-found join-game, auto-rejoin handled by set-user-data');
+            return;
+          }
           
           // Only rejoin if we don't have an active game
           if (data.playerName && data.gameId) {
@@ -177,14 +185,9 @@ function App() {
           alert(message || 'Questa partita è già iniziata. Usa la lista delle stanze attive per richiedere di unirti.');
         });
         
-        // Register user data on connection to ensure invitations work
+        // socket.ts 'connect' handler already sends set-user-data — no need to duplicate here
         socket.on('connect', () => {
           console.log('Socket connected');
-          const storedToken = localStorage.getItem('authToken');
-          if (storedToken) {
-            console.log('Registering user for invitations');
-            socket.emit('set-user-data', { authToken: storedToken });
-          }
         });
         
         // Now connect after all listeners are set up
@@ -301,6 +304,10 @@ function App() {
       socket.disconnect();
     };
   }, [setGameId, hasActiveSession, restoreSession, setPlayerName, generateSessionId]);
+
+  useEffect(() => {
+    (window as any).__minkAppSection = currentSection;
+  }, [currentSection]);
 
   const [pendingAvatar, setPendingAvatar] = useState<string | null>(null);
 

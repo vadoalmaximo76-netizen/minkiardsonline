@@ -1299,7 +1299,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     console.log(`🔄 Restoring ${player.hand.length} cards to ${playerName}'s hand after auto-rejoin`);
                     socket.emit('restore-hand', { playerName, hand: player.hand });
                   }
-                  
+
+                  // Re-emit next-turn if it was this player's turn when they disconnected
+                  if (game.isPlaying && game.turnOrder && game.turnOrder.length > 0) {
+                    const activeTurnPlayer = game.turnOrder[game.currentTurnIndex ?? 0];
+                    if (activeTurnPlayer === playerName) {
+                      console.log(`🔄 Re-emitting next-turn to ${playerName} — it was their turn when they disconnected`);
+                      socket.emit('next-turn', { nextPlayer: playerName });
+                    }
+                  }
+
                   socket.to(activeGame.gameId).emit('player-reconnected', { playerName });
                 }
               }
@@ -1541,6 +1550,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (player.hand && player.hand.length > 0) {
           console.log(`Restoring ${player.hand.length} cards to ${playerName}'s hand`);
           socket.emit('restore-hand', { playerName, hand: player.hand });
+        }
+
+        // Re-emit next-turn if it was this player's turn when they disconnected
+        const rejoinGame = gameManager.getGameState(gameId);
+        if (rejoinGame && rejoinGame.isPlaying && rejoinGame.turnOrder && rejoinGame.turnOrder.length > 0) {
+          const activeTurnPlayer = rejoinGame.turnOrder[rejoinGame.currentTurnIndex ?? 0];
+          if (activeTurnPlayer === playerName) {
+            console.log(`🔄 Re-emitting next-turn to ${playerName} (rejoin-game) — it was their turn`);
+            socket.emit('next-turn', { nextPlayer: playerName });
+          }
         }
         
         // Notify other players about the reconnection
