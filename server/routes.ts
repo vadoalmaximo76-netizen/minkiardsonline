@@ -11404,7 +11404,7 @@ Genera TUTTE le domande necessarie per capire perfettamente l'effetto. Non assum
 
       const modifications = jsonStorage.cardModifications.getAll();
       allCards.forEach(card => {
-        const mod = modifications.find((m: any) => m.cardId === card.id);
+        const mod = modifications.find((m: any) => m.originalCardId === card.id);
         if (mod) {
           Object.assign(card, mod);
         }

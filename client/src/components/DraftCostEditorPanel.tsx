@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { X, Save, Search } from 'lucide-react';
 
 interface CardEntry {
@@ -6,6 +6,7 @@ interface CardEntry {
   type: string;
   name: string;
   draftCost: number;
+  frontImage?: string | null;
   deckType?: string;
   imageUrl?: string | null;
   pti?: number | null;
@@ -60,6 +61,7 @@ export function DraftCostEditorPanel({ onClose }: DraftCostEditorPanelProps) {
   const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [previewCard, setPreviewCard] = useState<CardEntry | null>(null);
   const authToken = localStorage.getItem('authToken');
 
   useEffect(() => {
@@ -176,6 +178,8 @@ export function DraftCostEditorPanel({ onClose }: DraftCostEditorPanelProps) {
     </button>
   );
 
+  const imgSrc = previewCard?.imageUrl || previewCard?.frontImage || null;
+
   return (
     <div className="fixed inset-0 bg-black/85 z-[80] flex items-center justify-center p-4">
       <div className="bg-gray-900 rounded-2xl w-full max-w-3xl max-h-[92vh] flex flex-col border border-white/10 shadow-2xl">
@@ -257,8 +261,14 @@ export function DraftCostEditorPanel({ onClose }: DraftCostEditorPanelProps) {
                           {TYPE_LABEL[card.type] ?? card.type.slice(0, 3).toUpperCase()}
                         </span>
                       </td>
-                      <td className="py-1.5 pr-3 text-white text-xs max-w-[280px] truncate" title={card.name}>
-                        {card.name || card.id}
+                      <td className="py-1.5 pr-3 max-w-[280px]">
+                        <button
+                          onClick={() => setPreviewCard(card)}
+                          className="text-white text-xs truncate max-w-full text-left hover:text-indigo-300 underline-offset-2 hover:underline transition-colors cursor-pointer"
+                          title="Clicca per vedere l'immagine"
+                        >
+                          {card.name || card.id}
+                        </button>
                       </td>
                       <td className="py-1.5 text-right">
                         <input
@@ -285,6 +295,48 @@ export function DraftCostEditorPanel({ onClose }: DraftCostEditorPanelProps) {
           {changedCount > 0 && <span className="text-indigo-400 ml-2">· {changedCount} modificate</span>}
         </div>
       </div>
+
+      {previewCard && (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center"
+          onClick={() => setPreviewCard(null)}
+        >
+          <div
+            className="relative bg-gray-900 rounded-2xl p-4 border border-white/20 shadow-2xl max-w-xs w-full mx-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setPreviewCard(null)}
+              className="absolute top-3 right-3 text-white/40 hover:text-white transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <div className="text-white/60 text-xs mb-2 pr-6 truncate">{previewCard.name || previewCard.id}</div>
+            {imgSrc ? (
+              <img
+                src={imgSrc}
+                alt={previewCard.name}
+                className="w-full rounded-lg object-contain max-h-80"
+                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            ) : (
+              <div className="w-full h-40 bg-white/5 rounded-lg flex items-center justify-center text-white/30 text-sm">
+                Immagine non disponibile
+              </div>
+            )}
+            <div className="mt-2 flex items-center justify-between">
+              <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${TYPE_COLOR[previewCard.type] ?? 'bg-gray-700 text-white'}`}>
+                {TYPE_LABEL[previewCard.type] ?? previewCard.type}
+              </span>
+              <span className="text-white/50 text-xs">
+                Costo Draft: <span className="text-white font-bold">
+                  {draftEdits[previewCard.id] !== undefined ? draftEdits[previewCard.id] : (previewCard.draftCost ?? 0)}
+                </span>
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
