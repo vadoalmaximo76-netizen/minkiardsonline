@@ -1477,6 +1477,12 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                       // All characters including own
                       autoTargets = allCharacters;
                       break;
+                    case 'all_except_attacker': {
+                      // All field characters except the attacker's own character
+                      const ownChar = allCharacters.find((c: any) => c.owner === playerName);
+                      autoTargets = allCharacters.filter((c: any) => c.id !== ownChar?.id);
+                      break;
+                    }
                     case 'specific_count':
                       // Specific number of enemies (even if less available)
                       const count = mosseCard?.mosseTargetCount || 1;

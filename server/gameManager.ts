@@ -22776,6 +22776,180 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           effectMessage = '⭐ -1 STELLA!';
           console.log(`⭐ SPECIAL EFFECT: Remove 1 star from ${targetCard.frontImage}`);
           break;
+
+        case 'field_harvest_30': {
+          // mosse-5: everyone except the chosen target loses 30 flat PTI,
+          // then the target takes 30 × (count of non-target chars) × (sum of their stars)
+          const nonTargetChars = game?.field?.filter((c: Card) =>
+            c.id !== targetCardId && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          ) || [];
+
+          let totalStarsOfNonTargets = 0;
+          for (const ch of nonTargetChars) {
+            const chPTI = this.extractPTIFromNote(ch.text || '');
+            const chStars = this.extractStarsFromNote(ch.text || '');
+            totalStarsOfNonTargets += chStars;
+            const newChPTI = Math.max(0, chPTI - 30);
+            ch.pti = newChPTI;
+            this.updateCardTextWithPTI(ch);
+            console.log(`⚡ FIELD_HARVEST_30: ${ch.name || ch.id} perde 30 PTI: ${chPTI} → ${newChPTI}`);
+
+            if (newChPTI <= 0) {
+              const harvestResult = this.moveToGraveyard(gameId, ch.id, ch.owner, attackerName);
+              if (harvestResult.eliminationCheck) {
+                this.processEliminationAfterDeath(gameId, ch.owner, io, 'FIELD_HARVEST_30');
+              }
+            }
+          }
+
+          const harvested30Damage = 30 * nonTargetChars.length * totalStarsOfNonTargets;
+          effectiveDamage = harvested30Damage;
+          effectMessage = `⚡ EFFETTO CAMPO: ${nonTargetChars.length} personaggi perdono 30 PTI ciascuno. Danno al bersaglio: 30 × ${nonTargetChars.length} × ${totalStarsOfNonTargets} stelle = ${harvested30Damage} PTI!`;
+          console.log(`⚡ FIELD_HARVEST_30: target ${targetCardId} riceve ${harvested30Damage} PTI di danno (${nonTargetChars.length} non-target chars × ${totalStarsOfNonTargets} stelle totali)`);
+
+          // Broadcast updated state for the side-damage to other characters
+          const harvestMidState = this.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', harvestMidState);
+          break;
+        }
+
+        case 'flat_5_chain_mosse': {
+          // mosse-75: apply FLAT 5 PTI damage to all field chars except attacker's own character;
+          // then each other player automatically plays their first hand MOSSE targeting all enemies.
+          // Guard: side effects (splash + chain) only fire once per MOSSE card activation
+          const chainGuardKey = `flat5chain_${mosseCardId}`;
+          const chainAlreadyFired = (game as any)[chainGuardKey] === true;
+
+          const attackerChar75 = game?.field?.find((c: Card) =>
+            c.owner === attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          );
+
+          // Apply flat 5 PTI to everyone except the attacker's character and the direct target
+          // (the direct target gets the flat 5 via effectiveDamage below)
+          // Only apply splash on first invocation (guard)
+          const otherChars75 = chainAlreadyFired ? [] : (game?.field?.filter((c: Card) =>
+            c.id !== targetCardId && c.id !== attackerChar75?.id &&
+            (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          ) || []);
+
+          for (const ch of otherChars75) {
+            const chPTI = this.extractPTIFromNote(ch.text || '');
+            const newChPTI = Math.max(0, chPTI - 5);
+            ch.pti = newChPTI;
+            this.updateCardTextWithPTI(ch);
+            console.log(`⚡ FLAT_5_CHAIN: ${ch.name || ch.id} perde 5 PTI flat: ${chPTI} → ${newChPTI}`);
+
+            if (newChPTI <= 0) {
+              const chain5Result = this.moveToGraveyard(gameId, ch.id, ch.owner, attackerName);
+              if (chain5Result.eliminationCheck) {
+                this.processEliminationAfterDeath(gameId, ch.owner, io, 'FLAT_5_CHAIN');
+              }
+            }
+          }
+
+          // The target itself (one enemy char chosen to represent the targeting) also loses 5 flat PTI
+          effectiveDamage = 5;
+          if (!chainAlreadyFired) {
+            effectMessage = `⚡ MOSSA DI CAMPO: tutti i personaggi in campo (escluso il tuo) perdono 5 PTI!`;
+          }
+          console.log(`⚡ FLAT_5_CHAIN: flat 5 PTI applicati a tutti, ora lancio catena auto-MOSSE (alreadyFired=${chainAlreadyFired})`);
+
+          // Set guard so subsequent multi-target calls skip splash + chain
+          (game as any)[chainGuardKey] = true;
+
+          // Broadcast mid-state before chain
+          const chain5MidState = this.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', chain5MidState);
+
+          // Only trigger the chain on the first invocation
+          if (!chainAlreadyFired) {
+          // After damage is applied, trigger chain for each other player
+          // We schedule it slightly after so the current damage resolves first
+          setTimeout(async () => {
+            const gameForChain = this.games.get(gameId);
+            if (!gameForChain) return;
+            const ioChain = (global as any).io;
+            if (!ioChain) return;
+
+            for (const [pName, pData] of Object.entries(gameForChain.players as Record<string, any>)) {
+              if (pName === attackerName) continue;
+
+              // Find first available MOSSE in their hand
+              const handMosse = pData.hand?.find((c: Card) => c.type === 'mosse');
+              if (!handMosse) {
+                ioChain.to(gameId).emit('chat-message', {
+                  id: `${Date.now()}-chain-no-mosse-${pName}`,
+                  playerName: 'Sistema',
+                  message: `⚡ ${pName} non ha MOSSE in mano — turno catena saltato.`,
+                  timestamp: Date.now()
+                });
+                continue;
+              }
+
+              // Move chain mosse to field
+              pData.hand = pData.hand.filter((c: Card) => c.id !== handMosse.id);
+              handMosse.owner = pName;
+              gameForChain.field.push(handMosse);
+
+              const chainMosseName = handMosse.name || this.getCardNameFromUrl(handMosse.frontImage || '') || handMosse.id;
+              const chainMosseDmgBase = handMosse.mosseDamageValue ?? 0;
+
+              // Find this player's active character for star calculation
+              const chainAttackerChar = gameForChain.field.find((c: Card) =>
+                c.owner === pName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+              );
+              const chainStars = chainAttackerChar ? (chainAttackerChar.stars ?? this.extractStarsFromNote(chainAttackerChar.text || '')) : 1;
+              const chainDmg = chainMosseDmgBase > 0 ? chainMosseDmgBase * chainStars : 0;
+
+              // Find all enemy characters of this player
+              const chainEnemies = gameForChain.field.filter((c: Card) =>
+                c.owner !== pName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+              );
+
+              ioChain.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-chain-play-${pName}`,
+                playerName: 'Sistema',
+                message: `⚡ CATENA: ${pName} gioca automaticamente "${chainMosseName}" contro tutti i personaggi avversari (danno: ${chainDmg > 0 ? chainDmg : '?'} PTI)!`,
+                timestamp: Date.now()
+              });
+
+              if (chainDmg > 0) {
+                for (const enemy of chainEnemies) {
+                  const enemyPTI = this.extractPTIFromNote(enemy.text || '');
+                  const newEnemyPTI = Math.max(0, enemyPTI - chainDmg);
+                  enemy.pti = newEnemyPTI;
+                  this.updateCardTextWithPTI(enemy);
+                  console.log(`⚡ CHAIN MOSSE: ${enemy.name || enemy.id} (owner: ${enemy.owner}) perde ${chainDmg} PTI: ${enemyPTI} → ${newEnemyPTI}`);
+
+                  if (newEnemyPTI <= 0) {
+                    const chainDeathResult = this.moveToGraveyard(gameId, enemy.id, enemy.owner, pName);
+                    if (chainDeathResult.eliminationCheck) {
+                      this.processEliminationAfterDeath(gameId, enemy.owner, ioChain, 'CHAIN_MOSSE');
+                    }
+                  }
+                }
+              } else {
+                ioChain.to(gameId).emit('chat-message', {
+                  id: `${Date.now()}-chain-no-dmg-${pName}`,
+                  playerName: 'Sistema',
+                  message: `⚡ "${chainMosseName}" non ha un valore di danno impostato — effetto testo non applicabile automaticamente.`,
+                  timestamp: Date.now()
+                });
+              }
+
+              // Move chain mosse to graveyard after use
+              gameForChain.field = gameForChain.field.filter((c: Card) => c.id !== handMosse.id);
+              if (!gameForChain.graveyard) gameForChain.graveyard = [];
+              gameForChain.graveyard.push(handMosse);
+            }
+
+            const chainFinalState = this.getSanitizedGameState(gameId);
+            ioChain.to(gameId).emit('game-state-update', chainFinalState);
+          }, 1500);
+          } // end if (!chainAlreadyFired)
+
+          break;
+        }
       }
       
       // Broadcast effect message

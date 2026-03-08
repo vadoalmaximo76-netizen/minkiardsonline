@@ -16775,7 +16775,7 @@
     "attackHighAudioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": null,
-    "mosseDamageEffect": null,
+    "mosseDamageEffect": "field_harvest_30",
     "mosseCharacterOverrides": null,
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
@@ -16793,7 +16793,7 @@
     "superAttacco": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-03-08T22:18:17.295Z",
+    "modifiedAt": "2026-03-08T22:32:20.796Z",
     "draftCost": 10
   },
   {
@@ -16950,11 +16950,11 @@
     "attackHighAudioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": 5,
-    "mosseDamageEffect": null,
+    "mosseDamageEffect": "flat_5_chain_mosse",
     "mosseCharacterOverrides": null,
     "mosseRestrictedFrom": null,
     "mosseRestrictedAgainst": null,
-    "mosseTargetingMode": "all_enemies",
+    "mosseTargetingMode": "all_except_attacker",
     "mosseTargetCount": null,
     "mosseCanCounter": false,
     "mosseCanBeCountered": false,
@@ -16968,7 +16968,7 @@
     "superAttacco": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-03-08T22:14:45.764Z",
+    "modifiedAt": "2026-03-08T22:32:20.805Z",
     "draftCost": 10
   },
   {
