@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AddCardsModal } from './AddCardsModal';
 import { AdminTooltipsPanel } from './AdminTooltipsPanel';
 import { OcrReviewPanel } from './OcrReviewPanel';
 import { DraftCostEditorPanel } from './DraftCostEditorPanel';
 import { Button } from './ui/button';
-import { Info, Eye, Coins, Check, X, Zap, ListOrdered } from 'lucide-react';
+import { Info, Eye, Coins, Check, X, Zap, ListOrdered, Menu } from 'lucide-react';
 
 interface CardAdminPanelProps {
   onBack: () => void;
@@ -153,6 +153,8 @@ export function CardAdminPanel({ onBack }: CardAdminPanelProps) {
   const [showTooltipsPanel, setShowTooltipsPanel] = useState(false);
   const [showOcrPanel, setShowOcrPanel] = useState(false);
   const [showCreditsPanel, setShowCreditsPanel] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [showDraftCostEditor, setShowDraftCostEditor] = useState(false);
   const [showAutoCostDialog, setShowAutoCostDialog] = useState(false);
   const [autoCostOverride, setAutoCostOverride] = useState(false);
@@ -160,6 +162,16 @@ export function CardAdminPanel({ onBack }: CardAdminPanelProps) {
   const [autoCostResult, setAutoCostResult] = useState<AutoCostResult | null>(null);
   const [autoCostError, setAutoCostError] = useState<string | null>(null);
   const authToken = localStorage.getItem('authToken');
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    if (showMenu) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMenu]);
 
   const runAutoCost = async () => {
     setAutoCostRunning(true);
@@ -186,42 +198,34 @@ export function CardAdminPanel({ onBack }: CardAdminPanelProps) {
 
   return (
     <>
-      <div className="fixed top-4 right-4 z-[60] flex gap-2 flex-wrap justify-end">
+      <div ref={menuRef} className="fixed top-4 right-4 z-[60]">
         <Button
-          onClick={() => setShowDraftCostEditor(true)}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white"
+          onClick={() => setShowMenu(v => !v)}
+          className="bg-gray-700 hover:bg-gray-600 text-white shadow-lg"
           size="sm"
         >
-          <ListOrdered size={16} className="mr-1" /> Editor Costi Draft
+          <Menu size={16} className="mr-1" /> Strumenti Admin
         </Button>
-        <Button
-          onClick={() => { setShowAutoCostDialog(true); setAutoCostResult(null); setAutoCostError(null); }}
-          className="bg-orange-600 hover:bg-orange-700 text-white"
-          size="sm"
-        >
-          <Zap size={16} className="mr-1" /> Costi Draft Auto
-        </Button>
-        <Button
-          onClick={() => setShowCreditsPanel(true)}
-          className="bg-teal-600 hover:bg-teal-700 text-white"
-          size="sm"
-        >
-          <Coins size={16} className="mr-1" /> Crediti Draft
-        </Button>
-        <Button
-          onClick={() => setShowOcrPanel(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white"
-          size="sm"
-        >
-          <Eye size={16} className="mr-1" /> OCR BONUS
-        </Button>
-        <Button
-          onClick={() => setShowTooltipsPanel(true)}
-          className="bg-purple-600 hover:bg-purple-700 text-white"
-          size="sm"
-        >
-          <Info size={16} className="mr-1" /> Tooltip Contestuali
-        </Button>
+        {showMenu && (
+          <div className="absolute top-full right-0 mt-1 w-52 bg-gray-800 border border-white/15 rounded-xl shadow-2xl overflow-hidden">
+            {[
+              { label: 'Editor Costi Draft', icon: <ListOrdered size={14} />, color: 'text-indigo-300', onClick: () => { setShowDraftCostEditor(true); setShowMenu(false); } },
+              { label: 'Costi Draft Auto', icon: <Zap size={14} />, color: 'text-orange-300', onClick: () => { setShowAutoCostDialog(true); setAutoCostResult(null); setAutoCostError(null); setShowMenu(false); } },
+              { label: 'Crediti Draft', icon: <Coins size={14} />, color: 'text-teal-300', onClick: () => { setShowCreditsPanel(true); setShowMenu(false); } },
+              { label: 'OCR Bonus', icon: <Eye size={14} />, color: 'text-blue-300', onClick: () => { setShowOcrPanel(true); setShowMenu(false); } },
+              { label: 'Tooltip Contestuali', icon: <Info size={14} />, color: 'text-purple-300', onClick: () => { setShowTooltipsPanel(true); setShowMenu(false); } },
+            ].map(item => (
+              <button
+                key={item.label}
+                onClick={item.onClick}
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-white hover:bg-white/10 transition-colors text-left"
+              >
+                <span className={item.color}>{item.icon}</span>
+                {item.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
       <AddCardsModal 
         isOpen={true} 
