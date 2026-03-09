@@ -1347,7 +1347,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('join-game', async ({ gameId, playerName, avatarId, userId, authToken, isDraftMode, turnTimerSeconds }) => {
+    socket.on('join-game', async ({ gameId, playerName, avatarId, userId, authToken, isDraftMode, turnTimerSeconds, tournamentMatchId }) => {
       // SECURITY: For reconnection to existing games, require authenticated identity
       // Use socket.data.userId if already authenticated, or verify authToken if provided
       let validatedUserId = socket.data?.userId;
@@ -1451,7 +1451,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
         gameManager.setTurnTimeoutSeconds(gameId, validSeconds);
         console.log(`⏱️ Turn timer set to ${validSeconds}s for game ${gameId} by ${playerName}`);
       }
-      
+
+      // ── Tournament match room setup ──────────────────────────────────────────
+      if (tournamentMatchId && isDatabaseAvailable()) {
+        try {
+          const matchRows = await db.select().from(tournamentMatches)
+            .where(eq(tournamentMatches.id, tournamentMatchId)).limit(1);
+
+          if (matchRows.length) {
+            const m = matchRows[0];
+            const tournamentRows = await db.select().from(tournaments)
+              .where(eq(tournaments.id, m.tournamentId)).limit(1);
+            const tRow = tournamentRows[0];
+
+            // Collect all real (human) player IDs from the match
+            const pids: (number | null)[] = (m.playerIds as any) || [m.player1Id, m.player2Id];
+            const humanIds = pids.filter((p): p is number => p !== null && p > 0);
+
+            // Fetch usernames for those IDs
+            const userRows = humanIds.length
+              ? await db.select({ id: users.id, username: users.username })
+                  .from(users).where(inArray(users.id, humanIds))
+              : [];
+            const usernames = userRows.map(u => u.username);
+            const idList = userRows.map(u => u.id);
+
+            // Get charactersPerMatch from tournament settings
+            const settings = (tRow?.settings as any) || {};
+            const charsPerMatch = Number(settings.charactersPerMatch) || 0;
+
+            // Setup room (idempotent - safe to call on each player join)
+            const gameObj = gameManager.getGame(gameId);
+            if (gameObj) {
+              gameManager.setupTournamentRoom(gameId, tournamentMatchId, idList, usernames, charsPerMatch || undefined);
+            }
+
+            // If charactersPerMatch is set, distribute to this player after joining
+            if (charsPerMatch > 0) {
+              await gameManager.distributeTournamentCharacters(gameId, playerName, charsPerMatch);
+              console.log(`🃏 Auto-distributed ${charsPerMatch} personaggi to ${playerName} in tournament match ${tournamentMatchId}`);
+            }
+
+            // Broadcast ready state when all expected players have joined
+            gameManager.broadcastTournamentRoomReady(gameId, io);
+          }
+        } catch (tournamentErr) {
+          console.error('Error setting up tournament room:', tournamentErr);
+        }
+      }
+      // ────────────────────────────────────────────────────────────────────────
+
       // Send current game state to the player (now includes permanent cards)
       const gameState = gameManager.getSanitizedGameState(gameId);
       socket.emit('game-state-update', gameState);
@@ -10252,7 +10301,8 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const user = (req as any).user;
       const {
         name, description, type, gameMode, maxParticipants, playersPerMatch,
-        cpuCount, cpuNames, prizePool, entryFee, winnerRewardMultiplier, runnerUpRewardMultiplier
+        cpuCount, cpuNames, prizePool, entryFee, winnerRewardMultiplier, runnerUpRewardMultiplier,
+        settings: tournamentSettings
       } = req.body;
 
       if (!name) return res.status(400).json({ success: false, error: 'Nome torneo obbligatorio' });
@@ -10265,6 +10315,8 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const resolvedPpm = Math.min(Math.max(2, parseInt(playersPerMatch) || 2), 8);
       const resolvedWinnerMult = (isAdmin && winnerRewardMultiplier != null) ? parseInt(winnerRewardMultiplier) : 20;
       const resolvedRunnerUpMult = (isAdmin && runnerUpRewardMultiplier != null) ? parseInt(runnerUpRewardMultiplier) : 5;
+
+      const resolvedSettings = tournamentSettings && typeof tournamentSettings === 'object' ? tournamentSettings : {};
 
       const [newTournament] = await db.insert(tournaments).values({
         name,
@@ -10280,6 +10332,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         runnerUpRewardMultiplier: resolvedRunnerUpMult,
         organizerId: currentUser[0].id,
         currentParticipants: 0,
+        settings: resolvedSettings,
       }).returning();
 
       // Auto-register the organizer

@@ -327,6 +327,10 @@ interface GameState {
   creatorName?: string; // Name of the room creator
   creatorSocketId?: string; // Socket ID of the room creator
   isPlaying?: boolean; // Whether the game has started (players are playing)
+  tournamentMatchId?: number; // If set, this is a tournament match room
+  reservedPlayerIds?: number[]; // User IDs that are allowed to join this tournament room
+  reservedPlayerUsernames?: string[]; // Usernames of expected players (for display/lookup)
+  tournamentCharactersPerMatch?: number; // How many personaggi cards each player gets at start
   // Advanced custom effect state
   extraTurnPlayer?: string; // Player who gets an extra turn
   skipTurnPlayers?: string[]; // Players who skip their next turn
@@ -1079,6 +1083,53 @@ export class GameManager {
     return gameState;
   }
 
+  // Pre-configure a tournament match room with reserved participants and settings
+  setupTournamentRoom(
+    gameId: string,
+    tournamentMatchId: number,
+    reservedPlayerIds: number[],
+    reservedPlayerUsernames: string[],
+    charactersPerMatch?: number
+  ): void {
+    let game = this.games.get(gameId);
+    if (game) {
+      game.tournamentMatchId = tournamentMatchId;
+      game.reservedPlayerIds = reservedPlayerIds;
+      game.reservedPlayerUsernames = reservedPlayerUsernames;
+      if (charactersPerMatch && charactersPerMatch > 0) {
+        game.tournamentCharactersPerMatch = charactersPerMatch;
+      }
+      console.log(`🏆 Tournament room ${gameId} configured: matchId=${tournamentMatchId}, players=[${reservedPlayerUsernames.join(', ')}], chars=${charactersPerMatch}`);
+    }
+  }
+
+  // Distribute N personaggi cards to a player (used for tournament matches)
+  async distributeTournamentCharacters(gameId: string, playerName: string, count: number): Promise<void> {
+    const game = this.games.get(gameId);
+    if (!game || !game.players[playerName]) return;
+    for (let i = 0; i < count; i++) {
+      await this.pickCard(gameId, 'personaggi', playerName);
+    }
+    console.log(`🃏 Distributed ${count} personaggi to ${playerName} in tournament room ${gameId}`);
+  }
+
+  // Called after all reserved players have joined to broadcast the configured state
+  broadcastTournamentRoomReady(gameId: string, io: any): void {
+    const game = this.games.get(gameId);
+    if (!game) return;
+    const playerCount = Object.keys(game.players).length;
+    const expected = game.reservedPlayerIds?.length ?? 0;
+    if (playerCount >= expected && expected > 0) {
+      const gameState = this.getSanitizedGameState(gameId);
+      io.to(gameId).emit('game-state-update', gameState);
+      io.to(gameId).emit('tournament-match-ready', {
+        tournamentMatchId: game.tournamentMatchId,
+        players: Object.keys(game.players),
+      });
+      console.log(`🏆 Tournament match room ${gameId} is fully populated (${playerCount}/${expected} players)`);
+    }
+  }
+
   async addPlayer(gameId: string, playerName: string, socketId: string, isCPU: boolean = false, authenticatedUserId?: number, isApproved: boolean = false, isDraftMode: boolean = false): Promise<{ success: boolean; error?: string; requiresApproval?: boolean }> {
     const isNewGame = !this.games.has(gameId);
     
@@ -1091,6 +1142,14 @@ export class GameManager {
     }
 
     const game = this.games.get(gameId)!;
+
+    // Block non-participants from joining a reserved tournament room
+    if (game.reservedPlayerIds && game.reservedPlayerIds.length > 0 && authenticatedUserId) {
+      if (!game.reservedPlayerIds.includes(authenticatedUserId)) {
+        console.log(`🚫 User ${authenticatedUserId} (${playerName}) not authorized for tournament room ${gameId}`);
+        return { success: false, error: 'Non sei un partecipante di questa partita del torneo' };
+      }
+    }
 
     // Set draft mode if specified (only on first player joining)
     if (isDraftMode && isNewGame) {

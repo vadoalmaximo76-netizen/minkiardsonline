@@ -649,6 +649,7 @@ function CreateWizard({
     entryFee: 0,
     winnerRewardMultiplier: 20,
     runnerUpRewardMultiplier: 5,
+    charactersPerMatch: 3,
   });
 
   const setField = (k: string, v: any) => setForm(prev => ({ ...prev, [k]: v }));
@@ -686,6 +687,7 @@ function CreateWizard({
           entryFee: form.entryFee,
           winnerRewardMultiplier: isAdmin ? form.winnerRewardMultiplier : undefined,
           runnerUpRewardMultiplier: isAdmin ? form.runnerUpRewardMultiplier : undefined,
+          settings: { charactersPerMatch: form.charactersPerMatch },
         }),
       });
       const data = await res.json();
@@ -812,6 +814,26 @@ function CreateWizard({
                 </div>
               </div>
               <div>
+                <div style={labelStyle}>Personaggi per Partita</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map(n => (
+                    <button key={n} onClick={() => setField('charactersPerMatch', n)}
+                      style={{
+                        background: form.charactersPerMatch === n ? '#0ea5e9' : '#1e293b',
+                        border: `1px solid ${form.charactersPerMatch === n ? '#0ea5e9' : '#334155'}`,
+                        borderRadius: 8, color: form.charactersPerMatch === n ? 'white' : '#94a3b8',
+                        padding: '8px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 14,
+                        minWidth: 42, textAlign: 'center',
+                      }}>
+                      {n}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ color: '#64748b', fontSize: 12, marginTop: 6 }}>
+                  Ogni giocatore riceve <span style={{ color: '#38bdf8', fontWeight: 700 }}>{form.charactersPerMatch} personaggi</span> automaticamente all'inizio della partita
+                </div>
+              </div>
+              <div>
                 <div style={labelStyle}>Quota di Iscrizione (PR)</div>
                 <input type="number" min={0} value={form.entryFee}
                   onChange={e => setField('entryFee', parseInt(e.target.value) || 0)}
@@ -905,6 +927,7 @@ function CreateWizard({
                   {[
                     ['Max Partecipanti', form.maxParticipants],
                     ['Per Partita', `${form.playersPerMatch} giocatori`],
+                    ['Personaggi/Partita', `${form.charactersPerMatch} carte`],
                     ['CPU', form.cpuCount > 0 ? `${form.cpuCount} bot` : 'Nessuno'],
                     ['Iscrizione', form.entryFee > 0 ? `${form.entryFee} PR` : 'Gratuita'],
                     ['Premio 1°', `${estimatedWinner} PR`],
