@@ -1144,7 +1144,34 @@ export class GameManager {
       }
     }
 
-    // Start game with the configured character limit
+    // Run CPU opening sequence BEFORE starting the game
+    // This mirrors what continueCPUTurn does in the add-cpu-player handler
+    for (const cpuName of cpuDisplayNames) {
+      const cpuPlayer = game.players[cpuName];
+      if (!cpuPlayer?.isCPU || !cpuPlayer.cpuInstance) continue;
+
+      console.log(`🤖 Running opening sequence for tournament CPU "${cpuName}"`);
+
+      // Phase 1: Pick initial 3 cards (personaggi, mosse, bonus)
+      await this.pickOpeningCards(gameId, ['personaggi', 'mosse', 'bonus'], cpuName);
+
+      // Phase 2: Play the personaggio to the field
+      const hand = game.players[cpuName]?.hand || [];
+      const personaggio = hand.find((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+      if (personaggio) {
+        await this.playCard(gameId, personaggio.id, cpuName);
+        console.log(`🤖 CPU "${cpuName}" placed ${personaggio.id} on field`);
+      }
+
+      // Phase 3: Pick replacement personaggio
+      await this.pickCard(gameId, 'personaggi', cpuName);
+
+      // Mark opening sequence as complete so CPU plays normally from the first turn
+      cpuPlayer.cpuInstance.completeOpeningSequence();
+      console.log(`🤖 CPU "${cpuName}" opening sequence complete`);
+    }
+
+    // Now start game with the configured character limit
     const limit = characterLimit || 'unlimited';
     const playerOrder = this.startGame(gameId, limit);
     if (!playerOrder) {
@@ -1164,12 +1191,6 @@ export class GameManager {
 
     // Start turn timer for the first player
     this.startTurnTimer(gameId, playerOrder[0]);
-
-    // Start CPU turn if needed
-    const firstPlayer = playerOrder[0];
-    if (game.players[firstPlayer]?.isCPU) {
-      setTimeout(() => this.processCPUTurn(gameId, firstPlayer, io), 2000);
-    }
   }
 
   async addPlayer(gameId: string, playerName: string, socketId: string, isCPU: boolean = false, authenticatedUserId?: number, isApproved: boolean = false, isDraftMode: boolean = false): Promise<{ success: boolean; error?: string; requiresApproval?: boolean }> {

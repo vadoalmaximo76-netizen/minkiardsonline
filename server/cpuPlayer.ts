@@ -290,6 +290,12 @@ export class CPUPlayer {
     return this.openingSequenceState.phase !== 'completed';
   }
 
+  completeOpeningSequence(): void {
+    this.openingSequenceState.phase = 'completed';
+    this.openingSequenceState.pickedCards = ['personaggi', 'mosse', 'bonus'];
+    this.resetTurnState();
+  }
+
   setSocketEmitter(emitter: any) {
     this.socketEmitter = emitter;
   }
