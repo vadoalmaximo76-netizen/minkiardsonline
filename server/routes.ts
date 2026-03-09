@@ -10717,6 +10717,29 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
     }
   });
 
+  // Scheduled cleanup: delete completed tournaments older than 3 hours
+  setInterval(async () => {
+    try {
+      if (!isDatabaseAvailable()) return;
+      const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000);
+      const oldCompleted = await db.select({ id: tournaments.id })
+        .from(tournaments)
+        .where(and(eq(tournaments.status as any, 'completed'), sql`${tournaments.endDate} < ${threeHoursAgo}`));
+      for (const t of oldCompleted) {
+        try {
+          await db.delete(tournamentMatches).where(eq(tournamentMatches.tournamentId, t.id));
+          await db.delete(tournamentParticipants).where(eq(tournamentParticipants.tournamentId, t.id));
+          await db.delete(tournaments).where(eq(tournaments.id, t.id));
+          console.log(`[TOURNAMENT-CLEANUP] Auto-deleted completed tournament #${t.id}`);
+        } catch (innerErr) {
+          console.error(`[TOURNAMENT-CLEANUP] Error deleting tournament #${t.id}:`, innerErr);
+        }
+      }
+    } catch (err) {
+      console.error('[TOURNAMENT-CLEANUP] Scheduled cleanup error:', err);
+    }
+  }, 30 * 60 * 1000); // run every 30 minutes
+
   // DELETE /api/tournaments/:id — cancel tournament (organizer only)
   app.delete('/api/tournaments/:id', authMiddleware, async (req, res) => {
     try {

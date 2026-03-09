@@ -25,6 +25,7 @@ interface GameEndRewardsPanelProps {
   onGoHome: () => void;
   onNewGame: () => void;
   rematchSection?: React.ReactNode;
+  onContinueTournament?: () => void;
 }
 
 export const GameEndRewardsPanel: React.FC<GameEndRewardsPanelProps> = ({
@@ -39,6 +40,7 @@ export const GameEndRewardsPanel: React.FC<GameEndRewardsPanelProps> = ({
   playerName,
   onGoHome,
   onNewGame,
+  onContinueTournament,
 }) => {
   const [phase, setPhase] = useState<'rewards' | 'ad'>('rewards');
   const [displayedPoints, setDisplayedPoints] = useState(previousTotal);
@@ -169,6 +171,27 @@ export const GameEndRewardsPanel: React.FC<GameEndRewardsPanelProps> = ({
             <div className="w-full">{rematchSection}</div>
           )}
 
+          {onContinueTournament && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                console.log('[REWARDS-PANEL] Prosegui torneo clicked');
+                try {
+                  useGameState.getState().clearSession();
+                } catch (err) {
+                  console.error('[REWARDS-PANEL] clearSession error:', err);
+                }
+                onContinueTournament();
+              }}
+              className="w-full flex items-center justify-center gap-2 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg cursor-pointer"
+              style={{ position: 'relative', zIndex: 9999, background: 'linear-gradient(135deg, #7c3aed, #2563eb)', boxShadow: '0 4px 20px rgba(124,58,237,0.4)' }}
+            >
+              <Trophy size={20} />
+              Prosegui torneo
+            </button>
+          )}
           <div className="flex flex-col sm:flex-row gap-3 w-full">
             <button
               type="button"

@@ -272,6 +272,7 @@ function TournamentDetailModal({
   onReport,
   onInvite,
   onPlayMatch,
+  onDelete,
 }: {
   tournament: Tournament;
   participants: TournamentParticipant[];
@@ -285,6 +286,7 @@ function TournamentDetailModal({
   onReport: (matchId: number, winnerId: number) => void;
   onInvite: () => void;
   onPlayMatch?: (gameId: string, matchId: number, tournamentName: string) => void;
+  onDelete?: () => void;
 }) {
   const [tab, setTab] = useState<'info' | 'bracket' | 'partecipanti'>('info');
   const [reportMatchId, setReportMatchId] = useState<number | null>(null);
@@ -479,6 +481,17 @@ function TournamentDetailModal({
                   <button onClick={() => { onInvite(); playUISound('click'); }}
                     style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 10, color: '#94a3b8', padding: '10px 20px', fontWeight: 600, cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Send size={15} /> Invita Giocatore
+                  </button>
+                )}
+                {(isOrganizer || isAdmin) && tournament.status !== 'completed' && onDelete && (
+                  <button onClick={() => {
+                    if (window.confirm('Sei sicuro di voler eliminare questo torneo?')) {
+                      onDelete();
+                      playUISound('back' as any);
+                    }
+                  }}
+                    style={{ background: '#1e293b', border: '1px solid #ef4444', borderRadius: 10, color: '#ef4444', padding: '10px 20px', fontWeight: 600, cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <X size={15} /> Elimina Torneo
                   </button>
                 )}
               </div>
@@ -1185,6 +1198,25 @@ export function ClassicTournamentHub({ userId, username, puntiRankiard, userEmai
     } catch (e) { showToast('Errore di rete'); }
   };
 
+  const handleDelete = async () => {
+    if (!selectedTournamentId) return;
+    try {
+      const res = await fetch(`/api/tournaments/${selectedTournamentId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Torneo eliminato');
+        setDetailData(null);
+        setSelectedTournamentId(null);
+        fetchTournaments();
+      } else {
+        showToast(data.error || 'Errore eliminazione torneo');
+      }
+    } catch (e) { showToast('Errore di rete'); }
+  };
+
   const myTournaments = tournaments.filter(t =>
     detailData?.participants.some(p => p.userId === userId) ||
     t.organizerId === userId
@@ -1359,6 +1391,7 @@ export function ClassicTournamentHub({ userId, username, puntiRankiard, userEmai
             setShowInvite(true);
           }}
           onPlayMatch={onPlayMatch}
+          onDelete={handleDelete}
         />
       )}
 

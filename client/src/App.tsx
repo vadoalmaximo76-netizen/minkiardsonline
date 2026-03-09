@@ -885,6 +885,13 @@ function App() {
               onLeaveGame={() => {
                 sessionRestoredRef.current = false;
               }}
+              onContinueTournament={() => {
+                setGameId('');
+                setShowRoomDialog(false);
+                sessionRestoredRef.current = false;
+                window.history.pushState(null, '', window.location.origin);
+                navigateTo('tournaments', 'back');
+              }}
             />
           </GameErrorBoundary>
         </div>

@@ -97,9 +97,10 @@ interface GameBoardProps {
   isTrainingMode?: boolean;
   onBack?: () => void;
   onLeaveGame?: () => void;
+  onContinueTournament?: () => void;
 }
 
-export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogout, authToken, onBack, onLeaveGame }) => {
+export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogout, authToken, onBack, onLeaveGame, onContinueTournament }) => {
   const [, _forceCloudUpdate] = useState(0);
   const _cloudNameReadyAtMount = useRef(!!getCloudinaryCloudName());
   useEffect(() => {
@@ -2357,6 +2358,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           clearSession();
           window.location.href = window.location.origin;
         }}
+        onContinueTournament={gameId.startsWith('tournament-') && onContinueTournament ? () => {
+          console.log('[REWARDS] Prosegui torneo clicked');
+          clearSession();
+          onContinueTournament();
+        } : undefined}
         rematchSection={!rematchState.newGameId && !bo3State.seriesStarted ? (
           rematchState.declined ? (
             <div className="bg-red-900/80 border border-red-500 text-white px-4 py-3 rounded-xl text-center">
