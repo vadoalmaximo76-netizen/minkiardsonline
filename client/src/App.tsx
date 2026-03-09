@@ -886,11 +886,10 @@ function App() {
                 sessionRestoredRef.current = false;
               }}
               onContinueTournament={() => {
-                setGameId('');
-                setShowRoomDialog(false);
-                sessionRestoredRef.current = false;
+                console.log('[APP] Prosegui torneo — navigating to tournaments');
+                sessionRestoredRef.current = true;
                 window.history.pushState(null, '', window.location.origin);
-                navigateTo('tournaments', 'back');
+                setCurrentSection('tournaments');
               }}
             />
           </GameErrorBoundary>

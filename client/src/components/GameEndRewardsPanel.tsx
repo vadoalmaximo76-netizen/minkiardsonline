@@ -178,11 +178,6 @@ export const GameEndRewardsPanel: React.FC<GameEndRewardsPanelProps> = ({
                 e.stopPropagation();
                 e.preventDefault();
                 console.log('[REWARDS-PANEL] Prosegui torneo clicked');
-                try {
-                  useGameState.getState().clearSession();
-                } catch (err) {
-                  console.error('[REWARDS-PANEL] clearSession error:', err);
-                }
                 onContinueTournament();
               }}
               className="w-full flex items-center justify-center gap-2 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg cursor-pointer"

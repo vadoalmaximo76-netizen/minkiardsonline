@@ -2360,7 +2360,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         }}
         onContinueTournament={gameId.startsWith('tournament-') && onContinueTournament ? () => {
           console.log('[REWARDS] Prosegui torneo clicked');
-          clearSession();
           onContinueTournament();
         } : undefined}
         rematchSection={!rematchState.newGameId && !bo3State.seriesStarted ? (
