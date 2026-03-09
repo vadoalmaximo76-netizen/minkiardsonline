@@ -2430,65 +2430,88 @@ Rispondi SOLO in JSON:`;
 
       if (!anySimulated) return;
 
-      // Re-fetch round to check if all done
-      const updated = await db.select().from(tournamentMatches)
-        .where(and(eq(tournamentMatches.tournamentId, tournamentId), eq(tournamentMatches.round, round)));
-
-      if (!updated.every(m => m.status === 'completed')) return;
-
-      // All done — advance or complete tournament
-      const winners = updated.map(m => m.winnerId).filter((w): w is number => w != null);
-
       const tournamentRow = await db.select().from(tournaments).where(eq(tournaments.id, tournamentId)).limit(1);
       if (!tournamentRow.length) return;
       const tRow = tournamentRow[0];
-      const ppm = tRow.playersPerMatch || 2;
+      const tournamentType = tRow.type || 'elimination';
 
-      if (winners.length <= 1) {
-        // Tournament complete via CPU simulation
-        const finalWinnerId = winners[0] ?? null;
-        const finalLosers = updated.flatMap(m => {
-          const mPids: (number | null)[] = (m.playerIds as any) || [m.player1Id, m.player2Id];
-          return mPids.filter(p => p !== null && p !== m.winnerId) as number[];
-        });
-        const runnerUpId = finalLosers[0] ?? null;
-
-        await db.update(tournaments)
-          .set({ status: 'completed', winnerId: finalWinnerId ?? undefined, endDate: new Date() })
-          .where(eq(tournaments.id, tournamentId));
-
-        // Only award prizes if winner/runner-up are humans (positive IDs)
-        await this.awardTournamentPrizes(tournamentId, tRow, finalWinnerId, runnerUpId);
-
-        (global as any).io?.emit('tournament-completed', { tournamentId, winnerId: finalWinnerId });
-        console.log(`🏆 Tournament ${tournamentId} completed after CPU simulation`);
-      } else {
-        // Advance to next round
-        const nextRound = round + 1;
-        const r = this.buildBracketRound(winners, ppm, nextRound);
-        for (const m of r) {
-          const realPlayers = m.playerIds.filter(p => p !== null) as number[];
-          const hasCpuOnly = this.isAllCpuMatch(m.playerIds);
-          const newGameId = (!hasCpuOnly && m.status === 'pending')
-            ? `tournament-${tournamentId}-r${nextRound}-m${m.matchNumber}`
-            : null;
-          await db.insert(tournamentMatches).values({
-            tournamentId,
-            round: nextRound,
-            matchNumber: m.matchNumber,
-            player1Id: realPlayers[0] ?? null,
-            player2Id: realPlayers[1] ?? null,
-            playerIds: m.playerIds,
-            gameId: newGameId,
-            status: m.status,
-            winnerId: m.winnerId,
-          });
+      if (tournamentType === 'round_robin') {
+        // For campionati: check if ALL matches across ALL rounds are done
+        const allMatches = await db.select().from(tournamentMatches).where(eq(tournamentMatches.tournamentId, tournamentId));
+        if (!allMatches.every(m => m.status === 'completed')) {
+          // Simulate next round with CPU-only matches
+          const pendingRounds = [...new Set(allMatches.filter(m => m.status === 'pending').map(m => m.round))].sort((a, b) => a - b);
+          if (pendingRounds.length > 0) {
+            await this.simulateCpuMatchesInRound(tournamentId, pendingRounds[0]);
+          }
+          return;
         }
-        (global as any).io?.emit('tournament-round-advanced', { tournamentId, round: nextRound });
-        console.log(`📊 Tournament ${tournamentId} advanced to round ${nextRound}`);
 
-        // Cascade: simulate any new CPU-only matches in next round
-        await this.simulateCpuMatchesInRound(tournamentId, nextRound);
+        // All done — determine winner by points
+        const participants = await db.select().from(tournamentParticipants).where(eq(tournamentParticipants.tournamentId, tournamentId));
+        const sorted = [...participants].map(p => ({ ...p, points: p.wins * 2 })).sort((a, b) => b.points - a.points || b.wins - a.wins);
+        const finalWinnerId = sorted[0]?.userId ?? null;
+        const runnerUpId = sorted[1]?.userId ?? null;
+
+        await db.update(tournaments).set({ status: 'completed', winnerId: finalWinnerId ?? undefined, endDate: new Date() }).where(eq(tournaments.id, tournamentId));
+        await this.awardTournamentPrizes(tournamentId, tRow, finalWinnerId, runnerUpId);
+        (global as any).io?.emit('tournament-completed', { tournamentId, winnerId: finalWinnerId });
+        console.log(`🏆 Campionato ${tournamentId} completed after CPU simulation`);
+      } else {
+        // Elimination: Re-fetch round to check if all done
+        const updated = await db.select().from(tournamentMatches)
+          .where(and(eq(tournamentMatches.tournamentId, tournamentId), eq(tournamentMatches.round, round)));
+
+        if (!updated.every(m => m.status === 'completed')) return;
+
+        // All done — advance or complete tournament
+        const winners = updated.map(m => m.winnerId).filter((w): w is number => w != null);
+        const ppm = tRow.playersPerMatch || 2;
+
+        if (winners.length <= 1) {
+          // Tournament complete via CPU simulation
+          const finalWinnerId = winners[0] ?? null;
+          const finalLosers = updated.flatMap(m => {
+            const mPids: (number | null)[] = (m.playerIds as any) || [m.player1Id, m.player2Id];
+            return mPids.filter(p => p !== null && p !== m.winnerId) as number[];
+          });
+          const runnerUpId = finalLosers[0] ?? null;
+
+          await db.update(tournaments)
+            .set({ status: 'completed', winnerId: finalWinnerId ?? undefined, endDate: new Date() })
+            .where(eq(tournaments.id, tournamentId));
+
+          await this.awardTournamentPrizes(tournamentId, tRow, finalWinnerId, runnerUpId);
+          (global as any).io?.emit('tournament-completed', { tournamentId, winnerId: finalWinnerId });
+          console.log(`🏆 Tournament ${tournamentId} completed after CPU simulation`);
+        } else {
+          // Advance to next round
+          const nextRound = round + 1;
+          const r = this.buildBracketRound(winners, ppm, nextRound);
+          for (const m of r) {
+            const realPlayers = m.playerIds.filter(p => p !== null) as number[];
+            const hasCpuOnly = this.isAllCpuMatch(m.playerIds);
+            const newGameId = (!hasCpuOnly && m.status === 'pending')
+              ? `tournament-${tournamentId}-r${nextRound}-m${m.matchNumber}`
+              : null;
+            await db.insert(tournamentMatches).values({
+              tournamentId,
+              round: nextRound,
+              matchNumber: m.matchNumber,
+              player1Id: realPlayers[0] ?? null,
+              player2Id: realPlayers[1] ?? null,
+              playerIds: m.playerIds,
+              gameId: newGameId,
+              status: m.status,
+              winnerId: m.winnerId,
+            });
+          }
+          (global as any).io?.emit('tournament-round-advanced', { tournamentId, round: nextRound });
+          console.log(`📊 Tournament ${tournamentId} advanced to round ${nextRound}`);
+
+          // Cascade: simulate any new CPU-only matches in next round
+          await this.simulateCpuMatchesInRound(tournamentId, nextRound);
+        }
       }
     } catch (err) {
       console.error('Error simulating CPU matches:', err);
@@ -2553,13 +2576,21 @@ Rispondi SOLO in JSON:`;
         await db.update(tournamentParticipants).set({ wins: winnerPart[0].wins + 1 })
           .where(and(eq(tournamentParticipants.tournamentId, matchData.tournamentId), eq(tournamentParticipants.userId, winnerId)));
       }
+      const tournamentRow = await db.select().from(tournaments).where(eq(tournaments.id, matchData.tournamentId)).limit(1);
+      if (!tournamentRow.length) return;
+      const tRow = tournamentRow[0];
+      const tournamentType = tRow.type || 'elimination';
+
       for (const loserId of loserIds) {
         if (loserId > 0) {
           const loserPart = await db.select().from(tournamentParticipants)
             .where(and(eq(tournamentParticipants.tournamentId, matchData.tournamentId), eq(tournamentParticipants.userId, loserId))).limit(1);
           if (loserPart.length) {
             await db.update(tournamentParticipants)
-              .set({ status: 'eliminated', losses: loserPart[0].losses + 1 })
+              .set({
+                ...(tournamentType !== 'round_robin' ? { status: 'eliminated' } : {}),
+                losses: loserPart[0].losses + 1,
+              })
               .where(and(eq(tournamentParticipants.tournamentId, matchData.tournamentId), eq(tournamentParticipants.userId, loserId)));
           }
         }
@@ -2567,67 +2598,88 @@ Rispondi SOLO in JSON:`;
 
       console.log(`✅ Tournament match ${matchData.id} completed — winner: ${winnerPlayer} (${winnerId})`);
 
-      // Check if all matches in this round are completed
-      const roundMatches = await db.select().from(tournamentMatches)
-        .where(and(eq(tournamentMatches.tournamentId, matchData.tournamentId), eq(tournamentMatches.round, matchData.round)));
+      if (tournamentType === 'round_robin') {
+        // For campionati: check if ALL matches across ALL rounds are completed
+        const allMatches = await db.select().from(tournamentMatches).where(eq(tournamentMatches.tournamentId, matchData.tournamentId));
+        const effectiveAll = allMatches.map(m => m.id === matchData.id ? { ...m, status: 'completed', winnerId } : m);
+        if (!effectiveAll.every(m => m.status === 'completed')) {
+          (global as any).io?.emit('tournament-match-reported', { tournamentId: matchData.tournamentId, matchId: matchData.id, winnerId });
+          return;
+        }
 
-      const allCompleted = roundMatches.every(m => m.status === 'completed' || m.id === matchData.id);
-      if (!allCompleted) return;
+        // All done — determine winner by points
+        const participants = await db.select().from(tournamentParticipants).where(eq(tournamentParticipants.tournamentId, matchData.tournamentId));
+        const sorted = participants
+          .map(p => ({ ...p, wins: p.wins + (p.userId === winnerId ? 1 : 0) }))
+          .map(p => ({ ...p, points: p.wins * 2 }))
+          .sort((a, b) => b.points - a.points || b.wins - a.wins);
+        const finalWinnerId = sorted[0]?.userId ?? null;
+        const runnerUpId = sorted[1]?.userId ?? null;
 
-      const winners = roundMatches.map(m => m.id === matchData.id ? winnerId! : m.winnerId).filter((w): w is number => w != null);
-
-      const tournamentRow = await db.select().from(tournaments).where(eq(tournaments.id, matchData.tournamentId)).limit(1);
-      if (!tournamentRow.length) return;
-      const tRow = tournamentRow[0];
-      const ppm = tRow.playersPerMatch || 2;
-
-      if (winners.length <= 1) {
-        // Tournament complete
-        const finalWinnerId = winners[0] ?? null;
-        const finalLosers = roundMatches.flatMap(m => {
-          const mPids: (number | null)[] = (m.playerIds as any) || [m.player1Id, m.player2Id];
-          const mWinner = m.id === matchData.id ? winnerId! : m.winnerId;
-          return mPids.filter(p => p !== null && p !== mWinner) as number[];
-        });
-        const runnerUpId = finalLosers[0] ?? null;
-
-        await db.update(tournaments)
-          .set({ status: 'completed', winnerId: finalWinnerId ?? undefined, endDate: new Date() })
-          .where(eq(tournaments.id, matchData.tournamentId));
-
+        await db.update(tournaments).set({ status: 'completed', winnerId: finalWinnerId ?? undefined, endDate: new Date() }).where(eq(tournaments.id, matchData.tournamentId));
         await this.awardTournamentPrizes(matchData.tournamentId, tRow, finalWinnerId, runnerUpId);
-
         (global as any).io?.emit('tournament-completed', { tournamentId: matchData.tournamentId, winnerId: finalWinnerId });
         (global as any).io?.emit('tournament-match-reported', { tournamentId: matchData.tournamentId, matchId: matchData.id, winnerId });
-        console.log(`🏆 Tournament ${matchData.tournamentId} completed — winner userId: ${finalWinnerId}`);
+        console.log(`🏆 Campionato ${matchData.tournamentId} completed — vincitore userId: ${finalWinnerId}`);
       } else {
-        // Advance bracket
-        const nextRound = matchData.round + 1;
-        const r = this.buildBracketRound(winners, ppm, nextRound);
-        for (const m of r) {
-          const realPlayers = m.playerIds.filter(p => p !== null) as number[];
-          const hasCpuOnly = this.isAllCpuMatch(m.playerIds);
-          const newGameId = (!hasCpuOnly && m.status === 'pending')
-            ? `tournament-${matchData.tournamentId}-r${nextRound}-m${m.matchNumber}`
-            : null;
-          await db.insert(tournamentMatches).values({
-            tournamentId: matchData.tournamentId,
-            round: nextRound,
-            matchNumber: m.matchNumber,
-            player1Id: realPlayers[0] ?? null,
-            player2Id: realPlayers[1] ?? null,
-            playerIds: m.playerIds,
-            gameId: newGameId,
-            status: m.status,
-            winnerId: m.winnerId,
-          });
-        }
-        (global as any).io?.emit('tournament-round-advanced', { tournamentId: matchData.tournamentId, round: nextRound });
-        (global as any).io?.emit('tournament-match-reported', { tournamentId: matchData.tournamentId, matchId: matchData.id, winnerId });
-        console.log(`📊 Tournament ${matchData.tournamentId} advanced to round ${nextRound}`);
+        // Elimination: Check if all matches in this round are completed
+        const roundMatches = await db.select().from(tournamentMatches)
+          .where(and(eq(tournamentMatches.tournamentId, matchData.tournamentId), eq(tournamentMatches.round, matchData.round)));
 
-        // Simulate any CPU-only matches in new round
-        await this.simulateCpuMatchesInRound(matchData.tournamentId, nextRound);
+        const allCompleted = roundMatches.every(m => m.status === 'completed' || m.id === matchData.id);
+        if (!allCompleted) return;
+
+        const winners = roundMatches.map(m => m.id === matchData.id ? winnerId! : m.winnerId).filter((w): w is number => w != null);
+        const ppm = tRow.playersPerMatch || 2;
+
+        if (winners.length <= 1) {
+          // Tournament complete
+          const finalWinnerId = winners[0] ?? null;
+          const finalLosers = roundMatches.flatMap(m => {
+            const mPids: (number | null)[] = (m.playerIds as any) || [m.player1Id, m.player2Id];
+            const mWinner = m.id === matchData.id ? winnerId! : m.winnerId;
+            return mPids.filter(p => p !== null && p !== mWinner) as number[];
+          });
+          const runnerUpId = finalLosers[0] ?? null;
+
+          await db.update(tournaments)
+            .set({ status: 'completed', winnerId: finalWinnerId ?? undefined, endDate: new Date() })
+            .where(eq(tournaments.id, matchData.tournamentId));
+
+          await this.awardTournamentPrizes(matchData.tournamentId, tRow, finalWinnerId, runnerUpId);
+
+          (global as any).io?.emit('tournament-completed', { tournamentId: matchData.tournamentId, winnerId: finalWinnerId });
+          (global as any).io?.emit('tournament-match-reported', { tournamentId: matchData.tournamentId, matchId: matchData.id, winnerId });
+          console.log(`🏆 Tournament ${matchData.tournamentId} completed — winner userId: ${finalWinnerId}`);
+        } else {
+          // Advance bracket
+          const nextRound = matchData.round + 1;
+          const r = this.buildBracketRound(winners, ppm, nextRound);
+          for (const m of r) {
+            const realPlayers = m.playerIds.filter(p => p !== null) as number[];
+            const hasCpuOnly = this.isAllCpuMatch(m.playerIds);
+            const newGameId = (!hasCpuOnly && m.status === 'pending')
+              ? `tournament-${matchData.tournamentId}-r${nextRound}-m${m.matchNumber}`
+              : null;
+            await db.insert(tournamentMatches).values({
+              tournamentId: matchData.tournamentId,
+              round: nextRound,
+              matchNumber: m.matchNumber,
+              player1Id: realPlayers[0] ?? null,
+              player2Id: realPlayers[1] ?? null,
+              playerIds: m.playerIds,
+              gameId: newGameId,
+              status: m.status,
+              winnerId: m.winnerId,
+            });
+          }
+          (global as any).io?.emit('tournament-round-advanced', { tournamentId: matchData.tournamentId, round: nextRound });
+          (global as any).io?.emit('tournament-match-reported', { tournamentId: matchData.tournamentId, matchId: matchData.id, winnerId });
+          console.log(`📊 Tournament ${matchData.tournamentId} advanced to round ${nextRound}`);
+
+          // Simulate any CPU-only matches in new round
+          await this.simulateCpuMatchesInRound(matchData.tournamentId, nextRound);
+        }
       }
     } catch (error) {
       console.error('Failed to update tournament match:', error);

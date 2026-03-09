@@ -2,9 +2,116 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Trophy, Users, Plus, Play, ChevronRight, ChevronLeft, X, Crown,
   Star, Sword, Shield, Award, Search, Send, Eye, Zap, Clock,
-  CheckCircle, AlertCircle, RefreshCw, User, Bot, Settings, Gift
+  CheckCircle, AlertCircle, RefreshCw, User, Bot, Settings, Gift,
+  BarChart2, Calendar, Layers
 } from 'lucide-react';
 import { playUISound } from '../lib/uiSound';
+
+type CompetitionType = 'torneo_classico' | 'torneo_draft' | 'campionato_classico' | 'campionato_draft';
+
+const COMP_TYPE_INFO: Record<CompetitionType, { label: string; icon: React.ReactNode; desc: string; type: string; gameMode: string; color: string }> = {
+  torneo_classico: {
+    label: 'Torneo Classico',
+    icon: <Trophy size={28} />,
+    desc: 'Eliminazione diretta con il mazzo completo. Chi perde è fuori.',
+    type: 'elimination',
+    gameMode: 'classic',
+    color: '#f59e0b',
+  },
+  torneo_draft: {
+    label: 'Torneo Draft',
+    icon: <Layers size={28} />,
+    desc: 'Eliminazione diretta con il proprio mazzo Draft.',
+    type: 'elimination',
+    gameMode: 'draft',
+    color: '#8b5cf6',
+  },
+  campionato_classico: {
+    label: 'Campionato Classico',
+    icon: <BarChart2 size={28} />,
+    desc: 'Tutti contro tutti con calendario e classifica. 2 punti per vittoria.',
+    type: 'round_robin',
+    gameMode: 'classic',
+    color: '#3b82f6',
+  },
+  campionato_draft: {
+    label: 'Campionato Draft',
+    icon: <Calendar size={28} />,
+    desc: 'Tutti contro tutti con il proprio mazzo Draft. 2 punti per vittoria.',
+    type: 'round_robin',
+    gameMode: 'draft',
+    color: '#10b981',
+  },
+};
+
+function CompetitionTypeSelector({ onSelect, onClose }: { onSelect: (t: CompetitionType) => void; onClose: () => void }) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', zIndex: 1000,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      backdropFilter: 'blur(6px)',
+    }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={{
+        background: 'linear-gradient(160deg, #0f172a 0%, #1e1b4b 100%)',
+        border: '1px solid #334155', borderRadius: 20,
+        width: 560, maxWidth: '95vw', maxHeight: '95vh',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+      }}>
+        <div style={{
+          background: 'linear-gradient(90deg, #7c3aed22 0%, #1d4ed822 100%)',
+          borderBottom: '1px solid #334155', padding: '18px 24px',
+          display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          <Trophy size={22} color="#f59e0b" />
+          <div style={{ flex: 1 }}>
+            <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 17 }}>Tipo di Competizione</div>
+            <div style={{ color: '#64748b', fontSize: 12 }}>Scegli il formato della tua competizione</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: 4 }}>
+            <X size={20} />
+          </button>
+        </div>
+        <div style={{ padding: 20, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          {(Object.entries(COMP_TYPE_INFO) as [CompetitionType, typeof COMP_TYPE_INFO[CompetitionType]][]).map(([key, info]) => (
+            <button
+              key={key}
+              onClick={() => { onSelect(key); playUISound('open'); }}
+              style={{
+                background: 'linear-gradient(135deg, #1e293b, #1a1f35)',
+                border: `1px solid ${info.color}44`,
+                borderRadius: 14, padding: '18px 16px', cursor: 'pointer',
+                display: 'flex', flexDirection: 'column', gap: 10,
+                textAlign: 'left', transition: 'all 0.2s',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLButtonElement).style.borderColor = info.color;
+                (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 4px 20px ${info.color}22`;
+                (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLButtonElement).style.borderColor = `${info.color}44`;
+                (e.currentTarget as HTMLButtonElement).style.boxShadow = '';
+                (e.currentTarget as HTMLButtonElement).style.transform = '';
+              }}
+            >
+              <div style={{ color: info.color }}>{info.icon}</div>
+              <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 14 }}>{info.label}</div>
+              <div style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.4 }}>{info.desc}</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <span style={{ background: info.color + '22', border: `1px solid ${info.color}44`, borderRadius: 6, padding: '2px 8px', fontSize: 11, color: info.color }}>
+                  {info.type === 'elimination' ? 'Eliminazione' : 'Girone'}
+                </span>
+                <span style={{ background: '#334155', borderRadius: 6, padding: '2px 8px', fontSize: 11, color: '#94a3b8' }}>
+                  {info.gameMode === 'draft' ? '🃏 Draft' : '📦 Classico'}
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -288,9 +395,12 @@ function TournamentDetailModal({
   onPlayMatch?: (gameId: string, matchId: number, tournamentName: string) => void;
   onDelete?: () => void;
 }) {
-  const [tab, setTab] = useState<'info' | 'bracket' | 'partecipanti'>('info');
+  const isRoundRobin = tournament.type === 'round_robin';
+  const [tab, setTab] = useState<'info' | 'bracket' | 'partecipanti' | 'classifica'>('info');
   const [reportMatchId, setReportMatchId] = useState<number | null>(null);
   const [reportWinnerId, setReportWinnerId] = useState<number | string>('');
+  const [standings, setStandings] = useState<any[]>([]);
+  const [standingsLoading, setStandingsLoading] = useState(false);
 
   const isOrganizer = tournament.organizerId === userId;
   const isAdmin = userEmail === 'lucaforte94@gmail.com';
@@ -305,11 +415,23 @@ function TournamentDetailModal({
     return pids.includes(userId);
   });
 
+  useEffect(() => {
+    if (tab === 'classifica' && isRoundRobin) {
+      setStandingsLoading(true);
+      fetch(`/api/tournaments/${tournament.id}/standings`)
+        .then(r => r.json())
+        .then(d => { if (d.success) setStandings(d.standings || []); })
+        .catch(() => {})
+        .finally(() => setStandingsLoading(false));
+    }
+  }, [tab, tournament.id, isRoundRobin]);
+
   const TABS = [
-    { key: 'info', label: 'Info' },
-    { key: 'bracket', label: 'Tabellone' },
-    { key: 'partecipanti', label: `Partecipanti (${participants.length})` },
-  ] as const;
+    { key: 'info' as const, label: 'Info' },
+    { key: 'bracket' as const, label: isRoundRobin ? 'Calendario' : 'Tabellone' },
+    { key: 'partecipanti' as const, label: `Partecipanti (${participants.length})` },
+    ...(isRoundRobin ? [{ key: 'classifica' as const, label: '🏆 Classifica' }] : []),
+  ];
 
   const getName = (id: number | null | undefined): string => {
     if (id == null) return 'BYE';
@@ -536,6 +658,61 @@ function TournamentDetailModal({
               ))}
             </div>
           )}
+
+          {tab === 'classifica' && isRoundRobin && (
+            <div>
+              {standingsLoading ? (
+                <div style={{ textAlign: 'center', color: '#64748b', padding: 40 }}>Caricamento classifica...</div>
+              ) : standings.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#64748b', padding: 40 }}>Nessun dato disponibile</div>
+              ) : (
+                <div>
+                  <div style={{ color: '#64748b', fontSize: 12, marginBottom: 12 }}>
+                    Vittorie = 2 punti · Sconfitte = 0 punti
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                    <thead>
+                      <tr style={{ background: '#0f172a', borderBottom: '1px solid #334155' }}>
+                        <th style={{ padding: '8px 10px', color: '#64748b', textAlign: 'center', width: 36 }}>#</th>
+                        <th style={{ padding: '8px 10px', color: '#64748b', textAlign: 'left' }}>Giocatore</th>
+                        <th style={{ padding: '8px 10px', color: '#64748b', textAlign: 'center' }}>G</th>
+                        <th style={{ padding: '8px 10px', color: '#64748b', textAlign: 'center' }}>V</th>
+                        <th style={{ padding: '8px 10px', color: '#64748b', textAlign: 'center' }}>S</th>
+                        <th style={{ padding: '8px 10px', color: '#f59e0b', textAlign: 'center', fontWeight: 700 }}>Pts</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {standings.map((s, i) => {
+                        const isMe = s.userId === userId;
+                        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+                        return (
+                          <tr key={s.participantId} style={{
+                            background: isMe ? '#1e3a5f' : i % 2 === 0 ? '#1e293b' : '#0f172a',
+                            borderBottom: '1px solid #1e293b',
+                          }}>
+                            <td style={{ padding: '10px', textAlign: 'center', color: i < 3 ? '#f59e0b' : '#64748b', fontWeight: 700 }}>
+                              {medal || i + 1}
+                            </td>
+                            <td style={{ padding: '10px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                              {s.isCpu ? <Bot size={16} color="#64748b" /> : <User size={16} color="#7c3aed" />}
+                              <span style={{ color: '#f1f5f9', fontWeight: isMe ? 700 : 400 }}>
+                                {s.displayName}
+                                {isMe && <span style={{ color: '#3b82f6', fontSize: 11, marginLeft: 6 }}>(Tu)</span>}
+                              </span>
+                            </td>
+                            <td style={{ padding: '10px', textAlign: 'center', color: '#94a3b8' }}>{s.played}</td>
+                            <td style={{ padding: '10px', textAlign: 'center', color: '#22c55e' }}>{s.wins}</td>
+                            <td style={{ padding: '10px', textAlign: 'center', color: '#ef4444' }}>{s.losses}</td>
+                            <td style={{ padding: '10px', textAlign: 'center', color: '#f59e0b', fontWeight: 700, fontSize: 16 }}>{s.points}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -639,18 +816,22 @@ function CreateWizard({
   puntiRankiard,
   onClose,
   onCreated,
+  competitionType,
 }: {
   userId: number;
   userEmail: string;
   puntiRankiard: number;
   onClose: () => void;
   onCreated: () => void;
+  competitionType: CompetitionType;
 }) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const authToken = localStorage.getItem('authToken');
   const isAdmin = userEmail === 'lucaforte94@gmail.com';
+  const compInfo = COMP_TYPE_INFO[competitionType];
+  const isCampionato = compInfo.type === 'round_robin';
 
   const [form, setForm] = useState({
     name: '',
@@ -694,13 +875,15 @@ function CreateWizard({
           name: form.name,
           description: form.description || undefined,
           maxParticipants: form.maxParticipants,
-          playersPerMatch: form.playersPerMatch,
+          playersPerMatch: isCampionato ? 2 : form.playersPerMatch,
           cpuCount: form.cpuCount,
           cpuNames: cpuNamesList,
           entryFee: form.entryFee,
           winnerRewardMultiplier: isAdmin ? form.winnerRewardMultiplier : undefined,
           runnerUpRewardMultiplier: isAdmin ? form.runnerUpRewardMultiplier : undefined,
           settings: { characterLimit: form.characterLimit },
+          type: compInfo.type,
+          gameMode: compInfo.gameMode,
         }),
       });
       const data = await res.json();
@@ -744,8 +927,11 @@ function CreateWizard({
           padding: '18px 24px', borderBottom: '1px solid #1e293b',
           display: 'flex', alignItems: 'center', gap: 12,
         }}>
-          <Trophy size={22} color="#f59e0b" />
-          <div style={{ flex: 1, color: '#f1f5f9', fontWeight: 700, fontSize: 17 }}>Crea Torneo</div>
+          <span style={{ color: compInfo.color }}>{compInfo.icon}</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 17 }}>Crea {compInfo.label}</div>
+            <div style={{ color: compInfo.color, fontSize: 11 }}>{compInfo.type === 'round_robin' ? 'Girone all\'italiana' : 'Eliminazione diretta'} · {compInfo.gameMode === 'draft' ? 'Draft' : 'Classico'}</div>
+          </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}><X size={20} /></button>
         </div>
 
@@ -806,26 +992,33 @@ function CreateWizard({
                     style={{ ...inputStyle, width: 80 }} />
                 </div>
               </div>
-              <div>
-                <div style={labelStyle}>Giocatori per Partita</div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {[2, 3, 4, 5, 6, 7, 8].map(n => (
-                    <button key={n} onClick={() => setField('playersPerMatch', n)}
-                      style={{
-                        background: form.playersPerMatch === n ? '#7c3aed' : '#1e293b',
-                        border: `1px solid ${form.playersPerMatch === n ? '#7c3aed' : '#334155'}`,
-                        borderRadius: 8, color: form.playersPerMatch === n ? 'white' : '#94a3b8',
-                        padding: '8px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 14,
-                        minWidth: 42, textAlign: 'center',
-                      }}>
-                      {n}
-                    </button>
-                  ))}
+              {!isCampionato && (
+                <div>
+                  <div style={labelStyle}>Giocatori per Partita</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {[2, 3, 4, 5, 6, 7, 8].map(n => (
+                      <button key={n} onClick={() => setField('playersPerMatch', n)}
+                        style={{
+                          background: form.playersPerMatch === n ? '#7c3aed' : '#1e293b',
+                          border: `1px solid ${form.playersPerMatch === n ? '#7c3aed' : '#334155'}`,
+                          borderRadius: 8, color: form.playersPerMatch === n ? 'white' : '#94a3b8',
+                          padding: '8px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 14,
+                          minWidth: 42, textAlign: 'center',
+                        }}>
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ color: '#64748b', fontSize: 12, marginTop: 6 }}>
+                    Ogni partita del bracket avrà <span style={{ color: '#a78bfa', fontWeight: 700 }}>{form.playersPerMatch} partecipanti</span> — il torneo si organizza automaticamente
+                  </div>
                 </div>
-                <div style={{ color: '#64748b', fontSize: 12, marginTop: 6 }}>
-                  Ogni partita del bracket avrà <span style={{ color: '#a78bfa', fontWeight: 700 }}>{form.playersPerMatch} partecipanti</span> — il torneo si organizza automaticamente
+              )}
+              {isCampionato && (
+                <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 8, padding: '10px 14px' }}>
+                  <div style={{ color: '#64748b', fontSize: 12 }}>📅 <strong style={{ color: '#94a3b8' }}>Campionato:</strong> Ogni partita è 1 vs 1. Il calendario completo viene generato automaticamente all'avvio.</div>
                 </div>
-              </div>
+              )}
               <div>
                 <div style={labelStyle}>Personaggi prima dell'eliminazione</div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -1035,7 +1228,19 @@ function TournamentCard({ tournament, onClick }: { tournament: Tournament; onCli
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
         <div>
-          <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 15, marginBottom: 3 }}>{tournament.name}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+            <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 15 }}>{tournament.name}</div>
+          </div>
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 2 }}>
+            {tournament.type === 'round_robin'
+              ? <span style={{ background: '#1d4ed822', border: '1px solid #3b82f644', borderRadius: 4, padding: '1px 6px', fontSize: 10, color: '#60a5fa' }}>📅 Campionato</span>
+              : <span style={{ background: '#78350f22', border: '1px solid #f59e0b44', borderRadius: 4, padding: '1px 6px', fontSize: 10, color: '#fbbf24' }}>⚔️ Torneo</span>
+            }
+            {tournament.gameMode === 'draft'
+              ? <span style={{ background: '#4c1d9522', border: '1px solid #8b5cf644', borderRadius: 4, padding: '1px 6px', fontSize: 10, color: '#a78bfa' }}>🃏 Draft</span>
+              : <span style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 4, padding: '1px 6px', fontSize: 10, color: '#64748b' }}>📦 Classico</span>
+            }
+          </div>
           <div style={{ color: '#64748b', fontSize: 11 }}>Org: {tournament.organizerName}</div>
         </div>
         <StatusBadge status={tournament.status} />
@@ -1089,6 +1294,8 @@ export function ClassicTournamentHub({ userId, username, puntiRankiard, userEmai
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [showTypeSelect, setShowTypeSelect] = useState(false);
+  const [selectedCompType, setSelectedCompType] = useState<CompetitionType>('torneo_classico');
   const [selectedTournamentId, setSelectedTournamentId] = useState<number | null>(null);
   const [detailData, setDetailData] = useState<{
     tournament: Tournament;
@@ -1286,7 +1493,7 @@ export function ClassicTournamentHub({ userId, username, puntiRankiard, userEmai
       <div style={{ display: 'flex', borderBottom: '1px solid #1e293b', background: '#0a0f1e', flexShrink: 0 }}>
         {TABS.map(({ key, label, icon: Icon }) => (
           <button key={key}
-            onClick={() => { setTab(key); playUISound('click'); if (key === 'crea') setShowCreate(true); }}
+            onClick={() => { setTab(key); playUISound('click'); if (key === 'crea') { setShowTypeSelect(true); } }}
             style={{
               flex: 1, padding: '13px 0', background: 'none', border: 'none',
               cursor: 'pointer', color: tab === key ? '#a78bfa' : '#64748b',
@@ -1318,7 +1525,7 @@ export function ClassicTournamentHub({ userId, username, puntiRankiard, userEmai
               {tab === 'miei' ? 'Crea il tuo primo torneo!' : 'Sii il primo a creare un torneo!'}
             </div>
             <button
-              onClick={() => { setShowCreate(true); playUISound('open'); }}
+              onClick={() => { setShowTypeSelect(true); playUISound('open'); }}
               style={{ background: 'linear-gradient(135deg,#7c3aed,#2563eb)', border: 'none', borderRadius: 10, color: 'white', padding: '10px 24px', fontWeight: 700, cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Plus size={16} /> Crea Torneo
             </button>
@@ -1336,7 +1543,7 @@ export function ClassicTournamentHub({ userId, username, puntiRankiard, userEmai
       {/* FAB Create */}
       {tab !== 'crea' && (
         <button
-          onClick={() => { setShowCreate(true); playUISound('open'); }}
+          onClick={() => { setShowTypeSelect(true); playUISound('open'); }}
           style={{
             position: 'absolute', bottom: 24, right: 24,
             background: 'linear-gradient(135deg,#7c3aed,#2563eb)',
@@ -1362,12 +1569,25 @@ export function ClassicTournamentHub({ userId, username, puntiRankiard, userEmai
         </div>
       )}
 
+      {/* Competition Type Selector */}
+      {showTypeSelect && (
+        <CompetitionTypeSelector
+          onSelect={(type) => {
+            setSelectedCompType(type);
+            setShowTypeSelect(false);
+            setShowCreate(true);
+          }}
+          onClose={() => { setShowTypeSelect(false); setTab('esplora'); }}
+        />
+      )}
+
       {/* Create Wizard */}
       {showCreate && (
         <CreateWizard
           userId={userId}
           userEmail={userEmail}
           puntiRankiard={puntiRankiard}
+          competitionType={selectedCompType}
           onClose={() => { setShowCreate(false); setTab('esplora'); }}
           onCreated={() => { setShowCreate(false); setTab('esplora'); fetchTournaments(); showToast('Torneo creato con successo!'); }}
         />

@@ -17,16 +17,21 @@ Draft mode advanced features:
 - **Admin Pack Management**: Admin users see a collapsible "Gestione Pacchetti" panel in the Packs tab with full CRUD (create/edit/delete packs). Slot format supports fixed rarities ("comune", "rara") and probabilistic slots ("epica:90/leggendaria:10"). Config persisted in server/data/packs.json via jsonStorage. API: GET/POST/PUT/DELETE /api/admin/packs.
 - **Admin Users Panel**: Full user account management panel accessible from Profile > Pannello Admin > "Gestisci Account Utenti". Features: search/list all users (50 per page) with credits and PR counts; inline editing of draft credits (freeCredits + paidCredits) and puntiRankiard; ban user for customizable duration (1/3/7/30/90/3650 days) with reason; unban; delete account. Ban check on login returns HTTP 403 with ban expiry and reason. DB columns added: `users.banned_until` (timestamp) and `users.ban_reason` (text). API routes: GET /api/admin/users, PATCH /api/admin/users/:id/credits, PATCH /api/admin/users/:id/pr, POST /api/admin/users/:id/ban, POST /api/admin/users/:id/unban, DELETE /api/admin/users/:id.
 
-**Classic Tournament System** (`ClassicTournamentHub.tsx`): Full-featured single-elimination tournament platform accessible from the HomeScreen "Tornei" menu item. Features:
-- **Creation Wizard** (4-step modal): name/description → format (max participants, players per match 2–4, entry fee) → CPU bots & prizes → confirm. Admin (lucaforte94@gmail.com) can set custom reward multipliers.
+**Classic Tournament System** (`ClassicTournamentHub.tsx`): Full-featured competition platform accessible from the HomeScreen "Tornei" menu item. Features:
+- **4 Competition Types** (selector before wizard): Torneo Classico (elimination + classic decks), Torneo Draft (elimination + draft decks), Campionato Classico (round-robin + classic), Campionato Draft (round-robin + draft). Each mapped to `type` ('elimination'|'round_robin') + `gameMode` ('classic'|'draft').
+- **Creation Wizard** (4-step modal): name/description → format (max participants, players per match [hidden for campionati], entry fee) → CPU bots & prizes → confirm. Admin (lucaforte94@gmail.com) can set custom reward multipliers.
 - **CPU Participants**: configurable count + custom names, auto-added at creation. Stored with `is_cpu=true, user_id=null` in `tournament_participants`.
-- **Bracket Generation**: `buildBracketRound()` in `routes.ts` — shuffled participants, padded to next multiple of `playersPerMatch`, bye (null) auto-advance, multi-player match support via `player_ids jsonb` column.
+- **Bracket Generation** (elimination): `buildBracketRound()` in `routes.ts` — shuffled participants, padded to next multiple of `playersPerMatch`, bye (null) auto-advance, multi-player match support.
+- **Round-Robin Calendar** (campionati): `buildRoundRobinSchedule()` in `routes.ts` — polygon rotation algorithm, all matches pre-generated at start, always 1v1, 2 pts per win.
+- **Standings** (campionati): `GET /api/tournaments/:id/standings` endpoint + "Classifica" tab in detail modal. Sorted by points (wins×2), tiebreaker by wins count. Medal icons for top 3.
+- **Tournament Detail Modal**: tabs adapt to type — "Tabellone" for elimination, "Calendario" for round_robin, + "Classifica" tab for campionati.
+- **Tournament Cards**: show competition type badge (⚔️ Torneo / 📅 Campionato) + gameMode badge (📦 Classico / 🃏 Draft).
+- **Delete Tournament**: creator/admin can delete their tournament (confirmation dialog). Also auto-deletes completed tournaments after 3 hours (setInterval every 30 min).
+- **"Prosegui torneo" button**: after a tournament match ends, GameEndRewardsPanel shows this button; returns to tournament hub without triggering auto-rejoin.
 - **Prize Scaling**: winner gets `winnerRewardMultiplier × totalParticipants` PR, runner-up `runnerUpRewardMultiplier × totalParticipants` PR. Defaults: 20× and 5×.
-- **Backend APIs**: GET /api/tournaments, GET /api/tournaments/:id, POST /api/tournaments, POST /api/tournaments/:id/join, POST /api/tournaments/:id/close-registration, POST /api/tournaments/:id/start, POST /api/tournaments/matches/:matchId/join, POST /api/tournaments/matches/:matchId/report, POST /api/tournaments/:id/invite, DELETE /api/tournaments/:id.
-- **Bracket Viewer**: multi-round visual bracket with player names, match status, winner crown highlights.
-- **User Invite**: search users by username and send socket invite via `tournament-invite-{userId}` event.
+- **Backend APIs**: GET /api/tournaments, GET /api/tournaments/:id, GET /api/tournaments/:id/standings, POST /api/tournaments, POST /api/tournaments/:id/join, POST /api/tournaments/:id/start, POST /api/tournaments/matches/:matchId/report, POST /api/tournaments/:id/invite, DELETE /api/tournaments/:id.
 - **Socket events**: tournament-created, tournament-updated, tournament-started, tournament-round-advanced, tournament-match-reported, tournament-completed, tournament-cancelled, tournament-invite.
-- **DB Schema additions**: `tournaments` table new columns: `game_mode`, `players_per_match`, `cpu_count`, `winner_reward_multiplier`, `runner_up_reward_multiplier`, `settings jsonb`. `tournament_participants` new columns: `is_cpu boolean`, `display_name text`, `user_id` made nullable. `tournament_matches` new column: `player_ids jsonb`.
+- **DB Schema**: `tournaments.type` ('elimination'|'round_robin'), `tournaments.game_mode` ('classic'|'draft'), plus cpu/prize/settings columns. `tournament_participants.is_cpu`, `display_name`, nullable `user_id`. `tournament_matches.player_ids jsonb`.
 
 # User Preferences
 
