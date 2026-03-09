@@ -1,6 +1,6 @@
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from '../client/src/lib/cardData';
 import { db, isDatabaseAvailable } from './db';
-import { matches, gameEvents, personaggi, customCards, cardModifications, users, gameStates, cardSkins, tournamentMatches, tournaments, draftDecks, draftCharacterGrowth, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
+import { matches, gameEvents, personaggi, customCards, cardModifications, users, gameStates, cardSkins, tournamentMatches, tournaments, draftDecks, draftCharacterGrowth, draftTournaments, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
 import { eq, ilike, sql, and } from 'drizzle-orm';
 import { CPUPlayer } from './cpuPlayer';
 import { trackGameEvent } from './missionsAndAchievements';
@@ -2152,13 +2152,72 @@ Rispondi SOLO in JSON:`;
         });
       }
 
-      // Check if this is a tournament match and update it
+      // Check if this is a bracket tournament match and update it
       if (gameId.startsWith('tournament-')) {
         await this.updateTournamentMatch(gameId, winnerPlayer);
       }
 
+      // Auto-update draft tournament for any Draft PvP game
+      await this.updateDraftTournamentMatch(gameId, winnerPlayer);
+
     } catch (error) {
       console.error('Failed to complete match:', error);
+    }
+  }
+
+  private async updateDraftTournamentMatch(gameId: string, winnerPlayer?: string): Promise<void> {
+    try {
+      if (!isDatabaseAvailable()) return;
+      const game = this.games.get(gameId);
+      if (!game || !game.isDraftMode) return; // Only Draft mode games
+
+      // Only count games with at least 2 human players (no CPU-only games)
+      const humanPlayers = Object.keys(game.players).filter(p => !game.players[p].isCPU);
+      if (humanPlayers.length < 2) return;
+
+      for (const playerName of humanPlayers) {
+        const userId = game.playerUserIds.get(playerName);
+        if (!userId) continue;
+
+        // Check if player has an active draft tournament
+        const [tournament] = await db.select().from(draftTournaments)
+          .where(and(eq(draftTournaments.userId, userId), eq(draftTournaments.status, 'active')))
+          .limit(1);
+        if (!tournament) continue;
+
+        const isWinner = playerName === winnerPlayer;
+        const newWins = tournament.wins + (isWinner ? 1 : 0);
+        const newLosses = tournament.losses + (isWinner ? 0 : 1);
+        const isComplete = newWins >= 7 || newLosses >= 3;
+
+        // Update draft rating
+        if (isWinner) {
+          await db.update(users)
+            .set({ draftRating: sql`draft_rating + 30` })
+            .where(eq(users.id, userId));
+        } else {
+          await db.update(users)
+            .set({ draftRating: sql`GREATEST(0, draft_rating - 20)` })
+            .where(eq(users.id, userId));
+        }
+
+        // Update best run
+        if (newWins > (tournament.wins)) {
+          const [u] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+          if (u && newWins > (u.draftBestRun || 0)) {
+            await db.update(users).set({ draftBestRun: newWins }).where(eq(users.id, userId));
+          }
+        }
+
+        // Update tournament record
+        const updates: any = { wins: newWins, losses: newLosses };
+        if (isComplete) { updates.status = 'completed'; updates.endedAt = new Date(); }
+        await db.update(draftTournaments).set(updates).where(eq(draftTournaments.id, tournament.id));
+
+        console.log(`🏆 DraftTournament auto: ${playerName} ${isWinner ? 'WIN' : 'LOSS'} → ${newWins}W/${newLosses}L${isComplete ? ' COMPLETED' : ''}`);
+      }
+    } catch (error) {
+      console.error('Error auto-updating draft tournament:', error);
     }
   }
 

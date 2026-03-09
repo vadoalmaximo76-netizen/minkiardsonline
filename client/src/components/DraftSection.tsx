@@ -3,8 +3,6 @@ import { ArrowLeft, Shuffle, ShoppingCart, CreditCard, Search, Plus, Minus, Chec
 import { PackOpeningAnimation, PackType, RevealedCard } from './PackOpeningAnimation';
 import { SeasonPass } from './SeasonPass';
 import { Marketplace } from './Marketplace';
-import { DraftCardPickerModal, PickerCard } from './DraftCardPickerModal';
-import { DraftWinReward } from './DraftWinReward';
 import { socket } from '../lib/socket';
 import { useToast } from '../hooks/use-toast';
 
@@ -212,11 +210,8 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
   const [tournamentLoading, setTournamentLoading] = useState(false);
   const [tournamentMsg, setTournamentMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [tournamentHistory, setTournamentHistory] = useState<TournamentData[]>([]);
-  const [showWinReward, setShowWinReward] = useState<{ wins: number; creditsEarned: number; rewardCards: PickerCard[] } | null>(null);
-  const [showCardPicker, setShowCardPicker] = useState<{ cards: PickerCard[] } | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
-  const [recordingResult, setRecordingResult] = useState(false);
   // ────────────────────────────────────────────────────────────────────────
 
   const fetchCollection = useCallback(async () => {
@@ -376,45 +371,6 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
     setTournamentLoading(false);
   };
 
-  const handleRecordResult = async (win: boolean) => {
-    if (!tournament || recordingResult) return;
-    setRecordingResult(true);
-    setTournamentMsg(null);
-    try {
-      const res = await fetch('/api/draft/tournament/match-result', {
-        method: 'POST', headers: getAuthHeaders(),
-        body: JSON.stringify({ win }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setTournament(data.tournament);
-        fetchAll(); // refresh credits
-        if (win) {
-          setShowWinReward({ wins: data.newWins, creditsEarned: data.creditsEarned, rewardCards: data.rewardCards || [] });
-        } else {
-          if (data.isComplete) {
-            setTournamentMsg({ type: 'error', text: `Torneo terminato con ${data.newWins} vittorie. Ottimo tentativo!` });
-          } else {
-            setTournamentMsg({ type: 'error', text: `Sconfitta registrata. (${data.newLosses}/3 sconfitte)` });
-          }
-        }
-      } else {
-        setTournamentMsg({ type: 'error', text: data.error || 'Errore registrazione' });
-      }
-    } catch { setTournamentMsg({ type: 'error', text: 'Errore di rete' }); }
-    setRecordingResult(false);
-  };
-
-  const handlePickCard = async (card: PickerCard) => {
-    try {
-      await fetch('/api/draft/tournament/pick-card', {
-        method: 'POST', headers: getAuthHeaders(),
-        body: JSON.stringify({ cardId: card.cardId, deckType: card.deckType, rarity: card.rarity, cardName: card.name, cardImageUrl: card.frontImage }),
-      });
-    } catch {}
-    setShowCardPicker(null);
-    fetchTournament();
-  };
 
   const fetchPacks = useCallback(async () => {
     try {
@@ -2591,33 +2547,42 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                 className="rounded-2xl border border-white/10 overflow-hidden"
                 style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 60%, #0f172a 100%)' }}
               >
-                <div className="p-6 text-center">
-                  {/* Rewards table */}
-                  <h3 className="text-white font-bold mb-3 text-lg">Premi per Vittoria</h3>
-                  <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 mb-6">
-                    {[1,2,3,4,5,6,7].map(w => {
-                      const credits = [75,100,150,200,300,500,750][w-1];
-                      return (
-                        <div key={w} className={`rounded-xl py-2 px-1 text-center ${w === 7 ? 'bg-yellow-500/20 border border-yellow-500/40' : 'bg-white/5 border border-white/10'}`}>
-                          <div className="flex justify-center mb-1">
-                            {Array.from({length: Math.min(w, 3)}).map((_,i) => (
-                              <Star key={i} size={10} className={w >= 5 ? 'text-yellow-400 fill-yellow-400' : 'text-white/40 fill-white/20'} />
-                            ))}
-                          </div>
-                          <div className={`font-bold text-sm ${w === 7 ? 'text-yellow-300' : 'text-white'}`}>{w}V</div>
-                          <div className={`text-xs ${w === 7 ? 'text-yellow-400' : 'text-teal-400'}`}>{credits} cr</div>
-                        </div>
-                      );
-                    })}
+                <div className="p-6">
+                  {/* Rules */}
+                  <div className="grid grid-cols-2 gap-3 mb-6">
+                    <div className="rounded-xl p-4 text-center bg-green-500/10 border border-green-500/20">
+                      <div className="text-3xl font-black text-green-400 mb-1">7</div>
+                      <div className="text-green-300/70 text-xs">vittorie per completare</div>
+                    </div>
+                    <div className="rounded-xl p-4 text-center bg-red-500/10 border border-red-500/20">
+                      <div className="text-3xl font-black text-red-400 mb-1">3</div>
+                      <div className="text-red-300/70 text-xs">sconfitte = eliminato</div>
+                    </div>
+                  </div>
+
+                  {/* Rating info */}
+                  <div className="rounded-xl p-3 mb-4 bg-white/5 border border-white/10 space-y-1.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-white/60 flex items-center gap-1.5"><Star size={13} className="text-green-400" /> Vittoria</span>
+                      <span className="text-green-400 font-bold">+30 punti rating</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-white/60 flex items-center gap-1.5"><Star size={13} className="text-red-400" /> Sconfitta</span>
+                      <span className="text-red-400 font-bold">−20 punti rating</span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl p-3 mb-5 bg-teal-500/5 border border-teal-500/20">
+                    <p className="text-teal-300/70 text-xs text-center leading-relaxed">
+                      Gioca partite <strong className="text-teal-300">Draft vs altri giocatori</strong>. I risultati vengono registrati automaticamente.
+                    </p>
                   </div>
 
                   <div className="flex items-center justify-center gap-3 mb-4 p-3 rounded-xl bg-white/5 border border-white/10">
                     <Coins size={18} className="text-yellow-400" />
-                    <span className="text-white/80 text-sm">Costo entrata:</span>
+                    <span className="text-white/70 text-sm">Costo entrata:</span>
                     <span className="text-yellow-300 font-bold text-lg">100 crediti</span>
                   </div>
-
-                  <p className="text-white/40 text-xs mb-5">Usa il tuo mazzo Draft. Gioca le partite in modalità Draft, poi torna qui a registrare i risultati.</p>
 
                   <button
                     onClick={handleStartTournament}
@@ -2627,7 +2592,7 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                     {tournamentLoading ? '...' : (status?.totalCredits || 0) < 100 ? 'Crediti insufficienti' : '⚔️ Entra nel Torneo'}
                   </button>
                   {(status?.totalCredits || 0) < 100 && (
-                    <p className="text-red-400 text-xs mt-2">Hai {status?.totalCredits || 0} crediti. Ne servono 100.</p>
+                    <p className="text-red-400 text-xs mt-2 text-center">Hai {status?.totalCredits || 0} crediti. Ne servono 100.</p>
                   )}
                 </div>
               </div>
@@ -2640,18 +2605,19 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                 <div className="rounded-2xl border border-white/10 p-5" style={{ background: 'rgba(15,23,42,0.9)' }}>
                   <div className="flex items-center justify-between mb-4">
                     <span className="text-white/60 text-sm">Torneo #{tournament.id}</span>
-                    <span className="text-teal-400 text-xs font-bold uppercase tracking-wide">In corso</span>
+                    <span className="text-teal-400 text-xs font-bold uppercase tracking-wide animate-pulse">● In corso</span>
                   </div>
 
                   {/* Wins/Losses display */}
                   <div className="flex gap-4 mb-5">
-                    <div className="flex-1 text-center p-3 rounded-xl bg-green-500/10 border border-green-500/20">
-                      <div className="text-3xl font-black text-green-400">{tournament.wins}</div>
-                      <div className="text-green-300/60 text-xs">Vittorie</div>
+                    <div className="flex-1 text-center p-4 rounded-xl bg-green-500/10 border border-green-500/20">
+                      <div className="text-4xl font-black text-green-400">{tournament.wins}</div>
+                      <div className="text-green-300/60 text-xs mt-1">Vittorie</div>
                     </div>
-                    <div className="flex-1 text-center p-3 rounded-xl bg-red-500/10 border border-red-500/20">
-                      <div className="text-3xl font-black text-red-400">{tournament.losses}</div>
-                      <div className="text-red-300/60 text-xs">Sconfitte</div>
+                    <div className="flex items-center text-white/20 text-2xl font-light">/</div>
+                    <div className="flex-1 text-center p-4 rounded-xl bg-red-500/10 border border-red-500/20">
+                      <div className="text-4xl font-black text-red-400">{tournament.losses}</div>
+                      <div className="text-red-300/60 text-xs mt-1">Sconfitte</div>
                     </div>
                   </div>
 
@@ -2660,8 +2626,8 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                     <div className="flex justify-between text-xs text-white/40 mb-1">
                       <span>Vittorie</span><span>{tournament.wins}/7</span>
                     </div>
-                    <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-teal-500 to-green-400 rounded-full transition-all duration-500" style={{ width: `${(tournament.wins / 7) * 100}%` }} />
+                    <div className="h-2.5 bg-white/10 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-teal-500 to-green-400 rounded-full transition-all duration-700" style={{ width: `${(tournament.wins / 7) * 100}%` }} />
                     </div>
                   </div>
                   {/* Losses progress bar */}
@@ -2669,49 +2635,58 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                     <div className="flex justify-between text-xs text-white/40 mb-1">
                       <span>Sconfitte</span><span>{tournament.losses}/3</span>
                     </div>
-                    <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-red-500 to-orange-400 rounded-full transition-all duration-500" style={{ width: `${(tournament.losses / 3) * 100}%` }} />
+                    <div className="h-2.5 bg-white/10 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-red-500 to-orange-400 rounded-full transition-all duration-700" style={{ width: `${(tournament.losses / 3) * 100}%` }} />
                     </div>
                   </div>
+                </div>
 
-                  {/* Next reward preview */}
-                  {tournament.wins < 7 && (
-                    <div className="mt-4 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20 flex items-center gap-2">
-                      <Sparkles size={14} className="text-yellow-400" />
-                      <span className="text-yellow-300 text-sm">Prossima vittoria: <strong>{[75,100,150,200,300,500,750][tournament.wins] || 0} crediti</strong></span>
+                {/* How to play box */}
+                <div className="rounded-xl border border-teal-500/20 bg-teal-500/5 p-4">
+                  <div className="flex items-start gap-3">
+                    <Swords size={18} className="text-teal-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-teal-300 font-semibold text-sm mb-1">Come funziona</p>
+                      <p className="text-white/50 text-xs leading-relaxed">
+                        Vai nella schermata principale → crea o unisciti a una partita <strong className="text-white/70">modalità Draft</strong> contro un altro giocatore. Al termine di ogni partita, il risultato viene registrato automaticamente dal sistema.
+                      </p>
                     </div>
-                  )}
+                  </div>
                 </div>
 
-                {/* Action buttons */}
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => handleRecordResult(true)}
-                    disabled={recordingResult}
-                    className="py-4 bg-gradient-to-br from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:opacity-50 text-white font-bold text-base rounded-xl transition-all duration-200 active:scale-95 flex items-center justify-center gap-2"
-                  >
-                    <Trophy size={18} /> Vittoria! 🎉
-                  </button>
-                  <button
-                    onClick={() => handleRecordResult(false)}
-                    disabled={recordingResult}
-                    className="py-4 bg-gradient-to-br from-red-700 to-red-800 hover:from-red-600 hover:to-red-700 disabled:opacity-50 text-white font-bold text-base rounded-xl transition-all duration-200 active:scale-95 flex items-center justify-center gap-2"
-                  >
-                    <X size={18} /> Sconfitta
-                  </button>
-                </div>
-                <p className="text-white/30 text-xs text-center">Gioca una partita in modalità Draft, poi registra il risultato qui.</p>
+                <button
+                  onClick={onBack}
+                  className="w-full py-3.5 bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white font-bold rounded-xl transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 shadow-lg"
+                >
+                  <Swords size={18} /> Vai a giocare in Draft
+                </button>
+
+                <button
+                  onClick={() => fetchTournament()}
+                  className="w-full py-2.5 text-white/30 hover:text-white/60 text-sm transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <RotateCcw size={13} /> Aggiorna stato
+                </button>
               </div>
             )}
 
             {/* Completed tournament summary */}
             {tournament && tournament.status === 'completed' && (
-              <div className="rounded-2xl border border-yellow-500/30 p-5 text-center" style={{ background: 'rgba(234,179,8,0.08)' }}>
-                <Trophy size={40} className="text-yellow-400 mx-auto mb-2" />
-                <h3 className="text-white font-bold text-xl mb-1">Torneo Completato!</h3>
-                <p className="text-yellow-300 text-3xl font-black">{tournament.wins} <span className="text-base font-normal text-white/50">vittorie</span></p>
-                <button onClick={handleStartTournament} disabled={tournamentLoading || (status?.totalCredits || 0) < 100} className="mt-4 px-8 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:opacity-50 text-white font-bold rounded-xl transition-all">
-                  {tournamentLoading ? '...' : 'Nuovo Torneo (100 cr)'}
+              <div className="rounded-2xl border border-yellow-500/30 p-6 text-center" style={{ background: 'rgba(234,179,8,0.05)' }}>
+                <Trophy size={44} className="text-yellow-400 mx-auto mb-3" />
+                <h3 className="text-white font-bold text-xl mb-2">Torneo Completato!</h3>
+                <div className="flex justify-center gap-6 mb-4">
+                  <div>
+                    <div className="text-3xl font-black text-green-400">{tournament.wins}</div>
+                    <div className="text-white/40 text-xs">vittorie</div>
+                  </div>
+                  <div>
+                    <div className="text-3xl font-black text-red-400">{tournament.losses}</div>
+                    <div className="text-white/40 text-xs">sconfitte</div>
+                  </div>
+                </div>
+                <button onClick={handleStartTournament} disabled={tournamentLoading || (status?.totalCredits || 0) < 100} className="px-8 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:opacity-50 text-white font-bold rounded-xl transition-all">
+                  {tournamentLoading ? '...' : 'Nuovo Torneo — 100 cr'}
                 </button>
               </div>
             )}
@@ -2785,29 +2760,6 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
             )}
           </div>
         </div>
-      )}
-
-      {/* ===== TOURNAMENT OVERLAYS ===== */}
-      {showWinReward && (
-        <DraftWinReward
-          wins={showWinReward.wins}
-          creditsEarned={showWinReward.creditsEarned}
-          onContinue={() => {
-            const cards = showWinReward.rewardCards;
-            setShowWinReward(null);
-            if (cards && cards.length > 0) {
-              setShowCardPicker({ cards });
-            }
-          }}
-        />
-      )}
-      {showCardPicker && (
-        <DraftCardPickerModal
-          cards={showCardPicker.cards}
-          onSelect={handlePickCard}
-          onClose={() => { setShowCardPicker(null); fetchTournament(); }}
-          title="Scegli la tua ricompensa"
-        />
       )}
 
       {packAnimation && (
