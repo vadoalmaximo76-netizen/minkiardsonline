@@ -1089,44 +1089,86 @@ export class GameManager {
     tournamentMatchId: number,
     reservedPlayerIds: number[],
     reservedPlayerUsernames: string[],
-    charactersPerMatch?: number
+    characterLimit?: string,
+    cpuDisplayNames?: string[]
   ): void {
     let game = this.games.get(gameId);
     if (game) {
       game.tournamentMatchId = tournamentMatchId;
       game.reservedPlayerIds = reservedPlayerIds;
       game.reservedPlayerUsernames = reservedPlayerUsernames;
-      if (charactersPerMatch && charactersPerMatch > 0) {
-        game.tournamentCharactersPerMatch = charactersPerMatch;
+      if (characterLimit) {
+        game.tournamentCharactersPerMatch = undefined; // clear old field
       }
-      console.log(`🏆 Tournament room ${gameId} configured: matchId=${tournamentMatchId}, players=[${reservedPlayerUsernames.join(', ')}], chars=${charactersPerMatch}`);
+      (game as any).tournamentCharacterLimit = characterLimit || 'unlimited';
+      (game as any).tournamentCpuNames = cpuDisplayNames || [];
+      console.log(`🏆 Tournament room ${gameId} configured: matchId=${tournamentMatchId}, players=[${reservedPlayerUsernames.join(', ')}], cpu=[${(cpuDisplayNames || []).join(', ')}], limit=${characterLimit}`);
     }
   }
 
-  // Distribute N personaggi cards to a player (used for tournament matches)
-  async distributeTournamentCharacters(gameId: string, playerName: string, count: number): Promise<void> {
+  getTournamentConfig(gameId: string): { characterLimit: string; cpuNames: string[]; matchId?: number; expectedPlayers: number } | null {
     const game = this.games.get(gameId);
-    if (!game || !game.players[playerName]) return;
-    for (let i = 0; i < count; i++) {
-      await this.pickCard(gameId, 'personaggi', playerName);
-    }
-    console.log(`🃏 Distributed ${count} personaggi to ${playerName} in tournament room ${gameId}`);
+    if (!game || !game.tournamentMatchId) return null;
+    return {
+      characterLimit: (game as any).tournamentCharacterLimit || 'unlimited',
+      cpuNames: (game as any).tournamentCpuNames || [],
+      matchId: game.tournamentMatchId,
+      expectedPlayers: game.reservedPlayerIds?.length ?? 0,
+    };
   }
 
-  // Called after all reserved players have joined to broadcast the configured state
-  broadcastTournamentRoomReady(gameId: string, io: any): void {
+  // Add a CPU player with a specific tournament display name
+  async addCPUPlayerWithName(gameId: string, displayName: string): Promise<string> {
+    const game = this.games.get(gameId);
+    if (!game) throw new Error('Game not found');
+    const fakeSocketId = `cpu-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+    await this.addPlayer(gameId, displayName, fakeSocketId, true);
+    return displayName;
+  }
+
+  // Auto-start tournament match: add CPUs + start game with characterLimit
+  async autoStartTournamentMatch(gameId: string, cpuDisplayNames: string[], characterLimit: string, io: any): Promise<void> {
     const game = this.games.get(gameId);
     if (!game) return;
-    const playerCount = Object.keys(game.players).length;
-    const expected = game.reservedPlayerIds?.length ?? 0;
-    if (playerCount >= expected && expected > 0) {
-      const gameState = this.getSanitizedGameState(gameId);
-      io.to(gameId).emit('game-state-update', gameState);
-      io.to(gameId).emit('tournament-match-ready', {
-        tournamentMatchId: game.tournamentMatchId,
-        players: Object.keys(game.players),
-      });
-      console.log(`🏆 Tournament match room ${gameId} is fully populated (${playerCount}/${expected} players)`);
+
+    // Add each CPU not already in the game
+    for (const cpuName of cpuDisplayNames) {
+      if (!game.players[cpuName]) {
+        try {
+          await this.addCPUPlayerWithName(gameId, cpuName);
+          console.log(`🤖 Auto-added CPU "${cpuName}" to tournament room ${gameId}`);
+          io.to(gameId).emit('player-joined', { playerName: cpuName });
+        } catch (err) {
+          console.error(`Error adding CPU ${cpuName}:`, err);
+        }
+      }
+    }
+
+    // Start game with the configured character limit
+    const limit = characterLimit || 'unlimited';
+    const playerOrder = this.startGame(gameId, limit);
+    if (!playerOrder) {
+      console.error(`Failed to start tournament match ${gameId} - need at least 2 players`);
+      return;
+    }
+
+    const updatedState = this.getSanitizedGameState(gameId);
+    io.to(gameId).emit('game-started', { playerOrder });
+    io.to(gameId).emit('game-state-update', updatedState);
+    io.to(gameId).emit('tournament-match-started', {
+      tournamentMatchId: game.tournamentMatchId,
+      playerOrder,
+      characterLimit: limit,
+    });
+    console.log(`🏆 Tournament match ${gameId} auto-started (limit: ${limit}, order: ${playerOrder.join(', ')})`);
+
+    // Start turn timer for the first player
+    this.startTurnTimer(gameId, playerOrder[0]);
+
+    // Start CPU turn if needed
+    const firstPlayer = playerOrder[0];
+    if (game.players[firstPlayer]?.isCPU) {
+      setTimeout(() => this.processCPUTurn(gameId, firstPlayer, io), 2000);
     }
   }
 
@@ -18985,6 +19027,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     // Set the turn order and reset current turn index
     gameState.turnOrder = playerOrder;
     gameState.currentTurnIndex = 0;
+    gameState.isPlaying = true;
 
     return playerOrder;
   }

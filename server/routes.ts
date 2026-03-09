@@ -1464,36 +1464,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .where(eq(tournaments.id, m.tournamentId)).limit(1);
             const tRow = tournamentRows[0];
 
-            // Collect all real (human) player IDs from the match
+            // Collect real (human, positive) and CPU (negative) participant IDs
             const pids: (number | null)[] = (m.playerIds as any) || [m.player1Id, m.player2Id];
             const humanIds = pids.filter((p): p is number => p !== null && p > 0);
+            const cpuParticipantIds = pids.filter((p): p is number => p !== null && p < 0)
+              .map(id => Math.abs(id)); // convert back to positive participant IDs
 
-            // Fetch usernames for those IDs
+            // Fetch human usernames
             const userRows = humanIds.length
               ? await db.select({ id: users.id, username: users.username })
                   .from(users).where(inArray(users.id, humanIds))
               : [];
-            const usernames = userRows.map(u => u.username);
+            const humanUsernames = userRows.map(u => u.username);
             const idList = userRows.map(u => u.id);
 
-            // Get charactersPerMatch from tournament settings
-            const settings = (tRow?.settings as any) || {};
-            const charsPerMatch = Number(settings.charactersPerMatch) || 0;
+            // Fetch CPU display names from tournament_participants
+            const cpuRows = cpuParticipantIds.length
+              ? await db.select({ id: tournamentParticipants.id, displayName: tournamentParticipants.displayName })
+                  .from(tournamentParticipants)
+                  .where(inArray(tournamentParticipants.id, cpuParticipantIds))
+              : [];
+            const cpuDisplayNames = cpuRows.map(r => r.displayName || 'CPU');
 
-            // Setup room (idempotent - safe to call on each player join)
+            // Get characterLimit from tournament settings
+            const settings = (tRow?.settings as any) || {};
+            const characterLimit = settings.characterLimit || 'unlimited';
+
+            // Setup room — idempotent (safe to call on each player join)
             const gameObj = gameManager.getGame(gameId);
             if (gameObj) {
-              gameManager.setupTournamentRoom(gameId, tournamentMatchId, idList, usernames, charsPerMatch || undefined);
+              gameManager.setupTournamentRoom(
+                gameId, tournamentMatchId, idList, humanUsernames,
+                characterLimit, cpuDisplayNames
+              );
             }
 
-            // If charactersPerMatch is set, distribute to this player after joining
-            if (charsPerMatch > 0) {
-              await gameManager.distributeTournamentCharacters(gameId, playerName, charsPerMatch);
-              console.log(`🃏 Auto-distributed ${charsPerMatch} personaggi to ${playerName} in tournament match ${tournamentMatchId}`);
-            }
+            // Auto-start the match: add CPUs + start game
+            // (called each join but idempotent for CPUs, startGame is safe to call once)
+            const existingGame = gameManager.getGame(gameId);
+            if (existingGame && !existingGame.isPlaying) {
+              // Only auto-start once all human players are in (or immediately if only 1 human)
+              const humanPlayersInRoom = Object.values(existingGame.players)
+                .filter((p: any) => !p.isCPU).length;
+              const totalHumanExpected = idList.length;
 
-            // Broadcast ready state when all expected players have joined
-            gameManager.broadcastTournamentRoomReady(gameId, io);
+              if (humanPlayersInRoom >= totalHumanExpected) {
+                // All humans in — add CPUs and start
+                setTimeout(async () => {
+                  try {
+                    await gameManager.autoStartTournamentMatch(
+                      gameId, cpuDisplayNames, characterLimit, io
+                    );
+                  } catch (err) {
+                    console.error('Error auto-starting tournament match:', err);
+                  }
+                }, 500);
+              }
+            }
           }
         } catch (tournamentErr) {
           console.error('Error setting up tournament room:', tournamentErr);

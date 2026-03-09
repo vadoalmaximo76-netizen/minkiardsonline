@@ -649,7 +649,7 @@ function CreateWizard({
     entryFee: 0,
     winnerRewardMultiplier: 20,
     runnerUpRewardMultiplier: 5,
-    charactersPerMatch: 3,
+    characterLimit: '3' as string,
   });
 
   const setField = (k: string, v: any) => setForm(prev => ({ ...prev, [k]: v }));
@@ -687,7 +687,7 @@ function CreateWizard({
           entryFee: form.entryFee,
           winnerRewardMultiplier: isAdmin ? form.winnerRewardMultiplier : undefined,
           runnerUpRewardMultiplier: isAdmin ? form.runnerUpRewardMultiplier : undefined,
-          settings: { charactersPerMatch: form.charactersPerMatch },
+          settings: { characterLimit: form.characterLimit },
         }),
       });
       const data = await res.json();
@@ -814,23 +814,27 @@ function CreateWizard({
                 </div>
               </div>
               <div>
-                <div style={labelStyle}>Personaggi per Partita</div>
+                <div style={labelStyle}>Personaggi prima dell'eliminazione</div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map(n => (
-                    <button key={n} onClick={() => setField('charactersPerMatch', n)}
+                  {(['1', '2', '3', '5', 'unlimited'] as const).map(v => (
+                    <button key={v} onClick={() => setField('characterLimit', v)}
                       style={{
-                        background: form.charactersPerMatch === n ? '#0ea5e9' : '#1e293b',
-                        border: `1px solid ${form.charactersPerMatch === n ? '#0ea5e9' : '#334155'}`,
-                        borderRadius: 8, color: form.charactersPerMatch === n ? 'white' : '#94a3b8',
+                        background: form.characterLimit === v ? '#0ea5e9' : '#1e293b',
+                        border: `1px solid ${form.characterLimit === v ? '#0ea5e9' : '#334155'}`,
+                        borderRadius: 8, color: form.characterLimit === v ? 'white' : '#94a3b8',
                         padding: '8px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 14,
                         minWidth: 42, textAlign: 'center',
                       }}>
-                      {n}
+                      {v === 'unlimited' ? '∞' : v}
                     </button>
                   ))}
                 </div>
                 <div style={{ color: '#64748b', fontSize: 12, marginTop: 6 }}>
-                  Ogni giocatore riceve <span style={{ color: '#38bdf8', fontWeight: 700 }}>{form.charactersPerMatch} personaggi</span> automaticamente all'inizio della partita
+                  Un concorrente viene eliminato dopo la morte di{' '}
+                  <span style={{ color: '#38bdf8', fontWeight: 700 }}>
+                    {form.characterLimit === 'unlimited' ? 'tutti i' : form.characterLimit}
+                  </span>{' '}
+                  personagg{form.characterLimit === '1' ? 'io' : 'i'}
                 </div>
               </div>
               <div>
@@ -927,7 +931,7 @@ function CreateWizard({
                   {[
                     ['Max Partecipanti', form.maxParticipants],
                     ['Per Partita', `${form.playersPerMatch} giocatori`],
-                    ['Personaggi/Partita', `${form.charactersPerMatch} carte`],
+                    ['Eliminazione dopo', form.characterLimit === 'unlimited' ? '∞ personaggi' : `${form.characterLimit} personagg${form.characterLimit === '1' ? 'io' : 'i'}`],
                     ['CPU', form.cpuCount > 0 ? `${form.cpuCount} bot` : 'Nessuno'],
                     ['Iscrizione', form.entryFee > 0 ? `${form.entryFee} PR` : 'Gratuita'],
                     ['Premio 1°', `${estimatedWinner} PR`],
