@@ -753,21 +753,22 @@ function CreateWizard({
               </div>
               <div>
                 <div style={labelStyle}>Giocatori per Partita</div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  {[2, 3, 4].map(n => (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {[2, 3, 4, 5, 6, 7, 8].map(n => (
                     <button key={n} onClick={() => setField('playersPerMatch', n)}
                       style={{
                         background: form.playersPerMatch === n ? '#7c3aed' : '#1e293b',
                         border: `1px solid ${form.playersPerMatch === n ? '#7c3aed' : '#334155'}`,
                         borderRadius: 8, color: form.playersPerMatch === n ? 'white' : '#94a3b8',
-                        padding: '8px 18px', cursor: 'pointer', fontWeight: 700, fontSize: 14,
+                        padding: '8px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 14,
+                        minWidth: 42, textAlign: 'center',
                       }}>
-                      {n} vs {n === 2 ? '2' : n === 3 ? '2' : '3'}
+                      {n}
                     </button>
                   ))}
                 </div>
                 <div style={{ color: '#64748b', fontSize: 12, marginTop: 6 }}>
-                  {form.playersPerMatch} giocatori si affrontano in ogni partita del bracket
+                  Ogni partita del bracket avrà <span style={{ color: '#a78bfa', fontWeight: 700 }}>{form.playersPerMatch} partecipanti</span> — il torneo si organizza automaticamente
                 </div>
               </div>
               <div>
@@ -988,7 +989,7 @@ function TournamentCard({ tournament, onClick }: { tournament: Tournament; onCli
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <Sword size={12} color="#64748b" />
-          <span style={{ color: '#64748b', fontSize: 12 }}>{tournament.playersPerMatch}v{tournament.playersPerMatch === 2 ? '2' : tournament.playersPerMatch - 1}</span>
+          <span style={{ color: '#64748b', fontSize: 12 }}>{tournament.playersPerMatch} per partita</span>
         </div>
         {tournament.entryFee > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
