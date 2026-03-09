@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Component, ErrorInfo, ReactNode } from "react";
+import React, { useState, useEffect, useRef, Component, ErrorInfo, ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GameBoard } from "./components/GameBoard";
 import { PlayerNameDialog } from "./components/PlayerNameDialog";
@@ -18,6 +18,7 @@ import { RankiardLeaderboard } from "./components/RankiardLeaderboard";
 import { SpotifyPlayer } from "./components/SpotifyPlayer";
 import { useGameState } from "./lib/stores/useGameState";
 import { socket } from "./lib/socket";
+import { playOpen, playBack, initGlobalClickSound } from "./lib/uiSound";
 import { preloadCriticalImages } from "./lib/imagePreloader";
 import { Toaster } from "./components/ui/sonner";
 import "@fontsource/inter";
@@ -78,6 +79,24 @@ class GameErrorBoundary extends Component<{ children: ReactNode }, { hasError: b
   }
 }
 
+function PageTransitionOverlay({ phase }: { phase: 'idle' | 'in' | 'out' }) {
+  if (phase === 'idle') return null;
+  return (
+    <div
+      className={phase === 'in' ? 'transition-overlay-in' : 'transition-overlay-out'}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 99999,
+        background: 'rgba(0,0,0,0.75)',
+        backdropFilter: 'blur(6px)',
+        WebkitBackdropFilter: 'blur(6px)',
+        pointerEvents: 'none',
+      }}
+    />
+  );
+}
+
 function App() {
   const [showAuthDialog, setShowAuthDialog] = useState(true);
   const [authenticatedUser, setAuthenticatedUser] = useState<AuthUser | null>(null);
@@ -89,6 +108,8 @@ function App() {
   const [serverReady, setServerReady] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [currentSection, setCurrentSection] = useState<AppSection>('home');
+  const [overlayPhase, setOverlayPhase] = useState<'idle' | 'in' | 'out'>('idle');
+  const overlayTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const [openHomeTournaments, setOpenHomeTournaments] = useState(false);
   const [spectatingGameId, setSpectatingGameId] = useState<string | null>(null);
   const [resetPasswordToken, setResetPasswordToken] = useState<string | null>(() => getResetPasswordToken());
@@ -206,6 +227,7 @@ function App() {
         socket.emit('check-server-ready');
         
         preloadCriticalImages();
+        initGlobalClickSound();
         
         const authToken = localStorage.getItem('authToken');
         
@@ -463,11 +485,29 @@ function App() {
     }
   };
 
+  const navigateTo = (section: AppSection, sound: 'open' | 'back' | 'none' = 'open') => {
+    overlayTimersRef.current.forEach(clearTimeout);
+    overlayTimersRef.current = [];
+
+    if (sound === 'open') playOpen();
+    else if (sound === 'back') playBack();
+
+    setOverlayPhase('in');
+    const t1 = setTimeout(() => {
+      setCurrentSection(section);
+      setOverlayPhase('out');
+    }, 170);
+    const t2 = setTimeout(() => setOverlayPhase('idle'), 420);
+    overlayTimersRef.current = [t1, t2];
+  };
+
+  const handleGoHome = () => navigateTo('home', 'back');
+
   const handleNavigate = (section: 'play' | 'training' | 'rooms' | 'profile' | 'admin' | 'draft' | 'leaderboard') => {
     if (section === 'play') {
       setShowRoomDialog(true);
     }
-    setCurrentSection(section);
+    navigateTo(section);
   };
 
   const handleJoinRoom = (roomGameId: string) => {
@@ -550,16 +590,19 @@ function App() {
   if (currentSection === 'home') {
     return (
       <QueryClientProvider client={queryClient}>
-        <HomeScreen 
-          playerName={playerName}
-          userId={authenticatedUser?.id}
-          onNavigate={handleNavigate}
-          onJoinTournamentMatch={handleJoinTournamentMatch}
-          userEmail={authenticatedUser?.email || undefined}
-          initialShowTournaments={openHomeTournaments}
-          onInitialShowTournamentsHandled={() => setOpenHomeTournaments(false)}
-        />
+        <div className="page-enter">
+          <HomeScreen 
+            playerName={playerName}
+            userId={authenticatedUser?.id}
+            onNavigate={handleNavigate}
+            onJoinTournamentMatch={handleJoinTournamentMatch}
+            userEmail={authenticatedUser?.email || undefined}
+            initialShowTournaments={openHomeTournaments}
+            onInitialShowTournamentsHandled={() => setOpenHomeTournaments(false)}
+          />
+        </div>
         <SpotifyPlayer disabled={false} />
+        <PageTransitionOverlay phase={overlayPhase} />
       </QueryClientProvider>
     );
   }
@@ -568,14 +611,17 @@ function App() {
   if (currentSection === 'training') {
     return (
       <QueryClientProvider client={queryClient}>
-        <TrainingMode
-          playerName={playerName}
-          userId={authenticatedUser?.id}
-          avatarId={pendingAvatar}
-          userEmail={authenticatedUser?.email}
-          onBack={() => setCurrentSection('home')}
-        />
+        <div className="page-enter">
+          <TrainingMode
+            playerName={playerName}
+            userId={authenticatedUser?.id}
+            avatarId={pendingAvatar}
+            userEmail={authenticatedUser?.email}
+            onBack={handleGoHome}
+          />
+        </div>
         <SpotifyPlayer disabled={false} />
+        <PageTransitionOverlay phase={overlayPhase} />
       </QueryClientProvider>
     );
   }
@@ -584,15 +630,18 @@ function App() {
   if (currentSection === 'spectator' && spectatingGameId) {
     return (
       <QueryClientProvider client={queryClient}>
-        <SpectatorView
-          gameId={spectatingGameId}
-          spectatorName={playerName || 'Spettatore'}
-          onLeave={() => {
-            setSpectatingGameId(null);
-            setCurrentSection('rooms');
-          }}
-        />
+        <div className="page-enter">
+          <SpectatorView
+            gameId={spectatingGameId}
+            spectatorName={playerName || 'Spettatore'}
+            onLeave={() => {
+              setSpectatingGameId(null);
+              navigateTo('rooms', 'back');
+            }}
+          />
+        </div>
         <SpotifyPlayer disabled={false} />
+        <PageTransitionOverlay phase={overlayPhase} />
       </QueryClientProvider>
     );
   }
@@ -601,18 +650,21 @@ function App() {
   if (currentSection === 'rooms') {
     return (
       <QueryClientProvider client={queryClient}>
-        <ActiveRooms
-          playerName={playerName}
-          userId={authenticatedUser?.id}
-          avatarId={pendingAvatar}
-          onBack={() => setCurrentSection('home')}
-          onJoinRoom={handleJoinRoom}
-          onSpectate={(gameId) => {
-            setSpectatingGameId(gameId);
-            setCurrentSection('spectator');
-          }}
-        />
+        <div className="page-enter">
+          <ActiveRooms
+            playerName={playerName}
+            userId={authenticatedUser?.id}
+            avatarId={pendingAvatar}
+            onBack={handleGoHome}
+            onJoinRoom={handleJoinRoom}
+            onSpectate={(gameId) => {
+              setSpectatingGameId(gameId);
+              navigateTo('spectator');
+            }}
+          />
+        </div>
         <SpotifyPlayer disabled={false} />
+        <PageTransitionOverlay phase={overlayPhase} />
       </QueryClientProvider>
     );
   }
@@ -621,16 +673,19 @@ function App() {
   if (currentSection === 'profile') {
     return (
       <QueryClientProvider client={queryClient}>
-        <ProfileSection
-          playerName={playerName}
-          userId={authenticatedUser?.id}
-          userEmail={authenticatedUser?.email}
-          userAvatar={authenticatedUser?.avatar}
-          socket={socket}
-          onBack={() => setCurrentSection('home')}
-          onUpdateProfile={handleUpdateProfile}
-        />
+        <div className="page-enter">
+          <ProfileSection
+            playerName={playerName}
+            userId={authenticatedUser?.id}
+            userEmail={authenticatedUser?.email}
+            userAvatar={authenticatedUser?.avatar}
+            socket={socket}
+            onBack={handleGoHome}
+            onUpdateProfile={handleUpdateProfile}
+          />
+        </div>
         <SpotifyPlayer disabled={false} />
+        <PageTransitionOverlay phase={overlayPhase} />
       </QueryClientProvider>
     );
   }
@@ -639,13 +694,16 @@ function App() {
   if (currentSection === 'draft') {
     return (
       <QueryClientProvider client={queryClient}>
-        <DraftSection
-          playerName={playerName}
-          userId={authenticatedUser?.id}
-          onBack={() => setCurrentSection('home')}
-          onGoToTournaments={() => { setOpenHomeTournaments(true); setCurrentSection('home'); }}
-        />
+        <div className="page-enter">
+          <DraftSection
+            playerName={playerName}
+            userId={authenticatedUser?.id}
+            onBack={handleGoHome}
+            onGoToTournaments={() => { setOpenHomeTournaments(true); navigateTo('home', 'back'); }}
+          />
+        </div>
         <SpotifyPlayer disabled={false} />
+        <PageTransitionOverlay phase={overlayPhase} />
       </QueryClientProvider>
     );
   }
@@ -654,13 +712,16 @@ function App() {
   if (currentSection === 'leaderboard') {
     return (
       <QueryClientProvider client={queryClient}>
-        <RankiardLeaderboard
-          isOpen={true}
-          onClose={() => setCurrentSection('home')}
-          currentUserId={authenticatedUser?.id}
-          currentGameId={gameId || undefined}
-        />
+        <div className="page-enter">
+          <RankiardLeaderboard
+            isOpen={true}
+            onClose={handleGoHome}
+            currentUserId={authenticatedUser?.id}
+            currentGameId={gameId || undefined}
+          />
+        </div>
         <SpotifyPlayer disabled={false} />
+        <PageTransitionOverlay phase={overlayPhase} />
       </QueryClientProvider>
     );
   }
@@ -673,13 +734,16 @@ function App() {
     }
     return (
       <QueryClientProvider client={queryClient}>
-        <CardAdminPanel 
-          onBack={() => {
-            setCurrentSection('home');
-            window.history.pushState(null, '', window.location.origin);
-          }}
-        />
+        <div className="page-enter">
+          <CardAdminPanel 
+            onBack={() => {
+              window.history.pushState(null, '', window.location.origin);
+              handleGoHome();
+            }}
+          />
+        </div>
         <SpotifyPlayer disabled={false} />
+        <PageTransitionOverlay phase={overlayPhase} />
       </QueryClientProvider>
     );
   }
@@ -690,7 +754,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <div className="min-h-screen bg-arena-deep flex flex-col items-center justify-center">
           <button
-            onClick={() => { setCurrentSection('home'); setShowDeckSelectDialog(false); setPendingDraftParams(null); }}
+            onClick={() => { setShowDeckSelectDialog(false); setPendingDraftParams(null); handleGoHome(); }}
             className="absolute top-4 left-4 p-3 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-colors"
           >
             ← Indietro

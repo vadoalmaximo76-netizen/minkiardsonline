@@ -2590,3 +2590,39 @@ input:focus, select:focus {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── Page transition animations ──────────────────────────────────────── */
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: scale(1);
+  }
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes overlayFadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+.page-enter {
+  animation: pageEnter 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.transition-overlay-in {
+  animation: overlayFadeIn 0.16s ease forwards;
+}
+
+.transition-overlay-out {
+  animation: overlayFadeOut 0.2s ease forwards;
+}
