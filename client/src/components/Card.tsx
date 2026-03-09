@@ -253,6 +253,25 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   const isMyTurn = currentTurnPlayer === playerName;
   const isPlayable = location === 'hand' && isMyTurn;
 
+  // Pause the turn timer while interactive attack dialogs are open; resume when they close
+  useEffect(() => {
+    if (!isMyTurn || !playerName) return;
+    if (showAttackTargetSelect) {
+      socket.emit('timer-pause', { playerName });
+    } else {
+      socket.emit('timer-resume', { playerName });
+    }
+  }, [showAttackTargetSelect, isMyTurn, playerName]);
+
+  useEffect(() => {
+    if (!isMyTurn || !playerName) return;
+    if (showDamageInput) {
+      socket.emit('timer-pause', { playerName });
+    } else {
+      socket.emit('timer-resume', { playerName });
+    }
+  }, [showDamageInput, isMyTurn, playerName]);
+
   const { playPointGain, playPointLoss, playStarGain, playStarLoss, playCardPlay, registerLowHealthCard, unregisterLowHealthCard } = useAudio();
 
   // Detect PTI and Star changes to trigger visual/audio effects

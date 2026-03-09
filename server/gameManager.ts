@@ -440,6 +440,8 @@ export class GameManager {
   private saveDebounceMs = 2000; // Save at most every 2 seconds per game
   private turnTimers: Map<string, NodeJS.Timeout> = new Map();
   private turnWarningTimers: Map<string, NodeJS.Timeout> = new Map();
+  private turnTimerStartTime: Map<string, number> = new Map();
+  private turnTimerDurationMs: Map<string, number> = new Map();
   private readonly TURN_TIMEOUT_SECONDS = 30;
 
   clearTurnTimer(gameId: string): void {
@@ -481,6 +483,10 @@ export class GameManager {
       this.turnWarningTimers.set(gameId, warningTimer);
     }
 
+    // Track start time and duration for pause/resume
+    this.turnTimerStartTime.set(gameId, Date.now());
+    this.turnTimerDurationMs.set(gameId, timeoutSeconds * 1000);
+
     // Auto end turn at timeout
     const timer = setTimeout(() => {
       const currentState = this.games.get(gameId);
@@ -512,6 +518,99 @@ export class GameManager {
       }
     }, timeoutSeconds * 1000);
     this.turnTimers.set(gameId, timer);
+  }
+
+  // Pause the turn timer, returning remaining ms (or null if no active timer)
+  pauseTurnTimer(gameId: string): number | null {
+    const t = this.turnTimers.get(gameId);
+    if (!t) return null; // No active timer
+
+    const startTime = this.turnTimerStartTime.get(gameId);
+    const durationMs = this.turnTimerDurationMs.get(gameId);
+    if (startTime === undefined || durationMs === undefined) return null;
+
+    const elapsed = Date.now() - startTime;
+    const remainingMs = Math.max(0, durationMs - elapsed);
+
+    // Cancel the existing timeout
+    this.clearTurnTimer(gameId);
+
+    // Save remaining time for resume
+    this.turnTimerDurationMs.set(gameId, remainingMs);
+
+    const io = (global as any).io;
+    if (io) {
+      io.to(gameId).emit('turn-timer-pause', { remainingSeconds: Math.ceil(remainingMs / 1000) });
+    }
+    console.log(`⏸️ Turn timer paused for game ${gameId}: ${Math.ceil(remainingMs / 1000)}s remaining`);
+    return remainingMs;
+  }
+
+  // Resume the turn timer from where it was paused
+  resumeTurnTimer(gameId: string, playerName: string): void {
+    const remainingMs = this.turnTimerDurationMs.get(gameId);
+    if (remainingMs === undefined || remainingMs <= 0) return;
+
+    const gameState = this.games.get(gameId);
+    if (!gameState) return;
+    const player = gameState.players[playerName];
+    if (player?.cpuInstance) return;
+    if (gameState.activeDuel?.active) return;
+
+    // Verify it's still this player's turn
+    const currentPlayer = gameState.turnOrder[gameState.currentTurnIndex];
+    if (currentPlayer !== playerName) return;
+
+    const io = (global as any).io;
+    const remainingSeconds = Math.ceil(remainingMs / 1000);
+
+    if (io) {
+      io.to(gameId).emit('turn-timer-resume', { playerName, remainingSeconds });
+    }
+
+    // Restart warning timer if enough time remains
+    if (remainingMs > 10000) {
+      const warningTimer = setTimeout(() => {
+        const io2 = (global as any).io;
+        if (io2) io2.to(gameId).emit('turn-timer-warning', { playerName, seconds: 10 });
+      }, remainingMs - 10000);
+      this.turnWarningTimers.set(gameId, warningTimer);
+    }
+
+    // Restart the timeout with remaining time
+    this.turnTimerStartTime.set(gameId, Date.now());
+    this.turnTimerDurationMs.set(gameId, remainingMs);
+
+    const timer = setTimeout(() => {
+      const currentState = this.games.get(gameId);
+      if (!currentState) return;
+      const cp = currentState.turnOrder[currentState.currentTurnIndex];
+      if (cp !== playerName) return;
+      const io3 = (global as any).io;
+      console.log(`⏰ Turn timer expired (resumed) for ${playerName} in game ${gameId}`);
+      if (io3) {
+        io3.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-turn-timeout`,
+          playerName: 'Sistema',
+          message: `⏰ ${playerName} ha esaurito il tempo! Turno passato automaticamente.`,
+          timestamp: Date.now()
+        });
+      }
+      const nextPlayer = this.forceEndTurn(gameId);
+      if (nextPlayer && io3) {
+        io3.to(gameId).emit('next-turn', { nextPlayer, reason: 'timeout' });
+        const updatedState = this.getSanitizedGameState(gameId);
+        if (updatedState) io3.to(gameId).emit('game-state-update', updatedState);
+        const updatedGame = this.games.get(gameId);
+        if (updatedGame && updatedGame.players[nextPlayer]?.isCPU) {
+          setTimeout(() => this.processCPUTurn(gameId, nextPlayer, io3), 2000);
+        } else {
+          this.startTurnTimer(gameId, nextPlayer);
+        }
+      }
+    }, remainingMs);
+    this.turnTimers.set(gameId, timer);
+    console.log(`▶️ Turn timer resumed for ${playerName} in game ${gameId}: ${remainingSeconds}s remaining`);
   }
 
   getGame(gameId: string): GameState | undefined {
@@ -23407,6 +23506,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           const updatedState = this.getSanitizedGameState(gameId);
           io.to(gameId).emit('game-state-update', updatedState);
         }
+      }
+    }
+
+    // Auto-resume the turn timer if this attack resolved and it's still the attacker's turn
+    const finalGameState = this.games.get(gameId);
+    if (finalGameState) {
+      const currentPlayer = finalGameState.turnOrder[finalGameState.currentTurnIndex];
+      if (currentPlayer === attackerName) {
+        this.resumeTurnTimer(gameId, attackerName);
       }
     }
   }

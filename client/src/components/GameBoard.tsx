@@ -1902,8 +1902,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     const handleTurnTimerWarning = ({ playerName: timerPlayer, seconds }: { playerName: string; seconds: number }) => {
       setTurnTimerState(prev => ({ ...prev, isWarning: true, seconds }));
     };
+    const handleTurnTimerPause = ({ remainingSeconds }: { remainingSeconds: number }) => {
+      if (turnTimerIntervalRef.current) clearInterval(turnTimerIntervalRef.current);
+      turnTimerIntervalRef.current = null;
+      // Keep timer visible but frozen at remaining seconds
+      setTurnTimerState(prev => ({ ...prev, active: true, seconds: remainingSeconds, isWarning: remainingSeconds <= 10 }));
+    };
+    const handleTurnTimerResume = ({ playerName: timerPlayer, remainingSeconds }: { playerName: string; remainingSeconds: number }) => {
+      startTurnCountdown(remainingSeconds, timerPlayer);
+    };
     socket.on('turn-timer-start', handleTurnTimerStart);
     socket.on('turn-timer-warning', handleTurnTimerWarning);
+    socket.on('turn-timer-pause', handleTurnTimerPause);
+    socket.on('turn-timer-resume', handleTurnTimerResume);
     // ── Rematch ─────────────────────────────────────────────────────────────
     const handleRematchVoteUpdate = ({ votes, total, voters }: { votes: number; total: number; voters: string[] }) => {
       setRematchState(prev => ({ ...prev, votes, total, voters }));
@@ -1954,6 +1965,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       if (turnTimerIntervalRef.current) clearInterval(turnTimerIntervalRef.current);
       socket.off('turn-timer-start', handleTurnTimerStart);
       socket.off('turn-timer-warning', handleTurnTimerWarning);
+      socket.off('turn-timer-pause', handleTurnTimerPause);
+      socket.off('turn-timer-resume', handleTurnTimerResume);
       socket.off('rematch-vote-update', handleRematchVoteUpdate);
       socket.off('rematch-ready', handleRematchReady);
       socket.off('rematch-declined', handleRematchDeclined);

@@ -5151,7 +5151,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
         console.log(`🗡️  DEFENSE-ENABLED MOSSE ATTACK: ${attackerName} → ${targetOwner} (damage: ${damageValue}, effect: ${mosseEffect || 'none'})`);
-        
+
+        // Auto-pause turn timer while attack cycle is in progress
+        gameManager.pauseTurnTimer(gameId);
+
         // Get the card to check its frontImage for CPU restrictions
         const gameState = gameManager.getSanitizedGameState(gameId);
         const mosseCard = gameState?.field?.find((c: any) => c.id === mosseCardId);
@@ -5638,6 +5641,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
     });
+
+    // ── Turn timer pause/resume ────────────────────────────────────────────
+    // Client emits this when an interactive dialog opens (damage input, target select, etc.)
+    socket.on('timer-pause', ({ playerName }: { playerName: string }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const gameState = gameManager.getGameState(gameId);
+      if (!gameState) return;
+      const currentPlayer = gameState.turnOrder[gameState.currentTurnIndex];
+      if (currentPlayer !== playerName) return; // Only pause for the current-turn player
+      console.log(`⏸️ Client requested timer pause for ${playerName} in game ${gameId}`);
+      gameManager.pauseTurnTimer(gameId);
+    });
+
+    // Client emits this when an interactive dialog is dismissed WITHOUT completing an action
+    socket.on('timer-resume', ({ playerName }: { playerName: string }) => {
+      const gameId = gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const gameState = gameManager.getGameState(gameId);
+      if (!gameState) return;
+      const currentPlayer = gameState.turnOrder[gameState.currentTurnIndex];
+      if (currentPlayer !== playerName) return; // Only resume for the current-turn player
+      console.log(`▶️ Client requested timer resume for ${playerName} in game ${gameId}`);
+      gameManager.resumeTurnTimer(gameId, playerName);
+    });
+    // ──────────────────────────────────────────────────────────────────────
 
     // PRODUCTION-READY DEFENSE RESPONSE: Enhanced security and validation
     // DELAYED DAMAGE - Player chooses to delay receiving damage
