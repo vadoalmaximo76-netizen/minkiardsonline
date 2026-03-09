@@ -7,7 +7,7 @@ import jwt from "jsonwebtoken";
 import fs from "fs";
 import path from "path";
 import { db, legacyDb, isDatabaseAvailable, isLegacyDbAvailable } from "./db";
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, draftTournaments } from "../shared/schema";
 import { jsonStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray } from "drizzle-orm";
 import { CARD_DATA, DECK_BACK_IMAGES } from "../client/src/lib/cardData";
@@ -14042,6 +14042,251 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       res.status(500).json({ error: 'Errore nella gestione del duplicato' });
     }
   });
+
+  // ── Draft Tournament System ─────────────────────────────────────────────
+  const TOURNAMENT_REWARD_CREDITS: Record<number, number> = { 1: 75, 2: 100, 3: 150, 4: 200, 5: 300, 6: 500, 7: 750 };
+  const TOURNAMENT_ENTRY_COST = 100;
+  const TOURNAMENT_MAX_WINS = 7;
+  const TOURNAMENT_MAX_LOSSES = 3;
+
+  // Helper: pick N random cards from card modifications for the reward picker
+  function getTournamentRewardCards(count: number): any[] {
+    try {
+      const mods: any[] = jsonStorage.loadData('cardModifications') || [];
+      if (mods.length === 0) return [];
+      const rarityWeights = [
+        { rarity: 'leggendaria', weight: 3 },
+        { rarity: 'epica', weight: 10 },
+        { rarity: 'rara', weight: 25 },
+        { rarity: 'comune', weight: 62 },
+      ];
+      const shuffled = [...mods].sort(() => Math.random() - 0.5);
+      const picks: any[] = [];
+      const used = new Set<string>();
+      for (const card of shuffled) {
+        if (picks.length >= count) break;
+        if (used.has(card.cardId)) continue;
+        // Assign a random rarity weighted
+        const roll = Math.random() * 100;
+        let cumulative = 0;
+        let rarity = 'comune';
+        for (const r of rarityWeights) {
+          cumulative += r.weight;
+          if (roll < cumulative) { rarity = r.rarity; break; }
+        }
+        used.add(card.cardId);
+        picks.push({
+          cardId: card.cardId,
+          name: card.name || card.cardId,
+          frontImage: card.frontImage || card.imageUrl || '',
+          deckType: card.deckType || 'personaggi',
+          rarity,
+          credits: card.draftCost || 50,
+        });
+      }
+      return picks;
+    } catch { return []; }
+  }
+
+  // POST /api/draft/tournament/start
+  app.post('/api/draft/tournament/start', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'Utente non trovato' });
+
+      // Check no active tournament
+      const active = await db.select().from(draftTournaments)
+        .where(and(eq(draftTournaments.userId, currentUser.id), eq(draftTournaments.status, 'active')))
+        .limit(1);
+      if (active.length > 0) return res.status(409).json({ error: 'Hai già un torneo attivo', tournament: active[0] });
+
+      // Check credits
+      const [credits] = await db.select().from(userDraftCredits).where(eq(userDraftCredits.userId, currentUser.id)).limit(1);
+      const totalCredits = credits ? (credits.freeCredits + credits.paidCredits) : 0;
+      if (totalCredits < TOURNAMENT_ENTRY_COST) return res.status(400).json({ error: `Crediti insufficienti. Servono ${TOURNAMENT_ENTRY_COST} crediti.` });
+
+      // Deduct entry fee (from paid first, then free)
+      let remaining = TOURNAMENT_ENTRY_COST;
+      const paidToDeduct = Math.min(remaining, credits?.paidCredits || 0);
+      remaining -= paidToDeduct;
+      const freeToDeduct = remaining;
+      await db.update(userDraftCredits)
+        .set({ paidCredits: sql`paid_credits - ${paidToDeduct}`, freeCredits: sql`free_credits - ${freeToDeduct}`, updatedAt: new Date() })
+        .where(eq(userDraftCredits.userId, currentUser.id));
+
+      // Create tournament
+      const [tournament] = await db.insert(draftTournaments).values({
+        userId: currentUser.id,
+        status: 'active',
+        wins: 0,
+        losses: 0,
+        entryCredits: TOURNAMENT_ENTRY_COST,
+        rewardsGranted: [],
+      }).returning();
+
+      console.log(`🏆 Draft tournament started: user ${currentUser.username} (id: ${tournament.id})`);
+      res.json({ success: true, tournament });
+    } catch (error) {
+      console.error('Error starting tournament:', error);
+      res.status(500).json({ error: 'Errore avvio torneo' });
+    }
+  });
+
+  // GET /api/draft/tournament/active
+  app.get('/api/draft/tournament/active', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json({ tournament: null });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'Utente non trovato' });
+
+      const [tournament] = await db.select().from(draftTournaments)
+        .where(and(eq(draftTournaments.userId, currentUser.id), eq(draftTournaments.status, 'active')))
+        .limit(1);
+      res.json({ tournament: tournament || null });
+    } catch (error) {
+      res.status(500).json({ error: 'Errore recupero torneo' });
+    }
+  });
+
+  // POST /api/draft/tournament/match-result — record win or loss
+  app.post('/api/draft/tournament/match-result', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'Utente non trovato' });
+
+      const { win } = req.body as { win: boolean };
+
+      const [tournament] = await db.select().from(draftTournaments)
+        .where(and(eq(draftTournaments.userId, currentUser.id), eq(draftTournaments.status, 'active')))
+        .limit(1);
+      if (!tournament) return res.status(404).json({ error: 'Nessun torneo attivo' });
+
+      const newWins = tournament.wins + (win ? 1 : 0);
+      const newLosses = tournament.losses + (win ? 0 : 1);
+      const isComplete = newWins >= TOURNAMENT_MAX_WINS || newLosses >= TOURNAMENT_MAX_LOSSES;
+
+      let creditsEarned = 0;
+      let rewardCards: any[] = [];
+      const rewardsGranted: any[] = Array.isArray(tournament.rewardsGranted) ? [...(tournament.rewardsGranted as any[])] : [];
+
+      if (win) {
+        creditsEarned = TOURNAMENT_REWARD_CREDITS[newWins] || 50;
+        // Grant credits
+        await db.update(userDraftCredits)
+          .set({ freeCredits: sql`free_credits + ${creditsEarned}`, updatedAt: new Date() })
+          .where(eq(userDraftCredits.userId, currentUser.id));
+
+        // Generate reward card picker options (5 cards)
+        rewardCards = getTournamentRewardCards(5);
+        rewardsGranted.push({ win: newWins, credits: creditsEarned, grantedAt: new Date().toISOString() });
+
+        // Update draft rating (+30 for win)
+        await db.update(users)
+          .set({ draftRating: sql`draft_rating + 30` })
+          .where(eq(users.id, currentUser.id));
+      } else {
+        // Update draft rating (-20 for loss, min 0)
+        await db.update(users)
+          .set({ draftRating: sql`GREATEST(0, draft_rating - 20)` })
+          .where(eq(users.id, currentUser.id));
+      }
+
+      // Update best run
+      if (newWins > (currentUser.draftBestRun || 0)) {
+        await db.update(users)
+          .set({ draftBestRun: newWins })
+          .where(eq(users.id, currentUser.id));
+      }
+
+      // Update tournament
+      const updates: any = { wins: newWins, losses: newLosses, rewardsGranted };
+      if (isComplete) { updates.status = 'completed'; updates.endedAt = new Date(); }
+
+      await db.update(draftTournaments).set(updates).where(eq(draftTournaments.id, tournament.id));
+
+      const updatedTournament = { ...tournament, ...updates };
+      console.log(`🏆 Tournament match: user ${currentUser.username} → ${win ? 'WIN' : 'LOSS'} (${newWins}W/${newLosses}L) isComplete=${isComplete}`);
+
+      res.json({ success: true, win, newWins, newLosses, creditsEarned, rewardCards, isComplete, tournament: updatedTournament });
+    } catch (error) {
+      console.error('Error recording tournament match:', error);
+      res.status(500).json({ error: 'Errore registrazione partita' });
+    }
+  });
+
+  // POST /api/draft/tournament/pick-card — user picks reward card, add to collection
+  app.post('/api/draft/tournament/pick-card', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ error: 'DB non disponibile' });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'Utente non trovato' });
+
+      const { cardId, deckType, rarity, cardName, cardImageUrl } = req.body;
+      if (!cardId) return res.status(400).json({ error: 'cardId mancante' });
+
+      // Add to user's collection (or mark as owned if already exists)
+      const existing = await db.select().from(userCardCollection)
+        .where(and(eq(userCardCollection.userId, currentUser.id), eq(userCardCollection.cardId, cardId)))
+        .limit(1);
+      if (existing.length === 0) {
+        await db.insert(userCardCollection).values({
+          userId: currentUser.id,
+          cardId,
+          deckType: deckType || 'personaggi',
+          rarity: rarity || 'comune',
+        });
+      }
+
+      res.json({ success: true, message: 'Carta aggiunta alla collezione!' });
+    } catch (error) {
+      console.error('Error picking tournament card:', error);
+      res.status(500).json({ error: 'Errore selezione carta' });
+    }
+  });
+
+  // GET /api/draft/tournament/history
+  app.get('/api/draft/tournament/history', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json({ history: [] });
+      const user = (req as any).user;
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser) return res.status(404).json({ error: 'Utente non trovato' });
+
+      const history = await db.select().from(draftTournaments)
+        .where(eq(draftTournaments.userId, currentUser.id))
+        .orderBy(desc(draftTournaments.startedAt))
+        .limit(10);
+      res.json({ history });
+    } catch (error) {
+      res.status(500).json({ error: 'Errore storico tornei' });
+    }
+  });
+
+  // GET /api/draft/leaderboard/draft — top players by draft rating
+  app.get('/api/draft/leaderboard/draft', async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json({ leaderboard: [] });
+      const leaderboard = await db.select({
+        id: users.id,
+        username: users.username,
+        avatar: users.avatar,
+        draftRating: users.draftRating,
+        draftBestRun: users.draftBestRun,
+      }).from(users)
+        .orderBy(desc(users.draftRating))
+        .limit(50);
+      res.json({ leaderboard });
+    } catch (error) {
+      res.status(500).json({ error: 'Errore classifica draft' });
+    }
+  });
+  // ── Fine Draft Tournament System ─────────────────────────────────────────
 
   // GET /api/draft/collection - get user's owned cards
   app.get('/api/draft/collection', authMiddleware, async (req, res) => {

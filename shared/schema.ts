@@ -19,6 +19,8 @@ export const users = pgTable("users", {
   banReason: text("ban_reason"), // Reason shown to the user on login
   resetPasswordToken: text("reset_password_token"), // Token for password reset
   resetPasswordExpires: timestamp("reset_password_expires"), // Token expiration time
+  draftRating: integer("draft_rating").notNull().default(1000), // Draft tournament ELO-style rating
+  draftBestRun: integer("draft_best_run").notNull().default(0), // Best consecutive wins in a single tournament
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -732,3 +734,20 @@ export type CardTradeListing = typeof cardTradeListings.$inferSelect;
 export type CardTradeHistory = typeof cardTradeHistory.$inferSelect;
 export type InsertCardTradeListing = z.infer<typeof insertCardTradeListingSchema>;
 export type InsertCardTradeHistory = z.infer<typeof insertCardTradeHistorySchema>;
+
+// Draft Tournament system
+export const draftTournaments = pgTable("draft_tournaments", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  status: text("status").notNull().default("active"), // active | completed | abandoned
+  wins: integer("wins").notNull().default(0),
+  losses: integer("losses").notNull().default(0),
+  entryCredits: integer("entry_credits").notNull().default(100),
+  rewardsGranted: jsonb("rewards_granted").notNull().default([]), // [{win: 1, credits: 75, claimedAt: ...}]
+  startedAt: timestamp("started_at").notNull().defaultNow(),
+  endedAt: timestamp("ended_at"),
+});
+
+export const insertDraftTournamentSchema = createInsertSchema(draftTournaments).omit({ id: true, startedAt: true });
+export type DraftTournament = typeof draftTournaments.$inferSelect;
+export type InsertDraftTournament = z.infer<typeof insertDraftTournamentSchema>;

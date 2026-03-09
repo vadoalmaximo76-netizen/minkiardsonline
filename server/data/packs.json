@@ -173,7 +173,7 @@
     "name": "Pacchetto Personaggi",
     "creditsRequired": 50,
     "cardCount": 3,
-    "description": "",
+    "description": "Rinforza il tuo mazzo dei Personaggi con 3 carte",
     "gradient": "linear-gradient(135deg, #1e3a5f, #1d4ed8, #38bdf8)",
     "glowColor": "#059669",
     "imageUrl": "https://i.ibb.co/Kc2qY7ST/5.png",
@@ -199,14 +199,15 @@
         ],
         "deckType": "personaggi"
       }
-    ]
+    ],
+    "textColor": "#ffffff"
   },
   {
     "id": "mosse",
     "name": "Pacchetto Mosse",
     "creditsRequired": 50,
     "cardCount": 3,
-    "description": "",
+    "description": "Rinforza il tuo mazzo delle Mosse con 3 carte",
     "gradient": "linear-gradient(135deg, #450a0a, #991b1b, #ef4444)",
     "glowColor": "#3b82f6",
     "imageUrl": "https://i.ibb.co/p6T4dK4S/6.png",
@@ -232,14 +233,15 @@
         ],
         "deckType": "mosse"
       }
-    ]
+    ],
+    "textColor": "#ffffff"
   },
   {
     "id": "bonus",
     "name": "Pacchetto Bonus",
     "creditsRequired": 50,
     "cardCount": 3,
-    "description": "",
+    "description": "Rinforza il tuo mazzo dei Bonus con 3 carte",
     "gradient": "linear-gradient(135deg, #0f172a, #111827, #000000)",
     "glowColor": "#f97316",
     "imageUrl": "https://i.ibb.co/RGbhJgwR/7.png",
@@ -265,6 +267,7 @@
         ],
         "deckType": "bonus"
       }
-    ]
+    ],
+    "textColor": "#ffffff"
   }
 ]
