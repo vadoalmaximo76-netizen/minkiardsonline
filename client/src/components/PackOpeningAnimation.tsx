@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Zap, Plus, Check, Tag } from 'lucide-react';
 import { useAudio } from '../lib/stores/useAudio';
+import { DECK_BACK_IMAGES } from '../lib/cardData';
 
 export interface CardDeckPresence {
   deckId: number | null;
@@ -107,6 +108,8 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded, userPr
   const [packScale, setPackScale] = useState(1);
   const [packOpacity, setPackOpacity] = useState(1);
   const [flashOpacity, setFlashOpacity] = useState(0);
+  const [flashColor, setFlashColor] = useState('white');
+  const [shakingCardIdx, setShakingCardIdx] = useState<number | null>(null);
   const [deckAddStates, setDeckAddStates] = useState<Record<string, DeckAddState>>({});
   const [dupStates, setDupStates] = useState<Record<string, 'idle' | 'price_input' | 'loading' | 'refunded' | 'listed'>>({});
   const [dupPrices, setDupPrices] = useState<Record<string, string>>({});
@@ -397,21 +400,75 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded, userPr
       revealTimer.current = setTimeout(() => setPhase('done'), 600);
       return;
     }
+    const card = cards[index];
+    const rarity = card.rarity;
+
+    // Pre-reveal pause: make it dramatic for high rarities
+    const prePause = index === 0 ? 400
+      : rarity === 'leggendaria' ? 1800
+      : rarity === 'epica' ? 1200
+      : rarity === 'rara' ? 900
+      : 700;
+
+    // Shake duration before flip (for rara+)
+    const shakeDuration = rarity === 'leggendaria' ? 700
+      : rarity === 'epica' ? 500
+      : rarity === 'rara' ? 300
+      : 0;
+
+    // Post-reveal pause before moving on
+    const postPause = rarity === 'leggendaria' ? 2200
+      : rarity === 'epica' ? 1400
+      : rarity === 'rara' ? 700
+      : 500;
+
     revealTimer.current = setTimeout(() => {
-      setRevealedCount(index + 1);
-      setFlippedCards(prev => new Set([...prev, index]));
-      setShowParticles(index);
-      playRevealSound(cards[index].rarity);
-      setTimeout(() => setShowParticles(null), 900);
-      revealCard(index + 1);
-    }, index === 0 ? 400 : 1350);
+      // Phase 1: optional shake
+      if (shakeDuration > 0) {
+        setShakingCardIdx(index);
+        revealTimer.current = setTimeout(() => {
+          setShakingCardIdx(null);
+          // Phase 2: flip
+          setRevealedCount(index + 1);
+          setFlippedCards(prev => new Set([...prev, index]));
+          setShowParticles(index);
+          playRevealSound(rarity);
+          // Flash with rarity color
+          if (rarity === 'leggendaria') {
+            setFlashColor('rgba(245,158,11,0.35)');
+            setFlashOpacity(1);
+            setTimeout(() => setFlashOpacity(0), 350);
+          } else if (rarity === 'epica') {
+            setFlashColor('rgba(168,85,247,0.28)');
+            setFlashOpacity(1);
+            setTimeout(() => setFlashOpacity(0), 300);
+          } else if (rarity === 'rara') {
+            setFlashColor('rgba(59,130,246,0.20)');
+            setFlashOpacity(1);
+            setTimeout(() => setFlashOpacity(0), 250);
+          }
+          setTimeout(() => setShowParticles(null), 900);
+          revealTimer.current = setTimeout(() => revealCard(index + 1), postPause);
+        }, shakeDuration);
+      } else {
+        // No shake — flip directly
+        setRevealedCount(index + 1);
+        setFlippedCards(prev => new Set([...prev, index]));
+        setShowParticles(index);
+        playRevealSound(rarity);
+        setTimeout(() => setShowParticles(null), 900);
+        revealTimer.current = setTimeout(() => revealCard(index + 1), postPause);
+      }
+    }, prePause);
   };
 
   const skipToEnd = () => {
     clearTimers();
     if (rumbleStopRef.current) rumbleStopRef.current();
+    setShakingCardIdx(null);
     setRevealedCount(cards.length);
     setFlippedCards(new Set(cards.map((_, i) => i)));
+    setFlashOpacity(0);
     setPhase('done');
   };
 
@@ -571,7 +628,7 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded, userPr
 
       <div
         className="absolute inset-0 pointer-events-none transition-all duration-300"
-        style={{ background: `white`, opacity: flashOpacity }}
+        style={{ background: flashColor, opacity: flashOpacity }}
       />
 
       <div className="absolute top-3 left-0 right-0 flex justify-between items-center px-4 z-10">
@@ -693,6 +750,7 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded, userPr
               const rarityConfig = RARITY_CONFIG[card.rarity];
               const isParticle = showParticles === index;
 
+              const isShaking = shakingCardIdx === index;
               return (
                 <div
                   key={card.cardId}
@@ -701,6 +759,9 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded, userPr
                   style={{
                     opacity: isVisible ? 1 : 0,
                     animation: isVisible && !isFlipped ? 'floatIn 0.4s ease-out forwards' : undefined,
+                    transform: isShaking ? 'translateY(-8px) scale(1.08)' : 'translateY(0) scale(1)',
+                    transition: 'transform 0.15s ease',
+                    zIndex: isShaking ? 10 : 1,
                   }}
                 >
                   {isParticle && (
@@ -731,12 +792,21 @@ export function PackOpeningAnimation({ pack, cards, onClose, onCardAdded, userPr
                         style={{
                           position: 'absolute', inset: 0,
                           backfaceVisibility: 'hidden', borderRadius: '10px',
-                          background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
-                          border: '2px solid rgba(255,255,255,0.1)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          border: isShaking
+                            ? `2px solid ${card.rarity === 'leggendaria' ? '#f59e0b' : card.rarity === 'epica' ? '#a855f7' : card.rarity === 'rara' ? '#3b82f6' : 'rgba(255,255,255,0.3)'}`
+                            : '2px solid rgba(255,255,255,0.1)',
+                          overflow: 'hidden',
+                          boxShadow: isShaking
+                            ? `0 0 18px ${card.rarity === 'leggendaria' ? 'rgba(245,158,11,0.9)' : card.rarity === 'epica' ? 'rgba(168,85,247,0.9)' : card.rarity === 'rara' ? 'rgba(59,130,246,0.7)' : 'rgba(255,255,255,0.5)'}`
+                            : 'none',
+                          transition: 'box-shadow 0.2s ease, border-color 0.2s ease',
                         }}
                       >
-                        <span style={{ fontSize: '2rem' }}>🂠</span>
+                        <img
+                          src={card.deckType === 'mosse' ? DECK_BACK_IMAGES.mosse : card.deckType === 'bonus' ? DECK_BACK_IMAGES.bonus : DECK_BACK_IMAGES.personaggi}
+                          alt="retro"
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        />
                       </div>
                       <div
                         style={{
