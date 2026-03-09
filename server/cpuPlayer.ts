@@ -286,6 +286,10 @@ export class CPUPlayer {
     return this.turnState.executedThisTurn && this.turnState.phase === 'turn_end';
   }
 
+  isInOpeningSequence(): boolean {
+    return this.openingSequenceState.phase !== 'completed';
+  }
+
   setSocketEmitter(emitter: any) {
     this.socketEmitter = emitter;
   }
