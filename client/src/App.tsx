@@ -720,6 +720,7 @@ function App() {
             puntiRankiard={(authenticatedUser as any)?.puntiRankiard ?? 0}
             userEmail={authenticatedUser?.email ?? ''}
             onClose={handleGoHome}
+            onPlayMatch={handleJoinTournamentMatch}
           />
         </div>
         <PageTransitionOverlay phase={overlayPhase} />

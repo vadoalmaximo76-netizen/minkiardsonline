@@ -64,6 +64,7 @@ interface Props {
   puntiRankiard: number;
   userEmail: string;
   onClose: () => void;
+  onPlayMatch?: (gameId: string, matchId: number, tournamentName: string) => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -115,10 +116,14 @@ function BracketView({
   matches,
   participantNames,
   userId,
+  tournamentName,
+  onPlayMatch,
 }: {
   matches: TournamentMatch[];
   participantNames: Record<number, string>;
   userId: number;
+  tournamentName?: string;
+  onPlayMatch?: (gameId: string, matchId: number, name: string) => void;
 }) {
   if (!matches.length) return (
     <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>
@@ -207,6 +212,33 @@ function BracketView({
                         </div>
                       );
                     })}
+                    {(() => {
+                      const isUserInMatch = players.includes(userId);
+                      const canPlay = isUserInMatch && match.status === 'pending' && match.gameId && onPlayMatch;
+                      if (!canPlay) return null;
+                      return (
+                        <button
+                          onClick={() => onPlayMatch!(match.gameId!, match.id, tournamentName || 'Torneo')}
+                          style={{
+                            width: '100%',
+                            padding: '7px 0',
+                            background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+                            color: '#fff',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 5,
+                            borderTop: '1px solid #4f46e5',
+                          }}
+                        >
+                          <Play size={12} /> Gioca Adesso
+                        </button>
+                      );
+                    })()}
                   </div>
                 );
               })}
@@ -239,6 +271,7 @@ function TournamentDetailModal({
   onStart,
   onReport,
   onInvite,
+  onPlayMatch,
 }: {
   tournament: Tournament;
   participants: TournamentParticipant[];
@@ -251,6 +284,7 @@ function TournamentDetailModal({
   onStart: () => void;
   onReport: (matchId: number, winnerId: number) => void;
   onInvite: () => void;
+  onPlayMatch?: (gameId: string, matchId: number, tournamentName: string) => void;
 }) {
   const [tab, setTab] = useState<'info' | 'bracket' | 'partecipanti'>('info');
   const [reportMatchId, setReportMatchId] = useState<number | null>(null);
@@ -452,7 +486,13 @@ function TournamentDetailModal({
           )}
 
           {tab === 'bracket' && (
-            <BracketView matches={matches} participantNames={participantNames} userId={userId} />
+            <BracketView
+              matches={matches}
+              participantNames={participantNames}
+              userId={userId}
+              tournamentName={tournament.name}
+              onPlayMatch={onPlayMatch}
+            />
           )}
 
           {tab === 'partecipanti' && (
@@ -1004,7 +1044,7 @@ function TournamentCard({ tournament, onClick }: { tournament: Tournament; onCli
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function ClassicTournamentHub({ userId, username, puntiRankiard, userEmail, onClose }: Props) {
+export function ClassicTournamentHub({ userId, username, puntiRankiard, userEmail, onClose, onPlayMatch }: Props) {
   const [tab, setTab] = useState<'esplora' | 'miei' | 'crea'>('esplora');
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(false);
@@ -1291,6 +1331,7 @@ export function ClassicTournamentHub({ userId, username, puntiRankiard, userEmai
             setInviteTournament(detailData.tournament);
             setShowInvite(true);
           }}
+          onPlayMatch={onPlayMatch}
         />
       )}
 

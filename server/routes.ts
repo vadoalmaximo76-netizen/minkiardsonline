@@ -10439,28 +10439,12 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         insertedMatches.push(inserted);
       }
 
-      // If all R1 matches are auto-completed (all byes), advance immediately
-      const pendingR1 = r1Matches.filter(m => m.status === 'pending');
-      if (pendingR1.length === 0) {
-        // Auto-advance
-        const r1Winners = r1Matches.map(m => m.winnerId).filter(Boolean) as number[];
-        if (r1Winners.length === 1) {
-          await db.update(tournaments).set({ status: 'completed', winnerId: r1Winners[0] }).where(eq(tournaments.id, tournamentId));
-          await awardTournamentPrizes(tournamentId, r1Winners[0], null, allParticipants.length, tournament[0].winnerRewardMultiplier, tournament[0].runnerUpRewardMultiplier);
-        } else {
-          // Create round 2
-          const r2 = buildBracketRound(r1Winners, ppm, 2);
-          for (const m of r2) {
-            const realPlayers = m.playerIds.filter(p => p !== null) as number[];
-            await db.insert(tournamentMatches).values({
-              tournamentId, round: 2, matchNumber: m.matchNumber,
-              player1Id: realPlayers[0] ?? null, player2Id: realPlayers[1] ?? null,
-              playerIds: m.playerIds, gameId: m.status === 'pending' ? `tournament-${tournamentId}-r2-m${m.matchNumber}` : null,
-              status: m.status, winnerId: m.winnerId,
-            });
-          }
-        }
-      }
+      // Simulate CPU-only matches in round 1 asynchronously (won't block response)
+      setImmediate(() => {
+        gameManager.simulateCpuMatchesInRound(tournamentId, 1).catch(err =>
+          console.error('Error simulating CPU matches on start:', err)
+        );
+      });
 
       io.emit('tournament-started', {
         tournamentId,
