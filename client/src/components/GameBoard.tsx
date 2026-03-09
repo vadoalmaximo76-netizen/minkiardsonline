@@ -1900,7 +1900,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       startTurnCountdown(seconds, timerPlayer);
     };
     const handleTurnTimerWarning = ({ playerName: timerPlayer, seconds }: { playerName: string; seconds: number }) => {
-      setTurnTimerState(prev => ({ ...prev, isWarning: true, seconds }));
+      // Resync the interval with the server's authoritative remaining time.
+      // Without this, the local `remaining` closure variable drifts and the
+      // display shows incorrect values after the warning fires.
+      startTurnCountdown(seconds, timerPlayer || timerPlayerRef.current);
     };
     const handleTurnTimerPause = ({ remainingSeconds }: { remainingSeconds: number }) => {
       if (turnTimerIntervalRef.current) clearInterval(turnTimerIntervalRef.current);

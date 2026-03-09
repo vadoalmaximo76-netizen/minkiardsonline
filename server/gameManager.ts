@@ -548,6 +548,9 @@ export class GameManager {
 
   // Resume the turn timer from where it was paused
   resumeTurnTimer(gameId: string, playerName: string): void {
+    // Cancel any stale timer first — prevents double-timer race condition
+    this.clearTurnTimer(gameId);
+
     const remainingMs = this.turnTimerDurationMs.get(gameId);
     if (remainingMs === undefined || remainingMs <= 0) return;
 
@@ -23568,11 +23571,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
 
-    // Auto-resume the turn timer if this attack resolved and it's still the attacker's turn
+    // Auto-resume the turn timer if this attack resolved and it's still the attacker's turn.
+    // Only resume if no active timer is already running (prevents double-timer when pauseTurnTimer
+    // was never called — e.g., non-combat effects where timer was never paused).
     const finalGameState = this.games.get(gameId);
     if (finalGameState) {
       const currentPlayer = finalGameState.turnOrder[finalGameState.currentTurnIndex];
-      if (currentPlayer === attackerName) {
+      if (currentPlayer === attackerName && !this.turnTimers.has(gameId)) {
         this.resumeTurnTimer(gameId, attackerName);
       }
     }
