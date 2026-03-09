@@ -11,6 +11,8 @@ interface HomeScreenProps {
   onNavigate: (section: 'play' | 'training' | 'rooms' | 'profile' | 'admin' | 'draft' | 'leaderboard') => void;
   onJoinTournamentMatch?: (gameId: string, matchId: number, tournamentName: string) => void;
   userEmail?: string;
+  initialShowTournaments?: boolean;
+  onInitialShowTournamentsHandled?: () => void;
 }
 
 interface UserStats {
@@ -19,7 +21,7 @@ interface UserStats {
   gamesWon: number;
 }
 
-export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMatch, userEmail }: HomeScreenProps) {
+export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMatch, userEmail, initialShowTournaments, onInitialShowTournamentsHandled }: HomeScreenProps) {
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [activeRoomsCount, setActiveRoomsCount] = useState(0);
   const [randomQuote, setRandomQuote] = useState("");
@@ -39,6 +41,13 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
   const [showSeasonalEvents, setShowSeasonalEvents] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showClubs, setShowClubs] = useState(false);
+
+  useEffect(() => {
+    if (initialShowTournaments) {
+      setShowTournaments(true);
+      onInitialShowTournamentsHandled?.();
+    }
+  }, [initialShowTournaments]);
 
   useEffect(() => {
     const fetchData = async () => {

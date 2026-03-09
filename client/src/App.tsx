@@ -89,6 +89,7 @@ function App() {
   const [serverReady, setServerReady] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [currentSection, setCurrentSection] = useState<AppSection>('home');
+  const [openHomeTournaments, setOpenHomeTournaments] = useState(false);
   const [spectatingGameId, setSpectatingGameId] = useState<string | null>(null);
   const [resetPasswordToken, setResetPasswordToken] = useState<string | null>(() => getResetPasswordToken());
   const [gameInvitation, setGameInvitation] = useState<{
@@ -555,6 +556,8 @@ function App() {
           onNavigate={handleNavigate}
           onJoinTournamentMatch={handleJoinTournamentMatch}
           userEmail={authenticatedUser?.email || undefined}
+          initialShowTournaments={openHomeTournaments}
+          onInitialShowTournamentsHandled={() => setOpenHomeTournaments(false)}
         />
         <SpotifyPlayer disabled={false} />
       </QueryClientProvider>
@@ -640,6 +643,7 @@ function App() {
           playerName={playerName}
           userId={authenticatedUser?.id}
           onBack={() => setCurrentSection('home')}
+          onGoToTournaments={() => { setOpenHomeTournaments(true); setCurrentSection('home'); }}
         />
         <SpotifyPlayer disabled={false} />
       </QueryClientProvider>

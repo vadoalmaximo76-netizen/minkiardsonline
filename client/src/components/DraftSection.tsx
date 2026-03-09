@@ -8,6 +8,7 @@ import { useToast } from '../hooks/use-toast';
 
 interface DraftSectionProps {
   onBack: () => void;
+  onGoToTournaments?: () => void;
   playerName: string;
   userId?: number;
 }
@@ -119,7 +120,7 @@ function getAuthHeaders(): Record<string, string> {
     : { 'Content-Type': 'application/json' };
 }
 
-export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) {
+export function DraftSection({ onBack, playerName, userId, onGoToTournaments }: DraftSectionProps) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'deck' | 'shop' | 'credits' | 'packs' | 'pass' | 'marketplace' | 'torneo' | 'classifica'>('deck');
   const [status, setStatus] = useState<DraftStatus | null>(null);
@@ -2655,10 +2656,10 @@ export function DraftSection({ onBack, playerName, userId }: DraftSectionProps) 
                 </div>
 
                 <button
-                  onClick={onBack}
+                  onClick={onGoToTournaments || onBack}
                   className="w-full py-3.5 bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white font-bold rounded-xl transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 shadow-lg"
                 >
-                  <Swords size={18} /> Vai a giocare in Draft
+                  <Swords size={18} /> Vai ai Tornei in Home
                 </button>
 
                 <button
