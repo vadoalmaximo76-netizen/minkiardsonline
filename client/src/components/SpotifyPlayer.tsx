@@ -248,7 +248,7 @@ export function SpotifyPlayer({ disabled = false }: { disabled?: boolean }) {
           onMouseEnter={openSlider}
           onMouseLeave={scheduleClose}
           style={{
-            position: 'fixed', bottom: '1.25rem', right: '1.25rem',
+            position: 'fixed', bottom: '1.25rem', right: '0',
             zIndex: 100000, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.35rem',
           }}
         >
