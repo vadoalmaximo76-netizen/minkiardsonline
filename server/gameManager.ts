@@ -4688,6 +4688,13 @@ Rispondi SOLO in JSON:`;
     const game = this.games.get(gameId);
     if (!game || !card.effect) return {};
 
+    // GUARD: MOSSE cards with mosseDamageEffect have their damage handled exclusively via mosse-attack
+    // Do NOT parse or execute their effect text here (it would apply damage/stars immediately on play)
+    if (card.type === 'mosse' && (card as any).mosseDamageEffect) {
+      console.log(`🃏 MOSSE card ${card.name || card.id}: skipping processCustomCardEffect — mosseDamageEffect="${(card as any).mosseDamageEffect}" triggers only via attack`);
+      return {};
+    }
+
     console.log(`🎴 Processing custom card effect for ${card.name || card.id}: "${card.effect}"`);
     
     // ============ PTI DISTRIBUTION PATTERN (Giovanni Muciaccia) ============
@@ -16117,6 +16124,19 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const combinedText = cardText + ' ' + cardEffect;
     const cardName = card.name || this.getCardNameFromUrl(card.frontImage || '');
     console.log(`⚡ Activating custom effect for ${cardName}: text="${cardText}", effect="${cardEffect}"`);
+
+    // GUARD: MOSSE cards with mosseDamageEffect (e.g. contrattazione_clandestina) must NOT run their
+    // raw effect text here — their effect is triggered exclusively via the mosse-attack flow
+    if (card.type === 'mosse' && (card as any).mosseDamageEffect) {
+      console.log(`⚡ Skipping activateCustomEffect for MOSSE ${cardName} — mosseDamageEffect="${(card as any).mosseDamageEffect}" triggers only via attack`);
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-mosse-no-activate`,
+        playerName: 'Sistema',
+        message: `ℹ️ "${cardName}" si attiva solo durante un attacco MOSSE, non manualmente.`,
+        timestamp: Date.now()
+      });
+      return;
+    }
 
     // GUARD: Don't re-trigger effects for BONUS cards - they fire once when played via processCustomCardEffect
     if (card.type === 'bonus' || card.type === 'mosse') {

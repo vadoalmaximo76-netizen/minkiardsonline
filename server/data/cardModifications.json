@@ -2143,7 +2143,7 @@
     "audioUrl": null,
     "youtubeUrl": null,
     "mosseDamageValue": 100,
-    "mosseDamageEffect": null,
+    "mosseDamageEffect": "contrattazione_clandestina",
     "mosseCharacterOverrides": [
       {
         "characterId": "vu cumpra",
@@ -2158,11 +2158,11 @@
     "mosseRestrictedAgainst": [
       "VU CUMPRA"
     ],
-    "mosseTargetingMode": null,
+    "mosseTargetingMode": "single",
     "mosseTargetCount": null,
     "isDeleted": false,
     "modifiedBy": "lucaforte94@gmail.com",
-    "modifiedAt": "2026-03-08T22:53:01.671Z",
+    "modifiedAt": "2026-03-09T09:02:41.924Z",
     "mosseCanCounter": false,
     "mosseCanBeCountered": true,
     "draftCost": 40,
