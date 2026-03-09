@@ -10091,472 +10091,586 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
 
   // ============= TOURNAMENT SYSTEM ENDPOINTS =============
 
-  // Get all tournaments
+  // ============= TOURNAMENT SYSTEM ENDPOINTS =============
+
+  // Helper: generate bracket round for multi-player elimination
+  function buildBracketRound(
+    participantIds: (number | null)[],
+    playersPerMatch: number,
+    round: number
+  ): { playerIds: (number | null)[]; round: number; matchNumber: number; status: string; winnerId: number | null }[] {
+    const padded = [...participantIds];
+    while (padded.length % playersPerMatch !== 0) padded.push(null);
+    const matches = [];
+    for (let i = 0; i < padded.length / playersPerMatch; i++) {
+      const players = padded.slice(i * playersPerMatch, (i + 1) * playersPerMatch);
+      const realPlayers = players.filter((p): p is number => p !== null);
+      const isBye = realPlayers.length === 1;
+      matches.push({
+        playerIds: players,
+        round,
+        matchNumber: i + 1,
+        status: isBye ? 'completed' : 'pending',
+        winnerId: isBye ? realPlayers[0] : null,
+      });
+    }
+    return matches;
+  }
+
+  // Helper: award tournament prizes
+  async function awardTournamentPrizes(
+    tournamentId: number,
+    winnerId: number | null,
+    runnerUpId: number | null,
+    totalParticipants: number,
+    winnerMult: number,
+    runnerUpMult: number
+  ) {
+    if (winnerId && winnerId > 0) {
+      const winnerPoints = winnerMult * totalParticipants;
+      await db.execute(sql`UPDATE users SET punti_rankiard = punti_rankiard + ${winnerPoints} WHERE id = ${winnerId}`);
+      await db.update(tournamentParticipants)
+        .set({ status: 'winner', placement: 1 })
+        .where(and(eq(tournamentParticipants.tournamentId, tournamentId), eq(tournamentParticipants.userId, winnerId)));
+    }
+    if (runnerUpId && runnerUpId > 0 && runnerUpId !== winnerId) {
+      const runnerUpPoints = runnerUpMult * totalParticipants;
+      await db.execute(sql`UPDATE users SET punti_rankiard = punti_rankiard + ${runnerUpPoints} WHERE id = ${runnerUpId}`);
+      await db.update(tournamentParticipants)
+        .set({ placement: 2 })
+        .where(and(eq(tournamentParticipants.tournamentId, tournamentId), eq(tournamentParticipants.userId, runnerUpId)));
+    }
+  }
+
+  // GET /api/tournaments — enriched list with organizer username
   app.get('/api/tournaments', async (req, res) => {
     try {
-      if (!isDatabaseAvailable()) {
-        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const status = req.query.status as string | undefined;
+
+      const rows = await (status
+        ? db.select().from(tournaments).where(eq(tournaments.status, status)).orderBy(desc(tournaments.createdAt)).limit(30)
+        : db.select().from(tournaments).orderBy(desc(tournaments.createdAt)).limit(30)
+      );
+
+      // Enrich with organizer usernames
+      const organizerIds = [...new Set(rows.map(r => r.organizerId))];
+      let organizerMap: Record<number, string> = {};
+      if (organizerIds.length) {
+        const orgs = await db.select({ id: users.id, username: users.username }).from(users).where(inArray(users.id, organizerIds));
+        orgs.forEach(o => { organizerMap[o.id] = o.username; });
       }
 
-      const status = req.query.status as string;
-      
-      const tournamentList = await (status
-        ? db.select().from(tournaments).where(eq(tournaments.status, status)).orderBy(desc(tournaments.createdAt)).limit(20)
-        : db.select().from(tournaments).orderBy(desc(tournaments.createdAt)).limit(20)
-      );
-      res.json({ success: true, tournaments: tournamentList });
+      const enriched = rows.map(t => ({
+        ...t,
+        organizerName: organizerMap[t.organizerId] || 'Utente',
+        estimatedWinnerPrize: t.winnerRewardMultiplier * t.currentParticipants,
+        estimatedRunnerUpPrize: t.runnerUpRewardMultiplier * t.currentParticipants,
+      }));
+
+      res.json({ success: true, tournaments: enriched });
     } catch (error) {
       console.error('Error fetching tournaments:', error);
       res.status(500).json({ success: false, error: 'Failed to fetch tournaments' });
     }
   });
 
-  // Get a specific tournament with participants
+  // GET /api/tournaments/:id — detail with participants + bracket
   app.get('/api/tournaments/:id', async (req, res) => {
     try {
-      if (!isDatabaseAvailable()) {
-        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
-      }
-
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
       const tournamentId = parseInt(req.params.id);
-      
+
       const tournament = await db.select().from(tournaments).where(eq(tournaments.id, tournamentId)).limit(1);
-      if (!tournament.length) {
-        return res.status(404).json({ success: false, error: 'Tournament not found' });
-      }
-      
+      if (!tournament.length) return res.status(404).json({ success: false, error: 'Tournament not found' });
+
       const participants = await db
         .select({
           id: tournamentParticipants.id,
           userId: tournamentParticipants.userId,
+          isCpu: tournamentParticipants.isCpu,
+          displayName: tournamentParticipants.displayName,
           status: tournamentParticipants.status,
           placement: tournamentParticipants.placement,
           wins: tournamentParticipants.wins,
           losses: tournamentParticipants.losses,
-          username: users.username,
-          avatar: users.avatar,
-          puntiRankiard: users.puntiRankiard
         })
         .from(tournamentParticipants)
-        .innerJoin(users, eq(tournamentParticipants.userId, users.id))
-        .where(eq(tournamentParticipants.tournamentId, tournamentId))
-        .orderBy(desc(tournamentParticipants.wins));
-      
+        .where(eq(tournamentParticipants.tournamentId, tournamentId));
+
+      // Enrich real users with username + avatar
+      const humanIds = participants.filter(p => p.userId != null && !p.isCpu).map(p => p.userId as number);
+      let userMap: Record<number, { username: string; avatar: number | null; puntiRankiard: number }> = {};
+      if (humanIds.length) {
+        const urows = await db.select({ id: users.id, username: users.username, avatar: users.avatar, puntiRankiard: users.puntiRankiard })
+          .from(users).where(inArray(users.id, humanIds));
+        urows.forEach(u => { userMap[u.id] = u; });
+      }
+
+      const enrichedParticipants = participants.map(p => ({
+        ...p,
+        username: p.isCpu ? (p.displayName || 'CPU') : (p.userId ? userMap[p.userId]?.username : p.displayName),
+        avatar: p.isCpu ? null : (p.userId ? userMap[p.userId]?.avatar : null),
+        puntiRankiard: p.isCpu ? 0 : (p.userId ? userMap[p.userId]?.puntiRankiard : 0),
+      }));
+
       const matches = await db.select().from(tournamentMatches)
         .where(eq(tournamentMatches.tournamentId, tournamentId))
         .orderBy(tournamentMatches.round, tournamentMatches.matchNumber);
-      
-      res.json({ success: true, tournament: tournament[0], participants, matches });
+
+      // Build participant id→name map for bracket display
+      const pidMap: Record<number, string> = {};
+      enrichedParticipants.forEach(p => {
+        const key = p.userId ?? -(p.id);
+        pidMap[key] = p.username || 'CPU';
+      });
+
+      const organizerRow = await db.select({ username: users.username }).from(users).where(eq(users.id, tournament[0].organizerId)).limit(1);
+
+      res.json({
+        success: true,
+        tournament: {
+          ...tournament[0],
+          organizerName: organizerRow[0]?.username || 'Organizzatore',
+          estimatedWinnerPrize: tournament[0].winnerRewardMultiplier * tournament[0].currentParticipants,
+          estimatedRunnerUpPrize: tournament[0].runnerUpRewardMultiplier * tournament[0].currentParticipants,
+        },
+        participants: enrichedParticipants,
+        matches,
+        participantNames: pidMap,
+      });
     } catch (error) {
       console.error('Error fetching tournament:', error);
       res.status(500).json({ success: false, error: 'Failed to fetch tournament' });
     }
   });
 
-  // Create a new tournament
+  // POST /api/tournaments — create tournament with full params + auto-add CPU participants
   app.post('/api/tournaments', authMiddleware, async (req, res) => {
     try {
-      if (!isDatabaseAvailable()) {
-        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
-      }
-
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
       const user = (req as any).user;
-      const { name, description, type, maxParticipants, prizePool, entryFee } = req.body;
-      
-      if (!name) {
-        return res.status(400).json({ success: false, error: 'Tournament name is required' });
-      }
-      
+      const {
+        name, description, type, gameMode, maxParticipants, playersPerMatch,
+        cpuCount, cpuNames, prizePool, entryFee, winnerRewardMultiplier, runnerUpRewardMultiplier
+      } = req.body;
+
+      if (!name) return res.status(400).json({ success: false, error: 'Nome torneo obbligatorio' });
+
       const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
-      if (!currentUser.length) {
-        return res.status(404).json({ success: false, error: 'User not found' });
-      }
-      
+      if (!currentUser.length) return res.status(404).json({ success: false, error: 'Utente non trovato' });
+
+      const isAdmin = currentUser[0].email === 'lucaforte94@gmail.com';
+      const resolvedCpuCount = Math.min(Math.max(0, parseInt(cpuCount) || 0), maxParticipants - 1);
+      const resolvedPpm = Math.min(Math.max(2, parseInt(playersPerMatch) || 2), 8);
+      const resolvedWinnerMult = (isAdmin && winnerRewardMultiplier != null) ? parseInt(winnerRewardMultiplier) : 20;
+      const resolvedRunnerUpMult = (isAdmin && runnerUpRewardMultiplier != null) ? parseInt(runnerUpRewardMultiplier) : 5;
+
       const [newTournament] = await db.insert(tournaments).values({
         name,
         description: description || null,
         type: type || 'elimination',
-        maxParticipants: maxParticipants || 8,
-        prizePool: prizePool || 100,
-        entryFee: entryFee || 0,
-        organizerId: currentUser[0].id
+        gameMode: gameMode || 'classic',
+        maxParticipants: parseInt(maxParticipants) || 8,
+        playersPerMatch: resolvedPpm,
+        cpuCount: resolvedCpuCount,
+        prizePool: parseInt(prizePool) || 0,
+        entryFee: parseInt(entryFee) || 0,
+        winnerRewardMultiplier: resolvedWinnerMult,
+        runnerUpRewardMultiplier: resolvedRunnerUpMult,
+        organizerId: currentUser[0].id,
+        currentParticipants: 0,
       }).returning();
-      
-      emitSync('tournaments', 'insert', { name, description: description || null, type: type || 'elimination', maxParticipants: maxParticipants || 8, prizePool: prizePool || 100, entryFee: entryFee || 0, organizerId: currentUser[0].id });
-      res.json({ success: true, tournament: newTournament });
+
+      // Auto-register the organizer
+      await db.insert(tournamentParticipants).values({
+        tournamentId: newTournament.id,
+        userId: currentUser[0].id,
+        displayName: currentUser[0].username,
+      });
+      await db.update(tournaments).set({ currentParticipants: 1 }).where(eq(tournaments.id, newTournament.id));
+
+      // Auto-add CPU participants
+      const cpuNamesList: string[] = cpuNames || [];
+      const cpuNamesDefaulted = ['CPU-Facile', 'CPU-Medio', 'CPU-Difficile', 'CPU-Esperto', 'CPU-Elite', 'CPU-Leggenda', 'CPU-Master', 'CPU-Omega'];
+      for (let i = 0; i < resolvedCpuCount; i++) {
+        const cpuName = cpuNamesList[i] || cpuNamesDefaulted[i % cpuNamesDefaulted.length];
+        await db.insert(tournamentParticipants).values({
+          tournamentId: newTournament.id,
+          userId: null,
+          isCpu: true,
+          displayName: cpuName,
+        });
+      }
+      const totalParticipantsNow = 1 + resolvedCpuCount;
+      if (resolvedCpuCount > 0) {
+        await db.update(tournaments).set({ currentParticipants: totalParticipantsNow }).where(eq(tournaments.id, newTournament.id));
+      }
+
+      io.emit('tournament-created', { tournamentId: newTournament.id, name: newTournament.name });
+      res.json({ success: true, tournament: { ...newTournament, currentParticipants: totalParticipantsNow } });
     } catch (error) {
       console.error('Error creating tournament:', error);
       res.status(500).json({ success: false, error: 'Failed to create tournament' });
     }
   });
 
-  // Join a tournament
+  // POST /api/tournaments/:id/join — join a tournament
   app.post('/api/tournaments/:id/join', authMiddleware, async (req, res) => {
     try {
-      if (!isDatabaseAvailable()) {
-        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
-      }
-
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
       const user = (req as any).user;
       const tournamentId = parseInt(req.params.id);
-      
+
       const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
-      if (!currentUser.length) {
-        return res.status(404).json({ success: false, error: 'User not found' });
-      }
-      
+      if (!currentUser.length) return res.status(404).json({ success: false, error: 'Utente non trovato' });
+
       const tournament = await db.select().from(tournaments).where(eq(tournaments.id, tournamentId)).limit(1);
-      if (!tournament.length) {
-        return res.status(404).json({ success: false, error: 'Tournament not found' });
-      }
-      
-      if (tournament[0].status !== 'registration') {
-        return res.status(400).json({ success: false, error: 'Tournament is not open for registration' });
-      }
-      
-      if (tournament[0].currentParticipants >= tournament[0].maxParticipants) {
-        return res.status(400).json({ success: false, error: 'Tournament is full' });
-      }
-      
-      // Check if already registered
+      if (!tournament.length) return res.status(404).json({ success: false, error: 'Torneo non trovato' });
+
+      if (tournament[0].status !== 'registration') return res.status(400).json({ success: false, error: 'Torneo non in fase di registrazione' });
+      if (tournament[0].currentParticipants >= tournament[0].maxParticipants) return res.status(400).json({ success: false, error: 'Torneo al completo' });
+
       const existing = await db.select().from(tournamentParticipants)
-        .where(and(
-          eq(tournamentParticipants.tournamentId, tournamentId),
-          eq(tournamentParticipants.userId, currentUser[0].id)
-        )).limit(1);
-      if (existing.length) {
-        return res.status(400).json({ success: false, error: 'Already registered' });
-      }
-      
-      // Check entry fee
+        .where(and(eq(tournamentParticipants.tournamentId, tournamentId), eq(tournamentParticipants.userId, currentUser[0].id)))
+        .limit(1);
+      if (existing.length) return res.status(400).json({ success: false, error: 'Sei già iscritto' });
+
       if (tournament[0].entryFee > 0 && currentUser[0].puntiRankiard < tournament[0].entryFee) {
-        return res.status(400).json({ success: false, error: 'Not enough Rankiard points for entry fee' });
+        return res.status(400).json({ success: false, error: 'Punti Rankiard insufficienti per la quota di iscrizione' });
       }
-      
-      // Deduct entry fee
       if (tournament[0].entryFee > 0) {
-        await db.update(users)
-          .set({ puntiRankiard: currentUser[0].puntiRankiard - tournament[0].entryFee })
-          .where(eq(users.id, currentUser[0].id));
-        emitSync('users', 'update', { puntiRankiard: currentUser[0].puntiRankiard - tournament[0].entryFee }, eq(users.id, currentUser[0].id));
+        await db.execute(sql`UPDATE users SET punti_rankiard = punti_rankiard - ${tournament[0].entryFee} WHERE id = ${currentUser[0].id}`);
       }
-      
-      // Register
+
       await db.insert(tournamentParticipants).values({
         tournamentId,
-        userId: currentUser[0].id
+        userId: currentUser[0].id,
+        displayName: currentUser[0].username,
       });
-      emitSync('tournament_participants', 'insert', { tournamentId, userId: currentUser[0].id });
-      
-      // Update participant count
-      await db.update(tournaments)
-        .set({ currentParticipants: tournament[0].currentParticipants + 1 })
-        .where(eq(tournaments.id, tournamentId));
-      emitSync('tournaments', 'update', { currentParticipants: tournament[0].currentParticipants + 1 }, eq(tournaments.id, tournamentId));
-      
-      res.json({ success: true, message: 'Successfully joined tournament' });
+      const newCount = tournament[0].currentParticipants + 1;
+      await db.update(tournaments).set({ currentParticipants: newCount }).where(eq(tournaments.id, tournamentId));
+
+      io.emit('tournament-updated', { tournamentId, currentParticipants: newCount });
+      res.json({ success: true, message: 'Iscrizione al torneo completata' });
     } catch (error) {
       console.error('Error joining tournament:', error);
       res.status(500).json({ success: false, error: 'Failed to join tournament' });
     }
   });
 
-  // Close tournament registration (organizer only)
+  // POST /api/tournaments/:id/close-registration
   app.post('/api/tournaments/:id/close-registration', authMiddleware, async (req, res) => {
     try {
-      if (!isDatabaseAvailable()) {
-        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
-      }
-
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
       const user = (req as any).user;
       const tournamentId = parseInt(req.params.id);
-
       const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
-      if (!currentUser.length) {
-        return res.status(401).json({ success: false, error: 'User not found' });
-      }
-
+      if (!currentUser.length) return res.status(404).json({ success: false, error: 'Utente non trovato' });
       const tournament = await db.select().from(tournaments).where(eq(tournaments.id, tournamentId)).limit(1);
-      if (!tournament.length) {
-        return res.status(404).json({ success: false, error: 'Tournament not found' });
-      }
-
-      if (tournament[0].organizerId !== currentUser[0].id) {
-        return res.status(403).json({ success: false, error: 'Only the organizer can close registration' });
-      }
-
-      if (tournament[0].status !== 'registration') {
-        return res.status(400).json({ success: false, error: 'Tournament is not in registration phase' });
-      }
-
-      if (tournament[0].currentParticipants < 2) {
-        return res.status(400).json({ success: false, error: 'Need at least 2 participants to close registration' });
-      }
-
-      await db.update(tournaments)
-        .set({ status: 'closed' })
-        .where(eq(tournaments.id, tournamentId));
-      emitSync('tournaments', 'update', { status: 'closed' }, eq(tournaments.id, tournamentId));
-
-      res.json({ success: true, message: 'Registration closed successfully' });
+      if (!tournament.length) return res.status(404).json({ success: false, error: 'Torneo non trovato' });
+      if (tournament[0].organizerId !== currentUser[0].id) return res.status(403).json({ success: false, error: 'Solo l\'organizzatore può chiudere le registrazioni' });
+      if (tournament[0].status !== 'registration') return res.status(400).json({ success: false, error: 'Torneo non in fase di registrazione' });
+      if (tournament[0].currentParticipants < 2) return res.status(400).json({ success: false, error: 'Servono almeno 2 partecipanti' });
+      await db.update(tournaments).set({ status: 'closed' }).where(eq(tournaments.id, tournamentId));
+      io.emit('tournament-updated', { tournamentId, status: 'closed' });
+      res.json({ success: true, message: 'Registrazioni chiuse' });
     } catch (error) {
-      console.error('Error closing registration:', error);
       res.status(500).json({ success: false, error: 'Failed to close registration' });
     }
   });
 
-  // Start a tournament (organizer only)
+  // POST /api/tournaments/:id/start — generate full bracket with CPU + M players per match
   app.post('/api/tournaments/:id/start', authMiddleware, async (req, res) => {
     try {
-      if (!isDatabaseAvailable()) {
-        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
-      }
-
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
       const user = (req as any).user;
       const tournamentId = parseInt(req.params.id);
-      
+
       const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
-      if (!currentUser.length) {
-        return res.status(404).json({ success: false, error: 'User not found' });
-      }
-      
+      if (!currentUser.length) return res.status(404).json({ success: false, error: 'Utente non trovato' });
+
       const tournament = await db.select().from(tournaments).where(eq(tournaments.id, tournamentId)).limit(1);
-      if (!tournament.length) {
-        return res.status(404).json({ success: false, error: 'Tournament not found' });
-      }
-      
-      if (tournament[0].organizerId !== currentUser[0].id) {
-        return res.status(403).json({ success: false, error: 'Only the organizer can start the tournament' });
-      }
-      
-      // Check tournament is in registration or closed phase
+      if (!tournament.length) return res.status(404).json({ success: false, error: 'Torneo non trovato' });
+      if (tournament[0].organizerId !== currentUser[0].id) return res.status(403).json({ success: false, error: 'Solo l\'organizzatore può avviare il torneo' });
       if (tournament[0].status !== 'registration' && tournament[0].status !== 'closed') {
-        return res.status(400).json({ success: false, error: 'Tournament has already started or completed' });
+        return res.status(400).json({ success: false, error: 'Il torneo è già avviato o completato' });
       }
-      
-      if (tournament[0].currentParticipants < 2) {
-        return res.status(400).json({ success: false, error: 'Need at least 2 participants' });
-      }
-      
-      // Update status
-      await db.update(tournaments)
-        .set({ status: 'in_progress', startDate: new Date() })
-        .where(eq(tournaments.id, tournamentId));
-      emitSync('tournaments', 'update', { status: 'in_progress', startDate: new Date() }, eq(tournaments.id, tournamentId));
-      
-      // Generate first round matches
-      const participants = await db.select().from(tournamentParticipants)
+
+      const allParticipants = await db.select().from(tournamentParticipants)
         .where(eq(tournamentParticipants.tournamentId, tournamentId));
-      
-      const shuffled = participants.sort(() => Math.random() - 0.5);
-      const matchCount = Math.floor(shuffled.length / 2);
-      
-      for (let i = 0; i < matchCount; i++) {
-        const hasBothPlayers = !!shuffled[i * 2 + 1];
-        const gameId = hasBothPlayers ? `tournament-${tournamentId}-r1-m${i + 1}` : null;
-        
-        await db.insert(tournamentMatches).values({
+
+      if (allParticipants.length < 2) return res.status(400).json({ success: false, error: 'Servono almeno 2 partecipanti' });
+
+      // Build participant IDs list (use userId for humans, negative participantId for CPU)
+      const participantIds: (number | null)[] = allParticipants.map(p =>
+        p.isCpu ? -(p.id) : (p.userId ?? -(p.id))
+      );
+
+      // Shuffle
+      const shuffled = [...participantIds].sort(() => Math.random() - 0.5);
+
+      const ppm = tournament[0].playersPerMatch || 2;
+
+      // Generate round 1 bracket
+      const r1Matches = buildBracketRound(shuffled, ppm, 1);
+
+      // Update tournament status
+      await db.update(tournaments).set({ status: 'in_progress', startDate: new Date() }).where(eq(tournaments.id, tournamentId));
+
+      // Insert all R1 matches
+      const insertedMatches = [];
+      for (const m of r1Matches) {
+        const realPlayers = m.playerIds.filter(p => p !== null) as number[];
+        const gameId = m.status === 'pending'
+          ? `tournament-${tournamentId}-r${m.round}-m${m.matchNumber}`
+          : null;
+        const [inserted] = await db.insert(tournamentMatches).values({
           tournamentId,
-          round: 1,
-          matchNumber: i + 1,
-          player1Id: shuffled[i * 2].userId,
-          player2Id: shuffled[i * 2 + 1]?.userId || null,
-          gameId: gameId,
-          status: hasBothPlayers ? 'pending' : 'completed',
-          winnerId: hasBothPlayers ? null : shuffled[i * 2].userId // Bye
-        });
-        emitSync('tournament_matches', 'insert', { tournamentId, round: 1, matchNumber: i + 1, player1Id: shuffled[i * 2].userId, player2Id: shuffled[i * 2 + 1]?.userId || null, gameId, status: hasBothPlayers ? 'pending' : 'completed', winnerId: hasBothPlayers ? null : shuffled[i * 2].userId });
+          round: m.round,
+          matchNumber: m.matchNumber,
+          player1Id: realPlayers[0] ?? null,
+          player2Id: realPlayers[1] ?? null,
+          playerIds: m.playerIds,
+          gameId,
+          status: m.status,
+          winnerId: m.winnerId,
+        }).returning();
+        insertedMatches.push(inserted);
       }
-      
-      // Broadcast tournament started to all connected clients
+
+      // If all R1 matches are auto-completed (all byes), advance immediately
+      const pendingR1 = r1Matches.filter(m => m.status === 'pending');
+      if (pendingR1.length === 0) {
+        // Auto-advance
+        const r1Winners = r1Matches.map(m => m.winnerId).filter(Boolean) as number[];
+        if (r1Winners.length === 1) {
+          await db.update(tournaments).set({ status: 'completed', winnerId: r1Winners[0] }).where(eq(tournaments.id, tournamentId));
+          await awardTournamentPrizes(tournamentId, r1Winners[0], null, allParticipants.length, tournament[0].winnerRewardMultiplier, tournament[0].runnerUpRewardMultiplier);
+        } else {
+          // Create round 2
+          const r2 = buildBracketRound(r1Winners, ppm, 2);
+          for (const m of r2) {
+            const realPlayers = m.playerIds.filter(p => p !== null) as number[];
+            await db.insert(tournamentMatches).values({
+              tournamentId, round: 2, matchNumber: m.matchNumber,
+              player1Id: realPlayers[0] ?? null, player2Id: realPlayers[1] ?? null,
+              playerIds: m.playerIds, gameId: m.status === 'pending' ? `tournament-${tournamentId}-r2-m${m.matchNumber}` : null,
+              status: m.status, winnerId: m.winnerId,
+            });
+          }
+        }
+      }
+
       io.emit('tournament-started', {
         tournamentId,
         tournamentName: tournament[0].name,
-        participantIds: shuffled.map(p => p.userId),
-        message: `Il torneo "${tournament[0].name}" è iniziato!`
+        message: `🏆 Il torneo "${tournament[0].name}" è iniziato! Sorteggio completato.`,
       });
-      
-      res.json({ success: true, message: 'Tournament started' });
+
+      const updatedMatches = await db.select().from(tournamentMatches).where(eq(tournamentMatches.tournamentId, tournamentId)).orderBy(tournamentMatches.round, tournamentMatches.matchNumber);
+      res.json({ success: true, message: 'Torneo avviato! Tabellone generato.', matches: updatedMatches });
     } catch (error) {
       console.error('Error starting tournament:', error);
       res.status(500).json({ success: false, error: 'Failed to start tournament' });
     }
   });
 
-  // Join a tournament match (creates the game room if needed)
+  // POST /api/tournaments/matches/:matchId/join — link player to game room
   app.post('/api/tournaments/matches/:matchId/join', authMiddleware, async (req, res) => {
     try {
-      if (!isDatabaseAvailable()) {
-        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
-      }
-
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
       const user = (req as any).user;
       const matchId = parseInt(req.params.matchId);
-      
       const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
-      if (!currentUser.length) {
-        return res.status(404).json({ success: false, error: 'User not found' });
-      }
-      
+      if (!currentUser.length) return res.status(404).json({ success: false, error: 'Utente non trovato' });
       const match = await db.select().from(tournamentMatches).where(eq(tournamentMatches.id, matchId)).limit(1);
-      if (!match.length) {
-        return res.status(404).json({ success: false, error: 'Match not found' });
-      }
-      
+      if (!match.length) return res.status(404).json({ success: false, error: 'Partita non trovata' });
       const matchData = match[0];
-      
-      // Check if user is a participant in this match
-      if (matchData.player1Id !== currentUser[0].id && matchData.player2Id !== currentUser[0].id) {
-        return res.status(403).json({ success: false, error: 'Not a participant in this match' });
-      }
-      
-      // Check match status
-      if (matchData.status === 'completed') {
-        return res.status(400).json({ success: false, error: 'Match already completed' });
-      }
-      
-      // Get tournament info
+      if (matchData.status === 'completed') return res.status(400).json({ success: false, error: 'Partita già completata' });
       const tournament = await db.select().from(tournaments).where(eq(tournaments.id, matchData.tournamentId)).limit(1);
-      if (!tournament.length || tournament[0].status !== 'in_progress') {
-        return res.status(400).json({ success: false, error: 'Tournament not in progress' });
-      }
-      
+      if (!tournament.length || tournament[0].status !== 'in_progress') return res.status(400).json({ success: false, error: 'Torneo non in corso' });
+      const playerIdsArr: (number | null)[] = (matchData.playerIds as any) || [matchData.player1Id, matchData.player2Id];
+      const isParticipant = playerIdsArr.includes(currentUser[0].id);
+      const isOrganizer = tournament[0].organizerId === currentUser[0].id;
+      if (!isParticipant && !isOrganizer) return res.status(403).json({ success: false, error: 'Non sei un partecipante di questa partita' });
       const gameId = matchData.gameId || `tournament-${matchData.tournamentId}-r${matchData.round}-m${matchData.matchNumber}`;
-      
-      // Update match with gameId and status if needed
-      const updateFields: Record<string, any> = {};
-      if (!matchData.gameId) {
-        updateFields.gameId = gameId;
+      if (!matchData.gameId || matchData.status === 'pending') {
+        await db.update(tournamentMatches).set({ gameId, status: 'in_progress' }).where(eq(tournamentMatches.id, matchId));
       }
-      if (matchData.status === 'pending') {
-        updateFields.status = 'in_progress';
-      }
-      if (Object.keys(updateFields).length > 0) {
-        await db.update(tournamentMatches)
-          .set(updateFields)
-          .where(eq(tournamentMatches.id, matchId));
-        emitSync('tournament_matches', 'update', updateFields, eq(tournamentMatches.id, matchId));
-      }
-      
-      res.json({ 
-        success: true, 
-        gameId,
-        matchId,
-        tournamentId: matchData.tournamentId,
-        round: matchData.round,
-        matchNumber: matchData.matchNumber
-      });
+      res.json({ success: true, gameId, matchId, tournamentId: matchData.tournamentId, round: matchData.round, matchNumber: matchData.matchNumber });
     } catch (error) {
-      console.error('Error joining tournament match:', error);
       res.status(500).json({ success: false, error: 'Failed to join match' });
     }
   });
 
-  // Report tournament match result
+  // POST /api/tournaments/matches/:matchId/report — report result + advance bracket + prizes
   app.post('/api/tournaments/matches/:matchId/report', authMiddleware, async (req, res) => {
     try {
-      if (!isDatabaseAvailable()) {
-        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
-      }
-
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
       const user = (req as any).user;
       const matchId = parseInt(req.params.matchId);
       const { winnerId } = req.body;
-      
+      if (!winnerId) return res.status(400).json({ success: false, error: 'Vincitore non specificato' });
+
       const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
-      if (!currentUser.length) {
-        return res.status(404).json({ success: false, error: 'User not found' });
-      }
-      
+      if (!currentUser.length) return res.status(404).json({ success: false, error: 'Utente non trovato' });
+
       const match = await db.select().from(tournamentMatches).where(eq(tournamentMatches.id, matchId)).limit(1);
-      if (!match.length) {
-        return res.status(404).json({ success: false, error: 'Match not found' });
-      }
-      
+      if (!match.length) return res.status(404).json({ success: false, error: 'Partita non trovata' });
       const matchData = match[0];
-      
-      // Check tournament is in progress
+
       const tournament = await db.select().from(tournaments).where(eq(tournaments.id, matchData.tournamentId)).limit(1);
-      if (!tournament.length || tournament[0].status !== 'in_progress') {
-        return res.status(400).json({ success: false, error: 'Tournament not in progress' });
-      }
-      
-      // Only organizer or participants can report
+      if (!tournament.length || tournament[0].status !== 'in_progress') return res.status(400).json({ success: false, error: 'Torneo non in corso' });
+
       const isOrganizer = tournament[0].organizerId === currentUser[0].id;
-      const isParticipant = matchData.player1Id === currentUser[0].id || matchData.player2Id === currentUser[0].id;
-      if (!isOrganizer && !isParticipant) {
-        return res.status(403).json({ success: false, error: 'Not authorized to report this match' });
+      const playerIdsArr: (number | null)[] = (matchData.playerIds as any) || [matchData.player1Id, matchData.player2Id];
+      const isParticipant = playerIdsArr.includes(currentUser[0].id);
+      if (!isOrganizer && !isParticipant) return res.status(403).json({ success: false, error: 'Non autorizzato a segnalare questo risultato' });
+
+      // Update match as completed
+      await db.update(tournamentMatches).set({ winnerId, status: 'completed', completedAt: new Date() }).where(eq(tournamentMatches.id, matchId));
+
+      // Update participant win/loss stats
+      const losers = playerIdsArr.filter(p => p !== null && p !== winnerId) as number[];
+      if (winnerId > 0) {
+        const existingPart = await db.select().from(tournamentParticipants)
+          .where(and(eq(tournamentParticipants.tournamentId, matchData.tournamentId), eq(tournamentParticipants.userId, winnerId))).limit(1);
+        if (existingPart.length) {
+          await db.update(tournamentParticipants).set({ wins: existingPart[0].wins + 1 })
+            .where(and(eq(tournamentParticipants.tournamentId, matchData.tournamentId), eq(tournamentParticipants.userId, winnerId)));
+        }
       }
-      
-      // Validate winner
-      if (winnerId !== matchData.player1Id && winnerId !== matchData.player2Id) {
-        return res.status(400).json({ success: false, error: 'Invalid winner' });
+      for (const loserId of losers) {
+        if (loserId > 0) {
+          const loserPart = await db.select().from(tournamentParticipants)
+            .where(and(eq(tournamentParticipants.tournamentId, matchData.tournamentId), eq(tournamentParticipants.userId, loserId))).limit(1);
+          if (loserPart.length) {
+            await db.update(tournamentParticipants)
+              .set({ status: 'eliminated', losses: loserPart[0].losses + 1 })
+              .where(and(eq(tournamentParticipants.tournamentId, matchData.tournamentId), eq(tournamentParticipants.userId, loserId)));
+          }
+        }
       }
-      
-      // Update match
-      await db.update(tournamentMatches)
-        .set({ winnerId, status: 'completed', completedAt: new Date() })
-        .where(eq(tournamentMatches.id, matchId));
-      emitSync('tournament_matches', 'update', { winnerId, status: 'completed', completedAt: new Date() }, eq(tournamentMatches.id, matchId));
-      
-      // Check if all matches in this round are completed
+
+      // Check if all matches in current round are completed
       const roundMatches = await db.select().from(tournamentMatches)
-        .where(and(
-          eq(tournamentMatches.tournamentId, matchData.tournamentId),
-          eq(tournamentMatches.round, matchData.round)
-        ));
-      
-      const allCompleted = roundMatches.every(m => m.status === 'completed' || m.id === matchId);
-      
-      if (allCompleted) {
-        // Collect winners
-        const winners = roundMatches.map(m => m.id === matchId ? winnerId : m.winnerId).filter(Boolean);
-        
+        .where(and(eq(tournamentMatches.tournamentId, matchData.tournamentId), eq(tournamentMatches.round, matchData.round)));
+      const effectiveRoundMatches = roundMatches.map(m => m.id === matchId ? { ...m, status: 'completed', winnerId } : m);
+      const allDone = effectiveRoundMatches.every(m => m.status === 'completed');
+
+      let tournamentCompleted = false;
+      if (allDone) {
+        const winners = effectiveRoundMatches.map(m => m.winnerId).filter((w): w is number => w != null);
+        const ppm = tournament[0].playersPerMatch || 2;
+
         if (winners.length <= 1) {
-          // Tournament complete
-          await db.update(tournaments)
-            .set({ status: 'completed', winnerId: winners[0] || null })
-            .where(eq(tournaments.id, matchData.tournamentId));
-          emitSync('tournaments', 'update', { status: 'completed', winnerId: winners[0] || null }, eq(tournaments.id, matchData.tournamentId));
-          
-          io.emit('tournament-completed', {
-            tournamentId: matchData.tournamentId,
-            winnerId: winners[0]
+          // Final match done — tournament complete
+          const finalWinnerId = winners[0] ?? null;
+          // Runner-up: the other player in the final match
+          const finalLosers = effectiveRoundMatches.flatMap(m => {
+            const players: number[] = (m.playerIds as any) || [m.player1Id, m.player2Id].filter(Boolean);
+            return players.filter(p => p !== null && p !== m.winnerId);
           });
+          const runnerUpId = finalLosers[0] ?? null;
+
+          await db.update(tournaments).set({ status: 'completed', winnerId: finalWinnerId, endDate: new Date() }).where(eq(tournaments.id, matchData.tournamentId));
+
+          const totalP = tournament[0].currentParticipants;
+          await awardTournamentPrizes(matchData.tournamentId, finalWinnerId, runnerUpId, totalP, tournament[0].winnerRewardMultiplier, tournament[0].runnerUpRewardMultiplier);
+
+          io.emit('tournament-completed', { tournamentId: matchData.tournamentId, winnerId: finalWinnerId });
+          tournamentCompleted = true;
         } else {
-          // Create next round matches
+          // Generate next round
           const nextRound = matchData.round + 1;
-          const matchCount = Math.floor(winners.length / 2);
-          
-          for (let i = 0; i < matchCount; i++) {
-            const p1 = winners[i * 2];
-            const p2 = winners[i * 2 + 1] || null;
-            const gameId = p2 ? `tournament-${matchData.tournamentId}-r${nextRound}-m${i + 1}` : null;
-            
+          const r = buildBracketRound(winners, ppm, nextRound);
+          for (const m of r) {
+            const realPlayers = m.playerIds.filter(p => p !== null) as number[];
             await db.insert(tournamentMatches).values({
               tournamentId: matchData.tournamentId,
               round: nextRound,
-              matchNumber: i + 1,
-              player1Id: p1,
-              player2Id: p2,
-              gameId,
-              status: p2 ? 'pending' : 'completed',
-              winnerId: p2 ? null : p1
+              matchNumber: m.matchNumber,
+              player1Id: realPlayers[0] ?? null,
+              player2Id: realPlayers[1] ?? null,
+              playerIds: m.playerIds,
+              gameId: m.status === 'pending' ? `tournament-${matchData.tournamentId}-r${nextRound}-m${m.matchNumber}` : null,
+              status: m.status,
+              winnerId: m.winnerId,
             });
-            emitSync('tournament_matches', 'insert', { tournamentId: matchData.tournamentId, round: nextRound, matchNumber: i + 1, player1Id: p1, player2Id: p2, gameId, status: p2 ? 'pending' : 'completed', winnerId: p2 ? null : p1 });
           }
-          
-          io.emit('tournament-round-advanced', {
-            tournamentId: matchData.tournamentId,
-            round: nextRound
-          });
+          io.emit('tournament-round-advanced', { tournamentId: matchData.tournamentId, round: nextRound });
         }
       }
-      
-      res.json({ success: true, message: 'Match result reported' });
+
+      io.emit('tournament-match-reported', { tournamentId: matchData.tournamentId, matchId, winnerId });
+      res.json({ success: true, message: 'Risultato registrato', tournamentCompleted });
     } catch (error) {
       console.error('Error reporting match result:', error);
-      res.status(500).json({ success: false, error: 'Failed to report match' });
+      res.status(500).json({ success: false, error: 'Failed to report match result' });
+    }
+  });
+
+  // POST /api/tournaments/:id/invite — send socket invite to a user
+  app.post('/api/tournaments/:id/invite', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      const tournamentId = parseInt(req.params.id);
+      const { targetUserId } = req.body;
+      if (!targetUserId) return res.status(400).json({ success: false, error: 'targetUserId obbligatorio' });
+
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser.length) return res.status(404).json({ success: false, error: 'Utente non trovato' });
+
+      const tournament = await db.select().from(tournaments).where(eq(tournaments.id, tournamentId)).limit(1);
+      if (!tournament.length) return res.status(404).json({ success: false, error: 'Torneo non trovato' });
+      if (tournament[0].status !== 'registration') return res.status(400).json({ success: false, error: 'Le iscrizioni sono chiuse' });
+
+      // Find target user's socket and send invite
+      const targetUser = await db.select().from(users).where(eq(users.id, targetUserId)).limit(1);
+      if (!targetUser.length) return res.status(404).json({ success: false, error: 'Utente destinatario non trovato' });
+
+      io.emit(`tournament-invite-${targetUserId}`, {
+        tournamentId,
+        tournamentName: tournament[0].name,
+        inviterName: currentUser[0].username,
+        inviterId: currentUser[0].id,
+        maxParticipants: tournament[0].maxParticipants,
+        currentParticipants: tournament[0].currentParticipants,
+      });
+      // Also broadcast on general channel
+      io.emit('tournament-invite', {
+        targetUserId,
+        tournamentId,
+        tournamentName: tournament[0].name,
+        inviterName: currentUser[0].username,
+      });
+
+      res.json({ success: true, message: `Invito inviato a ${targetUser[0].username}` });
+    } catch (error) {
+      res.status(500).json({ success: false, error: 'Failed to send invite' });
+    }
+  });
+
+  // DELETE /api/tournaments/:id — cancel tournament (organizer only)
+  app.delete('/api/tournaments/:id', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      const tournamentId = parseInt(req.params.id);
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser.length) return res.status(404).json({ success: false, error: 'Utente non trovato' });
+      const tournament = await db.select().from(tournaments).where(eq(tournaments.id, tournamentId)).limit(1);
+      if (!tournament.length) return res.status(404).json({ success: false, error: 'Torneo non trovato' });
+      const isAdmin = currentUser[0].email === 'lucaforte94@gmail.com';
+      if (tournament[0].organizerId !== currentUser[0].id && !isAdmin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
+      if (tournament[0].status === 'completed') return res.status(400).json({ success: false, error: 'Non si può cancellare un torneo completato' });
+      await db.update(tournaments).set({ status: 'cancelled' as any }).where(eq(tournaments.id, tournamentId));
+      io.emit('tournament-cancelled', { tournamentId, name: tournament[0].name });
+      res.json({ success: true, message: 'Torneo cancellato' });
+    } catch (error) {
+      res.status(500).json({ success: false, error: 'Failed to cancel tournament' });
     }
   });
 

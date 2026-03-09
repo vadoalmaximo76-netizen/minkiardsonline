@@ -13,6 +13,7 @@ import { SpectatorView } from "./components/SpectatorView";
 import { ResetPasswordPage } from "./components/ResetPasswordPage";
 import { CardAdminPanel } from "./components/CardAdminPanel";
 import { DraftSection } from "./components/DraftSection";
+import { ClassicTournamentHub } from "./components/ClassicTournamentHub";
 import { DeckSelectDialog } from "./components/DeckSelectDialog";
 import { RankiardLeaderboard } from "./components/RankiardLeaderboard";
 import { SpotifyPlayer } from "./components/SpotifyPlayer";
@@ -24,7 +25,7 @@ import { Toaster } from "./components/ui/sonner";
 import "@fontsource/inter";
 import "./index.css";
 
-type AppSection = 'home' | 'play' | 'training' | 'rooms' | 'profile' | 'spectator' | 'admin' | 'draft' | 'leaderboard';
+type AppSection = 'home' | 'play' | 'training' | 'rooms' | 'profile' | 'spectator' | 'admin' | 'draft' | 'leaderboard' | 'tournaments';
 
 function getResetPasswordToken(): string | null {
   const urlParams = new URLSearchParams(window.location.search);
@@ -503,7 +504,7 @@ function App() {
 
   const handleGoHome = () => navigateTo('home', 'back');
 
-  const handleNavigate = (section: 'play' | 'training' | 'rooms' | 'profile' | 'admin' | 'draft' | 'leaderboard') => {
+  const handleNavigate = (section: 'play' | 'training' | 'rooms' | 'profile' | 'admin' | 'draft' | 'leaderboard' | 'tournaments') => {
     if (section === 'play') {
       setShowRoomDialog(true);
     }
@@ -703,6 +704,24 @@ function App() {
           />
         </div>
         <SpotifyPlayer disabled={false} />
+        <PageTransitionOverlay phase={overlayPhase} />
+      </QueryClientProvider>
+    );
+  }
+
+  // Show Classic Tournament Hub
+  if (currentSection === 'tournaments') {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <div className="page-enter" style={{ width: '100%', height: '100vh', position: 'relative' }}>
+          <ClassicTournamentHub
+            userId={authenticatedUser?.id ?? 0}
+            username={playerName}
+            puntiRankiard={(authenticatedUser as any)?.puntiRankiard ?? 0}
+            userEmail={authenticatedUser?.email ?? ''}
+            onClose={handleGoHome}
+          />
+        </div>
         <PageTransitionOverlay phase={overlayPhase} />
       </QueryClientProvider>
     );

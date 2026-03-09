@@ -84,3 +84,10 @@ export function initGlobalClickSound() {
     if (isInteractive(target)) playClick();
   }, { capture: true, passive: true });
 }
+
+export function playUISound(sound: 'click' | 'open' | 'back' | 'success' | string) {
+  if (sound === 'open') playOpen();
+  else if (sound === 'back') playBack();
+  else if (sound === 'success') playSuccess();
+  else playClick();
+}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Gamepad2, GraduationCap, Users, User, Trophy, Clock, Star, Award, Sparkles, Settings, Shuffle, Shield } from 'lucide-react';
+import { Gamepad2, GraduationCap, Users, User, Trophy, Clock, Star, Award, Sparkles, Settings, Shuffle, Shield, Crown } from 'lucide-react';
 import { TournamentPanel } from './TournamentPanel';
 import { ClubPanel } from './ClubPanel';
 import { SeasonalEventsPanel } from './SeasonalEventsPanel';
@@ -8,7 +8,7 @@ import { RankiardLeaderboard } from './RankiardLeaderboard';
 interface HomeScreenProps {
   playerName: string;
   userId?: number;
-  onNavigate: (section: 'play' | 'training' | 'rooms' | 'profile' | 'admin' | 'draft' | 'leaderboard') => void;
+  onNavigate: (section: 'play' | 'training' | 'rooms' | 'profile' | 'admin' | 'draft' | 'leaderboard' | 'tournaments') => void;
   onJoinTournamentMatch?: (gameId: string, matchId: number, tournamentName: string) => void;
   userEmail?: string;
   initialShowTournaments?: boolean;
@@ -178,6 +178,18 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
       badge: userStats ? `${userStats.puntiRankiard} PR` : 'Top 100',
       badgeIcon: Trophy,
       action: () => setShowLeaderboard(true)
+    },
+    {
+      id: 'tournaments' as const,
+      title: 'Tornei',
+      subtitle: 'Bracket elimination, premi Rankiard, CPU',
+      icon: Crown,
+      gradient: 'from-violet-700 via-purple-600 to-indigo-700',
+      hoverGradient: 'hover:from-violet-600 hover:via-purple-500 hover:to-indigo-600',
+      shadowColor: 'shadow-violet-500/30',
+      badge: 'Nuovo',
+      badgeIcon: Star,
+      action: () => onNavigate('tournaments')
     },
     {
       id: 'draft' as const,

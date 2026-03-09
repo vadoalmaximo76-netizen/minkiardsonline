@@ -330,15 +330,21 @@ export const tournaments = pgTable("tournaments", {
   name: text("name").notNull(),
   description: text("description"),
   type: text("type").notNull().default("elimination"), // elimination, round_robin
+  gameMode: text("game_mode").notNull().default("classic"), // classic, draft
   status: text("status").notNull().default("registration"), // registration, in_progress, completed
   maxParticipants: integer("max_participants").notNull().default(8),
   currentParticipants: integer("current_participants").notNull().default(0),
+  playersPerMatch: integer("players_per_match").notNull().default(2), // players per match (2, 4, etc.)
+  cpuCount: integer("cpu_count").notNull().default(0), // number of CPU participants
   prizePool: integer("prize_pool").notNull().default(0), // Rankiard points prize
   entryFee: integer("entry_fee").notNull().default(0), // Entry fee in Rankiard points
+  winnerRewardMultiplier: integer("winner_reward_multiplier").notNull().default(20),
+  runnerUpRewardMultiplier: integer("runner_up_reward_multiplier").notNull().default(5),
   organizerId: integer("organizer_id").notNull(),
   winnerId: integer("winner_id"),
   startDate: timestamp("start_date"),
   endDate: timestamp("end_date"),
+  settings: jsonb("settings").default({}),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -346,7 +352,9 @@ export const tournaments = pgTable("tournaments", {
 export const tournamentParticipants = pgTable("tournament_participants", {
   id: serial("id").primaryKey(),
   tournamentId: integer("tournament_id").notNull(),
-  userId: integer("user_id").notNull(),
+  userId: integer("user_id"), // nullable for CPU participants
+  isCpu: boolean("is_cpu").notNull().default(false),
+  displayName: text("display_name"), // shown for CPU players or as override
   status: text("status").notNull().default("registered"), // registered, eliminated, winner
   placement: integer("placement"),
   wins: integer("wins").notNull().default(0),
@@ -360,8 +368,9 @@ export const tournamentMatches = pgTable("tournament_matches", {
   tournamentId: integer("tournament_id").notNull(),
   round: integer("round").notNull(),
   matchNumber: integer("match_number").notNull(),
-  player1Id: integer("player1_id"),
-  player2Id: integer("player2_id"),
+  player1Id: integer("player1_id"),  // kept for 2-player compat
+  player2Id: integer("player2_id"),  // kept for 2-player compat
+  playerIds: jsonb("player_ids").default([]), // all participant IDs (overrides p1/p2 for M>2)
   winnerId: integer("winner_id"),
   gameId: text("game_id"), // Link to actual game
   status: text("status").notNull().default("pending"), // pending, in_progress, completed
