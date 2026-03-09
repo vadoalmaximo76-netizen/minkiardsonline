@@ -5397,6 +5397,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
               message: `🤝 CONTRATTAZIONE CLANDESTINA! ${attackerName} propone un accordo a ${targetOwner}. Danno base: ${contrattazione.baseDamage} PTI (100 × stelle). Sono disponibili 3 offerte!`,
               timestamp: Date.now()
             });
+
+            // CPU ATTACKER: auto-make offers with escalating discounts
+            const gsCheck = gameManager.getGameState(gameId);
+            const attackerIsCPU = gsCheck?.players?.[attackerName]?.isCPU;
+            const defenderIsCPU = gsCheck?.players?.[targetOwner]?.isCPU;
+            if (attackerIsCPU) {
+              const cpuOfferMultipliers = [1.0, 0.75, 0.5];
+              const makeCPUOffer = (offerIdx: number) => {
+                setTimeout(async () => {
+                  const p = gameManager.getContrattazione(gameId);
+                  if (!p || p.offersLeft <= 0 || offerIdx >= cpuOfferMultipliers.length) return;
+                  const offer = Math.round(p.baseDamage * cpuOfferMultipliers[offerIdx]);
+                  p.lastOffer = offer;
+                  console.log(`🤖🤝 CPU ${attackerName} contrattazione offer ${offerIdx + 1}: ${offer} PTI`);
+                  io.to(gameId).emit('contrattazione:offer-received', {
+                    negotiationId: p.negotiationId, attacker: p.attacker, defender: p.defender,
+                    offerDamage: offer, offersLeft: p.offersLeft, baseDamage: p.baseDamage
+                  });
+                  io.to(gameId).emit('chat-message', {
+                    id: `${Date.now()}-cpu-offer`, playerName: 'Sistema',
+                    message: `🤖💸 ${p.attacker} offre ${offer} PTI (offerta ${offerIdx + 1}/3). ${p.defender}, accetti?`,
+                    timestamp: Date.now()
+                  });
+                  if (defenderIsCPU) {
+                    setTimeout(async () => {
+                      const p2 = gameManager.getContrattazione(gameId);
+                      if (!p2 || p2.lastOffer === undefined) return;
+                      const accept = p2.lastOffer <= p2.baseDamage * 0.7;
+                      if (accept) {
+                        const finalDamage = p2.lastOffer;
+                        const { attacker: att, defender: def, targetCardId: tId, mosseCardId: mId } = p2;
+                        gameManager.clearContrattazione(gameId);
+                        io.to(gameId).emit('contrattazione:resolved', { negotiationId: p2.negotiationId, accepted: true, finalDamage, attacker: att, defender: def });
+                        io.to(gameId).emit('chat-message', { id: `${Date.now()}-cpu-accept`, playerName: 'Sistema', message: `🤖✅ ${def} accetta: ${finalDamage} PTI!`, timestamp: Date.now() });
+                        await gameManager.processMosseDamage(gameId, att, tId, finalDamage, mId, io, false, false, false, false, 0);
+                        io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+                      } else {
+                        p2.offersLeft -= 1;
+                        if (p2.offersLeft <= 0) {
+                          const dr = Math.floor(Math.random() * 6) + 1, disc = dr * 10;
+                          const finalDamage = Math.round(p2.baseDamage * (1 - disc / 100));
+                          const { attacker: att, defender: def, targetCardId: tId, mosseCardId: mId, baseDamage: bd } = p2;
+                          gameManager.clearContrattazione(gameId);
+                          io.to(gameId).emit('contrattazione:resolved', { negotiationId: p2.negotiationId, accepted: false, finalDamage, diceResult: dr, discountPct: disc, attacker: att, defender: def });
+                          io.to(gameId).emit('chat-message', { id: `${Date.now()}-cpu-nodeal`, playerName: 'Sistema', message: `🎲 Nessun accordo! Dado: ${dr} (${disc}%). Danno: ${bd} - ${disc}% = ${finalDamage} PTI!`, timestamp: Date.now() });
+                          await gameManager.processMosseDamage(gameId, att, tId, finalDamage, mId, io, false, false, false, false, 0);
+                          io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+                        } else {
+                          io.to(gameId).emit('contrattazione:rejected', { negotiationId: p2.negotiationId, offersLeft: p2.offersLeft, attacker: p2.attacker, defender: p2.defender, baseDamage: p2.baseDamage });
+                          io.to(gameId).emit('chat-message', { id: `${Date.now()}-cpu-reject`, playerName: 'Sistema', message: `🤖❌ ${p2.defender} rifiuta! Offerte rimanenti: ${p2.offersLeft}.`, timestamp: Date.now() });
+                          makeCPUOffer(offerIdx + 1);
+                        }
+                      }
+                    }, 2000);
+                  }
+                }, 2000 * (offerIdx + 1));
+              };
+              makeCPUOffer(0);
+            }
           }
           return;
         }
@@ -5903,6 +5962,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: `💸 ${pending.attacker} offre ${offerDamage} PTI di danno. Offerte rimanenti: ${pending.offersLeft}. ${pending.defender}, accetti?`,
         timestamp: Date.now()
       });
+
+      // CPU DEFENDER: auto-respond if the defender is a CPU
+      const gsDefCheck = gameManager.getGameState(gameId);
+      const defIsCPU = gsDefCheck?.players?.[pending.defender]?.isCPU;
+      if (defIsCPU) {
+        setTimeout(async () => {
+          const p = gameManager.getContrattazione(gameId);
+          if (!p || p.lastOffer === undefined) return;
+          const accept = p.lastOffer <= p.baseDamage * 0.7;
+          if (accept) {
+            const finalDamage = p.lastOffer;
+            const { attacker: att, defender: def, targetCardId: tId, mosseCardId: mId } = p;
+            gameManager.clearContrattazione(gameId);
+            io.to(gameId).emit('contrattazione:resolved', { negotiationId: p.negotiationId, accepted: true, finalDamage, attacker: att, defender: def });
+            io.to(gameId).emit('chat-message', { id: `${Date.now()}-cpu-def-accept`, playerName: 'Sistema', message: `🤖✅ ${def} (CPU) accetta l'offerta: ${finalDamage} PTI!`, timestamp: Date.now() });
+            await gameManager.processMosseDamage(gameId, att, tId, finalDamage, mId, io, false, false, false, false, 0);
+            io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+          } else {
+            p.offersLeft -= 1;
+            if (p.offersLeft <= 0) {
+              const dr = Math.floor(Math.random() * 6) + 1, disc = dr * 10;
+              const finalDamage = Math.round(p.baseDamage * (1 - disc / 100));
+              const { attacker: att, defender: def, targetCardId: tId, mosseCardId: mId, baseDamage: bd } = p;
+              gameManager.clearContrattazione(gameId);
+              io.to(gameId).emit('contrattazione:resolved', { negotiationId: p.negotiationId, accepted: false, finalDamage, diceResult: dr, discountPct: disc, attacker: att, defender: def });
+              io.to(gameId).emit('chat-message', { id: `${Date.now()}-cpu-def-nodeal`, playerName: 'Sistema', message: `🎲 Nessun accordo! Dado: ${dr} (${disc}%). Danno: ${bd} - ${disc}% = ${finalDamage} PTI!`, timestamp: Date.now() });
+              await gameManager.processMosseDamage(gameId, att, tId, finalDamage, mId, io, false, false, false, false, 0);
+              io.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+            } else {
+              io.to(gameId).emit('contrattazione:rejected', { negotiationId: p.negotiationId, offersLeft: p.offersLeft, attacker: p.attacker, defender: p.defender, baseDamage: p.baseDamage });
+              io.to(gameId).emit('chat-message', { id: `${Date.now()}-cpu-def-reject`, playerName: 'Sistema', message: `🤖❌ ${p.defender} (CPU) rifiuta! Offerte rimanenti: ${p.offersLeft}. ${p.attacker}, fai una nuova proposta.`, timestamp: Date.now() });
+            }
+          }
+        }, 2000);
+      }
     });
 
     // CONTRATTAZIONE CLANDESTINA: Defender responds to an offer

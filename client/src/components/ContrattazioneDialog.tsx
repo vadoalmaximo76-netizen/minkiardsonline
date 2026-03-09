@@ -222,8 +222,7 @@ export const ContrattazioneDialog: React.FC = () => {
               </Button>
               <Button
                 onClick={() => respond(false)}
-                disabled={state.offersLeft <= 1}
-                className="flex-1 bg-red-700 hover:bg-red-600 text-white font-bold disabled:opacity-50"
+                className="flex-1 bg-red-700 hover:bg-red-600 text-white font-bold"
               >
                 ❌ Rifiuta {state.offersLeft <= 1 ? '(dado)' : ''}
               </Button>

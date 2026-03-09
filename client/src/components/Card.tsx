@@ -761,6 +761,30 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       }
     }
     
+    // CONTRATTAZIONE CLANDESTINA: skip damage dialog, emit mosse-attack directly
+    const currentMosseEffect = mosseCard?.mosseDamageEffect;
+    if (currentMosseEffect === 'contrattazione_clandestina') {
+      const firstTarget = targets[0];
+      if (firstTarget) {
+        console.log(`🤝 CONTRATTAZIONE: emitting mosse-attack directly for ${firstTarget.owner}`);
+        socket.emit('mosse-attack', {
+          mosseCardId: selectedMosseCard?.id,
+          targetCardId: firstTarget.id,
+          attackerName: playerName,
+          targetOwner: firstTarget.owner,
+          damageValue: 0,
+          starsToRemove: 0,
+          isHandTarget: false,
+          isFurtoAttack: false,
+          mosseEffect: 'contrattazione_clandestina'
+        });
+      }
+      setSelectedMosseCard(null);
+      setTargetCards([]);
+      setSelectedTargets([]);
+      return;
+    }
+
     setShowDamageInput(true);
   };
 

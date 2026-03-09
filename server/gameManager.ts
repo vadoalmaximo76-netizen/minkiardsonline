@@ -2655,6 +2655,12 @@ Rispondi SOLO in JSON:`;
           console.error(`❌ Failed to restore game ${savedGame.gameId}:`, err);
         }
       }
+
+      // Re-apply current card modifications to all restored games so any admin changes take effect
+      if (activeGames.length > 0) {
+        await this.refreshCardMetadataForAllGames();
+        console.log(`🔄 Re-applied card modifications to all restored games`);
+      }
     } catch (error) {
       console.error('❌ Failed to load active games from DB:', error);
     }
