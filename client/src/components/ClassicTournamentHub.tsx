@@ -376,7 +376,6 @@ function TournamentDetailModal({
   onClose,
   onJoin,
   onStart,
-  onReport,
   onInvite,
   onPlayMatch,
   onDelete,
@@ -390,15 +389,13 @@ function TournamentDetailModal({
   onClose: () => void;
   onJoin: () => void;
   onStart: () => void;
-  onReport: (matchId: number, winnerId: number) => void;
   onInvite: () => void;
   onPlayMatch?: (gameId: string, matchId: number, tournamentName: string) => void;
   onDelete?: () => void;
 }) {
   const isRoundRobin = tournament.type === 'round_robin';
   const [tab, setTab] = useState<'info' | 'bracket' | 'partecipanti' | 'classifica'>('info');
-  const [reportMatchId, setReportMatchId] = useState<number | null>(null);
-  const [reportWinnerId, setReportWinnerId] = useState<number | string>('');
+
   const [standings, setStandings] = useState<any[]>([]);
   const [standingsLoading, setStandingsLoading] = useState(false);
 
@@ -548,36 +545,6 @@ function TournamentDetailModal({
                             </span>
                           ))}
                         </div>
-                        {(isOrganizer || isAdmin || pids.includes(userId)) && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                            {reportMatchId === m.id ? (
-                              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                                <select value={reportWinnerId}
-                                  onChange={e => setReportWinnerId(e.target.value)}
-                                  style={{ flex: 1, background: '#0f172a', border: '1px solid #334155', borderRadius: 8, color: '#e2e8f0', padding: '6px 10px', fontSize: 12 }}>
-                                  <option value="">Seleziona vincitore...</option>
-                                  {pids.filter(p => p != null).map(pid => (
-                                    <option key={pid} value={pid!}>{getName(pid)}</option>
-                                  ))}
-                                </select>
-                                <button
-                                  onClick={() => { if (reportWinnerId) { onReport(m.id, Number(reportWinnerId)); setReportMatchId(null); setReportWinnerId(''); } }}
-                                  style={{ background: '#22c55e', border: 'none', borderRadius: 8, color: 'white', padding: '6px 14px', fontSize: 12, cursor: 'pointer', fontWeight: 700 }}>
-                                  Conferma
-                                </button>
-                                <button onClick={() => setReportMatchId(null)}
-                                  style={{ background: '#374151', border: 'none', borderRadius: 8, color: '#9ca3af', padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}>
-                                  <X size={12} />
-                                </button>
-                              </div>
-                            ) : (
-                              <button onClick={() => { setReportMatchId(m.id); playUISound('click'); }}
-                                style={{ background: '#7c3aed', border: 'none', borderRadius: 8, color: 'white', padding: '7px 14px', fontSize: 12, cursor: 'pointer', fontWeight: 700, alignSelf: 'flex-start' }}>
-                                Segnala Risultato
-                              </button>
-                            )}
-                          </div>
-                        )}
                       </div>
                     );
                   })}
@@ -1385,26 +1352,6 @@ export function ClassicTournamentHub({ userId, username, puntiRankiard, userEmai
     } catch (e) { showToast('Errore di rete'); }
   };
 
-  const handleReport = async (matchId: number, winnerId: number) => {
-    if (!selectedTournamentId) return;
-    try {
-      const res = await fetch(`/api/tournaments/matches/${matchId}/report`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ winnerId }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        showToast(data.tournamentCompleted ? '🏆 Torneo completato! Premi assegnati.' : 'Risultato registrato');
-        playUISound('open');
-        await fetchDetail(selectedTournamentId);
-        fetchTournaments();
-      } else {
-        showToast(data.error || 'Errore segnalazione');
-      }
-    } catch (e) { showToast('Errore di rete'); }
-  };
-
   const handleDelete = async () => {
     if (!selectedTournamentId) return;
     try {
@@ -1605,7 +1552,6 @@ export function ClassicTournamentHub({ userId, username, puntiRankiard, userEmai
           onClose={() => { setDetailData(null); setSelectedTournamentId(null); }}
           onJoin={handleJoin}
           onStart={handleStart}
-          onReport={handleReport}
           onInvite={() => {
             setInviteTournament(detailData.tournament);
             setShowInvite(true);
