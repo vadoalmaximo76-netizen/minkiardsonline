@@ -213,7 +213,7 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
     zIndex: 100002,
     display: 'flex',
     flexDirection: 'column',
-    background: DARK_BG
+    background: '#ff0000'
   };
 
   if (isFullPage) {
