@@ -468,7 +468,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         const attackerCard = gameState?.field?.find((c: any) => 
           c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
         );
-        const attackerStars = attackerCard?.stars ?? 1;
+        const attackerStars = parseStars(attackerCard?.text) ?? attackerCard?.stars ?? 1;
         const attackerName = attackerCard ? getCardName(attackerCard) : null;
         const targetName = getCardName(card);
         
@@ -692,7 +692,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     const attackerCard = gameState?.field?.find((c: any) => 
       c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
     );
-    const attackerStars = attackerCard?.stars ?? 1;
+    const attackerStars = parseStars(attackerCard?.text) ?? attackerCard?.stars ?? 1;
     const attackerName = attackerCard ? getCardName(attackerCard) : null;
     const targetName = getCardName(handTargetCard);
     
@@ -759,7 +759,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       const attackerCard = gameState?.field?.find((c: any) => 
         c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
       );
-      const attackerStars = attackerCard?.stars ?? 1;
+      const attackerStars = parseStars(attackerCard?.text) ?? attackerCard?.stars ?? 1;
       const attackerName = attackerCard ? getCardName(attackerCard) : null;
       // Use first target for character override check
       const firstTarget = targets[0];
