@@ -24,6 +24,11 @@ const AVATAR_EMOJIS = [
   "🎲", "🎪", "🎨", "🎬"
 ];
 
+const DARK_BG = '#060918';
+const PANEL_BG = '#0d1228';
+const HEADER_BG = 'rgba(0,0,0,0.55)';
+const COL_HEADER_BG = 'rgba(0,0,0,0.40)';
+
 export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
   isOpen,
   onClose,
@@ -88,14 +93,6 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
     return null;
   };
 
-  const getRowBg = (rank: number, isMe: boolean) => {
-    if (isMe) return 'bg-cyan-950/40 border-l-2 border-cyan-500/60';
-    if (rank === 1) return 'bg-yellow-950/30';
-    if (rank === 2) return 'bg-slate-800/30';
-    if (rank === 3) return 'bg-amber-950/30';
-    return 'hover:bg-white/5';
-  };
-
   const formatTime = (minutes: number) => {
     if (minutes < 60) return `${minutes}m`;
     const h = Math.floor(minutes / 60), m = minutes % 60;
@@ -104,153 +101,152 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
 
   if (!isOpen) return null;
 
-  const listRows = (
-    <>
-      {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="w-8 h-8 text-yellow-400 animate-spin" />
-        </div>
-      ) : leaderboard.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-white/40 gap-3">
-          <Trophy className="w-12 h-12 opacity-40" />
-          <p className="text-sm">Nessun giocatore in classifica</p>
-        </div>
-      ) : (
-        leaderboard.map((player, index) => {
-          const rank = index + 1;
-          const isMe = player.id === currentUserId;
-          const sent = challengeSent === player.id;
-          const badge = getBadge(rank);
-          const winRate = player.gamesPlayed > 0 ? Math.round((player.gamesWon / player.gamesPlayed) * 100) : 0;
+  const colGrid = currentGameId
+    ? '48px 1fr 90px 80px 90px 80px 90px'
+    : '48px 1fr 90px 80px 90px 80px';
 
-          return (
-            <div key={player.id} className={`border-b border-white/5 transition-colors ${getRowBg(rank, isMe)}`}>
-              {/* Mobile */}
-              <div className="flex sm:hidden items-center gap-3 px-3 py-3">
-                <div className="w-8 text-center shrink-0">
-                  {badge ? <span className="text-xl">{badge}</span>
-                    : <span className="text-white/40 text-sm font-medium">{rank}</span>}
-                </div>
-                <span className="text-2xl shrink-0">{getAvatar(player.avatar)}</span>
-                <div className="flex-1 min-w-0">
-                  <div className={`font-semibold text-sm truncate ${isMe ? 'text-cyan-300' : rank <= 3 ? 'text-white' : 'text-white/85'}`}>
-                    {player.username}{isMe ? ' (tu)' : ''}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-x-3 mt-0.5 text-xs text-white/45">
-                    <span className="flex items-center gap-1"><Gamepad2 className="w-3 h-3" />{player.gamesPlayed}</span>
-                    <span className="flex items-center gap-1">
-                      <Medal className="w-3 h-3 text-green-400" />
-                      <span className="text-green-400">{player.gamesWon}</span>
-                      {player.gamesPlayed > 0 && <span className="text-white/30">({winRate}%)</span>}
-                    </span>
-                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatTime(player.minutesPlayed)}</span>
-                  </div>
-                </div>
-                <div className="shrink-0 flex flex-col items-end gap-1.5">
-                  <span className="text-yellow-400 font-bold text-sm">{player.puntiRankiard} <span className="text-yellow-600 text-xs font-normal">PR</span></span>
-                  {currentGameId && !isMe && (
-                    <button onClick={() => handleChallenge(player)} disabled={sent}
-                      className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold transition-all ${sent ? 'bg-green-700/40 text-green-400 cursor-default' : 'bg-red-700/40 hover:bg-red-600/60 text-red-300 hover:text-white'}`}>
-                      <Swords className="w-3 h-3" />
-                      {sent ? '✓' : 'Sfida'}
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Desktop */}
-              <div className="hidden sm:grid items-center px-4 py-3 gap-2"
-                style={{ gridTemplateColumns: currentGameId ? '48px 1fr 90px 80px 90px 80px 90px' : '48px 1fr 90px 80px 90px 80px' }}>
-                <div className="text-center">
-                  {badge ? <span className="text-xl">{badge}</span>
-                    : <span className="text-white/40 text-sm font-medium">{rank}</span>}
-                </div>
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-xl shrink-0">{getAvatar(player.avatar)}</span>
-                  <span className={`font-medium text-sm truncate ${isMe ? 'text-cyan-300' : rank <= 3 ? 'text-white' : 'text-white/85'}`}>
-                    {player.username}{isMe ? ' (tu)' : ''}
-                  </span>
-                </div>
-                <div className="text-center">
-                  <span className="text-yellow-400 font-bold">{player.puntiRankiard}</span>
-                </div>
-                <div className="text-center text-white/55 text-sm">{player.gamesPlayed}</div>
-                <div className="text-center text-sm">
-                  <span className="text-green-400 font-medium">{player.gamesWon}</span>
-                  {player.gamesPlayed > 0 && <span className="text-white/30 text-xs ml-1">({winRate}%)</span>}
-                </div>
-                <div className="text-center text-white/55 text-sm">{formatTime(player.minutesPlayed)}</div>
-                {currentGameId && (
-                  <div className="flex justify-center">
-                    {isMe ? <span className="text-white/20 text-xs">—</span> : (
-                      <button onClick={() => handleChallenge(player)} disabled={sent}
-                        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${sent ? 'bg-green-700/40 text-green-400 cursor-default' : 'bg-red-700/40 hover:bg-red-600/60 text-red-300 hover:text-white'}`}>
-                        <Swords className="w-3 h-3" />
-                        {sent ? 'Inviato!' : 'Sfida'}
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })
-      )}
-    </>
-  );
-
-  const desktopHeaders = (
-    <div className="hidden sm:grid shrink-0 px-4 py-2 text-xs text-white/40 font-semibold uppercase tracking-wide border-b border-white/8"
-      style={{
-        gridTemplateColumns: currentGameId ? '48px 1fr 90px 80px 90px 80px 90px' : '48px 1fr 90px 80px 90px 80px',
-        background: 'rgba(0,0,0,0.25)'
-      }}>
-      <div className="text-center">#</div>
-      <div className="pl-1">Giocatore</div>
-      <div className="text-center flex items-center justify-center gap-1"><Crown className="w-3 h-3 text-yellow-400" /> PR</div>
-      <div className="text-center flex items-center justify-center gap-1"><Gamepad2 className="w-3 h-3" /> Partite</div>
-      <div className="text-center flex items-center justify-center gap-1"><Medal className="w-3 h-3 text-green-400" /> Vinte</div>
-      <div className="text-center flex items-center justify-center gap-1"><Clock className="w-3 h-3" /> Tempo</div>
-      {currentGameId && <div className="text-center">Sfida</div>}
+  const colHeaders = (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: colGrid,
+      padding: '8px 16px',
+      background: COL_HEADER_BG,
+      borderBottom: '1px solid rgba(255,255,255,0.08)',
+      flexShrink: 0
+    }}>
+      {['#', 'Giocatore', 'PR', 'Partite', 'Vinte', 'Tempo', ...(currentGameId ? ['Sfida'] : [])].map((h, i) => (
+        <div key={h} style={{
+          textAlign: i === 1 ? 'left' : 'center',
+          paddingLeft: i === 1 ? 4 : 0,
+          fontSize: 11,
+          fontWeight: 600,
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+          color: 'rgba(255,255,255,0.45)'
+        }}>{h}</div>
+      ))}
     </div>
   );
 
-  /* ── FULL-PAGE (from home nav, no active game) ─────────────────────────── */
+  const rows = loading ? (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '64px 0' }}>
+      <Loader2 style={{ width: 32, height: 32, color: '#facc15', animation: 'spin 1s linear infinite' }} />
+    </div>
+  ) : leaderboard.length === 0 ? (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '64px 16px', color: 'rgba(255,255,255,0.4)', gap: 12 }}>
+      <Trophy style={{ width: 48, height: 48, opacity: 0.4 }} />
+      <p style={{ fontSize: 14, margin: 0 }}>Nessun giocatore in classifica</p>
+    </div>
+  ) : leaderboard.map((player, index) => {
+    const rank = index + 1;
+    const isMe = player.id === currentUserId;
+    const sent = challengeSent === player.id;
+    const badge = getBadge(rank);
+    const winRate = player.gamesPlayed > 0 ? Math.round((player.gamesWon / player.gamesPlayed) * 100) : 0;
+
+    let rowBg = 'transparent';
+    if (isMe) rowBg = 'rgba(8,145,178,0.15)';
+    else if (rank === 1) rowBg = 'rgba(161,98,7,0.15)';
+    else if (rank === 2) rowBg = 'rgba(71,85,105,0.15)';
+    else if (rank === 3) rowBg = 'rgba(120,53,15,0.15)';
+
+    const nameColor = isMe ? '#67e8f9' : rank <= 3 ? '#ffffff' : 'rgba(255,255,255,0.85)';
+
+    return (
+      <div key={player.id} style={{
+        display: 'grid',
+        gridTemplateColumns: colGrid,
+        alignItems: 'center',
+        padding: '10px 16px',
+        background: rowBg,
+        borderBottom: '1px solid rgba(255,255,255,0.05)',
+        borderLeft: isMe ? '2px solid rgba(8,145,178,0.6)' : '2px solid transparent'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          {badge
+            ? <span style={{ fontSize: 18 }}>{badge}</span>
+            : <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontWeight: 500 }}>{rank}</span>}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+          <span style={{ fontSize: 20, flexShrink: 0 }}>{getAvatar(player.avatar)}</span>
+          <span style={{ color: nameColor, fontWeight: 500, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {player.username}{isMe ? ' (tu)' : ''}
+          </span>
+        </div>
+        <div style={{ textAlign: 'center', color: '#facc15', fontWeight: 700, fontSize: 14 }}>
+          {player.puntiRankiard}
+        </div>
+        <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.55)', fontSize: 13 }}>
+          {player.gamesPlayed}
+        </div>
+        <div style={{ textAlign: 'center', fontSize: 13 }}>
+          <span style={{ color: '#4ade80', fontWeight: 500 }}>{player.gamesWon}</span>
+          {player.gamesPlayed > 0 && <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, marginLeft: 4 }}>({winRate}%)</span>}
+        </div>
+        <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.55)', fontSize: 13 }}>
+          {formatTime(player.minutesPlayed)}
+        </div>
+        {currentGameId && (
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            {isMe ? <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 12 }}>—</span> : (
+              <button onClick={() => handleChallenge(player)} disabled={sent}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  padding: '4px 10px', borderRadius: 8, border: 'none', cursor: sent ? 'default' : 'pointer',
+                  fontSize: 12, fontWeight: 600,
+                  background: sent ? 'rgba(21,128,61,0.4)' : 'rgba(153,27,27,0.4)',
+                  color: sent ? '#86efac' : '#fca5a5'
+                }}>
+                <Swords style={{ width: 12, height: 12 }} />
+                {sent ? 'Inviato!' : 'Sfida'}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  });
+
+  const overlayStyle: React.CSSProperties = {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 100002,
+    display: 'flex',
+    flexDirection: 'column',
+    background: DARK_BG
+  };
+
   if (isFullPage) {
     return (
-      <div className="fixed inset-0 flex flex-col"
-        style={{ zIndex: 100002, background: 'linear-gradient(180deg, #050810 0%, #0a0f1e 40%, #0d1228 70%, #080c18 100%)' }}>
-        {/* Top bar */}
-        <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-white/10"
-          style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(12px)' }}>
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-yellow-500/15 rounded-lg">
-              <Trophy className="w-5 h-5 text-yellow-400" />
+      <div style={overlayStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: HEADER_BG, borderBottom: '1px solid rgba(255,255,255,0.1)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ padding: 8, background: 'rgba(234,179,8,0.15)', borderRadius: 8 }}>
+              <Trophy style={{ width: 20, height: 20, color: '#facc15' }} />
             </div>
             <div>
-              <h1 className="text-base font-bold text-white leading-tight">Classifica Rankiard</h1>
-              <p className="text-xs text-white/45">Top 100 giocatori</p>
+              <h1 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#ffffff' }}>Classifica Rankiard</h1>
+              <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>Top 100 giocatori</p>
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <button onClick={fetchLeaderboard} title="Aggiorna"
-              className="p-2 hover:bg-white/10 rounded-lg text-white/50 hover:text-white transition-colors">
-              <RefreshCw className="w-4 h-4" />
+              style={{ padding: 8, background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', borderRadius: 8 }}>
+              <RefreshCw style={{ width: 16, height: 16 }} />
             </button>
             <button onClick={onClose}
-              className="flex items-center gap-2 px-3 py-2 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors text-sm font-medium">
-              <ArrowLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Indietro</span>
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.65)', borderRadius: 8, fontSize: 13, fontWeight: 500 }}>
+              <ArrowLeft style={{ width: 16, height: 16 }} />
+              Indietro
             </button>
           </div>
         </div>
 
-        {desktopHeaders}
+        {colHeaders}
 
-        {/* Scrollable list fills remaining height */}
-        <div className="flex-1 overflow-y-auto">
-          {listRows}
-          <div className="py-4 text-center text-xs text-white/25">
+        <div style={{ flex: 1, overflowY: 'auto', background: PANEL_BG }}>
+          {rows}
+          <div style={{ padding: '16px 0', textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>
             I dati vengono aggiornati automaticamente durante le partite
           </div>
         </div>
@@ -258,46 +254,36 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
     );
   }
 
-  /* ── MODAL (from within a game) ────────────────────────────────────────── */
   return (
-    <div className="fixed inset-0 flex items-center justify-center p-3"
-      style={{ zIndex: 100002, background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(4px)' }}>
-      <div className="flex flex-col w-full rounded-xl border border-yellow-500/25 shadow-2xl overflow-hidden"
-        style={{
-          maxWidth: 700,
-          maxHeight: 'min(90vh, 640px)',
-          background: 'linear-gradient(180deg, #111827 0%, #0a0f1e 100%)'
-        }}>
-        {/* Header */}
-        <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-white/10"
-          style={{ background: 'linear-gradient(90deg, rgba(120,53,15,0.35), rgba(124,45,18,0.25))' }}>
-          <div className="flex items-center gap-3">
-            <Trophy className="w-5 h-5 text-yellow-400" />
+    <div style={{ position: 'fixed', inset: 0, zIndex: 100002, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, background: 'rgba(0,0,0,0.82)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', width: '100%', maxWidth: 700, maxHeight: 'min(90vh, 640px)', background: PANEL_BG, borderRadius: 12, border: '1px solid rgba(234,179,8,0.25)', boxShadow: '0 25px 50px rgba(0,0,0,0.5)', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'linear-gradient(90deg, rgba(120,53,15,0.35), rgba(124,45,18,0.25))', borderBottom: '1px solid rgba(255,255,255,0.1)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <Trophy style={{ width: 20, height: 20, color: '#facc15' }} />
             <div>
-              <h2 className="text-base font-bold text-white leading-tight">Classifica Rankiard</h2>
-              <p className="text-xs text-white/45">Top 100 giocatori</p>
+              <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#ffffff' }}>Classifica Rankiard</h2>
+              <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>Top 100 giocatori</p>
             </div>
           </div>
-          <div className="flex items-center gap-1">
-            <button onClick={fetchLeaderboard} title="Aggiorna"
-              className="p-1.5 hover:bg-white/10 rounded-lg text-white/40 hover:text-white transition-colors">
-              <RefreshCw className="w-4 h-4" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <button onClick={fetchLeaderboard}
+              style={{ padding: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', borderRadius: 6 }}>
+              <RefreshCw style={{ width: 16, height: 16 }} />
             </button>
             <button onClick={onClose}
-              className="p-1.5 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors">
-              <X className="w-5 h-5" />
+              style={{ padding: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', borderRadius: 6 }}>
+              <X style={{ width: 18, height: 18 }} />
             </button>
           </div>
         </div>
 
-        {desktopHeaders}
+        {colHeaders}
 
-        <div className="overflow-y-auto flex-1">
-          {listRows}
+        <div style={{ overflowY: 'auto', flex: 1, background: PANEL_BG }}>
+          {rows}
         </div>
 
-        <div className="shrink-0 py-2 px-4 border-t border-white/8 text-center text-xs text-white/30"
-          style={{ background: 'rgba(0,0,0,0.3)' }}>
+        <div style={{ padding: '8px 16px', borderTop: '1px solid rgba(255,255,255,0.08)', textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.3)', background: 'rgba(0,0,0,0.3)', flexShrink: 0 }}>
           Sfida un giocatore — riceverà una notifica in gioco
         </div>
       </div>
