@@ -43,6 +43,7 @@ interface AuthUser {
 }
 
 import { TooltipProvider } from "./components/ui/tooltip";
+import NotificationPromptBanner from "./components/NotificationPromptBanner";
 
 class GameErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
   constructor(props: { children: ReactNode }) {
@@ -604,6 +605,7 @@ function App() {
         </div>
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
+        <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
       </QueryClientProvider>
     );
   }
