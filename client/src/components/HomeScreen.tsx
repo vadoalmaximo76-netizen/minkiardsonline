@@ -236,6 +236,39 @@ function PanelEditorModal({
   );
 }
 
+const HOME_STYLES = `
+  @keyframes letterBounce {
+    0%   { transform: translateY(0) scale(1); }
+    25%  { transform: translateY(-14px) scale(1.15); }
+    55%  { transform: translateY(3px) scale(0.97); }
+    75%  { transform: translateY(-4px) scale(1.04); }
+    100% { transform: translateY(0) scale(1); }
+  }
+  @keyframes shimmerSweep {
+    0%   { transform: translateX(-120%) skewX(-20deg); opacity: 0; }
+    15%  { opacity: 1; }
+    85%  { opacity: 1; }
+    100% { transform: translateX(250%) skewX(-20deg); opacity: 0; }
+  }
+  @keyframes iconFloat {
+    0%, 100% { transform: translateY(0) scale(1.1) rotate(0deg); }
+    40%       { transform: translateY(-8px) scale(1.18) rotate(-4deg); }
+    70%       { transform: translateY(-3px) scale(1.13) rotate(2deg); }
+  }
+  @keyframes glowRingPulse {
+    0%, 100% { opacity: 0; transform: scale(1); }
+    50%       { opacity: 0.6; transform: scale(1.04); }
+  }
+  @keyframes titleGlowPulse {
+    0%, 100% { text-shadow: 0 0 40px rgba(168,85,247,0.5), 0 0 80px rgba(168,85,247,0.3); }
+    50%       { text-shadow: 0 0 70px rgba(168,85,247,1), 0 0 130px rgba(168,85,247,0.7), 0 0 180px rgba(236,72,153,0.5); }
+  }
+  @keyframes cardGlowBorder {
+    0%, 100% { opacity: 0.35; }
+    50%       { opacity: 0.85; }
+  }
+`;
+
 export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMatch, userEmail, initialShowTournaments, onInitialShowTournamentsHandled }: HomeScreenProps) {
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [activeRoomsCount, setActiveRoomsCount] = useState(0);
@@ -244,6 +277,7 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
   const [editMode, setEditMode] = useState(false);
   const [editingPanel, setEditingPanel] = useState<HomePanel | null | 'new'>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [titleHovered, setTitleHovered] = useState(false);
   const [saving, setSaving] = useState(false);
   const isAdmin = userEmail === 'lucaforte94@gmail.com';
 
@@ -361,6 +395,7 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
 
   return (
     <div className="min-h-screen bg-arena-deep flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      <style dangerouslySetInnerHTML={{ __html: HOME_STYLES }} />
       <div className="fixed inset-0 pointer-events-none animate-color-shift" style={{ background: 'radial-gradient(ellipse at 20% 10%, rgba(88, 28, 135, 0.35) 0%, transparent 55%), radial-gradient(ellipse at 80% 90%, rgba(30, 58, 138, 0.3) 0%, transparent 55%), radial-gradient(ellipse at 50% 50%, rgba(6, 182, 212, 0.15) 0%, transparent 60%), radial-gradient(ellipse at 10% 70%, rgba(139, 92, 246, 0.2) 0%, transparent 50%), linear-gradient(180deg, #03050d 0%, #070b1a 30%, #0a1028 60%, #060918 100%)' }} />
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute w-[600px] h-[600px] rounded-full blur-[120px] animate-bg-float-1" style={{ background: 'radial-gradient(circle, #9333ea, transparent 65%)', opacity: 0.25, top: '10%', left: '10%' }} />
@@ -375,9 +410,30 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
 
       {/* Header */}
       <div className="text-center mb-12 relative z-10">
-        <h1 className="text-6xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 tracking-wider mb-4"
-            style={{ textShadow: '0 0 40px rgba(168, 85, 247, 0.5), 0 0 80px rgba(168, 85, 247, 0.3)', fontFamily: 'Inter, sans-serif' }}>
-          MINKIARDS
+        <h1
+          className="text-6xl md:text-7xl font-black tracking-wider mb-4 cursor-default select-none"
+          style={{ fontFamily: 'Inter, sans-serif', animation: titleHovered ? 'titleGlowPulse 1.2s ease-in-out infinite' : 'none', display: 'flex', justifyContent: 'center', gap: 2 }}
+          onMouseEnter={() => setTitleHovered(true)}
+          onMouseLeave={() => setTitleHovered(false)}
+        >
+          {'MINKIARDS'.split('').map((letter, i) => (
+            <span
+              key={i}
+              style={{
+                display: 'inline-block',
+                background: 'linear-gradient(135deg, #c084fc, #f472b6, #c084fc)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                animation: titleHovered ? `letterBounce 0.55s cubic-bezier(0.34,1.56,0.64,1) both` : 'none',
+                animationDelay: titleHovered ? `${i * 45}ms` : '0ms',
+                transition: 'filter 0.2s',
+                filter: titleHovered ? 'drop-shadow(0 0 8px rgba(192,132,252,0.9))' : 'drop-shadow(0 0 4px rgba(192,132,252,0.4))',
+              }}
+            >
+              {letter}
+            </span>
+          ))}
         </h1>
         <p className="text-slate-400 text-lg">
           Benvenuto, <span className="text-white font-semibold">{playerName}</span>
@@ -411,33 +467,66 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
 
           return (
             <div key={panel.id} style={{ position: 'relative' }}>
+              {/* Animated glow ring behind card */}
+              {isHovered && !editMode && (
+                <div style={{
+                  position: 'absolute', inset: -3, borderRadius: 27, pointerEvents: 'none', zIndex: 0,
+                  background: `linear-gradient(135deg, ${panel.gradientFrom}, ${panel.gradientTo})`,
+                  animation: 'cardGlowBorder 1.4s ease-in-out infinite',
+                  filter: 'blur(8px)',
+                }} />
+              )}
               <button
                 onClick={() => handlePanelClick(panel)}
                 onMouseEnter={() => setHoveredId(panel.id)}
                 onMouseLeave={() => setHoveredId(null)}
                 style={{
-                  width: '100%',
+                  width: '100%', position: 'relative', zIndex: 1,
                   background: `linear-gradient(135deg, ${panel.gradientFrom}, ${panel.gradientTo})`,
                   borderRadius: 24, padding: '24px 32px',
-                  border: editMode ? '2px dashed rgba(255,255,255,0.4)' : '1px solid rgba(255,255,255,0.1)',
+                  border: editMode ? '2px dashed rgba(255,255,255,0.4)' : `1px solid ${isHovered ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.1)'}`,
                   cursor: editMode ? 'default' : 'pointer',
-                  transform: !editMode && isHovered ? 'scale(1.05) translateY(-4px)' : 'scale(1)',
-                  transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-                  boxShadow: isHovered ? `0 25px 50px -12px ${panel.gradientFrom}66` : '0 10px 30px rgba(0,0,0,0.3)',
-                  position: 'relative', overflow: 'hidden',
+                  transform: !editMode && isHovered ? 'scale(1.05) translateY(-5px)' : 'scale(1)',
+                  transition: 'transform 0.35s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.35s ease, border-color 0.2s',
+                  boxShadow: isHovered
+                    ? `0 30px 60px -10px ${panel.gradientFrom}88, 0 0 0 1px ${panel.gradientFrom}44`
+                    : '0 10px 30px rgba(0,0,0,0.3)',
+                  overflow: 'hidden',
                 }}
               >
+                {/* Shimmer sweep on hover */}
                 {isHovered && !editMode && (
-                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0) 100%)', pointerEvents: 'none', transition: 'opacity 0.3s' }} />
+                  <div style={{
+                    position: 'absolute', top: 0, left: 0, width: '50%', height: '100%',
+                    background: 'linear-gradient(105deg, transparent 20%, rgba(255,255,255,0.25) 50%, transparent 80%)',
+                    animation: 'shimmerSweep 0.7s ease-out forwards',
+                    pointerEvents: 'none', zIndex: 2,
+                  }} />
                 )}
-                <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-                  <div style={{ width: 64, height: 64, borderRadius: 16, background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16, transform: isHovered ? 'scale(1.1)' : 'scale(1)', transition: 'transform 0.3s' }}>
+                <div style={{ position: 'relative', zIndex: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                  <div style={{
+                    width: 64, height: 64, borderRadius: 16,
+                    background: isHovered ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.2)',
+                    backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+                    animation: isHovered && !editMode ? 'iconFloat 1.6s ease-in-out infinite' : 'none',
+                    transition: 'background 0.3s',
+                    boxShadow: isHovered ? `0 0 20px ${panel.gradientFrom}88` : 'none',
+                  }}>
                     <IconComp size={32} color={panel.titleColor} />
                   </div>
-                  <h2 style={{ margin: 0, marginBottom: 8, fontSize: 20, fontWeight: 700, color: panel.titleColor }}>{panel.title}</h2>
-                  <p style={{ margin: 0, marginBottom: 16, fontSize: 14, color: panel.subtitleColor }}>{panel.subtitle}</p>
+                  <h2 style={{
+                    margin: 0, marginBottom: 8, fontSize: 20, fontWeight: 700, color: panel.titleColor,
+                    transition: 'letter-spacing 0.3s, text-shadow 0.3s',
+                    letterSpacing: isHovered && !editMode ? '0.04em' : '0',
+                    textShadow: isHovered ? `0 0 16px ${panel.titleColor}cc` : 'none',
+                  }}>{panel.title}</h2>
+                  <p style={{ margin: 0, marginBottom: 16, fontSize: 14, color: panel.subtitleColor, transition: 'opacity 0.3s', opacity: isHovered ? 1 : 0.85 }}>{panel.subtitle}</p>
                   {dynamicBadge && (
-                    <div style={{ background: panel.badgeColor, backdropFilter: 'blur(8px)', borderRadius: 20, padding: '6px 16px', fontSize: 13, color: panel.titleColor, fontWeight: 500 }}>
+                    <div style={{
+                      background: panel.badgeColor, backdropFilter: 'blur(8px)', borderRadius: 20,
+                      padding: '6px 16px', fontSize: 13, color: panel.titleColor, fontWeight: 500,
+                      transform: isHovered ? 'scale(1.07)' : 'scale(1)', transition: 'transform 0.3s',
+                    }}>
                       {dynamicBadge}
                     </div>
                   )}
