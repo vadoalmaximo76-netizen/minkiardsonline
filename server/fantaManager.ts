@@ -60,10 +60,20 @@ export interface FantaAuction {
   startedAt: number;
 }
 
+export interface FantaPendingRequest {
+  name: string;
+  socketId: string;
+  requestedAt: number;
+}
+
 export interface FantaSession {
   id: string;
   creatorName: string;
+  creatorSocketId?: string;
   participants: Record<string, FantaParticipant>;
+  maxParticipants: number;
+  cpuCount: number;
+  pendingRequests: FantaPendingRequest[];
   status: 'lobby' | 'auction' | 'complete';
   cardQueue: FantaCard[];
   currentCardIndex: number;
@@ -76,7 +86,7 @@ export interface FantaSession {
 const STARTING_CREDITS = 500;
 const CARDS_PER_TYPE = 33;
 const AUCTION_INITIAL_TIMER = 15;
-const AUCTION_BID_RESET_TIMER = 8;
+const AUCTION_BID_RESET_TIMER = 3;
 
 function getCardNameFromUrl(url: string): string {
   const parts = url.split('/');
@@ -190,9 +200,10 @@ export class FantaManager {
     writeFantaSessions(arr);
   }
 
-  createSession(creatorName: string, cpuCount: number = 0, cpuLevel: 'easy' | 'medium' | 'hard' = 'medium'): FantaSession {
+  createSession(creatorName: string, cpuCount: number = 0, cpuLevel: 'easy' | 'medium' | 'hard' = 'medium', maxParticipants: number = cpuCount + 1, creatorSocketId?: string): FantaSession {
     const id = `fanta-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
     const participants: Record<string, FantaParticipant> = {};
+    const actualMax = Math.max(maxParticipants, cpuCount + 1);
 
     participants[creatorName] = {
       name: creatorName,
@@ -200,6 +211,7 @@ export class FantaManager {
       deck: { personaggi: [], mosse: [], bonus: [] },
       isCPU: false,
       cpuLevel: 'medium',
+      socketId: creatorSocketId,
     };
 
     for (let i = 0; i < cpuCount; i++) {
@@ -216,7 +228,11 @@ export class FantaManager {
     const session: FantaSession = {
       id,
       creatorName,
+      creatorSocketId,
       participants,
+      maxParticipants: actualMax,
+      cpuCount,
+      pendingRequests: [],
       status: 'lobby',
       cardQueue: [],
       currentCardIndex: 0,
@@ -244,6 +260,10 @@ export class FantaManager {
     if (session.status !== 'lobby') return { success: false, error: 'La sessione è già iniziata' };
 
     if (!session.participants[playerName]) {
+      const humanParticipants = Object.values(session.participants).filter(p => !p.isCPU).length;
+      if (humanParticipants >= session.maxParticipants) {
+        return { success: false, error: 'Sessione al completo' };
+      }
       session.participants[playerName] = {
         name: playerName,
         credits: STARTING_CREDITS,
@@ -260,10 +280,113 @@ export class FantaManager {
     return { success: true };
   }
 
+  requestJoin(fantaId: string, playerName: string, socketId: string, io: any): { success: boolean; error?: string } {
+    const session = this.sessions.get(fantaId);
+    if (!session) return { success: false, error: 'Sessione non trovata' };
+    if (session.status !== 'lobby') return { success: false, error: 'La sessione è già iniziata' };
+    if (session.participants[playerName]) return { success: false, error: 'Sei già in questa sessione' };
+    if (session.pendingRequests.find(r => r.name === playerName)) return { success: false, error: 'Richiesta già inviata' };
+
+    const humanParticipants = Object.values(session.participants).filter(p => !p.isCPU).length;
+    if (humanParticipants >= session.maxParticipants) {
+      return { success: false, error: 'Sessione al completo' };
+    }
+
+    session.pendingRequests.push({ name: playerName, socketId, requestedAt: Date.now() });
+    this.persist();
+
+    if (session.creatorSocketId) {
+      io.to(session.creatorSocketId).emit('fanta:join-request', {
+        fantaId,
+        playerName,
+        pendingRequests: session.pendingRequests,
+      });
+    }
+
+    return { success: true };
+  }
+
+  approveJoin(fantaId: string, playerName: string, io: any): { success: boolean; error?: string } {
+    const session = this.sessions.get(fantaId);
+    if (!session) return { success: false, error: 'Sessione non trovata' };
+
+    const reqIdx = session.pendingRequests.findIndex(r => r.name === playerName);
+    if (reqIdx === -1) return { success: false, error: 'Richiesta non trovata' };
+
+    const req = session.pendingRequests[reqIdx];
+    session.pendingRequests.splice(reqIdx, 1);
+
+    const humanParticipants = Object.values(session.participants).filter(p => !p.isCPU).length;
+    if (humanParticipants >= session.maxParticipants) {
+      io.to(req.socketId).emit('fanta:join-rejected', { fantaId, reason: 'Sessione al completo' });
+      this.persist();
+      return { success: false, error: 'Sessione al completo' };
+    }
+
+    session.participants[playerName] = {
+      name: playerName,
+      credits: STARTING_CREDITS,
+      deck: { personaggi: [], mosse: [], bonus: [] },
+      isCPU: false,
+      cpuLevel: 'medium',
+      socketId: req.socketId,
+    };
+    this.persist();
+
+    const sess = this.getSafeSession(fantaId);
+    io.to(req.socketId).emit('fanta:join-approved', { fantaId, session: sess });
+    io.to(fantaId).emit('fanta:session-updated', { session: sess });
+
+    return { success: true };
+  }
+
+  rejectJoin(fantaId: string, playerName: string, io: any): { success: boolean; error?: string } {
+    const session = this.sessions.get(fantaId);
+    if (!session) return { success: false, error: 'Sessione non trovata' };
+
+    const reqIdx = session.pendingRequests.findIndex(r => r.name === playerName);
+    if (reqIdx === -1) return { success: false, error: 'Richiesta non trovata' };
+
+    const req = session.pendingRequests[reqIdx];
+    session.pendingRequests.splice(reqIdx, 1);
+    this.persist();
+
+    io.to(req.socketId).emit('fanta:join-rejected', { fantaId, reason: 'Richiesta rifiutata dal creatore' });
+    if (session.creatorSocketId) {
+      io.to(session.creatorSocketId).emit('fanta:join-request', {
+        fantaId,
+        playerName: null,
+        pendingRequests: session.pendingRequests,
+      });
+    }
+
+    return { success: true };
+  }
+
+  invitePlayer(fantaId: string, targetName: string, io: any): { success: boolean; error?: string } {
+    const session = this.sessions.get(fantaId);
+    if (!session) return { success: false, error: 'Sessione non trovata' };
+    if (session.status !== 'lobby') return { success: false, error: 'La sessione è già iniziata' };
+
+    io.emit('fanta:invite-broadcast', {
+      fantaId,
+      targetName,
+      creatorName: session.creatorName,
+      sessionCode: fantaId.slice(-6),
+    });
+
+    return { success: true };
+  }
+
   updateSocketId(fantaId: string, playerName: string, socketId: string): void {
     const session = this.sessions.get(fantaId);
-    if (!session || !session.participants[playerName]) return;
-    session.participants[playerName].socketId = socketId;
+    if (!session) return;
+    if (session.participants[playerName]) {
+      session.participants[playerName].socketId = socketId;
+    }
+    if (session.creatorName === playerName) {
+      session.creatorSocketId = socketId;
+    }
   }
 
   startAuctionPhase(fantaId: string, mods: any[], io: any): { success: boolean; error?: string } {

@@ -8037,11 +8037,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // ============ FANTAMINKIARDS SOCKET EVENTS ============
-    socket.on('fanta:create', ({ cpuCount, cpuLevel, playerName }: { cpuCount: number; cpuLevel: 'easy' | 'medium' | 'hard'; playerName: string }) => {
+    socket.on('fanta:create', ({ cpuCount, cpuLevel, playerName, maxParticipants }: { cpuCount: number; cpuLevel: 'easy' | 'medium' | 'hard'; playerName: string; maxParticipants?: number }) => {
       if (!playerName) return;
-      const session = fantaManager.createSession(playerName, cpuCount || 0, cpuLevel || 'medium');
+      const session = fantaManager.createSession(playerName, cpuCount || 0, cpuLevel || 'medium', maxParticipants, socket.id);
       socket.join(session.id);
-      fantaManager.updateSocketId(session.id, playerName, socket.id);
       socket.emit('fanta:session-created', { fantaId: session.id, session: fantaManager.getSafeSession(session.id) });
       console.log(`🌟 FantaMinkiards session created: ${session.id} by ${playerName}`);
     });
@@ -8100,6 +8099,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('fanta:leave', ({ fantaId, playerName }: { fantaId: string; playerName: string }) => {
       socket.leave(fantaId);
       console.log(`${playerName} left FantaMinkiards session ${fantaId}`);
+    });
+
+    socket.on('fanta:request-join', ({ fantaId, playerName }: { fantaId: string; playerName: string }) => {
+      if (!fantaId || !playerName) return;
+      const result = fantaManager.requestJoin(fantaId, playerName, socket.id, io);
+      if (!result.success) socket.emit('fanta:error', { message: result.error });
+      else socket.emit('fanta:join-requested', { fantaId });
+    });
+
+    socket.on('fanta:approve-target', ({ fantaId, approvedName, creatorName }: { fantaId: string; approvedName: string; creatorName: string }) => {
+      const sess = fantaManager.getSession(fantaId);
+      if (!sess || sess.creatorName !== creatorName) { socket.emit('fanta:error', { message: 'Non autorizzato' }); return; }
+      const result = fantaManager.approveJoin(fantaId, approvedName, io);
+      if (!result.success) socket.emit('fanta:error', { message: result.error });
+      else socket.emit('fanta:session-updated', { session: fantaManager.getSafeSession(fantaId) });
+    });
+
+    socket.on('fanta:reject-target', ({ fantaId, rejectedName, creatorName }: { fantaId: string; rejectedName: string; creatorName: string }) => {
+      const sess = fantaManager.getSession(fantaId);
+      if (!sess || sess.creatorName !== creatorName) { socket.emit('fanta:error', { message: 'Non autorizzato' }); return; }
+      const result = fantaManager.rejectJoin(fantaId, rejectedName, io);
+      if (!result.success) socket.emit('fanta:error', { message: result.error });
+    });
+
+    socket.on('fanta:invite', ({ fantaId, creatorName, targetName }: { fantaId: string; creatorName: string; targetName: string }) => {
+      const sess = fantaManager.getSession(fantaId);
+      if (!sess || sess.creatorName !== creatorName) { socket.emit('fanta:error', { message: 'Non autorizzato' }); return; }
+      const result = fantaManager.invitePlayer(fantaId, targetName, io);
+      if (!result.success) socket.emit('fanta:error', { message: result.error });
     });
   });
 
