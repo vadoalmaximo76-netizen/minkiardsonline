@@ -45,8 +45,8 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
   const emojis = ['😎', '🔥', '⚡', '🎮', '👑', '💎', '🐉', '🦁'];
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999999, background: '#060918', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ padding: '16px', background: 'rgba(0,0,0,0.6)', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 9999999, background: '#060918', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '16px', background: 'rgba(0,0,0,0.6)', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Trophy style={{ color: '#facc15', width: 24, height: 24 }} />
           <h1 style={{ margin: 0, color: 'white', fontSize: 18 }}>Classifica Rankiard</h1>
@@ -56,7 +56,7 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
         </button>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px', minHeight: 0 }}>
         {loading ? <div style={{ color: 'rgba(255,255,255,0.5)' }}>Caricamento...</div> : leaderboard.length === 0 ? <div style={{ color: 'rgba(255,255,255,0.3)' }}>Nessun giocatore</div> : leaderboard.map((p, i) => (
           <div key={p.id} style={{ display: 'grid', gridTemplateColumns: '40px 1fr 80px 80px 80px', gap: 12, padding: '12px', marginBottom: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 8, alignItems: 'center', borderLeft: p.id === currentUserId ? '3px solid rgba(8,145,178,0.6)' : '3px solid transparent' }}>
             <div style={{ fontSize: 18 }}>{i < 3 ? (i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉') : emojis[i % emojis.length]}</div>
