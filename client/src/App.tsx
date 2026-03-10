@@ -723,6 +723,7 @@ function App() {
             onPlayMatch={handleJoinTournamentMatch}
           />
         </div>
+        <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
       </QueryClientProvider>
     );
