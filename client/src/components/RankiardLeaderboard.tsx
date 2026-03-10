@@ -89,7 +89,7 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
   };
 
   const getRowBg = (rank: number, isMe: boolean) => {
-    if (isMe) return 'bg-cyan-950/40 border-l-2 border-l-cyan-500';
+    if (isMe) return 'bg-cyan-950/40 border-l-2 border-cyan-500/60';
     if (rank === 1) return 'bg-yellow-950/30';
     if (rank === 2) return 'bg-slate-800/30';
     if (rank === 3) return 'bg-amber-950/30';
@@ -104,7 +104,7 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
 
   if (!isOpen) return null;
 
-  const listContent = (
+  const listRows = (
     <>
       {loading ? (
         <div className="flex items-center justify-center py-16">
@@ -125,11 +125,10 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
 
           return (
             <div key={player.id} className={`border-b border-white/5 transition-colors ${getRowBg(rank, isMe)}`}>
-              {/* Mobile layout */}
+              {/* Mobile */}
               <div className="flex sm:hidden items-center gap-3 px-3 py-3">
                 <div className="w-8 text-center shrink-0">
-                  {badge
-                    ? <span className="text-xl">{badge}</span>
+                  {badge ? <span className="text-xl">{badge}</span>
                     : <span className="text-white/40 text-sm font-medium">{rank}</span>}
                 </div>
                 <span className="text-2xl shrink-0">{getAvatar(player.avatar)}</span>
@@ -137,8 +136,8 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
                   <div className={`font-semibold text-sm truncate ${isMe ? 'text-cyan-300' : rank <= 3 ? 'text-white' : 'text-white/85'}`}>
                     {player.username}{isMe ? ' (tu)' : ''}
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-xs text-white/45">
-                    <span className="flex items-center gap-1"><Gamepad2 className="w-3 h-3" />{player.gamesPlayed} partite</span>
+                  <div className="flex flex-wrap items-center gap-x-3 mt-0.5 text-xs text-white/45">
+                    <span className="flex items-center gap-1"><Gamepad2 className="w-3 h-3" />{player.gamesPlayed}</span>
                     <span className="flex items-center gap-1">
                       <Medal className="w-3 h-3 text-green-400" />
                       <span className="text-green-400">{player.gamesWon}</span>
@@ -148,13 +147,10 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
                   </div>
                 </div>
                 <div className="shrink-0 flex flex-col items-end gap-1.5">
-                  <span className="text-yellow-400 font-bold text-sm">{player.puntiRankiard} <span className="text-yellow-500/60 text-xs font-normal">PR</span></span>
+                  <span className="text-yellow-400 font-bold text-sm">{player.puntiRankiard} <span className="text-yellow-600 text-xs font-normal">PR</span></span>
                   {currentGameId && !isMe && (
-                    <button
-                      onClick={() => handleChallenge(player)}
-                      disabled={sent}
-                      className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold transition-all ${sent ? 'bg-green-700/40 text-green-400 cursor-default' : 'bg-red-700/40 hover:bg-red-600/60 text-red-300 hover:text-white'}`}
-                    >
+                    <button onClick={() => handleChallenge(player)} disabled={sent}
+                      className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold transition-all ${sent ? 'bg-green-700/40 text-green-400 cursor-default' : 'bg-red-700/40 hover:bg-red-600/60 text-red-300 hover:text-white'}`}>
                       <Swords className="w-3 h-3" />
                       {sent ? '✓' : 'Sfida'}
                     </button>
@@ -162,13 +158,12 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
                 </div>
               </div>
 
-              {/* Desktop layout */}
-              <div
-                className="hidden sm:grid items-center px-4 py-3 gap-2"
-                style={{ gridTemplateColumns: currentGameId ? '48px 1fr 90px 80px 90px 80px 90px' : '48px 1fr 90px 80px 90px 80px' }}
-              >
+              {/* Desktop */}
+              <div className="hidden sm:grid items-center px-4 py-3 gap-2"
+                style={{ gridTemplateColumns: currentGameId ? '48px 1fr 90px 80px 90px 80px 90px' : '48px 1fr 90px 80px 90px 80px' }}>
                 <div className="text-center">
-                  {badge ? <span className="text-xl">{badge}</span> : <span className="text-white/40 text-sm font-medium">{rank}</span>}
+                  {badge ? <span className="text-xl">{badge}</span>
+                    : <span className="text-white/40 text-sm font-medium">{rank}</span>}
                 </div>
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-xl shrink-0">{getAvatar(player.avatar)}</span>
@@ -188,11 +183,8 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
                 {currentGameId && (
                   <div className="flex justify-center">
                     {isMe ? <span className="text-white/20 text-xs">—</span> : (
-                      <button
-                        onClick={() => handleChallenge(player)}
-                        disabled={sent}
-                        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${sent ? 'bg-green-700/40 text-green-400 cursor-default' : 'bg-red-700/40 hover:bg-red-600/60 text-red-300 hover:text-white'}`}
-                      >
+                      <button onClick={() => handleChallenge(player)} disabled={sent}
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${sent ? 'bg-green-700/40 text-green-400 cursor-default' : 'bg-red-700/40 hover:bg-red-600/60 text-red-300 hover:text-white'}`}>
                         <Swords className="w-3 h-3" />
                         {sent ? 'Inviato!' : 'Sfida'}
                       </button>
@@ -207,13 +199,30 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
     </>
   );
 
-  /* ── FULL-PAGE MODE (navigated from nav bar, no active game) ── */
+  const desktopHeaders = (
+    <div className="hidden sm:grid shrink-0 px-4 py-2 text-xs text-white/40 font-semibold uppercase tracking-wide border-b border-white/8"
+      style={{
+        gridTemplateColumns: currentGameId ? '48px 1fr 90px 80px 90px 80px 90px' : '48px 1fr 90px 80px 90px 80px',
+        background: 'rgba(0,0,0,0.25)'
+      }}>
+      <div className="text-center">#</div>
+      <div className="pl-1">Giocatore</div>
+      <div className="text-center flex items-center justify-center gap-1"><Crown className="w-3 h-3 text-yellow-400" /> PR</div>
+      <div className="text-center flex items-center justify-center gap-1"><Gamepad2 className="w-3 h-3" /> Partite</div>
+      <div className="text-center flex items-center justify-center gap-1"><Medal className="w-3 h-3 text-green-400" /> Vinte</div>
+      <div className="text-center flex items-center justify-center gap-1"><Clock className="w-3 h-3" /> Tempo</div>
+      {currentGameId && <div className="text-center">Sfida</div>}
+    </div>
+  );
+
+  /* ── FULL-PAGE (from home nav, no active game) ─────────────────────────── */
   if (isFullPage) {
     return (
-      <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(180deg, #0f172a 0%, #0a0f1e 100%)' }}>
-        {/* Sticky top bar */}
-        <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 border-b border-white/10"
-          style={{ background: 'rgba(15,23,42,0.95)', backdropFilter: 'blur(12px)' }}>
+      <div className="fixed inset-0 z-[70] flex flex-col"
+        style={{ background: 'linear-gradient(180deg, #050810 0%, #0a0f1e 40%, #0d1228 70%, #080c18 100%)' }}>
+        {/* Top bar */}
+        <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-white/10"
+          style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(12px)' }}>
           <div className="flex items-center gap-3">
             <div className="p-2 bg-yellow-500/15 rounded-lg">
               <Trophy className="w-5 h-5 text-yellow-400" />
@@ -223,31 +232,24 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
               <p className="text-xs text-white/45">Top 100 giocatori</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={fetchLeaderboard} title="Aggiorna" className="p-2 hover:bg-white/10 rounded-lg text-white/50 hover:text-white transition-colors">
+          <div className="flex items-center gap-1">
+            <button onClick={fetchLeaderboard} title="Aggiorna"
+              className="p-2 hover:bg-white/10 rounded-lg text-white/50 hover:text-white transition-colors">
               <RefreshCw className="w-4 h-4" />
             </button>
-            <button onClick={onClose} className="flex items-center gap-2 px-3 py-2 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors text-sm font-medium">
+            <button onClick={onClose}
+              className="flex items-center gap-2 px-3 py-2 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors text-sm font-medium">
               <ArrowLeft className="w-4 h-4" />
               <span className="hidden sm:inline">Indietro</span>
             </button>
           </div>
         </div>
 
-        {/* Desktop column headers */}
-        <div className="hidden sm:grid shrink-0 px-4 py-2 text-xs text-white/40 font-semibold uppercase tracking-wide border-b border-white/8"
-          style={{ gridTemplateColumns: '48px 1fr 90px 80px 90px 80px', background: 'rgba(0,0,0,0.3)' }}>
-          <div className="text-center">#</div>
-          <div className="pl-1">Giocatore</div>
-          <div className="text-center flex items-center justify-center gap-1"><Crown className="w-3 h-3 text-yellow-400" /> PR</div>
-          <div className="text-center flex items-center justify-center gap-1"><Gamepad2 className="w-3 h-3" /> Partite</div>
-          <div className="text-center flex items-center justify-center gap-1"><Medal className="w-3 h-3 text-green-400" /> Vinte</div>
-          <div className="text-center flex items-center justify-center gap-1"><Clock className="w-3 h-3" /> Tempo</div>
-        </div>
+        {desktopHeaders}
 
-        {/* Scrollable list */}
+        {/* Scrollable list fills remaining height */}
         <div className="flex-1 overflow-y-auto">
-          {listContent}
+          {listRows}
           <div className="py-4 text-center text-xs text-white/25">
             I dati vengono aggiornati automaticamente durante le partite
           </div>
@@ -256,14 +258,19 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
     );
   }
 
-  /* ── MODAL MODE (opened from within a game) ── */
+  /* ── MODAL (from within a game) ────────────────────────────────────────── */
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-3">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-3"
+      style={{ background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(4px)' }}>
       <div className="flex flex-col w-full rounded-xl border border-yellow-500/25 shadow-2xl overflow-hidden"
-        style={{ maxWidth: 700, maxHeight: 'min(90vh, 640px)', background: 'linear-gradient(180deg, #111827 0%, #0a0f1e 100%)' }}>
+        style={{
+          maxWidth: 700,
+          maxHeight: 'min(90vh, 640px)',
+          background: 'linear-gradient(180deg, #111827 0%, #0a0f1e 100%)'
+        }}>
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0"
-          style={{ background: 'linear-gradient(90deg, rgba(120,53,15,0.3), rgba(124,45,18,0.3))' }}>
+        <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-white/10"
+          style={{ background: 'linear-gradient(90deg, rgba(120,53,15,0.35), rgba(124,45,18,0.25))' }}>
           <div className="flex items-center gap-3">
             <Trophy className="w-5 h-5 text-yellow-400" />
             <div>
@@ -271,37 +278,27 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
               <p className="text-xs text-white/45">Top 100 giocatori</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={fetchLeaderboard} title="Aggiorna" className="p-1.5 hover:bg-white/10 rounded-lg text-white/40 hover:text-white transition-colors">
+          <div className="flex items-center gap-1">
+            <button onClick={fetchLeaderboard} title="Aggiorna"
+              className="p-1.5 hover:bg-white/10 rounded-lg text-white/40 hover:text-white transition-colors">
               <RefreshCw className="w-4 h-4" />
             </button>
-            <button onClick={onClose} className="p-1.5 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors">
+            <button onClick={onClose}
+              className="p-1.5 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors">
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Desktop column headers */}
-        <div className="hidden sm:grid px-4 py-2 text-xs text-white/40 font-semibold uppercase tracking-wide border-b border-white/8 shrink-0"
-          style={{ gridTemplateColumns: '48px 1fr 90px 80px 90px 80px 90px', background: 'rgba(0,0,0,0.3)' }}>
-          <div className="text-center">#</div>
-          <div className="pl-1">Giocatore</div>
-          <div className="text-center flex items-center justify-center gap-1"><Crown className="w-3 h-3 text-yellow-400" /> PR</div>
-          <div className="text-center flex items-center justify-center gap-1"><Gamepad2 className="w-3 h-3" /> Partite</div>
-          <div className="text-center flex items-center justify-center gap-1"><Medal className="w-3 h-3 text-green-400" /> Vinte</div>
-          <div className="text-center flex items-center justify-center gap-1"><Clock className="w-3 h-3" /> Tempo</div>
-          <div className="text-center">Sfida</div>
-        </div>
+        {desktopHeaders}
 
-        {/* Scrollable list */}
         <div className="overflow-y-auto flex-1">
-          {listContent}
+          {listRows}
         </div>
 
-        {/* Footer */}
         <div className="shrink-0 py-2 px-4 border-t border-white/8 text-center text-xs text-white/30"
           style={{ background: 'rgba(0,0,0,0.3)' }}>
-          Sfida un giocatore dalla classifica — riceverà una notifica in gioco
+          Sfida un giocatore — riceverà una notifica in gioco
         </div>
       </div>
     </div>
