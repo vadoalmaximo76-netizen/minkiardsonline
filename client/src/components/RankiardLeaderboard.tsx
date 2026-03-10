@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { Trophy, Medal, Gamepad2, Clock, Crown, X, Loader2, Swords, ArrowLeft } from "lucide-react";
-import { socket } from "../lib/socket";
 
 interface LeaderboardEntry {
   id: number;
@@ -34,7 +33,7 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [challengeSent, setChallengeSent] = useState<number | null>(null);
-  const isFullPage = !currentGameId; // Full-page when no active game context
+  const isFullPage = !currentGameId;
 
   useEffect(() => {
     if (isOpen) {
@@ -63,7 +62,7 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
       return;
     }
     if (!currentGameId) {
-      alert('Devi essere in una stanza di gioco per sfidare un giocatore. Crea o entra in una stanza prima.');
+      alert('Devi essere in una stanza di gioco per sfidare un giocatore.');
       return;
     }
     try {
@@ -83,7 +82,7 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
         const err = await response.json();
         alert(err.error || 'Impossibile inviare la sfida');
       }
-    } catch (e) {
+    } catch {
       alert('Errore di connessione');
     }
   };
@@ -95,10 +94,10 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
   };
 
   const getRankStyle = (rank: number) => {
-    if (rank === 1) return { bg: 'from-yellow-600/40 to-yellow-800/40', border: 'border-yellow-500', icon: '🥇' };
-    if (rank === 2) return { bg: 'from-slate-400/30 to-slate-600/30', border: 'border-slate-400', icon: '🥈' };
-    if (rank === 3) return { bg: 'from-amber-700/30 to-amber-900/30', border: 'border-amber-600', icon: '🥉' };
-    return { bg: 'from-gray-700/20 to-gray-800/20', border: 'border-gray-600', icon: null };
+    if (rank === 1) return { bg: 'from-yellow-600/30 to-yellow-800/20', border: 'border-yellow-500/60', badge: '🥇', badgeColor: 'text-yellow-400' };
+    if (rank === 2) return { bg: 'from-slate-400/20 to-slate-600/20', border: 'border-slate-400/50', badge: '🥈', badgeColor: 'text-slate-300' };
+    if (rank === 3) return { bg: 'from-amber-700/20 to-amber-900/20', border: 'border-amber-600/50', badge: '🥉', badgeColor: 'text-amber-500' };
+    return { bg: 'from-transparent to-transparent', border: 'border-white/5', badge: null, badgeColor: 'text-white/50' };
   };
 
   const formatMinutes = (minutes: number): string => {
@@ -113,25 +112,29 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
   const showChallengeCol = !!currentGameId;
 
   const content = (
-    <div className={`bg-gradient-to-b from-gray-900 to-gray-950 rounded-xl border border-yellow-500/30 shadow-2xl w-full ${isFullPage ? 'max-w-3xl h-full flex flex-col' : 'max-w-2xl max-h-[85vh] overflow-hidden'}`}>
-      <div className="flex items-center justify-between p-4 border-b border-white/10 bg-gradient-to-r from-yellow-900/30 to-orange-900/30">
+    <div
+      className="bg-gradient-to-b from-gray-900 to-gray-950 rounded-xl border border-yellow-500/30 shadow-2xl w-full flex flex-col"
+      style={{ maxWidth: 720, maxHeight: isFullPage ? 'calc(100vh - 2rem)' : '85vh' }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-gradient-to-r from-yellow-900/30 to-orange-900/30 shrink-0 rounded-t-xl">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-yellow-500/20 rounded-lg">
-            <Trophy className="w-6 h-6 text-yellow-400" />
+            <Trophy className="w-5 h-5 text-yellow-400" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white">Classifica Rankiard</h2>
-            <p className="text-xs text-white/60">Top 100 giocatori</p>
+            <h2 className="text-lg font-bold text-white leading-tight">Classifica Rankiard</h2>
+            <p className="text-xs text-white/50">Top 100 giocatori</p>
           </div>
         </div>
         <button
           onClick={onClose}
-          className="flex items-center gap-2 p-2 hover:bg-white/10 rounded-lg transition-colors text-white/60 hover:text-white"
+          className="flex items-center gap-2 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-white/60 hover:text-white"
         >
           {isFullPage ? (
             <>
-              <ArrowLeft className="w-5 h-5" />
-              <span className="text-sm font-medium">Torna alla home</span>
+              <ArrowLeft className="w-4 h-4" />
+              <span className="text-sm font-medium hidden sm:inline">Indietro</span>
             </>
           ) : (
             <X className="w-5 h-5" />
@@ -139,10 +142,11 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
         </button>
       </div>
 
-      <div className={`grid gap-2 px-4 py-2 bg-black/30 text-xs text-white/60 font-medium border-b border-white/10 ${showChallengeCol ? 'grid-cols-13' : 'grid-cols-12'}`}
-           style={{ gridTemplateColumns: showChallengeCol ? '1fr 3fr 2fr 2fr 1fr 2fr 2fr' : '1fr 4fr 2fr 2fr 1fr 2fr' }}>
+      {/* Desktop column headers — hidden on mobile */}
+      <div className="hidden sm:grid shrink-0 px-4 py-2 bg-black/30 text-xs text-white/50 font-semibold border-b border-white/10 uppercase tracking-wide"
+        style={{ gridTemplateColumns: showChallengeCol ? '44px 1fr 80px 70px 70px 80px 80px' : '44px 1fr 80px 70px 70px 80px' }}>
         <div className="text-center">#</div>
-        <div>Giocatore</div>
+        <div className="pl-1">Giocatore</div>
         <div className="text-center flex items-center justify-center gap-1">
           <Crown className="w-3 h-3 text-yellow-400" /> PR
         </div>
@@ -150,7 +154,7 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
           <Gamepad2 className="w-3 h-3" /> Partite
         </div>
         <div className="text-center flex items-center justify-center gap-1">
-          <Medal className="w-3 h-3 text-green-400" /> V
+          <Medal className="w-3 h-3 text-green-400" /> Vinte
         </div>
         <div className="text-center flex items-center justify-center gap-1">
           <Clock className="w-3 h-3" /> Tempo
@@ -158,14 +162,15 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
         {showChallengeCol && <div className="text-center">Sfida</div>}
       </div>
 
-      <div className="overflow-y-auto flex-1" style={{ maxHeight: isFullPage ? undefined : '60vh' }}>
+      {/* List */}
+      <div className="overflow-y-auto flex-1">
         {loading ? (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex items-center justify-center py-16">
             <Loader2 className="w-8 h-8 text-yellow-400 animate-spin" />
           </div>
         ) : leaderboard.length === 0 ? (
-          <div className="text-center py-12 text-white/60">
-            <Trophy className="w-12 h-12 mx-auto mb-2 opacity-50" />
+          <div className="text-center py-16 text-white/50">
+            <Trophy className="w-12 h-12 mx-auto mb-3 opacity-40" />
             <p>Nessun giocatore in classifica</p>
           </div>
         ) : (
@@ -181,70 +186,122 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
             return (
               <div
                 key={player.id}
-                className={`grid gap-2 px-4 py-3 border-b border-white/5 bg-gradient-to-r ${style.bg} ${isMe ? 'ring-1 ring-inset ring-cyan-500/40' : 'hover:bg-white/5'} transition-colors items-center`}
-                style={{ gridTemplateColumns: showChallengeCol ? '1fr 3fr 2fr 2fr 1fr 2fr 2fr' : '1fr 4fr 2fr 2fr 1fr 2fr' }}
+                className={`border-b bg-gradient-to-r ${style.bg} ${style.border} ${isMe ? 'ring-1 ring-inset ring-cyan-500/40' : ''} transition-colors`}
               >
-                <div className="text-center">
-                  {style.icon ? (
-                    <span className="text-lg">{style.icon}</span>
-                  ) : (
-                    <span className="text-white/60 font-medium">{rank}</span>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-2xl">{getAvatar(player.avatar)}</span>
-                  <span className={`font-medium truncate ${rank <= 3 ? 'text-white' : 'text-white/80'} ${isMe ? 'text-cyan-300' : ''}`}>
-                    {player.username}{isMe ? ' (tu)' : ''}
-                  </span>
-                </div>
-
-                <div className="text-center">
-                  <span className="text-yellow-400 font-bold">{player.puntiRankiard}</span>
-                </div>
-
-                <div className="text-center text-white/70">
-                  {player.gamesPlayed}
-                </div>
-
-                <div className="text-center">
-                  <span className="text-green-400">{player.gamesWon}</span>
-                  {player.gamesPlayed > 0 && (
-                    <span className="text-white/40 text-xs ml-1">({winRate}%)</span>
-                  )}
-                </div>
-
-                <div className="text-center text-white/70">
-                  {formatMinutes(player.minutesPlayed)}
-                </div>
-
-                {showChallengeCol && (
+                {/* Desktop row */}
+                <div
+                  className="hidden sm:grid items-center px-4 py-3 gap-2 hover:bg-white/5 transition-colors"
+                  style={{ gridTemplateColumns: showChallengeCol ? '44px 1fr 80px 70px 70px 80px 80px' : '44px 1fr 80px 70px 70px 80px' }}
+                >
                   <div className="text-center">
-                    {isMe ? (
-                      <span className="text-white/20 text-xs">—</span>
+                    {style.badge ? (
+                      <span className="text-xl">{style.badge}</span>
                     ) : (
+                      <span className="text-white/50 font-medium text-sm">{rank}</span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 min-w-0 pl-1">
+                    <span className="text-xl shrink-0">{getAvatar(player.avatar)}</span>
+                    <span className={`font-medium truncate text-sm ${rank <= 3 ? 'text-white' : 'text-white/80'} ${isMe ? 'text-cyan-300' : ''}`}>
+                      {player.username}{isMe ? ' (tu)' : ''}
+                    </span>
+                  </div>
+
+                  <div className="text-center">
+                    <span className="text-yellow-400 font-bold text-sm">{player.puntiRankiard}</span>
+                  </div>
+
+                  <div className="text-center text-white/60 text-sm">{player.gamesPlayed}</div>
+
+                  <div className="text-center text-sm">
+                    <span className="text-green-400 font-medium">{player.gamesWon}</span>
+                    {player.gamesPlayed > 0 && (
+                      <span className="text-white/30 text-xs ml-1">({winRate}%)</span>
+                    )}
+                  </div>
+
+                  <div className="text-center text-white/60 text-sm">{formatMinutes(player.minutesPlayed)}</div>
+
+                  {showChallengeCol && (
+                    <div className="flex justify-center">
+                      {isMe ? (
+                        <span className="text-white/20 text-xs">—</span>
+                      ) : (
+                        <button
+                          onClick={() => handleChallenge(player)}
+                          disabled={sent}
+                          className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold transition-all ${
+                            sent
+                              ? 'bg-green-600/30 text-green-400 cursor-default'
+                              : 'bg-red-600/30 hover:bg-red-500/50 text-red-300 hover:text-white'
+                          }`}
+                        >
+                          <Swords className="w-3 h-3" />
+                          {sent ? 'Inviato!' : 'Sfida'}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Mobile card */}
+                <div className="sm:hidden flex items-center gap-3 px-3 py-3 hover:bg-white/5 transition-colors">
+                  <div className="shrink-0 w-8 text-center">
+                    {style.badge ? (
+                      <span className="text-xl">{style.badge}</span>
+                    ) : (
+                      <span className="text-white/50 font-medium text-sm">{rank}</span>
+                    )}
+                  </div>
+
+                  <span className="text-2xl shrink-0">{getAvatar(player.avatar)}</span>
+
+                  <div className="flex-1 min-w-0">
+                    <div className={`font-semibold truncate text-sm ${isMe ? 'text-cyan-300' : rank <= 3 ? 'text-white' : 'text-white/90'}`}>
+                      {player.username}{isMe ? ' (tu)' : ''}
+                    </div>
+                    <div className="flex items-center gap-3 mt-0.5 text-xs text-white/50">
+                      <span className="flex items-center gap-1">
+                        <Gamepad2 className="w-3 h-3" /> {player.gamesPlayed}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Medal className="w-3 h-3 text-green-400" />
+                        <span className="text-green-400">{player.gamesWon}</span>
+                        {player.gamesPlayed > 0 && <span className="text-white/30">({winRate}%)</span>}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> {formatMinutes(player.minutesPlayed)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 flex flex-col items-end gap-1">
+                    <span className="text-yellow-400 font-bold text-sm">{player.puntiRankiard} PR</span>
+                    {showChallengeCol && !isMe && (
                       <button
                         onClick={() => handleChallenge(player)}
                         disabled={sent}
-                        className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold transition-all mx-auto ${
+                        className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold transition-all ${
                           sent
                             ? 'bg-green-600/30 text-green-400 cursor-default'
                             : 'bg-red-600/30 hover:bg-red-500/50 text-red-300 hover:text-white'
                         }`}
                       >
                         <Swords className="w-3 h-3" />
-                        {sent ? 'Inviato!' : 'Sfida'}
+                        {sent ? '✓' : 'Sfida'}
                       </button>
                     )}
                   </div>
-                )}
+                </div>
               </div>
             );
           })
         )}
       </div>
 
-      <div className="p-3 bg-black/30 border-t border-white/10 text-center text-xs text-white/50">
+      {/* Footer */}
+      <div className="shrink-0 px-4 py-2 bg-black/30 border-t border-white/10 text-center text-xs text-white/40 rounded-b-xl">
         {showChallengeCol
           ? 'Sfida un giocatore dalla classifica — riceverà una notifica in gioco'
           : 'I dati vengono aggiornati automaticamente durante le partite'}
@@ -254,7 +311,7 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
 
   if (isFullPage) {
     return (
-      <div className="fixed inset-0 bg-arena-deep flex items-center justify-center p-4 z-[60]">
+      <div className="fixed inset-0 bg-arena-deep flex items-start justify-center p-4 pt-4 z-[60] overflow-y-auto">
         {content}
       </div>
     );
