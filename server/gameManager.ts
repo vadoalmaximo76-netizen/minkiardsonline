@@ -21736,14 +21736,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
 
         } else if (defenseCardName.includes('BOOMERANG')) {
+          const boomerangDamage = originalMosseDamage !== undefined ? originalMosseDamage : damage;
           io.to(gameId).emit('chat-message', {
             id: `${Date.now()}-defense-success`,
             playerName: 'Sistema',
-            message: `🛡️ ${defender} usa BOOMERANG per riflettere l'attacco di ${attacker}!`,
+            message: `🛡️ ${defender} usa BOOMERANG per riflettere l'attacco di ${attacker}! (${boomerangDamage} danni riflessi)`,
             timestamp: Date.now()
           });
-          if (damage && damage > 0) {
-            applyDamageToCharacter(attacker, damage, 'BOOMERANG');
+          if (boomerangDamage && boomerangDamage > 0) {
+            applyDamageToCharacter(attacker, boomerangDamage, 'BOOMERANG');
           }
 
         } else if (defenseCardName.includes('CONTRO SKRAZZKOOM')) {
