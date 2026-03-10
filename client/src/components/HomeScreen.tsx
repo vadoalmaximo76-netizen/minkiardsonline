@@ -8,7 +8,6 @@ import {
 import { TournamentPanel } from './TournamentPanel';
 import { ClubPanel } from './ClubPanel';
 import { SeasonalEventsPanel } from './SeasonalEventsPanel';
-import { RankiardLeaderboard } from './RankiardLeaderboard';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   Gamepad2, GraduationCap, Users, User, Trophy, Star, Award, Sparkles,
@@ -296,7 +295,6 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
 
   const [showTournaments, setShowTournaments] = useState(false);
   const [showSeasonalEvents, setShowSeasonalEvents] = useState(false);
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showClubs, setShowClubs] = useState(false);
 
   useEffect(() => {
@@ -386,8 +384,8 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
       setShowClubs(true);
     } else if (action === 'modal:events') {
       setShowSeasonalEvents(true);
-    } else if (action === 'modal:leaderboard') {
-      setShowLeaderboard(true);
+    } else if (action === 'modal:leaderboard' || action === 'navigate:leaderboard') {
+      onNavigate('leaderboard');
     }
   };
 
@@ -607,7 +605,6 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
         <ClubPanel userId={userId || 0} username={playerName} onClose={() => setShowClubs(false)} />
       )}
       <SeasonalEventsPanel isOpen={showSeasonalEvents} onClose={() => setShowSeasonalEvents(false)} />
-      <RankiardLeaderboard isOpen={showLeaderboard} onClose={() => setShowLeaderboard(false)} currentUserId={userId} />
     </div>
   );
 }
