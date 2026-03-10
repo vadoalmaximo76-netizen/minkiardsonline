@@ -64,15 +64,20 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose, onJoinFa
   const [incomingInvite, setIncomingInvite] = useState<{ fantaId: string; creatorName: string; sessionCode: string } | null>(null);
   const [tournamentGameId, setTournamentGameId] = useState<string | null>(null);
   const [tournamentLoading, setTournamentLoading] = useState(false);
+  const [mySessions, setMySessions] = useState<SessionSummary[]>([]);
 
   const fetchSessions = useCallback(async () => {
     try {
       const headers: Record<string, string> = {};
       if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
-      const res = await fetch('/api/fanta/sessions', { headers });
-      if (res.ok) setLobbySessions(await res.json());
+      const [lobbyRes, myRes] = await Promise.all([
+        fetch('/api/fanta/sessions', { headers }),
+        playerName ? fetch(`/api/fanta/my-sessions?playerName=${encodeURIComponent(playerName)}`, { headers }) : Promise.resolve(null),
+      ]);
+      if (lobbyRes.ok) setLobbySessions(await lobbyRes.json());
+      if (myRes?.ok) setMySessions(await myRes.json());
     } catch {}
-  }, [authToken]);
+  }, [authToken, playerName]);
 
   useEffect(() => {
     fetchSessions();
@@ -146,6 +151,20 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose, onJoinFa
       setView('complete');
     });
 
+    socket.on('fanta:rejoined', ({ session, status }: { session: FantaSession; status: string }) => {
+      setCurrentSession(session);
+      setFantaId(session.id);
+      setPendingRequests(session.pendingRequests ?? []);
+      setLoading(false);
+      if (status === 'complete') {
+        setView('complete');
+      } else if (status === 'auction') {
+        setView('auction');
+      } else {
+        setView('lobby');
+      }
+    });
+
     socket.on('fanta:tournament-ready', (data: { gameId: string; fantaId: string; participants: string[] }) => {
       setTournamentGameId(data.gameId);
       setTournamentLoading(false);
@@ -169,6 +188,7 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose, onJoinFa
       socket.off('fanta:invite-broadcast');
       socket.off('fanta:card-up');
       socket.off('fanta:auction-complete');
+      socket.off('fanta:rejoined');
       socket.off('fanta:tournament-ready');
       socket.off('fanta:error');
     };
@@ -583,6 +603,39 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose, onJoinFa
           {error && (
             <div className="bg-red-900/50 border border-red-500 text-red-200 rounded-lg px-4 py-2 text-sm mb-4">
               ⚠️ {error}
+            </div>
+          )}
+
+          {/* My active sessions */}
+          {mySessions.length > 0 && (
+            <div className="mb-5">
+              <div className="text-xs font-bold text-yellow-400/70 uppercase tracking-widest mb-2">Le mie sessioni</div>
+              <div className="space-y-2">
+                {mySessions.map(s => {
+                  const statusLabel = s.status === 'complete' ? '✅ Completata' : s.status === 'auction' ? '🔥 In corso' : '⏳ Lobby';
+                  const statusColor = s.status === 'complete' ? 'text-green-400' : s.status === 'auction' ? 'text-orange-400' : 'text-yellow-300';
+                  return (
+                    <div key={s.id} className="bg-gray-800 rounded-xl border border-yellow-600/30 p-4 flex items-center gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-white text-sm">{s.creatorName}</div>
+                        <div className="text-xs text-white/50 mt-0.5">{s.participants.join(', ')}</div>
+                        <div className={`text-xs font-semibold mt-1 ${statusColor}`}>{statusLabel}</div>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setLoading(true);
+                          socket.emit('fanta:rejoin', { fantaId: s.id, playerName });
+                        }}
+                        disabled={loading}
+                        className="flex-shrink-0 bg-yellow-600 hover:bg-yellow-500 text-black font-black"
+                      >
+                        Riprendi
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 

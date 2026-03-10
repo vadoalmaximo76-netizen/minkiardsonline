@@ -8059,10 +8059,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     socket.on('fanta:rejoin', ({ fantaId, playerName }: { fantaId: string; playerName: string }) => {
       if (!fantaId || !playerName) return;
+      const rawSess = fantaManager.getSession(fantaId);
+      if (!rawSess) { socket.emit('fanta:error', { message: 'Sessione non trovata o scaduta' }); return; }
+      if (!rawSess.participants[playerName]) { socket.emit('fanta:error', { message: 'Non sei un partecipante di questa sessione' }); return; }
       socket.join(fantaId);
       fantaManager.updateSocketId(fantaId, playerName, socket.id);
       const sess = fantaManager.getSafeSession(fantaId);
-      if (sess) socket.emit('fanta:session-updated', { session: sess });
+      if (sess) socket.emit('fanta:rejoined', { session: sess, status: rawSess.status });
     });
 
     socket.on('fanta:start-auction', ({ fantaId, playerName }: { fantaId: string; playerName: string }) => {
@@ -15782,6 +15785,26 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         creatorName: s.creatorName,
         participantCount: Object.keys(s.participants).length,
         participants: Object.keys(s.participants),
+        maxParticipants: s.maxParticipants,
+        status: s.status,
+        createdAt: s.createdAt,
+      }));
+      res.json(sessions);
+    } catch (err) {
+      res.status(500).json({ error: 'Errore caricamento sessioni' });
+    }
+  });
+
+  app.get('/api/fanta/my-sessions', authMiddleware, async (req, res) => {
+    try {
+      const playerName = req.query.playerName as string;
+      if (!playerName) return res.json([]);
+      const sessions = fantaManager.getSessionsForPlayer(playerName).map(s => ({
+        id: s.id,
+        creatorName: s.creatorName,
+        participantCount: Object.keys(s.participants).length,
+        participants: Object.keys(s.participants),
+        maxParticipants: s.maxParticipants,
         status: s.status,
         createdAt: s.createdAt,
       }));

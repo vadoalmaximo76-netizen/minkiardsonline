@@ -276,6 +276,13 @@ export class FantaManager {
     return Array.from(this.sessions.values()).filter(s => s.status === 'lobby');
   }
 
+  getSessionsForPlayer(playerName: string): FantaSession[] {
+    return Array.from(this.sessions.values()).filter(s =>
+      (s.status === 'lobby' || s.status === 'complete' || s.status === 'auction') &&
+      Object.keys(s.participants).includes(playerName)
+    );
+  }
+
   joinSession(fantaId: string, playerName: string, socketId?: string): { success: boolean; error?: string } {
     const session = this.sessions.get(fantaId);
     if (!session) return { success: false, error: 'Sessione non trovata' };
