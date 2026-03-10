@@ -933,4 +933,34 @@ const DEFAULT_PACKS: PackConfig[] = [
   },
 ];
 
+export interface HomePanel {
+  id: string;
+  panelKey: string;
+  title: string;
+  subtitle: string;
+  icon: string;
+  gradientFrom: string;
+  gradientTo: string;
+  titleColor: string;
+  subtitleColor: string;
+  badge: string;
+  badgeColor: string;
+  sortOrder: number;
+  adminOnly: boolean;
+}
+
+export const homePanelsStorage = {
+  getAll(): HomePanel[] {
+    const file = path.join(DATA_DIR, 'homePanels.json');
+    try {
+      if (!fs.existsSync(file)) return [];
+      return JSON.parse(fs.readFileSync(file, 'utf8')) as HomePanel[];
+    } catch { return []; }
+  },
+  save(panels: HomePanel[]): void {
+    const file = path.join(DATA_DIR, 'homePanels.json');
+    fs.writeFileSync(file, JSON.stringify(panels, null, 2));
+  },
+};
+
 export type { CustomCard, CardModification, CardSkin, PersonaggioCache, Achievement, MissionTemplate, TutorialStep, PlayerSkin, JsonUser };

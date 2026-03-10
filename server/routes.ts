@@ -8,7 +8,7 @@ import fs from "fs";
 import path from "path";
 import { db, legacyDb, isDatabaseAvailable, isLegacyDbAvailable } from "./db";
 import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, draftTournaments } from "../shared/schema";
-import { jsonStorage } from "./jsonStorage";
+import { jsonStorage, homePanelsStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray } from "drizzle-orm";
 import { CARD_DATA, DECK_BACK_IMAGES } from "../client/src/lib/cardData";
 import { authMiddleware, ADMIN_FALLBACK, JWT_SECRET } from "./auth";
@@ -11237,6 +11237,31 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
     } catch (error) {
       console.error('Error inviting friend:', error);
       res.status(500).json({ success: false, error: 'Failed to invite friend' });
+    }
+  });
+
+  // ============ HOME PANELS API ============
+  app.get('/api/home-panels', (req, res) => {
+    try {
+      const panels = homePanelsStorage.getAll();
+      res.json(panels);
+    } catch (e) {
+      res.status(500).json({ error: 'Errore lettura pannelli' });
+    }
+  });
+
+  app.put('/api/home-panels', authMiddleware, (req: any, res) => {
+    try {
+      const userEmail = req.user?.email;
+      if (userEmail !== 'lucaforte94@gmail.com') {
+        return res.status(403).json({ error: 'Solo gli admin possono modificare i pannelli' });
+      }
+      const panels = req.body;
+      if (!Array.isArray(panels)) return res.status(400).json({ error: 'Formato non valido' });
+      homePanelsStorage.save(panels);
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: 'Errore salvataggio pannelli' });
     }
   });
 
