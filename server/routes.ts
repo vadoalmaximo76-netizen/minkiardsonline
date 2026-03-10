@@ -1400,9 +1400,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const userIdMatches = originalUserId && originalUserId === validatedUserId;
 
           if (!usernameMatches && !userIdMatches) {
-            console.log(`🚫 SECURITY: User ${validatedUsername} (ID: ${validatedUserId}) attempted to rejoin as ${playerName} (original ID: ${originalUserId})`);
-            socket.emit('join-game-error', { message: 'You cannot rejoin as another player' });
-            return;
+            // Special case: FantaTorneo guest slot — player names in fanta are custom aliases
+            // that may not match account usernames. Allow authenticated users to reclaim
+            // their unbound slot and bind the userId for future reconnections.
+            const isFantaTourneyGuestSlot = !!(existingGame as any).fantaTournamentId && !originalUserId;
+            if (isFantaTourneyGuestSlot) {
+              console.log(`🏆 FantaTorneo: Allowing ${validatedUsername} (ID: ${validatedUserId}) to claim guest slot "${playerName}" in ${gameId}`);
+              gameManager.setPlayerUserId(gameId, playerName, validatedUserId);
+            } else {
+              console.log(`🚫 SECURITY: User ${validatedUsername} (ID: ${validatedUserId}) attempted to rejoin as ${playerName} (original ID: ${originalUserId})`);
+              socket.emit('join-game-error', { message: 'You cannot rejoin as another player' });
+              return;
+            }
           }
         }
       }
@@ -8158,8 +8167,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate unique room ID
       const gameId = `room-F${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
 
-      // Build the game and set isDraftMode on the first (fake) addPlayer call
+      // Create the game room (no authenticatedUserId yet — we'll bind it below to avoid DB deck load)
       await gameManager.addPlayer(gameId, playerName, socket.id, false, undefined, true, true);
+
+      // Bind creator's userId so they can rejoin with auth token without being blocked
+      const creatorUserId = (socket.data as any)?.userId as number | undefined;
+      if (creatorUserId) {
+        gameManager.setPlayerUserId(gameId, playerName, creatorUserId);
+      }
 
       const game = (gameManager as any).games?.get(gameId);
       if (!game) { socket.emit('fanta:error', { message: 'Errore nella creazione della stanza' }); return; }
@@ -8217,6 +8232,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
         humanPlayers.push(name);
         console.log(`🃏 Fanta deck pre-loaded for ${name}: ${deck.personaggi.length}P ${deck.mosse.length}M ${deck.bonus.length}B`);
+      }
+
+      // Pre-load CPU decks and add CPU players to the game room
+      for (const [name, participant] of Object.entries(sess.participants) as [string, any][]) {
+        if (!participant.isCPU) continue;
+        if (sess.disqualified.includes(name)) continue;
+        const deck = fantaManager.getFantaDeckForSession(fantaId, name);
+        if (deck) {
+          game.playerDraftDecks[name] = {
+            personaggi: buildFantaCards(deck.personaggi, 'personaggi'),
+            mosse: buildFantaCards(deck.mosse, 'mosse'),
+            bonus: buildFantaCards(deck.bonus, 'bonus'),
+          };
+          console.log(`🃏 CPU Fanta deck pre-loaded for ${name}: ${deck.personaggi.length}P ${deck.mosse.length}M ${deck.bonus.length}B`);
+        }
+        try {
+          await gameManager.addCPUPlayerWithName(gameId, name);
+          console.log(`🤖 CPU ${name} added to fanta tournament room ${gameId}`);
+        } catch (err) {
+          console.error(`Error adding CPU ${name} to fanta tournament:`, err);
+        }
       }
 
       // Mark game as fantaTournament so addPlayer won't overwrite decks
