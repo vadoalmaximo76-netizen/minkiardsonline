@@ -432,6 +432,7 @@ interface GameState {
   hands?: Record<string, Record<string, Card[]>>;
   isDraftMode?: boolean;
   playerDraftDecks?: Record<string, { personaggi: Card[], mosse: Card[], bonus: Card[] }>;
+  fantaTournamentId?: string;
 }
 
 export class GameManager {
@@ -1221,7 +1222,9 @@ export class GameManager {
     }
 
     // Load draft deck for this player if in draft mode and authenticated
-    if (game.isDraftMode && authenticatedUserId && !isCPU && isDatabaseAvailable()) {
+    // Skip if a fanta tournament already pre-loaded this player's deck
+    const fantaPreLoaded = game.fantaTournamentId && game.playerDraftDecks && game.playerDraftDecks[playerName];
+    if (game.isDraftMode && authenticatedUserId && !isCPU && isDatabaseAvailable() && !fantaPreLoaded) {
       try {
         const deckRows = await db.select().from(draftDecks).where(eq(draftDecks.userId, authenticatedUserId)).limit(1);
         if (deckRows.length > 0 && deckRows[0].isComplete) {

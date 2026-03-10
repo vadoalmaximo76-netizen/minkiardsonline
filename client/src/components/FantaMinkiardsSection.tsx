@@ -42,9 +42,10 @@ interface Props {
   playerName: string;
   authToken?: string;
   onClose: () => void;
+  onJoinFantaGame?: (gameId: string) => void;
 }
 
-export function FantaMinkiardsSection({ playerName, authToken, onClose }: Props) {
+export function FantaMinkiardsSection({ playerName, authToken, onClose, onJoinFantaGame }: Props) {
   const [view, setView] = useState<'list' | 'lobby' | 'waiting' | 'auction' | 'complete'>('list');
   const [lobbySessions, setLobbySessions] = useState<SessionSummary[]>([]);
   const [currentSession, setCurrentSession] = useState<FantaSession | null>(null);
@@ -61,6 +62,8 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose }: Props)
   const [inviteTarget, setInviteTarget] = useState('');
   const [waitingForApproval, setWaitingForApproval] = useState(false);
   const [incomingInvite, setIncomingInvite] = useState<{ fantaId: string; creatorName: string; sessionCode: string } | null>(null);
+  const [tournamentGameId, setTournamentGameId] = useState<string | null>(null);
+  const [tournamentLoading, setTournamentLoading] = useState(false);
 
   const fetchSessions = useCallback(async () => {
     try {
@@ -143,9 +146,15 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose }: Props)
       setView('complete');
     });
 
+    socket.on('fanta:tournament-ready', (data: { gameId: string; fantaId: string; participants: string[] }) => {
+      setTournamentGameId(data.gameId);
+      setTournamentLoading(false);
+    });
+
     socket.on('fanta:error', (data: { message: string }) => {
       setError(data.message);
       setLoading(false);
+      setTournamentLoading(false);
       setTimeout(() => setError(''), 4000);
     });
 
@@ -160,6 +169,7 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose }: Props)
       socket.off('fanta:invite-broadcast');
       socket.off('fanta:card-up');
       socket.off('fanta:auction-complete');
+      socket.off('fanta:tournament-ready');
       socket.off('fanta:error');
     };
   }, [playerName, view]);
@@ -252,25 +262,84 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose }: Props)
 
   if (view === 'complete') {
     return (
-      <div className="fixed inset-0 bg-gray-900 z-50 flex flex-col items-center justify-center p-8">
-        <div className="text-5xl mb-4">🏆</div>
-        <h2 className="text-3xl font-bold text-yellow-400 mb-2">Asta Completata!</h2>
-        <p className="text-white/70 text-center mb-8">
-          Tutti i partecipanti hanno il loro mazzo pronto.<br />
-          Ora potete creare una partita in modalità Draft!
-        </p>
-        <div className="space-y-2 mb-8 w-full max-w-md">
-          {participants.map(p => (
-            <div key={p.name} className="flex items-center gap-3 bg-gray-800 rounded-lg px-4 py-2">
-              <span className="font-bold text-white text-sm">{p.name}{p.isCPU ? ' 🤖' : ''}</span>
-              <span className="text-gray-400 text-xs">{p.deck.personaggi.length}P · {p.deck.mosse.length}M · {p.deck.bonus.length}B</span>
-              <span className="text-yellow-300 text-sm ml-auto font-bold">{p.credits} cr</span>
+      <div className="fixed inset-0 bg-gray-900 z-50 flex flex-col items-center justify-center p-6 overflow-y-auto">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-6">
+            <div className="text-5xl mb-3">🏆</div>
+            <h2 className="text-3xl font-bold text-yellow-400 mb-1">Asta Completata!</h2>
+            <p className="text-white/60 text-sm">I mazzi sono pronti. È ora di giocare!</p>
+          </div>
+
+          {error && (
+            <div className="bg-red-900/50 border border-red-500 text-red-200 rounded-lg px-4 py-2 text-sm mb-4 text-center">
+              ⚠️ {error}
             </div>
-          ))}
+          )}
+
+          <div className="space-y-2 mb-6">
+            {participants.map(p => (
+              <div key={p.name} className="flex items-center gap-3 bg-gray-800 rounded-lg px-4 py-2.5">
+                <span className="font-bold text-white text-sm flex-1">{p.name}{p.isCPU ? ' 🤖' : ''}</span>
+                <span className="text-gray-400 text-xs">{p.deck.personaggi.length}P · {p.deck.mosse.length}M · {p.deck.bonus.length}B</span>
+                <span className="text-yellow-300 text-sm font-black tabular-nums">{p.credits} cr</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Tournament launch section */}
+          {!tournamentGameId ? (
+            <div className="space-y-3">
+              {isCreator ? (
+                <Button
+                  onClick={() => {
+                    setTournamentLoading(true);
+                    socket.emit('fanta:start-tournament', { fantaId, playerName });
+                  }}
+                  disabled={tournamentLoading}
+                  className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-black py-4 text-lg rounded-xl shadow-lg shadow-yellow-500/20"
+                >
+                  {tournamentLoading ? '⏳ Avvio in corso...' : '🏆 Avvia il torneo'}
+                </Button>
+              ) : (
+                <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 text-center">
+                  <div className="text-white/60 text-sm animate-pulse">
+                    ⏳ In attesa che il creatore avvii il torneo...
+                  </div>
+                </div>
+              )}
+              <Button
+                variant="outline"
+                onClick={onClose}
+                className="w-full border-gray-600 text-white/60 py-2"
+              >
+                Torna alla home (senza giocare)
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="bg-green-900/40 border border-green-600 rounded-xl p-4 text-center">
+                <div className="text-green-300 font-bold text-sm mb-1">✅ Stanza pronta!</div>
+                <div className="text-white/60 text-xs mb-2">Codice stanza:</div>
+                <div className="font-mono text-white font-bold text-lg bg-gray-900 rounded-lg px-4 py-2 select-all">
+                  {tournamentGameId}
+                </div>
+              </div>
+              <Button
+                onClick={() => onJoinFantaGame?.(tournamentGameId)}
+                className="w-full bg-green-600 hover:bg-green-500 text-white font-black py-4 text-lg rounded-xl shadow-lg shadow-green-600/20"
+              >
+                🎮 Entra nella partita
+              </Button>
+              <Button
+                variant="outline"
+                onClick={onClose}
+                className="w-full border-gray-600 text-white/60 py-2"
+              >
+                Torna alla home
+              </Button>
+            </div>
+          )}
         </div>
-        <Button onClick={onClose} className="bg-yellow-600 hover:bg-yellow-500 text-black font-bold px-8 py-3">
-          Torna alla home
-        </Button>
       </div>
     );
   }

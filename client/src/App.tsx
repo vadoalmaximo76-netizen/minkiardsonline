@@ -761,6 +761,19 @@ function App() {
           playerName={playerName}
           authToken={localStorage.getItem('authToken') ?? undefined}
           onClose={handleGoHome}
+          onJoinFantaGame={(gameId: string) => {
+            setGameId(gameId);
+            const newUrl = `${window.location.origin}?game=${gameId}`;
+            window.history.pushState(null, '', newUrl);
+            socket.emit('join-game', {
+              gameId,
+              playerName,
+              avatarId: pendingAvatar,
+              userId: authenticatedUser?.id,
+              isDraftMode: true,
+            });
+            setCurrentSection('play');
+          }}
         />
         <SpotifyPlayer disabled={false} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />

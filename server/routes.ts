@@ -8145,6 +8145,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = fantaManager.invitePlayer(fantaId, targetName, io);
       if (!result.success) socket.emit('fanta:error', { message: result.error });
     });
+
+    socket.on('fanta:start-tournament', async ({ fantaId, playerName }: { fantaId: string; playerName: string }) => {
+      const sess = fantaManager.getSession(fantaId);
+      if (!sess) { socket.emit('fanta:error', { message: 'Sessione non trovata' }); return; }
+      if (sess.creatorName !== playerName) { socket.emit('fanta:error', { message: 'Solo il creatore può avviare il torneo' }); return; }
+      if (sess.status !== 'complete') { socket.emit('fanta:error', { message: "L'asta non è ancora terminata" }); return; }
+
+      // Generate unique room ID
+      const gameId = `room-F${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+
+      // Build the game and set isDraftMode on the first (fake) addPlayer call
+      await gameManager.addPlayer(gameId, playerName, socket.id, false, undefined, true, true);
+
+      const game = (gameManager as any).games?.get(gameId);
+      if (!game) { socket.emit('fanta:error', { message: 'Errore nella creazione della stanza' }); return; }
+
+      // Ensure playerDraftDecks is initialized
+      if (!game.playerDraftDecks) game.playerDraftDecks = {};
+
+      // Prepare helpers to build Card objects from FantaCard
+      const allMods = (jsonStorage as any).cardModifications.getAll();
+      const modMap = new Map(allMods.map((m: any) => [m.originalCardId, m]));
+
+      const buildFantaCards = (fantaCards: any[], deckType: string): any[] => {
+        const deckUrls = (CARD_DATA as any)[deckType] as string[] || [];
+        return fantaCards.map(fc => {
+          const id = fc.id; // e.g. "personaggi-5"
+          const uniqueId = `${id}-${Math.random().toString(36).substr(2, 6)}`;
+          // Try to resolve index for base cards
+          const parts = id.split('-');
+          const index = parseInt(parts[parts.length - 1]);
+          const imageUrl = (!isNaN(index) && deckUrls[index]) ? deckUrls[index] : fc.frontImage;
+          const mod = modMap.get(id) as any;
+          const card: any = {
+            id: uniqueId,
+            type: deckType,
+            frontImage: imageUrl || fc.frontImage || '',
+            backImage: (DECK_BACK_IMAGES as any)[deckType] || '',
+            owner: '',
+            name: fc.name || '',
+            draftBaseId: deckType === 'personaggi' ? id : undefined,
+          };
+          if (mod) (gameManager as any).applyModificationToCard?.(card, mod);
+          if (deckType === 'personaggi' && card.pti == null) {
+            const cached = getPersonaggioFromCache(card.name);
+            if (cached) { card.pti = cached.pti; card.stars = cached.stars; }
+          }
+          if (deckType === 'personaggi' && card.pti != null) {
+            card.originalPti = card.pti;
+            card.text = `PTI: ${card.pti} | Stelle: ${card.stars ?? 1} | PTI originali: ${card.pti}`;
+          }
+          return card;
+        });
+      };
+
+      // Pre-load every human (non-disqualified) participant's deck into playerDraftDecks
+      const humanPlayers: string[] = [];
+      for (const [name, participant] of Object.entries(sess.participants) as [string, any][]) {
+        if (participant.isCPU) continue;
+        if (sess.disqualified.includes(name)) continue;
+        const deck = fantaManager.getFantaDeckForSession(fantaId, name);
+        if (!deck) continue;
+        game.playerDraftDecks[name] = {
+          personaggi: buildFantaCards(deck.personaggi, 'personaggi'),
+          mosse: buildFantaCards(deck.mosse, 'mosse'),
+          bonus: buildFantaCards(deck.bonus, 'bonus'),
+        };
+        humanPlayers.push(name);
+        console.log(`🃏 Fanta deck pre-loaded for ${name}: ${deck.personaggi.length}P ${deck.mosse.length}M ${deck.bonus.length}B`);
+      }
+
+      // Mark game as fantaTournament so addPlayer won't overwrite decks
+      game.fantaTournamentId = fantaId;
+
+      io.to(fantaId).emit('fanta:tournament-ready', { gameId, fantaId, participants: humanPlayers });
+      console.log(`🏆 FantaTorneo avviato: stanza ${gameId} per sessione ${fantaId}`);
+    });
   });
 
   // ============================================
