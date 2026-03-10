@@ -148,5 +148,18 @@
     "badgeColor": "rgba(0,0,0,0.35)",
     "sortOrder": 9,
     "adminOnly": true
+  },
+  {
+    "id": "panel-fanta",
+    "panelKey": "fanta",
+    "title": "FantaMinkiards",
+    "description": "Asta e torneo fantasy!",
+    "icon": "⭐",
+    "gradient": "linear-gradient(135deg, #7c3aed, #f59e0b)",
+    "glowColor": "#f59e0b",
+    "textColor": "#ffffff",
+    "sortOrder": 10,
+    "adminOnly": false,
+    "isActive": true
   }
 ]

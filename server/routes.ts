@@ -906,6 +906,7 @@ function getCardNameFromImageUrl(imageUrl: string): string {
 // Import cache from shared module
 import { personaggiCache, personaggiCacheLoaded, loadPersonaggiCache, getPersonaggioFromCache, isCacheReady } from './personaggiCache';
 export { personaggiCache, personaggiCacheLoaded, getPersonaggioFromCache };
+import { fantaManager } from './fantaManager';
 
 // Look up PERSONAGGI data from database (fallback if cache misses)
 async function getPersonaggioFromDatabase(cardName: string): Promise<{ pti: number | null, stars: number | null } | null> {
@@ -8033,6 +8034,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       gameManager.removePlayer(socket.id);
+    });
+
+    // ============ FANTAMINKIARDS SOCKET EVENTS ============
+    socket.on('fanta:create', ({ cpuCount, cpuLevel, playerName }: { cpuCount: number; cpuLevel: 'easy' | 'medium' | 'hard'; playerName: string }) => {
+      if (!playerName) return;
+      const session = fantaManager.createSession(playerName, cpuCount || 0, cpuLevel || 'medium');
+      socket.join(session.id);
+      fantaManager.updateSocketId(session.id, playerName, socket.id);
+      socket.emit('fanta:session-created', { fantaId: session.id, session: fantaManager.getSafeSession(session.id) });
+      console.log(`🌟 FantaMinkiards session created: ${session.id} by ${playerName}`);
+    });
+
+    socket.on('fanta:join', ({ fantaId, playerName }: { fantaId: string; playerName: string }) => {
+      if (!fantaId || !playerName) return;
+      const result = fantaManager.joinSession(fantaId, playerName, socket.id);
+      if (!result.success) { socket.emit('fanta:error', { message: result.error }); return; }
+      socket.join(fantaId);
+      fantaManager.updateSocketId(fantaId, playerName, socket.id);
+      const sess = fantaManager.getSafeSession(fantaId);
+      io.to(fantaId).emit('fanta:session-updated', { session: sess });
+      socket.emit('fanta:joined', { fantaId, session: sess });
+      console.log(`🌟 ${playerName} joined FantaMinkiards session ${fantaId}`);
+    });
+
+    socket.on('fanta:rejoin', ({ fantaId, playerName }: { fantaId: string; playerName: string }) => {
+      if (!fantaId || !playerName) return;
+      socket.join(fantaId);
+      fantaManager.updateSocketId(fantaId, playerName, socket.id);
+      const sess = fantaManager.getSafeSession(fantaId);
+      if (sess) socket.emit('fanta:session-updated', { session: sess });
+    });
+
+    socket.on('fanta:start-auction', ({ fantaId, playerName }: { fantaId: string; playerName: string }) => {
+      const sess = fantaManager.getSession(fantaId);
+      if (!sess) { socket.emit('fanta:error', { message: 'Sessione non trovata' }); return; }
+      if (sess.creatorName !== playerName) { socket.emit('fanta:error', { message: 'Solo il creatore può avviare l\'asta' }); return; }
+      const allMods = jsonStorage.cardModifications.getAll();
+      const result = fantaManager.startAuctionPhase(fantaId, allMods, io);
+      if (!result.success) socket.emit('fanta:error', { message: result.error });
+    });
+
+    socket.on('fanta:place-bid', ({ fantaId, playerName, amount }: { fantaId: string; playerName: string; amount: number }) => {
+      if (!fantaId || !playerName || !amount) return;
+      const result = fantaManager.placeBid(fantaId, playerName, amount, io);
+      if (!result.success) socket.emit('fanta:error', { message: result.error });
+    });
+
+    socket.on('fanta:skip-card', ({ fantaId, playerName }: { fantaId: string; playerName: string }) => {
+      const sess = fantaManager.getSession(fantaId);
+      if (!sess) return;
+      if (sess.creatorName !== playerName) { socket.emit('fanta:error', { message: 'Solo il creatore può skippare' }); return; }
+      const result = fantaManager.skipCard(fantaId, io);
+      if (!result.success) socket.emit('fanta:error', { message: result.error });
+    });
+
+    socket.on('fanta:search-card', ({ fantaId, playerName, query }: { fantaId: string; playerName: string; query: string }) => {
+      const sess = fantaManager.getSession(fantaId);
+      if (!sess) return;
+      if (sess.creatorName !== playerName) { socket.emit('fanta:error', { message: 'Solo il creatore può cercare carte' }); return; }
+      const result = fantaManager.searchCard(fantaId, query, io);
+      if (!result.success) socket.emit('fanta:error', { message: result.error });
+    });
+
+    socket.on('fanta:leave', ({ fantaId, playerName }: { fantaId: string; playerName: string }) => {
+      socket.leave(fantaId);
+      console.log(`${playerName} left FantaMinkiards session ${fantaId}`);
     });
   });
 
@@ -15583,6 +15650,23 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       res.json(collection);
     } catch (error) {
       res.status(500).json({ error: 'Errore collezione utente' });
+    }
+  });
+
+  // ============ FANTAMINKIARDS REST ============
+  app.get('/api/fanta/sessions', authMiddleware, async (req, res) => {
+    try {
+      const sessions = fantaManager.getLobbySession().map(s => ({
+        id: s.id,
+        creatorName: s.creatorName,
+        participantCount: Object.keys(s.participants).length,
+        participants: Object.keys(s.participants),
+        status: s.status,
+        createdAt: s.createdAt,
+      }));
+      res.json(sessions);
+    } catch (err) {
+      res.status(500).json({ error: 'Errore caricamento sessioni' });
     }
   });
 

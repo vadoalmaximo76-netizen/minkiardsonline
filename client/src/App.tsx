@@ -13,6 +13,7 @@ import { SpectatorView } from "./components/SpectatorView";
 import { ResetPasswordPage } from "./components/ResetPasswordPage";
 import { CardAdminPanel } from "./components/CardAdminPanel";
 import { DraftSection } from "./components/DraftSection";
+import { FantaMinkiardsSection } from "./components/FantaMinkiardsSection";
 import { ClassicTournamentHub } from "./components/ClassicTournamentHub";
 import { DeckSelectDialog } from "./components/DeckSelectDialog";
 import { RankiardLeaderboard } from "./components/RankiardLeaderboard";
@@ -25,7 +26,7 @@ import { Toaster } from "./components/ui/sonner";
 import "@fontsource/inter";
 import "./index.css";
 
-type AppSection = 'home' | 'play' | 'training' | 'rooms' | 'profile' | 'spectator' | 'admin' | 'draft' | 'leaderboard' | 'tournaments';
+type AppSection = 'home' | 'play' | 'training' | 'rooms' | 'profile' | 'spectator' | 'admin' | 'draft' | 'leaderboard' | 'tournaments' | 'fanta';
 
 function getResetPasswordToken(): string | null {
   const urlParams = new URLSearchParams(window.location.search);
@@ -505,7 +506,7 @@ function App() {
 
   const handleGoHome = () => navigateTo('home', 'back');
 
-  const handleNavigate = (section: 'play' | 'training' | 'rooms' | 'profile' | 'admin' | 'draft' | 'leaderboard' | 'tournaments') => {
+  const handleNavigate = (section: 'play' | 'training' | 'rooms' | 'profile' | 'admin' | 'draft' | 'leaderboard' | 'tournaments' | 'fanta') => {
     if (section === 'play') {
       setShowRoomDialog(true);
     }
@@ -745,6 +746,21 @@ function App() {
           isOpen={true}
           onClose={handleGoHome}
           currentUserId={authenticatedUser?.id}
+        />
+        <SpotifyPlayer disabled={false} />
+        <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
+      </QueryClientProvider>
+    );
+  }
+
+  // Show FantaMinkiards Section
+  if (currentSection === 'fanta') {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <FantaMinkiardsSection
+          playerName={playerName}
+          authToken={localStorage.getItem('authToken') ?? undefined}
+          onClose={handleGoHome}
         />
         <SpotifyPlayer disabled={false} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
