@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Bell, X } from 'lucide-react';
 import {
   registerServiceWorker,
@@ -18,16 +18,58 @@ export default function NotificationPromptBanner({ authToken }: Props) {
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const checked = useRef(false);
 
   useEffect(() => {
+    if (checked.current || !authToken) return;
+    checked.current = true;
+
     if (!('Notification' in window)) return;
-    if (Notification.permission !== 'default') return;
 
     const dismissedUntil = localStorage.getItem(DISMISS_KEY);
     if (dismissedUntil && Date.now() < parseInt(dismissedUntil, 10)) return;
 
-    setVisible(true);
-  }, []);
+    const perm = Notification.permission;
+
+    if (perm === 'denied') return;
+
+    if (perm === 'default') {
+      setVisible(true);
+      return;
+    }
+
+    // Permission is 'granted' — check if server actually has a subscription
+    fetch('/api/push/status', {
+      headers: { Authorization: `Bearer ${authToken}` },
+    })
+      .then(r => r.json())
+      .then(async (data) => {
+        if (!data.subscribed) {
+          // No server-side subscription — try to auto-resubscribe silently first
+          const reg = await registerServiceWorker().catch(() => null);
+          if (reg) {
+            const sub = await getExistingSubscription(reg).catch(() => null);
+            if (sub) {
+              // Browser has subscription, sync it to server
+              try {
+                const res = await fetch('/api/push/subscribe', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+                  body: JSON.stringify({ subscription: sub.toJSON() }),
+                });
+                if (!(await res.json()).success) setVisible(true);
+              } catch { setVisible(true); }
+            } else {
+              // No local subscription at all — show the banner
+              setVisible(true);
+            }
+          } else {
+            setVisible(true);
+          }
+        }
+      })
+      .catch(() => {});
+  }, [authToken]);
 
   const handleEnable = async () => {
     setLoading(true);
@@ -50,7 +92,7 @@ export default function NotificationPromptBanner({ authToken }: Props) {
       }
 
       setDone(true);
-      setTimeout(() => setVisible(false), 2000);
+      setTimeout(() => setVisible(false), 2500);
     } catch (e) {
       console.error('[NotifBanner] error:', e);
       dismiss();
@@ -84,7 +126,10 @@ export default function NotificationPromptBanner({ authToken }: Props) {
       alignItems: 'center',
       gap: 14,
       boxShadow: '0 8px 40px #7c3aed33',
+      animation: 'slideUp 0.3s ease-out',
     }}>
+      <style>{`@keyframes slideUp { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }`}</style>
+
       <div style={{
         width: 40, height: 40, borderRadius: 10, flexShrink: 0,
         background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
@@ -95,7 +140,7 @@ export default function NotificationPromptBanner({ authToken }: Props) {
 
       {done ? (
         <div style={{ flex: 1, color: '#22c55e', fontWeight: 700, fontSize: 14 }}>
-          ✓ Notifiche attivate! Riceverai avvisi sui tornei e le partite.
+          ✓ Notifiche attivate! Riceverai avvisi su tornei e partite.
         </div>
       ) : (
         <>

@@ -10424,16 +10424,20 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       webpush.setVapidDetails('mailto:vadoalmaximo76@gmail.com', vapidPublicKey, vapidPrivateKey);
       const subs = await db.select().from(pushSubscriptions);
       const jsonPayload = JSON.stringify(payload);
+      let sent = 0, failed = 0;
       for (const sub of subs) {
         try {
           await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, jsonPayload);
+          sent++;
         } catch (e: any) {
+          failed++;
+          console.error(`[Push] sendPushToAll error for endpoint ${sub.endpoint.substring(0, 60)}...: status=${e.statusCode} body=${JSON.stringify(e.body || e.message)}`);
           if (e.statusCode === 410 || e.statusCode === 404) {
             await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, sub.endpoint));
           }
         }
       }
-      console.log(`[Push] Broadcasted to all users: ${payload.title}`);
+      console.log(`[Push] Broadcasted "${payload.title}": ${sent} sent, ${failed} failed`);
     } catch (e) { console.error('[Push] sendPushToAll error:', e); }
   }
 
@@ -12251,9 +12255,10 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       for (const sub of subs) {
         try {
           await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, jsonPayload);
+          console.log(`[Push] Sent to user ${userId}: ${payload.title}`);
         } catch (e: any) {
+          console.error(`[Push] sendPushToUser(${userId}) error: status=${e.statusCode} body=${JSON.stringify(e.body || e.message)}`);
           if (e.statusCode === 410 || e.statusCode === 404) {
-            // Subscription expired — remove it
             await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, sub.endpoint));
           }
         }
@@ -12334,6 +12339,33 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       console.error('Error unsubscribing from push:', error);
       res.status(500).json({ error: 'Failed to unsubscribe' });
     }
+  });
+
+  // GET /api/push/status — check if current user has an active server-side subscription
+  app.get('/api/push/status', authMiddleware, async (req: any, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json({ subscribed: false });
+      const [currentUser] = await db.select({ id: users.id }).from(users).where(eq(users.email, req.user.email));
+      if (!currentUser) return res.json({ subscribed: false });
+      const subs = await db.select({ id: pushSubscriptions.id }).from(pushSubscriptions).where(eq(pushSubscriptions.userId, currentUser.id)).limit(1);
+      res.json({ subscribed: subs.length > 0 });
+    } catch { res.json({ subscribed: false }); }
+  });
+
+  // POST /api/push/test — admin sends a test push to themselves
+  app.post('/api/push/test', authMiddleware, async (req: any, res) => {
+    try {
+      if (req.user.email !== 'lucaforte94@gmail.com') return res.status(403).json({ error: 'Non autorizzato' });
+      const [currentUser] = await db.select({ id: users.id }).from(users).where(eq(users.email, req.user.email));
+      if (!currentUser) return res.status(404).json({ error: 'Utente non trovato' });
+      await sendPushToUser(currentUser.id, {
+        title: '🔔 Test Notifica',
+        body: 'Se vedi questo messaggio le notifiche push funzionano!',
+        url: '/',
+        tag: `push-test-${Date.now()}`,
+      });
+      res.json({ success: true, message: 'Test inviato — controlla i log per gli errori.' });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   // ========== CARD VERSION & ADMIN ENDPOINTS FOR PWA ==========

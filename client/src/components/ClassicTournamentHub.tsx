@@ -677,6 +677,26 @@ function TournamentDetailModal({
                 tournamentName={tournament.name}
                 onPlayMatch={onPlayMatch}
               />
+              {isAdmin && (
+                <div style={{ marginTop: 20 }}>
+                  <div style={{ color: '#f59e0b', fontWeight: 700, fontSize: 13, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Settings size={14} /> Utilità Admin
+                  </div>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const token = localStorage.getItem('authToken');
+                        const r = await fetch('/api/push/test', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+                        const d = await r.json();
+                        if (d.success) showAdminToast('Test push inviato — controlla le notifiche');
+                        else showAdminToast('Errore: ' + (d.error || 'sconosciuto'));
+                      } catch (e: any) { showAdminToast('Errore: ' + e.message); }
+                    }}
+                    style={{ background: '#0f172a', border: '1px solid #7c3aed', borderRadius: 8, color: '#a78bfa', padding: '8px 16px', fontSize: 12, cursor: 'pointer', fontWeight: 600, marginBottom: 12 }}>
+                    🔔 Invia notifica push di test
+                  </button>
+                </div>
+              )}
               {isAdmin && tournament.status !== 'completed' && (
                 <div style={{ marginTop: 24 }}>
                   <div style={{ color: '#f59e0b', fontWeight: 700, fontSize: 13, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>

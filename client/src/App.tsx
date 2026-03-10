@@ -625,6 +625,7 @@ function App() {
         </div>
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
+        <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
       </QueryClientProvider>
     );
   }
@@ -645,6 +646,7 @@ function App() {
         </div>
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
+        <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
       </QueryClientProvider>
     );
   }
@@ -668,6 +670,7 @@ function App() {
         </div>
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
+        <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
       </QueryClientProvider>
     );
   }
@@ -689,6 +692,7 @@ function App() {
         </div>
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
+        <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
       </QueryClientProvider>
     );
   }
@@ -707,6 +711,7 @@ function App() {
         </div>
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
+        <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
       </QueryClientProvider>
     );
   }
@@ -727,6 +732,7 @@ function App() {
         </div>
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
+        <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
       </QueryClientProvider>
     );
   }
@@ -745,6 +751,7 @@ function App() {
         </div>
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
+        <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
       </QueryClientProvider>
     );
   }
@@ -767,6 +774,7 @@ function App() {
         </div>
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
+        <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
       </QueryClientProvider>
     );
   }
