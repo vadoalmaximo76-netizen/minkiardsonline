@@ -29,6 +29,8 @@ interface Props {
   onComplete: () => void;
 }
 
+const CARDS_PER_TYPE = 20;
+
 const RARITY_BORDER: Record<FantaRarity, string> = {
   comune: 'border-gray-500',
   rara: 'border-blue-400',
@@ -77,10 +79,14 @@ export function FantaAuctionRoom({ fantaId, playerName, isCreator, participants,
   const [errorMsg, setErrorMsg] = useState('');
   const [showParticipants, setShowParticipants] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [disqualified, setDisqualified] = useState<string[]>([]);
+  const [disqualifiedMsg, setDisqualifiedMsg] = useState('');
   const cardRef = useRef<HTMLDivElement>(null);
 
-  const myCredits = credits[playerName] ?? 500;
+  const myCredits = credits[playerName] ?? 1000;
   const myProgress = deckProgress[playerName] ?? { personaggi: 0, mosse: 0, bonus: 0 };
+  const amIDisqualified = disqualified.includes(playerName);
 
   useEffect(() => {
     socket.on('fanta:card-up', (data: { card: FantaCard; timer: number; deckProgress: Record<string, DeckProgress>; credits: Record<string, number> }) => {
@@ -106,10 +112,15 @@ export function FantaAuctionRoom({ fantaId, playerName, isCreator, participants,
       setCountdown(data.seconds);
     });
 
-    socket.on('fanta:card-awarded', (data: { winner: string; card: FantaCard; amount: number; creditsRemaining: number; deckProgress: Record<string, DeckProgress>; credits: Record<string, number> }) => {
+    socket.on('fanta:card-awarded', (data: {
+      winner: string; card: FantaCard; amount: number; creditsRemaining: number;
+      deckProgress: Record<string, DeckProgress>; credits: Record<string, number>;
+      disqualified?: string[];
+    }) => {
       setAwardedCard({ card: data.card, winner: data.winner });
       setDeckProgress(data.deckProgress ?? {});
       setCredits(data.credits ?? {});
+      if (data.disqualified) setDisqualified(data.disqualified);
       setRecentAwarded(prev => [{ card: data.card, winner: data.winner, amount: data.amount }, ...prev].slice(0, 15));
       setCurrentCard(null);
     });
@@ -121,6 +132,20 @@ export function FantaAuctionRoom({ fantaId, playerName, isCreator, participants,
 
     socket.on('fanta:deck-progress', (data: { progress: Record<string, DeckProgress> }) => {
       setDeckProgress(data.progress ?? {});
+    });
+
+    socket.on('fanta:paused', (data: { isPaused: boolean }) => {
+      setIsPaused(data.isPaused);
+    });
+
+    socket.on('fanta:disqualified', (data: { playerName: string; reason: string; disqualified: string[] }) => {
+      setDisqualified(data.disqualified);
+      if (data.playerName === playerName) {
+        setDisqualifiedMsg('Sei stato squalificato: crediti esauriti senza aver completato la squadra.');
+      } else {
+        setDisqualifiedMsg(`${data.playerName} è stato squalificato per crediti esauriti.`);
+        setTimeout(() => setDisqualifiedMsg(''), 6000);
+      }
     });
 
     socket.on('fanta:auction-complete', () => {
@@ -139,12 +164,15 @@ export function FantaAuctionRoom({ fantaId, playerName, isCreator, participants,
       socket.off('fanta:card-awarded');
       socket.off('fanta:card-skipped');
       socket.off('fanta:deck-progress');
+      socket.off('fanta:paused');
+      socket.off('fanta:disqualified');
       socket.off('fanta:auction-complete');
       socket.off('fanta:error');
     };
-  }, [onComplete]);
+  }, [onComplete, playerName]);
 
   const placeBid = (amount: number) => {
+    if (amIDisqualified || isPaused) return;
     socket.emit('fanta:place-bid', { fantaId, playerName, amount });
   };
 
@@ -166,13 +194,21 @@ export function FantaAuctionRoom({ fantaId, playerName, isCreator, participants,
     setSearchQuery('');
   };
 
+  const handlePause = () => {
+    socket.emit('fanta:pause-auction', { fantaId, playerName });
+  };
+
+  const handleResume = () => {
+    socket.emit('fanta:resume-auction', { fantaId, playerName });
+  };
+
   const countdownPct = Math.max(0, (countdown / 15) * 100);
   const countdownColor = countdown <= 3 ? 'bg-red-500' : countdown <= 6 ? 'bg-orange-400' : 'bg-emerald-500';
   const timerTextColor = countdown <= 3 ? 'text-red-400' : countdown <= 6 ? 'text-orange-400' : 'text-white';
 
-  const canBid = !!(currentCard &&
+  const canBid = !amIDisqualified && !isPaused && !!(currentCard &&
     myCredits > currentBid &&
-    (myProgress[currentCard.type] ?? 0) < 33 &&
+    (myProgress[currentCard.type] ?? 0) < CARDS_PER_TYPE &&
     currentBidder !== playerName);
 
   const quickBids = [1, 5, 10];
@@ -180,9 +216,30 @@ export function FantaAuctionRoom({ fantaId, playerName, isCreator, participants,
   return (
     <div className="flex flex-col h-full bg-gray-900 text-white overflow-y-auto">
 
+      {/* DISQUALIFIED — permanent banner for self */}
+      {amIDisqualified && (
+        <div className="bg-red-900 border-b border-red-600 text-red-100 px-4 py-3 text-sm text-center font-bold">
+          ❌ Sei stato squalificato — crediti esauriti senza aver completato la squadra.
+        </div>
+      )}
+
+      {/* DISQUALIFIED — transient notification for others */}
+      {!amIDisqualified && disqualifiedMsg && (
+        <div className="bg-orange-900/80 border-b border-orange-600 text-orange-100 px-4 py-2 text-sm text-center font-medium">
+          ⚠️ {disqualifiedMsg}
+        </div>
+      )}
+
+      {/* PAUSED BANNER */}
+      {isPaused && (
+        <div className="bg-blue-900 border-b border-blue-600 text-blue-100 px-4 py-2.5 text-sm text-center font-bold animate-pulse">
+          ⏸ Asta in pausa — il creatore riprenderà a breve
+        </div>
+      )}
+
       {/* ERROR BANNER */}
       {errorMsg && (
-        <div className="bg-red-800 border-b border-red-500 text-red-100 px-4 py-2 text-sm text-center font-medium z-50">
+        <div className="bg-red-800 border-b border-red-500 text-red-100 px-4 py-2 text-sm text-center font-medium">
           ⚠️ {errorMsg}
         </div>
       )}
@@ -190,15 +247,17 @@ export function FantaAuctionRoom({ fantaId, playerName, isCreator, participants,
       {/* TIMER BAR */}
       <div className="px-4 pt-3 pb-1">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-xs text-white/50 font-semibold uppercase tracking-wider">Timer</span>
-          <span className={`text-2xl font-black tabular-nums ${timerTextColor} ${countdown <= 3 ? 'animate-pulse' : ''}`}>
-            {countdown}s
+          <span className="text-xs text-white/50 font-semibold uppercase tracking-wider">
+            {isPaused ? '⏸ Pausa' : 'Timer'}
+          </span>
+          <span className={`text-2xl font-black tabular-nums ${isPaused ? 'text-blue-400' : timerTextColor} ${!isPaused && countdown <= 3 ? 'animate-pulse' : ''}`}>
+            {isPaused ? '—' : `${countdown}s`}
           </span>
         </div>
         <div className="h-2.5 bg-gray-700 rounded-full overflow-hidden">
           <div
-            className={`h-full rounded-full transition-all duration-1000 ${countdownColor}`}
-            style={{ width: `${countdownPct}%` }}
+            className={`h-full rounded-full transition-all duration-1000 ${isPaused ? 'bg-blue-600' : countdownColor}`}
+            style={{ width: isPaused ? '100%' : `${countdownPct}%` }}
           />
         </div>
       </div>
@@ -268,78 +327,85 @@ export function FantaAuctionRoom({ fantaId, playerName, isCreator, participants,
           </div>
 
           {/* My credits */}
-          <div className="bg-gray-800 rounded-lg px-3 py-2 border border-gray-700 flex items-center justify-between">
+          <div className={`rounded-lg px-3 py-2 border flex items-center justify-between ${amIDisqualified ? 'bg-red-900/40 border-red-700' : 'bg-gray-800 border-gray-700'}`}>
             <span className="text-xs text-white/50">I tuoi crediti</span>
-            <span className="text-lg font-black text-yellow-300 tabular-nums">{myCredits}</span>
+            <span className={`text-lg font-black tabular-nums ${amIDisqualified ? 'text-red-400' : 'text-yellow-300'}`}>{myCredits}</span>
           </div>
 
           {/* My deck */}
-          <div className="bg-gray-800 rounded-lg px-3 py-2 border border-gray-700">
-            <div className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Tuo mazzo</div>
+          <div className={`rounded-lg px-3 py-2 border ${amIDisqualified ? 'bg-red-900/30 border-red-800' : 'bg-gray-800 border-gray-700'}`}>
+            <div className="text-[10px] text-white/40 uppercase tracking-wider mb-1">
+              {amIDisqualified ? '❌ Squalificato' : 'Tuo mazzo'}
+            </div>
             <div className="flex gap-1.5 text-[10px] font-bold">
-              <span className={`px-2 py-0.5 rounded ${myProgress.personaggi >= 33 ? 'bg-green-600' : 'bg-red-800/70'} text-white`}>
-                P {myProgress.personaggi}/33
+              <span className={`px-2 py-0.5 rounded ${myProgress.personaggi >= CARDS_PER_TYPE ? 'bg-green-600' : 'bg-red-800/70'} text-white`}>
+                P {myProgress.personaggi}/{CARDS_PER_TYPE}
               </span>
-              <span className={`px-2 py-0.5 rounded ${myProgress.mosse >= 33 ? 'bg-green-600' : 'bg-blue-800/70'} text-white`}>
-                M {myProgress.mosse}/33
+              <span className={`px-2 py-0.5 rounded ${myProgress.mosse >= CARDS_PER_TYPE ? 'bg-green-600' : 'bg-blue-800/70'} text-white`}>
+                M {myProgress.mosse}/{CARDS_PER_TYPE}
               </span>
-              <span className={`px-2 py-0.5 rounded ${myProgress.bonus >= 33 ? 'bg-green-600' : 'bg-emerald-900/70'} text-white`}>
-                B {myProgress.bonus}/33
+              <span className={`px-2 py-0.5 rounded ${myProgress.bonus >= CARDS_PER_TYPE ? 'bg-green-600' : 'bg-emerald-900/70'} text-white`}>
+                B {myProgress.bonus}/{CARDS_PER_TYPE}
               </span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* BID BUTTONS */}
-      <div className="px-4 pb-3">
-        <div className="bg-gray-800 rounded-xl p-3 border border-gray-700">
-          <div className="text-xs text-white/50 font-semibold mb-2">Fai un'offerta</div>
-          <div className="grid grid-cols-3 gap-3 mb-2.5">
-            {quickBids.map(inc => {
-              const bidAmount = currentBid + inc;
-              const disabled = !canBid || myCredits < bidAmount;
-              return (
-                <button
-                  key={inc}
-                  disabled={disabled}
-                  onClick={() => placeBid(bidAmount)}
-                  className={`rounded-lg py-2.5 text-sm font-black transition-all border-2 ${
-                    disabled
-                      ? 'border-gray-700 bg-gray-800 text-gray-600 cursor-not-allowed'
-                      : 'border-yellow-500 bg-yellow-600/20 text-yellow-300 hover:bg-yellow-600/40 active:scale-95'
-                  }`}
-                >
-                  +{inc}
-                </button>
-              );
-            })}
-          </div>
-          <div className="flex gap-2">
-            <Input
-              type="number"
-              placeholder={`Offri (min ${currentBid + 1})`}
-              value={customBid}
-              onChange={e => setCustomBid(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleCustomBid()}
-              className="bg-gray-700 border-gray-600 text-white text-sm h-10 flex-1"
-              min={currentBid + 1}
-              max={myCredits}
-            />
-            <Button
-              className={`h-10 px-4 font-black text-sm transition-all ${
-                canBid && customBid && parseInt(customBid) > currentBid && parseInt(customBid) <= myCredits
-                  ? 'bg-yellow-500 hover:bg-yellow-400 text-black'
-                  : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-              }`}
-              disabled={!canBid || !customBid || parseInt(customBid) <= currentBid || parseInt(customBid) > myCredits}
-              onClick={handleCustomBid}
-            >
-              Offri
-            </Button>
+      {/* BID BUTTONS — hidden when disqualified */}
+      {!amIDisqualified && (
+        <div className="px-4 pb-3">
+          <div className={`rounded-xl p-3 border ${isPaused ? 'bg-gray-800/50 border-blue-800/50 opacity-60' : 'bg-gray-800 border-gray-700'}`}>
+            <div className="text-xs text-white/50 font-semibold mb-2">
+              {isPaused ? '⏸ Offerte sospese' : "Fai un'offerta"}
+            </div>
+            <div className="grid grid-cols-3 gap-3 mb-2.5">
+              {quickBids.map(inc => {
+                const bidAmount = currentBid + inc;
+                const disabled = !canBid || myCredits < bidAmount || isPaused;
+                return (
+                  <button
+                    key={inc}
+                    disabled={disabled}
+                    onClick={() => placeBid(bidAmount)}
+                    className={`rounded-lg py-2.5 text-sm font-black transition-all border-2 ${
+                      disabled
+                        ? 'border-gray-700 bg-gray-800 text-gray-600 cursor-not-allowed'
+                        : 'border-yellow-500 bg-yellow-600/20 text-yellow-300 hover:bg-yellow-600/40 active:scale-95'
+                    }`}
+                  >
+                    +{inc}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                placeholder={`Offri (min ${currentBid + 1})`}
+                value={customBid}
+                onChange={e => setCustomBid(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleCustomBid()}
+                className="bg-gray-700 border-gray-600 text-white text-sm h-10 flex-1"
+                min={currentBid + 1}
+                max={myCredits}
+                disabled={isPaused}
+              />
+              <Button
+                className={`h-10 px-4 font-black text-sm transition-all ${
+                  canBid && customBid && parseInt(customBid) > currentBid && parseInt(customBid) <= myCredits && !isPaused
+                    ? 'bg-yellow-500 hover:bg-yellow-400 text-black'
+                    : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                }`}
+                disabled={!canBid || !customBid || parseInt(customBid) <= currentBid || parseInt(customBid) > myCredits || isPaused}
+                onClick={handleCustomBid}
+              >
+                Offri
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* CREATOR CONTROLS */}
       {isCreator && (
@@ -347,9 +413,25 @@ export function FantaAuctionRoom({ fantaId, playerName, isCreator, participants,
           <div className="bg-amber-950/40 rounded-xl p-3 border border-amber-700/50">
             <div className="text-xs text-amber-400 font-bold uppercase tracking-wider mb-2">Controlli creatore</div>
             <div className="flex gap-2 mb-2">
+              {isPaused ? (
+                <Button
+                  className="flex-1 h-9 bg-green-700 hover:bg-green-600 border border-green-600 text-white text-sm font-bold"
+                  onClick={handleResume}
+                >
+                  ▶ Riprendi asta
+                </Button>
+              ) : (
+                <Button
+                  className="flex-1 h-9 bg-blue-800 hover:bg-blue-700 border border-blue-600 text-white text-sm font-bold"
+                  onClick={handlePause}
+                >
+                  ⏸ Metti in pausa
+                </Button>
+              )}
               <Button
                 className="flex-1 h-9 bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-semibold"
                 onClick={handleSkip}
+                disabled={isPaused}
               >
                 ⏭ Salta carta
               </Button>
@@ -386,28 +468,33 @@ export function FantaAuctionRoom({ fantaId, playerName, isCreator, participants,
           <div className="mt-2 space-y-2">
             {participants.map(name => {
               const prog = deckProgress[name] ?? { personaggi: 0, mosse: 0, bonus: 0 };
-              const cr = credits[name] ?? 500;
+              const cr = credits[name] ?? 1000;
               const isMe = name === playerName;
               const isBidding = name === currentBidder;
+              const isDisq = disqualified.includes(name);
               return (
                 <div
                   key={name}
                   className={`rounded-lg px-3 py-2 border text-sm flex items-center gap-3 ${
-                    isBidding ? 'border-yellow-500 bg-yellow-900/20' : isMe ? 'border-blue-500 bg-blue-900/10' : 'border-gray-700 bg-gray-800'
+                    isDisq ? 'border-red-800 bg-red-900/20 opacity-70'
+                    : isBidding ? 'border-yellow-500 bg-yellow-900/20'
+                    : isMe ? 'border-blue-500 bg-blue-900/10'
+                    : 'border-gray-700 bg-gray-800'
                   }`}
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 mb-1">
-                      {isBidding && <span className="text-yellow-400 text-sm">🔨</span>}
-                      <span className={`font-bold text-sm truncate ${isMe ? 'text-blue-300' : 'text-white'}`}>
+                      {isDisq && <span className="text-red-400 text-sm">❌</span>}
+                      {!isDisq && isBidding && <span className="text-yellow-400 text-sm">🔨</span>}
+                      <span className={`font-bold text-sm truncate ${isDisq ? 'text-red-400 line-through' : isMe ? 'text-blue-300' : 'text-white'}`}>
                         {name}{name.startsWith('CPU') ? ' 🤖' : ''}
                       </span>
-                      <span className="ml-auto text-yellow-300 font-black text-sm tabular-nums">{cr}</span>
+                      <span className={`ml-auto font-black text-sm tabular-nums ${isDisq ? 'text-red-500' : 'text-yellow-300'}`}>{cr}</span>
                     </div>
                     <div className="flex gap-1.5 text-[10px] font-bold">
-                      <span className={`px-1.5 py-0.5 rounded ${prog.personaggi >= 33 ? 'bg-green-600' : 'bg-red-900/60'} text-white`}>P:{prog.personaggi}</span>
-                      <span className={`px-1.5 py-0.5 rounded ${prog.mosse >= 33 ? 'bg-green-600' : 'bg-blue-900/60'} text-white`}>M:{prog.mosse}</span>
-                      <span className={`px-1.5 py-0.5 rounded ${prog.bonus >= 33 ? 'bg-green-600' : 'bg-emerald-900/60'} text-white`}>B:{prog.bonus}</span>
+                      <span className={`px-1.5 py-0.5 rounded ${prog.personaggi >= CARDS_PER_TYPE ? 'bg-green-600' : 'bg-red-900/60'} text-white`}>P:{prog.personaggi}</span>
+                      <span className={`px-1.5 py-0.5 rounded ${prog.mosse >= CARDS_PER_TYPE ? 'bg-green-600' : 'bg-blue-900/60'} text-white`}>M:{prog.mosse}</span>
+                      <span className={`px-1.5 py-0.5 rounded ${prog.bonus >= CARDS_PER_TYPE ? 'bg-green-600' : 'bg-emerald-900/60'} text-white`}>B:{prog.bonus}</span>
                     </div>
                   </div>
                 </div>

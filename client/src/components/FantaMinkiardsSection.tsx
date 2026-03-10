@@ -413,10 +413,11 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose }: Props)
             <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-4 text-xs text-white/50 leading-relaxed">
               <div className="font-bold text-white/70 mb-1.5">Come funziona:</div>
               <ul className="space-y-1 list-disc list-inside">
-                <li>Ogni giocatore inizia con <span className="text-yellow-300 font-bold">500 crediti</span></li>
+                <li>Ogni giocatore inizia con <span className="text-yellow-300 font-bold">1000 crediti</span></li>
                 <li>Tutte le carte scorrono in ordine alfabetico</li>
                 <li>Fai offerte per aggiudicarti le carte che vuoi</li>
-                <li>L'asta finisce quando tutti hanno 33+33+33 carte</li>
+                <li>L'asta finisce quando tutti hanno 20+20+20 carte</li>
+                <li>Chi finisce i crediti senza completare la squadra viene squalificato</li>
               </ul>
             </div>
           </div>
@@ -481,8 +482,8 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose }: Props)
           <div className="bg-gray-800 rounded-xl border border-gray-700 p-4 mb-5">
             <h2 className="text-white font-bold mb-1">Come funziona</h2>
             <p className="text-white/60 text-sm leading-relaxed">
-              Ricevete <strong className="text-yellow-300">500 crediti</strong> e partecipate a un'asta su tutte le carte in ordine alfabetico.
-              Chi offre di più vince la carta! Costruisci il tuo mazzo da 33+33+33 carte.
+              Ricevete <strong className="text-yellow-300">1000 crediti</strong> e partecipate a un'asta su tutte le carte in ordine alfabetico.
+              Chi offre di più vince la carta! Costruisci il tuo mazzo da 20+20+20 carte. Chi finisce i crediti senza completare viene squalificato.
             </p>
           </div>
 

@@ -8088,6 +8088,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!result.success) socket.emit('fanta:error', { message: result.error });
     });
 
+    socket.on('fanta:pause-auction', ({ fantaId, playerName }: { fantaId: string; playerName: string }) => {
+      const sess = fantaManager.getSession(fantaId);
+      if (!sess) return;
+      if (sess.creatorName !== playerName) { socket.emit('fanta:error', { message: 'Solo il creatore può mettere in pausa' }); return; }
+      const result = fantaManager.pauseAuction(fantaId, io);
+      if (!result.success) socket.emit('fanta:error', { message: result.error });
+    });
+
+    socket.on('fanta:resume-auction', ({ fantaId, playerName }: { fantaId: string; playerName: string }) => {
+      const sess = fantaManager.getSession(fantaId);
+      if (!sess) return;
+      if (sess.creatorName !== playerName) { socket.emit('fanta:error', { message: 'Solo il creatore può riprendere l\'asta' }); return; }
+      const result = fantaManager.resumeAuction(fantaId, io);
+      if (!result.success) socket.emit('fanta:error', { message: result.error });
+    });
+
     socket.on('fanta:search-card', ({ fantaId, playerName, query }: { fantaId: string; playerName: string; query: string }) => {
       const sess = fantaManager.getSession(fantaId);
       if (!sess) return;

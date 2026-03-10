@@ -79,12 +79,14 @@ export interface FantaSession {
   currentCardIndex: number;
   currentAuction: FantaAuction | null;
   recentAwarded: Array<{ card: FantaCard; winner: string }>;
+  isPaused: boolean;
+  disqualified: string[];
   createdAt: number;
   completedAt?: number;
 }
 
-const STARTING_CREDITS = 500;
-const CARDS_PER_TYPE = 33;
+const STARTING_CREDITS = 1000;
+const CARDS_PER_TYPE = 20;
 const AUCTION_INITIAL_TIMER = 15;
 const AUCTION_BID_RESET_TIMER = 3;
 
@@ -150,31 +152,45 @@ function cpuBidAmount(
   const { cpuLevel, credits, deck } = participant;
   const typeDeck = deck[card.type];
   if (typeDeck.length >= CARDS_PER_TYPE) return null;
+  if (credits <= 0) return null;
 
-  const rarityInterest: Record<FantaRarity, number> = {
-    comune: cpuLevel === 'easy' ? 0.25 : cpuLevel === 'medium' ? 0.35 : 0.50,
-    rara: cpuLevel === 'easy' ? 0.40 : cpuLevel === 'medium' ? 0.55 : 0.70,
-    epica: cpuLevel === 'easy' ? 0.55 : cpuLevel === 'medium' ? 0.70 : 0.85,
-    leggendaria: cpuLevel === 'easy' ? 0.65 : cpuLevel === 'medium' ? 0.80 : 0.95,
+  // Calculate how many cards still needed across all types
+  const cardsNeeded =
+    (CARDS_PER_TYPE - deck.personaggi.length) +
+    (CARDS_PER_TYPE - deck.mosse.length) +
+    (CARDS_PER_TYPE - deck.bonus.length);
+
+  if (cardsNeeded <= 0) return null;
+
+  // Budget per remaining card — conservative: CPU must pace itself
+  const budgetPerCard = credits / cardsNeeded;
+
+  // Rarity multiplier on top of base budget
+  const rarityMultiplier: Record<FantaRarity, number> = {
+    comune:      cpuLevel === 'easy' ? 0.5  : cpuLevel === 'medium' ? 0.7  : 0.9,
+    rara:        cpuLevel === 'easy' ? 0.8  : cpuLevel === 'medium' ? 1.1  : 1.5,
+    epica:       cpuLevel === 'easy' ? 1.1  : cpuLevel === 'medium' ? 1.5  : 2.0,
+    leggendaria: cpuLevel === 'easy' ? 1.4  : cpuLevel === 'medium' ? 2.0  : 3.0,
   };
 
-  const interest = rarityInterest[card.rarity];
-  if (Math.random() > interest) return null;
+  const maxForCard = Math.floor(budgetPerCard * rarityMultiplier[card.rarity]);
+  if (maxForCard <= currentBid) return null;
 
-  const maxBidByRarity: Record<FantaRarity, [number, number]> = {
-    comune: [5, 25],
-    rara: [20, 55],
-    epica: [45, 100],
-    leggendaria: [80, 200],
+  // Interest check — whether CPU bothers bidding at all
+  const interestChance: Record<FantaRarity, number> = {
+    comune:      cpuLevel === 'easy' ? 0.30 : cpuLevel === 'medium' ? 0.45 : 0.60,
+    rara:        cpuLevel === 'easy' ? 0.50 : cpuLevel === 'medium' ? 0.65 : 0.80,
+    epica:       cpuLevel === 'easy' ? 0.65 : cpuLevel === 'medium' ? 0.80 : 0.92,
+    leggendaria: cpuLevel === 'easy' ? 0.75 : cpuLevel === 'medium' ? 0.88 : 0.97,
   };
+  if (Math.random() > interestChance[card.rarity]) return null;
 
-  const [minBid, maxBid] = maxBidByRarity[card.rarity];
-  const effectiveMax = Math.min(maxBid, Math.floor(credits * 0.35));
-  if (currentBid >= effectiveMax) return null;
+  // Place a small increment above current bid
+  const increment = cpuLevel === 'easy' ? 1 : cpuLevel === 'medium' ? 2 : 4;
+  const bid = currentBid + increment + Math.floor(Math.random() * 3);
 
-  const increment = cpuLevel === 'easy' ? 2 : cpuLevel === 'medium' ? 4 : 7;
-  const bid = currentBid + increment + Math.floor(Math.random() * 5);
-  if (bid > credits || bid > effectiveMax) return null;
+  if (bid > credits) return null;
+  if (bid > maxForCard) return null;
   if (bid <= currentBid) return null;
   return bid;
 }
@@ -238,6 +254,8 @@ export class FantaManager {
       currentCardIndex: 0,
       currentAuction: null,
       recentAwarded: [],
+      isPaused: false,
+      disqualified: [],
       createdAt: Date.now(),
     };
 
@@ -405,6 +423,7 @@ export class FantaManager {
 
   private isComplete(session: FantaSession): boolean {
     for (const p of Object.values(session.participants)) {
+      if (session.disqualified.includes(p.name)) continue;
       if (
         p.deck.personaggi.length < CARDS_PER_TYPE ||
         p.deck.mosse.length < CARDS_PER_TYPE ||
@@ -418,9 +437,28 @@ export class FantaManager {
 
   private allHaveEnough(session: FantaSession, type: 'personaggi' | 'mosse' | 'bonus'): boolean {
     for (const p of Object.values(session.participants)) {
+      if (session.disqualified.includes(p.name)) continue;
       if (p.deck[type].length < CARDS_PER_TYPE) return false;
     }
     return true;
+  }
+
+  private checkDisqualification(session: FantaSession, io: any): void {
+    for (const p of Object.values(session.participants)) {
+      if (session.disqualified.includes(p.name)) continue;
+      const deckComplete =
+        p.deck.personaggi.length >= CARDS_PER_TYPE &&
+        p.deck.mosse.length >= CARDS_PER_TYPE &&
+        p.deck.bonus.length >= CARDS_PER_TYPE;
+      if (!deckComplete && p.credits <= 0) {
+        session.disqualified.push(p.name);
+        io.to(session.id).emit('fanta:disqualified', {
+          playerName: p.name,
+          reason: 'Crediti esauriti senza aver completato la squadra',
+          disqualified: session.disqualified,
+        });
+      }
+    }
   }
 
   private advanceToNextCard(fantaId: string, io: any): void {
@@ -486,6 +524,7 @@ export class FantaManager {
         clearInterval(auction.countdownTimer!);
         return;
       }
+      if (s.isPaused) return;
       s.currentAuction.countdown--;
       io.to(fantaId).emit('fanta:countdown', { seconds: s.currentAuction.countdown });
 
@@ -497,17 +536,40 @@ export class FantaManager {
     }, 1000);
   }
 
+  pauseAuction(fantaId: string, io: any): { success: boolean; error?: string } {
+    const session = this.sessions.get(fantaId);
+    if (!session || session.status !== 'auction') return { success: false, error: 'Nessuna asta in corso' };
+    if (session.isPaused) return { success: false, error: 'Asta già in pausa' };
+    session.isPaused = true;
+    io.to(fantaId).emit('fanta:paused', { isPaused: true });
+    return { success: true };
+  }
+
+  resumeAuction(fantaId: string, io: any): { success: boolean; error?: string } {
+    const session = this.sessions.get(fantaId);
+    if (!session || session.status !== 'auction') return { success: false, error: 'Nessuna asta in corso' };
+    if (!session.isPaused) return { success: false, error: 'Asta non in pausa' };
+    session.isPaused = false;
+    io.to(fantaId).emit('fanta:paused', { isPaused: false });
+    return { success: true };
+  }
+
   private scheduleCPUBids(fantaId: string, io: any): void {
     const session = this.sessions.get(fantaId);
     if (!session?.currentAuction) return;
 
-    const cpus = Object.values(session.participants).filter(p => p.isCPU);
+    const cpus = Object.values(session.participants).filter(
+      p => p.isCPU && !session.disqualified.includes(p.name)
+    );
     for (const cpu of cpus) {
       const delay = 2000 + Math.random() * 4000;
       setTimeout(() => {
         const s = this.sessions.get(fantaId);
-        if (!s?.currentAuction || s.currentAuction.ended) return;
-        const bid = cpuBidAmount(cpu, s.currentAuction.card, s.currentAuction.currentBid);
+        if (!s?.currentAuction || s.currentAuction.ended || s.isPaused) return;
+        if (s.disqualified.includes(cpu.name)) return;
+        const latestCpu = s.participants[cpu.name];
+        if (!latestCpu) return;
+        const bid = cpuBidAmount(latestCpu, s.currentAuction.card, s.currentAuction.currentBid);
         if (bid !== null) {
           this.placeBid(fantaId, cpu.name, bid, io);
         }
@@ -520,10 +582,16 @@ export class FantaManager {
     if (!session?.currentAuction || session.currentAuction.ended) {
       return { success: false, error: 'Nessuna asta in corso' };
     }
+    if (session.isPaused) {
+      return { success: false, error: 'Asta in pausa' };
+    }
 
     const auction = session.currentAuction;
     const participant = session.participants[playerName];
     if (!participant) return { success: false, error: 'Giocatore non trovato' };
+    if (session.disqualified.includes(playerName)) {
+      return { success: false, error: 'Sei stato squalificato' };
+    }
 
     if (amount <= auction.currentBid) {
       return { success: false, error: `L'offerta deve essere superiore a ${auction.currentBid}` };
@@ -639,7 +707,10 @@ export class FantaManager {
           creditsRemaining: winner.credits,
           deckProgress: this.getDeckProgress(session),
           credits: this.getCreditsMap(session),
+          disqualified: session.disqualified,
         });
+
+        this.checkDisqualification(session, io);
       }
     } else {
       io.to(fantaId).emit('fanta:card-skipped', { card: auction.card, reason: 'no-bids' });
