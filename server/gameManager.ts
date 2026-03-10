@@ -2420,10 +2420,24 @@ Rispondi SOLO in JSON:`;
         // Pick a random CPU winner
         const cpuIds = pids.filter((p): p is number => p !== null && p < 0);
         const randomWinnerId = cpuIds[Math.floor(Math.random() * cpuIds.length)];
+        const cpuLoserIds = cpuIds.filter(id => id !== randomWinnerId);
 
         await db.update(tournamentMatches)
           .set({ winnerId: randomWinnerId, status: 'completed', completedAt: new Date() })
           .where(eq(tournamentMatches.id, match.id));
+
+        // Update participant stats — CPU IDs are -(participantRow.id), so abs() recovers the row id
+        const winnerRowId = Math.abs(randomWinnerId);
+        await db.update(tournamentParticipants)
+          .set({ wins: sql`${tournamentParticipants.wins} + 1` })
+          .where(and(eq(tournamentParticipants.tournamentId, tournamentId), eq(tournamentParticipants.id, winnerRowId)));
+        for (const loserId of cpuLoserIds) {
+          const loserRowId = Math.abs(loserId);
+          await db.update(tournamentParticipants)
+            .set({ losses: sql`${tournamentParticipants.losses} + 1` })
+            .where(and(eq(tournamentParticipants.tournamentId, tournamentId), eq(tournamentParticipants.id, loserRowId)));
+        }
+
         console.log(`🤖 Simulated CPU match ${match.id} (round ${round}) — winner CPU id=${randomWinnerId}`);
         anySimulated = true;
       }
@@ -2439,10 +2453,17 @@ Rispondi SOLO in JSON:`;
         // For campionati: check if ALL matches across ALL rounds are done
         const allMatches = await db.select().from(tournamentMatches).where(eq(tournamentMatches.tournamentId, tournamentId));
         if (!allMatches.every(m => m.status === 'completed')) {
-          // Simulate next round with CPU-only matches
-          const pendingRounds = [...new Set(allMatches.filter(m => m.status === 'pending').map(m => m.round))].sort((a, b) => a - b);
-          if (pendingRounds.length > 0) {
-            await this.simulateCpuMatchesInRound(tournamentId, pendingRounds[0]);
+          // Cascade: find other rounds that have CPU-only pending matches and simulate them
+          const pendingCpuRounds = [...new Set(
+            allMatches
+              .filter(m => {
+                const mPids = (m.playerIds as any) || [m.player1Id, m.player2Id];
+                return m.status === 'pending' && this.isAllCpuMatch(mPids);
+              })
+              .map(m => m.round)
+          )].sort((a, b) => a - b);
+          if (pendingCpuRounds.length > 0) {
+            await this.simulateCpuMatchesInRound(tournamentId, pendingCpuRounds[0]);
           }
           return;
         }

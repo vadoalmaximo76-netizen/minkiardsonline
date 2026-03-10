@@ -1406,8 +1406,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // For tournament matches: auto-detect draft mode from tournament's gameMode
+      let shouldUseDraftMode = !!isDraftMode;
+      if (!shouldUseDraftMode && tournamentMatchId && isDatabaseAvailable()) {
+        try {
+          const tmRows = await db.select().from(tournamentMatches)
+            .where(eq(tournamentMatches.id, tournamentMatchId)).limit(1);
+          if (tmRows.length) {
+            const tRows = await db.select({ gameMode: tournaments.gameMode })
+              .from(tournaments).where(eq(tournaments.id, tmRows[0].tournamentId)).limit(1);
+            if (tRows.length && tRows[0].gameMode === 'draft') {
+              shouldUseDraftMode = true;
+              console.log(`🃏 Tournament match ${tournamentMatchId} is Draft mode — enabling draft decks`);
+            }
+          }
+        } catch (_) {}
+      }
+
       // Wait for player to be added with identity verification
-      const result = await gameManager.addPlayer(gameId, playerName, socket.id, false, validatedUserId, false, !!isDraftMode);
+      const result = await gameManager.addPlayer(gameId, playerName, socket.id, false, validatedUserId, false, shouldUseDraftMode);
       
       if (!result.success) {
         console.log(`Join failed for ${playerName}: ${result.error}`);
