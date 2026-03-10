@@ -1718,7 +1718,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                     }}
                   >
                     <img 
-                      src={getOptimizedUrl(target.frontImage, 'card')} 
+                      src={getOptimizedUrl(target.appliedSkinUrl || target.frontImage, 'card')} 
                       alt="Character"
                       style={{ 
                         width: '120px', 
@@ -1815,7 +1815,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                     }}
                   >
                     <img 
-                      src={getOptimizedUrl(target.frontImage, 'card')} 
+                      src={getOptimizedUrl(target.appliedSkinUrl || target.frontImage, 'card')} 
                       alt="Character"
                       style={{ 
                         width: '120px', 
@@ -2104,7 +2104,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                   >
                     <div style={{ position: 'relative' }}>
                       <img 
-                        src={getOptimizedUrl(character.frontImage, 'card')} 
+                        src={getOptimizedUrl(character.appliedSkinUrl || character.frontImage, 'card')} 
                         alt={cardName}
                         style={{ 
                           width: '80px', 
@@ -2211,12 +2211,15 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                 <>
                   {gameState.field.find((c: any) => c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')) ? (
                     <>
-                      <img 
-                        src={getOptimizedUrl(gameState.field.find((c: any) => c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'))?.frontImage || '', 'card')}
-                        alt="Attaccante"
-                        className="w-24 h-32 rounded-xl border-2 border-green-500 object-cover shadow-lg"
-                        onError={(e) => (e.currentTarget.style.display = 'none')}
-                      />
+                      {(() => {
+                        const atk = gameState.field.find((c: any) => c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+                        return <img 
+                          src={getOptimizedUrl(atk?.appliedSkinUrl || atk?.frontImage || '', 'card')}
+                          alt="Attaccante"
+                          className="w-24 h-32 rounded-xl border-2 border-green-500 object-cover shadow-lg"
+                          onError={(e) => (e.currentTarget.style.display = 'none')}
+                        />;
+                      })()}
                       <p className="text-gray-300 text-xs text-center mt-2 max-w-24">
                         {gameState.field.find((c: any) => c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'))?.text || 'Nessun testo'}
                       </p>
@@ -2236,7 +2239,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
               {selectedMosseCard ? (
                 <>
                   <img 
-                    src={getOptimizedUrl(selectedMosseCard.frontImage, 'card')}
+                    src={getOptimizedUrl(selectedMosseCard.appliedSkinUrl || selectedMosseCard.frontImage, 'card')}
                     alt="MOSSE"
                     className="w-28 h-36 rounded-xl border-4 border-yellow-500 object-cover shadow-lg"
                     onError={(e) => (e.currentTarget.style.display = 'none')}
@@ -2260,7 +2263,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                   {targetCards.map((tc: any) => (
                     <div key={tc.id} className="flex flex-col items-center">
                       <img 
-                        src={getOptimizedUrl(tc.frontImage, 'card')}
+                        src={getOptimizedUrl(tc.appliedSkinUrl || tc.frontImage, 'card')}
                         alt="Bersaglio"
                         className="w-16 h-20 rounded-lg border-2 border-red-500 object-cover shadow-lg"
                         onError={(e) => (e.currentTarget.style.display = 'none')}
@@ -2284,7 +2287,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                   ) : (
                     <>
                       <img 
-                        src={getOptimizedUrl(targetCard.frontImage, 'card')}
+                        src={getOptimizedUrl(targetCard.appliedSkinUrl || targetCard.frontImage, 'card')}
                         alt="Difensore"
                         className="w-24 h-32 rounded-xl border-2 border-red-500 object-cover shadow-lg"
                         onError={(e) => (e.currentTarget.style.display = 'none')}
