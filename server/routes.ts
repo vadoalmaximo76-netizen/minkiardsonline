@@ -8261,6 +8261,133 @@ export async function registerRoutes(app: Express): Promise<Server> {
       io.to(fantaId).emit('fanta:tournament-ready', { gameId, fantaId, participants: humanPlayers });
       console.log(`🏆 FantaTorneo avviato: stanza ${gameId} per sessione ${fantaId}`);
     });
+
+    // ─── fanta:configure-tournament ────────────────────────────────────────────
+    socket.on('fanta:configure-tournament', ({ fantaId, playerName, config }: {
+      fantaId: string;
+      playerName: string;
+      config: { name: string; type: 'elimination' | 'round_robin'; playersPerMatch: number; characterLimit: string };
+    }) => {
+      const sess = fantaManager.getSession(fantaId);
+      if (!sess) { socket.emit('fanta:error', { message: 'Sessione non trovata' }); return; }
+      if (sess.creatorName !== playerName) { socket.emit('fanta:error', { message: 'Solo il creatore può configurare il torneo' }); return; }
+      if (sess.status !== 'complete') { socket.emit('fanta:error', { message: "L'asta non è ancora terminata" }); return; }
+
+      const result = fantaManager.configureTournament(fantaId, config);
+      if (!result.success) { socket.emit('fanta:error', { message: result.error || 'Errore configurazione' }); return; }
+
+      const tournament = fantaManager.getFantaTournamentState(fantaId);
+      io.to(fantaId).emit('fanta:tournament-configured', { fantaId, tournament });
+      console.log(`🏆 Fanta torneo configurato: sessione ${fantaId}, tipo ${config.type}`);
+    });
+
+    // ─── fanta:start-fanta-match ────────────────────────────────────────────────
+    socket.on('fanta:start-fanta-match', async ({ fantaId, playerName, matchId }: {
+      fantaId: string;
+      playerName: string;
+      matchId: string;
+    }) => {
+      const sess = fantaManager.getSession(fantaId);
+      if (!sess) { socket.emit('fanta:error', { message: 'Sessione non trovata' }); return; }
+      const tourney = sess.tournament;
+      if (!tourney) { socket.emit('fanta:error', { message: 'Torneo non configurato' }); return; }
+
+      const match = tourney.matches.find(m => m.id === matchId);
+      if (!match) { socket.emit('fanta:error', { message: 'Match non trovato' }); return; }
+      if (match.status === 'completed') { socket.emit('fanta:error', { message: 'Match già terminato' }); return; }
+
+      const isParticipant = match.players.includes(playerName);
+      const isCreator = sess.creatorName === playerName;
+      if (!isParticipant && !isCreator) { socket.emit('fanta:error', { message: 'Non sei un partecipante di questo match' }); return; }
+
+      // If already in progress, return existing gameId
+      if (match.gameId && match.status === 'in_progress') {
+        socket.emit('fanta:match-started', { fantaId, matchId, gameId: match.gameId, players: match.players });
+        return;
+      }
+
+      // Create game room
+      const gameId = `room-F${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+
+      // First human player: if caller is a match participant, use them; else use first match player with fake socket
+      const initPlayerName = match.players.includes(playerName) ? playerName : match.players[0];
+      const initSocketId = match.players.includes(playerName) ? socket.id : `init-${Date.now()}`;
+      await gameManager.addPlayer(gameId, initPlayerName, initSocketId, false, undefined, true, true);
+      const callerUserId = (socket.data as any)?.userId as number | undefined;
+      if (callerUserId && initPlayerName === playerName) {
+        gameManager.setPlayerUserId(gameId, initPlayerName, callerUserId);
+      }
+
+      const game = (gameManager as any).games?.get(gameId);
+      if (!game) { socket.emit('fanta:error', { message: 'Errore creazione stanza match' }); return; }
+      if (!game.playerDraftDecks) game.playerDraftDecks = {};
+
+      const allMods = (jsonStorage as any).cardModifications.getAll();
+      const modMap = new Map(allMods.map((m: any) => [m.originalCardId, m]));
+
+      const buildFantaCards = (fantaCards: any[], deckType: string): any[] => {
+        const deckUrls = (CARD_DATA as any)[deckType] as string[] || [];
+        return fantaCards.map(fc => {
+          const id = fc.id;
+          const uniqueId = `${id}-${Math.random().toString(36).substr(2, 6)}`;
+          const parts = id.split('-');
+          const index = parseInt(parts[parts.length - 1]);
+          const imageUrl = (!isNaN(index) && deckUrls[index]) ? deckUrls[index] : fc.frontImage;
+          const mod = modMap.get(id) as any;
+          const card: any = {
+            id: uniqueId, type: deckType,
+            frontImage: imageUrl || fc.frontImage || '',
+            backImage: (DECK_BACK_IMAGES as any)[deckType] || '',
+            owner: '', name: fc.name || '',
+            draftBaseId: deckType === 'personaggi' ? id : undefined,
+          };
+          if (mod) (gameManager as any).applyModificationToCard?.(card, mod);
+          if (deckType === 'personaggi' && card.pti == null) {
+            const cached = getPersonaggioFromCache(card.name);
+            if (cached) { card.pti = cached.pti; card.stars = cached.stars; }
+          }
+          if (deckType === 'personaggi' && card.pti != null) {
+            card.originalPti = card.pti;
+            card.text = `PTI: ${card.pti} | Stelle: ${card.stars ?? 1} | PTI originali: ${card.pti}`;
+          }
+          return card;
+        });
+      };
+
+      // Pre-load decks for all match players (human + CPU)
+      for (const name of match.players) {
+        const deck = fantaManager.getFantaDeckForSession(fantaId, name);
+        if (!deck) continue;
+        game.playerDraftDecks[name] = {
+          personaggi: buildFantaCards(deck.personaggi, 'personaggi'),
+          mosse: buildFantaCards(deck.mosse, 'mosse'),
+          bonus: buildFantaCards(deck.bonus, 'bonus'),
+        };
+        const participant = sess.participants[name];
+        if (participant?.isCPU) {
+          try {
+            await gameManager.addCPUPlayerWithName(gameId, name);
+          } catch (e) {
+            console.error(`Error adding CPU ${name}:`, e);
+          }
+        }
+      }
+
+      game.fantaTournamentId = fantaId;
+      // Apply character limit
+      (game as any).tournamentCharacterLimit = tourney.config.characterLimit || 'unlimited';
+
+      fantaManager.startMatch(fantaId, matchId, gameId);
+      io.to(fantaId).emit('fanta:match-started', { fantaId, matchId, gameId, players: match.players });
+      console.log(`🎮 Fanta match ${matchId} avviato: stanza ${gameId} con giocatori [${match.players.join(', ')}]`);
+    });
+
+    // ─── fanta:get-tournament-state ──────────────────────────────────────────────
+    socket.on('fanta:get-tournament-state', ({ fantaId }: { fantaId: string }) => {
+      const tournament = fantaManager.getFantaTournamentState(fantaId);
+      socket.emit('fanta:tournament-state', { fantaId, tournament });
+    });
+
   });
 
   // ============================================

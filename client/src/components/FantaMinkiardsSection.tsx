@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { socket } from "../lib/socket";
@@ -46,7 +46,7 @@ interface Props {
 }
 
 export function FantaMinkiardsSection({ playerName, authToken, onClose, onJoinFantaGame }: Props) {
-  const [view, setView] = useState<'list' | 'lobby' | 'waiting' | 'auction' | 'complete'>('list');
+  const [view, setView] = useState<'list' | 'lobby' | 'waiting' | 'auction' | 'complete' | 'configure' | 'bracket'>('list');
   const [lobbySessions, setLobbySessions] = useState<SessionSummary[]>([]);
   const [currentSession, setCurrentSession] = useState<FantaSession | null>(null);
   const [fantaId, setFantaId] = useState<string>('');
@@ -65,6 +65,16 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose, onJoinFa
   const [tournamentGameId, setTournamentGameId] = useState<string | null>(null);
   const [tournamentLoading, setTournamentLoading] = useState(false);
   const [mySessions, setMySessions] = useState<SessionSummary[]>([]);
+
+  const [fantaTourney, setFantaTourney] = useState<any | null>(null);
+  const [configStep, setConfigStep] = useState(1);
+  const [configForm, setConfigForm] = useState({
+    name: '',
+    type: 'elimination' as 'elimination' | 'round_robin',
+    playersPerMatch: 2,
+    characterLimit: '3',
+  });
+  const [activeMatchGameId, setActiveMatchGameId] = useState<string | null>(null);
 
   const fetchSessions = useCallback(async () => {
     try {
@@ -151,13 +161,18 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose, onJoinFa
       setView('complete');
     });
 
-    socket.on('fanta:rejoined', ({ session, status }: { session: FantaSession; status: string }) => {
+    socket.on('fanta:rejoined', ({ session, status }: { session: FantaSession & { tournament?: any }; status: string }) => {
       setCurrentSession(session);
       setFantaId(session.id);
       setPendingRequests(session.pendingRequests ?? []);
       setLoading(false);
       if (status === 'complete') {
-        setView('complete');
+        if (session.tournament) {
+          setFantaTourney(session.tournament);
+          setView('bracket');
+        } else {
+          setView('complete');
+        }
       } else if (status === 'auction') {
         setView('auction');
       } else {
@@ -168,6 +183,36 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose, onJoinFa
     socket.on('fanta:tournament-ready', (data: { gameId: string; fantaId: string; participants: string[] }) => {
       setTournamentGameId(data.gameId);
       setTournamentLoading(false);
+    });
+
+    socket.on('fanta:tournament-configured', (data: { fantaId: string; tournament: any }) => {
+      setFantaTourney(data.tournament);
+      setTournamentLoading(false);
+      setView('bracket');
+    });
+
+    socket.on('fanta:bracket-update', (data: { fantaId: string; tournament: any }) => {
+      setFantaTourney(data.tournament);
+    });
+
+    socket.on('fanta:match-started', (data: { fantaId: string; matchId: string; gameId: string; players: string[] }) => {
+      setActiveMatchGameId(data.gameId);
+      setFantaTourney((prev: any) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          matches: prev.matches.map((m: any) =>
+            m.id === data.matchId ? { ...m, status: 'in_progress', gameId: data.gameId } : m
+          ),
+        };
+      });
+    });
+
+    socket.on('fanta:tournament-state', (data: { fantaId: string; tournament: any }) => {
+      if (data.tournament) {
+        setFantaTourney(data.tournament);
+        setView('bracket');
+      }
     });
 
     socket.on('fanta:error', (data: { message: string }) => {
@@ -190,6 +235,10 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose, onJoinFa
       socket.off('fanta:auction-complete');
       socket.off('fanta:rejoined');
       socket.off('fanta:tournament-ready');
+      socket.off('fanta:tournament-configured');
+      socket.off('fanta:bracket-update');
+      socket.off('fanta:match-started');
+      socket.off('fanta:tournament-state');
       socket.off('fanta:error');
     };
   }, [playerName, view]);
@@ -307,23 +356,36 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose, onJoinFa
           </div>
 
           {/* Tournament launch section */}
-          {!tournamentGameId ? (
+          {fantaTourney ? (
+            <div className="space-y-3">
+              <div className="bg-purple-900/40 border border-purple-600 rounded-xl p-4 text-center">
+                <div className="text-purple-300 font-bold text-sm mb-1">🏆 Torneo configurato!</div>
+                <div className="text-white/60 text-xs">{fantaTourney.config?.name}</div>
+              </div>
+              <Button
+                onClick={() => setView('bracket')}
+                className="w-full bg-purple-600 hover:bg-purple-500 text-white font-black py-4 text-lg rounded-xl"
+              >
+                📊 Vai al tabellone
+              </Button>
+            </div>
+          ) : !tournamentGameId ? (
             <div className="space-y-3">
               {isCreator ? (
                 <Button
                   onClick={() => {
-                    setTournamentLoading(true);
-                    socket.emit('fanta:start-tournament', { fantaId, playerName });
+                    setConfigStep(1);
+                    setConfigForm({ name: `FantaTorneo #${fantaId.slice(-4).toUpperCase()}`, type: 'elimination', playersPerMatch: 2, characterLimit: '3' });
+                    setView('configure');
                   }}
-                  disabled={tournamentLoading}
                   className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-black py-4 text-lg rounded-xl shadow-lg shadow-yellow-500/20"
                 >
-                  {tournamentLoading ? '⏳ Avvio in corso...' : '🏆 Avvia il torneo'}
+                  🏆 Configura Torneo
                 </Button>
               ) : (
                 <div className="bg-gray-800 rounded-xl p-4 border border-gray-700 text-center">
                   <div className="text-white/60 text-sm animate-pulse">
-                    ⏳ In attesa che il creatore avvii il torneo...
+                    ⏳ In attesa che il creatore configuri il torneo...
                   </div>
                 </div>
               )}
@@ -360,6 +422,305 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose, onJoinFa
             </div>
           )}
         </div>
+      </div>
+    );
+  }
+
+  if (view === 'configure') {
+    const isCampionato = configForm.type === 'round_robin';
+    const STEPS = ['Tipo', 'Formato', 'Conferma'];
+    const canProceed = () => {
+      if (configStep === 1) return true;
+      if (configStep === 2) return configForm.playersPerMatch >= 2;
+      return true;
+    };
+    const handleConfirm = () => {
+      setTournamentLoading(true);
+      socket.emit('fanta:configure-tournament', { fantaId, playerName, config: configForm });
+    };
+    const labelSt: React.CSSProperties = { color: '#94a3b8', fontSize: 12, fontWeight: 600, marginBottom: 6, textTransform: 'uppercase' as const, letterSpacing: 0.5 };
+    const inputSt: React.CSSProperties = { width: '100%', padding: '10px 14px', background: '#0f172a', border: '1px solid #334155', borderRadius: 8, color: '#f1f5f9', fontSize: 14, outline: 'none', boxSizing: 'border-box' as const };
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+        <div style={{ background: 'linear-gradient(160deg, #0f172a 0%, #1e1b4b 100%)', border: '1px solid #334155', borderRadius: 20, width: 520, maxWidth: '95vw', maxHeight: '95vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ padding: '18px 24px', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 22 }}>🏆</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 17 }}>Configura il Torneo Fanta</div>
+              <div style={{ color: '#f59e0b', fontSize: 11 }}>Mazzi dall'asta · {isCampionato ? 'Girone all\'italiana' : 'Eliminazione diretta'}</div>
+            </div>
+            <button onClick={() => setView('complete')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 20 }}>✕</button>
+          </div>
+          <div style={{ display: 'flex', padding: '12px 24px', gap: 8 }}>
+            {STEPS.map((s, i) => (
+              <div key={s} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <div style={{ width: 28, height: 28, borderRadius: '50%', background: i + 1 < configStep ? '#7c3aed' : i + 1 === configStep ? '#a78bfa' : '#1e293b', border: `2px solid ${i + 1 === configStep ? '#a78bfa' : '#334155'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: i + 1 <= configStep ? 'white' : '#64748b', fontSize: 12, fontWeight: 700 }}>
+                  {i + 1 < configStep ? '✓' : i + 1}
+                </div>
+                <div style={{ fontSize: 10, color: i + 1 === configStep ? '#a78bfa' : '#64748b', textAlign: 'center' }}>{s}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '8px 24px 24px' }}>
+            {configStep === 1 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 8 }}>
+                  {[
+                    { type: 'elimination', label: 'Torneo Fanta', icon: '🏆', desc: 'Eliminazione diretta. Chi perde è fuori.', color: '#f59e0b' },
+                    { type: 'round_robin', label: 'Campionato Fanta', icon: '📅', desc: 'Tutti contro tutti, classifica finale.', color: '#3b82f6' },
+                  ].map(opt => (
+                    <button key={opt.type} onClick={() => setConfigForm(f => ({ ...f, type: opt.type as any }))}
+                      style={{ background: configForm.type === opt.type ? `${opt.color}22` : '#1e293b', border: `1px solid ${configForm.type === opt.type ? opt.color : '#334155'}`, borderRadius: 14, padding: '18px 16px', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 10, textAlign: 'left' }}>
+                      <div style={{ fontSize: 28 }}>{opt.icon}</div>
+                      <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 14 }}>{opt.label}</div>
+                      <div style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.4 }}>{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+                <div>
+                  <div style={labelSt}>Nome Torneo</div>
+                  <input value={configForm.name} onChange={e => setConfigForm(f => ({ ...f, name: e.target.value }))} style={inputSt} placeholder="Es. FantaTorneo Estate 2025" />
+                </div>
+              </div>
+            )}
+            {configStep === 2 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 8 }}>
+                {!isCampionato && (
+                  <div>
+                    <div style={labelSt}>Giocatori per Partita</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+                      {[2, 3, 4].map(n => (
+                        <button key={n} onClick={() => setConfigForm(f => ({ ...f, playersPerMatch: n }))}
+                          style={{ background: configForm.playersPerMatch === n ? '#7c3aed' : '#1e293b', border: `1px solid ${configForm.playersPerMatch === n ? '#7c3aed' : '#334155'}`, borderRadius: 8, color: configForm.playersPerMatch === n ? 'white' : '#94a3b8', padding: '8px 20px', cursor: 'pointer', fontWeight: 700, fontSize: 15 }}>
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ color: '#64748b', fontSize: 12, marginTop: 6 }}>
+                      Ogni partita del bracket avrà <span style={{ color: '#a78bfa', fontWeight: 700 }}>{configForm.playersPerMatch} partecipanti</span>
+                    </div>
+                  </div>
+                )}
+                {isCampionato && (
+                  <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 8, padding: '12px 16px' }}>
+                    <div style={{ color: '#64748b', fontSize: 13 }}>📅 <strong style={{ color: '#94a3b8' }}>Campionato:</strong> Ogni partita è 1 vs 1. Tutti giocano contro tutti.</div>
+                  </div>
+                )}
+                <div>
+                  <div style={labelSt}>Personaggi prima dell'eliminazione</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const }}>
+                    {(['1', '2', '3', '5', 'unlimited'] as const).map(v => (
+                      <button key={v} onClick={() => setConfigForm(f => ({ ...f, characterLimit: v }))}
+                        style={{ background: configForm.characterLimit === v ? '#0ea5e9' : '#1e293b', border: `1px solid ${configForm.characterLimit === v ? '#0ea5e9' : '#334155'}`, borderRadius: 8, color: configForm.characterLimit === v ? 'white' : '#94a3b8', padding: '8px 16px', cursor: 'pointer', fontWeight: 700, fontSize: 14, minWidth: 42, textAlign: 'center' as const }}>
+                        {v === 'unlimited' ? '∞' : v}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ color: '#64748b', fontSize: 12, marginTop: 6 }}>
+                    Un concorrente viene eliminato dopo la morte di <span style={{ color: '#38bdf8', fontWeight: 700 }}>{configForm.characterLimit === 'unlimited' ? 'tutti i' : configForm.characterLimit}</span> personagg{configForm.characterLimit === '1' ? 'io' : 'i'}
+                  </div>
+                </div>
+              </div>
+            )}
+            {configStep === 3 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 8 }}>
+                <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 20 }}>
+                  <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 16, marginBottom: 14 }}>{configForm.name}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    {[
+                      ['Tipo', configForm.type === 'round_robin' ? 'Campionato' : 'Torneo'],
+                      ['Per Partita', isCampionato ? '1 vs 1' : `${configForm.playersPerMatch} giocatori`],
+                      ['Limite personaggi', configForm.characterLimit === 'unlimited' ? '∞' : configForm.characterLimit],
+                      ['Partecipanti', `${participants.length} attivi`],
+                    ].map(([l, v]) => (
+                      <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #334155' }}>
+                        <span style={{ color: '#64748b', fontSize: 13 }}>{l}</span>
+                        <span style={{ color: '#f1f5f9', fontWeight: 600, fontSize: 13 }}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {error && <div style={{ background: '#7f1d1d', border: '1px solid #ef4444', borderRadius: 8, padding: '10px 14px', color: '#fca5a5', fontSize: 13 }}>{error}</div>}
+              </div>
+            )}
+          </div>
+          <div style={{ padding: '16px 24px', borderTop: '1px solid #1e293b', display: 'flex', gap: 12 }}>
+            {configStep > 1 && (
+              <button onClick={() => setConfigStep(s => s - 1)} style={{ flex: 1, padding: '12px 0', background: '#1e293b', border: '1px solid #334155', borderRadius: 12, color: '#94a3b8', cursor: 'pointer', fontWeight: 600 }}>
+                ← Indietro
+              </button>
+            )}
+            {configStep < 3 ? (
+              <button onClick={() => canProceed() && setConfigStep(s => s + 1)} disabled={!canProceed()}
+                style={{ flex: 2, padding: '12px 0', background: canProceed() ? '#7c3aed' : '#334155', border: 'none', borderRadius: 12, color: 'white', cursor: canProceed() ? 'pointer' : 'not-allowed', fontWeight: 700, fontSize: 15 }}>
+                Avanti →
+              </button>
+            ) : (
+              <button onClick={handleConfirm} disabled={tournamentLoading}
+                style={{ flex: 2, padding: '12px 0', background: tournamentLoading ? '#334155' : '#f59e0b', border: 'none', borderRadius: 12, color: tournamentLoading ? '#94a3b8' : '#000', cursor: tournamentLoading ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: 15 }}>
+                {tournamentLoading ? '⏳ Avvio...' : '🏆 Avvia Torneo'}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (view === 'bracket' && fantaTourney) {
+    const isCampionato = fantaTourney.config?.type === 'round_robin';
+    const currentRound = fantaTourney.currentRound || 1;
+    const allMatches: any[] = fantaTourney.matches || [];
+    const maxRound = allMatches.length > 0 ? Math.max(...allMatches.map((m: any) => m.round)) : 1;
+
+    const roundLabels: Record<number, string> = {};
+    if (!isCampionato) {
+      if (maxRound >= 1) roundLabels[maxRound] = 'Finale';
+      if (maxRound >= 2) roundLabels[maxRound - 1] = 'Semifinale';
+      if (maxRound >= 3) roundLabels[maxRound - 2] = 'Quarti';
+    }
+
+    const wins: Record<string, number> = {};
+    if (isCampionato) {
+      for (const m of allMatches) {
+        if (m.winnerId) wins[m.winnerId] = (wins[m.winnerId] || 0) + 1;
+      }
+    }
+
+    const rounds: any[][] = [];
+    for (let r = 1; r <= maxRound; r++) {
+      rounds.push(allMatches.filter((m: any) => m.round === r).sort((a: any, b: any) => a.matchNumber - b.matchNumber));
+    }
+
+    const statusColor = (s: string) => s === 'completed' ? '#22c55e' : s === 'in_progress' ? '#3b82f6' : '#64748b';
+    const statusLabel = (s: string) => s === 'completed' ? 'Completato' : s === 'in_progress' ? 'In corso' : 'In attesa';
+
+    const canPlay = (match: any) => {
+      if (match.status === 'completed') return false;
+      return match.players.includes(playerName) || isCreator;
+    };
+
+    const handleJoinMatch = (match: any) => {
+      if (match.gameId && match.status === 'in_progress') {
+        onJoinFantaGame?.(match.gameId);
+        return;
+      }
+      socket.emit('fanta:start-fanta-match', { fantaId, playerName, matchId: match.id });
+    };
+
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: '#0f172a', zIndex: 50, display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif' }}>
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', gap: 12, background: '#0f172a', flexShrink: 0 }}>
+          <button onClick={() => setView('complete')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 20, padding: 4 }}>←</button>
+          <div style={{ flex: 1 }}>
+            <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 17 }}>🏆 {fantaTourney.config?.name || 'FantaTorneo'}</div>
+            <div style={{ color: '#f59e0b', fontSize: 11 }}>{isCampionato ? 'Campionato Fanta' : 'Torneo Fanta'} · Mazzi dall'asta</div>
+          </div>
+          {fantaTourney.status === 'completed' && fantaTourney.winnerId && (
+            <div style={{ background: '#854d0e', border: '1px solid #d97706', borderRadius: 20, padding: '4px 14px', fontSize: 12, color: '#fde68a', fontWeight: 700 }}>
+              👑 {fantaTourney.winnerId}
+            </div>
+          )}
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 12px' }}>
+          {/* Standings (round_robin) */}
+          {isCampionato && (
+            <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 14, padding: 16, marginBottom: 20, maxWidth: 600, margin: '0 auto 20px' }}>
+              <div style={{ color: '#94a3b8', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>Classifica</div>
+              {Object.entries(wins).sort(([, a], [, b]) => b - a).map(([name, w], i) => (
+                <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #334155' }}>
+                  <span style={{ color: i === 0 ? '#f59e0b' : '#64748b', fontWeight: 700, fontSize: 14, width: 20 }}>{i + 1}.</span>
+                  <span style={{ color: '#f1f5f9', flex: 1, fontWeight: name === playerName ? 700 : 400 }}>{name}{name === playerName ? ' (tu)' : ''}</span>
+                  <span style={{ color: '#22c55e', fontWeight: 700 }}>{w} V</span>
+                  <span style={{ color: '#64748b', fontSize: 12 }}>{allMatches.filter((m: any) => m.status === 'completed' && m.players.includes(name) && m.winnerId !== name).length} S</span>
+                </div>
+              ))}
+              {Object.keys(wins).length === 0 && (
+                <div style={{ color: '#64748b', fontSize: 13, textAlign: 'center', padding: '8px 0' }}>Nessuna partita ancora giocata</div>
+              )}
+            </div>
+          )}
+
+          {/* Bracket / Match list */}
+          <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
+            {isCampionato ? (
+              <div style={{ maxWidth: 600, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {allMatches.map((match: any) => (
+                  <div key={match.id} style={{ background: '#1e293b', border: `1px solid ${statusColor(match.status)}44`, borderRadius: 12, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ color: '#f1f5f9', fontWeight: 600, fontSize: 14 }}>
+                        {match.players.join(' vs ')}
+                      </div>
+                      {match.winnerId && <div style={{ color: '#22c55e', fontSize: 12, marginTop: 2 }}>Vincitore: {match.winnerId}</div>}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                      <span style={{ background: statusColor(match.status) + '22', color: statusColor(match.status), border: `1px solid ${statusColor(match.status)}44`, borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 700 }}>
+                        {statusLabel(match.status)}
+                      </span>
+                      {canPlay(match) && (
+                        <button onClick={() => handleJoinMatch(match)}
+                          style={{ background: match.status === 'in_progress' ? '#16a34a' : '#7c3aed', border: 'none', borderRadius: 8, color: 'white', padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                          {match.status === 'in_progress' ? '▶ Riprendi' : '🎮 Gioca'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', minWidth: 'max-content', padding: '0 4px' }}>
+                {rounds.map((roundMatches, ri) => {
+                  const round = ri + 1;
+                  const label = roundLabels[round] || `Round ${round}`;
+                  return (
+                    <div key={round} style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 220 }}>
+                      <div style={{ textAlign: 'center', padding: '6px 12px', background: round === currentRound ? '#7c3aed22' : '#1e293b', border: `1px solid ${round === currentRound ? '#7c3aed' : '#334155'}`, borderRadius: 8, color: round === currentRound ? '#a78bfa' : '#64748b', fontWeight: 700, fontSize: 13 }}>
+                        {label}
+                      </div>
+                      {roundMatches.map((match: any) => (
+                        <div key={match.id} style={{ background: '#1e293b', border: `1px solid ${statusColor(match.status)}55`, borderRadius: 12, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {match.players.map((p: string) => (
+                            <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: match.winnerId === p ? '#14532d' : '#0f172a', border: `1px solid ${match.winnerId === p ? '#16a34a' : '#334155'}`, borderRadius: 8 }}>
+                              <span style={{ fontSize: 14 }}>{p === playerName ? '👤' : '🧑'}</span>
+                              <span style={{ color: '#f1f5f9', fontWeight: p === playerName ? 700 : 400, flex: 1, fontSize: 13 }}>{p}{p === playerName ? ' (tu)' : ''}</span>
+                              {match.winnerId === p && <span style={{ color: '#22c55e', fontSize: 12 }}>👑</span>}
+                            </div>
+                          ))}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ background: statusColor(match.status) + '22', color: statusColor(match.status), border: `1px solid ${statusColor(match.status)}44`, borderRadius: 20, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>
+                              {statusLabel(match.status)}
+                            </span>
+                            {canPlay(match) && (
+                              <button onClick={() => handleJoinMatch(match)}
+                                style={{ background: match.status === 'in_progress' ? '#16a34a' : '#7c3aed', border: 'none', borderRadius: 8, color: 'white', padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                                {match.status === 'in_progress' ? '▶ Riprendi' : '🎮 Gioca'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {fantaTourney.status === 'completed' && (
+            <div style={{ textAlign: 'center', marginTop: 24, padding: 24, background: '#1e293b', border: '1px solid #f59e0b44', borderRadius: 16, maxWidth: 400, margin: '24px auto 0' }}>
+              <div style={{ fontSize: 40, marginBottom: 8 }}>🏆</div>
+              <div style={{ color: '#f59e0b', fontWeight: 700, fontSize: 18 }}>Torneo Concluso!</div>
+              <div style={{ color: '#f1f5f9', marginTop: 8, fontSize: 15 }}>Vincitore: <strong>{fantaTourney.winnerId}</strong></div>
+            </div>
+          )}
+        </div>
+
+        {error && (
+          <div style={{ margin: '0 12px 12px', background: '#7f1d1d', border: '1px solid #ef4444', borderRadius: 8, padding: '10px 14px', color: '#fca5a5', fontSize: 13, textAlign: 'center' }}>
+            ⚠️ {error}
+          </div>
+        )}
       </div>
     );
   }

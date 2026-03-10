@@ -66,6 +66,33 @@ export interface FantaPendingRequest {
   requestedAt: number;
 }
 
+export type FantaTourneyType = 'elimination' | 'round_robin';
+
+export interface FantaTourneyConfig {
+  name: string;
+  type: FantaTourneyType;
+  playersPerMatch: number;
+  characterLimit: string;
+}
+
+export interface FantaTourneyMatch {
+  id: string;
+  round: number;
+  matchNumber: number;
+  players: string[];
+  winnerId?: string;
+  gameId?: string;
+  status: 'pending' | 'in_progress' | 'completed';
+}
+
+export interface FantaTourney {
+  config: FantaTourneyConfig;
+  matches: FantaTourneyMatch[];
+  currentRound: number;
+  status: 'in_progress' | 'completed';
+  winnerId?: string;
+}
+
 export interface FantaSession {
   id: string;
   creatorName: string;
@@ -83,6 +110,7 @@ export interface FantaSession {
   disqualified: string[];
   createdAt: number;
   completedAt?: number;
+  tournament?: FantaTourney;
 }
 
 const STARTING_CREDITS = 1000;
@@ -797,6 +825,140 @@ export class FantaManager {
         ? { ...session.currentAuction, countdownTimer: null }
         : null,
     };
+  }
+
+  configureTournament(fantaId: string, config: FantaTourneyConfig): { success: boolean; error?: string } {
+    const session = this.sessions.get(fantaId);
+    if (!session) return { success: false, error: 'Sessione non trovata' };
+    if (session.status !== 'complete') return { success: false, error: "L'asta non è ancora terminata" };
+
+    const activePlayers = Object.keys(session.participants).filter(n => !session.disqualified.includes(n));
+    if (activePlayers.length < 2) return { success: false, error: 'Servono almeno 2 partecipanti attivi' };
+
+    const shuffled = [...activePlayers].sort(() => Math.random() - 0.5);
+    let matches: FantaTourneyMatch[];
+
+    if (config.type === 'round_robin') {
+      matches = this.buildRRCalendar(shuffled);
+    } else {
+      const ppm = Math.max(2, Math.min(config.playersPerMatch, activePlayers.length));
+      matches = this.buildElimBracket(shuffled, ppm, 1);
+    }
+
+    session.tournament = {
+      config,
+      matches,
+      currentRound: 1,
+      status: 'in_progress',
+    };
+    this.persist();
+    return { success: true };
+  }
+
+  private buildElimBracket(players: string[], ppm: number, round: number): FantaTourneyMatch[] {
+    const matches: FantaTourneyMatch[] = [];
+    for (let i = 0; i < players.length; i += ppm) {
+      const group = players.slice(i, i + ppm);
+      if (group.length >= 2) {
+        const matchNumber = matches.length + 1;
+        matches.push({
+          id: `r${round}-m${matchNumber}`,
+          round,
+          matchNumber,
+          players: group,
+          status: 'pending',
+        });
+      } else if (group.length === 1) {
+        const matchNumber = matches.length + 1;
+        matches.push({
+          id: `r${round}-m${matchNumber}`,
+          round,
+          matchNumber,
+          players: group,
+          status: 'completed',
+          winnerId: group[0],
+        });
+      }
+    }
+    return matches;
+  }
+
+  private buildRRCalendar(players: string[]): FantaTourneyMatch[] {
+    const matches: FantaTourneyMatch[] = [];
+    let matchNum = 1;
+    for (let i = 0; i < players.length; i++) {
+      for (let j = i + 1; j < players.length; j++) {
+        matches.push({
+          id: `r1-m${matchNum}`,
+          round: 1,
+          matchNumber: matchNum++,
+          players: [players[i], players[j]],
+          status: 'pending',
+        });
+      }
+    }
+    return matches;
+  }
+
+  startMatch(fantaId: string, matchId: string, gameId: string): { success: boolean; error?: string } {
+    const session = this.sessions.get(fantaId);
+    if (!session?.tournament) return { success: false, error: 'Torneo non trovato' };
+    const match = session.tournament.matches.find(m => m.id === matchId);
+    if (!match) return { success: false, error: 'Match non trovato' };
+    if (match.status === 'completed') return { success: false, error: 'Match già completato' };
+    match.status = 'in_progress';
+    match.gameId = gameId;
+    this.persist();
+    return { success: true };
+  }
+
+  reportMatchResult(fantaId: string, gameId: string, winnerName: string, io: any): void {
+    const session = this.sessions.get(fantaId);
+    if (!session?.tournament) return;
+    const match = session.tournament.matches.find(m => m.gameId === gameId);
+    if (!match || match.status === 'completed') return;
+
+    match.status = 'completed';
+    match.winnerId = winnerName;
+
+    const tourney = session.tournament;
+
+    if (tourney.config.type === 'round_robin') {
+      const allDone = tourney.matches.every(m => m.status === 'completed');
+      if (allDone) {
+        const wins: Record<string, number> = {};
+        for (const m of tourney.matches) {
+          if (m.winnerId) wins[m.winnerId] = (wins[m.winnerId] || 0) + 1;
+        }
+        const sorted = Object.entries(wins).sort(([, a], [, b]) => b - a);
+        tourney.winnerId = sorted[0]?.[0];
+        tourney.status = 'completed';
+      }
+    } else {
+      const roundMatches = tourney.matches.filter(m => m.round === tourney.currentRound);
+      const allRoundDone = roundMatches.every(m => m.status === 'completed');
+      if (allRoundDone) {
+        const winners = roundMatches.map(m => m.winnerId).filter(Boolean) as string[];
+        if (winners.length === 1) {
+          tourney.winnerId = winners[0];
+          tourney.status = 'completed';
+        } else if (winners.length >= 2) {
+          const nextRound = tourney.currentRound + 1;
+          const ppm = tourney.config.playersPerMatch;
+          const nextMatches = this.buildElimBracket(winners, ppm, nextRound);
+          tourney.matches.push(...nextMatches);
+          tourney.currentRound = nextRound;
+        }
+      }
+    }
+
+    this.persist();
+    io.to(fantaId).emit('fanta:bracket-update', { fantaId, tournament: tourney });
+  }
+
+  getFantaTournamentState(fantaId: string): FantaTourney | null {
+    const session = this.sessions.get(fantaId);
+    return session?.tournament || null;
   }
 
   deleteSession(fantaId: string): void {

@@ -2288,6 +2288,19 @@ Rispondi SOLO in JSON:`;
       // Auto-update draft tournament for any Draft PvP game
       await this.updateDraftTournamentMatch(gameId, winnerPlayer);
 
+      // If this is a FantaMinkiards tournament match, update the fanta bracket
+      const fantaSessionId = game.fantaTournamentId;
+      if (fantaSessionId && winnerPlayer) {
+        try {
+          const { fantaManager: fm } = await import('./fantaManager.js');
+          const ioGlobal = (global as any).io;
+          fm.reportMatchResult(fantaSessionId, gameId, winnerPlayer, ioGlobal);
+          console.log(`🏆 Fanta match result reported: ${gameId} → winner: ${winnerPlayer}`);
+        } catch (e) {
+          console.error('Error reporting fanta match result:', e);
+        }
+      }
+
     } catch (error) {
       console.error('Failed to complete match:', error);
     }
