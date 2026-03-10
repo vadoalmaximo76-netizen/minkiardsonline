@@ -245,15 +245,17 @@ export function SpotifyPlayer({ disabled = false }: { disabled?: boolean }) {
       {/* Volume button — always visible (music plays automatically) */}
       {!disabled && (
         <div
-          onMouseEnter={openSlider}
-          onMouseLeave={scheduleClose}
           style={{
             position: 'fixed', bottom: '1.25rem', right: '0',
             zIndex: 100000, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.35rem',
+            pointerEvents: 'none',
           }}
         >
           {/* Slider panel */}
-          <div style={{
+          <div
+            onMouseEnter={openSlider}
+            onMouseLeave={scheduleClose}
+            style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center',
             background: 'rgba(0,0,0,0.88)', border: '1px solid rgba(255,255,255,0.15)',
             borderRadius: '2rem', padding: '0.75rem 0.6rem',
@@ -282,6 +284,8 @@ export function SpotifyPlayer({ disabled = false }: { disabled?: boolean }) {
 
           {/* Volume icon button — also kicks off playback if autoplay was blocked */}
           <button
+            onMouseEnter={openSlider}
+            onMouseLeave={scheduleClose}
             onClick={() => {
               setSliderOpen(v => !v);
               const st = gs();
@@ -313,6 +317,7 @@ export function SpotifyPlayer({ disabled = false }: { disabled?: boolean }) {
               borderRadius: '50%', color: '#fff',
               cursor: 'pointer', backdropFilter: 'blur(12px)',
               boxShadow: '0 4px 14px rgba(0,0,0,0.5)',
+              pointerEvents: 'auto',
             }}
           >
             <VolumeIcon vol={volume} />

@@ -1748,11 +1748,11 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         if (myCharacter) {
           const characterText = myCharacter.notes || myCharacter.text || '';
           const starsMatch = characterText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
-          const currentStars = starsMatch ? parseInt(starsMatch[1]) : 0;
+          const currentStars = starsMatch ? parseInt(starsMatch[1]) : 1;
           const ptiMatch = characterText.match(/PTI[:\s]*(\d+)/i);
           const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100;
           
-          if (currentStars <= 0 || currentPTI <= 0 || characterText === "0") {
+          if ((starsMatch && currentStars <= 0) || (ptiMatch && currentPTI <= 0) || characterText === "0") {
             console.log(`🎯 CPU ${this.playerName}: ABORTING MOSSE play - Character has 0 stars or PTI`);
             this.sendChatMessage(`Non posso usare la mossa "${cardName}" perché il mio personaggio non ha stelle o PTI!`);
             this.turnState.phase = 'turn_end';
@@ -2468,11 +2468,11 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     if (myCharacter) {
       const characterText = myCharacter.notes || myCharacter.text || '';
       const starsMatch = characterText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
-      const currentStars = starsMatch ? parseInt(starsMatch[1]) : 0;
+      const currentStars = starsMatch ? parseInt(starsMatch[1]) : 1;
       const ptiMatch = characterText.match(/PTI[:\s]*(\d+)/i);
       const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100;
 
-      if (currentStars <= 0 || currentPTI <= 0 || characterText === "0") {
+      if ((starsMatch && currentStars <= 0) || (ptiMatch && currentPTI <= 0) || characterText === "0") {
         const replacement = personaggiInHand.find((c: any) => {
           const replacementText = c.text || '';
           const rStarsMatch = replacementText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
@@ -2498,26 +2498,22 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     if (myCharacter) {
       const characterText = myCharacter.notes || myCharacter.text || '';
       const starsMatch = characterText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
-      const currentStars = starsMatch ? parseInt(starsMatch[1]) : 0;
+      const currentStars = starsMatch ? parseInt(starsMatch[1]) : 1;
       const ptiMatch = characterText.match(/PTI[:\s]*(\d+)/i);
       const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100;
+      const isDead = characterText === "0" || (starsMatch && currentStars <= 0) || (ptiMatch && currentPTI <= 0);
       
-      if (currentPTI <= 200 && bonusInHand.length > 0) {
-        console.log(`CPU ${this.playerName} playing BONUS from hand (low PTI: ${currentPTI})`);
-        return bonusInHand[0];
-      }
-      
-      if (enemies.length > 0 && currentStars > 0 && currentPTI > 0 && characterText !== "0" && mosseInHand.length > 0) {
+      if (!isDead && enemies.length > 0 && mosseInHand.length > 0) {
         console.log(`CPU ${this.playerName} playing MOSSE from hand (can attack with ${currentStars} stars, ${currentPTI} PTI)`);
         return mosseInHand[0];
       }
       
-      if (bonusInHand.length > 0) {
+      if (!isDead && bonusInHand.length > 0) {
         console.log(`CPU ${this.playerName} playing BONUS from hand`);
         return bonusInHand[0];
       }
       
-      if (mosseInHand.length > 0 && currentStars > 0 && currentPTI > 0 && characterText !== "0") {
+      if (!isDead && mosseInHand.length > 0) {
         console.log(`CPU ${this.playerName} playing MOSSE from hand (fallback)`);
         return mosseInHand[0];
       }
