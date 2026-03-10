@@ -86,7 +86,7 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose }: Props)
       setCurrentSession(session);
     });
 
-    socket.on('fanta:card-up', (data: { card: any; credits: Record<string, number> }) => {
+    socket.on('fanta:card-up', (data: { card: any; credits: Record<string, number>; deckProgress: Record<string, any> }) => {
       if (data.credits) setAuctionCredits(data.credits);
       setView('auction');
     });

@@ -1,0 +1,4110 @@
+[
+  {
+    "id": "fanta-1773173533146-h2knfl",
+    "creatorName": "Fake",
+    "participants": {
+      "Fake": {
+        "name": "Fake",
+        "credits": 500,
+        "deck": {
+          "personaggi": [],
+          "mosse": [],
+          "bonus": []
+        },
+        "isCPU": false,
+        "cpuLevel": "medium",
+        "socketId": "zuHPE3XisFhWoZV0AAAF"
+      },
+      "CPU 1": {
+        "name": "CPU 1",
+        "credits": 402,
+        "deck": {
+          "personaggi": [
+            {
+              "id": "personaggi-0",
+              "type": "personaggi",
+              "frontImage": "https://i.postimg.cc/fRTF9dfR/al-bano.png",
+              "name": "al bano",
+              "rarity": "rara",
+              "draftCost": 22
+            },
+            {
+              "id": "personaggi-3",
+              "type": "personaggi",
+              "frontImage": "https://i.postimg.cc/fR2Pjb8j/andrea.png",
+              "name": "andrea",
+              "rarity": "rara",
+              "draftCost": 23
+            },
+            {
+              "id": "personaggi-4",
+              "type": "personaggi",
+              "frontImage": "https://i.postimg.cc/W3rfvwTX/ape.png",
+              "name": "ape",
+              "rarity": "comune",
+              "draftCost": 10
+            },
+            {
+              "id": "personaggi-10",
+              "type": "personaggi",
+              "frontImage": "https://i.postimg.cc/DwZjZT7W/bear.png",
+              "name": "bear",
+              "rarity": "rara",
+              "draftCost": 28
+            },
+            {
+              "id": "personaggi-13",
+              "type": "personaggi",
+              "frontImage": "https://i.postimg.cc/QtL00K15/big-dabol.png",
+              "name": "big dabol",
+              "rarity": "comune",
+              "draftCost": 14
+            },
+            {
+              "id": "personaggi-14",
+              "type": "personaggi",
+              "frontImage": "https://i.postimg.cc/3NY9HMLx/bigfoot.png",
+              "name": "bigfoot",
+              "rarity": "rara",
+              "draftCost": 18
+            },
+            {
+              "id": "personaggi-16",
+              "type": "personaggi",
+              "frontImage": "https://i.postimg.cc/vThhYPjL/bin-laden.png",
+              "name": "bin laden",
+              "rarity": "rara",
+              "draftCost": 18
+            }
+          ],
+          "mosse": [],
+          "bonus": []
+        },
+        "isCPU": true,
+        "cpuLevel": "medium"
+      },
+      "CPU 2": {
+        "name": "CPU 2",
+        "credits": 468,
+        "deck": {
+          "personaggi": [
+            {
+              "id": "personaggi-2",
+              "type": "personaggi",
+              "frontImage": "https://i.postimg.cc/d0gSpxPh/amadeus.png",
+              "name": "amadeus",
+              "rarity": "rara",
+              "draftCost": 18
+            },
+            {
+              "id": "personaggi-15",
+              "type": "personaggi",
+              "frontImage": "https://i.postimg.cc/1tpMTRrd/Bi-Mb-Am-In-Ch-Ia.png",
+              "name": "Bi Mb Am In Ch Ia",
+              "rarity": "comune",
+              "draftCost": 10
+            }
+          ],
+          "mosse": [],
+          "bonus": []
+        },
+        "isCPU": true,
+        "cpuLevel": "medium"
+      },
+      "CPU 3": {
+        "name": "CPU 3",
+        "credits": 451,
+        "deck": {
+          "personaggi": [
+            {
+              "id": "personaggi-6",
+              "type": "personaggi",
+              "frontImage": "https://i.postimg.cc/sx46BfBW/aragosta-irachena.png",
+              "name": "aragosta irachena",
+              "rarity": "comune",
+              "draftCost": 12
+            },
+            {
+              "id": "personaggi-12",
+              "type": "personaggi",
+              "frontImage": "https://i.postimg.cc/zfHxCFb8/berlusconi.png",
+              "name": "berlusconi",
+              "rarity": "epica",
+              "draftCost": 37
+            },
+            {
+              "id": "personaggi-17",
+              "type": "personaggi",
+              "frontImage": "https://i.postimg.cc/VsWDW66r/bisteccone.png",
+              "name": "bisteccone",
+              "rarity": "comune",
+              "draftCost": 10
+            }
+          ],
+          "mosse": [],
+          "bonus": []
+        },
+        "isCPU": true,
+        "cpuLevel": "medium"
+      },
+      "CPU 4": {
+        "name": "CPU 4",
+        "credits": 447,
+        "deck": {
+          "personaggi": [
+            {
+              "id": "personaggi-1",
+              "type": "personaggi",
+              "frontImage": "https://i.postimg.cc/nLXPdt58/alberto-angela.png",
+              "name": "alberto angela",
+              "rarity": "epica",
+              "draftCost": 34
+            },
+            {
+              "id": "personaggi-7",
+              "type": "personaggi",
+              "frontImage": "https://i.postimg.cc/9XdNgbxf/avvoltoio.png",
+              "name": "avvoltoio",
+              "rarity": "comune",
+              "draftCost": 4
+            },
+            {
+              "id": "personaggi-8",
+              "type": "personaggi",
+              "frontImage": "https://i.postimg.cc/fTMqGdFf/bambola-del-demonio.png",
+              "name": "bambola del demonio",
+              "rarity": "comune",
+              "draftCost": 11
+            },
+            {
+              "id": "personaggi-18",
+              "type": "personaggi",
+              "frontImage": "https://i.postimg.cc/28jTcDbH/boldi-building.png",
+              "name": "boldi building",
+              "rarity": "rara",
+              "draftCost": 18
+            }
+          ],
+          "mosse": [],
+          "bonus": []
+        },
+        "isCPU": true,
+        "cpuLevel": "medium"
+      },
+      "CPU 5": {
+        "name": "CPU 5",
+        "credits": 454,
+        "deck": {
+          "personaggi": [
+            {
+              "id": "personaggi-5",
+              "type": "personaggi",
+              "frontImage": "https://i.postimg.cc/hvBZPQGg/apollo.png",
+              "name": "apollo",
+              "rarity": "epica",
+              "draftCost": 29
+            },
+            {
+              "id": "personaggi-11",
+              "type": "personaggi",
+              "frontImage": "https://i.postimg.cc/YCsXLsSd/bello-figo-gu.png",
+              "name": "bello figo gu",
+              "rarity": "comune",
+              "draftCost": 8
+            },
+            {
+              "id": "personaggi-19",
+              "type": "personaggi",
+              "frontImage": "https://i.postimg.cc/T3F935kS/borgarally.png",
+              "name": "borgarally",
+              "rarity": "comune",
+              "draftCost": 8
+            }
+          ],
+          "mosse": [],
+          "bonus": []
+        },
+        "isCPU": true,
+        "cpuLevel": "medium"
+      }
+    },
+    "status": "auction",
+    "cardQueue": [
+      {
+        "id": "personaggi-0",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/fRTF9dfR/al-bano.png",
+        "name": "al bano",
+        "rarity": "rara",
+        "draftCost": 22
+      },
+      {
+        "id": "personaggi-1",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/nLXPdt58/alberto-angela.png",
+        "name": "alberto angela",
+        "rarity": "epica",
+        "draftCost": 34
+      },
+      {
+        "id": "personaggi-2",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/d0gSpxPh/amadeus.png",
+        "name": "amadeus",
+        "rarity": "rara",
+        "draftCost": 18
+      },
+      {
+        "id": "personaggi-3",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/fR2Pjb8j/andrea.png",
+        "name": "andrea",
+        "rarity": "rara",
+        "draftCost": 23
+      },
+      {
+        "id": "personaggi-4",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/W3rfvwTX/ape.png",
+        "name": "ape",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "personaggi-5",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/hvBZPQGg/apollo.png",
+        "name": "apollo",
+        "rarity": "epica",
+        "draftCost": 29
+      },
+      {
+        "id": "personaggi-6",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/sx46BfBW/aragosta-irachena.png",
+        "name": "aragosta irachena",
+        "rarity": "comune",
+        "draftCost": 12
+      },
+      {
+        "id": "personaggi-7",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/9XdNgbxf/avvoltoio.png",
+        "name": "avvoltoio",
+        "rarity": "comune",
+        "draftCost": 4
+      },
+      {
+        "id": "personaggi-8",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/fTMqGdFf/bambola-del-demonio.png",
+        "name": "bambola del demonio",
+        "rarity": "comune",
+        "draftCost": 11
+      },
+      {
+        "id": "personaggi-9",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/RVGp4Fx5/barbone.png",
+        "name": "barbone",
+        "rarity": "comune",
+        "draftCost": 8
+      },
+      {
+        "id": "personaggi-10",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/DwZjZT7W/bear.png",
+        "name": "bear",
+        "rarity": "rara",
+        "draftCost": 28
+      },
+      {
+        "id": "personaggi-11",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/YCsXLsSd/bello-figo-gu.png",
+        "name": "bello figo gu",
+        "rarity": "comune",
+        "draftCost": 8
+      },
+      {
+        "id": "personaggi-12",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/zfHxCFb8/berlusconi.png",
+        "name": "berlusconi",
+        "rarity": "epica",
+        "draftCost": 37
+      },
+      {
+        "id": "personaggi-15",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/1tpMTRrd/Bi-Mb-Am-In-Ch-Ia.png",
+        "name": "Bi Mb Am In Ch Ia",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "personaggi-13",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/QtL00K15/big-dabol.png",
+        "name": "big dabol",
+        "rarity": "comune",
+        "draftCost": 14
+      },
+      {
+        "id": "personaggi-14",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/3NY9HMLx/bigfoot.png",
+        "name": "bigfoot",
+        "rarity": "rara",
+        "draftCost": 18
+      },
+      {
+        "id": "personaggi-16",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/vThhYPjL/bin-laden.png",
+        "name": "bin laden",
+        "rarity": "rara",
+        "draftCost": 18
+      },
+      {
+        "id": "personaggi-17",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/VsWDW66r/bisteccone.png",
+        "name": "bisteccone",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "personaggi-18",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/28jTcDbH/boldi-building.png",
+        "name": "boldi building",
+        "rarity": "rara",
+        "draftCost": 18
+      },
+      {
+        "id": "personaggi-19",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/T3F935kS/borgarally.png",
+        "name": "borgarally",
+        "rarity": "comune",
+        "draftCost": 8
+      },
+      {
+        "id": "personaggi-20",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/fTHC1rYM/boscaiolo.png",
+        "name": "boscaiolo",
+        "rarity": "rara",
+        "draftCost": 18
+      },
+      {
+        "id": "personaggi-21",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/cLrhWBcw/brian.png",
+        "name": "brian",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "personaggi-22",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/FRQVj5XV/bruno-barbieri.png",
+        "name": "bruno barbieri",
+        "rarity": "comune",
+        "draftCost": 12
+      },
+      {
+        "id": "personaggi-23",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/Hx44zZpD/bud-spencer.png",
+        "name": "bud spencer",
+        "rarity": "rara",
+        "draftCost": 24
+      },
+      {
+        "id": "personaggi-24",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/ZnbPM8R9/bug-s-vanni.png",
+        "name": "bug s vanni",
+        "rarity": "comune",
+        "draftCost": 3
+      },
+      {
+        "id": "personaggi-25",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/xTdyG3hh/bullox.png",
+        "name": "bullox",
+        "rarity": "epica",
+        "draftCost": 40
+      },
+      {
+        "id": "personaggi-26",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/GpPyn46v/c-mastrota.png",
+        "name": "c mastrota",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "personaggi-27",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/L5xkKJYx/cacca.png",
+        "name": "cacca",
+        "rarity": "comune",
+        "draftCost": 9
+      },
+      {
+        "id": "personaggi-28",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/sfm4ZN65/cacciatore-strabico.png",
+        "name": "cacciatore strabico",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "personaggi-29",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/VLH9Kbc6/caifa.png",
+        "name": "caifa",
+        "rarity": "rara",
+        "draftCost": 28
+      },
+      {
+        "id": "personaggi-177",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/sv0vSYjq/camillo.png",
+        "name": "camillo",
+        "rarity": "epica",
+        "draftCost": 33
+      },
+      {
+        "id": "personaggi-30",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/9Q6dh50H/cannavacciuolo.png",
+        "name": "cannavacciuolo",
+        "rarity": "rara",
+        "draftCost": 24
+      },
+      {
+        "id": "personaggi-31",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/0yMYF28C/cannuccia.png",
+        "name": "cannuccia",
+        "rarity": "comune",
+        "draftCost": 5
+      },
+      {
+        "id": "personaggi-32",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/fLZYVcYH/capello-smith.png",
+        "name": "capello smith",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "personaggi-33",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/TPnr275L/capo-rabbino.png",
+        "name": "capo rabbino",
+        "rarity": "rara",
+        "draftCost": 21
+      },
+      {
+        "id": "personaggi-178",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/mrDk3f3m/carmine.png",
+        "name": "carmine",
+        "rarity": "rara",
+        "draftCost": 26
+      },
+      {
+        "id": "personaggi-34",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/SsrCCnrm/cellvini.png",
+        "name": "cellvini",
+        "rarity": "comune",
+        "draftCost": 9
+      },
+      {
+        "id": "personaggi-179",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/JwvDTmsb/christian-de-sica.png",
+        "name": "christian de sica",
+        "rarity": "leggendaria",
+        "draftCost": 46
+      },
+      {
+        "id": "personaggi-35",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/Hnk52TZX/chuck-norris.png",
+        "name": "chuck norris",
+        "rarity": "leggendaria",
+        "draftCost": 50
+      },
+      {
+        "id": "personaggi-36",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/KjpTpCwV/cicchetti.png",
+        "name": "cicchetti",
+        "rarity": "epica",
+        "draftCost": 34
+      },
+      {
+        "id": "personaggi-37",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/PfS1q8J4/ciccio-pancetta.png",
+        "name": "ciccio pancetta",
+        "rarity": "comune",
+        "draftCost": 4
+      },
+      {
+        "id": "personaggi-38",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/MK4R72yf/cimice.png",
+        "name": "cimice",
+        "rarity": "comune",
+        "draftCost": 9
+      },
+      {
+        "id": "personaggi-39",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/fTkmST0h/cinese-comune.png",
+        "name": "cinese comune",
+        "rarity": "comune",
+        "draftCost": 9
+      },
+      {
+        "id": "personaggi-40",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/7Z2zXsVs/cinghiale-inferocito.png",
+        "name": "cinghiale inferocito",
+        "rarity": "epica",
+        "draftCost": 38
+      },
+      {
+        "id": "personaggi-41",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/bvft5xVz/ciro-pizzaiolo-di-sfiducia.png",
+        "name": "ciro pizzaiolo di sfiducia",
+        "rarity": "comune",
+        "draftCost": 13
+      },
+      {
+        "id": "personaggi-42",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/xC0bf0Sh/crapa.png",
+        "name": "crapa",
+        "rarity": "comune",
+        "draftCost": 12
+      },
+      {
+        "id": "personaggi-43",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/tT2n7LqT/crash-bandicoot.png",
+        "name": "crash bandicoot",
+        "rarity": "comune",
+        "draftCost": 14
+      },
+      {
+        "id": "personaggi-44",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/XqPZkdy6/cyber-geena.png",
+        "name": "cyber geena",
+        "rarity": "rara",
+        "draftCost": 21
+      },
+      {
+        "id": "personaggi-45",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/J7YB8VYY/daddy-conte.png",
+        "name": "daddy conte",
+        "rarity": "rara",
+        "draftCost": 18
+      },
+      {
+        "id": "personaggi-46",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/fyytdByv/de-marinis.png",
+        "name": "de marinis",
+        "rarity": "comune",
+        "draftCost": 16
+      },
+      {
+        "id": "personaggi-47",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/ZK9vK71b/divino-johnny.png",
+        "name": "divino johnny",
+        "rarity": "leggendaria",
+        "draftCost": 49
+      },
+      {
+        "id": "personaggi-48",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/sg7B5Bjb/djidji-d-alessio.png",
+        "name": "djidji d alessio",
+        "rarity": "comune",
+        "draftCost": 3
+      },
+      {
+        "id": "personaggi-180",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/DPwS3vSj/don-domenico-cerrone.png",
+        "name": "don domenico cerrone",
+        "rarity": "comune",
+        "draftCost": 9
+      },
+      {
+        "id": "personaggi-202",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/cSm3ymbt/DON-EMILIO.png",
+        "name": "DON EMILIO",
+        "rarity": "comune",
+        "draftCost": 9
+      },
+      {
+        "id": "personaggi-49",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/QxR9Bg3p/don-giuliano-leellee.png",
+        "name": "don giuliano leellee",
+        "rarity": "comune",
+        "draftCost": 3
+      },
+      {
+        "id": "personaggi-50",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/q7rNwkgq/donald-trump.png",
+        "name": "donald trump",
+        "rarity": "rara",
+        "draftCost": 18
+      },
+      {
+        "id": "personaggi-51",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/ZqLCD1yc/eegeeneeo-massaree.png",
+        "name": "eegeeneeo massaree",
+        "rarity": "comune",
+        "draftCost": 3
+      },
+      {
+        "id": "personaggi-52",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/j5dLVZHr/emis-killa.png",
+        "name": "emis killa",
+        "rarity": "rara",
+        "draftCost": 18
+      },
+      {
+        "id": "personaggi-53",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/SsTjmCdY/enrico-papeeiy.png",
+        "name": "enrico papeeiy",
+        "rarity": "rara",
+        "draftCost": 20
+      },
+      {
+        "id": "personaggi-181",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/q3wN3pqx/enzo-salvi.png",
+        "name": "enzo salvi",
+        "rarity": "epica",
+        "draftCost": 38
+      },
+      {
+        "id": "personaggi-182",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/VY8fjzXm/ernesto.png",
+        "name": "ernesto",
+        "rarity": "leggendaria",
+        "draftCost": 47
+      },
+      {
+        "id": "personaggi-54",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/SRHsM4wy/evil-fake.png",
+        "name": "evil fake",
+        "rarity": "comune",
+        "draftCost": 11
+      },
+      {
+        "id": "personaggi-55",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/prmrrrcG/ezio-greggio.png",
+        "name": "ezio greggio",
+        "rarity": "rara",
+        "draftCost": 21
+      },
+      {
+        "id": "personaggi-56",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/gc7r5yrf/fabio-fauzo.png",
+        "name": "fabio fauzo",
+        "rarity": "comune",
+        "draftCost": 3
+      },
+      {
+        "id": "personaggi-183",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/Z67LD5qP/fabrizio.png",
+        "name": "fabrizio",
+        "rarity": "epica",
+        "draftCost": 32
+      },
+      {
+        "id": "personaggi-57",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/Gmwt3cFK/fedesimo.png",
+        "name": "fedesimo",
+        "rarity": "comune",
+        "draftCost": 3
+      },
+      {
+        "id": "personaggi-184",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/Kx3dWZ1R/felice-podda.png",
+        "name": "felice podda",
+        "rarity": "comune",
+        "draftCost": 4
+      },
+      {
+        "id": "personaggi-185",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/whcw2nSG/fibra.png",
+        "name": "fibra",
+        "rarity": "epica",
+        "draftCost": 37
+      },
+      {
+        "id": "personaggi-58",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/65GTN7vT/forever-alone.png",
+        "name": "forever alone",
+        "rarity": "comune",
+        "draftCost": 6
+      },
+      {
+        "id": "personaggi-59",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/qvsRz9QT/FRA-MARTINO.png",
+        "name": "FRA MARTINO",
+        "rarity": "comune",
+        "draftCost": 3
+      },
+      {
+        "id": "personaggi-60",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/s232Sw0Z/francesco-pandolfi.png",
+        "name": "francesco pandolfi",
+        "rarity": "leggendaria",
+        "draftCost": 45
+      },
+      {
+        "id": "personaggi-61",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/0NZyCDLX/francesco-rossi-paolozzi.png",
+        "name": "francesco rossi paolozzi",
+        "rarity": "epica",
+        "draftCost": 36
+      },
+      {
+        "id": "personaggi-62",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/G22hg9RL/gerry-scotti.png",
+        "name": "gerry scotti",
+        "rarity": "rara",
+        "draftCost": 22
+      },
+      {
+        "id": "personaggi-63",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/C1QM3YMj/gheller.png",
+        "name": "gheller",
+        "rarity": "rara",
+        "draftCost": 20
+      },
+      {
+        "id": "personaggi-64",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/qq6B0YgW/gianni-giganti.png",
+        "name": "gianni giganti",
+        "rarity": "epica",
+        "draftCost": 43
+      },
+      {
+        "id": "personaggi-65",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/dDMs0By3/gidi.png",
+        "name": "gidi",
+        "rarity": "comune",
+        "draftCost": 14
+      },
+      {
+        "id": "personaggi-66",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/FFw3cXbd/gigi-proiettile.png",
+        "name": "gigi proiettile",
+        "rarity": "comune",
+        "draftCost": 17
+      },
+      {
+        "id": "personaggi-67",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/BQDDB7Nh/gigibaby777.png",
+        "name": "gigibaby777",
+        "rarity": "comune",
+        "draftCost": 15
+      },
+      {
+        "id": "personaggi-68",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/ryD5Kw42/gigione.png",
+        "name": "gigione",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "personaggi-69",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/CKMqYh0t/giovanni-grana.png",
+        "name": "giovanni grana",
+        "rarity": "comune",
+        "draftCost": 17
+      },
+      {
+        "id": "personaggi-70",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/GmxyZBWG/gnomo-armato-di-ascia.png",
+        "name": "gnomo armato di ascia",
+        "rarity": "rara",
+        "draftCost": 22
+      },
+      {
+        "id": "personaggi-71",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/YCHFnNst/god-zilla.png",
+        "name": "god zilla",
+        "rarity": "comune",
+        "draftCost": 14
+      },
+      {
+        "id": "personaggi-72",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/tgrV4KCg/goghi.png",
+        "name": "goghi",
+        "rarity": "rara",
+        "draftCost": 21
+      },
+      {
+        "id": "personaggi-73",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/fLJSt8Jf/goku.png",
+        "name": "goku",
+        "rarity": "epica",
+        "draftCost": 43
+      },
+      {
+        "id": "personaggi-74",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/mZ1FT6xb/golden-freezer.png",
+        "name": "golden freezer",
+        "rarity": "epica",
+        "draftCost": 36
+      },
+      {
+        "id": "personaggi-75",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/V6prjXtQ/heihachi-mishima.png",
+        "name": "heihachi mishima",
+        "rarity": "leggendaria",
+        "draftCost": 46
+      },
+      {
+        "id": "personaggi-76",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/J0XyKt3y/hippie.png",
+        "name": "hippie",
+        "rarity": "comune",
+        "draftCost": 12
+      },
+      {
+        "id": "personaggi-77",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/Nfh2F7YR/hitler.png",
+        "name": "hitler",
+        "rarity": "comune",
+        "draftCost": 14
+      },
+      {
+        "id": "personaggi-78",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/15pnqn52/holly.png",
+        "name": "holly",
+        "rarity": "comune",
+        "draftCost": 9
+      },
+      {
+        "id": "personaggi-79",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/vZb1LY4B/homer.png",
+        "name": "homer",
+        "rarity": "comune",
+        "draftCost": 5
+      },
+      {
+        "id": "personaggi-80",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/6QQygMLx/horsy.png",
+        "name": "horsy",
+        "rarity": "epica",
+        "draftCost": 40
+      },
+      {
+        "id": "personaggi-81",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/MTCHcqkz/il-fenomeno.png",
+        "name": "il fenomeno",
+        "rarity": "comune",
+        "draftCost": 4
+      },
+      {
+        "id": "personaggi-82",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/PxpNrNR6/il-pelux.png",
+        "name": "il pelux",
+        "rarity": "rara",
+        "draftCost": 18
+      },
+      {
+        "id": "personaggi-83",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/pd1pHKqh/il-zingaro.png",
+        "name": "il zingaro",
+        "rarity": "comune",
+        "draftCost": 11
+      },
+      {
+        "id": "personaggi-84",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/kGW4Kz9K/JANARA.png",
+        "name": "JANARA",
+        "rarity": "comune",
+        "draftCost": 7
+      },
+      {
+        "id": "personaggi-85",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/TYXhfdq9/jo-donatello.png",
+        "name": "jo donatello",
+        "rarity": "comune",
+        "draftCost": 11
+      },
+      {
+        "id": "personaggi-86",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/RCtqk6fh/joe-bastianich.png",
+        "name": "joe bastianich",
+        "rarity": "rara",
+        "draftCost": 20
+      },
+      {
+        "id": "personaggi-87",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/g2zJLg7L/john-cena.png",
+        "name": "john cena",
+        "rarity": "comune",
+        "draftCost": 9
+      },
+      {
+        "id": "personaggi-88",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/02djNTVq/justin-bieberon.png",
+        "name": "justin bieberon",
+        "rarity": "comune",
+        "draftCost": 12
+      },
+      {
+        "id": "personaggi-89",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/y8LNmFqQ/kim-jong-un.png",
+        "name": "kim jong un",
+        "rarity": "rara",
+        "draftCost": 20
+      },
+      {
+        "id": "personaggi-90",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/g0r2NnmY/kulungu.png",
+        "name": "kulungu",
+        "rarity": "comune",
+        "draftCost": 16
+      },
+      {
+        "id": "personaggi-91",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/s28D8sg5/la-maestra-vanda.png",
+        "name": "la maestra vanda",
+        "rarity": "comune",
+        "draftCost": 14
+      },
+      {
+        "id": "personaggi-92",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/rs2yVjWm/leeno-banfy.png",
+        "name": "leeno banfy",
+        "rarity": "epica",
+        "draftCost": 38
+      },
+      {
+        "id": "personaggi-204",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/Td0bKMF/LELO.png",
+        "name": "LELO",
+        "rarity": "comune",
+        "draftCost": 7
+      },
+      {
+        "id": "personaggi-203",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/j9m1sJjR/LELO-JR.png",
+        "name": "LELO JR",
+        "rarity": "comune",
+        "draftCost": 5
+      },
+      {
+        "id": "personaggi-186",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/spctXVPS/leo.png",
+        "name": "leo",
+        "rarity": "epica",
+        "draftCost": 31
+      },
+      {
+        "id": "personaggi-93",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/LX16FwJw/lotain.png",
+        "name": "lotain",
+        "rarity": "comune",
+        "draftCost": 14
+      },
+      {
+        "id": "personaggi-94",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/3Nj8dGCZ/luca-giurato.png",
+        "name": "luca giurato",
+        "rarity": "comune",
+        "draftCost": 11
+      },
+      {
+        "id": "personaggi-95",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/Y2QqncKm/luca-nervi.png",
+        "name": "luca nervi",
+        "rarity": "comune",
+        "draftCost": 11
+      },
+      {
+        "id": "personaggi-96",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/J4m7STMY/maestro-tondino.png",
+        "name": "maestro tondino",
+        "rarity": "epica",
+        "draftCost": 37
+      },
+      {
+        "id": "personaggi-97",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/gkDcpv0z/magally.png",
+        "name": "magally",
+        "rarity": "comune",
+        "draftCost": 8
+      },
+      {
+        "id": "personaggi-98",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/522426Hw/mago-letterius.png",
+        "name": "mago letterius",
+        "rarity": "comune",
+        "draftCost": 16
+      },
+      {
+        "id": "personaggi-99",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/fb6DCC8K/magone-alezio.png",
+        "name": "magone alezio",
+        "rarity": "rara",
+        "draftCost": 24
+      },
+      {
+        "id": "personaggi-100",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/XY1VG4Ft/majin-pupo.png",
+        "name": "majin pupo",
+        "rarity": "rara",
+        "draftCost": 18
+      },
+      {
+        "id": "personaggi-101",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/1zgyD2rX/malgioglio.png",
+        "name": "malgioglio",
+        "rarity": "comune",
+        "draftCost": 7
+      },
+      {
+        "id": "personaggi-102",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/RFK9Dt8z/mancazione.png",
+        "name": "mancazione",
+        "rarity": "rara",
+        "draftCost": 25
+      },
+      {
+        "id": "personaggi-187",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/WvZmxy07/manghik.png",
+        "name": "manghik",
+        "rarity": "rara",
+        "draftCost": 22
+      },
+      {
+        "id": "personaggi-103",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/j2TK050n/maooreetio-kostanzo.png",
+        "name": "maooreetio kostanzo",
+        "rarity": "comune",
+        "draftCost": 13
+      },
+      {
+        "id": "personaggi-188",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/mrFGLmZy/marciano-ricci.png",
+        "name": "marciano ricci",
+        "rarity": "rara",
+        "draftCost": 21
+      },
+      {
+        "id": "personaggi-104",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/BbC3q04Y/mazzamauriegl.png",
+        "name": "mazzamauriegl",
+        "rarity": "comune",
+        "draftCost": 3
+      },
+      {
+        "id": "personaggi-105",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/Dy2Fx8Pt/michele-telo.png",
+        "name": "michele telo",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "personaggi-106",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/v87b7Wfr/milhouse.png",
+        "name": "milhouse",
+        "rarity": "comune",
+        "draftCost": 5
+      },
+      {
+        "id": "personaggi-189",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/1NgqRBk/mimmetto.png",
+        "name": "mimmetto",
+        "rarity": "epica",
+        "draftCost": 35
+      },
+      {
+        "id": "personaggi-107",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/X7QWm42X/mister-x.png",
+        "name": "mister x",
+        "rarity": "comune",
+        "draftCost": 3
+      },
+      {
+        "id": "personaggi-205",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/hJkB8mp2/MMT-J.png",
+        "name": "MMT J",
+        "rarity": "comune",
+        "draftCost": 7
+      },
+      {
+        "id": "personaggi-108",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/8zcGV934/mohamed-kebabbaro-di-fiducia.png",
+        "name": "mohamed kebabbaro di fiducia",
+        "rarity": "comune",
+        "draftCost": 13
+      },
+      {
+        "id": "personaggi-109",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/cLzS1TGS/molise.png",
+        "name": "molise",
+        "rarity": "comune",
+        "draftCost": 3
+      },
+      {
+        "id": "personaggi-110",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/YSmwvgtm/monatto.png",
+        "name": "monatto",
+        "rarity": "comune",
+        "draftCost": 13
+      },
+      {
+        "id": "personaggi-111",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/FRy5Z4dr/montaquilano.png",
+        "name": "montaquilano",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "personaggi-112",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/fLnQmLbq/morte.png",
+        "name": "morte",
+        "rarity": "comune",
+        "draftCost": 14
+      },
+      {
+        "id": "personaggi-113",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/PJdGVRYm/mosca.png",
+        "name": "mosca",
+        "rarity": "comune",
+        "draftCost": 3
+      },
+      {
+        "id": "personaggi-114",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/BbprrBBR/mr-bean.png",
+        "name": "mr bean",
+        "rarity": "comune",
+        "draftCost": 5
+      },
+      {
+        "id": "personaggi-115",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/441RHXRw/mussolini.png",
+        "name": "mussolini",
+        "rarity": "comune",
+        "draftCost": 13
+      },
+      {
+        "id": "personaggi-116",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/VLLQj2Yw/nano-col-machete-normale-che-sembra-gigante.png",
+        "name": "nano col machete normale che sembra gigante",
+        "rarity": "comune",
+        "draftCost": 3
+      },
+      {
+        "id": "personaggi-117",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/m2XxVVDH/napoletano.png",
+        "name": "napoletano",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "personaggi-190",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/q6TNM0S/ndonj-manz.png",
+        "name": "ndonj manz",
+        "rarity": "comune",
+        "draftCost": 15
+      },
+      {
+        "id": "personaggi-118",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/bwW7fJ1Y/neeno-phrasseeka.png",
+        "name": "neeno phrasseeka",
+        "rarity": "rara",
+        "draftCost": 21
+      },
+      {
+        "id": "personaggi-119",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/nhCyW7jw/nero-che-beve-la-soda.png",
+        "name": "nero che beve la soda",
+        "rarity": "comune",
+        "draftCost": 16
+      },
+      {
+        "id": "personaggi-120",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/zB143cd9/neuer.png",
+        "name": "neuer",
+        "rarity": "comune",
+        "draftCost": 3
+      },
+      {
+        "id": "personaggi-121",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/xCyhm3hq/neymar-jr.png",
+        "name": "neymar jr",
+        "rarity": "comune",
+        "draftCost": 3
+      },
+      {
+        "id": "personaggi-191",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/hRj6wfF7/nicodemo-lo-stregone-del-covid.png",
+        "name": "nicodemo lo stregone del covid",
+        "rarity": "epica",
+        "draftCost": 32
+      },
+      {
+        "id": "personaggi-122",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/Y0dPnqpH/niko-bellic.png",
+        "name": "niko bellic",
+        "rarity": "epica",
+        "draftCost": 32
+      },
+      {
+        "id": "personaggi-123",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/sxj84ZCm/nokia-3310.png",
+        "name": "nokia 3310",
+        "rarity": "leggendaria",
+        "draftCost": 50
+      },
+      {
+        "id": "personaggi-124",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/66cF5zCm/o-pappon.png",
+        "name": "o pappon",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "personaggi-125",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/ZKq293cK/obama.png",
+        "name": "obama",
+        "rarity": "comune",
+        "draftCost": 16
+      },
+      {
+        "id": "personaggi-126",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/htk53Yqf/one-direction.png",
+        "name": "one direction",
+        "rarity": "comune",
+        "draftCost": 11
+      },
+      {
+        "id": "personaggi-127",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/P5p7yj9g/opossum-con-la-rabbia.png",
+        "name": "opossum con la rabbia",
+        "rarity": "comune",
+        "draftCost": 12
+      },
+      {
+        "id": "personaggi-128",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/651SC3jV/panino-malefico.png",
+        "name": "panino malefico",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "personaggi-129",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/rp5P698g/paolo-bitta.png",
+        "name": "paolo bitta",
+        "rarity": "comune",
+        "draftCost": 11
+      },
+      {
+        "id": "personaggi-130",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/vBMSG6Ty/pap.png",
+        "name": "pap",
+        "rarity": "comune",
+        "draftCost": 9
+      },
+      {
+        "id": "personaggi-131",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/j5X32dn7/parassita.png",
+        "name": "parassita",
+        "rarity": "comune",
+        "draftCost": 7
+      },
+      {
+        "id": "personaggi-132",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/0jXtGWf5/pasquale-s.png",
+        "name": "pasquale s",
+        "rarity": "comune",
+        "draftCost": 13
+      },
+      {
+        "id": "personaggi-192",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/6fYR3Jf/pasqualino-paonazzo.png",
+        "name": "pasqualino paonazzo",
+        "rarity": "comune",
+        "draftCost": 14
+      },
+      {
+        "id": "personaggi-193",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/S4xYVF5y/pasquy-jr.png",
+        "name": "pasquy jr",
+        "rarity": "comune",
+        "draftCost": 5
+      },
+      {
+        "id": "personaggi-133",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/fyR29nYg/peeo.png",
+        "name": "peeo",
+        "rarity": "epica",
+        "draftCost": 36
+      },
+      {
+        "id": "personaggi-194",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/VYXtgVB4/peppe-zona.png",
+        "name": "peppe zona",
+        "rarity": "comune",
+        "draftCost": 9
+      },
+      {
+        "id": "personaggi-134",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/pVs1trHN/peter.png",
+        "name": "peter",
+        "rarity": "comune",
+        "draftCost": 5
+      },
+      {
+        "id": "personaggi-135",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/65SjyPqY/piero-angela-che-fa-la-kamehameha.png",
+        "name": "piero angela che fa la kamehameha",
+        "rarity": "epica",
+        "draftCost": 36
+      },
+      {
+        "id": "personaggi-136",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/YqjD27rv/pingu.png",
+        "name": "pingu",
+        "rarity": "comune",
+        "draftCost": 9
+      },
+      {
+        "id": "personaggi-137",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/13qW6KNP/pippo-raudo.png",
+        "name": "pippo raudo",
+        "rarity": "comune",
+        "draftCost": 17
+      },
+      {
+        "id": "personaggi-138",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/LsFxVZzP/poliziotto.png",
+        "name": "poliziotto",
+        "rarity": "comune",
+        "draftCost": 13
+      },
+      {
+        "id": "personaggi-139",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/KY7JpvNH/pollon.png",
+        "name": "pollon",
+        "rarity": "comune",
+        "draftCost": 11
+      },
+      {
+        "id": "personaggi-140",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/LXHvcKQ6/pontius-pilatus.png",
+        "name": "pontius pilatus",
+        "rarity": "comune",
+        "draftCost": 16
+      },
+      {
+        "id": "personaggi-141",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/3Rn97Szj/popeye.png",
+        "name": "popeye",
+        "rarity": "comune",
+        "draftCost": 15
+      },
+      {
+        "id": "personaggi-142",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/WzynqDNh/poseidone.png",
+        "name": "poseidone",
+        "rarity": "epica",
+        "draftCost": 34
+      },
+      {
+        "id": "personaggi-195",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/wZgnj7Bj/pql.png",
+        "name": "pql",
+        "rarity": "rara",
+        "draftCost": 26
+      },
+      {
+        "id": "personaggi-143",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/G3gz5fFd/procione-insatanato.png",
+        "name": "procione insatanato",
+        "rarity": "comune",
+        "draftCost": 15
+      },
+      {
+        "id": "personaggi-144",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/RV3G5Tdf/psy.png",
+        "name": "psy",
+        "rarity": "comune",
+        "draftCost": 17
+      },
+      {
+        "id": "personaggi-145",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/YqJRpmDP/putin.png",
+        "name": "putin",
+        "rarity": "rara",
+        "draftCost": 21
+      },
+      {
+        "id": "personaggi-146",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/6QKhZxXL/razzi.png",
+        "name": "razzi",
+        "rarity": "comune",
+        "draftCost": 12
+      },
+      {
+        "id": "personaggi-147",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/TPcJqN28/real-gee.png",
+        "name": "real gee",
+        "rarity": "comune",
+        "draftCost": 16
+      },
+      {
+        "id": "personaggi-196",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/HfjCZWMj/renato-castaldi.png",
+        "name": "renato castaldi",
+        "rarity": "comune",
+        "draftCost": 17
+      },
+      {
+        "id": "personaggi-148",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/CxkNdLWx/riccio-pic.png",
+        "name": "riccio pic",
+        "rarity": "comune",
+        "draftCost": 5
+      },
+      {
+        "id": "personaggi-149",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/wvTcW531/romina-power.png",
+        "name": "romina power",
+        "rarity": "rara",
+        "draftCost": 21
+      },
+      {
+        "id": "personaggi-206",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/wZjh9BTV/SABATINO.png",
+        "name": "SABATINO",
+        "rarity": "comune",
+        "draftCost": 16
+      },
+      {
+        "id": "personaggi-150",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/RFs123nX/saibaim.png",
+        "name": "saibaim",
+        "rarity": "comune",
+        "draftCost": 12
+      },
+      {
+        "id": "personaggi-197",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/Xrp613M2/sandro.png",
+        "name": "sandro",
+        "rarity": "rara",
+        "draftCost": 28
+      },
+      {
+        "id": "personaggi-151",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/6qFr5DcZ/saverio.png",
+        "name": "saverio",
+        "rarity": "epica",
+        "draftCost": 38
+      },
+      {
+        "id": "personaggi-152",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/VvJ9wYq1/sciallcuan.png",
+        "name": "sciallcuan",
+        "rarity": "comune",
+        "draftCost": 12
+      },
+      {
+        "id": "personaggi-153",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/BQ15wnZB/scimmia-strafatta.png",
+        "name": "scimmia strafatta",
+        "rarity": "comune",
+        "draftCost": 8
+      },
+      {
+        "id": "personaggi-154",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/Mp20kJv2/scream.png",
+        "name": "scream",
+        "rarity": "rara",
+        "draftCost": 21
+      },
+      {
+        "id": "personaggi-198",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/0VFHth9L/SCURZONE.png",
+        "name": "SCURZONE",
+        "rarity": "epica",
+        "draftCost": 33
+      },
+      {
+        "id": "personaggi-155",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/2SQQr9Zq/shorty.png",
+        "name": "shorty",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "personaggi-156",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/FKhjRbyT/silvano.png",
+        "name": "silvano",
+        "rarity": "comune",
+        "draftCost": 5
+      },
+      {
+        "id": "personaggi-157",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/KYQtgKQx/silver-silvio.png",
+        "name": "silver silvio",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "personaggi-199",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/FQ431Zk/spadino.png",
+        "name": "spadino",
+        "rarity": "comune",
+        "draftCost": 11
+      },
+      {
+        "id": "personaggi-158",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/hjjT8S3x/stalin.png",
+        "name": "stalin",
+        "rarity": "comune",
+        "draftCost": 17
+      },
+      {
+        "id": "personaggi-159",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/NMzTpWWn/stewie.png",
+        "name": "stewie",
+        "rarity": "comune",
+        "draftCost": 14
+      },
+      {
+        "id": "personaggi-160",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/yx3R5LK8/super-mario.png",
+        "name": "super mario",
+        "rarity": "comune",
+        "draftCost": 12
+      },
+      {
+        "id": "personaggi-200",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/HfMsKm5w/tamburello.png",
+        "name": "tamburello",
+        "rarity": "epica",
+        "draftCost": 31
+      },
+      {
+        "id": "personaggi-161",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/s1FWR5f9/ted.png",
+        "name": "ted",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "personaggi-162",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/Pf0VqcPK/teetseano.png",
+        "name": "teetseano",
+        "rarity": "rara",
+        "draftCost": 21
+      },
+      {
+        "id": "personaggi-163",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/Kc1sxFvR/terence-hill.png",
+        "name": "terence hill",
+        "rarity": "rara",
+        "draftCost": 23
+      },
+      {
+        "id": "personaggi-164",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/bNbCSTnP/the-roak.png",
+        "name": "the roak",
+        "rarity": "rara",
+        "draftCost": 18
+      },
+      {
+        "id": "personaggi-165",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/13rvJ3MY/the-rock.png",
+        "name": "the rock",
+        "rarity": "leggendaria",
+        "draftCost": 50
+      },
+      {
+        "id": "personaggi-166",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/wjpWXm5m/tizio-jamaicano.png",
+        "name": "tizio jamaicano",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "personaggi-167",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/MGZd4JFZ/tizio-mafioso.png",
+        "name": "tizio mafioso",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "personaggi-168",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/wBW0Y4CX/tony-tammaro.png",
+        "name": "tony tammaro",
+        "rarity": "rara",
+        "draftCost": 21
+      },
+      {
+        "id": "personaggi-169",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/bJsLyHPK/true-mattarella.png",
+        "name": "true mattarella",
+        "rarity": "leggendaria",
+        "draftCost": 49
+      },
+      {
+        "id": "personaggi-170",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/909pTmrb/vegeta.png",
+        "name": "vegeta",
+        "rarity": "epica",
+        "draftCost": 42
+      },
+      {
+        "id": "personaggi-171",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/mDJjtz2h/vu-cumpr.png",
+        "name": "vu cumpr",
+        "rarity": "comune",
+        "draftCost": 8
+      },
+      {
+        "id": "personaggi-201",
+        "type": "personaggi",
+        "frontImage": "https://i.ibb.co/g07rGVW/z-a.png",
+        "name": "z a",
+        "rarity": "comune",
+        "draftCost": 8
+      },
+      {
+        "id": "personaggi-174",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/15pB3zx5/z-vcienz.png",
+        "name": "z vcienz",
+        "rarity": "comune",
+        "draftCost": 3
+      },
+      {
+        "id": "personaggi-172",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/kMRwLcfS/zanzara.png",
+        "name": "zanzara",
+        "rarity": "comune",
+        "draftCost": 6
+      },
+      {
+        "id": "personaggi-173",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/3JM9hvcc/zeus.png",
+        "name": "zeus",
+        "rarity": "leggendaria",
+        "draftCost": 47
+      },
+      {
+        "id": "personaggi-175",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/3x1Z2bJs/zio-gregorio.png",
+        "name": "zio gregorio",
+        "rarity": "epica",
+        "draftCost": 33
+      },
+      {
+        "id": "personaggi-176",
+        "type": "personaggi",
+        "frontImage": "https://i.postimg.cc/rwMJ0LcG/zio-michele.png",
+        "name": "zio michele",
+        "rarity": "comune",
+        "draftCost": 8
+      },
+      {
+        "id": "mosse-1",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/4ZQjYYkZ/accettata.png",
+        "name": "accettata",
+        "rarity": "leggendaria",
+        "draftCost": 70
+      },
+      {
+        "id": "mosse-2",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/99wLbD9L/acchiappt-chessa.png",
+        "name": "acchiappt chessa",
+        "rarity": "rara",
+        "draftCost": 40
+      },
+      {
+        "id": "mosse-3",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/Ld485J59/ago-di-pino.png",
+        "name": "ago di pino",
+        "rarity": "leggendaria",
+        "draftCost": 90
+      },
+      {
+        "id": "mosse-4",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/KjyM2Ns6/assorbimento.png",
+        "name": "assorbimento",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-8",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/ZzdFWqBZ/attacco.png",
+        "name": "attacco",
+        "rarity": "rara",
+        "draftCost": 40
+      },
+      {
+        "id": "mosse-5",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/ZpQ7JsFG/attacco-combinato.png",
+        "name": "attacco combinato",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "mosse-6",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/PZR61NhJ/attacco-disonesto.png",
+        "name": "attacco disonesto",
+        "rarity": "rara",
+        "draftCost": 40
+      },
+      {
+        "id": "mosse-7",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/tPMfqdZV/attacco-kamikaze.png",
+        "name": "attacco kamikaze",
+        "rarity": "rara",
+        "draftCost": 40
+      },
+      {
+        "id": "mosse-10",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/5h58X11J/bomba.png",
+        "name": "bomba",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-9",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/KjYQDsFZ/bomba-senza-detonatore.png",
+        "name": "bomba senza detonatore",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "mosse-11",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/TDxDZYxD/bottigliata-di-piscio.png",
+        "name": "bottigliata di piscio",
+        "rarity": "rara",
+        "draftCost": 40
+      },
+      {
+        "id": "mosse-12",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/bjg4DpdH/calcio-in-culo.png",
+        "name": "calcio in culo",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-13",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/kgrxyXKm/calcio-rotante.png",
+        "name": "calcio rotante",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-14",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/sJC8Z702/calcio-volante.png",
+        "name": "calcio volante",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-15",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/Fq4GCWV9/canzone-neomelodica.png",
+        "name": "canzone neomelodica",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-16",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/QFpS7tnT/capata.png",
+        "name": "capata",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-17",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/C3w0wJ98/catapulta-infernale.png",
+        "name": "catapulta infernale",
+        "rarity": "rara",
+        "draftCost": 40
+      },
+      {
+        "id": "mosse-18",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/W4Wr4wHC/cazzotto-in-testa.png",
+        "name": "cazzotto in testa",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-19",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/gZLYq47s/che-cazzo-dici-vaffanculo.png",
+        "name": "che cazzo dici vaffanculo",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-20",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/Fkf3hSC0/ciavatta.png",
+        "name": "ciavatta",
+        "rarity": "rara",
+        "draftCost": 40
+      },
+      {
+        "id": "mosse-21",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/tpJ5C0jy/come-un-pazzo-ah-pueh.png",
+        "name": "come un pazzo ah pueh",
+        "rarity": "rara",
+        "draftCost": 40
+      },
+      {
+        "id": "mosse-22",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/XZ5F0kBL/contrattazione-clandestina.png",
+        "name": "contrattazione clandestina",
+        "rarity": "rara",
+        "draftCost": 40
+      },
+      {
+        "id": "mosse-23",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/67N748mk/cuppino.png",
+        "name": "cuppino",
+        "rarity": "comune",
+        "draftCost": 15
+      },
+      {
+        "id": "mosse-24",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/rKXtTQDp/degli-uman-piacer-non-si-bisticci-a-chi-piace-la-cacca-e-a-chi-i-pasticci.png",
+        "name": "Degli uman piacer non si bisticci a chi piace la cacca e a chi i pasticci",
+        "rarity": "epica",
+        "draftCost": 60
+      },
+      {
+        "id": "mosse-25",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/PvccsXRm/diffusione-grezzume.png",
+        "name": "diffusione grezzume",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-26",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/nMmLjBbP/duello.png",
+        "name": "duello",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-27",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/7JbxVn3n/esplosione-atomica.png",
+        "name": "esplosione atomica",
+        "rarity": "epica",
+        "draftCost": 60
+      },
+      {
+        "id": "mosse-30",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/9kSycj31/f-r-cina.png",
+        "name": "f r cina",
+        "rarity": "rara",
+        "draftCost": 40
+      },
+      {
+        "id": "mosse-28",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/chQ9Rv0X/falafel.png",
+        "name": "falafel",
+        "rarity": "comune",
+        "draftCost": 15
+      },
+      {
+        "id": "mosse-29",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/zVxvvdcq/final-flash.png",
+        "name": "final flash",
+        "rarity": "rara",
+        "draftCost": 40
+      },
+      {
+        "id": "mosse-31",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/bgGR2J6F/fregatura.png",
+        "name": "fregatura",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-32",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/Mk1mtzdy/frog-splash.png",
+        "name": "frog splash",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-33",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/p6HsRdF7/frushtalla.png",
+        "name": "frushtalla",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "mosse-34",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/21FPwH1z/fucile-a-pompa.png",
+        "name": "fucile a pompa",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-35",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/fzM5xj20/funnatiegl.png",
+        "name": "funnatiegl",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-36",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/DDc6zgX7/furto.png",
+        "name": "furto",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "mosse-37",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/ZzMVLcw9/gilet-color-verde-fastidio.png",
+        "name": "gilet color verde fastidio",
+        "rarity": "comune",
+        "draftCost": 15
+      },
+      {
+        "id": "mosse-38",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/Z6cf0t4B/ginocchiata-volante.png",
+        "name": "ginocchiata volante",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-39",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/vx1WWsrP/guscio-blu.png",
+        "name": "guscio blu",
+        "rarity": "comune",
+        "draftCost": 15
+      },
+      {
+        "id": "mosse-40",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/ns5cP4DW/influenza.png",
+        "name": "influenza",
+        "rarity": "comune",
+        "draftCost": 15
+      },
+      {
+        "id": "mosse-41",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/XxmVSshc/io-ti-schiatoooo.png",
+        "name": "io ti schiatoooo",
+        "rarity": "epica",
+        "draftCost": 60
+      },
+      {
+        "id": "mosse-42",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/yFKJgPzw/kebab.png",
+        "name": "kebab",
+        "rarity": "comune",
+        "draftCost": 15
+      },
+      {
+        "id": "mosse-43",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/jvP0nFkF/kung-fu-panza.png",
+        "name": "kung fu panza",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-46",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/VcSg8b7S/l-ho-solo-sfiorata-un-po.png",
+        "name": "l ho solo sfiorata un po",
+        "rarity": "comune",
+        "draftCost": 8
+      },
+      {
+        "id": "mosse-44",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/0R1hKPxf/leccamousse.png",
+        "name": "leccamousse",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-45",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/2mP557L/LELLELLELELLELLELELLEELELLELELELLELELE.png",
+        "name": "LELLELLELELLELLELELLEELELLELELELLELELE",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "mosse-47",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/1fDTcMLT/lu-trattore.png",
+        "name": "lu trattore",
+        "rarity": "rara",
+        "draftCost": 40
+      },
+      {
+        "id": "mosse-48",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/ZprDtkyS/lupara.png",
+        "name": "lupara",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-49",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/TBGtKzsB/ma-che-t-hanno-fatto-ma-t-hanno-fatto-qualcosa.png",
+        "name": "ma che t hanno fatto ma t hanno fatto qualcosa",
+        "rarity": "leggendaria",
+        "draftCost": 80
+      },
+      {
+        "id": "mosse-50",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/Kz2bMpry/magma.png",
+        "name": "magma",
+        "rarity": "comune",
+        "draftCost": 15
+      },
+      {
+        "id": "mosse-51",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/MyzJ0YQ1/mazza-da-baseball.png",
+        "name": "mazza da baseball",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-52",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/k60Z8DQz/mazzata-tra-capo-e-collo.png",
+        "name": "mazzata tra capo e collo",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-53",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/LzRT0MS9/mina-vagante.png",
+        "name": "mina vagante",
+        "rarity": "rara",
+        "draftCost": 40
+      },
+      {
+        "id": "mosse-54",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/8LPSyCG8/mini-cicciolo.png",
+        "name": "mini cicciolo",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "mosse-55",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/4Z5WL1fq/mo-c-abbusc.png",
+        "name": "mo c abbusc",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-56",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/gM1NTF54/mo-m-cacc-la-curea.png",
+        "name": "mo m cacc la curea",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-57",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/XkFZvVf9/mo-t-arrmotc.png",
+        "name": "mo t arrmotc",
+        "rarity": "rara",
+        "draftCost": 40
+      },
+      {
+        "id": "mosse-58",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/kkwgNH9/motosega.png",
+        "name": "motosega",
+        "rarity": "rara",
+        "draftCost": 40
+      },
+      {
+        "id": "mosse-59",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/Q3yR8BTJ/mutilazione.png",
+        "name": "mutilazione",
+        "rarity": "epica",
+        "draftCost": 50
+      },
+      {
+        "id": "mosse-60",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/GQ2nS4vC/ombelico-lanciafiamme.png",
+        "name": "ombelico lanciafiamme",
+        "rarity": "rara",
+        "draftCost": 40
+      },
+      {
+        "id": "mosse-61",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/RT3w3zYS/onda-energetica.png",
+        "name": "onda energetica",
+        "rarity": "epica",
+        "draftCost": 60
+      },
+      {
+        "id": "mosse-62",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/8nV8Lgyh/ostaggio.png",
+        "name": "ostaggio",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-63",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/QF7JRsk5/pacca.png",
+        "name": "pacca",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-64",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/xSpsHP3y/padellata-in-faccia.png",
+        "name": "padellata in faccia",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-65",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/zhS8GL2R/partita-di-tennis.png",
+        "name": "partita di tennis",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-66",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/zHb74T4P/pioggia-di-aghi-di-pino.png",
+        "name": "pioggia di aghi di pino",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-67",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/RGVnrqBZ/pioggia-di-meteoriti.png",
+        "name": "pioggia di meteoriti",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-68",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/0RJJDbSV/pizzico.png",
+        "name": "pizzico",
+        "rarity": "comune",
+        "draftCost": 8
+      },
+      {
+        "id": "mosse-69",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/mCRC0McY/preja-dd-ca-n-t-acchiapp.png",
+        "name": "preja dd ca n t acchiapp",
+        "rarity": "rara",
+        "draftCost": 40
+      },
+      {
+        "id": "mosse-70",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/dwSLf01Z/preta.png",
+        "name": "preta",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-71",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/fzbfYgnq/progiettile-litale.png",
+        "name": "progiettile litale",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-73",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/pBtPYvzg/pugno.png",
+        "name": "pugno",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-72",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/Gf2Lzch3/pugno-della-radiosa-primavera.png",
+        "name": "pugno della radiosa primavera",
+        "rarity": "rara",
+        "draftCost": 40
+      },
+      {
+        "id": "mosse-74",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/ZzX83YXV/puozza-itt-l-sang.png",
+        "name": "puozza itt l sang",
+        "rarity": "comune",
+        "draftCost": 8
+      },
+      {
+        "id": "mosse-75",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/DDL4XbdW/rissa.png",
+        "name": "rissa",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "mosse-76",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/LzC3QmpC/roulette-russa.png",
+        "name": "roulette russa",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "mosse-77",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/Y7PQDX3y/saetta.png",
+        "name": "saetta",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-0",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/35jjYwTX/sempafaagara.png",
+        "name": "sempafaagara",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-78",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/Y4S2ZmNJ/senso-di-colpa.png",
+        "name": "senso di colpa",
+        "rarity": "comune",
+        "draftCost": 15
+      },
+      {
+        "id": "mosse-79",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/qF2yVm8C/spallino.png",
+        "name": "spallino",
+        "rarity": "leggendaria",
+        "draftCost": 85
+      },
+      {
+        "id": "mosse-80",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/rRVR5YQS/sprangata.png",
+        "name": "sprangata",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-81",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/j9vpDLx2/sputo.png",
+        "name": "sputo",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-82",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/676kqxRK/sterminio.png",
+        "name": "sterminio",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-83",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/FkVYYYZQ/stomp.png",
+        "name": "stomp",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-84",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/Pz4RDTHN/sveglia-palestinese.png",
+        "name": "sveglia palestinese",
+        "rarity": "rara",
+        "draftCost": 40
+      },
+      {
+        "id": "mosse-85",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/fdVMkZkm/tanfo.png",
+        "name": "tanfo",
+        "rarity": "comune",
+        "draftCost": 15
+      },
+      {
+        "id": "mosse-86",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/yByKr5sW/tiro-ganzo.png",
+        "name": "tiro ganzo",
+        "rarity": "rara",
+        "draftCost": 40
+      },
+      {
+        "id": "mosse-87",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/fYgKSN3w/torretta.png",
+        "name": "torretta",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "mosse-88",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/fVmjZkJP/uuuuuh.png",
+        "name": "uuuuuh",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-89",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/twtBbpg6/verza.png",
+        "name": "verza",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "mosse-90",
+        "type": "mosse",
+        "frontImage": "https://i.ibb.co/d0sJXCVH/virus.png",
+        "name": "virus",
+        "rarity": "comune",
+        "draftCost": 25
+      },
+      {
+        "id": "bonus-1",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/Gh4g1ct2/5-GGGGG.png",
+        "name": "5 GGGGG",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-2",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/TYB7dZ5c/AGGLOMERA-LEGHE.png",
+        "name": "AGGLOMERA LEGHE",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-3",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/FHcP7DjX/Ah-ah-primo-nel-Rankiard.png",
+        "name": "Ah ah primo nel Rankiard",
+        "rarity": "epica",
+        "draftCost": 50
+      },
+      {
+        "id": "bonus-4",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/SKhg8Cr2/ALTA-SALVA.png",
+        "name": "ALTA SALVA",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-5",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/Ls3NV5Cy/AMEECO.png",
+        "name": "AMEECO",
+        "rarity": "leggendaria",
+        "draftCost": 55
+      },
+      {
+        "id": "bonus-6",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/NMGbCtZQ/apocalisse.png",
+        "name": "apocalisse",
+        "rarity": "epica",
+        "draftCost": 40
+      },
+      {
+        "id": "bonus-7",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/W398QKPg/assicurazione.png",
+        "name": "assicurazione",
+        "rarity": "comune",
+        "draftCost": 5
+      },
+      {
+        "id": "bonus-8",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/4ymPZ5JM/asta.png",
+        "name": "asta",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-9",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/qqSL73q7/attacco-multiplo.png",
+        "name": "attacco multiplo",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-10",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/QNySmRmr/attacco-simultaneo.png",
+        "name": "attacco simultaneo",
+        "rarity": "leggendaria",
+        "draftCost": 55
+      },
+      {
+        "id": "bonus-11",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/hPQs5pZQ/azz-tuost-sant-rocc.png",
+        "name": "azz tuost sant rocc",
+        "rarity": "comune",
+        "draftCost": 5
+      },
+      {
+        "id": "bonus-161",
+        "type": "bonus",
+        "frontImage": "https://i.ibb.co/TCqY21v/BAMBOLA-VOODOO.png",
+        "name": "BAMBOLA VOODOO",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-12",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/sgFmd7b6/baratto.png",
+        "name": "baratto",
+        "rarity": "epica",
+        "draftCost": 25
+      },
+      {
+        "id": "bonus-13",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/y8FPVWHV/barriera.png",
+        "name": "barriera",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-14",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/Pxqzz48x/blocco.png",
+        "name": "blocco",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-15",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/qvX8PYsq/bolla-di-sapone.png",
+        "name": "bolla di sapone",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-16",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/TPdrf909/boomerang.png",
+        "name": "boomerang",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-17",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/TwSmjX67/buscopan.png",
+        "name": "buscopan",
+        "rarity": "comune",
+        "draftCost": 5
+      },
+      {
+        "id": "bonus-18",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/J7vQRkGk/CALADIBBOTTO.png",
+        "name": "CALADIBBOTTO",
+        "rarity": "epica",
+        "draftCost": 40
+      },
+      {
+        "id": "bonus-19",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/8zDMCBDj/Capi-devo-and-alla-vigna.png",
+        "name": "Capi devo and alla vigna",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-20",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/6qn4WTmr/CAPI-Io-mi-mozzarellino-qua.png",
+        "name": "CAPI Io mi mozzarellino qua",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-21",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/65xGHL8Y/carica.png",
+        "name": "carica",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-0",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/jq77QkSD/ccezionale.png",
+        "name": "ccezionale",
+        "rarity": "comune",
+        "draftCost": 5
+      },
+      {
+        "id": "bonus-22",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/135XTWsc/chocoroak.png",
+        "name": "chocoroak",
+        "rarity": "comune",
+        "draftCost": 5
+      },
+      {
+        "id": "bonus-23",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/C1DxDXsY/ciclone.png",
+        "name": "ciclone",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-24",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/CMsFgjvv/cimitero-vuoto.png",
+        "name": "cimitero vuoto",
+        "rarity": "epica",
+        "draftCost": 40
+      },
+      {
+        "id": "bonus-25",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/zfhrPWbF/cipolla.png",
+        "name": "cipolla",
+        "rarity": "comune",
+        "draftCost": 5
+      },
+      {
+        "id": "bonus-26",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/vZkyzXBm/clonazione.png",
+        "name": "clonazione",
+        "rarity": "leggendaria",
+        "draftCost": 55
+      },
+      {
+        "id": "bonus-27",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/fyzQLrH8/coevoluzione.png",
+        "name": "coevoluzione",
+        "rarity": "epica",
+        "draftCost": 40
+      },
+      {
+        "id": "bonus-28",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/0QChLC8D/comunismo.png",
+        "name": "comunismo",
+        "rarity": "epica",
+        "draftCost": 45
+      },
+      {
+        "id": "bonus-29",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/XvShqPq9/con-il-mio-voto-posso-confermare-o-ribaltare-il-risultato.png",
+        "name": "con il mio voto posso confermare o ribaltare il risultato",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-30",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/KYPWM53w/contro-skrazzkoom.png",
+        "name": "contro skrazzkoom",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-31",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/wjsZ6zq6/conversione.png",
+        "name": "conversione",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-32",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/Bb67R97f/corruzione.png",
+        "name": "corruzione",
+        "rarity": "comune",
+        "draftCost": 5
+      },
+      {
+        "id": "bonus-33",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/HnhvgZFc/CRISALIDE.png",
+        "name": "CRISALIDE",
+        "rarity": "epica",
+        "draftCost": 50
+      },
+      {
+        "id": "bonus-34",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/2jcKhy3k/Crossover.png",
+        "name": "Crossover",
+        "rarity": "leggendaria",
+        "draftCost": 65
+      },
+      {
+        "id": "bonus-35",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/HsrP2m7Q/deminkiatore.png",
+        "name": "deminkiatore",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-36",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/7YjttRgj/detonatore.png",
+        "name": "detonatore",
+        "rarity": "comune",
+        "draftCost": 5
+      },
+      {
+        "id": "bonus-37",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/8zWK2b4c/difesa-vigliacca.png",
+        "name": "difesa vigliacca",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-38",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/MGSPqj3D/disinnesca-bomba.png",
+        "name": "disinnesca bomba",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-39",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/ZqxfRK1h/distruzione-totale.png",
+        "name": "distruzione totale",
+        "rarity": "leggendaria",
+        "draftCost": 90
+      },
+      {
+        "id": "bonus-40",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/LX4xZFpg/dittatura.png",
+        "name": "dittatura",
+        "rarity": "comune",
+        "draftCost": 5
+      },
+      {
+        "id": "bonus-43",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/XqmLhZy9/divertente.png",
+        "name": "divertente",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-41",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/qRmjsDJb/divisione.png",
+        "name": "divisione",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-42",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/mktV83hb/doping.png",
+        "name": "doping",
+        "rarity": "comune",
+        "draftCost": 5
+      },
+      {
+        "id": "bonus-44",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/3rctWqbW/e-nn-t-mitt-sscuorn.png",
+        "name": "e nn t mitt sscuorn",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-45",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/gkLNhKfs/E-rispondi-Pure.png",
+        "name": "E rispondi Pure",
+        "rarity": "leggendaria",
+        "draftCost": 60
+      },
+      {
+        "id": "bonus-46",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/L8dv31Sp/e-tagg-trattat.png",
+        "name": "e tagg trattat",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-48",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/k5qckPDY/eredit.png",
+        "name": "eredit",
+        "rarity": "epica",
+        "draftCost": 40
+      },
+      {
+        "id": "bonus-49",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/Pqy4HVwX/evoluzione-arcobaleno.png",
+        "name": "evoluzione arcobaleno",
+        "rarity": "epica",
+        "draftCost": 50
+      },
+      {
+        "id": "bonus-50",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/PxqM5bWm/evoluzione-blu.png",
+        "name": "evoluzione blu",
+        "rarity": "epica",
+        "draftCost": 50
+      },
+      {
+        "id": "bonus-51",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/nzwGjs2N/evoluzione-giallo.png",
+        "name": "evoluzione giallo",
+        "rarity": "epica",
+        "draftCost": 50
+      },
+      {
+        "id": "bonus-52",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/x8JyK0F8/evoluzione-rossa.png",
+        "name": "evoluzione rossa",
+        "rarity": "epica",
+        "draftCost": 50
+      },
+      {
+        "id": "bonus-53",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/J0f3x99q/evoluzione-verde.png",
+        "name": "evoluzione verde",
+        "rarity": "epica",
+        "draftCost": 50
+      },
+      {
+        "id": "bonus-54",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/HWRFFjmS/FACCIO-QUELLO-CHE-VOGLIO.png",
+        "name": "FACCIO QUELLO CHE VOGLIO",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-55",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/KcRd9B6k/fagiolo-di-balzar.png",
+        "name": "fagiolo di balzar",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-56",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/28WgYm8C/fantafinanza.png",
+        "name": "fantafinanza",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-57",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/cLN24jrw/fatto-come-una-pigna.png",
+        "name": "fatto come una pigna",
+        "rarity": "comune",
+        "draftCost": 5
+      },
+      {
+        "id": "bonus-58",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/y8X5JPZ5/fiaschetta.png",
+        "name": "fiaschetta",
+        "rarity": "comune",
+        "draftCost": 5
+      },
+      {
+        "id": "bonus-59",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/25ktnZd5/folata-di-venta.png",
+        "name": "folata di venta",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-60",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/SKgvdxVf/fusione.png",
+        "name": "fusione",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-61",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/63T1mxmJ/galassia.png",
+        "name": "galassia",
+        "rarity": "epica",
+        "draftCost": 45
+      },
+      {
+        "id": "bonus-62",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/G2NS0gWB/gangnam.png",
+        "name": "gangnam",
+        "rarity": "epica",
+        "draftCost": 40
+      },
+      {
+        "id": "bonus-63",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/5yCKfqJs/gasata.png",
+        "name": "gasata",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-64",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/T2L4jGbn/gioco-d-azzardo.png",
+        "name": "gioco d azzardo",
+        "rarity": "epica",
+        "draftCost": 20
+      },
+      {
+        "id": "bonus-65",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/zDsP0Mw6/Harakiri.png",
+        "name": "Harakiri",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-66",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/65CbS0Y3/HO-STATO-IO.png",
+        "name": "HO STATO IO",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-67",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/mgRpGH5S/IBERNAZIONE.png",
+        "name": "IBERNAZIONE",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-68",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/XY8HNvM6/il-dado-del-giudizio.png",
+        "name": "il dado del giudizio",
+        "rarity": "epica",
+        "draftCost": 50
+      },
+      {
+        "id": "bonus-69",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/rpwhDLc0/IL-SORRISO-AMARO-DI-BOB-DYLAN.png",
+        "name": "IL SORRISO AMARO DI BOB DYLAN",
+        "rarity": "epica",
+        "draftCost": 40
+      },
+      {
+        "id": "bonus-70",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/3wftpbJL/IMITAZIONE.png",
+        "name": "IMITAZIONE",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-71",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/FRfDxgYh/internet-explorer.png",
+        "name": "internet explorer",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-72",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/85qwXJvM/INVERTI-GIRO.png",
+        "name": "INVERTI GIRO",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-73",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/3Nm1s8j6/IO-SEMBRO.png",
+        "name": "IO SEMBRO",
+        "rarity": "epica",
+        "draftCost": 50
+      },
+      {
+        "id": "bonus-74",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/FFLTdptZ/kainoken.png",
+        "name": "kainoken",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-75",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/bNf3Qnpj/la-bevanda-del-vero-ciclista.png",
+        "name": "la bevanda del vero ciclista",
+        "rarity": "comune",
+        "draftCost": 5
+      },
+      {
+        "id": "bonus-76",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/bN0LLvwS/lega-camera-caf.png",
+        "name": "lega camera caf",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-77",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/Jz1xFWs6/lega-ganza.png",
+        "name": "lega ganza",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-78",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/Cxm7T6DF/lega-griffin.png",
+        "name": "lega griffin",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-79",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/VNvRYBBX/lega-olimpo.png",
+        "name": "lega olimpo",
+        "rarity": "epica",
+        "draftCost": 50
+      },
+      {
+        "id": "bonus-80",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/zfQk3b06/lega-sayan.png",
+        "name": "lega sayan",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-81",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/XJyk5jPJ/lega-simpson.png",
+        "name": "lega simpson",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-82",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/prbYJNNB/m-di-majin-bu.png",
+        "name": "m di majin bu",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-83",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/L5tkyy2F/ma-che-cocco-melone.png",
+        "name": "ma che cocco melone",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-84",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/MZVYKGR3/macchina-del-tempo.png",
+        "name": "macchina del tempo",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-85",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/SNG7CtgW/macumba.png",
+        "name": "macumba",
+        "rarity": "epica",
+        "draftCost": 20
+      },
+      {
+        "id": "bonus-86",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/ZKmx9hxb/Mbacc-a-Z-Vcienz.png",
+        "name": "Mbacc a Z Vcienz",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-87",
+        "type": "bonus",
+        "frontImage": "https://i.ibb.co/xKBhfHfy/Medicina.png",
+        "name": "Medicina",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-88",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/K8qPs3Sj/mini-semaforo.png",
+        "name": "mini semaforo",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-89",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/YST1tcSw/minkiard-n-100.png",
+        "name": "minkiard n 100",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-90",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/d1dG1W7Z/minkiard-n-300.png",
+        "name": "minkiard n 300",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-91",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/8C7R8kNH/minkiard-n-400.png",
+        "name": "minkiard n 400",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-92",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/XNfw6zST/minkiard-n-500.png",
+        "name": "minkiard n 500",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-93",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/7hk0Tg7s/minkiards-n-200.png",
+        "name": "minkiards n 200",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-94",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/L53fkn3H/modalit-art-attack.png",
+        "name": "modalit art attack",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-96",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/m2VCt1rj/modalit-fenomeno.png",
+        "name": "modalit fenomeno",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-163",
+        "type": "bonus",
+        "frontImage": "https://i.ibb.co/206yKHFQ/MODALIT-FRANKENSTEIN.png",
+        "name": "MODALIT FRANKENSTEIN",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-98",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/vZNnvRf6/modalit-kamikaze.png",
+        "name": "modalit kamikaze",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-99",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/3w0vSLFf/modalit-m-mondo.png",
+        "name": "modalit m mondo",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-100",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/50cFZwP4/modalit-troll.png",
+        "name": "modalit troll",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-101",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/fLx0ZJFx/modalit-truzzo.png",
+        "name": "modalit truzzo",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-95",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/xT9Lf39q/MODALITA-CIECA.png",
+        "name": "MODALITA CIECA",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-97",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/x1CHHjJ2/MODALITA-FIGHETTO.png",
+        "name": "MODALITA FIGHETTO",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-102",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/WzTq4sLx/MODALITA-TUZZA.png",
+        "name": "MODALITA TUZZA",
+        "rarity": "epica",
+        "draftCost": 20
+      },
+      {
+        "id": "bonus-103",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/HnzccFTn/MODALITA-ZOMBIE.png",
+        "name": "MODALITA ZOMBIE",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-164",
+        "type": "bonus",
+        "frontImage": "https://i.ibb.co/sv5vTcsZ/MORS-TUA-VITA-MEA.png",
+        "name": "MORS TUA VITA MEA",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-104",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/kMvtpRWC/munnezza.png",
+        "name": "munnezza",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-105",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/28jBRjxZ/musica-ganza.png",
+        "name": "musica ganza",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-106",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/YqXLpcXy/NIRDOSH.png",
+        "name": "NIRDOSH",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-107",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/BnXLbhkZ/NON-TI-FA-FREGA.png",
+        "name": "NON TI FA FREGA",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-165",
+        "type": "bonus",
+        "frontImage": "https://i.ibb.co/QFJ8sFg5/NOTTE-DELLO-SPIRITO.png",
+        "name": "NOTTE DELLO SPIRITO",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-108",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/W1CDkGcG/OCCHIO-DEL-FOTOGRAFO.png",
+        "name": "OCCHIO DEL FOTOGRAFO",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-109",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/DzGSdS7t/oh-ma-quello.png",
+        "name": "oh ma quello",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-110",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/1tZfWyt4/Oooooh-che-t-ritt.png",
+        "name": "Oooooh che t ritt",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-111",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/Y9fjZTGR/P-na-ntecchia.png",
+        "name": "P na ntecchia",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-112",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/NFsLcbRc/PALIO-DELLE-MINKIARDS.png",
+        "name": "PALIO DELLE MINKIARDS",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-113",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/mkmk2MSF/peluria-di-holly.png",
+        "name": "peluria di holly",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-114",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/MZ5vD28K/PESCA-MIRACOLOSA.png",
+        "name": "PESCA MIRACOLOSA",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-115",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/Dyzmpj2Q/PLAYBACK.png",
+        "name": "PLAYBACK",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-116",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/3JbNsXRs/portale-speciale.png",
+        "name": "portale speciale",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-117",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/Sx2RknYJ/PROVINO-PER-LA-JUVE.png",
+        "name": "PROVINO PER LA JUVE",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-118",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/FHMRRh0G/replay.png",
+        "name": "replay",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-119",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/TPnP5B9x/RESPINTA.png",
+        "name": "RESPINTA",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-120",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/TwG3VQ7D/RIFUGIO.png",
+        "name": "RIFUGIO",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-121",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/cHm4XY25/RINCOGLIONIMENTO.png",
+        "name": "RINCOGLIONIMENTO",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-166",
+        "type": "bonus",
+        "frontImage": "https://i.ibb.co/svvY1DXz/RUOSS-E-FESSA.png",
+        "name": "RUOSS E FESSA",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-122",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/sxgf8xRf/rusc.png",
+        "name": "rusc",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-123",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/90gXj2Wd/SBIRCIATA.png",
+        "name": "SBIRCIATA",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-124",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/c1FL3RQv/scambio.png",
+        "name": "scambio",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-125",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/VL5LWJRD/SCART-FRUSC-E-PIGL-PR-MERA.png",
+        "name": "SCART FRUSC E PIGL PR MERA",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-126",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/jd9qgR3K/scee.png",
+        "name": "scee",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-127",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/7Z2Hjjjz/SCHEDINE-O-TUTTO-O-NIENTE.png",
+        "name": "SCHEDINE O TUTTO O NIENTE",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-128",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/mrWL48G5/SCUDO.png",
+        "name": "SCUDO",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-129",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/bv0zwkyN/SDOPPIAMENTO.png",
+        "name": "SDOPPIAMENTO",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-130",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/KzZmkjj7/SFACCIM.png",
+        "name": "SFACCIM",
+        "rarity": "epica",
+        "draftCost": 30
+      },
+      {
+        "id": "bonus-131",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/pTqRDv5w/SFERE-DEL-DRAGO.png",
+        "name": "SFERE DEL DRAGO",
+        "rarity": "epica",
+        "draftCost": 30
+      },
+      {
+        "id": "bonus-132",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/Fzzmp6j7/slot-machine.png",
+        "name": "slot machine",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-133",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/KjWbH5NQ/SOFT-CONTROL.png",
+        "name": "SOFT CONTROL",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-134",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/pVcPr2H8/sono-una-balena-whoa-whoa.png",
+        "name": "sono una balena whoa whoa",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-136",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/5NZ15nj2/spin-TA-IMPULSIVA.png",
+        "name": "spin TA IMPULSIVA",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-135",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/sDBsZtjL/spinaci.png",
+        "name": "spinaci",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-137",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/BnH3mH1c/sta-buon-rocc.png",
+        "name": "sta buon rocc",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-138",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/jjTbm2HV/Stai-a-fa-na-cazzata.png",
+        "name": "Stai a fa na cazzata",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-139",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/MGYSSw5n/STAKU.png",
+        "name": "STAKU",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-140",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/Y9qw2PDb/stipendio.png",
+        "name": "stipendio",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-141",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/B6YfjCds/Super-mega-uragano-strano.png",
+        "name": "Super mega uragano strano",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-142",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/mkPfCHs9/TABULA-RASA.png",
+        "name": "TABULA RASA",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-143",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/Rh2rRZSD/TANGRAM.png",
+        "name": "TANGRAM",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-167",
+        "type": "bonus",
+        "frontImage": "https://i.ibb.co/1tw2bjmP/TARGET-ACQUIRED.png",
+        "name": "TARGET ACQUIRED",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-144",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/XNP03Qfk/TAROCCATA.png",
+        "name": "TAROCCATA",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-145",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/kXtP5Kw3/terremoto.png",
+        "name": "terremoto",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-146",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/Mp22fHrc/TI-PORTO-VIA-CON-ME-IN-QUESTA-MORTE-FANTASTICA.png",
+        "name": "TI PORTO VIA CON ME IN QUESTA MORTE FANTASTICA",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-147",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/Mp7k7wh9/Totaleeee.png",
+        "name": "Totaleeee",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-148",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/zf8spMN8/TRAPPOLA.png",
+        "name": "TRAPPOLA",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-149",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/q7w9FLBn/trasformazione.png",
+        "name": "trasformazione",
+        "rarity": "epica",
+        "draftCost": 50
+      },
+      {
+        "id": "bonus-150",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/fLb6Q9kP/trauma.png",
+        "name": "trauma",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-168",
+        "type": "bonus",
+        "frontImage": "https://i.ibb.co/KcQZQCbJ/TRINIT.png",
+        "name": "TRINIT",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-151",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/50kD42C2/tsunami.png",
+        "name": "tsunami",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-152",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/Fzd87Xyg/tu-mi-lasci-cadere-e-poi-mi-porti-su.png",
+        "name": "tu mi lasci cadere e poi mi porti su",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-153",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/fyGFdq54/U.png",
+        "name": "U",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-169",
+        "type": "bonus",
+        "frontImage": "https://i.ibb.co/n8QPRKZp/UN-POSTO-GALATTICO.png",
+        "name": "UN POSTO GALATTICO",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-162",
+        "type": "bonus",
+        "frontImage": "https://i.ibb.co/4ZjKmzFJ/UNA-TEMPESTA-BABY.png",
+        "name": "UNA TEMPESTA BABY",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-154",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/44YxzKww/UNIONE-CLANDESTINA.png",
+        "name": "UNIONE CLANDESTINA",
+        "rarity": "epica",
+        "draftCost": 40
+      },
+      {
+        "id": "bonus-155",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/nVNcTHPx/UOVO.png",
+        "name": "UOVO",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-156",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/gkRcTfCZ/URAGANO.png",
+        "name": "URAGANO",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-170",
+        "type": "bonus",
+        "frontImage": "https://i.ibb.co/RGFpNC64/VINCERE-E-VINCE-REMO.png",
+        "name": "VINCERE E VINCE REMO",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-47",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/52wg729F/visct-la-mal-Parata.png",
+        "name": "visct la mal Parata",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-157",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/DwTfkxhY/VITELLO-D-ORA.png",
+        "name": "VITELLO D ORA",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-158",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/7ZnHxSYP/Vous-tra-vous.png",
+        "name": "Vous tra vous",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-171",
+        "type": "bonus",
+        "frontImage": "https://i.ibb.co/kszGSR22/WD-40.png",
+        "name": "WD 40",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-159",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/jjqsCCLH/Z-AMMONTA.png",
+        "name": "Z AMMONTA",
+        "rarity": "comune",
+        "draftCost": 10
+      },
+      {
+        "id": "bonus-160",
+        "type": "bonus",
+        "frontImage": "https://i.postimg.cc/9fxc9V7v/ZZERUO.png",
+        "name": "ZZERUO",
+        "rarity": "comune",
+        "draftCost": 10
+      }
+    ],
+    "currentCardIndex": 20,
+    "currentAuction": null,
+    "recentAwarded": [
+      {
+        "card": {
+          "id": "personaggi-19",
+          "type": "personaggi",
+          "frontImage": "https://i.postimg.cc/T3F935kS/borgarally.png",
+          "name": "borgarally",
+          "rarity": "comune",
+          "draftCost": 8
+        },
+        "winner": "CPU 5"
+      },
+      {
+        "card": {
+          "id": "personaggi-18",
+          "type": "personaggi",
+          "frontImage": "https://i.postimg.cc/28jTcDbH/boldi-building.png",
+          "name": "boldi building",
+          "rarity": "rara",
+          "draftCost": 18
+        },
+        "winner": "CPU 4"
+      },
+      {
+        "card": {
+          "id": "personaggi-17",
+          "type": "personaggi",
+          "frontImage": "https://i.postimg.cc/VsWDW66r/bisteccone.png",
+          "name": "bisteccone",
+          "rarity": "comune",
+          "draftCost": 10
+        },
+        "winner": "CPU 3"
+      },
+      {
+        "card": {
+          "id": "personaggi-16",
+          "type": "personaggi",
+          "frontImage": "https://i.postimg.cc/vThhYPjL/bin-laden.png",
+          "name": "bin laden",
+          "rarity": "rara",
+          "draftCost": 18
+        },
+        "winner": "CPU 1"
+      },
+      {
+        "card": {
+          "id": "personaggi-14",
+          "type": "personaggi",
+          "frontImage": "https://i.postimg.cc/3NY9HMLx/bigfoot.png",
+          "name": "bigfoot",
+          "rarity": "rara",
+          "draftCost": 18
+        },
+        "winner": "CPU 1"
+      },
+      {
+        "card": {
+          "id": "personaggi-13",
+          "type": "personaggi",
+          "frontImage": "https://i.postimg.cc/QtL00K15/big-dabol.png",
+          "name": "big dabol",
+          "rarity": "comune",
+          "draftCost": 14
+        },
+        "winner": "CPU 1"
+      },
+      {
+        "card": {
+          "id": "personaggi-15",
+          "type": "personaggi",
+          "frontImage": "https://i.postimg.cc/1tpMTRrd/Bi-Mb-Am-In-Ch-Ia.png",
+          "name": "Bi Mb Am In Ch Ia",
+          "rarity": "comune",
+          "draftCost": 10
+        },
+        "winner": "CPU 2"
+      },
+      {
+        "card": {
+          "id": "personaggi-12",
+          "type": "personaggi",
+          "frontImage": "https://i.postimg.cc/zfHxCFb8/berlusconi.png",
+          "name": "berlusconi",
+          "rarity": "epica",
+          "draftCost": 37
+        },
+        "winner": "CPU 3"
+      },
+      {
+        "card": {
+          "id": "personaggi-11",
+          "type": "personaggi",
+          "frontImage": "https://i.postimg.cc/YCsXLsSd/bello-figo-gu.png",
+          "name": "bello figo gu",
+          "rarity": "comune",
+          "draftCost": 8
+        },
+        "winner": "CPU 5"
+      },
+      {
+        "card": {
+          "id": "personaggi-10",
+          "type": "personaggi",
+          "frontImage": "https://i.postimg.cc/DwZjZT7W/bear.png",
+          "name": "bear",
+          "rarity": "rara",
+          "draftCost": 28
+        },
+        "winner": "CPU 1"
+      }
+    ],
+    "createdAt": 1773173533146
+  }
+]

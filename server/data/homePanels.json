@@ -45,6 +45,19 @@
     "adminOnly": false
   },
   {
+    "id": "panel-fanta",
+    "panelKey": "fanta",
+    "title": "FantaMinkiards",
+    "description": "Asta e torneo fantasy!",
+    "icon": "⭐",
+    "gradient": "linear-gradient(135deg, #7c3aed, #f59e0b)",
+    "glowColor": "#f59e0b",
+    "textColor": "#ffffff",
+    "sortOrder": 3,
+    "adminOnly": false,
+    "isActive": true
+  },
+  {
     "id": "panel-rooms",
     "panelKey": "rooms",
     "title": "Stanze di Gioco",
@@ -56,7 +69,7 @@
     "subtitleColor": "rgba(255,255,255,0.7)",
     "badge": "",
     "badgeColor": "rgba(0,0,0,0.35)",
-    "sortOrder": 3,
+    "sortOrder": 4,
     "adminOnly": false
   },
   {
@@ -71,7 +84,7 @@
     "subtitleColor": "rgba(255,255,255,0.7)",
     "badge": "Scopri l'evento di oggi",
     "badgeColor": "rgba(0,0,0,0.35)",
-    "sortOrder": 4,
+    "sortOrder": 5,
     "adminOnly": false
   },
   {
@@ -86,7 +99,7 @@
     "subtitleColor": "rgba(255,255,255,0.7)",
     "badge": "Tutorial",
     "badgeColor": "rgba(0,0,0,0.35)",
-    "sortOrder": 5,
+    "sortOrder": 6,
     "adminOnly": false
   },
   {
@@ -101,7 +114,7 @@
     "subtitleColor": "rgba(255,255,255,0.7)",
     "badge": "Comunità",
     "badgeColor": "rgba(0,0,0,0.35)",
-    "sortOrder": 6,
+    "sortOrder": 7,
     "adminOnly": false
   },
   {
@@ -116,7 +129,7 @@
     "subtitleColor": "rgba(255,255,255,0.7)",
     "badge": "Top 100",
     "badgeColor": "rgba(0,0,0,0.35)",
-    "sortOrder": 7,
+    "sortOrder": 8,
     "adminOnly": false
   },
   {
@@ -131,7 +144,7 @@
     "subtitleColor": "rgba(255,255,255,0.7)",
     "badge": "",
     "badgeColor": "rgba(0,0,0,0.35)",
-    "sortOrder": 8,
+    "sortOrder": 9,
     "adminOnly": false
   },
   {
@@ -146,20 +159,7 @@
     "subtitleColor": "rgba(255,255,255,0.7)",
     "badge": "Admin",
     "badgeColor": "rgba(0,0,0,0.35)",
-    "sortOrder": 9,
-    "adminOnly": true
-  },
-  {
-    "id": "panel-fanta",
-    "panelKey": "fanta",
-    "title": "FantaMinkiards",
-    "description": "Asta e torneo fantasy!",
-    "icon": "⭐",
-    "gradient": "linear-gradient(135deg, #7c3aed, #f59e0b)",
-    "glowColor": "#f59e0b",
-    "textColor": "#ffffff",
     "sortOrder": 10,
-    "adminOnly": false,
-    "isActive": true
+    "adminOnly": true
   }
 ]
