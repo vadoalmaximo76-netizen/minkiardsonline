@@ -182,20 +182,20 @@ function PanelEditorModal({
             <div>
               <label style={{ fontSize: 11, color: '#94a3b8', display: 'block', marginBottom: 4 }}>Colore titolo</label>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <input type="color" value={form.titleColor.startsWith('#') ? form.titleColor : '#ffffff'}
+                <input type="color" value={(form.titleColor ?? '#ffffff').startsWith('#') ? (form.titleColor ?? '#ffffff') : '#ffffff'}
                   onChange={e => set('titleColor', e.target.value)}
                   style={{ width: 40, height: 32, border: 'none', background: 'none', cursor: 'pointer', borderRadius: 6 }} />
-                <input value={form.titleColor} onChange={e => set('titleColor', e.target.value)}
+                <input value={form.titleColor ?? '#ffffff'} onChange={e => set('titleColor', e.target.value)}
                   style={{ flex: 1, background: '#1e293b', border: '1px solid #334155', borderRadius: 8, color: '#e2e8f0', padding: '7px 8px', fontSize: 12, boxSizing: 'border-box' }} />
               </div>
             </div>
             <div>
               <label style={{ fontSize: 11, color: '#94a3b8', display: 'block', marginBottom: 4 }}>Colore sottotitolo</label>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <input type="color" value={form.subtitleColor.startsWith('#') ? form.subtitleColor : '#ffffff'}
+                <input type="color" value={(form.subtitleColor ?? '#ffffff').startsWith('#') ? (form.subtitleColor ?? '#ffffff') : '#ffffff'}
                   onChange={e => set('subtitleColor', e.target.value)}
                   style={{ width: 40, height: 32, border: 'none', background: 'none', cursor: 'pointer', borderRadius: 6 }} />
-                <input value={form.subtitleColor} onChange={e => set('subtitleColor', e.target.value)}
+                <input value={form.subtitleColor ?? '#ffffff'} onChange={e => set('subtitleColor', e.target.value)}
                   style={{ flex: 1, background: '#1e293b', border: '1px solid #334155', borderRadius: 8, color: '#e2e8f0', padding: '7px 8px', fontSize: 12, boxSizing: 'border-box' }} />
               </div>
             </div>
@@ -511,19 +511,19 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
                     transition: 'background 0.3s',
                     boxShadow: isHovered ? `0 0 20px ${panel.gradientFrom}88` : 'none',
                   }}>
-                    <IconComp size={32} color={panel.titleColor} />
+                    <IconComp size={32} color={panel.titleColor ?? '#ffffff'} />
                   </div>
                   <h2 style={{
-                    margin: 0, marginBottom: 8, fontSize: 20, fontWeight: 700, color: panel.titleColor,
+                    margin: 0, marginBottom: 8, fontSize: 20, fontWeight: 700, color: panel.titleColor ?? '#ffffff',
                     transition: 'letter-spacing 0.3s, text-shadow 0.3s',
                     letterSpacing: isHovered && !editMode ? '0.04em' : '0',
-                    textShadow: isHovered ? `0 0 16px ${panel.titleColor}cc` : 'none',
+                    textShadow: isHovered ? `0 0 16px ${panel.titleColor ?? '#ffffff'}cc` : 'none',
                   }}>{panel.title}</h2>
-                  <p style={{ margin: 0, marginBottom: 16, fontSize: 14, color: panel.subtitleColor, transition: 'opacity 0.3s', opacity: isHovered ? 1 : 0.85 }}>{panel.subtitle}</p>
+                  <p style={{ margin: 0, marginBottom: 16, fontSize: 14, color: panel.subtitleColor ?? 'rgba(255,255,255,0.7)', transition: 'opacity 0.3s', opacity: isHovered ? 1 : 0.85 }}>{panel.subtitle}</p>
                   {dynamicBadge && (
                     <div style={{
-                      background: panel.badgeColor, backdropFilter: 'blur(8px)', borderRadius: 20,
-                      padding: '6px 16px', fontSize: 13, color: panel.titleColor, fontWeight: 500,
+                      background: panel.badgeColor ?? 'rgba(0,0,0,0.3)', backdropFilter: 'blur(8px)', borderRadius: 20,
+                      padding: '6px 16px', fontSize: 13, color: panel.titleColor ?? '#ffffff', fontWeight: 500,
                       transform: isHovered ? 'scale(1.07)' : 'scale(1)', transition: 'transform 0.3s',
                     }}>
                       {dynamicBadge}
