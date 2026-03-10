@@ -560,11 +560,12 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   };
 
   const handleSkinSelect = (skinImageUrl: string | null, skinId: number | null, rarity: string) => {
-    // Emit socket event to apply skin to card in game state
+    // Emit socket event to apply skin to card in game state (include rarity for broadcast)
     socket.emit('apply-card-skin', {
       cardId: card.id,
       skinImageUrl: skinImageUrl,
-      playerName: playerName
+      playerName: playerName,
+      rarity: rarity
     });
     
     if (skinImageUrl) {
@@ -572,12 +573,27 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                         rarity === 'epic' ? 'animate-epic-glow' :
                         rarity === 'rare' ? 'animate-rare-glow' : 'animate-common-glow';
       setSkinAnimation(animClass);
-      setTimeout(() => setSkinAnimation(null), 2000);
+      setTimeout(() => setSkinAnimation(null), 2500);
     } else {
       setSkinAnimation(null);
     }
     setShowSkinPanel(false);
   };
+
+  // Listen for skin change broadcasts from other players
+  useEffect(() => {
+    const onSkinChanged = ({ cardId: changedCardId, rarity }: { cardId: string; skinImageUrl: string; rarity: string; playerName: string }) => {
+      if (changedCardId === card.id) {
+        const animClass = rarity === 'legendary' ? 'animate-legendary-glow' :
+                          rarity === 'epic' ? 'animate-epic-glow' :
+                          rarity === 'rare' ? 'animate-rare-glow' : 'animate-common-glow';
+        setSkinAnimation(animClass);
+        setTimeout(() => setSkinAnimation(null), 2500);
+      }
+    };
+    socket.on('card-skin-changed', onSkinChanged);
+    return () => { socket.off('card-skin-changed', onSkinChanged); };
+  }, [card.id]);
 
   const evaluateExpression = (expression: string): number => {
     try {

@@ -228,14 +228,13 @@ export function CardSkinsPanel({ isOpen, onClose, authToken, userRankiards }: Ca
                         e.stopPropagation();
                         handleEquip(skin.id);
                       }}
-                      disabled={isEquipped(skin.id)}
                       className={`w-full py-2 rounded-lg text-sm font-bold transition-colors ${
                         isEquipped(skin.id)
-                          ? 'bg-green-600 text-white cursor-default'
+                          ? 'bg-green-600 hover:bg-red-600 text-white'
                           : 'bg-violet-600 hover:bg-violet-500 text-white'
                       }`}
                     >
-                      {isEquipped(skin.id) ? 'Equipaggiata' : 'Equipaggia'}
+                      {isEquipped(skin.id) ? 'Equipaggiata ✓' : 'Equipaggia'}
                     </button>
                   ) : (
                     <button
@@ -348,14 +347,13 @@ export function CardSkinsPanel({ isOpen, onClose, authToken, userRankiards }: Ca
                     handleEquip(previewSkin.id);
                     setPreviewSkin(null);
                   }}
-                  disabled={isEquipped(previewSkin.id)}
                   className={`px-6 py-3 rounded-xl font-bold transition-colors ${
                     isEquipped(previewSkin.id)
-                      ? 'bg-green-600 text-white cursor-default'
+                      ? 'bg-green-600 hover:bg-red-600 text-white'
                       : 'bg-violet-600 hover:bg-violet-500 text-white'
                   }`}
                 >
-                  {isEquipped(previewSkin.id) ? 'Già Equipaggiata' : 'Equipaggia'}
+                  {isEquipped(previewSkin.id) ? 'Equipaggiata ✓ (clicca per rimuovere)' : 'Equipaggia'}
                 </button>
               ) : (
                 <button

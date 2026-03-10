@@ -2626,3 +2626,52 @@ input:focus, select:focus {
 .transition-overlay-out {
   animation: overlayFadeOut 0.2s ease forwards;
 }
+
+/* ===== SKIN ANIMATIONS ===== */
+@keyframes legendary-glow-anim {
+  0%   { filter: brightness(1) drop-shadow(0 0 0px gold); transform: scale(1); }
+  15%  { filter: brightness(2.5) drop-shadow(0 0 40px gold) drop-shadow(0 0 80px orange); transform: scale(1.18) rotate(2deg); }
+  30%  { filter: brightness(3) drop-shadow(0 0 60px #ffd700) drop-shadow(0 0 120px #ff8c00); transform: scale(1.22) rotate(-2deg); }
+  50%  { filter: brightness(2.5) drop-shadow(0 0 50px gold) drop-shadow(0 0 100px orange); transform: scale(1.18) rotate(1deg); }
+  70%  { filter: brightness(2) drop-shadow(0 0 30px gold); transform: scale(1.1); }
+  100% { filter: brightness(1.2) drop-shadow(0 0 12px gold); transform: scale(1); }
+}
+@keyframes epic-glow-anim {
+  0%   { filter: brightness(1) drop-shadow(0 0 0px purple); transform: scale(1); }
+  20%  { filter: brightness(2.2) drop-shadow(0 0 30px #a855f7) drop-shadow(0 0 60px #7c3aed); transform: scale(1.15) rotate(-2deg); }
+  50%  { filter: brightness(2.5) drop-shadow(0 0 50px #a855f7) drop-shadow(0 0 90px #6d28d9); transform: scale(1.18); }
+  80%  { filter: brightness(1.8) drop-shadow(0 0 20px #a855f7); transform: scale(1.08); }
+  100% { filter: brightness(1.1) drop-shadow(0 0 10px #a855f7); transform: scale(1); }
+}
+@keyframes rare-glow-anim {
+  0%   { filter: brightness(1) drop-shadow(0 0 0px blue); transform: scale(1); }
+  30%  { filter: brightness(1.8) drop-shadow(0 0 20px #3b82f6) drop-shadow(0 0 40px #1d4ed8); transform: scale(1.12); }
+  60%  { filter: brightness(2) drop-shadow(0 0 30px #60a5fa); transform: scale(1.1); }
+  100% { filter: brightness(1.1) drop-shadow(0 0 8px #3b82f6); transform: scale(1); }
+}
+@keyframes common-glow-anim {
+  0%   { filter: brightness(1); transform: scale(1); }
+  40%  { filter: brightness(1.5) drop-shadow(0 0 10px rgba(255,255,255,0.6)); transform: scale(1.08); }
+  100% { filter: brightness(1); transform: scale(1); }
+}
+
+.animate-legendary-glow {
+  animation: legendary-glow-anim 2.5s ease-in-out forwards;
+  z-index: 20;
+  position: relative;
+}
+.animate-epic-glow {
+  animation: epic-glow-anim 2.2s ease-in-out forwards;
+  z-index: 20;
+  position: relative;
+}
+.animate-rare-glow {
+  animation: rare-glow-anim 2s ease-in-out forwards;
+  z-index: 20;
+  position: relative;
+}
+.animate-common-glow {
+  animation: common-glow-anim 1s ease-in-out forwards;
+  z-index: 20;
+  position: relative;
+}

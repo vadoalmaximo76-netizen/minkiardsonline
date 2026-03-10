@@ -4132,10 +4132,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
+        let skinRarity = 'common';
+        if (skinImageUrl) {
+          try {
+            const allSkins = jsonStorage.cardSkins.getAll();
+            const skinData2 = allSkins.find((s: any) => s.skinImageUrl === skinImageUrl);
+            if (skinData2) skinRarity = skinData2.rarity || 'common';
+          } catch (_) {}
+        }
+        
         const success = gameManager.applyCardSkin(gameId, cardId, skinImageUrl, playerName, skinPti, skinStars);
         if (success) {
           const gameState = gameManager.getSanitizedGameState(gameId);
           emitThrottledGameState(io, gameId, gameState);
+          // Broadcast animation event to all players in the room
+          if (skinImageUrl) {
+            io.to(gameId).emit('card-skin-changed', {
+              cardId,
+              skinImageUrl,
+              rarity: skinRarity,
+              playerName
+            });
+          }
         }
       }
     });
@@ -9425,17 +9443,17 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         return res.status(404).json({ success: false, error: 'User not found' });
       }
       
-      // Unequip all skins first
-      await db.update(playerSkins)
-        .set({ isEquipped: false })
-        .where(eq(playerSkins.userId, currentUser[0].id));
-      emitSync('player_skins', 'update', { isEquipped: false }, eq(playerSkins.userId, currentUser[0].id));
-      
-      // Equip the selected skin
-      await db.update(playerSkins)
-        .set({ isEquipped: true })
+      // Toggle: if already equipped, unequip; otherwise equip without touching other skins
+      const [existing] = await db.select().from(playerSkins)
         .where(and(eq(playerSkins.userId, currentUser[0].id), eq(playerSkins.skinId, skinId)));
-      emitSync('player_skins', 'update', { isEquipped: true }, and(eq(playerSkins.userId, currentUser[0].id), eq(playerSkins.skinId, skinId)));
+      if (!existing) {
+        return res.status(404).json({ success: false, error: 'Skin not owned' });
+      }
+      const newEquipped = !existing.isEquipped;
+      await db.update(playerSkins)
+        .set({ isEquipped: newEquipped })
+        .where(and(eq(playerSkins.userId, currentUser[0].id), eq(playerSkins.skinId, skinId)));
+      emitSync('player_skins', 'update', { isEquipped: newEquipped }, and(eq(playerSkins.userId, currentUser[0].id), eq(playerSkins.skinId, skinId)));
       
       res.json({ success: true });
     } catch (error) {

@@ -468,7 +468,7 @@ export const CardModal: React.FC = () => {
         {/* Large card image */}
         <div className="flex justify-center mb-4 sm:mb-6">
           <img
-            src={isEnemyFaceDownCard ? selectedCard.backImage : selectedCard.frontImage}
+            src={isEnemyFaceDownCard ? selectedCard.backImage : (selectedCard.appliedSkinUrl || selectedCard.frontImage)}
             alt="Card"
             className={`w-40 h-52 sm:w-64 sm:h-80 rounded-lg shadow-lg ${isEnemyFaceDownCard ? 'ring-4 ring-orange-400 ring-opacity-50' : ''}`}
           />
