@@ -86,7 +86,11 @@ export interface FantaSession {
 }
 
 const STARTING_CREDITS = 1000;
-const CARDS_PER_TYPE = 20;
+const CARDS_NEEDED: Record<'personaggi' | 'mosse' | 'bonus', number> = {
+  personaggi: 20,
+  mosse: 9,
+  bonus: 15,
+};
 const AUCTION_INITIAL_TIMER = 15;
 const AUCTION_BID_RESET_TIMER = 3;
 
@@ -151,14 +155,14 @@ function cpuBidAmount(
 ): number | null {
   const { cpuLevel, credits, deck } = participant;
   const typeDeck = deck[card.type];
-  if (typeDeck.length >= CARDS_PER_TYPE) return null;
+  if (typeDeck.length >= CARDS_NEEDED[card.type]) return null;
   if (credits <= 0) return null;
 
   // Calculate how many cards still needed across all types
   const cardsNeeded =
-    (CARDS_PER_TYPE - deck.personaggi.length) +
-    (CARDS_PER_TYPE - deck.mosse.length) +
-    (CARDS_PER_TYPE - deck.bonus.length);
+    Math.max(0, CARDS_NEEDED.personaggi - deck.personaggi.length) +
+    Math.max(0, CARDS_NEEDED.mosse - deck.mosse.length) +
+    Math.max(0, CARDS_NEEDED.bonus - deck.bonus.length);
 
   if (cardsNeeded <= 0) return null;
 
@@ -425,9 +429,9 @@ export class FantaManager {
     for (const p of Object.values(session.participants)) {
       if (session.disqualified.includes(p.name)) continue;
       if (
-        p.deck.personaggi.length < CARDS_PER_TYPE ||
-        p.deck.mosse.length < CARDS_PER_TYPE ||
-        p.deck.bonus.length < CARDS_PER_TYPE
+        p.deck.personaggi.length < CARDS_NEEDED.personaggi ||
+        p.deck.mosse.length < CARDS_NEEDED.mosse ||
+        p.deck.bonus.length < CARDS_NEEDED.bonus
       ) {
         return false;
       }
@@ -438,7 +442,7 @@ export class FantaManager {
   private allHaveEnough(session: FantaSession, type: 'personaggi' | 'mosse' | 'bonus'): boolean {
     for (const p of Object.values(session.participants)) {
       if (session.disqualified.includes(p.name)) continue;
-      if (p.deck[type].length < CARDS_PER_TYPE) return false;
+      if (p.deck[type].length < CARDS_NEEDED[type]) return false;
     }
     return true;
   }
@@ -447,9 +451,9 @@ export class FantaManager {
     for (const p of Object.values(session.participants)) {
       if (session.disqualified.includes(p.name)) continue;
       const deckComplete =
-        p.deck.personaggi.length >= CARDS_PER_TYPE &&
-        p.deck.mosse.length >= CARDS_PER_TYPE &&
-        p.deck.bonus.length >= CARDS_PER_TYPE;
+        p.deck.personaggi.length >= CARDS_NEEDED.personaggi &&
+        p.deck.mosse.length >= CARDS_NEEDED.mosse &&
+        p.deck.bonus.length >= CARDS_NEEDED.bonus;
       if (!deckComplete && p.credits <= 0) {
         session.disqualified.push(p.name);
         io.to(session.id).emit('fanta:disqualified', {
@@ -601,7 +605,7 @@ export class FantaManager {
     }
 
     const typeDeck = participant.deck[auction.card.type];
-    if (typeDeck.length >= CARDS_PER_TYPE) {
+    if (typeDeck.length >= CARDS_NEEDED[auction.card.type]) {
       return { success: false, error: 'Hai già il massimo di carte per questo tipo' };
     }
 

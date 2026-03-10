@@ -416,7 +416,7 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose }: Props)
                 <li>Ogni giocatore inizia con <span className="text-yellow-300 font-bold">1000 crediti</span></li>
                 <li>Tutte le carte scorrono in ordine alfabetico</li>
                 <li>Fai offerte per aggiudicarti le carte che vuoi</li>
-                <li>L'asta finisce quando tutti hanno 20+20+20 carte</li>
+                <li>Squadra completa: <strong className="text-white">20 personaggi · 9 mosse · 15 bonus</strong></li>
                 <li>Chi finisce i crediti senza completare la squadra viene squalificato</li>
               </ul>
             </div>
@@ -483,7 +483,7 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose }: Props)
             <h2 className="text-white font-bold mb-1">Come funziona</h2>
             <p className="text-white/60 text-sm leading-relaxed">
               Ricevete <strong className="text-yellow-300">1000 crediti</strong> e partecipate a un'asta su tutte le carte in ordine alfabetico.
-              Chi offre di più vince la carta! Costruisci il tuo mazzo da 20+20+20 carte. Chi finisce i crediti senza completare viene squalificato.
+              Chi offre di più vince la carta! Costruisci il tuo mazzo: <strong className="text-white">20 personaggi · 9 mosse · 15 bonus</strong>. Chi finisce i crediti senza completare viene squalificato.
             </p>
           </div>
 
@@ -574,7 +574,7 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose }: Props)
               <input
                 type="range"
                 min={2}
-                max={32}
+                max={10}
                 value={totalParticipants}
                 onChange={e => {
                   const v = Number(e.target.value);
@@ -584,10 +584,10 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose }: Props)
                 className="w-full accent-yellow-500 h-2 cursor-pointer"
               />
               <div className="flex justify-between text-xs text-white/30 mt-1">
-                <span>2</span><span>8</span><span>16</span><span>24</span><span>32</span>
+                <span>2</span><span>4</span><span>6</span><span>8</span><span>10</span>
               </div>
               <div className="flex gap-2 mt-2 flex-wrap">
-                {[2, 4, 8, 16, 32].map(n => (
+                {[2, 4, 6, 8, 10].map(n => (
                   <button key={n} onClick={() => { setTotalParticipants(n); if (cpuCount >= n) setCpuCount(n - 1); }}
                     className={`px-3 py-1 rounded-lg text-xs font-bold border ${totalParticipants === n ? 'bg-yellow-500 border-yellow-400 text-black' : 'bg-gray-700 border-gray-600 text-white'}`}>
                     {n}

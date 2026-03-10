@@ -29,7 +29,7 @@ interface Props {
   onComplete: () => void;
 }
 
-const CARDS_PER_TYPE = 20;
+const CARDS_NEEDED = { personaggi: 20, mosse: 9, bonus: 15 };
 
 const RARITY_BORDER: Record<FantaRarity, string> = {
   comune: 'border-gray-500',
@@ -208,7 +208,7 @@ export function FantaAuctionRoom({ fantaId, playerName, isCreator, participants,
 
   const canBid = !amIDisqualified && !isPaused && !!(currentCard &&
     myCredits > currentBid &&
-    (myProgress[currentCard.type] ?? 0) < CARDS_PER_TYPE &&
+    (myProgress[currentCard.type] ?? 0) < CARDS_NEEDED[currentCard.type] &&
     currentBidder !== playerName);
 
   const quickBids = [1, 5, 10];
@@ -338,14 +338,14 @@ export function FantaAuctionRoom({ fantaId, playerName, isCreator, participants,
               {amIDisqualified ? '❌ Squalificato' : 'Tuo mazzo'}
             </div>
             <div className="flex gap-1.5 text-[10px] font-bold">
-              <span className={`px-2 py-0.5 rounded ${myProgress.personaggi >= CARDS_PER_TYPE ? 'bg-green-600' : 'bg-red-800/70'} text-white`}>
-                P {myProgress.personaggi}/{CARDS_PER_TYPE}
+              <span className={`px-2 py-0.5 rounded ${myProgress.personaggi >= CARDS_NEEDED.personaggi ? 'bg-green-600' : 'bg-red-800/70'} text-white`}>
+                P {myProgress.personaggi}/{CARDS_NEEDED.personaggi}
               </span>
-              <span className={`px-2 py-0.5 rounded ${myProgress.mosse >= CARDS_PER_TYPE ? 'bg-green-600' : 'bg-blue-800/70'} text-white`}>
-                M {myProgress.mosse}/{CARDS_PER_TYPE}
+              <span className={`px-2 py-0.5 rounded ${myProgress.mosse >= CARDS_NEEDED.mosse ? 'bg-green-600' : 'bg-blue-800/70'} text-white`}>
+                M {myProgress.mosse}/{CARDS_NEEDED.mosse}
               </span>
-              <span className={`px-2 py-0.5 rounded ${myProgress.bonus >= CARDS_PER_TYPE ? 'bg-green-600' : 'bg-emerald-900/70'} text-white`}>
-                B {myProgress.bonus}/{CARDS_PER_TYPE}
+              <span className={`px-2 py-0.5 rounded ${myProgress.bonus >= CARDS_NEEDED.bonus ? 'bg-green-600' : 'bg-emerald-900/70'} text-white`}>
+                B {myProgress.bonus}/{CARDS_NEEDED.bonus}
               </span>
             </div>
           </div>
@@ -492,9 +492,9 @@ export function FantaAuctionRoom({ fantaId, playerName, isCreator, participants,
                       <span className={`ml-auto font-black text-sm tabular-nums ${isDisq ? 'text-red-500' : 'text-yellow-300'}`}>{cr}</span>
                     </div>
                     <div className="flex gap-1.5 text-[10px] font-bold">
-                      <span className={`px-1.5 py-0.5 rounded ${prog.personaggi >= CARDS_PER_TYPE ? 'bg-green-600' : 'bg-red-900/60'} text-white`}>P:{prog.personaggi}</span>
-                      <span className={`px-1.5 py-0.5 rounded ${prog.mosse >= CARDS_PER_TYPE ? 'bg-green-600' : 'bg-blue-900/60'} text-white`}>M:{prog.mosse}</span>
-                      <span className={`px-1.5 py-0.5 rounded ${prog.bonus >= CARDS_PER_TYPE ? 'bg-green-600' : 'bg-emerald-900/60'} text-white`}>B:{prog.bonus}</span>
+                      <span className={`px-1.5 py-0.5 rounded ${prog.personaggi >= CARDS_NEEDED.personaggi ? 'bg-green-600' : 'bg-red-900/60'} text-white`}>P:{prog.personaggi}</span>
+                      <span className={`px-1.5 py-0.5 rounded ${prog.mosse >= CARDS_NEEDED.mosse ? 'bg-green-600' : 'bg-blue-900/60'} text-white`}>M:{prog.mosse}</span>
+                      <span className={`px-1.5 py-0.5 rounded ${prog.bonus >= CARDS_NEEDED.bonus ? 'bg-green-600' : 'bg-emerald-900/60'} text-white`}>B:{prog.bonus}</span>
                     </div>
                   </div>
                 </div>
