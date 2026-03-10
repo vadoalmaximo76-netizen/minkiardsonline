@@ -218,8 +218,8 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
   /* ── FULL-PAGE (from home nav, no active game) ─────────────────────────── */
   if (isFullPage) {
     return (
-      <div className="fixed inset-0 z-[70] flex flex-col"
-        style={{ background: 'linear-gradient(180deg, #050810 0%, #0a0f1e 40%, #0d1228 70%, #080c18 100%)' }}>
+      <div className="fixed inset-0 flex flex-col"
+        style={{ zIndex: 100002, background: 'linear-gradient(180deg, #050810 0%, #0a0f1e 40%, #0d1228 70%, #080c18 100%)' }}>
         {/* Top bar */}
         <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-white/10"
           style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(12px)' }}>
@@ -260,8 +260,8 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
 
   /* ── MODAL (from within a game) ────────────────────────────────────────── */
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-3"
-      style={{ background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(4px)' }}>
+    <div className="fixed inset-0 flex items-center justify-center p-3"
+      style={{ zIndex: 100002, background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(4px)' }}>
       <div className="flex flex-col w-full rounded-xl border border-yellow-500/25 shadow-2xl overflow-hidden"
         style={{
           maxWidth: 700,

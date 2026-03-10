@@ -746,7 +746,6 @@ function App() {
             isOpen={true}
             onClose={handleGoHome}
             currentUserId={authenticatedUser?.id}
-            currentGameId={gameId || undefined}
           />
         </div>
         <SpotifyPlayer disabled={false} />
