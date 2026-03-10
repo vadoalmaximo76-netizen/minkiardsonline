@@ -4106,5 +4106,83 @@
       }
     ],
     "createdAt": 1773173533146
+  },
+  {
+    "id": "fanta-1773173919504-8gxryj",
+    "creatorName": "Fake",
+    "participants": {
+      "Fake": {
+        "name": "Fake",
+        "credits": 500,
+        "deck": {
+          "personaggi": [],
+          "mosse": [],
+          "bonus": []
+        },
+        "isCPU": false,
+        "cpuLevel": "medium"
+      },
+      "CPU 1": {
+        "name": "CPU 1",
+        "credits": 500,
+        "deck": {
+          "personaggi": [],
+          "mosse": [],
+          "bonus": []
+        },
+        "isCPU": true,
+        "cpuLevel": "medium"
+      },
+      "CPU 2": {
+        "name": "CPU 2",
+        "credits": 500,
+        "deck": {
+          "personaggi": [],
+          "mosse": [],
+          "bonus": []
+        },
+        "isCPU": true,
+        "cpuLevel": "medium"
+      },
+      "CPU 3": {
+        "name": "CPU 3",
+        "credits": 500,
+        "deck": {
+          "personaggi": [],
+          "mosse": [],
+          "bonus": []
+        },
+        "isCPU": true,
+        "cpuLevel": "medium"
+      },
+      "CPU 4": {
+        "name": "CPU 4",
+        "credits": 500,
+        "deck": {
+          "personaggi": [],
+          "mosse": [],
+          "bonus": []
+        },
+        "isCPU": true,
+        "cpuLevel": "medium"
+      },
+      "CPU 5": {
+        "name": "CPU 5",
+        "credits": 500,
+        "deck": {
+          "personaggi": [],
+          "mosse": [],
+          "bonus": []
+        },
+        "isCPU": true,
+        "cpuLevel": "medium"
+      }
+    },
+    "status": "lobby",
+    "cardQueue": [],
+    "currentCardIndex": 0,
+    "currentAuction": null,
+    "recentAwarded": [],
+    "createdAt": 1773173919504
   }
 ]
