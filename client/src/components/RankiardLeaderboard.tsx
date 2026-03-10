@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Trophy, ArrowLeft } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Trophy, ArrowLeft, UserPlus, MessageCircle, Swords } from "lucide-react";
 
 interface LeaderboardEntry {
   id: number;
@@ -17,6 +17,60 @@ interface RankiardLeaderboardProps {
   currentUserId?: number;
   currentGameId?: string;
 }
+
+interface TooltipButtonProps {
+  icon: React.ReactNode;
+  tooltip: string;
+  onClick: () => void;
+  color?: string;
+}
+
+const TooltipButton: React.FC<TooltipButtonProps> = ({ icon, tooltip, onClick, color = 'rgba(255,255,255,0.5)' }) => {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <div style={{ position: 'relative', display: 'inline-flex' }}>
+      <button
+        onClick={onClick}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          background: hovered ? 'rgba(255,255,255,0.1)' : 'none',
+          border: 'none',
+          color: hovered ? 'white' : color,
+          cursor: 'pointer',
+          padding: '6px',
+          borderRadius: '6px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.15s ease',
+        }}
+      >
+        {icon}
+      </button>
+      {hovered && (
+        <div style={{
+          position: 'absolute',
+          bottom: 'calc(100% + 6px)',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(0,0,0,0.85)',
+          color: 'white',
+          fontSize: 11,
+          padding: '4px 8px',
+          borderRadius: 4,
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+          zIndex: 10,
+          border: '1px solid rgba(255,255,255,0.15)',
+        }}>
+          {tooltip}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
   isOpen,
@@ -57,16 +111,65 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px', minHeight: 0 }}>
-        {loading ? <div style={{ color: 'rgba(255,255,255,0.5)' }}>Caricamento...</div> : leaderboard.length === 0 ? <div style={{ color: 'rgba(255,255,255,0.3)' }}>Nessun giocatore</div> : leaderboard.map((p, i) => (
-          <div key={p.id} style={{ display: 'grid', gridTemplateColumns: '40px 1fr 80px 80px 80px', gap: 12, padding: '12px', marginBottom: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 8, alignItems: 'center', borderLeft: p.id === currentUserId ? '3px solid rgba(8,145,178,0.6)' : '3px solid transparent' }}>
-            <div style={{ fontSize: 18 }}>{i < 3 ? (i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉') : emojis[i % emojis.length]}</div>
+        {loading ? (
+          <div style={{ color: 'rgba(255,255,255,0.5)' }}>Caricamento...</div>
+        ) : leaderboard.length === 0 ? (
+          <div style={{ color: 'rgba(255,255,255,0.3)' }}>Nessun giocatore</div>
+        ) : leaderboard.map((p, i) => (
+          <div
+            key={p.id}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '40px 1fr 80px 80px 80px auto',
+              gap: 12,
+              padding: '12px',
+              marginBottom: 8,
+              background: 'rgba(255,255,255,0.05)',
+              borderRadius: 8,
+              alignItems: 'center',
+              borderLeft: p.id === currentUserId ? '3px solid rgba(8,145,178,0.6)' : '3px solid transparent',
+            }}
+          >
+            <div style={{ fontSize: 18 }}>
+              {i < 3 ? (i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉') : emojis[i % emojis.length]}
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 16 }}>{emojis[(parseInt(p.avatar?.replace('avatar-', '') || '0') - 1) % emojis.length]}</span>
-              <span style={{ color: p.id === currentUserId ? '#67e8f9' : 'white', fontSize: 14 }}>{p.username}{p.id === currentUserId ? ' (tu)' : ''}</span>
+              <span style={{ fontSize: 16 }}>
+                {emojis[(parseInt(p.avatar?.replace('avatar-', '') || '0') - 1) % emojis.length]}
+              </span>
+              <span style={{ color: p.id === currentUserId ? '#67e8f9' : 'white', fontSize: 14 }}>
+                {p.username}{p.id === currentUserId ? ' (tu)' : ''}
+              </span>
             </div>
             <div style={{ textAlign: 'center', color: '#facc15', fontWeight: 700 }}>{p.puntiRankiard}</div>
             <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.6)' }}>{p.gamesPlayed}</div>
             <div style={{ textAlign: 'center', color: '#4ade80' }}>{p.gamesWon}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              {p.id !== currentUserId ? (
+                <>
+                  <TooltipButton
+                    icon={<UserPlus width={15} height={15} />}
+                    tooltip="Aggiungi ai tuoi amici"
+                    color="rgba(74,222,128,0.7)"
+                    onClick={() => {}}
+                  />
+                  <TooltipButton
+                    icon={<MessageCircle width={15} height={15} />}
+                    tooltip="Messaggio privato"
+                    color="rgba(103,232,249,0.7)"
+                    onClick={() => {}}
+                  />
+                  <TooltipButton
+                    icon={<Swords width={15} height={15} />}
+                    tooltip="Sfida"
+                    color="rgba(250,204,21,0.7)"
+                    onClick={() => {}}
+                  />
+                </>
+              ) : (
+                <div style={{ width: 90 }} />
+              )}
+            </div>
           </div>
         ))}
       </div>
