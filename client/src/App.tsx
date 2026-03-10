@@ -741,6 +741,8 @@ function App() {
   if (currentSection === 'leaderboard') {
     return (
       <QueryClientProvider client={queryClient}>
+        <PageTransitionOverlay phase={overlayPhase} />
+        <SpotifyPlayer disabled={false} />
         <div className="page-enter">
           <RankiardLeaderboard
             isOpen={true}
@@ -748,8 +750,6 @@ function App() {
             currentUserId={authenticatedUser?.id}
           />
         </div>
-        <SpotifyPlayer disabled={false} />
-        <PageTransitionOverlay phase={overlayPhase} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
       </QueryClientProvider>
     );
