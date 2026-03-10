@@ -126,6 +126,8 @@ interface TournamentParticipant {
   placement: number | null;
   wins: number;
   losses: number;
+  disqualifiedAt?: string | null;
+  disqualificationReason?: string | null;
 }
 
 interface TournamentMatch {
@@ -138,6 +140,8 @@ interface TournamentMatch {
   winnerId: number | null;
   status: string;
   gameId: string | null;
+  scheduledAt?: string | null;
+  note?: string | null;
 }
 
 interface Tournament {
@@ -162,6 +166,7 @@ interface Tournament {
   endDate: string | null;
   estimatedWinnerPrize?: number;
   estimatedRunnerUpPrize?: number;
+  isOfficial: boolean;
   createdAt: string;
 }
 
@@ -399,6 +404,72 @@ function TournamentDetailModal({
   const [standings, setStandings] = useState<any[]>([]);
   const [standingsLoading, setStandingsLoading] = useState(false);
 
+  const [scheduleMatch, setScheduleMatch] = useState<TournamentMatch | null>(null);
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+
+  const [disqualifyParticipant, setDisqualifyParticipant] = useState<TournamentParticipant | null>(null);
+  const [disqualifyReason, setDisqualifyReason] = useState('');
+  const [disqualifyLoading, setDisqualifyLoading] = useState(false);
+
+  const [walkoverMatch, setWalkoverMatch] = useState<TournamentMatch | null>(null);
+  const [walkoverWinnerId, setWalkoverWinnerId] = useState<number | null>(null);
+  const [walkoverReason, setWalkoverReason] = useState('');
+  const [walkoverLoading, setWalkoverLoading] = useState(false);
+
+  const [adminToast, setAdminToast] = useState('');
+  const showAdminToast = (msg: string) => { setAdminToast(msg); setTimeout(() => setAdminToast(''), 3500); };
+
+  const authToken = localStorage.getItem('authToken');
+
+  const handleSchedule = async () => {
+    if (!scheduleMatch) return;
+    setScheduleLoading(true);
+    try {
+      const res = await fetch(`/api/tournaments/matches/${scheduleMatch.id}/schedule`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ scheduledAt: scheduleDate || null }),
+      });
+      const data = await res.json();
+      if (data.success) { showAdminToast('Data impostata e notifica inviata ai giocatori!'); setScheduleMatch(null); }
+      else showAdminToast(data.error || 'Errore');
+    } catch { showAdminToast('Errore di rete'); }
+    finally { setScheduleLoading(false); }
+  };
+
+  const handleDisqualify = async () => {
+    if (!disqualifyParticipant || !disqualifyReason.trim()) return;
+    setDisqualifyLoading(true);
+    try {
+      const res = await fetch(`/api/tournaments/${tournament.id}/disqualify/${disqualifyParticipant.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ reason: disqualifyReason }),
+      });
+      const data = await res.json();
+      if (data.success) { showAdminToast('Giocatore squalificato.'); setDisqualifyParticipant(null); }
+      else showAdminToast(data.error || 'Errore');
+    } catch { showAdminToast('Errore di rete'); }
+    finally { setDisqualifyLoading(false); }
+  };
+
+  const handleWalkover = async () => {
+    if (!walkoverMatch || walkoverWinnerId == null || !walkoverReason.trim()) return;
+    setWalkoverLoading(true);
+    try {
+      const res = await fetch(`/api/tournaments/matches/${walkoverMatch.id}/walkover`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ winnerId: walkoverWinnerId, reason: walkoverReason }),
+      });
+      const data = await res.json();
+      if (data.success) { showAdminToast('Risultato a tavolino registrato!'); setWalkoverMatch(null); }
+      else showAdminToast(data.error || 'Errore');
+    } catch { showAdminToast('Errore di rete'); }
+    finally { setWalkoverLoading(false); }
+  };
+
   const isOrganizer = tournament.organizerId === userId;
   const isAdmin = userEmail === 'lucaforte94@gmail.com';
   const isParticipant = participants.some(p => p.userId === userId);
@@ -464,7 +535,17 @@ function TournamentDetailModal({
         }}>
           <Trophy size={24} color="#f59e0b" />
           <div style={{ flex: 1 }}>
-            <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 18 }}>{tournament.name}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 18 }}>{tournament.name}</div>
+              {tournament.isOfficial && (
+                <span style={{
+                  background: 'linear-gradient(135deg, #b45309, #d97706)',
+                  borderRadius: 6, padding: '2px 8px',
+                  fontSize: 10, fontWeight: 800, color: '#fff',
+                  letterSpacing: 1, textTransform: 'uppercase',
+                }}>⭐ UFFICIALE</span>
+              )}
+            </div>
             <div style={{ color: '#64748b', fontSize: 12 }}>Organizzato da {tournament.organizerName}</div>
           </div>
           <StatusBadge status={tournament.status} />
@@ -588,13 +669,58 @@ function TournamentDetailModal({
           )}
 
           {tab === 'bracket' && (
-            <BracketView
-              matches={matches}
-              participantNames={participantNames}
-              userId={userId}
-              tournamentName={tournament.name}
-              onPlayMatch={onPlayMatch}
-            />
+            <div>
+              <BracketView
+                matches={matches}
+                participantNames={participantNames}
+                userId={userId}
+                tournamentName={tournament.name}
+                onPlayMatch={onPlayMatch}
+              />
+              {isAdmin && tournament.status !== 'completed' && (
+                <div style={{ marginTop: 24 }}>
+                  <div style={{ color: '#f59e0b', fontWeight: 700, fontSize: 13, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Settings size={14} /> Controlli Admin — Partite
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {matches.filter(m => m.status !== 'completed').map(m => {
+                      const pids: (number | null)[] = (m.playerIds && (m.playerIds as any[]).length > 0) ? (m.playerIds as any[]) : [m.player1Id, m.player2Id];
+                      const humanPids = pids.filter((p): p is number => p !== null && p > 0);
+                      const dateStr = m.scheduledAt ? new Date(m.scheduledAt).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : null;
+                      return (
+                        <div key={m.id} style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ color: '#94a3b8', fontSize: 12 }}>R{m.round} M{m.matchNumber}</div>
+                            <div style={{ color: '#f1f5f9', fontSize: 13, fontWeight: 600 }}>
+                              {pids.filter(Boolean).map(p => getName(p)).join(' vs ')}
+                            </div>
+                            {dateStr && <div style={{ color: '#60a5fa', fontSize: 11, marginTop: 2 }}>📅 {dateStr}</div>}
+                            {m.note && <div style={{ color: '#f59e0b', fontSize: 11, marginTop: 2 }}>📝 {m.note}</div>}
+                          </div>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button
+                              onClick={() => { setScheduleMatch(m); setScheduleDate(m.scheduledAt ? new Date(m.scheduledAt).toISOString().slice(0, 16) : ''); }}
+                              style={{ background: '#0f172a', border: '1px solid #3b82f6', borderRadius: 6, color: '#60a5fa', padding: '4px 10px', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}>
+                              📅 Programma
+                            </button>
+                            {humanPids.length >= 2 && (
+                              <button
+                                onClick={() => { setWalkoverMatch(m); setWalkoverWinnerId(null); setWalkoverReason(''); }}
+                                style={{ background: '#0f172a', border: '1px solid #f59e0b', borderRadius: 6, color: '#fbbf24', padding: '4px 10px', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}>
+                                ⚖️ A Tavolino
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {matches.filter(m => m.status !== 'completed').length === 0 && (
+                      <div style={{ color: '#64748b', fontSize: 13, textAlign: 'center', padding: '16px 0' }}>Tutte le partite sono completate</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           {tab === 'partecipanti' && (
@@ -614,13 +740,24 @@ function TournamentDetailModal({
                       {p.username || p.displayName}
                       {p.userId === userId && <span style={{ color: '#3b82f6', fontSize: 11, marginLeft: 6 }}>(Tu)</span>}
                       {p.isCpu && <span style={{ color: '#64748b', fontSize: 11, marginLeft: 6 }}>CPU</span>}
+                      {p.disqualifiedAt && <span style={{ color: '#ef4444', fontSize: 11, marginLeft: 6 }}>❌ Squalificato</span>}
                     </div>
                     <div style={{ color: '#64748b', fontSize: 12 }}>
                       V: {p.wins} / S: {p.losses}
                       {p.placement && <span style={{ marginLeft: 8, color: p.placement === 1 ? '#f59e0b' : '#94a3b8' }}>#{p.placement}</span>}
+                      {p.disqualificationReason && <span style={{ marginLeft: 8, color: '#ef444488', fontStyle: 'italic' }}>{p.disqualificationReason}</span>}
                     </div>
                   </div>
-                  <StatusBadge status={p.status} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {isAdmin && !p.isCpu && !p.disqualifiedAt && tournament.status !== 'completed' && (
+                      <button
+                        onClick={() => { setDisqualifyParticipant(p); setDisqualifyReason(''); }}
+                        style={{ background: '#1e293b', border: '1px solid #ef4444', borderRadius: 6, color: '#ef4444', padding: '4px 10px', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}>
+                        Squalifica
+                      </button>
+                    )}
+                    <StatusBadge status={p.status} />
+                  </div>
                 </div>
               ))}
             </div>
@@ -682,6 +819,112 @@ function TournamentDetailModal({
           )}
         </div>
       </div>
+
+      {/* Admin Toast */}
+      {adminToast && (
+        <div style={{
+          position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)',
+          background: '#1e293b', border: '1px solid #7c3aed', borderRadius: 12,
+          padding: '12px 24px', color: '#f1f5f9', fontWeight: 600, fontSize: 14,
+          zIndex: 10000, boxShadow: '0 8px 32px #7c3aed44',
+        }}>{adminToast}</div>
+      )}
+
+      {/* Schedule Modal */}
+      {scheduleMatch && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={e => { if (e.target === e.currentTarget) setScheduleMatch(null); }}>
+          <div style={{ background: '#1e293b', border: '1px solid #3b82f6', borderRadius: 16, padding: 24, width: 360, maxWidth: '95vw' }}>
+            <div style={{ color: '#60a5fa', fontWeight: 700, fontSize: 16, marginBottom: 16 }}>📅 Programma Partita</div>
+            <div style={{ color: '#94a3b8', fontSize: 13, marginBottom: 12 }}>
+              R{scheduleMatch.round} M{scheduleMatch.matchNumber}
+            </div>
+            <div style={{ color: '#64748b', fontSize: 12, marginBottom: 6 }}>Data e ora (lasciar vuoto per rimuovere)</div>
+            <input
+              type="datetime-local"
+              value={scheduleDate}
+              onChange={e => setScheduleDate(e.target.value)}
+              style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', borderRadius: 8, color: '#f1f5f9', padding: '10px 12px', fontSize: 14, boxSizing: 'border-box', marginBottom: 16 }}
+            />
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setScheduleMatch(null)} style={{ flex: 1, background: '#0f172a', border: '1px solid #334155', borderRadius: 8, color: '#94a3b8', padding: '10px', cursor: 'pointer', fontWeight: 600 }}>
+                Annulla
+              </button>
+              <button onClick={handleSchedule} disabled={scheduleLoading} style={{ flex: 2, background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', border: 'none', borderRadius: 8, color: 'white', padding: '10px', cursor: 'pointer', fontWeight: 700 }}>
+                {scheduleLoading ? '...' : 'Salva Data'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Disqualify Modal */}
+      {disqualifyParticipant && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={e => { if (e.target === e.currentTarget) setDisqualifyParticipant(null); }}>
+          <div style={{ background: '#1e293b', border: '1px solid #ef4444', borderRadius: 16, padding: 24, width: 380, maxWidth: '95vw' }}>
+            <div style={{ color: '#ef4444', fontWeight: 700, fontSize: 16, marginBottom: 8 }}>❌ Squalifica Giocatore</div>
+            <div style={{ color: '#94a3b8', fontSize: 13, marginBottom: 16 }}>
+              {disqualifyParticipant.username || disqualifyParticipant.displayName}
+            </div>
+            <div style={{ color: '#64748b', fontSize: 12, marginBottom: 6 }}>Motivazione *</div>
+            <textarea
+              value={disqualifyReason}
+              onChange={e => setDisqualifyReason(e.target.value)}
+              rows={3} placeholder="Inserisci la motivazione della squalifica..."
+              style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', borderRadius: 8, color: '#f1f5f9', padding: '10px 12px', fontSize: 14, resize: 'vertical', boxSizing: 'border-box', marginBottom: 16 }}
+            />
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setDisqualifyParticipant(null)} style={{ flex: 1, background: '#0f172a', border: '1px solid #334155', borderRadius: 8, color: '#94a3b8', padding: '10px', cursor: 'pointer', fontWeight: 600 }}>
+                Annulla
+              </button>
+              <button onClick={handleDisqualify} disabled={disqualifyLoading || !disqualifyReason.trim()} style={{ flex: 2, background: 'linear-gradient(135deg,#b91c1c,#ef4444)', border: 'none', borderRadius: 8, color: 'white', padding: '10px', cursor: 'pointer', fontWeight: 700, opacity: disqualifyReason.trim() ? 1 : 0.5 }}>
+                {disqualifyLoading ? '...' : 'Conferma Squalifica'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Walkover Modal */}
+      {walkoverMatch && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={e => { if (e.target === e.currentTarget) setWalkoverMatch(null); }}>
+          <div style={{ background: '#1e293b', border: '1px solid #f59e0b', borderRadius: 16, padding: 24, width: 400, maxWidth: '95vw' }}>
+            <div style={{ color: '#f59e0b', fontWeight: 700, fontSize: 16, marginBottom: 8 }}>⚖️ Risultato A Tavolino</div>
+            <div style={{ color: '#94a3b8', fontSize: 13, marginBottom: 16 }}>R{walkoverMatch.round} M{walkoverMatch.matchNumber}</div>
+            <div style={{ color: '#64748b', fontSize: 12, marginBottom: 6 }}>Seleziona il vincitore *</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+              {(() => {
+                const pids: (number | null)[] = (walkoverMatch.playerIds && (walkoverMatch.playerIds as any[]).length > 0)
+                  ? (walkoverMatch.playerIds as any[])
+                  : [walkoverMatch.player1Id, walkoverMatch.player2Id];
+                return pids.filter((p): p is number => p !== null && p > 0).map(pid => (
+                  <button key={pid} onClick={() => setWalkoverWinnerId(pid)}
+                    style={{ background: walkoverWinnerId === pid ? '#78350f' : '#0f172a', border: `1px solid ${walkoverWinnerId === pid ? '#f59e0b' : '#334155'}`, borderRadius: 8, color: walkoverWinnerId === pid ? '#fde68a' : '#94a3b8', padding: '10px 14px', cursor: 'pointer', fontWeight: walkoverWinnerId === pid ? 700 : 400, textAlign: 'left' }}>
+                    {getName(pid)}
+                  </button>
+                ));
+              })()}
+            </div>
+            <div style={{ color: '#64748b', fontSize: 12, marginBottom: 6 }}>Motivazione *</div>
+            <textarea
+              value={walkoverReason}
+              onChange={e => setWalkoverReason(e.target.value)}
+              rows={2} placeholder="Es. Giocatore non presentato nei termini..."
+              style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', borderRadius: 8, color: '#f1f5f9', padding: '10px 12px', fontSize: 14, resize: 'vertical', boxSizing: 'border-box', marginBottom: 16 }}
+            />
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setWalkoverMatch(null)} style={{ flex: 1, background: '#0f172a', border: '1px solid #334155', borderRadius: 8, color: '#94a3b8', padding: '10px', cursor: 'pointer', fontWeight: 600 }}>
+                Annulla
+              </button>
+              <button onClick={handleWalkover} disabled={walkoverLoading || walkoverWinnerId == null || !walkoverReason.trim()} style={{ flex: 2, background: 'linear-gradient(135deg,#78350f,#d97706)', border: 'none', borderRadius: 8, color: 'white', padding: '10px', cursor: 'pointer', fontWeight: 700, opacity: (walkoverWinnerId != null && walkoverReason.trim()) ? 1 : 0.5 }}>
+                {walkoverLoading ? '...' : 'Assegna Risultato'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -811,6 +1054,7 @@ function CreateWizard({
     winnerRewardMultiplier: 20,
     runnerUpRewardMultiplier: 5,
     characterLimit: '3' as string,
+    isOfficial: false,
   });
 
   const setField = (k: string, v: any) => setForm(prev => ({ ...prev, [k]: v }));
@@ -851,6 +1095,7 @@ function CreateWizard({
           settings: { characterLimit: form.characterLimit },
           type: compInfo.type,
           gameMode: compInfo.gameMode,
+          isOfficial: isAdmin ? form.isOfficial : false,
         }),
       });
       const data = await res.json();
@@ -935,6 +1180,43 @@ function CreateWizard({
                   placeholder="Descrivi il torneo..." rows={3}
                   style={{ ...inputStyle, resize: 'vertical' as const }} />
               </div>
+              {isAdmin && (
+                <button
+                  onClick={() => setField('isOfficial', !form.isOfficial)}
+                  style={{
+                    background: form.isOfficial
+                      ? 'linear-gradient(135deg, #78350f, #b45309)'
+                      : '#1e293b',
+                    border: `1px solid ${form.isOfficial ? '#d97706' : '#334155'}`,
+                    borderRadius: 10, padding: '12px 16px', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left',
+                    transition: 'all 0.2s',
+                  }}>
+                  <span style={{ fontSize: 22 }}>⭐</span>
+                  <div>
+                    <div style={{ color: form.isOfficial ? '#fde68a' : '#94a3b8', fontWeight: 700, fontSize: 14 }}>
+                      Competizione Ufficiale
+                    </div>
+                    <div style={{ color: form.isOfficial ? '#fbbf24' : '#64748b', fontSize: 12 }}>
+                      {form.isOfficial
+                        ? 'Gli iscritti riceveranno notifiche push — appare in cima alla lista'
+                        : 'Attiva per rendere questa competizione ufficiale (solo admin)'}
+                    </div>
+                  </div>
+                  <div style={{
+                    marginLeft: 'auto',
+                    width: 40, height: 22, borderRadius: 11,
+                    background: form.isOfficial ? '#d97706' : '#334155',
+                    position: 'relative', transition: 'background 0.2s',
+                  }}>
+                    <div style={{
+                      position: 'absolute', top: 3, left: form.isOfficial ? 21 : 3,
+                      width: 16, height: 16, borderRadius: '50%', background: 'white',
+                      transition: 'left 0.2s',
+                    }} />
+                  </div>
+                </button>
+              )}
             </div>
           )}
 
@@ -1193,8 +1475,20 @@ function TournamentCard({ tournament, onClick }: { tournament: Tournament; onCli
         pointerEvents: 'none',
       }} />
 
+      {tournament.isOfficial && (
+        <div style={{
+          position: 'absolute', top: 10, right: 10,
+          background: 'linear-gradient(135deg, #b45309, #d97706)',
+          borderRadius: 6, padding: '2px 8px',
+          fontSize: 10, fontWeight: 800, color: '#fff',
+          letterSpacing: 1, textTransform: 'uppercase',
+          boxShadow: '0 0 10px #f59e0b55',
+          zIndex: 1,
+        }}>⭐ UFFICIALE</div>
+      )}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-        <div>
+        <div style={{ flex: 1, paddingRight: tournament.isOfficial ? 80 : 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
             <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 15 }}>{tournament.name}</div>
           </div>
@@ -1376,9 +1670,14 @@ export function ClassicTournamentHub({ userId, username, puntiRankiard, userEmai
     t.organizerId === userId
   );
 
-  const displayedTournaments = tab === 'miei'
+  const displayedTournaments = (tab === 'miei'
     ? tournaments.filter(t => t.organizerId === userId)
-    : tournaments;
+    : tournaments
+  ).slice().sort((a, b) => {
+    if (a.isOfficial && !b.isOfficial) return -1;
+    if (!a.isOfficial && b.isOfficial) return 1;
+    return 0;
+  });
 
   const TABS = [
     { key: 'esplora', label: 'Esplora', icon: Search },

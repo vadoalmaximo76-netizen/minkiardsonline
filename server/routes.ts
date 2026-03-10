@@ -10413,6 +10413,83 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
   });
 
   // POST /api/tournaments — create tournament with full params + auto-add CPU participants
+  // ── Helper: send push to all users with subscriptions ──────────────────
+  async function sendPushToAll(payload: { title: string; body: string; url?: string; tag?: string }): Promise<void> {
+    if (!isDatabaseAvailable()) return;
+    try {
+      const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
+      const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
+      if (!vapidPublicKey || !vapidPrivateKey) return;
+      const webpush = (await import('web-push')).default;
+      webpush.setVapidDetails('mailto:vadoalmaximo76@gmail.com', vapidPublicKey, vapidPrivateKey);
+      const subs = await db.select().from(pushSubscriptions);
+      const jsonPayload = JSON.stringify(payload);
+      for (const sub of subs) {
+        try {
+          await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, jsonPayload);
+        } catch (e: any) {
+          if (e.statusCode === 410 || e.statusCode === 404) {
+            await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, sub.endpoint));
+          }
+        }
+      }
+      console.log(`[Push] Broadcasted to all users: ${payload.title}`);
+    } catch (e) { console.error('[Push] sendPushToAll error:', e); }
+  }
+
+  // ── Match notification scheduler (runs every 60s) ────────────────────────
+  async function checkMatchNotifications(): Promise<void> {
+    if (!isDatabaseAvailable()) return;
+    try {
+      const now = new Date();
+      const pending = await db.select({ match: tournamentMatches, tournament: tournaments })
+        .from(tournamentMatches)
+        .innerJoin(tournaments, eq(tournamentMatches.tournamentId, tournaments.id))
+        .where(and(
+          eq(tournamentMatches.status, 'pending'),
+          sql`${tournamentMatches.scheduledAt} IS NOT NULL`
+        ));
+
+      for (const { match, tournament } of pending) {
+        if (!match.scheduledAt) continue;
+        const minsUntil = (match.scheduledAt.getTime() - now.getTime()) / 60000;
+
+        const pids: (number | null)[] = (match.playerIds as any) || [match.player1Id, match.player2Id];
+        const humanParticipantIds = pids.filter((p): p is number => p !== null && p > 0);
+        if (humanParticipantIds.length === 0) continue;
+
+        // Get user IDs from participant rows
+        const participantRows = await db.select({ userId: tournamentParticipants.userId, id: tournamentParticipants.id })
+          .from(tournamentParticipants)
+          .where(inArray(tournamentParticipants.id, humanParticipantIds));
+
+        const notifyUsers = async (label: string) => {
+          for (const p of participantRows) {
+            if (!p.userId) continue;
+            await sendPushToUser(p.userId, {
+              title: `⏰ Partita in ${label}`,
+              body: `La tua partita nel torneo "${tournament.name}" inizia tra ${label}.`,
+              url: '/tournaments',
+              tag: `match-reminder-${match.id}-${label}`,
+            });
+          }
+        };
+
+        if (!match.notified24h && minsUntil >= 23 * 60 && minsUntil < 25 * 60) {
+          await notifyUsers('24 ore');
+          await db.update(tournamentMatches).set({ notified24h: true }).where(eq(tournamentMatches.id, match.id));
+        } else if (!match.notified1h && minsUntil >= 55 && minsUntil < 75) {
+          await notifyUsers('1 ora');
+          await db.update(tournamentMatches).set({ notified1h: true }).where(eq(tournamentMatches.id, match.id));
+        } else if (!match.notified30m && minsUntil >= 25 && minsUntil < 35) {
+          await notifyUsers('30 minuti');
+          await db.update(tournamentMatches).set({ notified30m: true }).where(eq(tournamentMatches.id, match.id));
+        }
+      }
+    } catch (e) { console.error('[Scheduler] matchNotifications error:', e); }
+  }
+  setInterval(checkMatchNotifications, 60_000);
+
   app.post('/api/tournaments', authMiddleware, async (req, res) => {
     try {
       if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
@@ -10420,7 +10497,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const {
         name, description, type, gameMode, maxParticipants, playersPerMatch,
         cpuCount, cpuNames, prizePool, entryFee, winnerRewardMultiplier, runnerUpRewardMultiplier,
-        settings: tournamentSettings
+        settings: tournamentSettings, isOfficial
       } = req.body;
 
       if (!name) return res.status(400).json({ success: false, error: 'Nome torneo obbligatorio' });
@@ -10435,6 +10512,8 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const resolvedRunnerUpMult = (isAdmin && runnerUpRewardMultiplier != null) ? parseInt(runnerUpRewardMultiplier) : 5;
 
       const resolvedSettings = tournamentSettings && typeof tournamentSettings === 'object' ? tournamentSettings : {};
+
+      const resolvedIsOfficial = isAdmin && !!isOfficial;
 
       const [newTournament] = await db.insert(tournaments).values({
         name,
@@ -10451,6 +10530,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         organizerId: currentUser[0].id,
         currentParticipants: 0,
         settings: resolvedSettings,
+        isOfficial: resolvedIsOfficial,
       }).returning();
 
       // Auto-register the organizer
@@ -10478,11 +10558,147 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         await db.update(tournaments).set({ currentParticipants: totalParticipantsNow }).where(eq(tournaments.id, newTournament.id));
       }
 
-      io.emit('tournament-created', { tournamentId: newTournament.id, name: newTournament.name });
+      io.emit('tournament-created', { tournamentId: newTournament.id, name: newTournament.name, isOfficial: resolvedIsOfficial });
+
+      // If official → push notification to all users
+      if (resolvedIsOfficial) {
+        const typeLabel = (type === 'round_robin') ? 'Campionato' : 'Torneo';
+        sendPushToAll({
+          title: `🏆 Nuova Competizione Ufficiale`,
+          body: `${typeLabel} ufficiale "${name}" aperto alle iscrizioni!`,
+          url: '/tournaments',
+          tag: `official-tournament-${newTournament.id}`,
+        }).catch(() => {});
+      }
+
       res.json({ success: true, tournament: { ...newTournament, currentParticipants: totalParticipantsNow } });
     } catch (error) {
       console.error('Error creating tournament:', error);
       res.status(500).json({ success: false, error: 'Failed to create tournament' });
+    }
+  });
+
+  // PUT /api/tournaments/matches/:id/schedule — admin sets match date/time
+  app.put('/api/tournaments/matches/:id/schedule', authMiddleware, async (req: any, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const { id } = req.params;
+      const { scheduledAt } = req.body;
+      const user = req.user;
+      if (user.email !== 'lucaforte94@gmail.com') return res.status(403).json({ success: false, error: 'Non autorizzato' });
+
+      const match = await db.select().from(tournamentMatches).where(eq(tournamentMatches.id, parseInt(id))).limit(1);
+      if (!match.length) return res.status(404).json({ success: false, error: 'Partita non trovata' });
+
+      const tournament = await db.select().from(tournaments).where(eq(tournaments.id, match[0].tournamentId)).limit(1);
+      if (!tournament.length) return res.status(404).json({ success: false, error: 'Torneo non trovato' });
+      if (tournament[0].organizerId !== (await db.select({ id: users.id }).from(users).where(eq(users.email, user.email)).limit(1))[0]?.id
+          && user.email !== 'lucaforte94@gmail.com') {
+        return res.status(403).json({ success: false, error: 'Non autorizzato' });
+      }
+
+      const scheduledDate = scheduledAt ? new Date(scheduledAt) : null;
+      await db.update(tournamentMatches)
+        .set({ scheduledAt: scheduledDate, notified24h: false, notified1h: false, notified30m: false })
+        .where(eq(tournamentMatches.id, parseInt(id)));
+
+      // Notify the players in this match immediately that a date has been set
+      if (scheduledDate) {
+        const pids: (number | null)[] = (match[0].playerIds as any) || [match[0].player1Id, match[0].player2Id];
+        const humanParticipantIds = pids.filter((p): p is number => p !== null && p > 0);
+        const participantRows = humanParticipantIds.length > 0
+          ? await db.select({ userId: tournamentParticipants.userId }).from(tournamentParticipants).where(inArray(tournamentParticipants.id, humanParticipantIds))
+          : [];
+        const dateStr = scheduledDate.toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        for (const p of participantRows) {
+          if (p.userId) {
+            sendPushToUser(p.userId, {
+              title: `📅 Partita Programmata`,
+              body: `La tua partita nel torneo "${tournament[0].name}" è programmata per il ${dateStr}.`,
+              url: '/tournaments',
+              tag: `match-scheduled-${match[0].id}`,
+            }).catch(() => {});
+          }
+        }
+      }
+
+      res.json({ success: true });
+    } catch (e) {
+      console.error('schedule match error:', e);
+      res.status(500).json({ success: false, error: 'Errore' });
+    }
+  });
+
+  // POST /api/tournaments/:id/disqualify/:participantId — admin disqualifies a participant
+  app.post('/api/tournaments/:id/disqualify/:participantId', authMiddleware, async (req: any, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const { id, participantId } = req.params;
+      const { reason } = req.body;
+      if (!reason?.trim()) return res.status(400).json({ success: false, error: 'Motivazione obbligatoria' });
+      if (req.user.email !== 'lucaforte94@gmail.com') return res.status(403).json({ success: false, error: 'Non autorizzato' });
+
+      const tournament = await db.select().from(tournaments).where(eq(tournaments.id, parseInt(id))).limit(1);
+      if (!tournament.length) return res.status(404).json({ success: false, error: 'Torneo non trovato' });
+
+      const participant = await db.select().from(tournamentParticipants)
+        .where(and(eq(tournamentParticipants.id, parseInt(participantId)), eq(tournamentParticipants.tournamentId, parseInt(id))))
+        .limit(1);
+      if (!participant.length) return res.status(404).json({ success: false, error: 'Partecipante non trovato' });
+
+      await db.update(tournamentParticipants)
+        .set({ status: 'eliminated', disqualifiedAt: new Date(), disqualificationReason: reason.trim() })
+        .where(eq(tournamentParticipants.id, parseInt(participantId)));
+
+      // Notify disqualified user
+      if (participant[0].userId) {
+        sendPushToUser(participant[0].userId, {
+          title: `❌ Squalifica dal torneo`,
+          body: `Sei stato squalificato dal torneo "${tournament[0].name}". Motivazione: ${reason}`,
+          url: '/tournaments',
+          tag: `disqualified-${participantId}`,
+        }).catch(() => {});
+      }
+
+      res.json({ success: true });
+    } catch (e) {
+      console.error('disqualify error:', e);
+      res.status(500).json({ success: false, error: 'Errore' });
+    }
+  });
+
+  // POST /api/tournaments/matches/:id/walkover — admin decides result a tavolino
+  app.post('/api/tournaments/matches/:id/walkover', authMiddleware, async (req: any, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const { id } = req.params;
+      const { winnerId, reason } = req.body;
+      if (!reason?.trim()) return res.status(400).json({ success: false, error: 'Motivazione obbligatoria' });
+      if (!winnerId) return res.status(400).json({ success: false, error: 'Vincitore obbligatorio' });
+      if (req.user.email !== 'lucaforte94@gmail.com') return res.status(403).json({ success: false, error: 'Non autorizzato' });
+
+      const match = await db.select().from(tournamentMatches).where(eq(tournamentMatches.id, parseInt(id))).limit(1);
+      if (!match.length) return res.status(404).json({ success: false, error: 'Partita non trovata' });
+
+      // Use the existing report endpoint logic by calling it internally
+      const response = await fetch(`http://localhost:5000/api/tournaments/matches/${id}/report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': req.headers.authorization || '' },
+        body: JSON.stringify({ winnerId: parseInt(winnerId) }),
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        // Save the walkover note
+        await db.update(tournamentMatches)
+          .set({ note: `[A TAVOLINO] ${reason.trim()}` })
+          .where(eq(tournamentMatches.id, parseInt(id)));
+      }
+
+      res.json(data);
+    } catch (e) {
+      console.error('walkover error:', e);
+      res.status(500).json({ success: false, error: 'Errore' });
     }
   });
 

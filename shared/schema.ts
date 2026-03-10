@@ -345,6 +345,7 @@ export const tournaments = pgTable("tournaments", {
   startDate: timestamp("start_date"),
   endDate: timestamp("end_date"),
   settings: jsonb("settings").default({}),
+  isOfficial: boolean("is_official").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -360,6 +361,8 @@ export const tournamentParticipants = pgTable("tournament_participants", {
   wins: integer("wins").notNull().default(0),
   losses: integer("losses").notNull().default(0),
   joinedAt: timestamp("joined_at").notNull().defaultNow(),
+  disqualifiedAt: timestamp("disqualified_at"),
+  disqualificationReason: text("disqualification_reason"),
 });
 
 // Tournament matches (bracket)
@@ -376,6 +379,10 @@ export const tournamentMatches = pgTable("tournament_matches", {
   status: text("status").notNull().default("pending"), // pending, in_progress, completed
   scheduledAt: timestamp("scheduled_at"),
   completedAt: timestamp("completed_at"),
+  note: text("note"),
+  notified24h: boolean("notified_24h").notNull().default(false),
+  notified1h: boolean("notified_1h").notNull().default(false),
+  notified30m: boolean("notified_30m").notNull().default(false),
 });
 
 // Persistent game state table for server restart recovery
