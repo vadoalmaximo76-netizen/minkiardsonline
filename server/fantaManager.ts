@@ -127,13 +127,7 @@ function buildCardQueue(mods: any[]): FantaCard[] {
     });
   }
 
-  queue.sort((a, b) => {
-    if (a.type !== b.type) {
-      const order: Record<string, number> = { personaggi: 0, mosse: 1, bonus: 2 };
-      return order[a.type] - order[b.type];
-    }
-    return a.name.localeCompare(b.name, 'it');
-  });
+  queue.sort((a, b) => a.name.localeCompare(b.name, 'it'));
 
   return queue;
 }

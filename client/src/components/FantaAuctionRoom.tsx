@@ -175,7 +175,7 @@ export function FantaAuctionRoom({ fantaId, playerName, isCreator, participants,
     (myProgress[currentCard.type] ?? 0) < 33 &&
     currentBidder !== playerName);
 
-  const quickBids = currentBid === 0 ? [10, 25, 50, 100] : [5, 10, 25, 50];
+  const quickBids = [1, 5, 10];
 
   return (
     <div className="flex flex-col h-full bg-gray-900 text-white overflow-y-auto">
@@ -295,7 +295,7 @@ export function FantaAuctionRoom({ fantaId, playerName, isCreator, participants,
       <div className="px-4 pb-3">
         <div className="bg-gray-800 rounded-xl p-3 border border-gray-700">
           <div className="text-xs text-white/50 font-semibold mb-2">Fai un'offerta</div>
-          <div className="grid grid-cols-4 gap-2 mb-2.5">
+          <div className="grid grid-cols-3 gap-3 mb-2.5">
             {quickBids.map(inc => {
               const bidAmount = currentBid + inc;
               const disabled = !canBid || myCredits < bidAmount;
