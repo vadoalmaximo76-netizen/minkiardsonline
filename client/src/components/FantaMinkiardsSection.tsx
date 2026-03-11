@@ -105,6 +105,23 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
     return () => clearInterval(interval);
   }, [fetchSessions]);
 
+  const handleDeleteFantaSession = async (id: string) => {
+    if (!window.confirm('Sei sicuro di voler eliminare questa sessione FantaMinkiards?')) return;
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+      const res = await fetch(`/api/fanta/sessions/${id}`, { method: 'DELETE', headers });
+      const data = await res.json();
+      if (data.success) {
+        fetchSessions();
+      } else {
+        alert(data.error || 'Errore eliminazione sessione');
+      }
+    } catch {
+      alert('Errore di rete');
+    }
+  };
+
   useEffect(() => {
     if (initialFantaId && playerName) {
       console.log('[FANTA] Auto-rejoining fantaId:', initialFantaId);
@@ -1069,6 +1086,15 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
                       >
                         Riprendi
                       </Button>
+                      {isAdmin && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleDeleteFantaSession(s.id)}
+                          className="flex-shrink-0 bg-red-900 hover:bg-red-800 text-red-300 border border-red-700"
+                        >
+                          Elimina
+                        </Button>
+                      )}
                     </div>
                   );
                 })}
@@ -1078,7 +1104,7 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
 
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-white font-bold">Sessioni disponibili</h3>
+              <h3 className="text-white font-bold">{isAdmin ? 'Tutte le sessioni' : 'Sessioni disponibili'}</h3>
               <button onClick={fetchSessions} className="text-xs text-white/40 hover:text-white/70 underline">
                 Aggiorna
               </button>
@@ -1100,6 +1126,11 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
                           {s.participantCount}/{s.maxParticipants ?? '?'} partecipanti
                           {s.participants?.length > 0 && ` · ${s.participants.join(', ')}`}
                         </div>
+                        {isAdmin && s.status !== 'lobby' && (
+                          <div className={`text-xs font-semibold mt-0.5 ${s.status === 'complete' ? 'text-green-400' : 'text-orange-400'}`}>
+                            {s.status === 'complete' ? '✅ Completata' : '🔥 In corso'}
+                          </div>
+                        )}
                         <div className="text-[10px] text-white/25 font-mono mt-1 truncate">{s.id}</div>
                       </div>
                       <Button
@@ -1110,6 +1141,15 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
                       >
                         {slotsLeft === 0 ? 'Pieno' : 'Richiedi'}
                       </Button>
+                      {isAdmin && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleDeleteFantaSession(s.id)}
+                          className="flex-shrink-0 bg-red-900 hover:bg-red-800 text-red-300 border border-red-700"
+                        >
+                          Elimina
+                        </Button>
+                      )}
                     </div>
                   );
                 })}

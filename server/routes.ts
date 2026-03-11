@@ -11574,7 +11574,14 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       if (!tournament.length) return res.status(404).json({ success: false, error: 'Torneo non trovato' });
       const isAdmin = currentUser[0].email === 'lucaforte94@gmail.com';
       if (tournament[0].organizerId !== currentUser[0].id && !isAdmin) return res.status(403).json({ success: false, error: 'Non autorizzato' });
-      if (tournament[0].status === 'completed') return res.status(400).json({ success: false, error: 'Non si può cancellare un torneo completato' });
+      if (tournament[0].status === 'completed' && !isAdmin) return res.status(400).json({ success: false, error: 'Non si può cancellare un torneo completato' });
+      if (tournament[0].status === 'completed' && isAdmin) {
+        await db.delete(tournamentMatches).where(eq(tournamentMatches.tournamentId, tournamentId));
+        await db.delete(tournamentParticipants).where(eq(tournamentParticipants.tournamentId, tournamentId));
+        await db.delete(tournaments).where(eq(tournaments.id, tournamentId));
+        io.emit('tournament-cancelled', { tournamentId, name: tournament[0].name });
+        return res.json({ success: true, message: 'Torneo eliminato' });
+      }
       await db.update(tournaments).set({ status: 'cancelled' as any }).where(eq(tournaments.id, tournamentId));
       io.emit('tournament-cancelled', { tournamentId, name: tournament[0].name });
       res.json({ success: true, message: 'Torneo cancellato' });
@@ -16022,9 +16029,32 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
   });
 
   // ============ FANTAMINKIARDS REST ============
+  app.delete('/api/fanta/sessions/:id', authMiddleware, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const fantaId = req.params.id;
+      if (!user?.email || user.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        return res.status(403).json({ success: false, error: 'Solo l\'admin può eliminare sessioni FantaMinkiards' });
+      }
+      const session = fantaManager.getSession(fantaId);
+      if (!session) return res.status(404).json({ success: false, error: 'Sessione non trovata' });
+      fantaManager.deleteSession(fantaId);
+      io.to(fantaId).emit('fanta:session-deleted', { fantaId });
+      console.log(`[ADMIN] Sessione FantaMinkiards ${fantaId} eliminata da ${user.email}`);
+      res.json({ success: true, message: 'Sessione eliminata' });
+    } catch (err) {
+      res.status(500).json({ success: false, error: 'Errore eliminazione sessione' });
+    }
+  });
+
   app.get('/api/fanta/sessions', authMiddleware, async (req, res) => {
     try {
-      const sessions = fantaManager.getLobbySession().map(s => ({
+      const user = (req as any).user;
+      const callerIsAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+      const rawSessions = callerIsAdmin
+        ? fantaManager.getAllSessions()
+        : fantaManager.getLobbySession();
+      const sessions = rawSessions.map(s => ({
         id: s.id,
         creatorName: s.creatorName,
         participantCount: Object.keys(s.participants).length,

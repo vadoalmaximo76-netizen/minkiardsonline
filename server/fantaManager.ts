@@ -322,6 +322,10 @@ export class FantaManager {
     return Array.from(this.sessions.values()).filter(s => s.status === 'lobby');
   }
 
+  getAllSessions(): FantaSession[] {
+    return Array.from(this.sessions.values());
+  }
+
   getSessionsForPlayer(playerName: string): FantaSession[] {
     return Array.from(this.sessions.values()).filter(s =>
       (s.status === 'lobby' || s.status === 'complete' || s.status === 'auction') &&

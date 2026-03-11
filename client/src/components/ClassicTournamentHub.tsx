@@ -653,7 +653,7 @@ function TournamentDetailModal({
                     <Send size={15} /> Invita Giocatore
                   </button>
                 )}
-                {(isOrganizer || isAdmin) && tournament.status !== 'completed' && onDelete && (
+                {(isOrganizer || isAdmin) && (isAdmin || tournament.status !== 'completed') && onDelete && (
                   <button onClick={() => {
                     if (window.confirm('Sei sicuro di voler eliminare questo torneo?')) {
                       onDelete();
