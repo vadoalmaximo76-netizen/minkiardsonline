@@ -72,7 +72,7 @@ export function BottomNav({ currentSection, onNavigate, hasActiveGame = false }:
   const [visible, setVisible] = useState<boolean>(() => {
     try {
       const stored = localStorage.getItem('bottomNavVisible');
-      return stored === null ? true : stored === 'true';
+      return stored === null ? false : stored === 'true';
     } catch { return true; }
   });
 
