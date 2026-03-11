@@ -41,11 +41,12 @@ interface FantaSession {
 interface Props {
   playerName: string;
   authToken?: string;
+  isAdmin?: boolean;
   onClose: () => void;
   onJoinFantaGame?: (gameId: string) => void;
 }
 
-export function FantaMinkiardsSection({ playerName, authToken, onClose, onJoinFantaGame }: Props) {
+export function FantaMinkiardsSection({ playerName, authToken, isAdmin, onClose, onJoinFantaGame }: Props) {
   const [view, setView] = useState<'list' | 'lobby' | 'waiting' | 'auction' | 'complete' | 'configure' | 'bracket'>('list');
   const [lobbySessions, setLobbySessions] = useState<SessionSummary[]>([]);
   const [currentSession, setCurrentSession] = useState<FantaSession | null>(null);
@@ -73,7 +74,10 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose, onJoinFa
     type: 'elimination' as 'elimination' | 'round_robin',
     playersPerMatch: 2,
     characterLimit: '3',
+    winnerRewardMultiplier: 20,
+    runnerUpRewardMultiplier: 5,
   });
+  const [prizeNotification, setPrizeNotification] = useState<{ player: string; points: number; placement: number } | null>(null);
   const [activeMatchGameId, setActiveMatchGameId] = useState<string | null>(null);
 
   const fetchSessions = useCallback(async () => {
@@ -208,6 +212,11 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose, onJoinFa
       });
     });
 
+    socket.on('fanta:prize-awarded', (data: { player: string; points: number; placement: number }) => {
+      setPrizeNotification(data);
+      setTimeout(() => setPrizeNotification(null), 8000);
+    });
+
     socket.on('fanta:tournament-state', (data: { fantaId: string; tournament: any }) => {
       if (data.tournament) {
         setFantaTourney(data.tournament);
@@ -238,6 +247,7 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose, onJoinFa
       socket.off('fanta:tournament-configured');
       socket.off('fanta:bracket-update');
       socket.off('fanta:match-started');
+      socket.off('fanta:prize-awarded');
       socket.off('fanta:tournament-state');
       socket.off('fanta:error');
     };
@@ -540,6 +550,34 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose, onJoinFa
                     ))}
                   </div>
                 </div>
+                {isAdmin && (
+                  <div style={{ background: '#1e3a5f', border: '1px solid #2563eb', borderRadius: 12, padding: 16, marginTop: 8 }}>
+                    <div style={{ color: '#93c5fd', fontWeight: 700, fontSize: 13, marginBottom: 12 }}>⚙️ Premi Rankiard (Solo Admin)</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div>
+                        <label style={{ color: '#94a3b8', fontSize: 12, display: 'block', marginBottom: 4 }}>Moltiplicatore Vincitore (×N × partecipanti)</label>
+                        <input
+                          type="number" min={1} max={100}
+                          value={configForm.winnerRewardMultiplier}
+                          onChange={e => setConfigForm(f => ({ ...f, winnerRewardMultiplier: Math.max(1, parseInt(e.target.value) || 1) }))}
+                          style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 8, color: '#f1f5f9', padding: '8px 12px', width: '100%', fontSize: 15, fontWeight: 700 }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ color: '#94a3b8', fontSize: 12, display: 'block', marginBottom: 4 }}>Moltiplicatore Runner-Up (×N × partecipanti)</label>
+                        <input
+                          type="number" min={0} max={100}
+                          value={configForm.runnerUpRewardMultiplier}
+                          onChange={e => setConfigForm(f => ({ ...f, runnerUpRewardMultiplier: Math.max(0, parseInt(e.target.value) || 0) }))}
+                          style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 8, color: '#f1f5f9', padding: '8px 12px', width: '100%', fontSize: 15, fontWeight: 700 }}
+                        />
+                      </div>
+                    </div>
+                    <div style={{ color: '#64748b', fontSize: 11, marginTop: 8 }}>
+                      Con {participants.length} partecipanti: vincitore +{configForm.winnerRewardMultiplier * participants.length} pt, runner-up +{configForm.runnerUpRewardMultiplier * participants.length} pt
+                    </div>
+                  </div>
+                )}
                 {error && <div style={{ background: '#7f1d1d', border: '1px solid #ef4444', borderRadius: 8, padding: '10px 14px', color: '#fca5a5', fontSize: 13 }}>{error}</div>}
               </div>
             )}
@@ -610,6 +648,15 @@ export function FantaMinkiardsSection({ playerName, authToken, onClose, onJoinFa
 
     return (
       <div style={{ position: 'fixed', inset: 0, background: '#0f172a', zIndex: 50, display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif' }}>
+        {prizeNotification && (
+          <div style={{ position: 'fixed', top: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 200, background: '#854d0e', border: '2px solid #f59e0b', borderRadius: 16, padding: '14px 24px', display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 4px 32px #f59e0b44' }}>
+            <span style={{ fontSize: 24 }}>{prizeNotification.placement === 1 ? '🏆' : '🥈'}</span>
+            <div>
+              <div style={{ color: '#fde68a', fontWeight: 700, fontSize: 15 }}>{prizeNotification.player} riceve {prizeNotification.points} Rankiard!</div>
+              <div style={{ color: '#fbbf24', fontSize: 12 }}>{prizeNotification.placement === 1 ? 'Vincitore del torneo' : 'Runner-up del torneo'}</div>
+            </div>
+          </div>
+        )}
         <div style={{ padding: '14px 20px', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', gap: 12, background: '#0f172a', flexShrink: 0 }}>
           <button onClick={() => setView('complete')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 20, padding: 4 }}>←</button>
           <div style={{ flex: 1 }}>

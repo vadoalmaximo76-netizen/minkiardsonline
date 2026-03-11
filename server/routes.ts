@@ -8270,22 +8270,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // ─── fanta:configure-tournament ────────────────────────────────────────────
-    socket.on('fanta:configure-tournament', ({ fantaId, playerName, config }: {
+    socket.on('fanta:configure-tournament', async ({ fantaId, playerName, config }: {
       fantaId: string;
       playerName: string;
-      config: { name: string; type: 'elimination' | 'round_robin'; playersPerMatch: number; characterLimit: string };
+      config: { name: string; type: 'elimination' | 'round_robin'; playersPerMatch: number; characterLimit: string; winnerRewardMultiplier?: number; runnerUpRewardMultiplier?: number };
     }) => {
       const sess = fantaManager.getSession(fantaId);
       if (!sess) { socket.emit('fanta:error', { message: 'Sessione non trovata' }); return; }
       if (sess.creatorName !== playerName) { socket.emit('fanta:error', { message: 'Solo il creatore può configurare il torneo' }); return; }
       if (sess.status !== 'complete') { socket.emit('fanta:error', { message: "L'asta non è ancora terminata" }); return; }
 
-      const result = fantaManager.configureTournament(fantaId, config);
+      // Check if caller is admin to allow custom reward multipliers
+      const userEmail = (socket.data as any)?.email as string | undefined;
+      const callerIsAdmin = userEmail?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+
+      const resolvedConfig = {
+        ...config,
+        winnerRewardMultiplier: (callerIsAdmin && config.winnerRewardMultiplier != null) ? config.winnerRewardMultiplier : 20,
+        runnerUpRewardMultiplier: (callerIsAdmin && config.runnerUpRewardMultiplier != null) ? config.runnerUpRewardMultiplier : 5,
+      };
+
+      const result = fantaManager.configureTournament(fantaId, resolvedConfig);
       if (!result.success) { socket.emit('fanta:error', { message: result.error || 'Errore configurazione' }); return; }
 
       const tournament = fantaManager.getFantaTournamentState(fantaId);
       io.to(fantaId).emit('fanta:tournament-configured', { fantaId, tournament });
-      console.log(`🏆 Fanta torneo configurato: sessione ${fantaId}, tipo ${config.type}`);
+      console.log(`🏆 Fanta torneo configurato: sessione ${fantaId}, tipo ${config.type}, premi: ${resolvedConfig.winnerRewardMultiplier}x/${resolvedConfig.runnerUpRewardMultiplier}x`);
     });
 
     // ─── fanta:start-fanta-match ────────────────────────────────────────────────
@@ -8317,8 +8327,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allAreCPU = match.players.every(p => sess.participants[p]?.isCPU);
       if (allAreCPU) {
         console.log(`🤖 Fanta match ${matchId} is CPU vs CPU — simulating result automatically`);
-        fantaManager.simulateMatchResult(fantaId, matchId, io);
-        socket.emit('fanta:match-simulated', { fantaId, matchId, winner: sess.tournament!.matches.find(m => m.id === matchId)?.winnerId });
+        const simResult = fantaManager.simulateMatchResult(fantaId, matchId, io);
+        socket.emit('fanta:match-simulated', { fantaId, matchId, winner: simResult.winner });
+
+        // If the tournament is now complete, award rankiard prizes
+        if (simResult.completed && simResult.config && isDatabaseAvailable()) {
+          const { winnerRewardMultiplier: wm = 20, runnerUpRewardMultiplier: rum = 5 } = simResult.config;
+          const total = simResult.totalParticipants || 2;
+          try {
+            if (simResult.winner) {
+              const wRows = await db.select({ id: users.id }).from(users).where(eq(users.username, simResult.winner)).limit(1);
+              if (wRows.length > 0) {
+                const pts = wm * total;
+                await db.execute(sql`UPDATE users SET punti_rankiard = punti_rankiard + ${pts} WHERE id = ${wRows[0].id}`);
+                io.to(fantaId).emit('fanta:prize-awarded', { player: simResult.winner, points: pts, placement: 1 });
+              }
+            }
+            if (simResult.runnerUp && simResult.runnerUp !== simResult.winner) {
+              const rrRows = await db.select({ id: users.id }).from(users).where(eq(users.username, simResult.runnerUp)).limit(1);
+              if (rrRows.length > 0) {
+                const pts = rum * total;
+                await db.execute(sql`UPDATE users SET punti_rankiard = punti_rankiard + ${pts} WHERE id = ${rrRows[0].id}`);
+                io.to(fantaId).emit('fanta:prize-awarded', { player: simResult.runnerUp, points: pts, placement: 2 });
+              }
+            }
+          } catch (e) { console.error('Error awarding fanta prizes after simulation:', e); }
+        }
         return;
       }
 

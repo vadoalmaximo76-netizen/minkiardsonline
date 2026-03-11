@@ -2313,8 +2313,32 @@ Rispondi SOLO in JSON:`;
         try {
           const { fantaManager: fm } = await import('./fantaManager.js');
           const ioGlobal = (global as any).io;
-          fm.reportMatchResult(fantaSessionId, gameId, winnerPlayer, ioGlobal);
+          const fantaResult = fm.reportMatchResult(fantaSessionId, gameId, winnerPlayer, ioGlobal);
           console.log(`🏆 Fanta match result reported: ${gameId} → winner: ${winnerPlayer}`);
+
+          // If the entire fanta tournament is now complete, award rankiard prizes
+          if (fantaResult.completed && fantaResult.config && isDatabaseAvailable()) {
+            const { winnerRewardMultiplier: wm = 20, runnerUpRewardMultiplier: rum = 5 } = fantaResult.config;
+            const total = fantaResult.totalParticipants || 2;
+            if (fantaResult.winner) {
+              const winnerRows = await db.select({ id: users.id }).from(users).where(eq(users.username, fantaResult.winner)).limit(1);
+              if (winnerRows.length > 0) {
+                const pts = wm * total;
+                await db.execute(sql`UPDATE users SET punti_rankiard = punti_rankiard + ${pts} WHERE id = ${winnerRows[0].id}`);
+                ioGlobal?.to(fantaSessionId).emit('fanta:prize-awarded', { player: fantaResult.winner, points: pts, placement: 1 });
+                console.log(`🏆 Fanta premio vincitore: ${fantaResult.winner} +${pts} rankiard`);
+              }
+            }
+            if (fantaResult.runnerUp && fantaResult.runnerUp !== fantaResult.winner) {
+              const runnerUpRows = await db.select({ id: users.id }).from(users).where(eq(users.username, fantaResult.runnerUp)).limit(1);
+              if (runnerUpRows.length > 0) {
+                const pts = rum * total;
+                await db.execute(sql`UPDATE users SET punti_rankiard = punti_rankiard + ${pts} WHERE id = ${runnerUpRows[0].id}`);
+                ioGlobal?.to(fantaSessionId).emit('fanta:prize-awarded', { player: fantaResult.runnerUp, points: pts, placement: 2 });
+                console.log(`🏆 Fanta premio runner-up: ${fantaResult.runnerUp} +${pts} rankiard`);
+              }
+            }
+          }
         } catch (e) {
           console.error('Error reporting fanta match result:', e);
         }

@@ -73,6 +73,8 @@ export interface FantaTourneyConfig {
   type: FantaTourneyType;
   playersPerMatch: number;
   characterLimit: string;
+  winnerRewardMultiplier: number;
+  runnerUpRewardMultiplier: number;
 }
 
 export interface FantaTourneyMatch {
@@ -91,6 +93,8 @@ export interface FantaTourney {
   currentRound: number;
   status: 'in_progress' | 'completed';
   winnerId?: string;
+  runnerUpId?: string;
+  prizesAwarded?: boolean;
 }
 
 export interface FantaSession {
@@ -846,7 +850,11 @@ export class FantaManager {
     }
 
     session.tournament = {
-      config,
+      config: {
+        ...config,
+        winnerRewardMultiplier: config.winnerRewardMultiplier ?? 20,
+        runnerUpRewardMultiplier: config.runnerUpRewardMultiplier ?? 5,
+      },
       matches,
       currentRound: 1,
       status: 'in_progress',
@@ -912,11 +920,49 @@ export class FantaManager {
     return { success: true };
   }
 
-  simulateMatchResult(fantaId: string, matchId: string, io: any): void {
+  private _advanceTourney(tourney: FantaTourney, session: FantaSession): boolean {
+    if (tourney.config.type === 'round_robin') {
+      const allDone = tourney.matches.every(m => m.status === 'completed');
+      if (allDone) {
+        const wins: Record<string, number> = {};
+        for (const m of tourney.matches) {
+          if (m.winnerId) wins[m.winnerId] = (wins[m.winnerId] || 0) + 1;
+        }
+        const sorted = Object.entries(wins).sort(([, a], [, b]) => b - a);
+        tourney.winnerId = sorted[0]?.[0];
+        tourney.runnerUpId = sorted[1]?.[0];
+        tourney.status = 'completed';
+        return true;
+      }
+    } else {
+      const roundMatches = tourney.matches.filter(m => m.round === tourney.currentRound);
+      const allRoundDone = roundMatches.every(m => m.status === 'completed');
+      if (allRoundDone) {
+        const winners = roundMatches.map(m => m.winnerId).filter(Boolean) as string[];
+        const losers = roundMatches.flatMap(m => m.players.filter(p => p !== m.winnerId));
+        if (winners.length === 1) {
+          tourney.winnerId = winners[0];
+          // Runner-up is the loser of the final match
+          tourney.runnerUpId = losers[0];
+          tourney.status = 'completed';
+          return true;
+        } else if (winners.length >= 2) {
+          const nextRound = tourney.currentRound + 1;
+          const ppm = tourney.config.playersPerMatch;
+          const nextMatches = this.buildElimBracket(winners, ppm, nextRound);
+          tourney.matches.push(...nextMatches);
+          tourney.currentRound = nextRound;
+        }
+      }
+    }
+    return false;
+  }
+
+  simulateMatchResult(fantaId: string, matchId: string, io: any): { completed: boolean; winner?: string; runnerUp?: string; config?: FantaTourneyConfig; totalParticipants?: number } {
     const session = this.sessions.get(fantaId);
-    if (!session?.tournament) return;
+    if (!session?.tournament) return { completed: false };
     const match = session.tournament.matches.find(m => m.id === matchId);
-    if (!match || match.status === 'completed') return;
+    if (!match || match.status === 'completed') return { completed: false };
 
     const winner = match.players[Math.floor(Math.random() * match.players.length)];
     match.status = 'completed';
@@ -924,83 +970,49 @@ export class FantaManager {
     match.gameId = `sim-${matchId}`;
 
     const tourney = session.tournament;
-
-    if (tourney.config.type === 'round_robin') {
-      const allDone = tourney.matches.every(m => m.status === 'completed');
-      if (allDone) {
-        const wins: Record<string, number> = {};
-        for (const m of tourney.matches) {
-          if (m.winnerId) wins[m.winnerId] = (wins[m.winnerId] || 0) + 1;
-        }
-        const sorted = Object.entries(wins).sort(([, a], [, b]) => b - a);
-        tourney.winnerId = sorted[0]?.[0];
-        tourney.status = 'completed';
-      }
-    } else {
-      const roundMatches = tourney.matches.filter(m => m.round === tourney.currentRound);
-      const allRoundDone = roundMatches.every(m => m.status === 'completed');
-      if (allRoundDone) {
-        const winners = roundMatches.map(m => m.winnerId).filter(Boolean) as string[];
-        if (winners.length === 1) {
-          tourney.winnerId = winners[0];
-          tourney.status = 'completed';
-        } else if (winners.length >= 2) {
-          const nextRound = tourney.currentRound + 1;
-          const ppm = tourney.config.playersPerMatch;
-          const nextMatches = this.buildElimBracket(winners, ppm, nextRound);
-          tourney.matches.push(...nextMatches);
-          tourney.currentRound = nextRound;
-        }
-      }
-    }
+    const completed = this._advanceTourney(tourney, session);
 
     this.persist();
     io.to(fantaId).emit('fanta:bracket-update', { fantaId, tournament: tourney });
     console.log(`🤖 Simulated CPU vs CPU match ${matchId}: winner = ${winner}`);
+
+    if (completed) {
+      return {
+        completed: true,
+        winner: tourney.winnerId,
+        runnerUp: tourney.runnerUpId,
+        config: tourney.config,
+        totalParticipants: Object.keys(session.participants).length,
+      };
+    }
+    return { completed: false };
   }
 
-  reportMatchResult(fantaId: string, gameId: string, winnerName: string, io: any): void {
+  reportMatchResult(fantaId: string, gameId: string, winnerName: string, io: any): { completed: boolean; winner?: string; runnerUp?: string; config?: FantaTourneyConfig; totalParticipants?: number } {
     const session = this.sessions.get(fantaId);
-    if (!session?.tournament) return;
+    if (!session?.tournament) return { completed: false };
     const match = session.tournament.matches.find(m => m.gameId === gameId);
-    if (!match || match.status === 'completed') return;
+    if (!match || match.status === 'completed') return { completed: false };
 
     match.status = 'completed';
     match.winnerId = winnerName;
 
     const tourney = session.tournament;
-
-    if (tourney.config.type === 'round_robin') {
-      const allDone = tourney.matches.every(m => m.status === 'completed');
-      if (allDone) {
-        const wins: Record<string, number> = {};
-        for (const m of tourney.matches) {
-          if (m.winnerId) wins[m.winnerId] = (wins[m.winnerId] || 0) + 1;
-        }
-        const sorted = Object.entries(wins).sort(([, a], [, b]) => b - a);
-        tourney.winnerId = sorted[0]?.[0];
-        tourney.status = 'completed';
-      }
-    } else {
-      const roundMatches = tourney.matches.filter(m => m.round === tourney.currentRound);
-      const allRoundDone = roundMatches.every(m => m.status === 'completed');
-      if (allRoundDone) {
-        const winners = roundMatches.map(m => m.winnerId).filter(Boolean) as string[];
-        if (winners.length === 1) {
-          tourney.winnerId = winners[0];
-          tourney.status = 'completed';
-        } else if (winners.length >= 2) {
-          const nextRound = tourney.currentRound + 1;
-          const ppm = tourney.config.playersPerMatch;
-          const nextMatches = this.buildElimBracket(winners, ppm, nextRound);
-          tourney.matches.push(...nextMatches);
-          tourney.currentRound = nextRound;
-        }
-      }
-    }
+    const completed = this._advanceTourney(tourney, session);
 
     this.persist();
     io.to(fantaId).emit('fanta:bracket-update', { fantaId, tournament: tourney });
+
+    if (completed) {
+      return {
+        completed: true,
+        winner: tourney.winnerId,
+        runnerUp: tourney.runnerUpId,
+        config: tourney.config,
+        totalParticipants: Object.keys(session.participants).length,
+      };
+    }
+    return { completed: false };
   }
 
   getFantaTournamentState(fantaId: string): FantaTourney | null {

@@ -760,6 +760,7 @@ function App() {
         <FantaMinkiardsSection
           playerName={playerName}
           authToken={localStorage.getItem('authToken') ?? undefined}
+          isAdmin={authenticatedUser?.email === 'lucaforte94@gmail.com'}
           onClose={handleGoHome}
           onJoinFantaGame={(gameId: string) => {
             setGameId(gameId);
