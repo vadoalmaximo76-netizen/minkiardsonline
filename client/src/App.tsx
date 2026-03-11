@@ -45,6 +45,7 @@ interface AuthUser {
 
 import { TooltipProvider } from "./components/ui/tooltip";
 import NotificationPromptBanner from "./components/NotificationPromptBanner";
+import { BottomNav } from "./components/BottomNav";
 
 class GameErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: Error | null }> {
   constructor(props: { children: ReactNode }) {
@@ -510,6 +511,15 @@ function App() {
 
   const handleGoHome = () => navigateTo('home', 'back');
 
+  const handleBottomNavNavigate = (section: AppSection) => {
+    if (section === 'play') {
+      if (!gameId) setShowRoomDialog(true);
+      navigateTo('play');
+    } else {
+      navigateTo(section);
+    }
+  };
+
   const handleNavigate = (section: 'play' | 'training' | 'rooms' | 'profile' | 'admin' | 'draft' | 'leaderboard' | 'tournaments' | 'fanta') => {
     if (section === 'play') {
       setShowRoomDialog(true);
@@ -611,6 +621,7 @@ function App() {
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
+        <BottomNav currentSection={currentSection} onNavigate={handleBottomNavNavigate} hasActiveGame={!!gameId} />
       </QueryClientProvider>
     );
   }
@@ -676,6 +687,7 @@ function App() {
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
+        <BottomNav currentSection={currentSection} onNavigate={handleBottomNavNavigate} hasActiveGame={!!gameId} />
       </QueryClientProvider>
     );
   }
@@ -698,6 +710,7 @@ function App() {
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
+        <BottomNav currentSection={currentSection} onNavigate={handleBottomNavNavigate} hasActiveGame={!!gameId} />
       </QueryClientProvider>
     );
   }
@@ -717,6 +730,7 @@ function App() {
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
+        <BottomNav currentSection={currentSection} onNavigate={handleBottomNavNavigate} hasActiveGame={!!gameId} />
       </QueryClientProvider>
     );
   }
@@ -738,6 +752,7 @@ function App() {
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
+        <BottomNav currentSection={currentSection} onNavigate={handleBottomNavNavigate} hasActiveGame={!!gameId} />
       </QueryClientProvider>
     );
   }
@@ -753,6 +768,7 @@ function App() {
         />
         <SpotifyPlayer disabled={false} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
+        <BottomNav currentSection={currentSection} onNavigate={handleBottomNavNavigate} hasActiveGame={!!gameId} />
       </QueryClientProvider>
     );
   }
@@ -783,6 +799,7 @@ function App() {
         />
         <SpotifyPlayer disabled={false} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
+        <BottomNav currentSection={currentSection} onNavigate={handleBottomNavNavigate} hasActiveGame={!!gameId} />
       </QueryClientProvider>
     );
   }
