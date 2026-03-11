@@ -1187,35 +1187,56 @@ export function DraftSection({ onBack, playerName, userId, onGoToTournaments }: 
       )}
 
       {/* Tabs */}
-      <div className={`relative z-10 flex border-b border-white/10 bg-black/10 flex-shrink-0 overflow-x-auto${showInitialChoice ? ' hidden' : ''}`}>
-        {([
-          { key: 'deck', label: 'Mazzo', icon: Package, badge: totalSelected > 0 ? `${totalSelected}/99` : null },
-          { key: 'shop', label: 'Negozio', icon: ShoppingCart, badge: null },
-          { key: 'packs', label: 'Pacchetti', icon: Gift, badge: dailyCardStatus?.available ? '!' : null },
-          { key: 'credits', label: 'Crediti', icon: CreditCard, badge: null },
-          { key: 'pass', label: 'Pass', icon: Ticket, badge: null },
-          { key: 'marketplace', label: 'Mercato', icon: Store, badge: null },
-          { key: 'torneo', label: 'Torneo', icon: Trophy, badge: tournament?.status === 'active' ? '▶' : null },
-          { key: 'classifica', label: 'Classifica', icon: Star, badge: null },
-        ] as const).map(({ key, label, icon: Icon, badge }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            className={`flex-shrink-0 flex items-center justify-center gap-1.5 px-3 py-3 text-xs sm:text-sm font-semibold transition-all relative ${
-              activeTab === key
-                ? 'text-teal-300 border-b-2 border-teal-400 bg-teal-500/10'
-                : 'text-white/50 hover:text-white/80'
-            }`}
-          >
-            <Icon className="w-4 h-4 flex-shrink-0" />
-            <span className="hidden sm:inline">{label}</span>
-            {badge && (
-              <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${badge === '!' ? 'bg-amber-500 text-black animate-pulse' : activeTab === key ? 'bg-teal-500/30 text-teal-300' : 'bg-white/10 text-white/40'}`}>
-                {badge}
-              </span>
-            )}
-          </button>
-        ))}
+      <div className={`relative z-10 flex-shrink-0 overflow-x-auto${showInitialChoice ? ' hidden' : ''}`} style={{ background: 'rgba(0,0,0,0.25)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        <div style={{ display: 'flex', minWidth: 'fit-content', padding: '0 4px' }}>
+          {([
+            { key: 'deck', label: 'Mazzo', icon: Package, badge: totalSelected > 0 ? `${totalSelected}/99` : null, color: '#7c3aed' },
+            { key: 'shop', label: 'Negozio', icon: ShoppingCart, badge: null, color: '#0d9488' },
+            { key: 'packs', label: 'Pacchetti', icon: Gift, badge: dailyCardStatus?.available ? '!' : null, color: '#f59e0b' },
+            { key: 'credits', label: 'Crediti', icon: CreditCard, badge: null, color: '#0ea5e9' },
+            { key: 'pass', label: 'Pass', icon: Ticket, badge: null, color: '#ec4899' },
+            { key: 'marketplace', label: 'Mercato', icon: Store, badge: null, color: '#22c55e' },
+            { key: 'torneo', label: 'Torneo', icon: Trophy, badge: tournament?.status === 'active' ? '▶' : null, color: '#f59e0b' },
+            { key: 'classifica', label: 'Classifica', icon: Star, badge: null, color: '#facc15' },
+          ] as const).map(({ key, label, icon: Icon, badge, color }) => {
+            const isActive = activeTab === key;
+            return (
+              <button
+                key={key}
+                onClick={() => setActiveTab(key)}
+                style={{
+                  flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3,
+                  padding: '10px 12px 8px', border: 'none', cursor: 'pointer', position: 'relative',
+                  background: isActive ? `${color}12` : 'transparent',
+                  color: isActive ? color : 'rgba(148,163,184,0.5)',
+                  transition: 'all 0.2s',
+                  minWidth: 56,
+                }}
+                onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.color = 'rgba(203,213,225,0.8)'; }}
+                onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.color = 'rgba(148,163,184,0.5)'; }}
+              >
+                <div style={{ position: 'relative' }}>
+                  <Icon style={{ width: 17, height: 17, flexShrink: 0 }} />
+                  {badge && (
+                    <span style={{
+                      position: 'absolute', top: -6, right: -8,
+                      background: badge === '!' ? '#f59e0b' : isActive ? color : 'rgba(255,255,255,0.15)',
+                      color: badge === '!' ? '#000' : isActive ? '#fff' : 'rgba(255,255,255,0.5)',
+                      fontSize: 9, fontWeight: 900, padding: '1px 4px', borderRadius: 10,
+                      animation: badge === '!' ? 'pulse 1.5s ease-in-out infinite' : 'none',
+                      whiteSpace: 'nowrap',
+                    }}>{badge}</span>
+                  )}
+                </div>
+                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{label}</span>
+                {/* Active indicator line */}
+                {isActive && (
+                  <div style={{ position: 'absolute', bottom: 0, left: '20%', right: '20%', height: 2, borderRadius: '2px 2px 0 0', background: color, boxShadow: `0 0 8px ${color}` }} />
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {loading ? (
@@ -1233,23 +1254,46 @@ export function DraftSection({ onBack, playerName, userId, onGoToTournaments }: 
             <div className="max-w-4xl mx-auto space-y-4">
               {/* Progress cards */}
               <div className="grid grid-cols-3 gap-3">
-                {DECK_TYPES.map(({ key, label, icon: Icon, color, target }) => {
+                {DECK_TYPES.map(({ key, label, icon: Icon, color, accent, target }) => {
                   const count = selectedCards[key].length;
                   const done = count === target;
+                  const pct = Math.round((count / target) * 100);
+                  const accentColors: Record<string, { bar: string; glow: string; border: string; bg: string }> = {
+                    purple: { bar: 'linear-gradient(90deg, #7c3aed, #a855f7)', glow: 'rgba(168,85,247,0.3)', border: 'rgba(139,92,246,0.3)', bg: 'rgba(139,92,246,0.06)' },
+                    red:    { bar: 'linear-gradient(90deg, #b91c1c, #ef4444)', glow: 'rgba(239,68,68,0.3)',  border: 'rgba(239,68,68,0.25)',  bg: 'rgba(239,68,68,0.05)' },
+                    cyan:   { bar: 'linear-gradient(90deg, #0e7490, #06b6d4)', glow: 'rgba(6,182,212,0.3)', border: 'rgba(6,182,212,0.25)',  bg: 'rgba(6,182,212,0.05)' },
+                  };
+                  const ac = done
+                    ? { bar: 'linear-gradient(90deg, #16a34a, #4ade80)', glow: 'rgba(74,222,128,0.3)', border: 'rgba(74,222,128,0.35)', bg: 'rgba(74,222,128,0.06)' }
+                    : (accentColors[accent] || accentColors.cyan);
                   return (
-                    <div key={key} className={`rounded-xl border p-3 ${done ? 'border-green-500/50 bg-green-900/20' : 'border-white/10 bg-white/5'}`}>
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className={`w-6 h-6 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center flex-shrink-0`}>
-                          <Icon className="w-3 h-3 text-white" />
+                    <div key={key} style={{
+                      borderRadius: 16, padding: '14px 14px 12px',
+                      border: `1px solid ${ac.border}`,
+                      background: ac.bg,
+                      transition: 'box-shadow 0.3s',
+                      boxShadow: done ? `0 0 20px ${ac.glow}, inset 0 1px 0 rgba(255,255,255,0.05)` : 'inset 0 1px 0 rgba(255,255,255,0.04)',
+                    }}>
+                      {/* Icon + label row */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                        <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center flex-shrink-0`}
+                          style={{ boxShadow: `0 0 12px ${ac.glow}` }}>
+                          <Icon className="w-3.5 h-3.5 text-white" />
                         </div>
-                        <span className="text-white/80 text-xs font-semibold truncate">{label}</span>
-                        {done && <Check className="w-3.5 h-3.5 text-green-400 ml-auto flex-shrink-0" />}
+                        <span style={{ fontSize: 11, fontWeight: 700, color: done ? '#4ade80' : 'rgba(203,213,225,0.8)', textTransform: 'uppercase', letterSpacing: '0.05em', flex: 1 }}>{label}</span>
+                        {done && <span style={{ fontSize: 14 }}>✅</span>}
                       </div>
-                      <div className={`text-xl font-black ${done ? 'text-green-400' : count > 0 ? 'text-white' : 'text-white/30'}`}>
-                        {count}<span className="text-xs text-white/40">/{target}</span>
+
+                      {/* Count */}
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, marginBottom: 8 }}>
+                        <span style={{ fontSize: 26, fontWeight: 900, lineHeight: 1, color: done ? '#4ade80' : count > 0 ? '#e2e8f0' : 'rgba(255,255,255,0.2)' }}>{count}</span>
+                        <span style={{ fontSize: 12, color: 'rgba(148,163,184,0.4)', fontWeight: 600 }}>/{target}</span>
+                        <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: done ? '#4ade80' : 'rgba(148,163,184,0.4)' }}>{pct}%</span>
                       </div>
-                      <div className="mt-1.5 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full bg-gradient-to-r ${color} transition-all duration-300`} style={{ width: `${(count / target) * 100}%` }} />
+
+                      {/* Progress bar */}
+                      <div style={{ height: 5, borderRadius: 3, background: 'rgba(255,255,255,0.07)', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${pct}%`, borderRadius: 3, background: ac.bar, transition: 'width 0.4s ease', boxShadow: pct > 0 ? `0 0 8px ${ac.glow}` : 'none' }} />
                       </div>
                     </div>
                   );
