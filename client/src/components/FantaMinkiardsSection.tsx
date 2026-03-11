@@ -36,6 +36,7 @@ interface FantaSession {
   pendingRequests: PendingRequest[];
   status: 'lobby' | 'auction' | 'complete';
   createdAt: number;
+  cardsNeeded?: { personaggi: number; mosse: number; bonus: number };
 }
 
 interface Props {
@@ -47,6 +48,9 @@ interface Props {
   onJoinFantaGame?: (gameId: string) => void;
 }
 
+const TOTAL_CARDS = { personaggi: 207, mosse: 91, bonus: 172 };
+const DEFAULT_DECK_SIZES = { personaggi: 20, mosse: 9, bonus: 15 };
+
 export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialFantaId, onClose, onJoinFantaGame }: Props) {
   const [view, setView] = useState<'list' | 'lobby' | 'waiting' | 'auction' | 'complete' | 'configure' | 'bracket'>('list');
   const [lobbySessions, setLobbySessions] = useState<SessionSummary[]>([]);
@@ -56,6 +60,7 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
   const [totalParticipants, setTotalParticipants] = useState(4);
   const [cpuCount, setCpuCount] = useState(3);
   const [cpuLevel, setCpuLevel] = useState<'easy' | 'medium' | 'hard'>('medium');
+  const [deckSizeConfig, setDeckSizeConfig] = useState({ ...DEFAULT_DECK_SIZES });
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -262,10 +267,24 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
     };
   }, [playerName, view]);
 
+  const maxDeckSize = React.useMemo(() => ({
+    personaggi: Math.floor(TOTAL_CARDS.personaggi / totalParticipants),
+    mosse: Math.floor(TOTAL_CARDS.mosse / totalParticipants),
+    bonus: Math.floor(TOTAL_CARDS.bonus / totalParticipants),
+  }), [totalParticipants]);
+
+  React.useEffect(() => {
+    setDeckSizeConfig(prev => ({
+      personaggi: Math.min(prev.personaggi, maxDeckSize.personaggi),
+      mosse: Math.min(prev.mosse, maxDeckSize.mosse),
+      bonus: Math.min(prev.bonus, maxDeckSize.bonus),
+    }));
+  }, [maxDeckSize]);
+
   const handleCreate = () => {
     if (!playerName) return;
     setLoading(true);
-    socket.emit('fanta:create', { cpuCount, cpuLevel, playerName, maxParticipants: totalParticipants });
+    socket.emit('fanta:create', { cpuCount, cpuLevel, playerName, maxParticipants: totalParticipants, cardsNeeded: deckSizeConfig });
     setShowCreateDialog(false);
   };
 
@@ -341,6 +360,7 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
             isCreator={isCreator}
             participants={Object.keys(currentSession?.participants ?? {})}
             initialCredits={auctionCredits}
+            cardsNeeded={currentSession?.cardsNeeded}
             onComplete={() => setView('complete')}
           />
         </div>
@@ -1102,7 +1122,7 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
       {/* Create dialog */}
       {showCreateDialog && (
         <div className="fixed inset-0 bg-black/80 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-gray-800 rounded-t-2xl sm:rounded-2xl border border-gray-700 p-6 w-full sm:max-w-md">
+          <div className="bg-gray-800 rounded-t-2xl sm:rounded-2xl border border-gray-700 p-6 w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold text-white mb-5">Crea FantaTorneo</h2>
 
             {/* Total participants */}
@@ -1169,6 +1189,43 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
                 </div>
               </div>
             )}
+
+            {/* Deck size configuration */}
+            <div className="mb-5">
+              <label className="text-sm font-semibold text-white/80 mb-2 block">
+                Dimensione mazzi per concorrente
+              </label>
+              <div className="space-y-3">
+                {([
+                  { key: 'personaggi', label: 'Personaggi', color: 'accent-purple-500', bg: 'text-purple-300' },
+                  { key: 'mosse', label: 'Mosse', color: 'accent-red-500', bg: 'text-red-300' },
+                  { key: 'bonus', label: 'Bonus', color: 'accent-green-500', bg: 'text-green-300' },
+                ] as const).map(({ key, label, color, bg }) => (
+                  <div key={key} className="bg-gray-700/40 rounded-lg px-3 py-2">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-semibold text-white/70">{label}</span>
+                      <span className={`text-sm font-black ${bg}`}>
+                        {deckSizeConfig[key]}
+                        <span className="text-white/30 font-normal ml-1 text-xs">/ max {maxDeckSize[key]}</span>
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={1}
+                      max={maxDeckSize[key]}
+                      value={deckSizeConfig[key]}
+                      onChange={e => setDeckSizeConfig(prev => ({ ...prev, [key]: Number(e.target.value) }))}
+                      className={`w-full ${color} h-2 cursor-pointer`}
+                    />
+                    <div className="flex justify-between text-xs text-white/20 mt-0.5">
+                      <span>1</span>
+                      <span className="text-white/30 text-xs">{totalParticipants} × {deckSizeConfig[key]} = {totalParticipants * deckSizeConfig[key]} / {TOTAL_CARDS[key]} disponibili</span>
+                      <span>{maxDeckSize[key]}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             {/* Summary */}
             <div className="bg-gray-700/40 rounded-lg px-4 py-3 mb-5 text-sm text-white/60">

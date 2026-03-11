@@ -21101,7 +21101,7 @@
   {
     "id": "fanta-1773179712944-lwtfwj",
     "creatorName": "Fake",
-    "creatorSocketId": "tFpYzAHIc5YmjqQbAAAJ",
+    "creatorSocketId": "N-HxnIHGkibttx9kAAAD",
     "participants": {
       "Fake": {
         "name": "Fake",
@@ -21468,7 +21468,7 @@
         },
         "isCPU": false,
         "cpuLevel": "medium",
-        "socketId": "tFpYzAHIc5YmjqQbAAAJ"
+        "socketId": "N-HxnIHGkibttx9kAAAD"
       },
       "CPU 1": {
         "name": "CPU 1",
@@ -26480,7 +26480,9 @@
             "CPU 1",
             "CPU 2"
           ],
-          "status": "pending"
+          "status": "completed",
+          "winnerId": "CPU 2",
+          "gameId": "sim-r1-m2"
         }
       ],
       "currentRound": 1,

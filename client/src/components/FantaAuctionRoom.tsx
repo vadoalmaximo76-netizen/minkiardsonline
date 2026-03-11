@@ -26,10 +26,11 @@ interface Props {
   isCreator: boolean;
   participants: string[];
   initialCredits: Record<string, number>;
+  cardsNeeded?: { personaggi: number; mosse: number; bonus: number };
   onComplete: () => void;
 }
 
-const CARDS_NEEDED = { personaggi: 20, mosse: 9, bonus: 15 };
+const DEFAULT_CARDS_NEEDED = { personaggi: 20, mosse: 9, bonus: 15 };
 
 const RARITY_BORDER: Record<FantaRarity, string> = {
   comune: 'border-gray-500',
@@ -64,7 +65,8 @@ const TYPE_BG: Record<string, string> = {
   bonus: 'bg-green-700',
 };
 
-export function FantaAuctionRoom({ fantaId, playerName, isCreator, participants, initialCredits, onComplete }: Props) {
+export function FantaAuctionRoom({ fantaId, playerName, isCreator, participants, initialCredits, cardsNeeded: cardsNeededProp, onComplete }: Props) {
+  const CARDS_NEEDED = cardsNeededProp ?? DEFAULT_CARDS_NEEDED;
   const [currentCard, setCurrentCard] = useState<FantaCard | null>(null);
   const [currentBid, setCurrentBid] = useState(0);
   const [currentBidder, setCurrentBidder] = useState<string | null>(null);

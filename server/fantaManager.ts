@@ -115,6 +115,7 @@ export interface FantaSession {
   createdAt: number;
   completedAt?: number;
   tournament?: FantaTourney;
+  cardsNeeded?: Record<'personaggi' | 'mosse' | 'bonus', number>;
 }
 
 const STARTING_CREDITS = 1000;
@@ -122,6 +123,11 @@ const CARDS_NEEDED: Record<'personaggi' | 'mosse' | 'bonus', number> = {
   personaggi: 20,
   mosse: 9,
   bonus: 15,
+};
+export const TOTAL_CARDS: Record<'personaggi' | 'mosse' | 'bonus', number> = {
+  personaggi: ((CARD_DATA as any).personaggi as string[]).length,
+  mosse: ((CARD_DATA as any).mosse as string[]).length,
+  bonus: ((CARD_DATA as any).bonus as string[]).length,
 };
 const AUCTION_INITIAL_TIMER = 15;
 const AUCTION_BID_RESET_TIMER = 3;
@@ -183,18 +189,19 @@ function buildCardQueue(mods: any[]): FantaCard[] {
 function cpuBidAmount(
   participant: FantaParticipant,
   card: FantaCard,
-  currentBid: number
+  currentBid: number,
+  needed: Record<'personaggi' | 'mosse' | 'bonus', number>
 ): number | null {
   const { cpuLevel, credits, deck } = participant;
   const typeDeck = deck[card.type];
-  if (typeDeck.length >= CARDS_NEEDED[card.type]) return null;
+  if (typeDeck.length >= needed[card.type]) return null;
   if (credits <= 0) return null;
 
   // Calculate how many cards still needed across all types
   const cardsNeeded =
-    Math.max(0, CARDS_NEEDED.personaggi - deck.personaggi.length) +
-    Math.max(0, CARDS_NEEDED.mosse - deck.mosse.length) +
-    Math.max(0, CARDS_NEEDED.bonus - deck.bonus.length);
+    Math.max(0, needed.personaggi - deck.personaggi.length) +
+    Math.max(0, needed.mosse - deck.mosse.length) +
+    Math.max(0, needed.bonus - deck.bonus.length);
 
   if (cardsNeeded <= 0) return null;
 
@@ -252,7 +259,7 @@ export class FantaManager {
     writeFantaSessions(arr);
   }
 
-  createSession(creatorName: string, cpuCount: number = 0, cpuLevel: 'easy' | 'medium' | 'hard' = 'medium', maxParticipants: number = cpuCount + 1, creatorSocketId?: string): FantaSession {
+  createSession(creatorName: string, cpuCount: number = 0, cpuLevel: 'easy' | 'medium' | 'hard' = 'medium', maxParticipants: number = cpuCount + 1, creatorSocketId?: string, cardsNeeded?: Partial<Record<'personaggi' | 'mosse' | 'bonus', number>>): FantaSession {
     const id = `fanta-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
     const participants: Record<string, FantaParticipant> = {};
     const actualMax = Math.max(maxParticipants, cpuCount + 1);
@@ -277,6 +284,12 @@ export class FantaManager {
       };
     }
 
+    const resolvedCardsNeeded: Record<'personaggi' | 'mosse' | 'bonus', number> = {
+      personaggi: Math.min(cardsNeeded?.personaggi ?? CARDS_NEEDED.personaggi, Math.floor(TOTAL_CARDS.personaggi / actualMax)),
+      mosse: Math.min(cardsNeeded?.mosse ?? CARDS_NEEDED.mosse, Math.floor(TOTAL_CARDS.mosse / actualMax)),
+      bonus: Math.min(cardsNeeded?.bonus ?? CARDS_NEEDED.bonus, Math.floor(TOTAL_CARDS.bonus / actualMax)),
+    };
+
     const session: FantaSession = {
       id,
       creatorName,
@@ -293,6 +306,7 @@ export class FantaManager {
       isPaused: false,
       disqualified: [],
       createdAt: Date.now(),
+      cardsNeeded: resolvedCardsNeeded,
     };
 
     this.sessions.set(id, session);
@@ -465,12 +479,13 @@ export class FantaManager {
   }
 
   private isComplete(session: FantaSession): boolean {
+    const needed = session.cardsNeeded ?? CARDS_NEEDED;
     for (const p of Object.values(session.participants)) {
       if (session.disqualified.includes(p.name)) continue;
       if (
-        p.deck.personaggi.length < CARDS_NEEDED.personaggi ||
-        p.deck.mosse.length < CARDS_NEEDED.mosse ||
-        p.deck.bonus.length < CARDS_NEEDED.bonus
+        p.deck.personaggi.length < needed.personaggi ||
+        p.deck.mosse.length < needed.mosse ||
+        p.deck.bonus.length < needed.bonus
       ) {
         return false;
       }
@@ -479,20 +494,22 @@ export class FantaManager {
   }
 
   private allHaveEnough(session: FantaSession, type: 'personaggi' | 'mosse' | 'bonus'): boolean {
+    const needed = session.cardsNeeded ?? CARDS_NEEDED;
     for (const p of Object.values(session.participants)) {
       if (session.disqualified.includes(p.name)) continue;
-      if (p.deck[type].length < CARDS_NEEDED[type]) return false;
+      if (p.deck[type].length < needed[type]) return false;
     }
     return true;
   }
 
   private checkDisqualification(session: FantaSession, io: any): void {
+    const needed = session.cardsNeeded ?? CARDS_NEEDED;
     for (const p of Object.values(session.participants)) {
       if (session.disqualified.includes(p.name)) continue;
       const deckComplete =
-        p.deck.personaggi.length >= CARDS_NEEDED.personaggi &&
-        p.deck.mosse.length >= CARDS_NEEDED.mosse &&
-        p.deck.bonus.length >= CARDS_NEEDED.bonus;
+        p.deck.personaggi.length >= needed.personaggi &&
+        p.deck.mosse.length >= needed.mosse &&
+        p.deck.bonus.length >= needed.bonus;
       if (!deckComplete && p.credits <= 0) {
         session.disqualified.push(p.name);
         io.to(session.id).emit('fanta:disqualified', {
@@ -612,7 +629,7 @@ export class FantaManager {
         if (s.disqualified.includes(cpu.name)) return;
         const latestCpu = s.participants[cpu.name];
         if (!latestCpu) return;
-        const bid = cpuBidAmount(latestCpu, s.currentAuction.card, s.currentAuction.currentBid);
+        const bid = cpuBidAmount(latestCpu, s.currentAuction.card, s.currentAuction.currentBid, s.cardsNeeded ?? CARDS_NEEDED);
         if (bid !== null) {
           this.placeBid(fantaId, cpu.name, bid, io);
         }
@@ -644,7 +661,8 @@ export class FantaManager {
     }
 
     const typeDeck = participant.deck[auction.card.type];
-    if (typeDeck.length >= CARDS_NEEDED[auction.card.type]) {
+    const bidNeeded = session.cardsNeeded ?? CARDS_NEEDED;
+    if (typeDeck.length >= bidNeeded[auction.card.type]) {
       return { success: false, error: 'Hai già il massimo di carte per questo tipo' };
     }
 
@@ -669,7 +687,7 @@ export class FantaManager {
           const s = this.sessions.get(fantaId);
           if (!s?.currentAuction || s.currentAuction.ended) return;
           if (s.currentAuction.currentBidder === playerName || s.currentAuction.currentBidder !== cpu.name) {
-            const bid = cpuBidAmount(cpu, s.currentAuction.card, s.currentAuction.currentBid);
+            const bid = cpuBidAmount(cpu, s.currentAuction.card, s.currentAuction.currentBid, s.cardsNeeded ?? CARDS_NEEDED);
             if (bid !== null) {
               this.placeBid(fantaId, cpu.name, bid, io);
             }
