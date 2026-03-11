@@ -1240,9 +1240,13 @@ export class GameManager {
       game.playerDraftDecks = {};
     }
 
-    // Load draft deck for this player if in draft mode and authenticated
+    // Load draft deck for this player if in draft mode and authenticated.
     // Skip if a fanta tournament already pre-loaded this player's deck
-    const fantaPreLoaded = game.fantaTournamentId && game.playerDraftDecks && game.playerDraftDecks[playerName];
+    // (check fantaTournamentId OR presence of a non-empty deck in playerDraftDecks)
+    const existingDeck = game.playerDraftDecks?.[playerName];
+    const fantaPreLoaded = game.fantaTournamentId
+      ? !!(existingDeck)  // fanta game: skip if deck was pre-loaded (even if fantaTournamentId is now restored)
+      : false;            // regular draft game: always load from DB
     if (game.isDraftMode && authenticatedUserId && !isCPU && isDatabaseAvailable() && !fantaPreLoaded) {
       try {
         const deckRows = await db.select().from(draftDecks).where(eq(draftDecks.userId, authenticatedUserId)).limit(1);
@@ -3098,6 +3102,7 @@ Rispondi SOLO in JSON:`;
         prSpentThisGame: game.prSpentThisGame ? Object.fromEntries(game.prSpentThisGame) : {},
         isDraftMode: game.isDraftMode || false,
         playerDraftDecks: game.playerDraftDecks || {},
+        fantaTournamentId: game.fantaTournamentId || null,
         // Store player info without cpuInstance
         players: Object.fromEntries(
           Object.entries(game.players).map(([name, player]) => [
@@ -3255,7 +3260,8 @@ Rispondi SOLO in JSON:`;
             skipTurnPlayers: state.skipTurnPlayers,
             playerStats: new Map<string, { cardsPlayed: number; damageDealt: number; damageReceived: number; turnsPlayed: number }>(),
             isDraftMode: state.isDraftMode || false,
-            playerDraftDecks: state.playerDraftDecks || {}
+            playerDraftDecks: state.playerDraftDecks || {},
+            fantaTournamentId: state.fantaTournamentId || undefined,
           };
 
           this.games.set(savedGame.gameId, gameState);
