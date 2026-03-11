@@ -8091,9 +8091,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // ============ FANTAMINKIARDS SOCKET EVENTS ============
-    socket.on('fanta:create', ({ cpuCount, cpuLevel, playerName, maxParticipants, cardsNeeded }: { cpuCount: number; cpuLevel: 'easy' | 'medium' | 'hard'; playerName: string; maxParticipants?: number; cardsNeeded?: { personaggi?: number; mosse?: number; bonus?: number } }) => {
+    socket.on('fanta:create', ({ cpuCount, cpuLevel, playerName, maxParticipants, cardsNeeded, startingBudget }: { cpuCount: number; cpuLevel: 'easy' | 'medium' | 'hard'; playerName: string; maxParticipants?: number; cardsNeeded?: { personaggi?: number; mosse?: number; bonus?: number }; startingBudget?: number }) => {
       if (!playerName) return;
-      const session = fantaManager.createSession(playerName, cpuCount || 0, cpuLevel || 'medium', maxParticipants, socket.id, cardsNeeded);
+      const session = fantaManager.createSession(playerName, cpuCount || 0, cpuLevel || 'medium', maxParticipants, socket.id, cardsNeeded, startingBudget);
       socket.join(session.id);
       socket.emit('fanta:session-created', { fantaId: session.id, session: fantaManager.getSafeSession(session.id) });
       console.log(`🌟 FantaMinkiards session created: ${session.id} by ${playerName}`);

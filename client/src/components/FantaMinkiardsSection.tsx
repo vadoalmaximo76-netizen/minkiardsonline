@@ -55,6 +55,7 @@ interface FantaSession {
   status: 'lobby' | 'auction' | 'complete';
   createdAt: number;
   cardsNeeded?: { personaggi: number; mosse: number; bonus: number };
+  startingBudget?: number;
   tournamentStats?: Record<string, FantaPlayerStats>;
   market?: { listings: FantaMarketListing[] };
 }
@@ -81,6 +82,7 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
   const [cpuCount, setCpuCount] = useState(3);
   const [cpuLevel, setCpuLevel] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [deckSizeConfig, setDeckSizeConfig] = useState({ ...DEFAULT_DECK_SIZES });
+  const [startingBudget, setStartingBudget] = useState(1000);
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -405,7 +407,7 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
   const handleCreate = () => {
     if (!playerName) return;
     setLoading(true);
-    socket.emit('fanta:create', { cpuCount, cpuLevel, playerName, maxParticipants: totalParticipants, cardsNeeded: deckSizeConfig });
+    socket.emit('fanta:create', { cpuCount, cpuLevel, playerName, maxParticipants: totalParticipants, cardsNeeded: deckSizeConfig, startingBudget });
     setShowCreateDialog(false);
   };
 
@@ -1617,10 +1619,10 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
             <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-4 text-xs text-white/50 leading-relaxed">
               <div className="font-bold text-white/70 mb-1.5">Come funziona:</div>
               <ul className="space-y-1 list-disc list-inside">
-                <li>Ogni giocatore inizia con <span className="text-yellow-300 font-bold">1000 crediti</span></li>
+                <li>Ogni giocatore inizia con <span className="text-yellow-300 font-bold">{(currentSession?.startingBudget ?? 1000).toLocaleString('it-IT')} crediti</span></li>
                 <li>Tutte le carte scorrono in ordine alfabetico</li>
                 <li>Fai offerte per aggiudicarti le carte che vuoi</li>
-                <li>Squadra completa: <strong className="text-white">20 personaggi · 9 mosse · 15 bonus</strong></li>
+                <li>Squadra completa: <strong className="text-white">{currentSession?.cardsNeeded?.personaggi ?? 20} personaggi · {currentSession?.cardsNeeded?.mosse ?? 9} mosse · {currentSession?.cardsNeeded?.bonus ?? 15} bonus</strong></li>
                 <li>Chi finisce i crediti senza completare la squadra viene squalificato</li>
               </ul>
             </div>
@@ -1686,8 +1688,8 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
           <div className="bg-gray-800 rounded-xl border border-gray-700 p-4 mb-5">
             <h2 className="text-white font-bold mb-1">Come funziona</h2>
             <p className="text-white/60 text-sm leading-relaxed">
-              Ricevete <strong className="text-yellow-300">1000 crediti</strong> e partecipate a un'asta su tutte le carte in ordine alfabetico.
-              Chi offre di più vince la carta! Costruisci il tuo mazzo: <strong className="text-white">20 personaggi · 9 mosse · 15 bonus</strong>. Chi finisce i crediti senza completare viene squalificato.
+              Ricevete <strong className="text-yellow-300">{(currentSession?.startingBudget ?? 1000).toLocaleString('it-IT')} crediti</strong> e partecipate a un'asta su tutte le carte in ordine alfabetico.
+              Chi offre di più vince la carta! Costruisci il tuo mazzo: <strong className="text-white">{currentSession?.cardsNeeded?.personaggi ?? 20} personaggi · {currentSession?.cardsNeeded?.mosse ?? 9} mosse · {currentSession?.cardsNeeded?.bonus ?? 15} bonus</strong>. Chi finisce i crediti senza completare viene squalificato.
             </p>
           </div>
 
@@ -1925,6 +1927,36 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Budget */}
+            <div className="mb-5">
+              <label className="text-sm font-semibold text-white/80 mb-2 block">
+                💰 Budget iniziale per squadra: <span className="text-yellow-300 font-black">{startingBudget.toLocaleString('it-IT')} crediti</span>
+              </label>
+              <input
+                type="range"
+                min={200}
+                max={5000}
+                step={100}
+                value={startingBudget}
+                onChange={e => setStartingBudget(Number(e.target.value))}
+                className="w-full accent-yellow-500 h-2 cursor-pointer"
+              />
+              <div className="flex justify-between text-xs text-white/30 mt-1">
+                <span>200</span><span>1.000</span><span>2.000</span><span>3.500</span><span>5.000</span>
+              </div>
+              <div className="flex gap-2 mt-2 flex-wrap">
+                {[500, 1000, 2000, 3000, 5000].map(v => (
+                  <button key={v} onClick={() => setStartingBudget(v)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold border ${startingBudget === v ? 'bg-yellow-500 border-yellow-400 text-black' : 'bg-gray-700 border-gray-600 text-white'}`}>
+                    {v.toLocaleString('it-IT')}
+                  </button>
+                ))}
+              </div>
+              <div className="text-xs text-white/40 mt-2">
+                Ogni concorrente parte con questo budget per l'asta. Budget più alto = aste più competitive.
               </div>
             </div>
 

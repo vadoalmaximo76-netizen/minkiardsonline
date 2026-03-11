@@ -138,6 +138,7 @@ export interface FantaSession {
   completedAt?: number;
   tournament?: FantaTourney;
   cardsNeeded?: Record<'personaggi' | 'mosse' | 'bonus', number>;
+  startingBudget?: number;
   tournamentStats?: Record<string, FantaPlayerStats>;
   market?: { listings: FantaMarketListing[] };
 }
@@ -286,14 +287,15 @@ export class FantaManager {
     writeFantaSessions(arr);
   }
 
-  createSession(creatorName: string, cpuCount: number = 0, cpuLevel: 'easy' | 'medium' | 'hard' = 'medium', maxParticipants: number = cpuCount + 1, creatorSocketId?: string, cardsNeeded?: Partial<Record<'personaggi' | 'mosse' | 'bonus', number>>): FantaSession {
+  createSession(creatorName: string, cpuCount: number = 0, cpuLevel: 'easy' | 'medium' | 'hard' = 'medium', maxParticipants: number = cpuCount + 1, creatorSocketId?: string, cardsNeeded?: Partial<Record<'personaggi' | 'mosse' | 'bonus', number>>, startingBudget?: number): FantaSession {
     const id = `fanta-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
     const participants: Record<string, FantaParticipant> = {};
     const actualMax = Math.max(maxParticipants, cpuCount + 1);
+    const budget = startingBudget && startingBudget > 0 ? startingBudget : STARTING_CREDITS;
 
     participants[creatorName] = {
       name: creatorName,
-      credits: STARTING_CREDITS,
+      credits: budget,
       deck: { personaggi: [], mosse: [], bonus: [] },
       isCPU: false,
       cpuLevel: 'medium',
@@ -304,7 +306,7 @@ export class FantaManager {
       const cpuName = `CPU ${i + 1}`;
       participants[cpuName] = {
         name: cpuName,
-        credits: STARTING_CREDITS,
+        credits: budget,
         deck: { personaggi: [], mosse: [], bonus: [] },
         isCPU: true,
         cpuLevel,
@@ -334,6 +336,7 @@ export class FantaManager {
       disqualified: [],
       createdAt: Date.now(),
       cardsNeeded: resolvedCardsNeeded,
+      startingBudget: budget,
     };
 
     this.sessions.set(id, session);
@@ -372,7 +375,7 @@ export class FantaManager {
       }
       session.participants[playerName] = {
         name: playerName,
-        credits: STARTING_CREDITS,
+        credits: session.startingBudget || STARTING_CREDITS,
         deck: { personaggi: [], mosse: [], bonus: [] },
         isCPU: false,
         cpuLevel: 'medium',
@@ -431,7 +434,7 @@ export class FantaManager {
 
     session.participants[playerName] = {
       name: playerName,
-      credits: STARTING_CREDITS,
+      credits: session.startingBudget || STARTING_CREDITS,
       deck: { personaggi: [], mosse: [], bonus: [] },
       isCPU: false,
       cpuLevel: 'medium',
