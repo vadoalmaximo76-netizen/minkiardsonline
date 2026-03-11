@@ -2,7 +2,7 @@
   {
     "id": "fanta-1773238280563-dyoeos",
     "creatorName": "Fake",
-    "creatorSocketId": "coM0r_4LtC9yQMLbAAAF",
+    "creatorSocketId": "ZoHbbuXHV4PtFHnVAAAD",
     "participants": {
       "Fake": {
         "name": "Fake",
@@ -125,7 +125,7 @@
         },
         "isCPU": false,
         "cpuLevel": "medium",
-        "socketId": "coM0r_4LtC9yQMLbAAAF",
+        "socketId": "ZoHbbuXHV4PtFHnVAAAD",
         "teamName": "Le Balaustre",
         "teamColor": "#3b82f6"
       },
@@ -5843,7 +5843,8 @@
             "CPU 3",
             "Fake"
           ],
-          "status": "pending"
+          "status": "in_progress",
+          "gameId": "room-FCFD2Z"
         },
         {
           "id": "r1-m2",

@@ -8472,8 +8472,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (formation && game.playerDraftDecks[playerName]) {
         const pd = game.playerDraftDecks[playerName];
         const applyFormationCard = (arr: any[], selectedId: string) => {
-          const baseId = selectedId.split('-').slice(0, -1).join('-') || selectedId;
-          const idx = arr.findIndex(c => c.id === selectedId || c.id.startsWith(baseId + '-') || c.draftBaseId === baseId);
+          // Match by: exact id, original-id prefix (uniqueId = ${originalId}-${random}), or draftBaseId (for personaggi)
+          const idx = arr.findIndex(c =>
+            c.id === selectedId ||
+            c.id.startsWith(selectedId + '-') ||
+            c.draftBaseId === selectedId
+          );
           if (idx !== -1) {
             const [card] = arr.splice(idx, 1);
             arr.push(card);
