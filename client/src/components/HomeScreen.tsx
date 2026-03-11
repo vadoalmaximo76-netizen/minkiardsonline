@@ -267,12 +267,25 @@ const HOME_STYLES = `
     0%, 100% { opacity: 0.35; }
     50%       { opacity: 0.85; }
   }
+  @keyframes tickerScroll {
+    0%   { transform: translateX(100%); }
+    100% { transform: translateX(-100%); }
+  }
+  @keyframes tickerFadeIn {
+    0%   { opacity: 0; transform: translateY(6px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes statsPop {
+    0%   { opacity: 0; transform: translateY(-8px) scale(0.95); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
 `;
 
 export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMatch, userEmail, initialShowTournaments, onInitialShowTournamentsHandled }: HomeScreenProps) {
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [activeRoomsCount, setActiveRoomsCount] = useState(0);
-  const [randomQuote, setRandomQuote] = useState("");
+  const [quoteIndex, setQuoteIndex] = useState(0);
+  const [quoteVisible, setQuoteVisible] = useState(true);
   const [panels, setPanels] = useState<HomePanel[]>([]);
   const [editMode, setEditMode] = useState(false);
   const [editingPanel, setEditingPanel] = useState<HomePanel | null | 'new'>(null);
@@ -283,15 +296,28 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
 
   const authToken = localStorage.getItem('authToken') || '';
 
+  const QUOTES = [
+    "⚡ Viva il Pelux",
+    "🎮 Entra nel vivo del gioco scegliendo la sezione che preferisci",
+    "✨ Lo sapevi che puoi comprare skin speciali per le tue carte? Vai su PROFILO e scegli SKIN CARTE",
+    "📖 Vuoi capire meglio il meccanismo? Vai su ALLENAMENTO e premi REGOLAMENTO per non avere più dubbi!",
+    "🏆 FantaMinkiards: costruisci la tua squadra e sfida gli amici nel torneo!",
+    "📬 Minkiards è un progetto indipendente nato nel 2012 — vadoalmaximo76@gmail.com"
+  ];
+
   useEffect(() => {
-    const quotes = [
-      "Viva il Pelux",
-      "Entra nel vivo del gioco scegliendo la sezione che preferisci",
-      "Lo sapevi che puoi compare skin speciali per le tue carte? Vai su PROFILO E STORE e scegli SKIN CARTE",
-      "Vuoi capire meglio il meccanismo delle Minkiards? Vai su ALLENAMENTO e premi su REGOLAMENTO per non avere più dubbi!",
-      "Minkiards è un progetto indipendente nato nel 2012, per maggiori info contatta vadoalmaximo76@gmail.com"
-    ];
-    setRandomQuote(quotes[Math.floor(Math.random() * quotes.length)]);
+    setQuoteIndex(Math.floor(Math.random() * QUOTES.length));
+  }, []);
+
+  useEffect(() => {
+    const cycle = setInterval(() => {
+      setQuoteVisible(false);
+      setTimeout(() => {
+        setQuoteIndex(i => (i + 1) % QUOTES.length);
+        setQuoteVisible(true);
+      }, 500);
+    }, 5000);
+    return () => clearInterval(cycle);
   }, []);
 
   const [showTournaments, setShowTournaments] = useState(false);
@@ -451,8 +477,46 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
         )}
       </div>
 
+      {/* Quick Stats Bar */}
+      {userStats && (
+        <div
+          className="relative z-10 mb-6 w-full max-w-xl"
+          style={{ animation: 'statsPop 0.5s cubic-bezier(0.34,1.56,0.64,1) both' }}
+        >
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0,
+            background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(139, 92, 246, 0.2)', borderRadius: 16,
+            overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
+          }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 8px', borderRight: '1px solid rgba(139,92,246,0.12)' }}>
+              <span style={{ fontSize: 18, lineHeight: 1 }}>⭐</span>
+              <span style={{ fontSize: 15, fontWeight: 800, color: '#e2e8f0', marginTop: 2 }}>{userStats.puntiRankiard.toLocaleString('it-IT')}</span>
+              <span style={{ fontSize: 9, color: 'rgba(148,163,184,0.6)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginTop: 1 }}>Rankiard</span>
+            </div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 8px', borderRight: '1px solid rgba(139,92,246,0.12)' }}>
+              <span style={{ fontSize: 18, lineHeight: 1 }}>🎮</span>
+              <span style={{ fontSize: 15, fontWeight: 800, color: '#e2e8f0', marginTop: 2 }}>{userStats.gamesPlayed}</span>
+              <span style={{ fontSize: 9, color: 'rgba(148,163,184,0.6)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginTop: 1 }}>Partite</span>
+            </div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 8px', borderRight: '1px solid rgba(139,92,246,0.12)' }}>
+              <span style={{ fontSize: 18, lineHeight: 1 }}>🏆</span>
+              <span style={{ fontSize: 15, fontWeight: 800, color: '#c084fc', marginTop: 2 }}>{userStats.gamesWon}</span>
+              <span style={{ fontSize: 9, color: 'rgba(148,163,184,0.6)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginTop: 1 }}>Vittorie</span>
+            </div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 8px' }}>
+              <span style={{ fontSize: 18, lineHeight: 1 }}>🎯</span>
+              <span style={{ fontSize: 15, fontWeight: 800, color: userStats.gamesPlayed > 0 ? '#34d399' : '#e2e8f0', marginTop: 2 }}>
+                {userStats.gamesPlayed > 0 ? Math.round((userStats.gamesWon / userStats.gamesPlayed) * 100) : 0}%
+              </span>
+              <span style={{ fontSize: 9, color: 'rgba(148,163,184,0.6)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginTop: 1 }}>Win rate</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Menu Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl w-full relative z-10">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6 max-w-4xl w-full relative z-10">
         {visiblePanels.map((panel, idx) => {
           const IconComp = ICON_MAP[panel.icon] || Star;
           const isHovered = hoveredId === panel.id;
@@ -482,7 +546,7 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
                 style={{
                   width: '100%', position: 'relative', zIndex: 1,
                   background: `linear-gradient(135deg, ${panel.gradientFrom}, ${panel.gradientTo})`,
-                  borderRadius: 24, padding: '24px 32px',
+                  borderRadius: 20, padding: '20px 12px',
                   border: editMode ? '2px dashed rgba(255,255,255,0.4)' : `1px solid ${isHovered ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.1)'}`,
                   cursor: editMode ? 'default' : 'pointer',
                   transform: !editMode && isHovered ? 'scale(1.05) translateY(-5px)' : 'scale(1)',
@@ -504,27 +568,28 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
                 )}
                 <div style={{ position: 'relative', zIndex: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
                   <div style={{
-                    width: 64, height: 64, borderRadius: 16,
+                    width: 52, height: 52, borderRadius: 14,
                     background: isHovered ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.2)',
-                    backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+                    backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12,
                     animation: isHovered && !editMode ? 'iconFloat 1.6s ease-in-out infinite' : 'none',
                     transition: 'background 0.3s',
                     boxShadow: isHovered ? `0 0 20px ${panel.gradientFrom}88` : 'none',
                   }}>
-                    <IconComp size={32} color={panel.titleColor ?? '#ffffff'} />
+                    <IconComp size={26} color={panel.titleColor ?? '#ffffff'} />
                   </div>
                   <h2 style={{
-                    margin: 0, marginBottom: 8, fontSize: 20, fontWeight: 700, color: panel.titleColor ?? '#ffffff',
+                    margin: 0, marginBottom: 6, fontSize: 15, fontWeight: 700, color: panel.titleColor ?? '#ffffff',
                     transition: 'letter-spacing 0.3s, text-shadow 0.3s',
                     letterSpacing: isHovered && !editMode ? '0.04em' : '0',
                     textShadow: isHovered ? `0 0 16px ${panel.titleColor ?? '#ffffff'}cc` : 'none',
                   }}>{panel.title}</h2>
-                  <p style={{ margin: 0, marginBottom: 16, fontSize: 14, color: panel.subtitleColor ?? 'rgba(255,255,255,0.7)', transition: 'opacity 0.3s', opacity: isHovered ? 1 : 0.85 }}>{panel.subtitle}</p>
+                  <p style={{ margin: 0, marginBottom: 10, fontSize: 11, color: panel.subtitleColor ?? 'rgba(255,255,255,0.7)', transition: 'opacity 0.3s', opacity: isHovered ? 1 : 0.75, lineHeight: 1.3 }}>{panel.subtitle}</p>
                   {dynamicBadge && (
                     <div style={{
                       background: panel.badgeColor ?? 'rgba(0,0,0,0.3)', backdropFilter: 'blur(8px)', borderRadius: 20,
-                      padding: '6px 16px', fontSize: 13, color: panel.titleColor ?? '#ffffff', fontWeight: 500,
+                      padding: '4px 10px', fontSize: 11, color: panel.titleColor ?? '#ffffff', fontWeight: 600,
                       transform: isHovered ? 'scale(1.07)' : 'scale(1)', transition: 'transform 0.3s',
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%',
                     }}>
                       {dynamicBadge}
                     </div>
@@ -584,9 +649,45 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
         </div>
       )}
 
-      {/* Footer */}
-      <div className="mt-8 text-center relative z-10 max-w-xl">
-        <p className="text-slate-500 text-sm leading-relaxed">{randomQuote}</p>
+      {/* Ticker */}
+      <div className="relative z-10 mt-8 w-full max-w-xl">
+        <div style={{
+          background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(139,92,246,0.15)', borderRadius: 12,
+          padding: '10px 16px', overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <span style={{
+            flexShrink: 0, fontSize: 10, fontWeight: 800, color: '#a78bfa',
+            letterSpacing: '0.1em', textTransform: 'uppercase', whiteSpace: 'nowrap',
+            borderRight: '1px solid rgba(139,92,246,0.3)', paddingRight: 10,
+          }}>NEWS</span>
+          <span
+            key={quoteIndex}
+            style={{
+              fontSize: 13, color: 'rgba(203,213,225,0.85)', whiteSpace: 'nowrap',
+              overflow: 'hidden', textOverflow: 'ellipsis',
+              opacity: quoteVisible ? 1 : 0,
+              transform: quoteVisible ? 'translateY(0)' : 'translateY(4px)',
+              transition: 'opacity 0.45s ease, transform 0.45s ease',
+            }}
+          >
+            {QUOTES[quoteIndex]}
+          </span>
+          <div style={{ display: 'flex', gap: 4, marginLeft: 'auto', flexShrink: 0 }}>
+            {QUOTES.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => { setQuoteVisible(false); setTimeout(() => { setQuoteIndex(i); setQuoteVisible(true); }, 300); }}
+                style={{
+                  width: i === quoteIndex ? 16 : 5, height: 5, borderRadius: 3,
+                  background: i === quoteIndex ? '#a78bfa' : 'rgba(148,163,184,0.25)',
+                  border: 'none', cursor: 'pointer', padding: 0,
+                  transition: 'width 0.3s, background 0.3s',
+                }}
+              />
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Panel editor modal */}
