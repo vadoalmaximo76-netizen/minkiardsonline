@@ -1558,6 +1558,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Send current game state to the player (now includes permanent cards)
       const gameState = gameManager.getSanitizedGameState(gameId);
       socket.emit('game-state-update', gameState);
+
+      // If this is a fanta game that was already auto-started, send game-started so the client
+      // transitions directly into the game without needing to click COMINCIA
+      const joinedGame = gameManager.getGame(gameId);
+      if (joinedGame && (joinedGame as any).fantaTournamentId && joinedGame.isPlaying && joinedGame.turnOrder?.length > 0) {
+        socket.emit('game-started', { playerOrder: joinedGame.turnOrder });
+      }
       
       // Notify other players
       socket.to(gameId).emit('player-joined', { playerName });
@@ -8456,11 +8463,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       game.fantaTournamentId = fantaId;
       // Apply character limit
-      (game as any).tournamentCharacterLimit = tourney.config.characterLimit || 'unlimited';
+      const fantaCharLimit = tourney.config.characterLimit || 'unlimited';
+      (game as any).tournamentCharacterLimit = fantaCharLimit;
 
       fantaManager.startMatch(fantaId, matchId, gameId);
       io.to(fantaId).emit('fanta:match-started', { fantaId, matchId, gameId, players: match.players });
       console.log(`🎮 Fanta match ${matchId} avviato: stanza ${gameId} con giocatori [${match.players.join(', ')}]`);
+
+      // Auto-start game when only 1 human participant (caller) + CPUs are in the match.
+      // This ensures game.characterLimit is set correctly before any gameplay begins.
+      const humanPlayersExpected = match.players.filter((p: string) => !sess.participants[p]?.isCPU).length;
+      const totalPlayersInGame = Object.keys(game.players).length;
+      if (humanPlayersExpected === 1 && totalPlayersInGame >= 2) {
+        // Run opening sequences for all CPU players first (mirrors autoStartTournamentMatch)
+        for (const cpuName of match.players) {
+          if (!sess.participants[cpuName]?.isCPU) continue;
+          const cpuPlayer = game.players[cpuName];
+          if (!cpuPlayer?.isCPU || !cpuPlayer.cpuInstance) continue;
+          try {
+            await gameManager.pickOpeningCards(gameId, ['personaggi', 'mosse', 'bonus'], cpuName);
+            const hand = game.players[cpuName]?.hand || [];
+            const personaggio = hand.find((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
+            if (personaggio) {
+              await gameManager.playCard(gameId, personaggio.id, cpuName);
+            }
+            await gameManager.pickCard(gameId, 'personaggi', cpuName);
+            cpuPlayer.cpuInstance.completeOpeningSequence();
+            console.log(`🤖 Fanta CPU "${cpuName}" opening sequence complete`);
+          } catch (e) {
+            console.error(`Error running opening sequence for fanta CPU ${cpuName}:`, e);
+          }
+        }
+
+        // Start game with the configured character limit
+        const playerOrder = gameManager.startGame(gameId, fantaCharLimit);
+        if (playerOrder) {
+          console.log(`🏆 Fanta match ${gameId} auto-started (limit: ${fantaCharLimit}, order: ${playerOrder.join(', ')})`);
+          // Emit game-started directly to caller's socket (they haven't joined the room yet)
+          socket.emit('game-started', { playerOrder });
+          // Also emit updated state
+          const updatedState = gameManager.getSanitizedGameState(gameId);
+          socket.emit('game-state-update', updatedState);
+          // Trigger first turn
+          const firstPlayer = playerOrder[0];
+          const firstPlayerData = game.players[firstPlayer];
+          if (firstPlayerData?.isCPU) {
+            const ioRef = (global as any).io;
+            setTimeout(async () => {
+              if (!ioRef) return;
+              const action = await gameManager.processCPUTurn(gameId, firstPlayer, ioRef);
+              if (action) await gameManager.applyCPUAction(gameId, firstPlayer, action, ioRef);
+            }, 2000);
+          } else {
+            gameManager.startTurnTimer(gameId, firstPlayer);
+          }
+        }
+      }
     });
 
     // ─── fanta:get-tournament-state ──────────────────────────────────────────────
