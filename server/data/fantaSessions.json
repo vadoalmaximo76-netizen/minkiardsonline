@@ -1,85 +1,14 @@
 [
   {
-    "id": "fanta-1773220276195-cqb4pf",
+    "id": "fanta-1773222140228-twu77d",
     "creatorName": "Fake",
-    "creatorSocketId": "QbrAPPjnsRvF2n_SAAAD",
+    "creatorSocketId": "HGun1pKfrtC_k7qxAAAD",
     "participants": {
       "Fake": {
         "name": "Fake",
-        "credits": 994,
+        "credits": 997,
         "deck": {
           "personaggi": [
-            {
-              "id": "personaggi-7",
-              "type": "personaggi",
-              "frontImage": "https://i.postimg.cc/9XdNgbxf/avvoltoio.png",
-              "name": "avvoltoio",
-              "rarity": "comune",
-              "draftCost": 4
-            },
-            {
-              "id": "personaggi-8",
-              "type": "personaggi",
-              "frontImage": "https://i.postimg.cc/fTMqGdFf/bambola-del-demonio.png",
-              "name": "bambola del demonio",
-              "rarity": "comune",
-              "draftCost": 11
-            }
-          ],
-          "mosse": [
-            {
-              "id": "mosse-10",
-              "type": "mosse",
-              "frontImage": "https://i.ibb.co/5h58X11J/bomba.png",
-              "name": "bomba",
-              "rarity": "comune",
-              "draftCost": 25
-            },
-            {
-              "id": "mosse-11",
-              "type": "mosse",
-              "frontImage": "https://i.ibb.co/TDxDZYxD/bottigliata-di-piscio.png",
-              "name": "bottigliata di piscio",
-              "rarity": "rara",
-              "draftCost": 40
-            }
-          ],
-          "bonus": [
-            {
-              "id": "bonus-11",
-              "type": "bonus",
-              "frontImage": "https://i.postimg.cc/hPQs5pZQ/azz-tuost-sant-rocc.png",
-              "name": "azz tuost sant rocc",
-              "rarity": "comune",
-              "draftCost": 5
-            },
-            {
-              "id": "bonus-161",
-              "type": "bonus",
-              "frontImage": "https://i.ibb.co/TCqY21v/BAMBOLA-VOODOO.png",
-              "name": "BAMBOLA VOODOO",
-              "rarity": "comune",
-              "draftCost": 10
-            }
-          ]
-        },
-        "isCPU": false,
-        "cpuLevel": "medium",
-        "socketId": "QbrAPPjnsRvF2n_SAAAD"
-      },
-      "CPU 1": {
-        "name": "CPU 1",
-        "credits": 961,
-        "deck": {
-          "personaggi": [
-            {
-              "id": "personaggi-3",
-              "type": "personaggi",
-              "frontImage": "https://i.postimg.cc/fR2Pjb8j/andrea.png",
-              "name": "andrea",
-              "rarity": "rara",
-              "draftCost": 23
-            },
             {
               "id": "personaggi-10",
               "type": "personaggi",
@@ -91,119 +20,34 @@
           ],
           "mosse": [
             {
-              "id": "mosse-1",
+              "id": "mosse-10",
               "type": "mosse",
-              "frontImage": "https://i.ibb.co/4ZQjYYkZ/accettata.png",
-              "name": "accettata",
-              "rarity": "leggendaria",
-              "draftCost": 70
-            },
-            {
-              "id": "mosse-3",
-              "type": "mosse",
-              "frontImage": "https://i.ibb.co/Ld485J59/ago-di-pino.png",
-              "name": "ago di pino",
-              "rarity": "leggendaria",
-              "draftCost": 90
+              "frontImage": "https://i.ibb.co/5h58X11J/bomba.png",
+              "name": "bomba",
+              "rarity": "comune",
+              "draftCost": 25
             }
           ],
           "bonus": [
             {
-              "id": "bonus-3",
+              "id": "bonus-13",
               "type": "bonus",
-              "frontImage": "https://i.postimg.cc/FHcP7DjX/Ah-ah-primo-nel-Rankiard.png",
-              "name": "Ah ah primo nel Rankiard",
-              "rarity": "epica",
-              "draftCost": 50
-            },
-            {
-              "id": "bonus-6",
-              "type": "bonus",
-              "frontImage": "https://i.postimg.cc/NMGbCtZQ/apocalisse.png",
-              "name": "apocalisse",
-              "rarity": "epica",
-              "draftCost": 40
-            }
-          ]
-        },
-        "isCPU": true,
-        "cpuLevel": "easy"
-      },
-      "CPU 2": {
-        "name": "CPU 2",
-        "credits": 983,
-        "deck": {
-          "personaggi": [
-            {
-              "id": "personaggi-5",
-              "type": "personaggi",
-              "frontImage": "https://i.postimg.cc/hvBZPQGg/apollo.png",
-              "name": "apollo",
-              "rarity": "epica",
-              "draftCost": 29
-            },
-            {
-              "id": "personaggi-6",
-              "type": "personaggi",
-              "frontImage": "https://i.postimg.cc/sx46BfBW/aragosta-irachena.png",
-              "name": "aragosta irachena",
-              "rarity": "comune",
-              "draftCost": 12
-            }
-          ],
-          "mosse": [
-            {
-              "id": "mosse-8",
-              "type": "mosse",
-              "frontImage": "https://i.ibb.co/ZzdFWqBZ/attacco.png",
-              "name": "attacco",
-              "rarity": "rara",
-              "draftCost": 40
-            },
-            {
-              "id": "mosse-5",
-              "type": "mosse",
-              "frontImage": "https://i.ibb.co/ZpQ7JsFG/attacco-combinato.png",
-              "name": "attacco combinato",
+              "frontImage": "https://i.postimg.cc/y8FPVWHV/barriera.png",
+              "name": "barriera",
               "rarity": "comune",
               "draftCost": 10
             }
-          ],
-          "bonus": [
-            {
-              "id": "bonus-2",
-              "type": "bonus",
-              "frontImage": "https://i.postimg.cc/TYB7dZ5c/AGGLOMERA-LEGHE.png",
-              "name": "AGGLOMERA LEGHE",
-              "rarity": "comune",
-              "draftCost": 10
-            },
-            {
-              "id": "bonus-10",
-              "type": "bonus",
-              "frontImage": "https://i.postimg.cc/QNySmRmr/attacco-simultaneo.png",
-              "name": "attacco simultaneo",
-              "rarity": "leggendaria",
-              "draftCost": 55
-            }
           ]
         },
-        "isCPU": true,
-        "cpuLevel": "easy"
+        "isCPU": false,
+        "cpuLevel": "medium",
+        "socketId": "HGun1pKfrtC_k7qxAAAD"
       },
-      "CPU 3": {
-        "name": "CPU 3",
-        "credits": 978,
+      "CPU 1": {
+        "name": "CPU 1",
+        "credits": 991,
         "deck": {
           "personaggi": [
-            {
-              "id": "personaggi-0",
-              "type": "personaggi",
-              "frontImage": "https://i.postimg.cc/fRTF9dfR/al-bano.png",
-              "name": "al bano",
-              "rarity": "rara",
-              "draftCost": 22
-            },
             {
               "id": "personaggi-1",
               "type": "personaggi",
@@ -215,20 +59,12 @@
           ],
           "mosse": [
             {
-              "id": "mosse-4",
+              "id": "mosse-3",
               "type": "mosse",
-              "frontImage": "https://i.ibb.co/KjyM2Ns6/assorbimento.png",
-              "name": "assorbimento",
-              "rarity": "comune",
-              "draftCost": 25
-            },
-            {
-              "id": "mosse-6",
-              "type": "mosse",
-              "frontImage": "https://i.ibb.co/PZR61NhJ/attacco-disonesto.png",
-              "name": "attacco disonesto",
-              "rarity": "rara",
-              "draftCost": 40
+              "frontImage": "https://i.ibb.co/Ld485J59/ago-di-pino.png",
+              "name": "ago di pino",
+              "rarity": "leggendaria",
+              "draftCost": 90
             }
           ],
           "bonus": [
@@ -239,14 +75,82 @@
               "name": "5 GGGGG",
               "rarity": "comune",
               "draftCost": 10
-            },
+            }
+          ]
+        },
+        "isCPU": true,
+        "cpuLevel": "easy"
+      },
+      "CPU 2": {
+        "name": "CPU 2",
+        "credits": 988,
+        "deck": {
+          "personaggi": [
             {
-              "id": "bonus-5",
-              "type": "bonus",
-              "frontImage": "https://i.postimg.cc/Ls3NV5Cy/AMEECO.png",
-              "name": "AMEECO",
+              "id": "personaggi-2",
+              "type": "personaggi",
+              "frontImage": "https://i.postimg.cc/d0gSpxPh/amadeus.png",
+              "name": "amadeus",
+              "rarity": "rara",
+              "draftCost": 18
+            }
+          ],
+          "mosse": [
+            {
+              "id": "mosse-1",
+              "type": "mosse",
+              "frontImage": "https://i.ibb.co/4ZQjYYkZ/accettata.png",
+              "name": "accettata",
               "rarity": "leggendaria",
-              "draftCost": 55
+              "draftCost": 70
+            }
+          ],
+          "bonus": [
+            {
+              "id": "bonus-2",
+              "type": "bonus",
+              "frontImage": "https://i.postimg.cc/TYB7dZ5c/AGGLOMERA-LEGHE.png",
+              "name": "AGGLOMERA LEGHE",
+              "rarity": "comune",
+              "draftCost": 10
+            }
+          ]
+        },
+        "isCPU": true,
+        "cpuLevel": "easy"
+      },
+      "CPU 3": {
+        "name": "CPU 3",
+        "credits": 994,
+        "deck": {
+          "personaggi": [
+            {
+              "id": "personaggi-3",
+              "type": "personaggi",
+              "frontImage": "https://i.postimg.cc/fR2Pjb8j/andrea.png",
+              "name": "andrea",
+              "rarity": "rara",
+              "draftCost": 23
+            }
+          ],
+          "mosse": [
+            {
+              "id": "mosse-2",
+              "type": "mosse",
+              "frontImage": "https://i.ibb.co/99wLbD9L/acchiappt-chessa.png",
+              "name": "acchiappt chessa",
+              "rarity": "rara",
+              "draftCost": 40
+            }
+          ],
+          "bonus": [
+            {
+              "id": "bonus-3",
+              "type": "bonus",
+              "frontImage": "https://i.postimg.cc/FHcP7DjX/Ah-ah-primo-nel-Rankiard.png",
+              "name": "Ah ah primo nel Rankiard",
+              "rarity": "epica",
+              "draftCost": 50
             }
           ]
         },
@@ -4020,20 +3924,9 @@
         "draftCost": 10
       }
     ],
-    "currentCardIndex": 49,
+    "currentCardIndex": 44,
     "currentAuction": null,
     "recentAwarded": [
-      {
-        "card": {
-          "id": "mosse-11",
-          "type": "mosse",
-          "frontImage": "https://i.ibb.co/TDxDZYxD/bottigliata-di-piscio.png",
-          "name": "bottigliata di piscio",
-          "rarity": "rara",
-          "draftCost": 40
-        },
-        "winner": "Fake"
-      },
       {
         "card": {
           "id": "mosse-10",
@@ -4054,14 +3947,14 @@
           "rarity": "rara",
           "draftCost": 28
         },
-        "winner": "CPU 1"
+        "winner": "Fake"
       },
       {
         "card": {
-          "id": "bonus-161",
+          "id": "bonus-13",
           "type": "bonus",
-          "frontImage": "https://i.ibb.co/TCqY21v/BAMBOLA-VOODOO.png",
-          "name": "BAMBOLA VOODOO",
+          "frontImage": "https://i.postimg.cc/y8FPVWHV/barriera.png",
+          "name": "barriera",
           "rarity": "comune",
           "draftCost": 10
         },
@@ -4069,83 +3962,94 @@
       },
       {
         "card": {
-          "id": "personaggi-8",
+          "id": "personaggi-3",
           "type": "personaggi",
-          "frontImage": "https://i.postimg.cc/fTMqGdFf/bambola-del-demonio.png",
-          "name": "bambola del demonio",
-          "rarity": "comune",
-          "draftCost": 11
-        },
-        "winner": "Fake"
-      },
-      {
-        "card": {
-          "id": "bonus-11",
-          "type": "bonus",
-          "frontImage": "https://i.postimg.cc/hPQs5pZQ/azz-tuost-sant-rocc.png",
-          "name": "azz tuost sant rocc",
-          "rarity": "comune",
-          "draftCost": 5
-        },
-        "winner": "Fake"
-      },
-      {
-        "card": {
-          "id": "personaggi-7",
-          "type": "personaggi",
-          "frontImage": "https://i.postimg.cc/9XdNgbxf/avvoltoio.png",
-          "name": "avvoltoio",
-          "rarity": "comune",
-          "draftCost": 4
-        },
-        "winner": "Fake"
-      },
-      {
-        "card": {
-          "id": "bonus-10",
-          "type": "bonus",
-          "frontImage": "https://i.postimg.cc/QNySmRmr/attacco-simultaneo.png",
-          "name": "attacco simultaneo",
-          "rarity": "leggendaria",
-          "draftCost": 55
-        },
-        "winner": "CPU 2"
-      },
-      {
-        "card": {
-          "id": "mosse-6",
-          "type": "mosse",
-          "frontImage": "https://i.ibb.co/PZR61NhJ/attacco-disonesto.png",
-          "name": "attacco disonesto",
+          "frontImage": "https://i.postimg.cc/fR2Pjb8j/andrea.png",
+          "name": "andrea",
           "rarity": "rara",
-          "draftCost": 40
+          "draftCost": 23
         },
         "winner": "CPU 3"
       },
       {
         "card": {
-          "id": "mosse-5",
+          "id": "personaggi-2",
+          "type": "personaggi",
+          "frontImage": "https://i.postimg.cc/d0gSpxPh/amadeus.png",
+          "name": "amadeus",
+          "rarity": "rara",
+          "draftCost": 18
+        },
+        "winner": "CPU 2"
+      },
+      {
+        "card": {
+          "id": "personaggi-1",
+          "type": "personaggi",
+          "frontImage": "https://i.postimg.cc/nLXPdt58/alberto-angela.png",
+          "name": "alberto angela",
+          "rarity": "epica",
+          "draftCost": 34
+        },
+        "winner": "CPU 1"
+      },
+      {
+        "card": {
+          "id": "bonus-3",
+          "type": "bonus",
+          "frontImage": "https://i.postimg.cc/FHcP7DjX/Ah-ah-primo-nel-Rankiard.png",
+          "name": "Ah ah primo nel Rankiard",
+          "rarity": "epica",
+          "draftCost": 50
+        },
+        "winner": "CPU 3"
+      },
+      {
+        "card": {
+          "id": "mosse-3",
           "type": "mosse",
-          "frontImage": "https://i.ibb.co/ZpQ7JsFG/attacco-combinato.png",
-          "name": "attacco combinato",
+          "frontImage": "https://i.ibb.co/Ld485J59/ago-di-pino.png",
+          "name": "ago di pino",
+          "rarity": "leggendaria",
+          "draftCost": 90
+        },
+        "winner": "CPU 1"
+      },
+      {
+        "card": {
+          "id": "bonus-2",
+          "type": "bonus",
+          "frontImage": "https://i.postimg.cc/TYB7dZ5c/AGGLOMERA-LEGHE.png",
+          "name": "AGGLOMERA LEGHE",
           "rarity": "comune",
           "draftCost": 10
         },
         "winner": "CPU 2"
+      },
+      {
+        "card": {
+          "id": "mosse-2",
+          "type": "mosse",
+          "frontImage": "https://i.ibb.co/99wLbD9L/acchiappt-chessa.png",
+          "name": "acchiappt chessa",
+          "rarity": "rara",
+          "draftCost": 40
+        },
+        "winner": "CPU 3"
       }
     ],
     "isPaused": false,
     "disqualified": [],
-    "createdAt": 1773220276195,
+    "createdAt": 1773222140228,
     "cardsNeeded": {
-      "personaggi": 2,
-      "mosse": 2,
-      "bonus": 2
+      "personaggi": 1,
+      "mosse": 1,
+      "bonus": 1
     },
-    "completedAt": 1773220683812,
+    "completedAt": 1773222624177,
     "tournament": {
       "config": {
-        "name": "FantaTorneo #B4PF",
+        "name": "FantaTorneo #U77D",
         "type": "elimination",
         "playersPerMatch": 2,
         "characterLimit": "1",
@@ -4161,8 +4065,9 @@
             "Fake",
             "CPU 1"
           ],
-          "status": "in_progress",
-          "gameId": "room-FTYMMY"
+          "status": "completed",
+          "gameId": "room-F5LVWB",
+          "winnerId": "Fake"
         },
         {
           "id": "r1-m2",
@@ -4175,9 +4080,19 @@
           "status": "completed",
           "winnerId": "CPU 3",
           "gameId": "sim-r1-m2"
+        },
+        {
+          "id": "r2-m1",
+          "round": 2,
+          "matchNumber": 1,
+          "players": [
+            "Fake",
+            "CPU 3"
+          ],
+          "status": "pending"
         }
       ],
-      "currentRound": 1,
+      "currentRound": 2,
       "status": "in_progress"
     }
   }

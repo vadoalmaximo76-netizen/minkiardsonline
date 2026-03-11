@@ -762,7 +762,7 @@ function App() {
     return (
       <QueryClientProvider client={queryClient}>
         <FantaMinkiardsSection
-          playerName={playerName}
+          playerName={authenticatedUser?.username || playerName}
           authToken={localStorage.getItem('authToken') ?? undefined}
           isAdmin={authenticatedUser?.email === 'lucaforte94@gmail.com'}
           initialFantaId={fantaReturnId ?? undefined}
