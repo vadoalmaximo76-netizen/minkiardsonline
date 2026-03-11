@@ -3061,7 +3061,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const targets = gameManager.getParasiticTargets(gameId, playerName);
             
             if (targets.length > 0) {
-              if (playerName.startsWith('CPU-')) {
+              const isActingCPU = (() => { const gs = gameManager.getGameState(gameId); return gs?.players[playerName]?.isCPU || playerName.startsWith('CPU-'); })();
+              if (isActingCPU) {
                 // CPU auto-selects target (highest stars)
                 const target = gameManager.getCPUParasiticTarget(gameId, playerName);
                 if (target) {
@@ -4735,7 +4736,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         io.to(gameId).emit('chat-message', chatMessage);
         
         // Let CPU players respond to human chat messages
-        if (!playerName.startsWith('CPU-')) {
+        const senderIsCPU = (() => { const gs = gameManager.getGameState(gameId); return gs?.players[playerName]?.isCPU || playerName.startsWith('CPU-'); })();
+        if (!senderIsCPU) {
           console.log(`Processing CPU chat responses for: ${message}`);
           gameManager.processCPUChatResponses(gameId, message, playerName);
         }
@@ -4750,7 +4752,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const gameState = gameManager.getSanitizedGameState(gameId);
               const currentPlayer = gameState?.turnOrder?.[gameState.currentTurnIndex];
               
-              if (currentPlayer?.startsWith('CPU-')) {
+              const currentIsCPU = (() => { const gs2 = gameManager.getGameState(gameId); return gs2?.players[currentPlayer!]?.isCPU || currentPlayer?.startsWith('CPU-'); })();
+              if (currentPlayer && currentIsCPU) {
                 const cpuAction = await gameManager.processCPUTurn(gameId, currentPlayer, io);
                 if (cpuAction) {
                   // Execute CPU action
@@ -6692,7 +6695,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const gameState = gameManager.getSanitizedGameState(gameId);
         const nextPlayerData = gameState?.players[nextPlayer];
         
-        if (nextPlayerData && nextPlayer.startsWith('CPU-')) {
+        if (nextPlayerData && (nextPlayerData.isCPU || nextPlayer.startsWith('CPU-'))) {
           // Give a moment for UI to update, then process CPU turn
           setTimeout(async () => {
             try {
@@ -7372,7 +7375,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
 
           // Process next player's turn if they are a CPU
-          if (nextPlayer?.startsWith('CPU-')) {
+          const nextPlayerIsCPU = (() => {
+            const gs = gameManager.getGameState(gameId);
+            return gs?.players[nextPlayer!]?.isCPU || nextPlayer?.startsWith('CPU-');
+          })();
+          if (nextPlayer && nextPlayerIsCPU) {
             console.log(`Processing automated turn for CPU: ${nextPlayer}`);
             setTimeout(async () => {
               try {
@@ -8303,6 +8310,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If already in progress, return existing gameId
       if (match.gameId && match.status === 'in_progress') {
         socket.emit('fanta:match-started', { fantaId, matchId, gameId: match.gameId, players: match.players });
+        return;
+      }
+
+      // CPU vs CPU: simulate immediately without creating a game room
+      const allAreCPU = match.players.every(p => sess.participants[p]?.isCPU);
+      if (allAreCPU) {
+        console.log(`🤖 Fanta match ${matchId} is CPU vs CPU — simulating result automatically`);
+        fantaManager.simulateMatchResult(fantaId, matchId, io);
+        socket.emit('fanta:match-simulated', { fantaId, matchId, winner: sess.tournament!.matches.find(m => m.id === matchId)?.winnerId });
         return;
       }
 

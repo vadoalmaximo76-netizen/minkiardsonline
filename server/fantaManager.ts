@@ -912,6 +912,53 @@ export class FantaManager {
     return { success: true };
   }
 
+  simulateMatchResult(fantaId: string, matchId: string, io: any): void {
+    const session = this.sessions.get(fantaId);
+    if (!session?.tournament) return;
+    const match = session.tournament.matches.find(m => m.id === matchId);
+    if (!match || match.status === 'completed') return;
+
+    const winner = match.players[Math.floor(Math.random() * match.players.length)];
+    match.status = 'completed';
+    match.winnerId = winner;
+    match.gameId = `sim-${matchId}`;
+
+    const tourney = session.tournament;
+
+    if (tourney.config.type === 'round_robin') {
+      const allDone = tourney.matches.every(m => m.status === 'completed');
+      if (allDone) {
+        const wins: Record<string, number> = {};
+        for (const m of tourney.matches) {
+          if (m.winnerId) wins[m.winnerId] = (wins[m.winnerId] || 0) + 1;
+        }
+        const sorted = Object.entries(wins).sort(([, a], [, b]) => b - a);
+        tourney.winnerId = sorted[0]?.[0];
+        tourney.status = 'completed';
+      }
+    } else {
+      const roundMatches = tourney.matches.filter(m => m.round === tourney.currentRound);
+      const allRoundDone = roundMatches.every(m => m.status === 'completed');
+      if (allRoundDone) {
+        const winners = roundMatches.map(m => m.winnerId).filter(Boolean) as string[];
+        if (winners.length === 1) {
+          tourney.winnerId = winners[0];
+          tourney.status = 'completed';
+        } else if (winners.length >= 2) {
+          const nextRound = tourney.currentRound + 1;
+          const ppm = tourney.config.playersPerMatch;
+          const nextMatches = this.buildElimBracket(winners, ppm, nextRound);
+          tourney.matches.push(...nextMatches);
+          tourney.currentRound = nextRound;
+        }
+      }
+    }
+
+    this.persist();
+    io.to(fantaId).emit('fanta:bracket-update', { fantaId, tournament: tourney });
+    console.log(`🤖 Simulated CPU vs CPU match ${matchId}: winner = ${winner}`);
+  }
+
   reportMatchResult(fantaId: string, gameId: string, winnerName: string, io: any): void {
     const session = this.sessions.get(fantaId);
     if (!session?.tournament) return;

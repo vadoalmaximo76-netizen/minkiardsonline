@@ -516,7 +516,10 @@ export class GameManager {
         const updatedGame = this.games.get(gameId);
         if (updatedGame && updatedGame.players[nextPlayer]?.isCPU) {
           console.log(`⏰ Timer timeout → next player is CPU (${nextPlayer}), triggering CPU turn`);
-          setTimeout(() => this.processCPUTurn(gameId, nextPlayer, io3), 2000);
+          setTimeout(async () => {
+            const action = await this.processCPUTurn(gameId, nextPlayer, io3);
+            if (action) await this.applyCPUAction(gameId, nextPlayer, action, io3);
+          }, 2000);
         } else {
           this.startTurnTimer(gameId, nextPlayer);
         }
@@ -611,7 +614,10 @@ export class GameManager {
         if (updatedState) io3.to(gameId).emit('game-state-update', updatedState);
         const updatedGame = this.games.get(gameId);
         if (updatedGame && updatedGame.players[nextPlayer]?.isCPU) {
-          setTimeout(() => this.processCPUTurn(gameId, nextPlayer, io3), 2000);
+          setTimeout(async () => {
+            const action = await this.processCPUTurn(gameId, nextPlayer, io3);
+            if (action) await this.applyCPUAction(gameId, nextPlayer, action, io3);
+          }, 2000);
         } else {
           this.startTurnTimer(gameId, nextPlayer);
         }
@@ -729,7 +735,7 @@ export class GameManager {
     
     // Find the first human player (not CPU)
     for (const playerName of game.turnOrder) {
-      if (!playerName.startsWith('CPU-')) {
+      if (!game.players[playerName]?.isCPU && !playerName.startsWith('CPU-')) {
         return playerName;
       }
     }
@@ -1190,8 +1196,21 @@ export class GameManager {
     });
     console.log(`🏆 Tournament match ${gameId} auto-started (limit: ${limit}, order: ${playerOrder.join(', ')})`);
 
-    // Start turn timer for the first player
-    this.startTurnTimer(gameId, playerOrder[0]);
+    // Start turn timer for first human player; if CPU, trigger their full turn
+    const firstPlayer = playerOrder[0];
+    const firstPlayerData = game.players[firstPlayer];
+    if (firstPlayerData?.isCPU) {
+      const io4 = (global as any).io;
+      setTimeout(async () => {
+        if (!io4) return;
+        const action = await this.processCPUTurn(gameId, firstPlayer, io4);
+        if (action) {
+          await this.applyCPUAction(gameId, firstPlayer, action, io4);
+        }
+      }, 2000);
+    } else {
+      this.startTurnTimer(gameId, firstPlayer);
+    }
   }
 
   async addPlayer(gameId: string, playerName: string, socketId: string, isCPU: boolean = false, authenticatedUserId?: number, isApproved: boolean = false, isDraftMode: boolean = false): Promise<{ success: boolean; error?: string; requiresApproval?: boolean }> {
@@ -18278,6 +18297,72 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
   }
 
+  // Execute a CPU action returned by processCPUTurn / takeTurn
+  async applyCPUAction(gameId: string, cpuName: string, action: any, io: any): Promise<void> {
+    if (!action) return;
+    const emitState = () => {
+      const gs = this.getSanitizedGameState(gameId);
+      if (gs) io.to(gameId).emit('game-state-update', gs);
+    };
+    const advanceTurn = async (playerName: string) => {
+      const next = this.endTurn(gameId, playerName);
+      if (next) {
+        io.to(gameId).emit('next-turn', { nextPlayer: next });
+        emitState();
+        const freshGame = this.games.get(gameId);
+        if (freshGame?.players[next]?.isCPU) {
+          await new Promise(r => setTimeout(r, 1500));
+          const nextAction = await this.processCPUTurn(gameId, next, io);
+          if (nextAction) await this.applyCPUAction(gameId, next, nextAction, io);
+        } else {
+          this.startTurnTimer(gameId, next);
+        }
+      }
+    };
+
+    switch (action.type) {
+      case 'pick-card': {
+        await this.pickCard(gameId, action.data.deckType, cpuName);
+        emitState();
+        await new Promise(r => setTimeout(r, 800));
+        // Continue the CPU turn after picking
+        const nextAction = await this.processCPUTurn(gameId, cpuName, io);
+        if (nextAction) await this.applyCPUAction(gameId, cpuName, nextAction, io);
+        break;
+      }
+      case 'play-card': {
+        const result = await this.playCard(gameId, action.data.cardId, cpuName);
+        emitState();
+        await new Promise(r => setTimeout(r, 800));
+        if (result.card && action.data.drawType) {
+          await this.pickCard(gameId, action.data.drawType, cpuName);
+          emitState();
+        }
+        await new Promise(r => setTimeout(r, 800));
+        await advanceTurn(cpuName);
+        break;
+      }
+      case 'play-and-draw': {
+        await this.playCard(gameId, action.data.playCardId, cpuName);
+        emitState();
+        await new Promise(r => setTimeout(r, 800));
+        if (action.data.drawType) {
+          await this.pickCard(gameId, action.data.drawType, cpuName);
+          emitState();
+        }
+        await new Promise(r => setTimeout(r, 800));
+        await advanceTurn(cpuName);
+        break;
+      }
+      case 'end-turn': {
+        await advanceTurn(cpuName);
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
   // Handle human response to CPU question
   processCPUResponse(gameId: string, humanMessage: string, humanPlayerName: string): boolean {
     const game = this.games.get(gameId);
@@ -21943,7 +22028,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       this.returnToDeck(gameId, mosseCardId, attacker);
 
       // CRITICAL: Reset CPU's waitingForAttackResolution flag when defense succeeds
-      if (attacker.startsWith('CPU-')) {
+      if (game?.players[attacker]?.isCPU || attacker.startsWith('CPU-')) {
         const cpuInstance = game?.players[attacker]?.cpuInstance;
         if (cpuInstance) {
           cpuInstance.resolveAttack();
@@ -23084,7 +23169,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
       
       // Mark action as completed for CPU turn flow
-      if (attackerName.startsWith('CPU-')) {
+      if (game?.players[attackerName]?.isCPU || attackerName.startsWith('CPU-')) {
         console.log(`MOSSE FURTO action completed for CPU ${attackerName}`);
       }
       
@@ -23668,7 +23753,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     console.log(`${isHandTarget ? '🎯 ATTACCO DISONESTO: ' : ''}${targetOwner}'s ${targetCard.frontImage} took ${damageValue} damage: ${currentPTI} → ${newPTI} PTI${starsToRemove > 0 ? `, -${starsToRemove} stars` : ''}`);
     
     // PRESERVE: Mark action as completed for CPU turn flow
-    if (attackerName.startsWith('CPU-')) {
+    if (game?.players[attackerName]?.isCPU || attackerName.startsWith('CPU-')) {
       console.log(`MOSSE action completed for CPU ${attackerName}`);
       // CRITICAL: Reset the CPU's waitingForAttackResolution flag so it can take its next turn
       const cpuInstance = game?.players[attackerName]?.cpuInstance;
@@ -23916,7 +24001,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     // MOSSE return system: CPU auto-return with replacement, humans manual
     console.log(`MOSSE card ${mosseCardId} used by ${attackerName}`);
     
-    if (attackerName.startsWith('CPU-')) {
+    if (game?.players[attackerName]?.isCPU || attackerName.startsWith('CPU-')) {
       // CPU AUTO-MANAGEMENT: Synchronous return and draw to avoid race conditions
       console.log(`🤖 CPU ${attackerName}: Auto-returning MOSSE card ${mosseCardId} to deck bottom`);
       this.returnToDeck(gameId, mosseCardId, attackerName);
@@ -24335,7 +24420,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         console.log(`${playerName} played ${cardType} card as instructed`);
         
         // SPECIAL: If CPU played MOSSE card, execute attack immediately
-        if (cardType === 'mosse' && playerName.startsWith('CPU-') && player.cpuInstance) {
+        if (cardType === 'mosse' && (player.isCPU || playerName.startsWith('CPU-')) && player.cpuInstance) {
           console.log(`${playerName} executing MOSSE attack immediately after instruction`);
           const gameState = this.getGameState(gameId);
           if (gameState) {
@@ -24425,7 +24510,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
     
     // SPECIAL: If CPU played MOSSE card, execute attack immediately
-    if (cardType === 'mosse' && playerName.startsWith('CPU-') && player.cpuInstance) {
+    if (cardType === 'mosse' && (player.isCPU || playerName.startsWith('CPU-')) && player.cpuInstance) {
       console.log(`${playerName} executing MOSSE attack immediately after instruction`);
       const gameState = this.getGameState(gameId);
       if (gameState) {

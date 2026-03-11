@@ -21101,7 +21101,7 @@
   {
     "id": "fanta-1773179712944-lwtfwj",
     "creatorName": "Fake",
-    "creatorSocketId": "qP31LVuRBL_G_SotAAAD",
+    "creatorSocketId": "tFpYzAHIc5YmjqQbAAAJ",
     "participants": {
       "Fake": {
         "name": "Fake",
@@ -21468,7 +21468,7 @@
         },
         "isCPU": false,
         "cpuLevel": "medium",
-        "socketId": "qP31LVuRBL_G_SotAAAD"
+        "socketId": "tFpYzAHIc5YmjqQbAAAJ"
       },
       "CPU 1": {
         "name": "CPU 1",
@@ -26452,6 +26452,39 @@
     "isPaused": false,
     "disqualified": [],
     "createdAt": 1773179712944,
-    "completedAt": 1773183042062
+    "completedAt": 1773183042062,
+    "tournament": {
+      "config": {
+        "name": "FantaFinanza",
+        "type": "elimination",
+        "playersPerMatch": 2,
+        "characterLimit": "3"
+      },
+      "matches": [
+        {
+          "id": "r1-m1",
+          "round": 1,
+          "matchNumber": 1,
+          "players": [
+            "Fake",
+            "CPU 3"
+          ],
+          "status": "in_progress",
+          "gameId": "room-FY1JLO"
+        },
+        {
+          "id": "r1-m2",
+          "round": 1,
+          "matchNumber": 2,
+          "players": [
+            "CPU 1",
+            "CPU 2"
+          ],
+          "status": "pending"
+        }
+      ],
+      "currentRound": 1,
+      "status": "in_progress"
+    }
   }
 ]
