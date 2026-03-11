@@ -8336,6 +8336,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`🏆 Fanta torneo configurato: sessione ${fantaId}, tipo ${config.type}, premi: ${resolvedConfig.winnerRewardMultiplier}x/${resolvedConfig.runnerUpRewardMultiplier}x`);
     });
 
+    // ─── fanta:get-deck ─────────────────────────────────────────────────────────
+    socket.on('fanta:get-deck', ({ fantaId, playerName }: { fantaId: string; playerName: string }) => {
+      const deck = fantaManager.getFantaDeckForSession(fantaId, playerName);
+      socket.emit('fanta:deck-data', { deck });
+    });
+
     // ─── fanta:start-fanta-match ────────────────────────────────────────────────
     socket.on('fanta:start-fanta-match', async ({ fantaId, playerName, matchId, formation }: {
       fantaId: string;

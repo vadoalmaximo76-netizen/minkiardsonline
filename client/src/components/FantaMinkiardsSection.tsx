@@ -118,6 +118,8 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
   const [pendingMatchForFormation, setPendingMatchForFormation] = useState<any | null>(null);
   const [formationPick, setFormationPick] = useState<{ personaggioId: string | null; mossaId: string | null; bonusId: string | null }>({ personaggioId: null, mossaId: null, bonusId: null });
   const [formationDeckFilter, setFormationDeckFilter] = useState<'personaggi' | 'mosse' | 'bonus'>('personaggi');
+  const [formationDeck, setFormationDeck] = useState<{ personaggi: any[]; mosse: any[]; bonus: any[] } | null>(null);
+  const [formationDeckLoading, setFormationDeckLoading] = useState(false);
 
   // T003: Stats panel
   const [showStats, setShowStats] = useState(false);
@@ -330,6 +332,11 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
       setError('');
     });
 
+    socket.on('fanta:deck-data', (data: { deck: { personaggi: any[]; mosse: any[]; bonus: any[] } | null }) => {
+      setFormationDeck(data.deck);
+      setFormationDeckLoading(false);
+    });
+
     return () => {
       socket.off('fanta:session-created');
       socket.off('fanta:joined');
@@ -352,6 +359,7 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
       socket.off('fanta:stats-update');
       socket.off('fanta:market-update');
       socket.off('fanta:market-sale');
+      socket.off('fanta:deck-data');
     };
   }, [playerName, view]);
 
@@ -790,7 +798,10 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
         setPendingMatchForFormation(match);
         setFormationPick({ personaggioId: null, mossaId: null, bonusId: null });
         setFormationDeckFilter('personaggi');
+        setFormationDeck(null);
+        setFormationDeckLoading(true);
         setShowFormation(true);
+        socket.emit('fanta:get-deck', { fantaId, playerName });
       } else {
         socket.emit('fanta:start-fanta-match', { fantaId, playerName, matchId: match.id });
       }
@@ -1079,84 +1090,144 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
 
         {/* ── Formation Picker Overlay ── */}
         {showFormation && pendingMatchForFormation && (() => {
-          const myDeck = currentSession?.participants?.[playerName]?.deck;
-          if (!myDeck) return null;
-          const tabs: Array<{ key: 'personaggi' | 'mosse' | 'bonus'; label: string; icon: string; selectedId: string | null; setId: (id: string | null) => void }> = [
-            { key: 'personaggi', label: 'Personaggio', icon: '⚔️', selectedId: formationPick.personaggioId, setId: (id) => setFormationPick(p => ({ ...p, personaggioId: id })) },
-            { key: 'mosse', label: 'Mossa', icon: '💥', selectedId: formationPick.mossaId, setId: (id) => setFormationPick(p => ({ ...p, mossaId: id })) },
-            { key: 'bonus', label: 'Bonus', icon: '✨', selectedId: formationPick.bonusId, setId: (id) => setFormationPick(p => ({ ...p, bonusId: id })) },
+          const myDeck = formationDeck;
+          const tabDefs: Array<{ key: 'personaggi' | 'mosse' | 'bonus'; label: string; icon: string; color: string; glow: string; selectedId: string | null; setId: (id: string | null) => void }> = [
+            { key: 'personaggi', label: 'Personaggio', icon: '⚔️', color: '#3b82f6', glow: '#3b82f688', selectedId: formationPick.personaggioId, setId: (id) => setFormationPick(p => ({ ...p, personaggioId: id })) },
+            { key: 'mosse', label: 'Mossa', icon: '💥', color: '#f97316', glow: '#f9731688', selectedId: formationPick.mossaId, setId: (id) => setFormationPick(p => ({ ...p, mossaId: id })) },
+            { key: 'bonus', label: 'Bonus', icon: '✨', color: '#22c55e', glow: '#22c55e88', selectedId: formationPick.bonusId, setId: (id) => setFormationPick(p => ({ ...p, bonusId: id })) },
           ];
-          const currentTab = tabs.find(t => t.key === formationDeckFilter)!;
-          const cards: any[] = myDeck[formationDeckFilter] || [];
+          const currentTabDef = tabDefs.find(t => t.key === formationDeckFilter)!;
+          const cards: any[] = myDeck?.[formationDeckFilter] || [];
           const allPicked = formationPick.personaggioId && formationPick.mossaId && formationPick.bonusId;
-          const tabColor: Record<string, string> = { personaggi: '#3b82f6', mosse: '#f97316', bonus: '#22c55e' };
+          const pickedCount = [formationPick.personaggioId, formationPick.mossaId, formationPick.bonusId].filter(Boolean).length;
           return (
-            <div style={{ position: 'fixed', inset: 0, zIndex: 110, background: 'rgba(0,0,0,0.95)', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif' }}>
-              <div style={{ padding: '14px 18px', borderBottom: '1px solid #1e293b', background: 'linear-gradient(90deg, #1e1b4b, #0f172a)', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                <span style={{ fontSize: 22 }}>📋</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 16 }}>Scegli la Formazione</div>
-                  <div style={{ color: '#a78bfa', fontSize: 11 }}>1 personaggio · 1 mossa · 1 bonus da giocare in apertura</div>
-                </div>
-                <button onClick={() => { setShowFormation(false); setPendingMatchForFormation(null); }} style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, color: '#94a3b8', padding: '6px 12px', cursor: 'pointer', fontWeight: 700 }}>✕</button>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 110, background: 'linear-gradient(160deg, #0a0a1a 0%, #0f0a1e 40%, #0a1a0f 100%)', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif', overflow: 'hidden' }}>
+              {/* Animated background orbs */}
+              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', top: '-10%', left: '-5%', width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle, #7c3aed22 0%, transparent 70%)', animation: 'none' }} />
+                <div style={{ position: 'absolute', bottom: '-5%', right: '-5%', width: 250, height: 250, borderRadius: '50%', background: 'radial-gradient(circle, #f9731622 0%, transparent 70%)' }} />
+                <div style={{ position: 'absolute', top: '40%', right: '10%', width: 200, height: 200, borderRadius: '50%', background: 'radial-gradient(circle, #22c55e11 0%, transparent 70%)' }} />
               </div>
+
+              {/* Header */}
+              <div style={{ position: 'relative', zIndex: 1, padding: '14px 18px', borderBottom: '1px solid #ffffff15', background: 'linear-gradient(90deg, #1e1b4bcc, #0f172acc)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg, #7c3aed, #4f46e5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, boxShadow: '0 0 16px #7c3aed66', flexShrink: 0 }}>📋</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ color: '#f1f5f9', fontWeight: 800, fontSize: 17, letterSpacing: 0.3 }}>Schieramento Iniziale</div>
+                  <div style={{ color: '#a78bfa', fontSize: 11, fontWeight: 500 }}>Scegli le 3 carte da giocare in apertura</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ background: 'linear-gradient(135deg, #7c3aed33, #4f46e533)', border: '1px solid #7c3aed44', borderRadius: 20, padding: '4px 12px', color: '#a78bfa', fontSize: 12, fontWeight: 700 }}>{pickedCount}/3 carte</div>
+                  <button onClick={() => { setShowFormation(false); setPendingMatchForFormation(null); setFormationDeck(null); }} style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, color: '#94a3b8', padding: '6px 12px', cursor: 'pointer', fontWeight: 700, fontSize: 15 }}>✕</button>
+                </div>
+              </div>
+
+              {/* Explanation banner */}
+              <div style={{ position: 'relative', zIndex: 1, background: 'linear-gradient(90deg, #1e1b4b88, #0f172a88)', backdropFilter: 'blur(6px)', borderBottom: '1px solid #ffffff10', padding: '10px 18px', flexShrink: 0 }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>💡</span>
+                  <div>
+                    <div style={{ color: '#fde68a', fontWeight: 700, fontSize: 12, marginBottom: 2 }}>Come funziona la Formazione?</div>
+                    <div style={{ color: '#94a3b8', fontSize: 11, lineHeight: 1.5 }}>
+                      Scegli <span style={{ color: '#60a5fa', fontWeight: 700 }}>1 Personaggio</span>, <span style={{ color: '#fb923c', fontWeight: 700 }}>1 Mossa</span> e <span style={{ color: '#4ade80', fontWeight: 700 }}>1 Bonus</span> che vuoi avere sicuramente nella mano di partenza. Le 3 carte scelte verranno distribuite all'inizio della partita insieme alle altre — è la tua mossa tattica prima ancora di cominciare!
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Tab selector */}
-              <div style={{ display: 'flex', gap: 0, background: '#0f172a', borderBottom: '1px solid #1e293b', flexShrink: 0 }}>
-                {tabs.map(tab => {
+              <div style={{ position: 'relative', zIndex: 1, display: 'flex', gap: 0, background: '#00000040', borderBottom: '1px solid #ffffff10', flexShrink: 0 }}>
+                {tabDefs.map(tab => {
                   const isPicked = tab.selectedId != null;
                   const isActive = tab.key === formationDeckFilter;
                   return (
                     <button key={tab.key} onClick={() => setFormationDeckFilter(tab.key)}
-                      style={{ flex: 1, padding: '10px 6px', background: isActive ? tabColor[tab.key] + '22' : 'transparent', border: 'none', borderBottom: `2px solid ${isActive ? tabColor[tab.key] : 'transparent'}`, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                      <span style={{ fontSize: 16 }}>{isPicked ? '✅' : tab.icon}</span>
-                      <span style={{ color: isActive ? tabColor[tab.key] : (isPicked ? '#4ade80' : '#64748b'), fontSize: 11, fontWeight: 700 }}>{tab.label}</span>
+                      style={{ flex: 1, padding: '12px 6px', background: isActive ? tab.color + '25' : 'transparent', border: 'none', borderBottom: `3px solid ${isActive ? tab.color : 'transparent'}`, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, transition: 'all 0.15s', position: 'relative' }}>
+                      {isPicked && <div style={{ position: 'absolute', top: 6, right: 'calc(50% - 22px)', width: 8, height: 8, borderRadius: '50%', background: tab.color, boxShadow: `0 0 6px ${tab.color}` }} />}
+                      <span style={{ fontSize: 20, filter: isPicked ? `drop-shadow(0 0 6px ${tab.color})` : 'none' }}>{isPicked ? '✅' : tab.icon}</span>
+                      <span style={{ color: isActive ? tab.color : (isPicked ? tab.color + 'cc' : '#64748b'), fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>{tab.label}</span>
+                      {myDeck && <span style={{ color: isActive ? tab.color + 'aa' : '#334155', fontSize: 10 }}>{(myDeck[tab.key] || []).length} carte</span>}
                     </button>
                   );
                 })}
               </div>
+
               {/* Card grid */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px' }}>
-                {cards.length === 0 && <div style={{ color: '#64748b', textAlign: 'center', marginTop: 40 }}>Nessuna carta di tipo {formationDeckFilter} nel mazzo</div>}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
-                  {cards.map((card: any) => {
-                    const isSelected = currentTab.selectedId === card.id;
-                    return (
-                      <button key={card.id} onClick={() => currentTab.setId(isSelected ? null : card.id)}
-                        style={{ background: isSelected ? tabColor[formationDeckFilter] + '33' : '#1e293b', border: `2px solid ${isSelected ? tabColor[formationDeckFilter] : '#334155'}`, borderRadius: 10, cursor: 'pointer', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden', textAlign: 'left' }}>
-                        <div style={{ position: 'relative', aspectRatio: '3/4', background: '#0f172a', width: '100%' }}>
-                          {card.frontImage ? <img src={card.frontImage} alt={card.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" /> : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#334155', fontSize: 28 }}>🃏</div>}
-                          {isSelected && <div style={{ position: 'absolute', inset: 0, background: tabColor[formationDeckFilter] + '44', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>✅</div>}
-                        </div>
-                        <div style={{ padding: '6px 8px' }}>
-                          <div style={{ color: '#f1f5f9', fontWeight: 600, fontSize: 11, lineHeight: 1.3 }}>{card.name}</div>
-                          {formationDeckFilter === 'personaggi' && card.pti != null && <div style={{ color: '#38bdf8', fontSize: 10, marginTop: 1 }}>⚡ {card.pti} PTI</div>}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
+              <div style={{ position: 'relative', zIndex: 1, flex: 1, overflowY: 'auto', padding: '14px 14px 8px' }}>
+                {formationDeckLoading && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, gap: 12 }}>
+                    <div style={{ width: 40, height: 40, border: '3px solid #7c3aed44', borderTop: '3px solid #7c3aed', borderRadius: '50%' }} />
+                    <div style={{ color: '#64748b', fontSize: 13 }}>Caricamento mazzo...</div>
+                  </div>
+                )}
+                {!formationDeckLoading && cards.length === 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, gap: 10 }}>
+                    <span style={{ fontSize: 36 }}>📭</span>
+                    <div style={{ color: '#64748b', fontSize: 13, textAlign: 'center' }}>Nessuna carta di tipo <strong style={{ color: '#94a3b8' }}>{formationDeckFilter}</strong> nel mazzo</div>
+                  </div>
+                )}
+                {!formationDeckLoading && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 10 }}>
+                    {cards.map((card: any) => {
+                      const isSelected = currentTabDef.selectedId === card.id;
+                      return (
+                        <button key={card.id} onClick={() => currentTabDef.setId(isSelected ? null : card.id)}
+                          style={{ background: isSelected ? `linear-gradient(145deg, ${currentTabDef.color}33, ${currentTabDef.color}11)` : 'linear-gradient(145deg, #1e293b, #0f172a)', border: `2px solid ${isSelected ? currentTabDef.color : '#334155'}`, borderRadius: 12, cursor: 'pointer', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden', textAlign: 'left', boxShadow: isSelected ? `0 0 16px ${currentTabDef.glow}, inset 0 0 16px ${currentTabDef.color}22` : '0 2px 8px #00000044', transform: isSelected ? 'scale(1.04)' : 'scale(1)', transition: 'all 0.15s' }}>
+                          <div style={{ position: 'relative', aspectRatio: '3/4', background: '#0a0a1a', width: '100%', overflow: 'hidden' }}>
+                            {card.frontImage
+                              ? <img src={card.frontImage} alt={card.name} style={{ width: '100%', height: '100%', objectFit: 'cover', filter: isSelected ? `brightness(1.15) saturate(1.3)` : 'brightness(0.9)' }} loading="lazy" />
+                              : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#334155', fontSize: 32 }}>🃏</div>
+                            }
+                            {isSelected && (
+                              <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(to bottom, ${currentTabDef.color}33, transparent)`, display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', padding: 6 }}>
+                                <div style={{ background: currentTabDef.color, borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, boxShadow: `0 0 10px ${currentTabDef.glow}` }}>✓</div>
+                              </div>
+                            )}
+                          </div>
+                          <div style={{ padding: '6px 8px', background: isSelected ? currentTabDef.color + '22' : 'transparent' }}>
+                            <div style={{ color: isSelected ? '#fff' : '#cbd5e1', fontWeight: 700, fontSize: 10, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.name}</div>
+                            {formationDeckFilter === 'personaggi' && card.pti != null && <div style={{ color: '#38bdf8', fontSize: 9, marginTop: 1, fontWeight: 600 }}>⚡ {card.pti} PTI</div>}
+                            {formationDeckFilter === 'mosse' && card.stars != null && <div style={{ color: '#fbbf24', fontSize: 9, marginTop: 1 }}>{'★'.repeat(Math.min(card.stars, 5))}</div>}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-              {/* Confirm button */}
-              <div style={{ padding: '12px 16px', background: '#0f172a', borderTop: '1px solid #1e293b', flexShrink: 0 }}>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                  {([['personaggi', formationPick.personaggioId, '#3b82f6'], ['mosse', formationPick.mossaId, '#f97316'], ['bonus', formationPick.bonusId, '#22c55e']] as const).map(([type, selectedId, color]) => {
-                    const card = selectedId ? (myDeck[type] as any[]).find((c: any) => c.id === selectedId) : null;
+
+              {/* Bottom: selected summary + action buttons */}
+              <div style={{ position: 'relative', zIndex: 1, padding: '12px 16px', background: 'linear-gradient(0deg, #0a0a1a, #0f172a88)', backdropFilter: 'blur(10px)', borderTop: '1px solid #ffffff10', flexShrink: 0 }}>
+                {/* Selection summary */}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                  {tabDefs.map(tab => {
+                    const card = tab.selectedId ? (myDeck?.[tab.key] as any[] || []).find((c: any) => c.id === tab.selectedId) : null;
                     return (
-                      <div key={type} style={{ flex: 1, background: '#1e293b', border: `1px solid ${card ? color : '#334155'}`, borderRadius: 8, padding: '6px 8px', minHeight: 36, display: 'flex', alignItems: 'center', gap: 6 }}>
-                        {card ? <><span style={{ fontSize: 13 }}>{type === 'personaggi' ? '⚔️' : type === 'mosse' ? '💥' : '✨'}</span><span style={{ color: '#f1f5f9', fontSize: 10, fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.name}</span></> : <span style={{ color: '#475569', fontSize: 10 }}>Nessuno</span>}
+                      <div key={tab.key} style={{ flex: 1, background: card ? `linear-gradient(135deg, ${tab.color}22, ${tab.color}11)` : '#1e293b', border: `1px solid ${card ? tab.color + '66' : '#334155'}`, borderRadius: 10, padding: '8px 10px', minHeight: 50, display: 'flex', flexDirection: 'column', gap: 3, transition: 'all 0.2s', boxShadow: card ? `0 0 12px ${tab.color}33` : 'none' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ fontSize: 12 }}>{tab.icon}</span>
+                          <span style={{ color: tab.color, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>{tab.label}</span>
+                        </div>
+                        {card ? (
+                          <div style={{ color: '#f1f5f9', fontSize: 10, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.name}</div>
+                        ) : (
+                          <div style={{ color: '#475569', fontSize: 10 }}>Non selezionato</div>
+                        )}
                       </div>
                     );
                   })}
                 </div>
+
+                {/* Action buttons */}
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => { socket.emit('fanta:start-fanta-match', { fantaId, playerName, matchId: pendingMatchForFormation.id }); setShowFormation(false); setPendingMatchForFormation(null); }}
-                    style={{ flex: 1, background: '#334155', border: '1px solid #475569', borderRadius: 10, color: '#94a3b8', padding: '10px 0', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                    Salta formazione
+                  <button onClick={() => { socket.emit('fanta:start-fanta-match', { fantaId, playerName, matchId: pendingMatchForFormation.id }); setShowFormation(false); setPendingMatchForFormation(null); setFormationDeck(null); }}
+                    style={{ flex: 1, background: 'linear-gradient(135deg, #1e293b, #0f172a)', border: '1px solid #334155', borderRadius: 12, color: '#94a3b8', padding: '12px 0', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                    ↩ Salta formazione
                   </button>
-                  <button onClick={() => { if (!allPicked) return; const formation = { personaggioId: formationPick.personaggioId!, mossaId: formationPick.mossaId!, bonusId: formationPick.bonusId! }; socket.emit('fanta:start-fanta-match', { fantaId, playerName, matchId: pendingMatchForFormation.id, formation }); setShowFormation(false); setPendingMatchForFormation(null); }}
+                  <button onClick={() => { if (!allPicked) return; const formation = { personaggioId: formationPick.personaggioId!, mossaId: formationPick.mossaId!, bonusId: formationPick.bonusId! }; socket.emit('fanta:start-fanta-match', { fantaId, playerName, matchId: pendingMatchForFormation.id, formation }); setShowFormation(false); setPendingMatchForFormation(null); setFormationDeck(null); }}
                     disabled={!allPicked}
-                    style={{ flex: 2, background: allPicked ? 'linear-gradient(135deg, #7c3aed, #4c1d95)' : '#1e293b', border: `1px solid ${allPicked ? '#7c3aed' : '#334155'}`, borderRadius: 10, color: allPicked ? '#fff' : '#475569', padding: '10px 0', fontSize: 13, fontWeight: 700, cursor: allPicked ? 'pointer' : 'not-allowed' }}>
-                    🚀 Avvia con questa formazione
+                    style={{ flex: 2, background: allPicked ? 'linear-gradient(135deg, #7c3aed, #4f46e5, #6d28d9)' : '#1e293b', border: `2px solid ${allPicked ? '#7c3aed' : '#334155'}`, borderRadius: 12, color: allPicked ? '#fff' : '#475569', padding: '12px 0', fontSize: 13, fontWeight: 800, cursor: allPicked ? 'pointer' : 'not-allowed', boxShadow: allPicked ? '0 0 24px #7c3aed66' : 'none', letterSpacing: 0.3, transition: 'all 0.2s' }}>
+                    {allPicked ? '🚀 Schiera e Combatti!' : `Seleziona ancora ${3 - pickedCount} carta${3 - pickedCount !== 1 ? '' : ''}`}
                   </button>
                 </div>
               </div>
