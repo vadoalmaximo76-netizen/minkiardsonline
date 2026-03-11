@@ -2320,6 +2320,24 @@ Rispondi SOLO in JSON:`;
           const fantaResult = fm.reportMatchResult(fantaSessionId, gameId, winnerPlayer, ioGlobal);
           console.log(`🏆 Fanta match result reported: ${gameId} → winner: ${winnerPlayer}`);
 
+          // Record per-player stats for this match
+          try {
+            const statsMap: Record<string, { cardsPlayed: number; damageDealt: number; damageReceived: number; turnsPlayed: number }> = {};
+            if (game.playerStats) {
+              for (const [pName, pStats] of game.playerStats.entries()) {
+                statsMap[pName] = pStats;
+              }
+            }
+            const matchPlayers = Array.from(game.playerStats?.keys?.() || []);
+            if (matchPlayers.length === 0) {
+              for (const pName of Object.keys(game.players || {})) matchPlayers.push(pName);
+            }
+            fm.recordMatchStats(fantaSessionId, matchPlayers, winnerPlayer, statsMap);
+            ioGlobal?.to(fantaSessionId).emit('fanta:stats-update', { fantaId: fantaSessionId, stats: (fm.getSession(fantaSessionId) as any)?.tournamentStats || {} });
+          } catch (statsErr) {
+            console.error('Error recording fanta match stats:', statsErr);
+          }
+
           // If the entire fanta tournament is now complete, award rankiard prizes
           if (fantaResult.completed && fantaResult.config && isDatabaseAvailable()) {
             const { winnerRewardMultiplier: wm = 20, runnerUpRewardMultiplier: rum = 5 } = fantaResult.config;

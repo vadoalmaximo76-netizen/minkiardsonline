@@ -19,6 +19,24 @@ interface FantaParticipant {
   credits: number;
   deck: { personaggi: any[]; mosse: any[]; bonus: any[] };
   isCPU: boolean;
+  teamName?: string;
+  teamColor?: string;
+}
+
+interface FantaPlayerStats {
+  matchesPlayed: number;
+  wins: number;
+  totalDamageDealt: number;
+  totalCardsPlayed: number;
+  totalTurns: number;
+}
+
+interface FantaMarketListing {
+  id: string;
+  sellerName: string;
+  card: any;
+  price: number;
+  listedAt: number;
 }
 
 interface PendingRequest {
@@ -37,6 +55,8 @@ interface FantaSession {
   status: 'lobby' | 'auction' | 'complete';
   createdAt: number;
   cardsNeeded?: { personaggi: number; mosse: number; bonus: number };
+  tournamentStats?: Record<string, FantaPlayerStats>;
+  market?: { listings: FantaMarketListing[] };
 }
 
 interface Props {
@@ -87,6 +107,28 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
   const [activeMatchGameId, setActiveMatchGameId] = useState<string | null>(null);
   const [showDecksPanel, setShowDecksPanel] = useState(false);
   const [selectedDeckPlayer, setSelectedDeckPlayer] = useState<string>('');
+
+  // T001: Team name/color
+  const [teamNameInput, setTeamNameInput] = useState('');
+  const [teamColorInput, setTeamColorInput] = useState('#3b82f6');
+  const [savingTeamInfo, setSavingTeamInfo] = useState(false);
+
+  // T002: Formation picker
+  const [showFormation, setShowFormation] = useState(false);
+  const [pendingMatchForFormation, setPendingMatchForFormation] = useState<any | null>(null);
+  const [formationPick, setFormationPick] = useState<{ personaggioId: string | null; mossaId: string | null; bonusId: string | null }>({ personaggioId: null, mossaId: null, bonusId: null });
+  const [formationDeckFilter, setFormationDeckFilter] = useState<'personaggi' | 'mosse' | 'bonus'>('personaggi');
+
+  // T003: Stats panel
+  const [showStats, setShowStats] = useState(false);
+  const [tournamentStats, setTournamentStats] = useState<Record<string, FantaPlayerStats>>({});
+
+  // T004: Market panel
+  const [showMarket, setShowMarket] = useState(false);
+  const [marketListings, setMarketListings] = useState<FantaMarketListing[]>([]);
+  const [marketSellCard, setMarketSellCard] = useState<{ card: any; type: 'personaggi' | 'mosse' | 'bonus' } | null>(null);
+  const [marketSellPrice, setMarketSellPrice] = useState(50);
+  const [marketSellDeckTab, setMarketSellDeckTab] = useState<'personaggi' | 'mosse' | 'bonus'>('personaggi');
 
   const fetchSessions = useCallback(async () => {
     try {
@@ -276,6 +318,18 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
       setTimeout(() => setError(''), 4000);
     });
 
+    socket.on('fanta:stats-update', (data: { fantaId: string; stats: Record<string, FantaPlayerStats> }) => {
+      setTournamentStats(data.stats || {});
+    });
+
+    socket.on('fanta:market-update', (data: { market: { listings: FantaMarketListing[] } }) => {
+      setMarketListings(data.market?.listings || []);
+    });
+
+    socket.on('fanta:market-sale', (data: { buyer: string; seller: string; card: any; price: number }) => {
+      setError('');
+    });
+
     return () => {
       socket.off('fanta:session-created');
       socket.off('fanta:joined');
@@ -295,6 +349,9 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
       socket.off('fanta:prize-awarded');
       socket.off('fanta:tournament-state');
       socket.off('fanta:error');
+      socket.off('fanta:stats-update');
+      socket.off('fanta:market-update');
+      socket.off('fanta:market-sale');
     };
   }, [playerName, view]);
 
@@ -311,6 +368,31 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
       bonus: Math.min(prev.bonus, maxDeckSize.bonus),
     }));
   }, [maxDeckSize]);
+
+  // Load stats + market when entering bracket view
+  useEffect(() => {
+    if (view === 'bracket' && fantaId) {
+      socket.emit('fanta:get-stats', { fantaId });
+      socket.emit('fanta:get-market', { fantaId });
+    }
+  }, [view, fantaId]);
+
+  // Sync team info input when entering lobby
+  useEffect(() => {
+    if (view === 'lobby' && currentSession && playerName) {
+      const me = currentSession.participants[playerName];
+      if (me) {
+        setTeamNameInput(me.teamName || '');
+        setTeamColorInput(me.teamColor || '#3b82f6');
+      }
+    }
+  }, [view, currentSession, playerName]);
+
+  // Sync stats + market from session updates
+  useEffect(() => {
+    if (currentSession?.tournamentStats) setTournamentStats(currentSession.tournamentStats);
+    if (currentSession?.market?.listings) setMarketListings(currentSession.market.listings);
+  }, [currentSession]);
 
   const handleCreate = () => {
     if (!playerName) return;
@@ -703,7 +785,15 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
         onJoinFantaGame?.(match.gameId);
         return;
       }
-      socket.emit('fanta:start-fanta-match', { fantaId, playerName, matchId: match.id });
+      // Show formation picker if this player is a match participant (not just admin)
+      if (match.players.includes(playerName)) {
+        setPendingMatchForFormation(match);
+        setFormationPick({ personaggioId: null, mossaId: null, bonusId: null });
+        setFormationDeckFilter('personaggi');
+        setShowFormation(true);
+      } else {
+        socket.emit('fanta:start-fanta-match', { fantaId, playerName, matchId: match.id });
+      }
     };
 
     return (
@@ -717,20 +807,28 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
             </div>
           </div>
         )}
-        <div style={{ padding: '14px 20px', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', gap: 12, background: '#0f172a', flexShrink: 0 }}>
-          <button onClick={() => setView('complete')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 20, padding: 4 }}>←</button>
-          <div style={{ flex: 1 }}>
-            <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 17 }}>🏆 {fantaTourney.config?.name || 'FantaTorneo'}</div>
-            <div style={{ color: '#f59e0b', fontSize: 11 }}>{isCampionato ? 'Campionato Fanta' : 'Torneo Fanta'} · Mazzi dall'asta</div>
+        <div style={{ padding: '10px 16px', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', gap: 8, background: '#0f172a', flexShrink: 0, flexWrap: 'wrap' }}>
+          <button onClick={() => setView('complete')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 20, padding: 4, flexShrink: 0 }}>←</button>
+          <div style={{ flex: 1, minWidth: 100 }}>
+            <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 15 }}>🏆 {fantaTourney.config?.name || 'FantaTorneo'}</div>
+            <div style={{ color: '#f59e0b', fontSize: 10 }}>{isCampionato ? 'Campionato' : 'Torneo'} Fanta</div>
           </div>
-          <button
-            onClick={() => { setSelectedDeckPlayer(participants[0]?.name || ''); setShowDecksPanel(true); }}
-            style={{ background: '#1e3a5f', border: '1px solid #2563eb', borderRadius: 10, color: '#93c5fd', padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}
-          >
-            🃏 Mazzi
-          </button>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => { setSelectedDeckPlayer(participants[0]?.name || ''); setShowDecksPanel(true); }}
+              style={{ background: '#1e3a5f', border: '1px solid #2563eb', borderRadius: 8, color: '#93c5fd', padding: '5px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+            >🃏 Mazzi</button>
+            <button
+              onClick={() => { setShowStats(true); socket.emit('fanta:get-stats', { fantaId }); }}
+              style={{ background: '#14532d', border: '1px solid #16a34a', borderRadius: 8, color: '#4ade80', padding: '5px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+            >📊 Stats</button>
+            <button
+              onClick={() => { setShowMarket(true); socket.emit('fanta:get-market', { fantaId }); }}
+              style={{ background: '#4c1d95', border: '1px solid #7c3aed', borderRadius: 8, color: '#c4b5fd', padding: '5px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+            >🛒 Mercato</button>
+          </div>
           {fantaTourney.status === 'completed' && fantaTourney.winnerId && (
-            <div style={{ background: '#854d0e', border: '1px solid #d97706', borderRadius: 20, padding: '4px 14px', fontSize: 12, color: '#fde68a', fontWeight: 700 }}>
+            <div style={{ background: '#854d0e', border: '1px solid #d97706', borderRadius: 20, padding: '4px 10px', fontSize: 11, color: '#fde68a', fontWeight: 700, flexShrink: 0 }}>
               👑 {fantaTourney.winnerId}
             </div>
           )}
@@ -741,14 +839,23 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
           {isCampionato && (
             <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 14, padding: 16, marginBottom: 20, maxWidth: 600, margin: '0 auto 20px' }}>
               <div style={{ color: '#94a3b8', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>Classifica</div>
-              {Object.entries(wins).sort(([, a], [, b]) => b - a).map(([name, w], i) => (
-                <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #334155' }}>
-                  <span style={{ color: i === 0 ? '#f59e0b' : '#64748b', fontWeight: 700, fontSize: 14, width: 20 }}>{i + 1}.</span>
-                  <span style={{ color: '#f1f5f9', flex: 1, fontWeight: name === playerName ? 700 : 400 }}>{name}{name === playerName ? ' (tu)' : ''}</span>
-                  <span style={{ color: '#22c55e', fontWeight: 700 }}>{w} V</span>
-                  <span style={{ color: '#64748b', fontSize: 12 }}>{allMatches.filter((m: any) => m.status === 'completed' && m.players.includes(name) && m.winnerId !== name).length} S</span>
-                </div>
-              ))}
+              {Object.entries(wins).sort(([, a], [, b]) => b - a).map(([name, w], i) => {
+                const pp = currentSession?.participants?.[name];
+                const tColor = pp?.teamColor;
+                const tName = pp?.teamName || name;
+                return (
+                  <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #334155' }}>
+                    <span style={{ color: i === 0 ? '#f59e0b' : '#64748b', fontWeight: 700, fontSize: 14, width: 20 }}>{i + 1}.</span>
+                    {tColor && <div style={{ width: 18, height: 18, borderRadius: 4, background: tColor, flexShrink: 0 }} />}
+                    <div style={{ flex: 1 }}>
+                      <span style={{ color: '#f1f5f9', fontWeight: name === playerName ? 700 : 400 }}>{tName}{name === playerName ? ' (tu)' : ''}</span>
+                      {pp?.teamName && pp.teamName !== name && <div style={{ color: '#64748b', fontSize: 10 }}>{name}</div>}
+                    </div>
+                    <span style={{ color: '#22c55e', fontWeight: 700 }}>{w} V</span>
+                    <span style={{ color: '#64748b', fontSize: 12 }}>{allMatches.filter((m: any) => m.status === 'completed' && m.players.includes(name) && m.winnerId !== name).length} S</span>
+                  </div>
+                );
+              })}
               {Object.keys(wins).length === 0 && (
                 <div style={{ color: '#64748b', fontSize: 13, textAlign: 'center', padding: '8px 0' }}>Nessuna partita ancora giocata</div>
               )}
@@ -759,13 +866,19 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
           <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
             {isCampionato ? (
               <div style={{ maxWidth: 600, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {allMatches.map((match: any) => (
+                {allMatches.map((match: any) => {
+                  const getTeamDisplay = (name: string) => {
+                    const pp = currentSession?.participants?.[name];
+                    return pp?.teamName || name;
+                  };
+                  const winnerDisplay = match.winnerId ? getTeamDisplay(match.winnerId) : null;
+                  return (
                   <div key={match.id} style={{ background: '#1e293b', border: `1px solid ${statusColor(match.status)}44`, borderRadius: 12, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ color: '#f1f5f9', fontWeight: 600, fontSize: 14 }}>
-                        {match.players.join(' vs ')}
+                        {match.players.map(getTeamDisplay).join(' vs ')}
                       </div>
-                      {match.winnerId && <div style={{ color: '#22c55e', fontSize: 12, marginTop: 2 }}>Vincitore: {match.winnerId}</div>}
+                      {match.winnerId && <div style={{ color: '#22c55e', fontSize: 12, marginTop: 2 }}>Vincitore: {winnerDisplay}</div>}
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
                       <span style={{ background: statusColor(match.status) + '22', color: statusColor(match.status), border: `1px solid ${statusColor(match.status)}44`, borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 700 }}>
@@ -779,7 +892,8 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
                       )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', minWidth: 'max-content', padding: '0 4px' }}>
@@ -793,13 +907,20 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
                       </div>
                       {roundMatches.map((match: any) => (
                         <div key={match.id} style={{ background: '#1e293b', border: `1px solid ${statusColor(match.status)}55`, borderRadius: 12, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                          {match.players.map((p: string) => (
-                            <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: match.winnerId === p ? '#14532d' : '#0f172a', border: `1px solid ${match.winnerId === p ? '#16a34a' : '#334155'}`, borderRadius: 8 }}>
-                              <span style={{ fontSize: 14 }}>{p === playerName ? '👤' : '🧑'}</span>
-                              <span style={{ color: '#f1f5f9', fontWeight: p === playerName ? 700 : 400, flex: 1, fontSize: 13 }}>{p}{p === playerName ? ' (tu)' : ''}</span>
-                              {match.winnerId === p && <span style={{ color: '#22c55e', fontSize: 12 }}>👑</span>}
-                            </div>
-                          ))}
+                          {match.players.map((p: string) => {
+                            const pp = currentSession?.participants?.[p];
+                            const pName = pp?.teamName || p;
+                            return (
+                              <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: match.winnerId === p ? '#14532d' : '#0f172a', border: `1px solid ${match.winnerId === p ? '#16a34a' : '#334155'}`, borderRadius: 8 }}>
+                                <div style={{ width: 22, height: 22, borderRadius: 5, background: pp?.teamColor || 'transparent', border: pp?.teamColor ? 'none' : '1px solid #334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, flexShrink: 0 }}>{p === playerName ? '👤' : '🧑'}</div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ color: '#f1f5f9', fontWeight: p === playerName ? 700 : 400, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pName}{p === playerName ? ' (tu)' : ''}</div>
+                                  {pp?.teamName && pp.teamName !== p && <div style={{ color: '#64748b', fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p}</div>}
+                                </div>
+                                {match.winnerId === p && <span style={{ color: '#22c55e', fontSize: 12 }}>👑</span>}
+                              </div>
+                            );
+                          })}
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <span style={{ background: statusColor(match.status) + '22', color: statusColor(match.status), border: `1px solid ${statusColor(match.status)}44`, borderRadius: 20, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>
                               {statusLabel(match.status)}
@@ -955,6 +1076,290 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
             </div>
           );
         })()}
+
+        {/* ── Formation Picker Overlay ── */}
+        {showFormation && pendingMatchForFormation && (() => {
+          const myDeck = currentSession?.participants?.[playerName]?.deck;
+          if (!myDeck) return null;
+          const tabs: Array<{ key: 'personaggi' | 'mosse' | 'bonus'; label: string; icon: string; selectedId: string | null; setId: (id: string | null) => void }> = [
+            { key: 'personaggi', label: 'Personaggio', icon: '⚔️', selectedId: formationPick.personaggioId, setId: (id) => setFormationPick(p => ({ ...p, personaggioId: id })) },
+            { key: 'mosse', label: 'Mossa', icon: '💥', selectedId: formationPick.mossaId, setId: (id) => setFormationPick(p => ({ ...p, mossaId: id })) },
+            { key: 'bonus', label: 'Bonus', icon: '✨', selectedId: formationPick.bonusId, setId: (id) => setFormationPick(p => ({ ...p, bonusId: id })) },
+          ];
+          const currentTab = tabs.find(t => t.key === formationDeckFilter)!;
+          const cards: any[] = myDeck[formationDeckFilter] || [];
+          const allPicked = formationPick.personaggioId && formationPick.mossaId && formationPick.bonusId;
+          const tabColor: Record<string, string> = { personaggi: '#3b82f6', mosse: '#f97316', bonus: '#22c55e' };
+          return (
+            <div style={{ position: 'fixed', inset: 0, zIndex: 110, background: 'rgba(0,0,0,0.95)', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif' }}>
+              <div style={{ padding: '14px 18px', borderBottom: '1px solid #1e293b', background: 'linear-gradient(90deg, #1e1b4b, #0f172a)', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+                <span style={{ fontSize: 22 }}>📋</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 16 }}>Scegli la Formazione</div>
+                  <div style={{ color: '#a78bfa', fontSize: 11 }}>1 personaggio · 1 mossa · 1 bonus da giocare in apertura</div>
+                </div>
+                <button onClick={() => { setShowFormation(false); setPendingMatchForFormation(null); }} style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, color: '#94a3b8', padding: '6px 12px', cursor: 'pointer', fontWeight: 700 }}>✕</button>
+              </div>
+              {/* Tab selector */}
+              <div style={{ display: 'flex', gap: 0, background: '#0f172a', borderBottom: '1px solid #1e293b', flexShrink: 0 }}>
+                {tabs.map(tab => {
+                  const isPicked = tab.selectedId != null;
+                  const isActive = tab.key === formationDeckFilter;
+                  return (
+                    <button key={tab.key} onClick={() => setFormationDeckFilter(tab.key)}
+                      style={{ flex: 1, padding: '10px 6px', background: isActive ? tabColor[tab.key] + '22' : 'transparent', border: 'none', borderBottom: `2px solid ${isActive ? tabColor[tab.key] : 'transparent'}`, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                      <span style={{ fontSize: 16 }}>{isPicked ? '✅' : tab.icon}</span>
+                      <span style={{ color: isActive ? tabColor[tab.key] : (isPicked ? '#4ade80' : '#64748b'), fontSize: 11, fontWeight: 700 }}>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Card grid */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px' }}>
+                {cards.length === 0 && <div style={{ color: '#64748b', textAlign: 'center', marginTop: 40 }}>Nessuna carta di tipo {formationDeckFilter} nel mazzo</div>}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
+                  {cards.map((card: any) => {
+                    const isSelected = currentTab.selectedId === card.id;
+                    return (
+                      <button key={card.id} onClick={() => currentTab.setId(isSelected ? null : card.id)}
+                        style={{ background: isSelected ? tabColor[formationDeckFilter] + '33' : '#1e293b', border: `2px solid ${isSelected ? tabColor[formationDeckFilter] : '#334155'}`, borderRadius: 10, cursor: 'pointer', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden', textAlign: 'left' }}>
+                        <div style={{ position: 'relative', aspectRatio: '3/4', background: '#0f172a', width: '100%' }}>
+                          {card.frontImage ? <img src={card.frontImage} alt={card.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" /> : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#334155', fontSize: 28 }}>🃏</div>}
+                          {isSelected && <div style={{ position: 'absolute', inset: 0, background: tabColor[formationDeckFilter] + '44', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>✅</div>}
+                        </div>
+                        <div style={{ padding: '6px 8px' }}>
+                          <div style={{ color: '#f1f5f9', fontWeight: 600, fontSize: 11, lineHeight: 1.3 }}>{card.name}</div>
+                          {formationDeckFilter === 'personaggi' && card.pti != null && <div style={{ color: '#38bdf8', fontSize: 10, marginTop: 1 }}>⚡ {card.pti} PTI</div>}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {/* Confirm button */}
+              <div style={{ padding: '12px 16px', background: '#0f172a', borderTop: '1px solid #1e293b', flexShrink: 0 }}>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                  {([['personaggi', formationPick.personaggioId, '#3b82f6'], ['mosse', formationPick.mossaId, '#f97316'], ['bonus', formationPick.bonusId, '#22c55e']] as const).map(([type, selectedId, color]) => {
+                    const card = selectedId ? (myDeck[type] as any[]).find((c: any) => c.id === selectedId) : null;
+                    return (
+                      <div key={type} style={{ flex: 1, background: '#1e293b', border: `1px solid ${card ? color : '#334155'}`, borderRadius: 8, padding: '6px 8px', minHeight: 36, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {card ? <><span style={{ fontSize: 13 }}>{type === 'personaggi' ? '⚔️' : type === 'mosse' ? '💥' : '✨'}</span><span style={{ color: '#f1f5f9', fontSize: 10, fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.name}</span></> : <span style={{ color: '#475569', fontSize: 10 }}>Nessuno</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => { socket.emit('fanta:start-fanta-match', { fantaId, playerName, matchId: pendingMatchForFormation.id }); setShowFormation(false); setPendingMatchForFormation(null); }}
+                    style={{ flex: 1, background: '#334155', border: '1px solid #475569', borderRadius: 10, color: '#94a3b8', padding: '10px 0', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                    Salta formazione
+                  </button>
+                  <button onClick={() => { if (!allPicked) return; const formation = { personaggioId: formationPick.personaggioId!, mossaId: formationPick.mossaId!, bonusId: formationPick.bonusId! }; socket.emit('fanta:start-fanta-match', { fantaId, playerName, matchId: pendingMatchForFormation.id, formation }); setShowFormation(false); setPendingMatchForFormation(null); }}
+                    disabled={!allPicked}
+                    style={{ flex: 2, background: allPicked ? 'linear-gradient(135deg, #7c3aed, #4c1d95)' : '#1e293b', border: `1px solid ${allPicked ? '#7c3aed' : '#334155'}`, borderRadius: 10, color: allPicked ? '#fff' : '#475569', padding: '10px 0', fontSize: 13, fontWeight: 700, cursor: allPicked ? 'pointer' : 'not-allowed' }}>
+                    🚀 Avvia con questa formazione
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ── Stats Panel Overlay ── */}
+        {showStats && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 110, background: 'rgba(0,0,0,0.95)', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif' }}>
+            <div style={{ padding: '14px 18px', borderBottom: '1px solid #1e293b', background: 'linear-gradient(90deg, #14532d, #0f172a)', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+              <span style={{ fontSize: 22 }}>📊</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 16 }}>Statistiche del Torneo</div>
+                <div style={{ color: '#4ade80', fontSize: 11 }}>Cumulative per partecipante</div>
+              </div>
+              <button onClick={() => setShowStats(false)} style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, color: '#94a3b8', padding: '6px 12px', cursor: 'pointer', fontWeight: 700 }}>✕ Chiudi</button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 14px' }}>
+              {Object.keys(tournamentStats).length === 0 ? (
+                <div style={{ color: '#64748b', textAlign: 'center', marginTop: 60, fontSize: 14 }}>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>📊</div>
+                  Nessuna partita ancora completata nel torneo
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 600, margin: '0 auto' }}>
+                  {Object.entries(tournamentStats)
+                    .sort(([, a], [, b]) => (b.wins - a.wins) || (b.totalDamageDealt - a.totalDamageDealt))
+                    .map(([name, stats], i) => {
+                      const p = currentSession?.participants?.[name];
+                      const teamColor = p?.teamColor || '#3b82f6';
+                      const teamName = p?.teamName || name;
+                      const winRate = stats.matchesPlayed > 0 ? Math.round((stats.wins / stats.matchesPlayed) * 100) : 0;
+                      return (
+                        <div key={name} style={{ background: '#1e293b', border: `1px solid ${i === 0 ? '#f59e0b' : '#334155'}`, borderRadius: 14, padding: '16px 18px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                            <div style={{ width: 36, height: 36, borderRadius: 8, background: teamColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 16, color: 'white', flexShrink: 0 }}>
+                              {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 15 }}>{teamName}</div>
+                              {p?.teamName && p.teamName !== name && <div style={{ color: '#64748b', fontSize: 11 }}>{name}</div>}
+                            </div>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <span style={{ background: '#16a34a22', border: '1px solid #16a34a', borderRadius: 20, padding: '3px 12px', color: '#4ade80', fontWeight: 700, fontSize: 12 }}>{stats.wins}V</span>
+                              <span style={{ background: '#dc262622', border: '1px solid #dc2626', borderRadius: 20, padding: '3px 12px', color: '#f87171', fontWeight: 700, fontSize: 12 }}>{stats.matchesPlayed - stats.wins}S</span>
+                            </div>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                            <div style={{ background: '#0f172a', borderRadius: 8, padding: '8px 12px' }}>
+                              <div style={{ color: '#64748b', fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }}>Partite</div>
+                              <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 18 }}>{stats.matchesPlayed}</div>
+                            </div>
+                            <div style={{ background: '#0f172a', borderRadius: 8, padding: '8px 12px' }}>
+                              <div style={{ color: '#64748b', fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }}>Win rate</div>
+                              <div style={{ color: winRate > 50 ? '#4ade80' : '#f87171', fontWeight: 700, fontSize: 18 }}>{winRate}%</div>
+                            </div>
+                            <div style={{ background: '#0f172a', borderRadius: 8, padding: '8px 12px' }}>
+                              <div style={{ color: '#64748b', fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }}>Danno totale</div>
+                              <div style={{ color: '#f59e0b', fontWeight: 700, fontSize: 18 }}>{stats.totalDamageDealt}</div>
+                            </div>
+                            <div style={{ background: '#0f172a', borderRadius: 8, padding: '8px 12px' }}>
+                              <div style={{ color: '#64748b', fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }}>Carte giocate</div>
+                              <div style={{ color: '#38bdf8', fontWeight: 700, fontSize: 18 }}>{stats.totalCardsPlayed}</div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Market Panel Overlay ── */}
+        {showMarket && (() => {
+          const myP = currentSession?.participants?.[playerName];
+          const myDeck = myP?.deck;
+          const myCredits = myP?.credits ?? 0;
+          const typeColor: Record<string, string> = { personaggi: '#3b82f6', mosse: '#f97316', bonus: '#22c55e' };
+          const typeLabel: Record<string, string> = { personaggi: 'Personaggi', mosse: 'Mosse', bonus: 'Bonus' };
+          return (
+            <div style={{ position: 'fixed', inset: 0, zIndex: 110, background: 'rgba(0,0,0,0.95)', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif' }}>
+              <div style={{ padding: '14px 18px', borderBottom: '1px solid #1e293b', background: 'linear-gradient(90deg, #4c1d95, #0f172a)', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+                <span style={{ fontSize: 22 }}>🛒</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 16 }}>Mercato Carte</div>
+                  <div style={{ color: '#c4b5fd', fontSize: 11 }}>Compra e vendi carte con gli altri partecipanti</div>
+                </div>
+                <div style={{ color: '#fbbf24', fontWeight: 700, fontSize: 13, marginRight: 4 }}>💰 {myCredits} cr</div>
+                <button onClick={() => { setShowMarket(false); setMarketSellCard(null); }} style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, color: '#94a3b8', padding: '6px 12px', cursor: 'pointer', fontWeight: 700 }}>✕ Chiudi</button>
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto', padding: '14px 14px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+                {/* Listings */}
+                <div>
+                  <div style={{ color: '#94a3b8', fontWeight: 700, fontSize: 12, textTransform: 'uppercase', marginBottom: 10, letterSpacing: 0.5 }}>Annunci disponibili ({marketListings.length})</div>
+                  {marketListings.length === 0 ? (
+                    <div style={{ color: '#64748b', fontSize: 13, textAlign: 'center', padding: '24px 0' }}>Nessuna carta in vendita al momento</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {marketListings.map(listing => {
+                        const isMine = listing.sellerName === playerName;
+                        const canAfford = myCredits >= listing.price;
+                        return (
+                          <div key={listing.id} style={{ background: '#1e293b', border: `1px solid ${isMine ? '#7c3aed' : '#334155'}`, borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ width: 52, height: 68, borderRadius: 6, overflow: 'hidden', flexShrink: 0, background: '#0f172a' }}>
+                              {listing.card.frontImage ? <img src={listing.card.frontImage} alt={listing.card.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#334155', fontSize: 22 }}>🃏</div>}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ color: '#f1f5f9', fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{listing.card.name}</div>
+                              <div style={{ display: 'flex', gap: 6, marginTop: 3 }}>
+                                <span style={{ background: typeColor[listing.card.type] + '22', color: typeColor[listing.card.type], border: `1px solid ${typeColor[listing.card.type]}44`, borderRadius: 6, padding: '1px 6px', fontSize: 10, fontWeight: 700 }}>{typeLabel[listing.card.type]}</span>
+                                <span style={{ color: '#64748b', fontSize: 11 }}>Venditore: {listing.sellerName}</span>
+                              </div>
+                              {listing.card.pti != null && <div style={{ color: '#38bdf8', fontSize: 10, marginTop: 2 }}>⚡ {listing.card.pti} PTI</div>}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
+                              <div style={{ color: '#fbbf24', fontWeight: 700, fontSize: 14 }}>💰 {listing.price} cr</div>
+                              {isMine ? (
+                                <button onClick={() => { socket.emit('fanta:remove-listing', { fantaId, playerName, listingId: listing.id }); }}
+                                  style={{ background: '#7f1d1d', border: '1px solid #ef4444', borderRadius: 7, color: '#fca5a5', padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                                  ✕ Ritira
+                                </button>
+                              ) : (
+                                <button onClick={() => { if (!canAfford) return; socket.emit('fanta:buy-card', { fantaId, playerName, listingId: listing.id }); }}
+                                  disabled={!canAfford}
+                                  style={{ background: canAfford ? '#16a34a' : '#1e293b', border: `1px solid ${canAfford ? '#22c55e' : '#334155'}`, borderRadius: 7, color: canAfford ? 'white' : '#475569', padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: canAfford ? 'pointer' : 'not-allowed' }}>
+                                  {canAfford ? '🛒 Compra' : 'Insufficiente'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Sell section */}
+                {myDeck && (
+                  <div>
+                    <div style={{ color: '#94a3b8', fontWeight: 700, fontSize: 12, textTransform: 'uppercase', marginBottom: 10, letterSpacing: 0.5 }}>Metti in vendita</div>
+                    {/* Type tabs */}
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                      {(['personaggi', 'mosse', 'bonus'] as const).map(type => (
+                        <button key={type} onClick={() => { setMarketSellDeckTab(type); setMarketSellCard(null); }}
+                          style={{ flex: 1, padding: '7px 0', background: marketSellDeckTab === type ? typeColor[type] + '22' : '#1e293b', border: `1px solid ${marketSellDeckTab === type ? typeColor[type] : '#334155'}`, borderRadius: 8, color: marketSellDeckTab === type ? typeColor[type] : '#64748b', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>
+                          {typeLabel[type]} ({(myDeck[type] as any[]).length})
+                        </button>
+                      ))}
+                    </div>
+                    {marketSellCard ? (
+                      <div style={{ background: '#1e293b', border: `1px solid ${typeColor[marketSellCard.type]}`, borderRadius: 12, padding: '14px 16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                          <div style={{ width: 44, height: 58, borderRadius: 6, overflow: 'hidden', flexShrink: 0, background: '#0f172a' }}>
+                            {marketSellCard.card.frontImage ? <img src={marketSellCard.card.frontImage} alt={marketSellCard.card.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#334155', fontSize: 18 }}>🃏</div>}
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ color: '#f1f5f9', fontWeight: 600, fontSize: 13 }}>{marketSellCard.card.name}</div>
+                            {marketSellCard.card.pti != null && <div style={{ color: '#38bdf8', fontSize: 11 }}>⚡ {marketSellCard.card.pti} PTI</div>}
+                          </div>
+                          <button onClick={() => setMarketSellCard(null)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 18, padding: 4 }}>✕</button>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ color: '#64748b', fontSize: 11, marginBottom: 4 }}>Prezzo (crediti)</div>
+                            <input type="number" min={1} max={1000} value={marketSellPrice} onChange={e => setMarketSellPrice(Math.max(1, parseInt(e.target.value) || 1))}
+                              style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', borderRadius: 8, color: '#f1f5f9', padding: '8px 12px', fontSize: 14, fontWeight: 700 }} />
+                          </div>
+                          <button onClick={() => { socket.emit('fanta:list-card', { fantaId, playerName, cardId: marketSellCard.card.id, cardType: marketSellCard.type, price: marketSellPrice }); setMarketSellCard(null); }}
+                            style={{ background: '#7c3aed', border: 'none', borderRadius: 10, color: 'white', padding: '12px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer', marginTop: 20, flexShrink: 0 }}>
+                            🏷️ Metti in vendita
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 8, maxHeight: 240, overflowY: 'auto' }}>
+                        {(myDeck[marketSellDeckTab] as any[]).map((card: any) => {
+                          const alreadyListed = marketListings.some(l => l.sellerName === playerName && l.card.id === card.id);
+                          return (
+                            <button key={card.id} onClick={() => { if (!alreadyListed) setMarketSellCard({ card, type: marketSellDeckTab }); }}
+                              disabled={alreadyListed}
+                              style={{ background: alreadyListed ? '#0f172a' : '#1e293b', border: `1px solid ${alreadyListed ? '#1e293b' : '#334155'}`, borderRadius: 8, cursor: alreadyListed ? 'not-allowed' : 'pointer', padding: 0, overflow: 'hidden', opacity: alreadyListed ? 0.4 : 1, textAlign: 'left' }}>
+                              <div style={{ aspectRatio: '3/4', background: '#0f172a', width: '100%' }}>
+                                {card.frontImage ? <img src={card.frontImage} alt={card.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" /> : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#334155', fontSize: 22 }}>🃏</div>}
+                              </div>
+                              <div style={{ padding: '4px 6px' }}>
+                                <div style={{ color: '#f1f5f9', fontSize: 9, fontWeight: 600, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.name}</div>
+                                {alreadyListed && <div style={{ color: '#7c3aed', fontSize: 9 }}>In vendita</div>}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </div>
     );
   }
@@ -1014,8 +1419,15 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
               <div className="space-y-2">
                 {participants.map(p => (
                   <div key={p.name} className="flex items-center gap-3 bg-gray-700/50 rounded-lg px-3 py-2">
-                    <span className="text-base">{p.isCPU ? '🤖' : '👤'}</span>
-                    <span className="font-bold text-white text-sm flex-1">{p.name}</span>
+                    {p.teamColor ? (
+                      <div style={{ width: 28, height: 28, borderRadius: 6, background: p.teamColor, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>{p.isCPU ? '🤖' : '👤'}</div>
+                    ) : (
+                      <span className="text-base">{p.isCPU ? '🤖' : '👤'}</span>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-white text-sm truncate">{p.teamName || p.name}</div>
+                      {p.teamName && p.teamName !== p.name && <div className="text-white/40 text-xs truncate">{p.name}</div>}
+                    </div>
                     {p.name === currentSession.creatorName && (
                       <span className="text-xs bg-yellow-700/60 text-yellow-300 px-2 py-0.5 rounded font-semibold">Creator</span>
                     )}
@@ -1031,6 +1443,43 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
                 ))}
               </div>
             </div>
+
+            {/* Team name + color (for current player only) */}
+            {!currentSession.participants[playerName]?.isCPU && (
+              <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
+                <div className="text-xs font-bold text-white/40 uppercase tracking-widest mb-3">🎨 La tua squadra</div>
+                <div className="flex gap-3 items-center mb-3">
+                  <div
+                    style={{ width: 36, height: 36, borderRadius: 8, background: teamColorInput, flexShrink: 0, border: '2px solid rgba(255,255,255,0.15)' }}
+                  />
+                  <Input
+                    placeholder="Nome squadra (es. I Devastatori)"
+                    value={teamNameInput}
+                    onChange={e => setTeamNameInput(e.target.value)}
+                    maxLength={30}
+                    className="bg-gray-700 border-gray-600 text-white text-sm h-9 flex-1"
+                  />
+                  <input
+                    type="color"
+                    value={teamColorInput}
+                    onChange={e => setTeamColorInput(e.target.value)}
+                    style={{ width: 36, height: 36, borderRadius: 8, border: 'none', cursor: 'pointer', background: 'none', padding: 0, flexShrink: 0 }}
+                    title="Colore squadra"
+                  />
+                </div>
+                <Button
+                  onClick={() => {
+                    setSavingTeamInfo(true);
+                    socket.emit('fanta:set-team-info', { fantaId, playerName, teamName: teamNameInput, teamColor: teamColorInput });
+                    setTimeout(() => setSavingTeamInfo(false), 1500);
+                  }}
+                  disabled={savingTeamInfo}
+                  className="w-full h-9 bg-indigo-700 hover:bg-indigo-600 text-white font-bold text-sm"
+                >
+                  {savingTeamInfo ? '✅ Salvato!' : '💾 Salva nome squadra'}
+                </Button>
+              </div>
+            )}
 
             {/* Pending requests (creator only) */}
             {isCreator && pendingRequests.length > 0 && (

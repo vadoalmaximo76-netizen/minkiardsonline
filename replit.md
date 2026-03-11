@@ -82,6 +82,19 @@ Supports a wide range of custom card effects via `[COMPORTAMENTO: ...]` tags, in
 ## Audio System
 A comprehensive sound effect system using the Web Audio API provides in-game event feedback with per-category toggles and localStorage persistence.
 
+## FantaMinkiards
+Pre-tournament auction system where players bid on cards to build decks, then compete in a bracket tournament. Key components:
+- **Auction**: Real-time blind auction for all cards (personaggi/mosse/bonus). Cards sorted alphabetically, 15s initial timer, 3s reset timer on new bids. Players start with 1000 credits. CPU players auto-bid. Disqualification if credits run out before completing deck.
+- **FantaTorney**: Configurable bracket (elimination) or campionato (round-robin) tournament with the auctioned decks. CPU match simulation. Rankiard prizes awarded (winner×N, runner-up×N). Match auto-starts for 1 human + CPUs.
+- **Deck Viewer**: Full-screen overlay showing each participant's deck with card images, rarity badges, PTI stats, auction price stamps.
+- **Nome Squadra + Colore** (T001): Each player can set a custom team name (up to 30 chars) and color in the lobby (`fanta:set-team-info`). Displayed in lobby participant list, bracket match cards, campionato standings. `FantaParticipant.teamName/teamColor` persisted in JSON.
+- **Formazione Pre-partita** (T002): Before starting a match, the player sees a formation picker overlay — pick 1 personaggio + 1 mossa + 1 bonus to guarantee in opening hand. Formation sent with `fanta:start-fanta-match` payload; server moves selected cards to end of `playerDraftDecks` arrays (since `pop()` draws from end).
+- **Statistiche Cumulative** (T003): After each fanta match completes, `recordMatchStats()` extracts per-player stats (matchesPlayed, wins, totalDamageDealt, totalCardsPlayed, totalTurns) from `game.playerStats` and accumulates in `FantaSession.tournamentStats`. "📊 Stats" button in bracket header opens stats panel. `fanta:stats-update` event broadcasts updates.
+- **Mercato tra i round** (T004): `FantaSession.market.listings` tracks cards for sale. Sellers list cards (removed from their deck, added to market); buyers spend credits to buy (card added to buyer deck, credits transferred). Socket events: `fanta:list-card`, `fanta:buy-card`, `fanta:remove-listing`. "🛒 Mercato" button in bracket header opens market panel.
+- **Key files**: `server/fantaManager.ts` (FantaManager class, all interfaces), `server/routes.ts` (all `fanta:*` socket handlers), `client/src/components/FantaMinkiardsSection.tsx`, `client/src/components/FantaAuctionRoom.tsx`.
+- **Data persistence**: `server/data/fantaSessions.json`.
+- **Admin**: `lucaforte94@gmail.com` can delete sessions.
+
 ## Visual Systems
 - **Card Animation System**: Twenty-eight unique full-screen animations with synchronized audio for specific cards.
 - **Background Music Player**: YouTube IFrame API player (playlist `PLX6i-6a7orEU-L1GdfUDtepT-pW4tYl4j`). "Avvia musica" button starts music; player iframe is hidden off-screen. A small volume button (bottom-right) reveals a vertical slider on hover. A slide-in banner (bottom-left, 5s) shows track title/artist on song change. State persists across section navigation via `window.__minkYT` singleton. Component: `client/src/components/SpotifyPlayer.tsx` (export: `SpotifyPlayer`).

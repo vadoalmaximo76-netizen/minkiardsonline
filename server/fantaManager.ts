@@ -52,6 +52,24 @@ export interface FantaParticipant {
   isCPU: boolean;
   cpuLevel: 'easy' | 'medium' | 'hard';
   socketId?: string;
+  teamName?: string;
+  teamColor?: string;
+}
+
+export interface FantaPlayerStats {
+  matchesPlayed: number;
+  wins: number;
+  totalDamageDealt: number;
+  totalCardsPlayed: number;
+  totalTurns: number;
+}
+
+export interface FantaMarketListing {
+  id: string;
+  sellerName: string;
+  card: FantaCard;
+  price: number;
+  listedAt: number;
 }
 
 export interface FantaAuction {
@@ -120,6 +138,8 @@ export interface FantaSession {
   completedAt?: number;
   tournament?: FantaTourney;
   cardsNeeded?: Record<'personaggi' | 'mosse' | 'bonus', number>;
+  tournamentStats?: Record<string, FantaPlayerStats>;
+  market?: { listings: FantaMarketListing[] };
 }
 
 const STARTING_CREDITS = 1000;
@@ -1048,6 +1068,95 @@ export class FantaManager {
   getFantaTournamentState(fantaId: string): FantaTourney | null {
     const session = this.sessions.get(fantaId);
     return session?.tournament || null;
+  }
+
+  setTeamInfo(fantaId: string, playerName: string, teamName: string, teamColor: string): boolean {
+    const session = this.sessions.get(fantaId);
+    if (!session) return false;
+    const participant = session.participants[playerName];
+    if (!participant) return false;
+    participant.teamName = teamName.trim().slice(0, 30) || undefined;
+    participant.teamColor = teamColor || undefined;
+    this.persist();
+    return true;
+  }
+
+  recordMatchStats(fantaId: string, matchPlayers: string[], winner: string, playerStats: Record<string, { cardsPlayed: number; damageDealt: number; damageReceived: number; turnsPlayed: number }>): void {
+    const session = this.sessions.get(fantaId);
+    if (!session) return;
+    if (!session.tournamentStats) session.tournamentStats = {};
+    for (const playerName of matchPlayers) {
+      const stats = playerStats[playerName] || { cardsPlayed: 0, damageDealt: 0, damageReceived: 0, turnsPlayed: 0 };
+      const existing = session.tournamentStats[playerName] || { matchesPlayed: 0, wins: 0, totalDamageDealt: 0, totalCardsPlayed: 0, totalTurns: 0 };
+      session.tournamentStats[playerName] = {
+        matchesPlayed: existing.matchesPlayed + 1,
+        wins: existing.wins + (playerName === winner ? 1 : 0),
+        totalDamageDealt: existing.totalDamageDealt + (stats.damageDealt || 0),
+        totalCardsPlayed: existing.totalCardsPlayed + (stats.cardsPlayed || 0),
+        totalTurns: existing.totalTurns + (stats.turnsPlayed || 0),
+      };
+    }
+    this.persist();
+  }
+
+  listCard(fantaId: string, sellerName: string, cardId: string, cardType: 'personaggi' | 'mosse' | 'bonus', price: number, io: any): { success: boolean; error?: string } {
+    const session = this.sessions.get(fantaId);
+    if (!session) return { success: false, error: 'Sessione non trovata' };
+    const participant = session.participants[sellerName];
+    if (!participant) return { success: false, error: 'Partecipante non trovato' };
+    if (price < 1) return { success: false, error: 'Prezzo minimo: 1 credito' };
+    const deck = participant.deck[cardType] as FantaCard[];
+    const cardIdx = deck.findIndex(c => c.id === cardId);
+    if (cardIdx === -1) return { success: false, error: 'Carta non trovata nel mazzo' };
+    const card = deck[cardIdx];
+    if (!session.market) session.market = { listings: [] };
+    const alreadyListed = session.market.listings.find(l => l.sellerName === sellerName && l.card.id === cardId);
+    if (alreadyListed) return { success: false, error: 'Carta già in vendita' };
+    const listing: FantaMarketListing = { id: `listing-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`, sellerName, card: { ...card }, price, listedAt: Date.now() };
+    session.market.listings.push(listing);
+    deck.splice(cardIdx, 1);
+    this.persist();
+    io.to(fantaId).emit('fanta:market-update', { market: session.market });
+    io.to(fantaId).emit('fanta:session-updated', { session: this.getSafeSession(fantaId) });
+    return { success: true };
+  }
+
+  buyCard(fantaId: string, buyerName: string, listingId: string, io: any): { success: boolean; error?: string } {
+    const session = this.sessions.get(fantaId);
+    if (!session?.market) return { success: false, error: 'Mercato non disponibile' };
+    const listingIdx = session.market.listings.findIndex(l => l.id === listingId);
+    if (listingIdx === -1) return { success: false, error: 'Annuncio non trovato' };
+    const listing = session.market.listings[listingIdx];
+    if (listing.sellerName === buyerName) return { success: false, error: 'Non puoi comprare la tua carta' };
+    const buyer = session.participants[buyerName];
+    if (!buyer) return { success: false, error: 'Acquirente non trovato' };
+    if (buyer.credits < listing.price) return { success: false, error: `Crediti insufficienti (hai ${buyer.credits}, serve ${listing.price})` };
+    const seller = session.participants[listing.sellerName];
+    buyer.credits -= listing.price;
+    if (seller) seller.credits += listing.price;
+    const cardWithNewPrice: FantaCard = { ...listing.card, auctionPrice: listing.price };
+    (buyer.deck[listing.card.type] as FantaCard[]).push(cardWithNewPrice);
+    session.market.listings.splice(listingIdx, 1);
+    this.persist();
+    io.to(fantaId).emit('fanta:market-update', { market: session.market });
+    io.to(fantaId).emit('fanta:session-updated', { session: this.getSafeSession(fantaId) });
+    io.to(fantaId).emit('fanta:market-sale', { buyer: buyerName, seller: listing.sellerName, card: listing.card, price: listing.price });
+    return { success: true };
+  }
+
+  removeCardListing(fantaId: string, sellerName: string, listingId: string, io: any): { success: boolean; error?: string } {
+    const session = this.sessions.get(fantaId);
+    if (!session?.market) return { success: false, error: 'Mercato non disponibile' };
+    const listingIdx = session.market.listings.findIndex(l => l.id === listingId && l.sellerName === sellerName);
+    if (listingIdx === -1) return { success: false, error: 'Annuncio non trovato' };
+    const listing = session.market.listings[listingIdx];
+    const participant = session.participants[sellerName];
+    if (participant) (participant.deck[listing.card.type] as FantaCard[]).push(listing.card);
+    session.market.listings.splice(listingIdx, 1);
+    this.persist();
+    io.to(fantaId).emit('fanta:market-update', { market: session.market });
+    io.to(fantaId).emit('fanta:session-updated', { session: this.getSafeSession(fantaId) });
+    return { success: true };
   }
 
   deleteSession(fantaId: string): void {

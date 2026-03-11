@@ -8337,10 +8337,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // ─── fanta:start-fanta-match ────────────────────────────────────────────────
-    socket.on('fanta:start-fanta-match', async ({ fantaId, playerName, matchId }: {
+    socket.on('fanta:start-fanta-match', async ({ fantaId, playerName, matchId, formation }: {
       fantaId: string;
       playerName: string;
       matchId: string;
+      formation?: { personaggioId: string; mossaId: string; bonusId: string };
     }) => {
       const sess = fantaManager.getSession(fantaId);
       if (!sess) { socket.emit('fanta:error', { message: 'Sessione non trovata' }); return; }
@@ -8461,6 +8462,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Apply formation: move selected cards to the END of each array so pop() draws them first
+      if (formation && game.playerDraftDecks[playerName]) {
+        const pd = game.playerDraftDecks[playerName];
+        const applyFormationCard = (arr: any[], selectedId: string) => {
+          const baseId = selectedId.split('-').slice(0, -1).join('-') || selectedId;
+          const idx = arr.findIndex(c => c.id === selectedId || c.id.startsWith(baseId + '-') || c.draftBaseId === baseId);
+          if (idx !== -1) {
+            const [card] = arr.splice(idx, 1);
+            arr.push(card);
+          }
+        };
+        if (formation.personaggioId) applyFormationCard(pd.personaggi, formation.personaggioId);
+        if (formation.mossaId) applyFormationCard(pd.mosse, formation.mossaId);
+        if (formation.bonusId) applyFormationCard(pd.bonus, formation.bonusId);
+        console.log(`📋 Formazione applicata per ${playerName}: P=${formation.personaggioId}, M=${formation.mossaId}, B=${formation.bonusId}`);
+      }
+
       game.fantaTournamentId = fantaId;
       // Apply character limit
       const fantaCharLimit = tourney.config.characterLimit || 'unlimited';
@@ -8525,6 +8543,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('fanta:get-tournament-state', ({ fantaId }: { fantaId: string }) => {
       const tournament = fantaManager.getFantaTournamentState(fantaId);
       socket.emit('fanta:tournament-state', { fantaId, tournament });
+    });
+
+    // ─── fanta:set-team-info ─────────────────────────────────────────────────────
+    socket.on('fanta:set-team-info', ({ fantaId, playerName, teamName, teamColor }: {
+      fantaId: string; playerName: string; teamName: string; teamColor: string;
+    }) => {
+      const ok = fantaManager.setTeamInfo(fantaId, playerName, teamName, teamColor);
+      if (!ok) { socket.emit('fanta:error', { message: 'Impossibile impostare info squadra' }); return; }
+      io.to(fantaId).emit('fanta:session-updated', { session: fantaManager.getSafeSession(fantaId) });
+    });
+
+    // ─── fanta:get-market ────────────────────────────────────────────────────────
+    socket.on('fanta:get-market', ({ fantaId }: { fantaId: string }) => {
+      const sess = fantaManager.getSession(fantaId);
+      socket.emit('fanta:market-update', { market: sess?.market || { listings: [] } });
+    });
+
+    // ─── fanta:list-card ─────────────────────────────────────────────────────────
+    socket.on('fanta:list-card', ({ fantaId, playerName, cardId, cardType, price }: {
+      fantaId: string; playerName: string; cardId: string; cardType: 'personaggi' | 'mosse' | 'bonus'; price: number;
+    }) => {
+      const result = fantaManager.listCard(fantaId, playerName, cardId, cardType, price, io);
+      if (!result.success) { socket.emit('fanta:error', { message: result.error || 'Errore listCard' }); }
+    });
+
+    // ─── fanta:buy-card ──────────────────────────────────────────────────────────
+    socket.on('fanta:buy-card', ({ fantaId, playerName, listingId }: {
+      fantaId: string; playerName: string; listingId: string;
+    }) => {
+      const result = fantaManager.buyCard(fantaId, playerName, listingId, io);
+      if (!result.success) { socket.emit('fanta:error', { message: result.error || 'Errore buyCard' }); }
+    });
+
+    // ─── fanta:remove-listing ────────────────────────────────────────────────────
+    socket.on('fanta:remove-listing', ({ fantaId, playerName, listingId }: {
+      fantaId: string; playerName: string; listingId: string;
+    }) => {
+      const result = fantaManager.removeCardListing(fantaId, playerName, listingId, io);
+      if (!result.success) { socket.emit('fanta:error', { message: result.error || 'Errore removeListing' }); }
+    });
+
+    // ─── fanta:get-stats ─────────────────────────────────────────────────────────
+    socket.on('fanta:get-stats', ({ fantaId }: { fantaId: string }) => {
+      const sess = fantaManager.getSession(fantaId);
+      socket.emit('fanta:stats-update', { fantaId, stats: sess?.tournamentStats || {} });
     });
 
   });
