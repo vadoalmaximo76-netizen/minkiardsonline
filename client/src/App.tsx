@@ -937,6 +937,9 @@ function App() {
                 console.log('[APP] Continua torneo FantaMinkiards — fantaId:', fantaId);
                 sessionRestoredRef.current = true;
                 window.history.pushState(null, '', window.location.origin);
+                if (authenticatedUser?.username) {
+                  setPlayerName(authenticatedUser.username);
+                }
                 setFantaReturnId(fantaId);
                 setCurrentSection('fanta');
               }}
