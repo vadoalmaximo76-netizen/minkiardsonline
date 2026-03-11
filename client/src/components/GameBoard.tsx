@@ -558,6 +558,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   };
 
   const handleStartGame = () => {
+    // For fanta tournament matches, skip the dialog and use the pre-configured limit
+    if ((gameState as any)?.tournamentCharacterLimit) {
+      socket.emit('start-game', { gameId, playerName, characterLimit: (gameState as any).tournamentCharacterLimit });
+      return;
+    }
     // Show character limit selection dialog first
     setCharacterLimitDialogOpen(true);
   };

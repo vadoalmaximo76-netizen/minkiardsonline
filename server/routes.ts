@@ -6585,7 +6585,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('start-game', async ({ gameId, playerName, characterLimit }) => {
       const gameState = gameManager.getSanitizedGameState(gameId);
       if (gameState) {
-        const playerOrder = gameManager.startGame(gameId, characterLimit);
+        // For fanta tournament matches, always use the tournament's pre-configured character limit
+        const game = gameManager.getGame(gameId);
+        const effectiveLimit = (game as any)?.tournamentCharacterLimit ?? characterLimit;
+        const playerOrder = gameManager.startGame(gameId, effectiveLimit);
         if (playerOrder) {
           io.to(gameId).emit('game-started', { playerOrder });
           if (playerOrder.length > 0) {
