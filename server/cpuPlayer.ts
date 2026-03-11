@@ -1426,6 +1426,39 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           // Get opponent's character in the duel (simple and correct)
           const opponentCharacterId = duel.player1 === this.playerName ? duel.character2Id : duel.character1Id;
           
+          // SAFETY: Check if CPU still has a character on the field
+          const cpuCharOnField = gameState.field.find((c: any) =>
+            c.owner === this.playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          );
+          if (!cpuCharOnField) {
+            console.log(`⚔️ DUELLO: CPU ${this.playerName} has no character on field - ending duel and falling through to normal turn`);
+            // Force-end the duel server-side
+            if (this.gameManager) {
+              const ioG = (global as any).io;
+              const opponentPlayer = duel.player1 === this.playerName ? duel.player2 : duel.player1;
+              this.gameManager.endDuel(this.gameId, `CPU ${this.playerName} has no character on field`);
+              if (ioG) {
+                ioG.to(this.gameId).emit('duel-ended', { winner: opponentPlayer, reason: 'character_death' });
+                const gs = this.gameManager.getSanitizedGameState(this.gameId);
+                if (gs) ioG.to(this.gameId).emit('game-state-update', gs);
+              }
+            }
+            // Fall through to normal turn to play a new personaggio
+          } else if (!opponentCharacterId || !gameState.field.find((c: any) => c.id === opponentCharacterId)) {
+            // Opponent's duel character is gone — end the duel
+            console.log(`⚔️ DUELLO: Opponent duel character ${opponentCharacterId} no longer on field - ending duel`);
+            if (this.gameManager) {
+              const ioG = (global as any).io;
+              this.gameManager.endDuel(this.gameId, `Opponent duel character ${opponentCharacterId} gone`);
+              if (ioG) {
+                ioG.to(this.gameId).emit('duel-ended', { winner: this.playerName, reason: 'character_death' });
+                const gs = this.gameManager.getSanitizedGameState(this.gameId);
+                if (gs) ioG.to(this.gameId).emit('game-state-update', gs);
+              }
+            }
+            // Fall through to normal turn
+          } else {
+          
           // Check if CPU has MOSSE card
           const mosseInHand = cpuPlayer.hand.find((c: any) => c.type === 'mosse');
           const mosseOnField = gameState.field.find((c: any) => 
@@ -1486,6 +1519,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
             }
             return duelAttackAction;
           }
+          } // end else (CPU has character on field, duel characters still valid)
         }
       }
       

@@ -6582,15 +6582,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('start-game', ({ gameId, playerName, characterLimit }) => {
+    socket.on('start-game', async ({ gameId, playerName, characterLimit }) => {
       const gameState = gameManager.getSanitizedGameState(gameId);
       if (gameState) {
         const playerOrder = gameManager.startGame(gameId, characterLimit);
         if (playerOrder) {
           io.to(gameId).emit('game-started', { playerOrder });
-          // Start turn timer for the first player
           if (playerOrder.length > 0) {
-            gameManager.startTurnTimer(gameId, playerOrder[0]);
+            const firstPlayer = playerOrder[0];
+            const firstPlayerData = gameManager.getGameState(gameId)?.players[firstPlayer];
+            if (firstPlayerData?.isCPU) {
+              // First player is CPU - trigger their turn after a short delay
+              setTimeout(async () => {
+                const cpuAction = await gameManager.processCPUTurn(gameId, firstPlayer, io);
+                if (cpuAction) await gameManager.applyCPUAction(gameId, firstPlayer, cpuAction, io);
+              }, 1500);
+            } else {
+              gameManager.startTurnTimer(gameId, firstPlayer);
+            }
           }
         }
       }
@@ -6705,6 +6714,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (cpuAction) {
                 // Execute the CPU's action
                 switch (cpuAction.type) {
+                  case 'pick-opening-cards':
+                    // Handle opening sequence - pick all 3 initial cards
+                    await gameManager.applyCPUAction(gameId, nextPlayer, cpuAction, io);
+                    break;
                   case 'pick-card':
                     const pickSuccess = await gameManager.pickCard(gameId, cpuAction.data.deckType, cpuAction.data.playerName);
                     if (pickSuccess) {
@@ -7388,6 +7401,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   console.log(`CPU ${nextPlayer} action:`, cpuAction.type);
                   // Handle CPU action processing (simplified for now)
                   switch (cpuAction.type) {
+                    case 'pick-opening-cards':
+                      // Handle opening sequence - pick all 3 initial cards
+                      await gameManager.applyCPUAction(gameId, nextPlayer, cpuAction, io);
+                      break;
                     case 'play-card':
                       const playResult = await gameManager.playCard(gameId, cpuAction.data.cardId, cpuAction.data.playerName);
                       

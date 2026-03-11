@@ -13754,9 +13754,21 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       console.log(`Card ${cardId} moved to graveyard. Owner: ${cardOwner}, Killed by: ${attacker || 'Unknown'}`);
 
       if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && game.activeDuel && game.activeDuel.active) {
-        if (game.activeDuel.character1Id === cardId || game.activeDuel.character2Id === cardId) {
+        const duelParticipants = [game.activeDuel.player1, game.activeDuel.player2];
+        const cardOwnerInDuel = duelParticipants.includes(cardOwner);
+        // Check by ID OR by owner (if the owner is in the duel and their character is gone)
+        const isDirectDuelChar = game.activeDuel.character1Id === cardId || game.activeDuel.character2Id === cardId;
+        const remainingCharOnField = cardOwnerInDuel
+          ? game.field.filter((c: any) =>
+              c.owner === cardOwner && (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.id !== cardId
+            ).length === 0
+          : false;
+        if (isDirectDuelChar || (cardOwnerInDuel && remainingCharOnField)) {
           const duel = game.activeDuel;
-          const winnerPlayer = cardId === duel.character1Id ? duel.player2 : duel.player1;
+          const killedOwner = cardOwner;
+          const winnerPlayer = isDirectDuelChar
+            ? (cardId === duel.character1Id ? duel.player2 : duel.player1)
+            : (killedOwner === duel.player1 ? duel.player2 : duel.player1);
           const duelCurrentTurn = duel.currentTurn; // Save before endDuel clears it
           console.log(`⚔️ DUELLO (moveToGraveyard): Character ${cardId} died - ending duel. Winner: ${winnerPlayer}`);
           this.endDuel(gameId, `Character death in moveToGraveyard (${cardId})`);
@@ -18356,6 +18368,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     };
 
     switch (action.type) {
+      case 'pick-opening-cards': {
+        // Pick all 3 initial cards (personaggi, mosse, bonus) atomically
+        await this.pickOpeningCards(gameId, action.data.types || ['personaggi', 'mosse', 'bonus'], cpuName);
+        emitState();
+        await new Promise(r => setTimeout(r, 800));
+        const nextOpeningAction = await this.processCPUTurn(gameId, cpuName, io);
+        if (nextOpeningAction) await this.applyCPUAction(gameId, cpuName, nextOpeningAction, io);
+        break;
+      }
       case 'pick-card': {
         await this.pickCard(gameId, action.data.deckType, cpuName);
         emitState();

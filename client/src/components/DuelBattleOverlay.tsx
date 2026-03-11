@@ -102,6 +102,7 @@ export const DuelBattleOverlay: React.FC = () => {
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const mountedRef = useRef(true);
   const isDuelEndingRef = useRef(false);
+  const victoryShownRef = useRef(false);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -156,6 +157,7 @@ export const DuelBattleOverlay: React.FC = () => {
     const handleDuelStarted = (data: { duelState: DuelStateData; message: string }) => {
       console.log('⚔️ DUEL OVERLAY: Duel started!', data);
       isDuelEndingRef.current = false;
+      victoryShownRef.current = false;
       setDuelState(data.duelState);
       setShowIntro(true);
       setIntroPhase('flash');
@@ -172,6 +174,8 @@ export const DuelBattleOverlay: React.FC = () => {
 
     const handleDuelEnded = (data: { winner: string; reason: string }) => {
       console.log('⚔️ DUEL OVERLAY: Duel ended!', data);
+      if (victoryShownRef.current) return;
+      victoryShownRef.current = true;
       isDuelEndingRef.current = true;
       setShowVictory(data);
       setCurrentMessage(`${data.winner} ha vinto il duello!`);
@@ -204,6 +208,7 @@ export const DuelBattleOverlay: React.FC = () => {
   useEffect(() => {
     const gs = gameState as any;
     if (gs?.activeDuel && gs.activeDuel.active && !duelState) {
+      victoryShownRef.current = false;
       setDuelState(gs.activeDuel);
     }
     if (gs?.activeDuel && duelState) {
@@ -211,6 +216,7 @@ export const DuelBattleOverlay: React.FC = () => {
     }
     if (!gs?.activeDuel && duelState && !showVictory && !isDuelEndingRef.current) {
       setDuelState(null);
+      victoryShownRef.current = false;
     }
   }, [(gameState as any)?.activeDuel]);
 
@@ -232,9 +238,10 @@ export const DuelBattleOverlay: React.FC = () => {
     setChar1(c1);
     setChar2(c2);
 
-    if (!showVictory && !isDuelEndingRef.current) {
+    if (!showVictory && !isDuelEndingRef.current && !victoryShownRef.current) {
       if (c1 && c1.pti <= 0) {
         console.log(`⚔️ DUEL OVERLAY: Character 1 (${c1.name}) PTI=0, ending duel client-side`);
+        victoryShownRef.current = true;
         isDuelEndingRef.current = true;
         setShowVictory({ winner: duelState.player2, reason: 'character_death' });
         setCurrentMessage(`${duelState.player2} ha vinto il duello!`);
@@ -246,6 +253,7 @@ export const DuelBattleOverlay: React.FC = () => {
         }, 3000);
       } else if (c2 && c2.pti <= 0) {
         console.log(`⚔️ DUEL OVERLAY: Character 2 (${c2.name}) PTI=0, ending duel client-side`);
+        victoryShownRef.current = true;
         isDuelEndingRef.current = true;
         setShowVictory({ winner: duelState.player1, reason: 'character_death' });
         setCurrentMessage(`${duelState.player1} ha vinto il duello!`);
@@ -259,6 +267,7 @@ export const DuelBattleOverlay: React.FC = () => {
         const missingIsChar1 = !c1 && char1;
         const winner = missingIsChar1 ? duelState.player2 : duelState.player1;
         console.log(`⚔️ DUEL OVERLAY: Character removed from field, ending duel client-side. Winner: ${winner}`);
+        victoryShownRef.current = true;
         isDuelEndingRef.current = true;
         setShowVictory({ winner, reason: 'character_death' });
         setCurrentMessage(`${winner} ha vinto il duello!`);
