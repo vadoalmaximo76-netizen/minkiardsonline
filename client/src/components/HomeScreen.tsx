@@ -267,13 +267,9 @@ const HOME_STYLES = `
     0%, 100% { opacity: 0.35; }
     50%       { opacity: 0.85; }
   }
-  @keyframes tickerScroll {
-    0%   { transform: translateX(100%); }
-    100% { transform: translateX(-100%); }
-  }
-  @keyframes tickerFadeIn {
-    0%   { opacity: 0; transform: translateY(6px); }
-    100% { opacity: 1; transform: translateY(0); }
+  @keyframes marqueeNews {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
   }
   @keyframes statsPop {
     0%   { opacity: 0; transform: translateY(-8px) scale(0.95); }
@@ -284,8 +280,10 @@ const HOME_STYLES = `
 export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMatch, userEmail, initialShowTournaments, onInitialShowTournamentsHandled }: HomeScreenProps) {
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [activeRoomsCount, setActiveRoomsCount] = useState(0);
-  const [quoteIndex, setQuoteIndex] = useState(0);
-  const [quoteVisible, setQuoteVisible] = useState(true);
+  const [tickerQuotes, setTickerQuotes] = useState<string[]>([]);
+  const [tickerEditOpen, setTickerEditOpen] = useState(false);
+  const [tickerEditText, setTickerEditText] = useState('');
+  const [tickerSaving, setTickerSaving] = useState(false);
   const [panels, setPanels] = useState<HomePanel[]>([]);
   const [editMode, setEditMode] = useState(false);
   const [editingPanel, setEditingPanel] = useState<HomePanel | null | 'new'>(null);
@@ -296,7 +294,7 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
 
   const authToken = localStorage.getItem('authToken') || '';
 
-  const QUOTES = [
+  const DEFAULT_QUOTES = [
     "⚡ Viva il Pelux",
     "🎮 Entra nel vivo del gioco scegliendo la sezione che preferisci",
     "✨ Lo sapevi che puoi comprare skin speciali per le tue carte? Vai su PROFILO e scegli SKIN CARTE",
@@ -306,19 +304,36 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
   ];
 
   useEffect(() => {
-    setQuoteIndex(Math.floor(Math.random() * QUOTES.length));
+    fetch('/api/news-ticker')
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data) && data.length > 0) setTickerQuotes(data); else setTickerQuotes(DEFAULT_QUOTES); })
+      .catch(() => setTickerQuotes(DEFAULT_QUOTES));
   }, []);
 
-  useEffect(() => {
-    const cycle = setInterval(() => {
-      setQuoteVisible(false);
-      setTimeout(() => {
-        setQuoteIndex(i => (i + 1) % QUOTES.length);
-        setQuoteVisible(true);
-      }, 500);
-    }, 5000);
-    return () => clearInterval(cycle);
-  }, []);
+  const tickerText = tickerQuotes.length > 0
+    ? [...tickerQuotes, ...tickerQuotes].join('   •   ')
+    : DEFAULT_QUOTES.join('   •   ');
+  const tickerDuration = Math.max(20, (tickerText.length / 2) * 0.09);
+
+  const openTickerEdit = () => {
+    setTickerEditText((tickerQuotes.length > 0 ? tickerQuotes : DEFAULT_QUOTES).join('\n'));
+    setTickerEditOpen(true);
+  };
+
+  const saveTickerEdit = async () => {
+    setTickerSaving(true);
+    const lines = tickerEditText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    try {
+      await fetch('/api/news-ticker', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+        body: JSON.stringify(lines),
+      });
+      setTickerQuotes(lines);
+      setTickerEditOpen(false);
+    } catch (e) { console.error(e); }
+    setTickerSaving(false);
+  };
 
   const [showTournaments, setShowTournaments] = useState(false);
   const [showSeasonalEvents, setShowSeasonalEvents] = useState(false);
@@ -654,41 +669,86 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
         <div style={{
           background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(12px)',
           border: '1px solid rgba(139,92,246,0.15)', borderRadius: 12,
-          padding: '10px 16px', overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 10,
+          overflow: 'hidden', display: 'flex', alignItems: 'center',
+          boxShadow: '0 2px 16px rgba(0,0,0,0.25)',
         }}>
-          <span style={{
-            flexShrink: 0, fontSize: 10, fontWeight: 800, color: '#a78bfa',
-            letterSpacing: '0.1em', textTransform: 'uppercase', whiteSpace: 'nowrap',
-            borderRight: '1px solid rgba(139,92,246,0.3)', paddingRight: 10,
-          }}>NEWS</span>
-          <span
-            key={quoteIndex}
-            style={{
-              fontSize: 13, color: 'rgba(203,213,225,0.85)', whiteSpace: 'nowrap',
-              overflow: 'hidden', textOverflow: 'ellipsis',
-              opacity: quoteVisible ? 1 : 0,
-              transform: quoteVisible ? 'translateY(0)' : 'translateY(4px)',
-              transition: 'opacity 0.45s ease, transform 0.45s ease',
-            }}
-          >
-            {QUOTES[quoteIndex]}
-          </span>
-          <div style={{ display: 'flex', gap: 4, marginLeft: 'auto', flexShrink: 0 }}>
-            {QUOTES.map((_, i) => (
+          <div style={{
+            flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6,
+            padding: '10px 12px', borderRight: '1px solid rgba(139,92,246,0.2)',
+            background: 'rgba(139,92,246,0.1)',
+          }}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: '#a78bfa', letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>NEWS</span>
+            {isAdmin && (
               <button
-                key={i}
-                onClick={() => { setQuoteVisible(false); setTimeout(() => { setQuoteIndex(i); setQuoteVisible(true); }, 300); }}
+                onClick={openTickerEdit}
+                title="Modifica news"
                 style={{
-                  width: i === quoteIndex ? 16 : 5, height: 5, borderRadius: 3,
-                  background: i === quoteIndex ? '#a78bfa' : 'rgba(148,163,184,0.25)',
-                  border: 'none', cursor: 'pointer', padding: 0,
-                  transition: 'width 0.3s, background 0.3s',
+                  width: 18, height: 18, borderRadius: 4, border: 'none', cursor: 'pointer',
+                  background: 'rgba(139,92,246,0.35)', color: '#c084fc', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 10, padding: 0, flexShrink: 0,
                 }}
-              />
-            ))}
+              >✏️</button>
+            )}
+          </div>
+          <div style={{ flex: 1, overflow: 'hidden', position: 'relative', height: 36 }}>
+            <div style={{
+              display: 'inline-flex', whiteSpace: 'nowrap',
+              animation: `marqueeNews ${tickerDuration}s linear infinite`,
+              paddingLeft: 16,
+            }}>
+              <span style={{ fontSize: 12, color: 'rgba(203,213,225,0.9)', whiteSpace: 'nowrap', lineHeight: '36px' }}>
+                {tickerText}
+              </span>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Admin ticker edit modal */}
+      {tickerEditOpen && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
+        }} onClick={() => setTickerEditOpen(false)}>
+          <div style={{
+            background: 'linear-gradient(135deg, #1e1b4b, #0f172a)', borderRadius: 20,
+            border: '1px solid rgba(139,92,246,0.3)', padding: 28, width: '90%', maxWidth: 520,
+            boxShadow: '0 30px 80px rgba(0,0,0,0.5)',
+          }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: '#e2e8f0' }}>✏️ Modifica News</h3>
+            <p style={{ margin: '0 0 16px', fontSize: 12, color: 'rgba(148,163,184,0.7)' }}>Una news per riga — scorrono automaticamente nel ticker</p>
+            <textarea
+              value={tickerEditText}
+              onChange={e => setTickerEditText(e.target.value)}
+              rows={10}
+              style={{
+                width: '100%', borderRadius: 10, border: '1px solid rgba(139,92,246,0.3)',
+                background: 'rgba(255,255,255,0.05)', color: '#e2e8f0', fontSize: 13, lineHeight: 1.6,
+                padding: '10px 12px', outline: 'none', resize: 'vertical', boxSizing: 'border-box',
+                fontFamily: 'inherit',
+              }}
+            />
+            <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+              <button
+                onClick={saveTickerEdit}
+                disabled={tickerSaving}
+                style={{
+                  flex: 1, padding: '10px 0', borderRadius: 10, border: 'none', cursor: 'pointer',
+                  background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', color: '#fff',
+                  fontWeight: 700, fontSize: 14, opacity: tickerSaving ? 0.6 : 1,
+                }}
+              >{tickerSaving ? 'Salvataggio...' : 'Salva'}</button>
+              <button
+                onClick={() => setTickerEditOpen(false)}
+                style={{
+                  flex: 1, padding: '10px 0', borderRadius: 10, border: '1px solid rgba(139,92,246,0.3)',
+                  background: 'transparent', color: 'rgba(203,213,225,0.7)', fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                }}
+              >Annulla</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Panel editor modal */}
       {editingPanel !== null && (

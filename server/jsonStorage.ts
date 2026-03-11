@@ -949,6 +949,29 @@ export interface HomePanel {
   adminOnly: boolean;
 }
 
+export const newsTickerStorage = {
+  DEFAULT_QUOTES: [
+    "⚡ Viva il Pelux",
+    "🎮 Entra nel vivo del gioco scegliendo la sezione che preferisci",
+    "✨ Lo sapevi che puoi comprare skin speciali per le tue carte? Vai su PROFILO e scegli SKIN CARTE",
+    "📖 Vuoi capire meglio il meccanismo? Vai su ALLENAMENTO e premi REGOLAMENTO per non avere più dubbi!",
+    "🏆 FantaMinkiards: costruisci la tua squadra e sfida gli amici nel torneo!",
+    "📬 Minkiards è un progetto indipendente nato nel 2012 — vadoalmaximo76@gmail.com"
+  ],
+  get(): string[] {
+    const file = path.join(DATA_DIR, 'newsTicker.json');
+    try {
+      if (!fs.existsSync(file)) return this.DEFAULT_QUOTES;
+      const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+      return Array.isArray(data) && data.length > 0 ? data : this.DEFAULT_QUOTES;
+    } catch { return this.DEFAULT_QUOTES; }
+  },
+  save(quotes: string[]): void {
+    const file = path.join(DATA_DIR, 'newsTicker.json');
+    fs.writeFileSync(file, JSON.stringify(quotes, null, 2));
+  },
+};
+
 export const homePanelsStorage = {
   getAll(): HomePanel[] {
     const file = path.join(DATA_DIR, 'homePanels.json');
