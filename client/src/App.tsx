@@ -115,6 +115,10 @@ function App() {
   const overlayTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const [openHomeTournaments, setOpenHomeTournaments] = useState(false);
   const [spectatingGameId, setSpectatingGameId] = useState<string | null>(null);
+  const [fantaReturnId, setFantaReturnId] = useState<string | null>(null);
+  useEffect(() => {
+    if (currentSection !== 'fanta') setFantaReturnId(null);
+  }, [currentSection]);
   const [resetPasswordToken, setResetPasswordToken] = useState<string | null>(() => getResetPasswordToken());
   const [gameInvitation, setGameInvitation] = useState<{
     senderId: number;
@@ -761,6 +765,7 @@ function App() {
           playerName={playerName}
           authToken={localStorage.getItem('authToken') ?? undefined}
           isAdmin={authenticatedUser?.email === 'lucaforte94@gmail.com'}
+          initialFantaId={fantaReturnId ?? undefined}
           onClose={handleGoHome}
           onJoinFantaGame={(gameId: string) => {
             setGameId(gameId);
@@ -927,6 +932,13 @@ function App() {
                 sessionRestoredRef.current = true;
                 window.history.pushState(null, '', window.location.origin);
                 setCurrentSection('tournaments');
+              }}
+              onContinueFantaTournament={(fantaId: string) => {
+                console.log('[APP] Continua torneo FantaMinkiards — fantaId:', fantaId);
+                sessionRestoredRef.current = true;
+                window.history.pushState(null, '', window.location.origin);
+                setFantaReturnId(fantaId);
+                setCurrentSection('fanta');
               }}
             />
           </GameErrorBoundary>

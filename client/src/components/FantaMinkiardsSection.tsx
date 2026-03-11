@@ -42,11 +42,12 @@ interface Props {
   playerName: string;
   authToken?: string;
   isAdmin?: boolean;
+  initialFantaId?: string;
   onClose: () => void;
   onJoinFantaGame?: (gameId: string) => void;
 }
 
-export function FantaMinkiardsSection({ playerName, authToken, isAdmin, onClose, onJoinFantaGame }: Props) {
+export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialFantaId, onClose, onJoinFantaGame }: Props) {
   const [view, setView] = useState<'list' | 'lobby' | 'waiting' | 'auction' | 'complete' | 'configure' | 'bracket'>('list');
   const [lobbySessions, setLobbySessions] = useState<SessionSummary[]>([]);
   const [currentSession, setCurrentSession] = useState<FantaSession | null>(null);
@@ -98,6 +99,14 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, onClose,
     const interval = setInterval(fetchSessions, 5000);
     return () => clearInterval(interval);
   }, [fetchSessions]);
+
+  useEffect(() => {
+    if (initialFantaId && playerName) {
+      console.log('[FANTA] Auto-rejoining fantaId:', initialFantaId);
+      setLoading(true);
+      socket.emit('fanta:rejoin', { fantaId: initialFantaId, playerName });
+    }
+  }, [initialFantaId, playerName]);
 
   useEffect(() => {
     socket.on('fanta:session-created', ({ fantaId: id, session }: { fantaId: string; session: FantaSession }) => {

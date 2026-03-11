@@ -98,9 +98,10 @@ interface GameBoardProps {
   onBack?: () => void;
   onLeaveGame?: () => void;
   onContinueTournament?: () => void;
+  onContinueFantaTournament?: (fantaId: string) => void;
 }
 
-export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogout, authToken, onBack, onLeaveGame, onContinueTournament }) => {
+export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogout, authToken, onBack, onLeaveGame, onContinueTournament, onContinueFantaTournament }) => {
   const [, _forceCloudUpdate] = useState(0);
   const _cloudNameReadyAtMount = useRef(!!getCloudinaryCloudName());
   useEffect(() => {
@@ -473,6 +474,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     cardType: string;
   }>>([]);
     const { selectedCard, setSelectedCard, gameId, playerName, gameState, setGameId, setUserRankiardPoints, addPRSpent, prSpentThisGame, resetPRSpent, clearSession } = useGameState();
+  const fantaTournamentId = (gameState as any)?.fantaTournamentId as string | null | undefined;
   const { playGameStart, playPlayerJoin, playChatMessage, playCardToGraveyard, playDiceRoll, playDamageSound, playBeeSound, playCharacterSound, playCardAnimationSound, initAudioContext, toggleMute, isMuted, playAttackSound, playDeathSound, playCardPickup, playCardPlay, playTurnChange, playBonusActivated, playMyTurn, playDeckShuffle, playEffectActivate, playHostageApplied, playHostageReleased, playPersonaggioEnter, playCardReveal, playErrorSound, playPlayerEliminated, playSorosActivation, playFusionSound, playCardPlayedToField, playVictory, playDefeat, playButtonClick, playPanelOpen, playPanelClose, playModalOpen, playModalClose, playConfirm } = useAudio();
 
 
@@ -2358,9 +2360,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           clearSession();
           window.location.href = window.location.origin;
         }}
-        onContinueTournament={gameId.startsWith('tournament-') && onContinueTournament ? () => {
-          console.log('[REWARDS] Prosegui torneo clicked');
-          onContinueTournament();
+        onContinueTournament={(gameId.startsWith('tournament-') || !!fantaTournamentId) ? () => {
+          console.log('[REWARDS] Continua torneo clicked, fantaTournamentId:', fantaTournamentId);
+          if (fantaTournamentId && onContinueFantaTournament) {
+            clearSession();
+            onContinueFantaTournament(fantaTournamentId);
+          } else if (onContinueTournament) {
+            onContinueTournament();
+          }
         } : undefined}
         rematchSection={!rematchState.newGameId && !bo3State.seriesStarted ? (
           rematchState.declined ? (

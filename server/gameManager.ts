@@ -3030,6 +3030,7 @@ Rispondi SOLO in JSON:`;
       } : undefined,
       turnTimeoutSeconds: gameState.turnTimeoutSeconds !== undefined ? gameState.turnTimeoutSeconds : 30,
       creatorName: gameState.creatorName,
+      fantaTournamentId: gameState.fantaTournamentId || null,
       isDraftMode: gameState.isDraftMode || false,
       playerDraftDeckCounts: gameState.isDraftMode && gameState.playerDraftDecks
         ? Object.fromEntries(Object.entries(gameState.playerDraftDecks).map(([name, decks]) => [name, {
