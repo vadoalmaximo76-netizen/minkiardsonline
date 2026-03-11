@@ -3197,13 +3197,24 @@ Rispondi SOLO in JSON:`;
               console.log(`👤 Including guest player ${playerName} in ${savedGame.gameId} as disconnected — can rejoin by name`);
             }
             
-            reconstructedPlayers[playerName] = {
+            const restoredPlayer: any = {
               name: (playerInfo as any).name,
               hand: playerHands[playerName] || [],
               socketId: (!hasUserId && !isCPU) ? '' : (playerInfo as any).socketId,
               isCPU: (playerInfo as any).isCPU,
-              avatar: (playerInfo as any).avatar
+              avatar: (playerInfo as any).avatar,
+              cpuLevel: (playerInfo as any).cpuLevel || 'medium',
+              usedCardsThisTurn: (playerInfo as any).usedCardsThisTurn || [],
+              usedMosseOnBarrieraThisTurn: (playerInfo as any).usedMosseOnBarrieraThisTurn || false,
             };
+            // Re-create cpuInstance for CPU players (lost on serialization)
+            if (isCPU) {
+              restoredPlayer.cpuInstance = new CPUPlayer(playerName, savedGame.gameId);
+              restoredPlayer.cpuInstance.setGameManager(this);
+              restoredPlayer.cpuInstance.completeOpeningSequence();
+              console.log(`🤖 Restored cpuInstance for ${playerName} in ${savedGame.gameId}`);
+            }
+            reconstructedPlayers[playerName] = restoredPlayer;
             // Re-register player-to-game mapping so rejoin works
             this.playerToGame.set(playerName, savedGame.gameId);
           }

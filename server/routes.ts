@@ -7776,20 +7776,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     return; // Exit without ending turn - attack resolution will continue the turn
                   }
                   
-                  // CPU had no valid actions, just end turn
+                  // CPU had no valid actions, force-end their turn
                   // Process delayed damages before ending turn
                   gameManager.processDelayedDamages(gameId, nextPlayer, io);
+                  console.log(`⚠️ CPU ${nextPlayer} returned null - force-ending their turn`);
                   
-                  const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
+                  const nextAfterCPU = gameManager.forceEndTurn(gameId);
                   if (nextAfterCPU) {
                     io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                    const updAfterNull = gameManager.getSanitizedGameState(gameId);
+                    if (updAfterNull) emitThrottledGameState(io, gameId, updAfterNull);
                     
                     // CRITICAL FIX: Trigger next CPU turn if next player is also CPU
                     const freshGameState = gameManager.getGameState(gameId);
                     if (freshGameState && freshGameState.players[nextAfterCPU]?.isCPU) {
-                      setTimeout(() => {
-                        gameManager.processCPUTurn(gameId, nextAfterCPU, io);
+                      setTimeout(async () => {
+                        const nextCpuAction = await gameManager.processCPUTurn(gameId, nextAfterCPU, io);
+                        if (nextCpuAction) await gameManager.applyCPUAction(gameId, nextAfterCPU, nextCpuAction, io);
                       }, 2000);
+                    } else {
+                      gameManager.startTurnTimer(gameId, nextAfterCPU);
                     }
                   }
                 }
@@ -7799,16 +7805,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 // Process delayed damages before ending turn
                 gameManager.processDelayedDamages(gameId, nextPlayer, io);
                 
-                const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
+                const nextAfterCPU = gameManager.forceEndTurn(gameId);
                 if (nextAfterCPU) {
                   io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
+                  const updAfterErr = gameManager.getSanitizedGameState(gameId);
+                  if (updAfterErr) emitThrottledGameState(io, gameId, updAfterErr);
                   
                   // CRITICAL FIX: Trigger next CPU turn if next player is also CPU
                   const freshGameState = gameManager.getGameState(gameId);
                   if (freshGameState && freshGameState.players[nextAfterCPU]?.isCPU) {
-                    setTimeout(() => {
-                      gameManager.processCPUTurn(gameId, nextAfterCPU, io);
+                    setTimeout(async () => {
+                      const nextCpuAction = await gameManager.processCPUTurn(gameId, nextAfterCPU, io);
+                      if (nextCpuAction) await gameManager.applyCPUAction(gameId, nextAfterCPU, nextCpuAction, io);
                     }, 2000);
+                  } else {
+                    gameManager.startTurnTimer(gameId, nextAfterCPU);
                   }
                 }
               }
