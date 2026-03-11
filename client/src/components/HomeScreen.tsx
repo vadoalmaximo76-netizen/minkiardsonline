@@ -356,8 +356,9 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
   useEffect(() => {
     const fetchData = async () => {
       try {
-        if (authToken) {
-          const statsRes = await fetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${authToken}` } });
+        const token = localStorage.getItem('authToken');
+        if (token) {
+          const statsRes = await fetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
           if (statsRes.ok) {
             const data = await statsRes.json();
             setUserStats({ puntiRankiard: data.user.puntiRankiard || 0, gamesPlayed: data.user.gamesPlayed || 0, gamesWon: data.user.gamesWon || 0 });
@@ -371,8 +372,15 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
       } catch (e) {}
     };
     fetchData();
-    const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchData, 10000);
+
+    const handleFocus = () => fetchData();
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   const savePanels = async (updated: HomePanel[]) => {
