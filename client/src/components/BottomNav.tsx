@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 
 type AppSection = 'home' | 'play' | 'training' | 'rooms' | 'profile' | 'spectator' | 'admin' | 'draft' | 'leaderboard' | 'tournaments' | 'fanta';
 
@@ -66,135 +66,210 @@ const NAV_ITEMS = [
   },
 ];
 
+const NAV_HEIGHT = 64;
+
 export function BottomNav({ currentSection, onNavigate, hasActiveGame = false }: BottomNavProps) {
+  const [visible, setVisible] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('bottomNavVisible');
+      return stored === null ? true : stored === 'true';
+    } catch { return true; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem('bottomNavVisible', String(visible)); } catch {}
+  }, [visible]);
+
+  const toggleNav = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setVisible(v => !v);
+  };
+
   return (
     <>
-      <div
-        className="md:hidden"
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 9999,
-          background: 'rgba(7, 11, 26, 0.92)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          borderTop: '1px solid rgba(139, 92, 246, 0.18)',
-          boxShadow: '0 -4px 32px rgba(0,0,0,0.5), 0 -1px 0 rgba(139,92,246,0.1)',
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-          display: 'flex',
-          alignItems: 'stretch',
-        }}
-      >
-        {NAV_ITEMS.map((item) => {
-          const isActive = currentSection === item.section ||
-            (item.section === 'play' && currentSection === 'rooms');
-
-          return (
-            <button
-              key={item.section}
-              onClick={() => onNavigate(item.section)}
-              style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 3,
-                padding: item.isPrimary ? '6px 4px 8px' : '10px 4px 12px',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                position: 'relative',
-                outline: 'none',
-                WebkitTapHighlightColor: 'transparent',
-              }}
+      <div className="md:hidden">
+        {/* Toggle handle — always visible */}
+        <div
+          style={{
+            position: 'fixed',
+            bottom: visible ? NAV_HEIGHT : 0,
+            right: 16,
+            zIndex: 10000,
+            transition: 'bottom 0.3s cubic-bezier(0.4,0,0.2,1)',
+          }}
+        >
+          <button
+            onClick={toggleNav}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '5px 10px 5px 8px',
+              background: 'rgba(7,11,26,0.92)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              border: '1px solid rgba(139,92,246,0.3)',
+              borderBottom: visible ? '1px solid rgba(139,92,246,0.3)' : 'none',
+              borderRadius: visible ? '10px 10px 0 0' : '10px 10px 0 0',
+              color: 'rgba(192,132,252,0.9)',
+              cursor: 'pointer',
+              outline: 'none',
+              WebkitTapHighlightColor: 'transparent',
+              boxShadow: '0 -2px 12px rgba(0,0,0,0.4)',
+              transform: 'translateY(0)',
+            }}
+            aria-label={visible ? 'Nascondi barra' : 'Mostra barra'}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              style={{ transition: 'transform 0.3s', transform: visible ? 'rotate(0deg)' : 'rotate(180deg)' }}
             >
-              {item.isPrimary ? (
-                <div style={{
-                  width: 50,
-                  height: 50,
-                  borderRadius: '50%',
-                  background: isActive
-                    ? 'linear-gradient(135deg, #9333ea, #7c3aed)'
-                    : 'linear-gradient(135deg, #1e1b4b, #312e81)',
+              <polyline points="18 15 12 9 6 15" />
+            </svg>
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+              {visible ? 'Chiudi' : 'Menu'}
+            </span>
+          </button>
+        </div>
+
+        {/* Nav bar */}
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            zIndex: 9999,
+            background: 'rgba(7, 11, 26, 0.92)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            borderTop: '1px solid rgba(139, 92, 246, 0.18)',
+            boxShadow: '0 -4px 32px rgba(0,0,0,0.5), 0 -1px 0 rgba(139,92,246,0.1)',
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+            display: 'flex',
+            alignItems: 'stretch',
+            transform: visible ? 'translateY(0)' : `translateY(100%)`,
+            transition: 'transform 0.3s cubic-bezier(0.4,0,0.2,1)',
+          }}
+        >
+          {NAV_ITEMS.map((item) => {
+            const isActive = currentSection === item.section ||
+              (item.section === 'play' && currentSection === 'rooms');
+
+            return (
+              <button
+                key={item.section}
+                onClick={() => onNavigate(item.section)}
+                style={{
+                  flex: 1,
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: 'white',
-                  boxShadow: isActive
-                    ? '0 0 20px rgba(147,51,234,0.7), 0 4px 12px rgba(0,0,0,0.4)'
-                    : '0 0 0 rgba(0,0,0,0), 0 2px 8px rgba(0,0,0,0.3)',
-                  border: isActive
-                    ? '1.5px solid rgba(196,148,253,0.6)'
-                    : '1.5px solid rgba(99,102,241,0.3)',
-                  transform: isActive ? 'scale(1.08)' : 'scale(1)',
-                  transition: 'all 0.2s cubic-bezier(0.34,1.56,0.64,1)',
-                  marginBottom: 0,
-                }}>
-                  {item.icon(isActive)}
-                  {hasActiveGame && (
-                    <span style={{
-                      position: 'absolute',
-                      top: 0,
-                      right: 0,
-                      width: 10,
-                      height: 10,
-                      background: '#22c55e',
-                      borderRadius: '50%',
-                      border: '2px solid #070b1a',
-                    }} />
-                  )}
-                </div>
-              ) : (
-                <div style={{
+                  gap: 3,
+                  padding: item.isPrimary ? '6px 4px 8px' : '10px 4px 12px',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
                   position: 'relative',
-                  color: isActive ? '#c084fc' : 'rgba(148,163,184,0.6)',
-                  transition: 'color 0.2s, transform 0.2s',
-                  transform: isActive ? 'scale(1.12) translateY(-1px)' : 'scale(1)',
-                  filter: isActive ? 'drop-shadow(0 0 6px rgba(192,132,252,0.7))' : 'none',
-                }}>
-                  {item.icon(isActive)}
-                </div>
-              )}
+                  outline: 'none',
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+              >
+                {item.isPrimary ? (
+                  <div style={{
+                    width: 50,
+                    height: 50,
+                    borderRadius: '50%',
+                    background: isActive
+                      ? 'linear-gradient(135deg, #9333ea, #7c3aed)'
+                      : 'linear-gradient(135deg, #1e1b4b, #312e81)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    boxShadow: isActive
+                      ? '0 0 20px rgba(147,51,234,0.7), 0 4px 12px rgba(0,0,0,0.4)'
+                      : '0 0 0 rgba(0,0,0,0), 0 2px 8px rgba(0,0,0,0.3)',
+                    border: isActive
+                      ? '1.5px solid rgba(196,148,253,0.6)'
+                      : '1.5px solid rgba(99,102,241,0.3)',
+                    transform: isActive ? 'scale(1.08)' : 'scale(1)',
+                    transition: 'all 0.2s cubic-bezier(0.34,1.56,0.64,1)',
+                    marginBottom: 0,
+                    position: 'relative',
+                  }}>
+                    {item.icon(isActive)}
+                    {hasActiveGame && (
+                      <span style={{
+                        position: 'absolute',
+                        top: 0,
+                        right: 0,
+                        width: 10,
+                        height: 10,
+                        background: '#22c55e',
+                        borderRadius: '50%',
+                        border: '2px solid #070b1a',
+                      }} />
+                    )}
+                  </div>
+                ) : (
+                  <div style={{
+                    position: 'relative',
+                    color: isActive ? '#c084fc' : 'rgba(148,163,184,0.6)',
+                    transition: 'color 0.2s, transform 0.2s',
+                    transform: isActive ? 'scale(1.12) translateY(-1px)' : 'scale(1)',
+                    filter: isActive ? 'drop-shadow(0 0 6px rgba(192,132,252,0.7))' : 'none',
+                  }}>
+                    {item.icon(isActive)}
+                  </div>
+                )}
 
-              {!item.isPrimary && (
-                <span style={{
-                  fontSize: 10,
-                  fontWeight: isActive ? 700 : 500,
-                  color: isActive ? '#c084fc' : 'rgba(148,163,184,0.5)',
-                  letterSpacing: '0.03em',
-                  transition: 'color 0.2s',
-                  lineHeight: 1,
-                }}>
-                  {item.label}
-                </span>
-              )}
+                {!item.isPrimary && (
+                  <span style={{
+                    fontSize: 10,
+                    fontWeight: isActive ? 700 : 500,
+                    color: isActive ? '#c084fc' : 'rgba(148,163,184,0.5)',
+                    letterSpacing: '0.03em',
+                    transition: 'color 0.2s',
+                    lineHeight: 1,
+                  }}>
+                    {item.label}
+                  </span>
+                )}
 
-              {isActive && !item.isPrimary && (
-                <span style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  width: 24,
-                  height: 2,
-                  borderRadius: 2,
-                  background: 'linear-gradient(90deg, #9333ea, #c084fc)',
-                  boxShadow: '0 0 8px rgba(192,132,252,0.8)',
-                }} />
-              )}
-            </button>
-          );
-        })}
+                {isActive && !item.isPrimary && (
+                  <span style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: 24,
+                    height: 2,
+                    borderRadius: 2,
+                    background: 'linear-gradient(90deg, #9333ea, #c084fc)',
+                    boxShadow: '0 0 8px rgba(192,132,252,0.8)',
+                  }} />
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
+      {/* Spacer — only when nav is visible */}
       <div
         className="md:hidden"
         style={{
-          height: `calc(64px + env(safe-area-inset-bottom, 0px))`,
+          height: visible ? `calc(${NAV_HEIGHT}px + env(safe-area-inset-bottom, 0px))` : '0px',
           flexShrink: 0,
+          transition: 'height 0.3s cubic-bezier(0.4,0,0.2,1)',
         }}
       />
     </>
