@@ -33,6 +33,10 @@ export interface FantaCard {
   name: string;
   rarity: FantaRarity;
   draftCost: number;
+  auctionPrice?: number;
+  pti?: number | null;
+  stars?: number | null;
+  effect?: string | null;
 }
 
 export interface FantaDeck {
@@ -177,6 +181,9 @@ function buildCardQueue(mods: any[]): FantaCard[] {
         name,
         rarity: getRarity(draftCost, sortedCosts),
         draftCost,
+        pti: mod?.pti ?? null,
+        stars: mod?.stars ?? null,
+        effect: mod?.effect ?? null,
       });
     });
   }
@@ -760,7 +767,8 @@ export class FantaManager {
       const winner = session.participants[auction.currentBidder];
       if (winner) {
         winner.credits -= auction.currentBid;
-        winner.deck[auction.card.type].push(auction.card);
+        const cardWithPrice: FantaCard = { ...auction.card, auctionPrice: auction.currentBid };
+        winner.deck[auction.card.type].push(cardWithPrice);
 
         session.recentAwarded.unshift({ card: auction.card, winner: auction.currentBidder });
         if (session.recentAwarded.length > 10) session.recentAwarded.pop();

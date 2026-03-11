@@ -85,6 +85,8 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
   });
   const [prizeNotification, setPrizeNotification] = useState<{ player: string; points: number; placement: number } | null>(null);
   const [activeMatchGameId, setActiveMatchGameId] = useState<string | null>(null);
+  const [showDecksPanel, setShowDecksPanel] = useState(false);
+  const [selectedDeckPlayer, setSelectedDeckPlayer] = useState<string>('');
 
   const fetchSessions = useCallback(async () => {
     try {
@@ -192,7 +194,19 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
       setView('auction');
     });
 
-    socket.on('fanta:auction-complete', () => {
+    socket.on('fanta:auction-complete', ({ decks }: { decks?: Record<string, any>; fantaId?: string }) => {
+      if (decks) {
+        setCurrentSession(prev => {
+          if (!prev) return prev;
+          const updatedParticipants = { ...prev.participants };
+          for (const [name, deck] of Object.entries(decks)) {
+            if (updatedParticipants[name]) {
+              updatedParticipants[name] = { ...updatedParticipants[name], deck: deck as any };
+            }
+          }
+          return { ...prev, participants: updatedParticipants };
+        });
+      }
       setView('complete');
     });
 
@@ -709,6 +723,12 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
             <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 17 }}>🏆 {fantaTourney.config?.name || 'FantaTorneo'}</div>
             <div style={{ color: '#f59e0b', fontSize: 11 }}>{isCampionato ? 'Campionato Fanta' : 'Torneo Fanta'} · Mazzi dall'asta</div>
           </div>
+          <button
+            onClick={() => { setSelectedDeckPlayer(participants[0]?.name || ''); setShowDecksPanel(true); }}
+            style={{ background: '#1e3a5f', border: '1px solid #2563eb', borderRadius: 10, color: '#93c5fd', padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}
+          >
+            🃏 Mazzi
+          </button>
           {fantaTourney.status === 'completed' && fantaTourney.winnerId && (
             <div style={{ background: '#854d0e', border: '1px solid #d97706', borderRadius: 20, padding: '4px 14px', fontSize: 12, color: '#fde68a', fontWeight: 700 }}>
               👑 {fantaTourney.winnerId}
@@ -814,6 +834,127 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
             ⚠️ {error}
           </div>
         )}
+
+        {/* Deck viewer overlay */}
+        {showDecksPanel && (() => {
+          const rarityColor: Record<string, string> = { comune: '#64748b', rara: '#3b82f6', epica: '#7c3aed', leggendaria: '#f59e0b' };
+          const rarityLabel: Record<string, string> = { comune: 'C', rara: 'R', epica: 'E', leggendaria: 'L' };
+          const typeColor: Record<string, string> = { personaggi: '#3b82f6', mosse: '#f97316', bonus: '#22c55e' };
+          const selectedP = participants.find(p => p.name === selectedDeckPlayer) || participants[0];
+          if (!selectedP) return null;
+          const deck = selectedP.deck as any;
+          const sections: Array<{ key: 'personaggi' | 'mosse' | 'bonus'; label: string; icon: string }> = [
+            { key: 'personaggi', label: 'Personaggi', icon: '⚔️' },
+            { key: 'mosse', label: 'Mosse', icon: '💥' },
+            { key: 'bonus', label: 'Bonus', icon: '✨' },
+          ];
+          return (
+            <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.92)', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif' }}>
+              {/* Header */}
+              <div style={{ padding: '14px 18px', borderBottom: '1px solid #1e293b', background: 'linear-gradient(90deg, #0f172a, #1e1b4b)', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+                <span style={{ fontSize: 22 }}>🃏</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 16 }}>Mazzi dei Partecipanti</div>
+                  <div style={{ color: '#64748b', fontSize: 11 }}>{fantaTourney?.config?.name || 'FantaTorneo'}</div>
+                </div>
+                <button onClick={() => setShowDecksPanel(false)} style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, color: '#94a3b8', padding: '6px 12px', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>✕ Chiudi</button>
+              </div>
+
+              {/* Participant tabs */}
+              <div style={{ display: 'flex', gap: 8, padding: '10px 14px', overflowX: 'auto', flexShrink: 0, background: '#0f172a', borderBottom: '1px solid #1e293b' }}>
+                {participants.map(p => {
+                  const isSelected = p.name === (selectedP?.name);
+                  const deckTotal = (p.deck?.personaggi?.length || 0) + (p.deck?.mosse?.length || 0) + (p.deck?.bonus?.length || 0);
+                  return (
+                    <button key={p.name} onClick={() => setSelectedDeckPlayer(p.name)}
+                      style={{ flexShrink: 0, background: isSelected ? 'linear-gradient(135deg, #1e3a5f, #1e1b4b)' : '#1e293b', border: `1px solid ${isSelected ? '#2563eb' : '#334155'}`, borderRadius: 10, padding: '8px 14px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, minWidth: 80 }}>
+                      <span style={{ fontSize: 18 }}>{p.isCPU ? '🤖' : '👤'}</span>
+                      <span style={{ color: isSelected ? '#93c5fd' : '#94a3b8', fontWeight: isSelected ? 700 : 400, fontSize: 12, whiteSpace: 'nowrap', maxWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</span>
+                      <span style={{ color: '#64748b', fontSize: 10 }}>{deckTotal} carte · {p.credits} cr</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Selected participant info bar */}
+              <div style={{ padding: '10px 16px', background: '#0f172a', display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0, borderBottom: '1px solid #1e293b22' }}>
+                <span style={{ fontSize: 24 }}>{selectedP.isCPU ? '🤖' : '👤'}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 15 }}>{selectedP.name}</div>
+                  <div style={{ color: '#64748b', fontSize: 12 }}>
+                    {(selectedP.deck?.personaggi?.length || 0)}P · {(selectedP.deck?.mosse?.length || 0)}M · {(selectedP.deck?.bonus?.length || 0)}B
+                  </div>
+                </div>
+                <div style={{ background: '#854d0e22', border: '1px solid #d97706', borderRadius: 10, padding: '4px 12px', color: '#fbbf24', fontWeight: 700, fontSize: 13 }}>
+                  💰 {selectedP.credits} cr rimasti
+                </div>
+              </div>
+
+              {/* Cards */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {sections.map(({ key, label, icon }) => {
+                  const cards: any[] = deck[key] || [];
+                  if (cards.length === 0) return null;
+                  return (
+                    <div key={key}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                        <span style={{ fontSize: 16 }}>{icon}</span>
+                        <span style={{ color: typeColor[key], fontWeight: 700, fontSize: 14, textTransform: 'uppercase', letterSpacing: 0.6 }}>{label}</span>
+                        <span style={{ background: typeColor[key] + '22', color: typeColor[key], border: `1px solid ${typeColor[key]}44`, borderRadius: 20, padding: '1px 8px', fontSize: 11, fontWeight: 700 }}>{cards.length}</span>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
+                        {cards.map((card: any, ci: number) => (
+                          <div key={card.id || ci} style={{ background: 'linear-gradient(160deg, #1e293b, #0f172a)', border: `1px solid ${rarityColor[card.rarity] || '#334155'}44`, borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                            {/* Card image */}
+                            <div style={{ position: 'relative', aspectRatio: '3/4', background: '#0f172a', overflow: 'hidden' }}>
+                              {card.frontImage ? (
+                                <img src={card.frontImage} alt={card.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" />
+                              ) : (
+                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#334155', fontSize: 28 }}>🃏</div>
+                              )}
+                              {/* Rarity badge */}
+                              <div style={{ position: 'absolute', top: 6, right: 6, background: rarityColor[card.rarity] || '#334155', borderRadius: 6, padding: '2px 7px', fontSize: 10, fontWeight: 800, color: 'white', letterSpacing: 0.3 }}>
+                                {rarityLabel[card.rarity] || '?'}
+                              </div>
+                              {/* Auction price badge */}
+                              {card.auctionPrice != null && (
+                                <div style={{ position: 'absolute', bottom: 6, left: 6, background: 'rgba(0,0,0,0.75)', border: '1px solid #f59e0b88', borderRadius: 6, padding: '2px 7px', fontSize: 10, fontWeight: 700, color: '#fbbf24', backdropFilter: 'blur(4px)' }}>
+                                  💰 {card.auctionPrice} cr
+                                </div>
+                              )}
+                            </div>
+                            {/* Card info */}
+                            <div style={{ padding: '8px 10px', flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                              <div style={{ color: '#f1f5f9', fontWeight: 600, fontSize: 12, lineHeight: 1.3 }}>{card.name}</div>
+                              {key === 'personaggi' && (card.pti != null || card.stars != null) && (
+                                <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+                                  {card.pti != null && (
+                                    <span style={{ color: '#38bdf8', fontSize: 11, fontWeight: 700 }}>⚡ {card.pti} PTI</span>
+                                  )}
+                                  {card.stars != null && (
+                                    <span style={{ color: '#fbbf24', fontSize: 11, fontWeight: 700 }}>{'⭐'.repeat(Math.min(card.stars, 5))}</span>
+                                  )}
+                                </div>
+                              )}
+                              {(key === 'mosse' || key === 'bonus') && card.effect && (
+                                <div style={{ color: '#94a3b8', fontSize: 10, lineHeight: 1.4, marginTop: 2, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>
+                                  {card.effect}
+                                </div>
+                              )}
+                              {card.auctionPrice == null && (
+                                <div style={{ color: '#334155', fontSize: 10, fontStyle: 'italic', marginTop: 2 }}>Prezzo non disponibile</div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
       </div>
     );
   }
