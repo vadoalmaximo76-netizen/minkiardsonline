@@ -190,7 +190,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     message: string;
     timestamp: number;
   }>>([]);
-  const [characterLimitDialogOpen, setCharacterLimitDialogOpen] = useState(false);
   const [lobbyCharacterLimit, setLobbyCharacterLimit] = useState('3');
   const [eliminationDialogOpen, setEliminationDialogOpen] = useState(false);
   const [victoryDialogOpen, setVictoryDialogOpen] = useState(false);
@@ -567,14 +566,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.emit('start-game', { gameId, playerName, characterLimit: lobbyCharacterLimit });
   };
 
-  const handleCharacterLimitSelected = (limit: string) => {
-    setCharacterLimitDialogOpen(false);
-    socket.emit('start-game', { gameId, playerName, characterLimit: limit });
-  };
 
   const handleLobbyCharacterLimitChange = (limit: string) => {
     setLobbyCharacterLimit(limit);
-    socket.emit('set-lobby-settings', { gameId, characterLimit: limit });
+    socket.emit('set-lobby-settings', { gameId, playerName, characterLimit: limit });
   };
 
   const handleLeaveGame = () => {
@@ -2296,33 +2291,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         </div>
       )}
       
-      {/* Character Limit Selection Dialog */}
-      {characterLimitDialogOpen && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <h2 className="text-xl font-bold text-center mb-6 text-gray-800">
-              Da quanti personaggi è questa partita?
-            </h2>
-            <div className="space-y-3">
-              {['1', '2', '3', '5'].map((limit) => (
-                <Button
-                  key={limit}
-                  onClick={() => handleCharacterLimitSelected(limit)}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 text-lg border-2 border-blue-400 shadow-[0_0_15px_rgba(37,99,235,0.4)]"
-                >
-                  {limit} personaggi
-                </Button>
-              ))}
-              <Button
-                onClick={() => handleCharacterLimitSelected('unlimited')}
-                className="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 text-lg border-2 border-gray-400 shadow-[0_0_15px_rgba(75,85,99,0.4)]"
-              >
-                NON SPECIFICARE
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Elimination Confirmation Dialog */}
       {eliminationDialogOpen && (

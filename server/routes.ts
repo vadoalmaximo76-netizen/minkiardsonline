@@ -6592,9 +6592,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('set-lobby-settings', ({ gameId, characterLimit }: { gameId: string; characterLimit: string }) => {
+    socket.on('set-lobby-settings', ({ gameId, playerName, characterLimit }: { gameId: string; playerName: string; characterLimit: string }) => {
       const game = gameManager.getGame(gameId);
-      if (game && !game.isPlaying) {
+      if (game && !game.isPlaying && game.creatorName === playerName) {
         game.characterLimit = characterLimit;
         socket.to(gameId).emit('lobby-settings-updated', { characterLimit });
       }
@@ -6603,9 +6603,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('start-game', async ({ gameId, playerName, characterLimit }) => {
       const gameState = gameManager.getSanitizedGameState(gameId);
       if (gameState) {
-        // For fanta tournament matches, always use the tournament's pre-configured character limit
         const game = gameManager.getGame(gameId);
-        const effectiveLimit = (game as any)?.tournamentCharacterLimit ?? characterLimit;
+        const effectiveLimit = (game as any)?.tournamentCharacterLimit ?? characterLimit ?? game?.characterLimit ?? 'unlimited';
         const playerOrder = gameManager.startGame(gameId, effectiveLimit);
         if (playerOrder) {
           io.to(gameId).emit('game-started', { playerOrder });
