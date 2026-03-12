@@ -981,7 +981,7 @@ export class GameManager {
         avatar: game.players[name]?.avatar
       }));
       
-      const isPlaying = game.isPlaying || game.turnOrder.length > 0;
+      const isPlaying = game.isPlaying === true;
       
       activeGames.push({
         gameId,
@@ -1401,7 +1401,9 @@ export class GameManager {
     }
     
     // Check if game is in progress and requires approval for new players
-    const isPlaying = game.isPlaying || game.turnOrder.length > 0;
+    // Only require approval once the game has actually started (isPlaying = true after COMINCIA)
+    // Games in the waiting/lobby phase (turnOrder populated but isPlaying = false) allow free joins
+    const isPlaying = game.isPlaying === true;
     const existingPlayer = game.players[playerName];
     
     // If game is in progress and this is a new player (not reconnecting), require approval

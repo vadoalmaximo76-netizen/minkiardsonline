@@ -237,6 +237,9 @@ function App() {
         socket.on('join-requires-approval', ({ gameId, message }) => {
           console.log(`Join requires approval for game ${gameId}: ${message}`);
           alert(message || 'Questa partita è già iniziata. Usa la lista delle stanze attive per richiedere di unirti.');
+          // Navigate back to home so the player isn't stuck on an empty game screen
+          setGameId('');
+          setCurrentSection('home');
         });
 
         socket.on('challenge-accepted', (data: { gameId: string; roomCode: string; acceptedBy: string }) => {
