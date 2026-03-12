@@ -588,6 +588,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     }
   }, [gameState?.scenarioCardsActive]);
 
+  useEffect(() => {
+    if (gameState?.characterLimit && !(gameState as any)?.isPlaying) {
+      setLobbyCharacterLimit(gameState.characterLimit);
+    }
+  }, [gameState?.characterLimit, (gameState as any)?.isPlaying]);
+
   // Sync user's Rankiard points to the store when authenticated user changes
   useEffect(() => {
     if (authenticatedUser?.puntiRankiard !== undefined) {

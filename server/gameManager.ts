@@ -1065,7 +1065,7 @@ export class GameManager {
       turnOrder: [],
       currentTurnIndex: 0,
       spectators: [],
-      characterLimit: 'unlimited',
+      characterLimit: '3',
       eliminatedPlayers: new Set<string>(),
       eliminationOrder: [],
       playerUserIds: new Map<string, number>(),
