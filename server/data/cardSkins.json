@@ -34,5 +34,23 @@
     "isAvailable": true,
     "id": 2,
     "createdAt": "2026-03-10T15:03:38.025Z"
+  },
+  {
+    "name": "Majin Vegeta",
+    "cardName": "VEGETA SUPER SAYAN",
+    "cardType": "personaggi_speciali",
+    "description": "...e anche per te, Kakarot!",
+    "skinImageUrl": "https://i.ibb.co/nspxJyY9/Majin-Vegeta.png",
+    "skinPti": 6500,
+    "skinStars": 10,
+    "borderStyle": null,
+    "backgroundGradient": null,
+    "frameImageUrl": null,
+    "glowColor": null,
+    "rarity": "legendary",
+    "price": 450,
+    "isAvailable": true,
+    "id": 3,
+    "createdAt": "2026-03-12T20:49:00.444Z"
   }
 ]

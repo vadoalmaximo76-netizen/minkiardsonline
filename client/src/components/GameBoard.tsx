@@ -2170,6 +2170,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
   }, [triggerBgEvent, playerName, addToast, triggerTooltipFn]);
 
+  useEffect(() => {
+    const isVisible = youtubeVideoData?.visible === true;
+    if (isVisible) {
+      if (turnTimerIntervalRef.current) clearInterval(turnTimerIntervalRef.current);
+      turnTimerIntervalRef.current = null;
+      socket.emit('timer-pause', { playerName: timerPlayerRef.current || '' });
+    } else {
+      socket.emit('timer-resume', { playerName: timerPlayerRef.current || '' });
+    }
+  }, [youtubeVideoData?.visible]);
+
   return (
     <div id="game-root" className="min-h-screen bg-arena-deep text-slate-100 p-4 relative overflow-hidden">
       <div className="game-field-aurora" />
@@ -4452,21 +4463,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             onOpenChat={handleOpenChat}
           />
         ))}
-
-        {/* CPU Thinking Indicator */}
-        {cpuThinkingPlayer && (
-          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 pointer-events-none">
-            <div className="bg-gray-900 border border-yellow-500 text-yellow-300 px-5 py-2 rounded-full shadow-xl flex items-center gap-3">
-              <span className="text-lg animate-spin">⚙️</span>
-              <span className="font-semibold text-sm">🤖 {cpuThinkingPlayer} sta pensando...</span>
-              <span className="flex gap-1">
-                <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-              </span>
-            </div>
-          </div>
-        )}
 
         {/* Player Choosing Card Notification */}
         {choosingNotification.visible && (

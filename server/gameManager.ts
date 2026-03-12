@@ -19542,15 +19542,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const currentPlayer = gameState.turnOrder[gameState.currentTurnIndex];
     if (currentPlayer !== playerName) return null;
 
-    // Check CPU turn requirements: must have played an action this turn
-    // (but skip this check during the opening sequence phases)
-    const player = gameState.players[playerName];
-    const cpuInOpeningSeq = player?.isCPU && player.cpuInstance?.isInOpeningSequence();
-    if (player && player.isCPU && !cpuInOpeningSeq && !this.hasPlayedActionThisTurn(gameId, playerName)) {
-      console.log(`❌ CPU ${playerName} cannot end turn without playing an action`);
-      return null; // CPU cannot end turn without executing an action
-    }
-
     // Reset usedCardsThisTurn and usedMosseOnBarrieraThisTurn for the current player when their turn ends
     if (gameState.players[playerName]) {
       gameState.players[playerName].usedCardsThisTurn = [];
