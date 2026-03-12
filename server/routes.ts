@@ -3733,8 +3733,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const result = gameManager.moveToGraveyard(gameId, cardId, playerName);
         if (result.success) {
           // Check for player elimination from character limit
+          // Use result.cardOwner (the card's actual owner) in case master is moving another player's card
           if (result.eliminationCheck) {
-            gameManager.processEliminationAfterDeath(gameId, playerName, io, 'manual-graveyard');
+            gameManager.processEliminationAfterDeath(gameId, result.cardOwner || playerName, io, 'manual-graveyard');
           }
           
           const gameState = gameManager.getSanitizedGameState(gameId);
@@ -6083,8 +6084,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const result = gameManager.moveToGraveyard(gameId, cardId, playerName);
         if (result.success) {
           // ENHANCED ELIMINATION SYSTEM: Automatic elimination when limit reached
+          // Use result.cardOwner (the card's actual owner) in case master is moving another player's card
           if (result.eliminationCheck) {
-            gameManager.processEliminationAfterDeath(gameId, playerName, io, 'remove-card-to-graveyard');
+            gameManager.processEliminationAfterDeath(gameId, result.cardOwner || playerName, io, 'remove-card-to-graveyard');
           }
           
           const gameState = gameManager.getSanitizedGameState(gameId);

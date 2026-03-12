@@ -13604,7 +13604,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
   }
 
-  moveToGraveyard(gameId: string, cardId: string, playerName: string, attacker?: string): { success: boolean, graveyardCount?: number, cardImage?: string, cardType?: string, eliminationCheck?: boolean, sorosActivated?: boolean, sorosImage?: string, sorosActivator?: string, detachedParasites?: string[], insuranceTriggered?: boolean } {
+  moveToGraveyard(gameId: string, cardId: string, playerName: string, attacker?: string): { success: boolean, graveyardCount?: number, cardImage?: string, cardType?: string, eliminationCheck?: boolean, cardOwner?: string, sorosActivated?: boolean, sorosImage?: string, sorosActivator?: string, detachedParasites?: string[], insuranceTriggered?: boolean } {
     const game = this.games.get(gameId);
     if (!game) return { success: false };
 
@@ -13780,7 +13780,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       
       card.eliminatedBy = attacker || 'Unknown';
       game.graveyard.push(card);
-      console.log(`Card ${cardId} moved to graveyard. Owner: ${cardOwner}, Killed by: ${attacker || 'Unknown'}`);
+      console.log(`Card ${cardId} moved to graveyard. Owner: ${cardOwner}, RequestedBy: ${playerName}, Killed by: ${attacker || 'Unknown'}`);
 
       if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && game.activeDuel && game.activeDuel.active) {
         const duelParticipants = [game.activeDuel.player1, game.activeDuel.player2];
@@ -13837,8 +13837,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
       }
 
+      // Use cardOwner (not playerName) so that when a master moves another player's card,
+      // the death count and elimination check apply to the card's actual owner.
       const graveyardCount = game.graveyard.filter(
-        graveyardCard => graveyardCard.owner === playerName && (graveyardCard.type === 'personaggi' || graveyardCard.type === 'personaggi_speciali')
+        graveyardCard => graveyardCard.owner === cardOwner && (graveyardCard.type === 'personaggi' || graveyardCard.type === 'personaggi_speciali')
       ).length;
 
       // NEW: Track elimination count for SOROS activation
@@ -13901,17 +13903,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
 
       // Check if player should be eliminated (only if it's a personaggi card)
+      // Use cardOwner so that master-triggered moves check the correct player's limit
       let eliminationCheck = false;
       if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && game.characterLimit !== 'unlimited') {
         const baseLimit = parseInt(game.characterLimit);
-        const playerModifier = game.playerDeathModifiers.get(playerName) || 0;
+        const playerModifier = game.playerDeathModifiers.get(cardOwner) || 0;
         const effectiveLimit = Math.max(1, baseLimit + playerModifier); // Minimum 1 death required
-        if (graveyardCount >= effectiveLimit && !game.eliminatedPlayers.has(playerName)) {
+        if (graveyardCount >= effectiveLimit && !game.eliminatedPlayers.has(cardOwner)) {
           eliminationCheck = true;
         }
       }
 
-      return { success: true, graveyardCount, cardImage: card.frontImage, cardType: card.type, eliminationCheck, sorosActivated: false, detachedParasites };
+      return { success: true, graveyardCount, cardImage: card.frontImage, cardType: card.type, eliminationCheck, cardOwner, sorosActivated: false, detachedParasites };
     }
     
     return { success: false, detachedParasites };
