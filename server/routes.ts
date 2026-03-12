@@ -114,6 +114,9 @@ const gameToSeriesMap = new Map<string, string>(); // gameId -> seriesId
 // Throttled game state updates to reduce broadcast frequency
 const pendingStateUpdates = new Map<string, NodeJS.Timeout>();
 const lastEventCounters = new Map<string, number>(); // Track eventCounter to skip true duplicates
+// If a player disconnects during their turn, auto-skip after DISCONNECT_TURN_SKIP_MS
+const DISCONNECT_TURN_SKIP_MS = 30_000;
+const disconnectTurnTimers = new Map<string, NodeJS.Timeout>(); // key: `${gameId}:${playerName}`
 
 // REAL-TIME UPDATE: All updates are now immediate (no throttling)
 function emitThrottledGameState(io: SocketServer, gameId: string, gameState: any) {
@@ -1648,6 +1651,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const oldSocketId = player.socketId;
         player.socketId = socket.id;
         player.disconnectedAt = undefined; // Clear disconnection timestamp
+
+        // Cancel auto-skip timer if player reconnects in time
+        const skipTimerKey = `${gameId}:${playerName}`;
+        const pendingSkip = disconnectTurnTimers.get(skipTimerKey);
+        if (pendingSkip) {
+          clearTimeout(pendingSkip);
+          disconnectTurnTimers.delete(skipTimerKey);
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-reconnect`,
+            playerName: 'Sistema',
+            message: `✅ ${playerName} si è riconnesso in tempo. Il turno continua!`,
+            timestamp: Date.now()
+          });
+        }
         
         // Update player-to-game mapping and clean up old mapping
         gameManager.setPlayerToGame(socket.id, gameId);
@@ -2804,7 +2821,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Check for audioUrl - on card directly first (instant), then database if needed
         let audioUrl = result.card?.audioUrl;
-        console.log(`[AUDIO DEBUG] Card ${cardId} played. Card audioUrl from memory: ${audioUrl || 'NOT SET'}`);
         
         // Only do database lookup if no audioUrl in memory and card exists
         if (!audioUrl && result.card) {
@@ -2846,7 +2862,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Check for youtubeUrl - on card directly first (instant), then database if needed
         let youtubeUrl = result.card?.youtubeUrl;
-        console.log(`[YOUTUBE DEBUG] Card ${cardId} played. Card youtubeUrl from memory: ${youtubeUrl || 'NOT SET'}`);
         
         // Only do database lookup if no youtubeUrl in memory and card exists
         if (!youtubeUrl && result.card) {
@@ -3798,29 +3813,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    // Remove card from deck (when using "ELIMINA CARTA" button)
+    // Remove card to graveyard — unified handler for deck, field and hand sources
     socket.on('remove-card-to-graveyard', ({ deckType, cardId, playerName, section }: any) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
-      if (gameId) {
-        const game = gameManager.getGameState(gameId);
-        if (!game) return;
-        const normalizedDeckType = deckType as keyof typeof game.decks;
-        if (game.decks[normalizedDeckType]) {
-          // Find and remove card from deck
-          const cardIndex = game.decks[normalizedDeckType].findIndex((card: any) => card.id === cardId);
-          if (cardIndex !== -1) {
-            const removedCard = game.decks[normalizedDeckType].splice(cardIndex, 1)[0];
-            
-            // Add to graveyard with special section
-            removedCard.section = section || 'CARTE CANCELLATE';
-            removedCard.owner = playerName;
-            game.graveyard.push(removedCard);
-            
-            console.log(`Card ${cardId} removed from ${deckType} deck and added to graveyard with section: ${section}`);
-            
-            // Emit game state update
-            const gameState = gameManager.getSanitizedGameState(gameId);
-            emitThrottledGameState(io, gameId, gameState);
+      if (!gameId) return;
+      const game = gameManager.getGameState(gameId);
+      if (!game) return;
+
+      let handled = false;
+
+      // 1) Try to remove from deck first (ELIMINA CARTA from deck view)
+      const normalizedDeckType = deckType as keyof typeof game.decks;
+      if (deckType && game.decks[normalizedDeckType]) {
+        const cardIndex = game.decks[normalizedDeckType].findIndex((card: any) => card.id === cardId);
+        if (cardIndex !== -1) {
+          const removedCard = game.decks[normalizedDeckType].splice(cardIndex, 1)[0];
+          removedCard.section = section || 'CARTE CANCELLATE';
+          removedCard.owner = playerName;
+          game.graveyard.push(removedCard);
+          handled = true;
+        }
+      }
+
+      // 2) If not in deck, try field/hand via moveToGraveyard
+      if (!handled) {
+        const result = gameManager.moveToGraveyard(gameId, cardId, playerName);
+        if (result.success) {
+          handled = true;
+          if (result.eliminationCheck) {
+            gameManager.processEliminationAfterDeath(gameId, result.cardOwner || playerName, io, 'remove-card-to-graveyard');
+          }
+        }
+      }
+
+      if (!handled) return;
+
+      // Emit updated state
+      const gameState = gameManager.getSanitizedGameState(gameId);
+      emitImmediateGameState(io, gameId, gameState);
+
+      // Check for game victory
+      const winner = gameManager.checkForGameVictory(gameId);
+      if (winner) {
+        io.to(gameId).emit('game-victory', { winner });
+        gameManager.completeMatch(gameId, winner);
+        const _seriesId = gameToSeriesMap.get(gameId);
+        if (_seriesId) {
+          const _series = rematchSeriesMap.get(_seriesId);
+          if (_series) {
+            _series.wins[winner] = (_series.wins[winner] || 0) + 1;
+            const _toWin = Math.ceil(_series.format / 2);
+            io.to(gameId).emit('series-score-update', { seriesId: _seriesId, player1: _series.player1, player2: _series.player2, wins: { ..._series.wins }, toWin: _toWin });
+            if (_series.wins[winner] >= _toWin) {
+              io.to(gameId).emit('series-ended', { winner, wins: { ..._series.wins } });
+              gameToSeriesMap.delete(gameId);
+              rematchSeriesMap.delete(_seriesId);
+            }
           }
         }
       }
@@ -6084,47 +6132,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('remove-card-to-graveyard', ({ deckType, cardId, playerName, section }) => {
-      const gameId = gameManager.getPlayerGameId(socket.id);
-      if (gameId) {
-        const result = gameManager.moveToGraveyard(gameId, cardId, playerName);
-        if (result.success) {
-          // ENHANCED ELIMINATION SYSTEM: Automatic elimination when limit reached
-          // Use result.cardOwner (the card's actual owner) in case master is moving another player's card
-          if (result.eliminationCheck) {
-            gameManager.processEliminationAfterDeath(gameId, result.cardOwner || playerName, io, 'remove-card-to-graveyard');
-          }
-          
-          const gameState = gameManager.getSanitizedGameState(gameId);
-          emitImmediateGameState(io, gameId, gameState);
-          
-          // ALWAYS check for game victory after any graveyard change
-          const winner = gameManager.checkForGameVictory(gameId);
-          if (winner) {
-            console.log(`Game victory detected! Winner: ${winner}`);
-            io.to(gameId).emit('game-victory', { winner });
-            // Award Rankiard points
-            gameManager.completeMatch(gameId, winner);
-            // Best of 3 series tracking
-            const _seriesId = gameToSeriesMap.get(gameId);
-            if (_seriesId) {
-              const _series = rematchSeriesMap.get(_seriesId);
-              if (_series) {
-                _series.wins[winner] = (_series.wins[winner] || 0) + 1;
-                const _toWin = Math.ceil(_series.format / 2);
-                io.to(gameId).emit('series-score-update', { seriesId: _seriesId, player1: _series.player1, player2: _series.player2, wins: { ..._series.wins }, toWin: _toWin });
-                if (_series.wins[winner] >= _toWin) {
-                  io.to(gameId).emit('series-ended', { winner, wins: { ..._series.wins } });
-                  gameToSeriesMap.delete(gameId);
-                  rematchSeriesMap.delete(_seriesId);
-                }
-              }
-            }
-          }
-        }
-      }
-    });
-    
     // CONTRATTAZIONE CLANDESTINA: Attacker submits an offer
     socket.on('contrattazione:offer', ({ negotiationId, offerDamage }: { negotiationId: string; offerDamage: number }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
@@ -8138,6 +8145,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
       
+      // Auto-skip turn if disconnected player is the current turn player
+      const dcGameId = gameManager.getGameIdBySocketId(socket.id);
+      if (dcGameId) {
+        const dcGame = gameManager.getGameState(dcGameId);
+        if (dcGame && !dcGame.gameEnded) {
+          const currentPlayer = dcGame.turnOrder[dcGame.currentTurnIndex];
+          const dcPlayer = Object.entries(dcGame.players).find(([, p]) => (p as any).socketId === socket.id);
+          const dcPlayerName = dcPlayer?.[0];
+          if (dcPlayerName && dcPlayerName === currentPlayer && !(dcGame.players[dcPlayerName] as any).isCPU) {
+            // Notify other players
+            io.to(dcGameId).emit('chat-message', {
+              id: `${Date.now()}-disconnect-skip`,
+              playerName: 'Sistema',
+              message: `⚠️ ${dcPlayerName} si è disconnesso. Il turno sarà saltato automaticamente in 30 secondi se non torna.`,
+              timestamp: Date.now()
+            });
+            const timerKey = `${dcGameId}:${dcPlayerName}`;
+            const skipTimer = setTimeout(async () => {
+              disconnectTurnTimers.delete(timerKey);
+              const freshGame = gameManager.getGameState(dcGameId);
+              if (!freshGame || freshGame.gameEnded) return;
+              // Check player is still disconnected and still their turn
+              const stillCurrentPlayer = freshGame.turnOrder[freshGame.currentTurnIndex];
+              const stillDisconnected = !(freshGame.players[dcPlayerName] as any)?.socketId;
+              if (stillDisconnected && stillCurrentPlayer === dcPlayerName) {
+                const next = gameManager.endTurn(dcGameId, dcPlayerName);
+                if (next) {
+                  io.to(dcGameId).emit('next-turn', { nextPlayer: next });
+                  io.to(dcGameId).emit('chat-message', {
+                    id: `${Date.now()}-disconnect-autoskip`,
+                    playerName: 'Sistema',
+                    message: `⏭️ Turno di ${dcPlayerName} saltato automaticamente (disconnesso).`,
+                    timestamp: Date.now()
+                  });
+                  const updatedState = gameManager.getSanitizedGameState(dcGameId);
+                  if (updatedState) io.to(dcGameId).emit('game-state-update', updatedState);
+                  if (freshGame.players[next]?.isCPU) {
+                    setTimeout(async () => {
+                      const cpuAction = await gameManager.processCPUTurn(dcGameId, next, io);
+                      if (cpuAction) await gameManager.applyCPUAction(dcGameId, next, cpuAction, io);
+                    }, 1500);
+                  }
+                }
+              }
+            }, DISCONNECT_TURN_SKIP_MS);
+            disconnectTurnTimers.set(timerKey, skipTimer);
+          }
+        }
+      }
+
       gameManager.removePlayer(socket.id);
     });
 
@@ -9223,7 +9280,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/debug/add-cpu-player', async (req, res) => {
     try {
       const { gameId } = req.body;
-      console.log(`🎯 DEBUG: Adding CPU to game ${gameId}`);
       
       const cpuName = await gameManager.addCPUPlayer(gameId);
       const gameState = gameManager.getSanitizedGameState(gameId);
@@ -9232,10 +9288,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       emitThrottledGameState(io, gameId, gameState);
       io.to(gameId).emit('player-joined', { playerName: cpuName });
       
-      console.log(`🎯 DEBUG: CPU ${cpuName} added successfully to game ${gameId}`);
       res.json({ success: true, cpuName, gameId });
     } catch (error) {
-      console.error('🎯 DEBUG: Error adding CPU:', error);
       res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
@@ -9719,10 +9773,13 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       if (!isDatabaseAvailable()) {
         return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
       }
-      const matchesList = await db.select().from(matches)
-        .orderBy(desc(matches.startedAt))
-        .limit(50);
-      
+      const playerFilter = req.query.player as string | undefined;
+      const limitParam = parseInt(req.query.limit as string) || 50;
+      let query = db.select().from(matches).orderBy(desc(matches.startedAt)).$dynamic();
+      if (playerFilter) {
+        query = query.where(sql`${playerFilter} = ANY(${matches.players})`);
+      }
+      const matchesList = await query.limit(limitParam);
       res.json({ success: true, matches: matchesList });
     } catch (error) {
       console.error('Error fetching matches:', error);

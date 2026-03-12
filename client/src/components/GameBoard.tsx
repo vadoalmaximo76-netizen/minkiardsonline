@@ -294,6 +294,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [deadCharacterName, setDeadCharacterName] = useState<string>("");
   const [deathEffectKey, setDeathEffectKey] = useState(0);
   const [choosingNotification, setChoosingNotification] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
+  const [cpuThinkingPlayer, setCpuThinkingPlayer] = useState<string | null>(null);
   const [graveyardSelectionModal, setGraveyardSelectionModal] = useState<{
     visible: boolean;
     reason: string;
@@ -1064,6 +1065,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('super-dice-opened', handleOpenSuperDice);
     socket.on('super-dice-rolled', handleSuperDiceRolled);
     socket.on('soros-activated', handleSorosActivation);
+
+    // CPU thinking indicator
+    const handleCpuThinking = ({ playerName: cpuName }: { playerName: string }) => {
+      setCpuThinkingPlayer(cpuName);
+    };
+    const handleCpuDoneThinking = () => {
+      setCpuThinkingPlayer(null);
+    };
+    socket.on('cpu-thinking', handleCpuThinking);
+    socket.on('cpu-done-thinking', handleCpuDoneThinking);
+    socket.on('next-turn', handleCpuDoneThinking);
 
     // MOSSE ATTACK ERROR: Handle attack errors (e.g., one MOSSE per turn limit)
     const handleAttackError = ({ message }: { message: string }) => {
@@ -2038,6 +2050,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('player-left', handlePlayerLeft);
       socket.off('super-dice-opened', handleOpenSuperDice);
       socket.off('super-dice-rolled', handleSuperDiceRolled);
+      socket.off('cpu-thinking', handleCpuThinking);
+      socket.off('cpu-done-thinking', handleCpuDoneThinking);
+      socket.off('next-turn', handleCpuDoneThinking);
       socket.off('instruction-executed', handleInstructionExecuted);
       socket.off('instruction-success', handleInstructionSuccess);
       socket.off('instruction-error', handleInstructionError);
@@ -4437,6 +4452,21 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             onOpenChat={handleOpenChat}
           />
         ))}
+
+        {/* CPU Thinking Indicator */}
+        {cpuThinkingPlayer && (
+          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 pointer-events-none">
+            <div className="bg-gray-900 border border-yellow-500 text-yellow-300 px-5 py-2 rounded-full shadow-xl flex items-center gap-3">
+              <span className="text-lg animate-spin">⚙️</span>
+              <span className="font-semibold text-sm">🤖 {cpuThinkingPlayer} sta pensando...</span>
+              <span className="flex gap-1">
+                <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Player Choosing Card Notification */}
         {choosingNotification.visible && (

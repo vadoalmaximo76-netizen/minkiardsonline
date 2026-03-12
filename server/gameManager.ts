@@ -5440,7 +5440,7 @@ Rispondi SOLO in JSON:`;
       });
       
       if (this.isPlayerCPU(gameId, playerName)) {
-        const targetEnemy = opponentChars[Math.floor(Math.random() * opponentChars.length)];
+        const targetEnemy = this.cpuPickBestEnemy(opponentChars);
         console.log(`🤖 CPU ${playerName} auto-selecting fusion target: ${targetEnemy.name || targetEnemy.id}`);
         
         setTimeout(async () => {
@@ -5527,15 +5527,15 @@ Rispondi SOLO in JSON:`;
         const isHealEffect = /cura|heal|rigenera|protez|scudo|buff|potenzia/i.test(effectLower) && !isAttackEffect;
         
         if (isAttackEffect && enemyChars.length > 0) {
-          const enemyTarget = enemyChars[Math.floor(Math.random() * enemyChars.length)];
+          const enemyTarget = this.cpuPickBestEnemy(enemyChars);
           selectedTargets = [enemyTarget];
           console.log(`🎯 CPU ${playerName} targeting ENEMY (attack effect): ${enemyTarget.name || enemyTarget.id}`);
         } else if (isHealEffect && ownChars.length > 0) {
-          const ownTarget = ownChars[Math.floor(Math.random() * ownChars.length)];
+          const ownTarget = this.cpuPickBestOwn(ownChars);
           selectedTargets = [ownTarget];
           console.log(`🎯 CPU ${playerName} targeting OWN (heal effect): ${ownTarget.name || ownTarget.id}`);
         } else if (enemyChars.length > 0) {
-          const enemyTarget = enemyChars[Math.floor(Math.random() * enemyChars.length)];
+          const enemyTarget = this.cpuPickBestEnemy(enemyChars);
           selectedTargets = [enemyTarget];
           console.log(`🎯 CPU ${playerName} targeting ENEMY (default): ${enemyTarget.name || enemyTarget.id}`);
         } else {
@@ -5621,14 +5621,14 @@ Rispondi SOLO in JSON:`;
             // Card targets an enemy character (like attacks)
             const enemyChars = involvedCharacters.filter((c: any) => c.owner !== cardOwner);
             selectedChar = enemyChars.length > 0 
-              ? enemyChars[Math.floor(Math.random() * enemyChars.length)]
+              ? this.cpuPickBestEnemy(enemyChars)
               : involvedCharacters[Math.floor(Math.random() * involvedCharacters.length)];
             console.log(`🎲 DADO with target choice - targeting enemy: ${selectedChar.name}`);
           } else {
             // Card affects own character (like gambles/scommesse)
             const ownChars = involvedCharacters.filter((c: any) => c.owner === cardOwner);
             selectedChar = ownChars.length > 0 
-              ? ownChars[Math.floor(Math.random() * ownChars.length)]
+              ? this.cpuPickBestOwn(ownChars)
               : involvedCharacters[Math.floor(Math.random() * involvedCharacters.length)];
             console.log(`🎲 DADO without target - affecting own character: ${selectedChar.name}`);
           }
@@ -5803,14 +5803,14 @@ Rispondi SOLO in JSON:`;
             // Card targets an enemy character (like attacks)
             const enemyChars = availableCharacters.filter((c: any) => c.owner !== cardOwner);
             selectedChar = enemyChars.length > 0 
-              ? enemyChars[Math.floor(Math.random() * enemyChars.length)]
+              ? this.cpuPickBestEnemy(enemyChars)
               : availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
             console.log(`🎲 AUTO DADO with target choice - targeting enemy: ${selectedChar.name}`);
           } else {
             // Card affects own character (like gambles/scommesse)
             const ownChars = availableCharacters.filter((c: any) => c.owner === cardOwner);
             selectedChar = ownChars.length > 0 
-              ? ownChars[Math.floor(Math.random() * ownChars.length)]
+              ? this.cpuPickBestOwn(ownChars)
               : availableCharacters[Math.floor(Math.random() * availableCharacters.length)];
             console.log(`🎲 AUTO DADO without target - affecting own character: ${selectedChar.name}`);
           }
@@ -6070,7 +6070,7 @@ Rispondi SOLO in JSON:`;
           
           if (enemyChars.length > 0) {
             if (isCPU) {
-              const cpuTarget = enemyChars[Math.floor(Math.random() * enemyChars.length)];
+              const cpuTarget = this.cpuPickBestEnemy(enemyChars);
               console.log(`🤖 CPU ${cardOwner} auto-selecting target: ${cpuTarget.name || cpuTarget.id}`);
               for (const action of filteredActions) {
                 action.target = 'selected';
@@ -6904,7 +6904,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         } else if (action.target === 'enemy_card' || action.target === 'random') {
           const enemies = game.field.filter((c: Card) => c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.pti != null);
           if (enemies.length > 0) {
-            const target = enemies[Math.floor(Math.random() * enemies.length)];
+            const target = this.cpuPickBestEnemy(enemies);
             const oldPti = target.pti || 0;
             target.pti = Math.max(0, oldPti - (action.value || 0));
             this.updateCardTextWithPTI(target);
@@ -7376,7 +7376,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           c.pti != null
         );
         if (enemyChars.length > 0) {
-          const randomTarget = enemyChars[Math.floor(Math.random() * enemyChars.length)];
+          const randomTarget = this.cpuPickBestEnemy(enemyChars);
           randomTarget.pti = Math.max(0, (randomTarget.pti || 0) - (action.value || 100));
           this.updateCardTextWithPTI(randomTarget);
           console.log(`🎲 Custom effect: ${randomTarget.name || randomTarget.id} took ${action.value} random damage, now at ${randomTarget.pti} PTI`);
@@ -8682,7 +8682,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           case 'damage': {
             const enemies = game.field.filter(c => c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.pti != null);
             if (enemies.length > 0) {
-              const target = enemies[Math.floor(Math.random() * enemies.length)];
+              const target = this.cpuPickBestEnemy(enemies);
               target.pti = Math.max(0, (target.pti || 0) - chosenEffect.value);
               this.updateCardTextWithPTI(target);
               if (target.pti <= 0) this.killAndCheck(gameId, target.id, target.owner || '', 'EFFETTO_CASUALE');
@@ -10593,7 +10593,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if (enemyChars.length === 0) break;
         const isCPU = this.isPlayerCPU(gameId, playerName);
         if (isCPU) {
-          const target = enemyChars[Math.floor(Math.random() * enemyChars.length)];
+          const target = this.cpuPickBestEnemy(enemyChars);
           if (!(game as any).mirrorEffects) (game as any).mirrorEffects = {};
           (game as any).mirrorEffects[playerName] = target.id;
           console.log(`🪞 MIRROR EFFECT: CPU ${playerName} mirrors effects to ${target.name || target.id}`);
@@ -13190,6 +13190,37 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
   private extractStarsFromNote(note: string): number {
     const match = note.match(/Stelle:\s*(\d+)/i);
     return match ? parseInt(match[1]) : 0;
+  }
+
+  /**
+   * CPU target-selection heuristic for enemy characters.
+   * Picks the enemy with the lowest PTI (closest to being killed).
+   * Tie-break: highest stars (most dangerous opponent, eliminate before it grows).
+   */
+  private cpuPickBestEnemy(candidates: Card[]): Card {
+    if (candidates.length === 1) return candidates[0];
+    return candidates.reduce((best, c) => {
+      const bestPti = best.pti ?? this.extractPTIFromNote(best.text || '');
+      const cPti    = c.pti    ?? this.extractPTIFromNote(c.text    || '');
+      const bestSt  = best.stars ?? this.extractStarsFromNote(best.text || '');
+      const cSt     = c.stars    ?? this.extractStarsFromNote(c.text    || '');
+      if (cPti < bestPti) return c;
+      if (cPti === bestPti && cSt > bestSt) return c;
+      return best;
+    });
+  }
+
+  /**
+   * CPU target-selection heuristic for own characters.
+   * prefer='lowest_pti' → heals weakest ally; prefer='highest_pti' → buffs strongest ally.
+   */
+  private cpuPickBestOwn(candidates: Card[], prefer: 'lowest_pti' | 'highest_pti' = 'lowest_pti'): Card {
+    if (candidates.length === 1) return candidates[0];
+    return candidates.reduce((best, c) => {
+      const bestPti = best.pti ?? this.extractPTIFromNote(best.text || '');
+      const cPti    = c.pti    ?? this.extractPTIFromNote(c.text    || '');
+      return prefer === 'lowest_pti' ? (cPti < bestPti ? c : best) : (cPti > bestPti ? c : best);
+    });
   }
 
   // Apply draft growth from DB to a card before analyzing it at draw time.
@@ -16880,8 +16911,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         
         // Prefer selecting both own and enemy character for "gamble" style effects
         if (ownChars.length > 0 && enemyChars.length > 0) {
-          const ownTarget = ownChars[Math.floor(Math.random() * ownChars.length)];
-          const enemyTarget = enemyChars[Math.floor(Math.random() * enemyChars.length)];
+          const ownTarget = this.cpuPickBestOwn(ownChars);
+          const enemyTarget = this.cpuPickBestEnemy(enemyChars);
           selectedTargets = [ownTarget, enemyTarget];
         } else if (enemyChars.length >= 2) {
           const shuffled = [...enemyChars].sort(() => Math.random() - 0.5);
@@ -18400,6 +18431,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       // Set socket emitter for chat functionality
       if (socketEmitter) {
         cpuPlayer.cpuInstance.setSocketEmitter(socketEmitter);
+        // Notify clients that CPU is thinking so they can show an indicator
+        socketEmitter.to(gameId).emit('cpu-thinking', { playerName: cpuPlayerName });
       }
       
       const action = await cpuPlayer.cpuInstance.takeTurn(game);
@@ -18420,6 +18453,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     const advanceTurn = async (playerName: string) => {
       const next = this.endTurn(gameId, playerName);
       if (next) {
+        io.to(gameId).emit('cpu-done-thinking', { playerName: cpuName });
         io.to(gameId).emit('next-turn', { nextPlayer: next });
         emitState();
         const freshGame = this.games.get(gameId);
@@ -23365,17 +23399,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
     
-    // DEBUG LOGGING for ATTACCO DISONESTO
-    if (isHandTarget) {
-      console.log(`🎯 ATTACCO DISONESTO DEBUG:`, {
-        targetCardId,
-        targetOwner,
-        currentNotes: targetCard.text,
-        currentPTI,
-        damageValue,
-        targetCardFrontImage: targetCard?.frontImage
-      });
-    }
 
     // ========== PERSONAGGI SPECIALI: MOSSE SPECIALI EVOLUTE & SUPER ATTACCO ==========
     const attackerCharForSpecial = game?.field.find((c: Card) => c.owner === attackerName && c.type === 'personaggi_speciali');

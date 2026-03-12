@@ -11,6 +11,7 @@ import { AdminPassPanel } from './AdminPassPanel';
 import { AdminUsersPanel } from './AdminUsersPanel';
 import PrivateMessagesPanel from './PrivateMessagesPanel';
 import NotificationSettings from './NotificationSettings';
+import { MatchHistory } from './MatchHistory';
 
 interface ProfileSectionProps {
   playerName: string;
@@ -80,6 +81,7 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
   const [showMessagesPanel, setShowMessagesPanel] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [initialConversationId, setInitialConversationId] = useState<number | null>(null);
+  const [showMatchHistory, setShowMatchHistory] = useState(false);
 
   const [offlineStats, setOfflineStats] = useState<{ cached: number; total: number; enabled: boolean } | null>(null);
   const [offlineDownloading, setOfflineDownloading] = useState(false);
@@ -507,6 +509,25 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
               <p className="text-white/70">Tempo totale trascorso a giocare</p>
             </div>
 
+            {/* Storico Partite */}
+            <div className="bg-gradient-to-r from-yellow-900/20 to-slate-800/50 rounded-2xl p-5 border border-yellow-500/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Trophy className="w-6 h-6 text-yellow-400" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Storico Partite</h3>
+                    <p className="text-white/70 text-sm font-medium">Vedi le tue vittorie, sconfitte e statistiche</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowMatchHistory(true)}
+                  className="px-4 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 rounded-xl font-medium transition-colors"
+                >
+                  Vedi Storico
+                </button>
+              </div>
+            </div>
+
             {/* Clan */}
             <div className="bg-gradient-to-r from-purple-900/30 to-slate-800/50 rounded-2xl p-5 border border-purple-500/20">
               <div className="flex items-center justify-between">
@@ -924,6 +945,14 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
               </div>
             </div>
           </div>
+        )}
+
+        {/* Match History Panel */}
+        {showMatchHistory && (
+          <MatchHistory
+            onClose={() => setShowMatchHistory(false)}
+            playerName={playerName}
+          />
         )}
 
         {/* Clan Panel */}
