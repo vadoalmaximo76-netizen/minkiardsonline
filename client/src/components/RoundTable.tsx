@@ -58,8 +58,8 @@ const RoundTableComponent: React.FC = () => {
 
   const charLimit = gameState?.characterLimit;
   const isUnlimitedDeaths = charLimit === 'unlimited';
-  const baseDeathLimit = isUnlimitedDeaths ? 0 : parseInt(charLimit) || 0;
-  const deathModifiers: Record<string, number> = (gameState as any)?.playerDeathModifiers || {};
+  const baseDeathLimit = isUnlimitedDeaths ? 0 : parseInt(charLimit ?? '0') || 0;
+  const deathModifiers: Record<string, number> = gameState?.playerDeathModifiers || {};
   const graveyard = gameState?.graveyard || [];
 
   const getDeathCount = (name: string): number =>

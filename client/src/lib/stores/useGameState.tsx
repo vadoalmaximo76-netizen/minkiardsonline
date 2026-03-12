@@ -86,6 +86,9 @@ interface GameState {
   scenarioCardsActive: boolean;
   turnOrder: string[];
   currentTurnIndex: number;
+  characterLimit?: string;
+  eliminatedPlayers?: string[];
+  playerDeathModifiers?: Record<string, number>;
   pendingDefense?: PendingDefense; // Current pending defense request
   voodooLinks?: VoodooLink[]; // BAMBOLA VOODOO active links
 }

@@ -15,8 +15,8 @@ export const OtherPlayersHands: React.FC = () => {
 
   const charLimit = gameState.characterLimit;
   const isUnlimited = charLimit === 'unlimited';
-  const baseLimit = isUnlimited ? 0 : parseInt(charLimit) || 0;
-  const deathModifiers: Record<string, number> = (gameState as any).playerDeathModifiers || {};
+  const baseLimit = isUnlimited ? 0 : parseInt(charLimit ?? '0') || 0;
+  const deathModifiers: Record<string, number> = gameState.playerDeathModifiers || {};
 
   const getDeathCount = (name: string): number => {
     if (!gameState.graveyard) return 0;
