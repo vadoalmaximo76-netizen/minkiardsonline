@@ -109,8 +109,8 @@ export function NotificationInbox({ onNavigate, socket, onOpenConversation, onJo
         if (prev.some((n) => n.id === notif.id)) return prev;
         // Play notification sound
         try {
-          const audio = new Audio('/sounds/success.mp3');
-          audio.volume = 0.4;
+          const audio = new Audio('/sounds/hit.mp3');
+          audio.volume = 0.2;
           audio.play().catch(() => {});
         } catch {}
         return [notif, ...prev];
