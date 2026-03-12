@@ -144,7 +144,7 @@
     "gradientTo": "#0891b2",
     "titleColor": "#ffffff",
     "subtitleColor": "rgba(255,255,255,0.7)",
-    "badge": "",
+    "badge": "Le tue statistiche e messaggi privati",
     "badgeColor": "rgba(0,0,0,0.35)",
     "sortOrder": 9,
     "adminOnly": false

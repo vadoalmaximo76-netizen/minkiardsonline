@@ -3904,7 +3904,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         {/* Right-side Game Tools */}
         <div
           data-tutorial="tools"
-          className="fixed bottom-3 landscape:bottom-4 md:bottom-4 right-2 landscape:right-3 md:right-4 z-[95] transition-all duration-300"
+          className="fixed bottom-3 landscape:bottom-4 md:bottom-4 left-2 landscape:left-3 md:left-4 z-[95] transition-all duration-300"
           style={{
             opacity: (chatOpen || calculatorOpen || gameLogOpen || soundSettingsOpen || musicPlayerOpen) ? 0 : 1,
             pointerEvents: (chatOpen || calculatorOpen || gameLogOpen || soundSettingsOpen || musicPlayerOpen) ? 'none' : 'auto',
@@ -4008,7 +4008,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         <div id="sound-settings-container">
           {soundSettingsOpen && (
             <div 
-              className="fixed bottom-4 right-2 landscape:right-4 md:right-4 w-[calc(100vw-2rem)] max-w-80 h-80 landscape:h-96 md:h-[28rem] z-50 fade-in duration-300"
+              className="fixed bottom-4 left-2 landscape:left-4 md:left-4 w-[calc(100vw-2rem)] max-w-80 h-80 landscape:h-96 md:h-[28rem] z-50 fade-in duration-300"
               style={{ position: 'fixed' }}
             >
               <SoundSettings onClose={() => { playPanelClose(); setSoundSettingsOpen(false); }} />
@@ -4024,7 +4024,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         {/* Calculator */}
         {calculatorOpen && (
           <div 
-            className="fixed bottom-4 right-2 landscape:right-4 md:right-4 w-[calc(100vw-2rem)] max-w-80 z-40 animate-in slide-in-from-bottom-5 fade-in duration-300"
+            className="fixed bottom-4 left-2 landscape:left-4 md:left-4 w-[calc(100vw-2rem)] max-w-80 z-40 animate-in slide-in-from-bottom-5 fade-in duration-300"
             style={{ position: 'fixed' }}
           >
             <Calculator onClose={() => { playPanelClose(); setCalculatorOpen(false); }} />
@@ -4034,7 +4034,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         {/* Chat */}
         {chatOpen && (
           <div 
-            className="fixed bottom-16 landscape:bottom-20 md:bottom-52 right-1 landscape:right-4 md:right-4 w-[calc(100vw-1rem)] max-w-64 landscape:w-72 md:w-80 h-72 landscape:h-80 md:h-96 z-40 animate-in slide-in-from-right-5 fade-in duration-300"
+            className="fixed bottom-16 landscape:bottom-20 md:bottom-52 left-1 landscape:left-4 md:left-4 w-[calc(100vw-1rem)] max-w-64 landscape:w-72 md:w-80 h-72 landscape:h-80 md:h-96 z-40 animate-in slide-in-from-left-5 fade-in duration-300"
             style={{ position: 'fixed' }}
           >
             <Chat onClose={handleCloseChat} />
@@ -4043,7 +4043,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
         {gameLogOpen && (
           <div 
-            className="fixed bottom-16 landscape:bottom-20 md:bottom-52 right-1 landscape:right-4 md:right-4 w-[calc(100vw-1rem)] max-w-80 landscape:w-96 md:w-[28rem] h-80 landscape:h-96 md:h-[28rem] z-40 animate-in slide-in-from-right-5 fade-in duration-300"
+            className="fixed bottom-16 landscape:bottom-20 md:bottom-52 left-1 landscape:left-4 md:left-4 w-[calc(100vw-1rem)] max-w-80 landscape:w-96 md:w-[28rem] h-80 landscape:h-96 md:h-[28rem] z-40 animate-in slide-in-from-left-5 fade-in duration-300"
             style={{ position: 'fixed' }}
           >
             <GameLog onClose={() => { playPanelClose(); setGameLogOpen(false); }} />
