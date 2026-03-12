@@ -105,21 +105,6 @@
     "adminOnly": false
   },
   {
-    "id": "panel-clubs",
-    "panelKey": "clubs",
-    "title": "Club",
-    "subtitle": "Gilde di giocatori e classifiche interne",
-    "icon": "Shield",
-    "gradientFrom": "#0d9488",
-    "gradientTo": "#2563eb",
-    "titleColor": "#ffffff",
-    "subtitleColor": "rgba(255,255,255,0.7)",
-    "badge": "Comunità",
-    "badgeColor": "rgba(0,0,0,0.35)",
-    "sortOrder": 7,
-    "adminOnly": false
-  },
-  {
     "id": "panel-leaderboard",
     "panelKey": "leaderboard",
     "title": "Classifica",
@@ -130,6 +115,21 @@
     "titleColor": "#ffffff",
     "subtitleColor": "rgba(255,255,255,0.7)",
     "badge": "Top 100",
+    "badgeColor": "rgba(0,0,0,0.35)",
+    "sortOrder": 7,
+    "adminOnly": false
+  },
+  {
+    "id": "panel-clubs",
+    "panelKey": "clubs",
+    "title": "Club",
+    "subtitle": "Gilde di giocatori e classifiche interne",
+    "icon": "Shield",
+    "gradientFrom": "#4dff61",
+    "gradientTo": "#00d6bd",
+    "titleColor": "#ffffff",
+    "subtitleColor": "rgba(255,255,255,0.7)",
+    "badge": "Comunità",
     "badgeColor": "rgba(0,0,0,0.35)",
     "sortOrder": 8,
     "adminOnly": false

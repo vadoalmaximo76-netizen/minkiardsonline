@@ -275,7 +275,32 @@ const HOME_STYLES = `
     0%   { opacity: 0; transform: translateY(-8px) scale(0.95); }
     100% { opacity: 1; transform: translateY(0) scale(1); }
   }
+  @keyframes borderSpin {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to   { transform: translate(-50%, -50%) rotate(360deg); }
+  }
+  @keyframes particleFloat {
+    0%   { transform: translateY(0px) scale(1); opacity: var(--p-op); }
+    50%  { opacity: calc(var(--p-op) * 2.2); }
+    100% { transform: translateY(-100vh) scale(0.4); opacity: 0; }
+  }
+  @keyframes sparkle {
+    0%, 100% { transform: scale(0) rotate(0deg); opacity: 0; }
+    20%       { transform: scale(1.4) rotate(45deg); opacity: 1; }
+    80%       { transform: scale(0.8) rotate(90deg); opacity: 0.6; }
+  }
 `;
+
+const PARTICLE_COLORS = ['#c084fc', '#60a5fa', '#34d399', '#f472b6', '#fbbf24', '#a78bfa', '#38bdf8'];
+const PARTICLES = Array.from({ length: 32 }, (_, i) => ({
+  id: i,
+  x: (i * 31 + 13) % 97,
+  size: 1.2 + (i % 5) * 0.7,
+  duration: 14 + (i % 8) * 3,
+  delay: (i * 1.8) % 14,
+  opacity: 0.12 + (i % 6) * 0.05,
+  color: PARTICLE_COLORS[i % 7],
+}));
 
 export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMatch, userEmail, initialShowTournaments, onInitialShowTournamentsHandled }: HomeScreenProps) {
   const [userStats, setUserStats] = useState<UserStats | null>(null);
@@ -446,14 +471,34 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
       <style dangerouslySetInnerHTML={{ __html: HOME_STYLES }} />
       <div className="fixed inset-0 pointer-events-none animate-color-shift" style={{ background: 'radial-gradient(ellipse at 20% 10%, rgba(88, 28, 135, 0.35) 0%, transparent 55%), radial-gradient(ellipse at 80% 90%, rgba(30, 58, 138, 0.3) 0%, transparent 55%), radial-gradient(ellipse at 50% 50%, rgba(6, 182, 212, 0.15) 0%, transparent 60%), radial-gradient(ellipse at 10% 70%, rgba(139, 92, 246, 0.2) 0%, transparent 50%), linear-gradient(180deg, #03050d 0%, #070b1a 30%, #0a1028 60%, #060918 100%)' }} />
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute w-[600px] h-[600px] rounded-full blur-[120px] animate-bg-float-1" style={{ background: 'radial-gradient(circle, #9333ea, transparent 65%)', opacity: 0.25, top: '10%', left: '10%' }} />
-        <div className="absolute w-[500px] h-[500px] rounded-full blur-[100px] animate-bg-float-2" style={{ background: 'radial-gradient(circle, #3b82f6, transparent 65%)', opacity: 0.2, bottom: '15%', right: '10%' }} />
-        <div className="absolute w-[450px] h-[450px] rounded-full blur-[90px] animate-bg-float-3" style={{ background: 'radial-gradient(circle, #06b6d4, transparent 65%)', opacity: 0.15, top: '50%', left: '60%' }} />
-        <div className="absolute w-[550px] h-[550px] rounded-full blur-[110px] animate-bg-float-4" style={{ background: 'radial-gradient(circle, #8b5cf6, transparent 65%)', opacity: 0.12, top: '65%', left: '5%' }} />
-        <div className="absolute w-[400px] h-[400px] rounded-full blur-[80px] animate-bg-float-5" style={{ background: 'radial-gradient(circle, #6366f1, transparent 65%)', opacity: 0.1, top: '20%', right: '20%' }} />
-        <div className="absolute inset-0 animate-aurora-1" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(139, 92, 246, 0.08) 30%, rgba(59, 130, 246, 0.06) 50%, rgba(139, 92, 246, 0.08) 70%, transparent 100%)', opacity: 0.6, height: '40%', top: '10%' }} />
-        <div className="absolute inset-0 animate-aurora-2" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(59, 130, 246, 0.06) 25%, rgba(139, 92, 246, 0.08) 50%, rgba(59, 130, 246, 0.06) 75%, transparent 100%)', opacity: 0.4, height: '35%', bottom: '15%', top: 'auto' }} />
-        <div className="absolute w-[700px] h-[700px] rounded-full blur-[150px] animate-nebula-pulse" style={{ background: 'radial-gradient(circle, rgba(88, 28, 135, 0.12), transparent 60%)', opacity: 0.4, top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
+        {/* Aurora blobs — enhanced */}
+        <div className="absolute w-[700px] h-[700px] rounded-full blur-[130px] animate-bg-float-1" style={{ background: 'radial-gradient(circle, #9333ea, transparent 65%)', opacity: 0.35, top: '5%', left: '5%' }} />
+        <div className="absolute w-[600px] h-[600px] rounded-full blur-[110px] animate-bg-float-2" style={{ background: 'radial-gradient(circle, #3b82f6, transparent 65%)', opacity: 0.28, bottom: '10%', right: '5%' }} />
+        <div className="absolute w-[500px] h-[500px] rounded-full blur-[100px] animate-bg-float-3" style={{ background: 'radial-gradient(circle, #06b6d4, transparent 65%)', opacity: 0.22, top: '45%', left: '55%' }} />
+        <div className="absolute w-[600px] h-[600px] rounded-full blur-[120px] animate-bg-float-4" style={{ background: 'radial-gradient(circle, #ec4899, transparent 65%)', opacity: 0.18, top: '60%', left: '0%' }} />
+        <div className="absolute w-[450px] h-[450px] rounded-full blur-[90px] animate-bg-float-5" style={{ background: 'radial-gradient(circle, #6366f1, transparent 65%)', opacity: 0.16, top: '15%', right: '15%' }} />
+        <div className="absolute inset-0 animate-aurora-1" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(139,92,246,0.12) 30%, rgba(59,130,246,0.08) 50%, rgba(139,92,246,0.12) 70%, transparent 100%)', height: '40%', top: '10%' }} />
+        <div className="absolute inset-0 animate-aurora-2" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(59,130,246,0.08) 25%, rgba(236,72,153,0.07) 50%, rgba(59,130,246,0.08) 75%, transparent 100%)', height: '35%', bottom: '15%', top: 'auto' }} />
+        <div className="absolute w-[800px] h-[800px] rounded-full blur-[160px] animate-nebula-pulse" style={{ background: 'radial-gradient(circle, rgba(88,28,135,0.18), transparent 60%)', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }} />
+
+        {/* Floating particles */}
+        {PARTICLES.map(p => (
+          <div
+            key={p.id}
+            style={{
+              position: 'absolute',
+              bottom: '-5px',
+              left: `${p.x}%`,
+              width: p.size,
+              height: p.size,
+              borderRadius: '50%',
+              background: p.color,
+              boxShadow: `0 0 ${p.size * 3}px ${p.color}`,
+              '--p-op': p.opacity,
+              animation: `particleFloat ${p.duration}s ease-in ${p.delay}s infinite`,
+            } as React.CSSProperties}
+          />
+        ))}
       </div>
 
       {/* Header */}
@@ -562,6 +607,18 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
                   filter: 'blur(8px)',
                 }} />
               )}
+
+              {/* Rotating conic border wrapper */}
+              <div style={{ position: 'relative', borderRadius: 26, overflow: 'hidden', padding: 2, zIndex: 1 }}>
+                <div style={{
+                  position: 'absolute',
+                  top: '50%', left: '50%',
+                  width: '200%', height: '200%',
+                  background: `conic-gradient(from 0deg, transparent 0%, ${panel.gradientFrom}cc 14%, ${panel.gradientTo}99 22%, transparent 32%)`,
+                  animation: `borderSpin ${5 + (idx % 4) * 1.5}s linear infinite`,
+                  pointerEvents: 'none',
+                }} />
+
               <button
                 onClick={() => handlePanelClick(panel)}
                 onMouseEnter={() => setHoveredId(panel.id)}
@@ -570,7 +627,7 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
                   width: '100%', position: 'relative', zIndex: 1,
                   aspectRatio: '1 / 1',
                   background: `linear-gradient(135deg, ${panel.gradientFrom}, ${panel.gradientTo})`,
-                  borderRadius: 24, padding: '28px 16px',
+                  borderRadius: 22, padding: '28px 16px',
                   border: editMode ? '2px dashed rgba(255,255,255,0.4)' : `1px solid ${isHovered ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.1)'}`,
                   cursor: editMode ? 'default' : 'pointer',
                   transform: !editMode && isHovered ? 'scale(1.04) translateY(-5px)' : 'scale(1)',
@@ -623,6 +680,7 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
                 <div style={{ position: 'absolute', bottom: -20, right: -20, width: 120, height: 120, background: 'rgba(255,255,255,0.05)', borderRadius: '50%', filter: 'blur(24px)' }} />
                 <div style={{ position: 'absolute', top: -20, left: -20, width: 80, height: 80, background: 'rgba(255,255,255,0.05)', borderRadius: '50%', filter: 'blur(18px)' }} />
               </button>
+              </div>{/* end rotating border wrapper */}
 
               {/* Admin edit controls */}
               {editMode && (
