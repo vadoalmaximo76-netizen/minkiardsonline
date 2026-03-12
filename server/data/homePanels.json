@@ -33,7 +33,7 @@
     "id": "panel-tournaments-classic",
     "panelKey": "tournaments-classic",
     "title": "Tornei",
-    "subtitle": "Partecipa a competizioni classiche e in modalità Draft",
+    "subtitle": "Competizioni classiche o in modalità Draft",
     "icon": "Crown",
     "gradientFrom": "#ff0000",
     "gradientTo": "#cb3a9d",

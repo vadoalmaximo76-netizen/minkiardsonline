@@ -5701,7 +5701,7 @@ Rispondi SOLO in JSON:`;
                 console.log(`🎲 Applied: ${selectedChar.name} halved stats to ${targetCard.pti} PTI, ${targetCard.stars} stars`);
               } else if (effectLower.includes('morte')) {
                 targetCard.pti = 0;
-                this.moveToGraveyard(gameId, targetCard.id, targetCard.owner || '', cardOwner);
+                this.killAndCheck(gameId, targetCard.id, targetCard.owner || '', cardOwner);
                 console.log(`🎲 Applied: ${selectedChar.name} died from dice effect`);
               }
               this.updateCardTextWithPTI(targetCard);
@@ -6881,7 +6881,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             }
           }
           for (const deadCard of killedCards) {
-            this.moveToGraveyard(gameId, deadCard.id, deadCard.owner || '', playerName);
+            this.killAndCheck(gameId, deadCard.id, deadCard.owner || '', playerName);
           }
         } else if (action.target === 'self') {
           const selfTargetId = (action as any).targetCardId;
@@ -6898,7 +6898,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             this.updateCardTextWithPTI(selfChar);
             console.log(`💥 Custom effect: ${selfChar.name || selfChar.id} (self) took ${action.value} damage, ${oldPti} → ${selfChar.pti} PTI`);
             if (selfChar.pti <= 0) {
-              this.moveToGraveyard(gameId, selfChar.id, playerName, 'SELF_DAMAGE');
+              this.killAndCheck(gameId, selfChar.id, playerName, 'SELF_DAMAGE');
             }
           }
         } else if (action.target === 'enemy_card' || action.target === 'random') {
@@ -6910,7 +6910,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             this.updateCardTextWithPTI(target);
             console.log(`💥 Custom effect: ${target.name || target.id} took ${action.value} damage (random), ${oldPti} → ${target.pti} PTI`);
             if (target.pti! <= 0) {
-              this.moveToGraveyard(gameId, target.id, target.owner || '', playerName);
+              this.killAndCheck(gameId, target.id, target.owner || '', playerName);
             }
           }
         }
@@ -7360,7 +7360,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             this.updateCardTextWithPTI(fieldCard);
             console.log(`💥 Custom effect: ${fieldCard.name || fieldCard.id} took ${action.value} damage (ALL), now at ${fieldCard.pti} PTI`);
             if (fieldCard.pti <= 0) {
-              this.moveToGraveyard(gameId, fieldCard.id, fieldCard.owner || '', playerName);
+              this.killAndCheck(gameId, fieldCard.id, fieldCard.owner || '', playerName);
               console.log(`💀 Custom effect: ${fieldCard.name || fieldCard.id} died from damage_all`);
             }
           }
@@ -7381,7 +7381,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           this.updateCardTextWithPTI(randomTarget);
           console.log(`🎲 Custom effect: ${randomTarget.name || randomTarget.id} took ${action.value} random damage, now at ${randomTarget.pti} PTI`);
           if (randomTarget.pti <= 0) {
-            this.moveToGraveyard(gameId, randomTarget.id, randomTarget.owner || '', playerName);
+            this.killAndCheck(gameId, randomTarget.id, randomTarget.owner || '', playerName);
             console.log(`💀 Custom effect: ${randomTarget.name || randomTarget.id} died from damage_random`);
           }
         }
@@ -7399,7 +7399,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             fieldCard.pti = 0;
             this.updateCardTextWithPTI(fieldCard);
             console.log(`⚡ Custom effect: EXECUTED ${fieldCard.name || fieldCard.id} (PTI was below ${threshold})!`);
-            this.moveToGraveyard(gameId, fieldCard.id, fieldCard.owner || '', playerName);
+            this.killAndCheck(gameId, fieldCard.id, fieldCard.owner || '', playerName);
           }
         }
         break;
@@ -7416,7 +7416,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             this.updateCardTextWithPTI(fieldCard);
             console.log(`🗡️ Custom effect: PIERCED ${fieldCard.name || fieldCard.id} for ${action.value} damage (ignores shields)!`);
             if (fieldCard.pti <= 0) {
-              this.moveToGraveyard(gameId, fieldCard.id, fieldCard.owner || '', playerName);
+              this.killAndCheck(gameId, fieldCard.id, fieldCard.owner || '', playerName);
               console.log(`💀 Custom effect: ${fieldCard.name || fieldCard.id} died from pierce`);
             }
           }
@@ -8685,7 +8685,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               const target = enemies[Math.floor(Math.random() * enemies.length)];
               target.pti = Math.max(0, (target.pti || 0) - chosenEffect.value);
               this.updateCardTextWithPTI(target);
-              if (target.pti <= 0) this.moveToGraveyard(gameId, target.id, target.owner || '', 'EFFETTO_CASUALE');
+              if (target.pti <= 0) this.killAndCheck(gameId, target.id, target.owner || '', 'EFFETTO_CASUALE');
             }
             break;
           }
@@ -10031,7 +10031,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               if (gambleChar.pti <= 0) {
                 gambleChar.pti = 0;
                 this.updateCardTextWithPTI(gambleChar);
-                this.moveToGraveyard(gameId, gambleChar.id, playerName, 'SCOMMESSA_PERSA');
+                this.killAndCheck(gameId, gambleChar.id, playerName, 'SCOMMESSA_PERSA');
               }
             }
           }
@@ -10094,7 +10094,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               ioAll.to(gameId).emit('game-state-update', gameState);
             }
             if (targetChar.pti <= 0) {
-              this.moveToGraveyard(gameId, targetChar.id, targetChar.owner || '', 'ATTACCO_SIMULTANEO');
+              this.killAndCheck(gameId, targetChar.id, targetChar.owner || '', 'ATTACCO_SIMULTANEO');
             }
           }
         };
@@ -10831,7 +10831,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               attackerChar.pti = Math.max(0, oldPti - damageValue);
               this.updateCardTextWithPTI(attackerChar);
               if (attackerChar.pti <= 0) {
-                this.moveToGraveyard(gameId, attackerChar.id, attackerName, validInterceptor.playerName);
+                this.killAndCheck(gameId, attackerChar.id, attackerName, validInterceptor.playerName);
               }
             }
             const gameStateInterc = this.getSanitizedGameState(gameId);
@@ -11939,7 +11939,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       });
       
       // Move to graveyard
-      this.moveToGraveyard(gameId, targetCardId, originalOwner, captorPlayer);
+      this.killAndCheck(gameId, targetCardId, originalOwner, captorPlayer);
       
       // Return OSTAGGIO to deck since target died
       this.returnToDeck(gameId, ostaggioCardId, captorPlayer);
@@ -12496,7 +12496,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               timestamp: Date.now()
             });
             
-            this.moveToGraveyard(gameId, delayed.targetCardId, playerName, delayed.attackerName);
+            this.killAndCheck(gameId, delayed.targetCardId, playerName, delayed.attackerName);
           }
         }
       }
@@ -13723,7 +13723,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           console.log(`💀 ${attackerCharName} killed by revenge!`);
           // Use setTimeout to avoid recursive death handling
           setTimeout(() => {
-            this.moveToGraveyard(gameId, attackerChar.id, attacker, playerName);
+            this.killAndCheck(gameId, attackerChar.id, attacker, playerName);
           }, 100);
         }
       }
@@ -13920,6 +13920,23 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     return { success: false, detachedParasites };
   }
 
+  /**
+   * Convenience wrapper: moves a card to the graveyard AND automatically triggers
+   * processEliminationAfterDeath if the card's owner has reached the character limit.
+   * Use this instead of bare moveToGraveyard in internal game-logic functions so that
+   * every source of death (damage, poison, dice, gambling, …) correctly eliminates
+   * the player when their last character dies.
+   */
+  private killAndCheck(gameId: string, cardId: string, owner: string, attacker: string): void {
+    const result = this.moveToGraveyard(gameId, cardId, owner, attacker);
+    if (result.success && result.eliminationCheck) {
+      const io = (global as any).io;
+      if (io) {
+        this.processEliminationAfterDeath(gameId, result.cardOwner || owner, io, attacker);
+      }
+    }
+  }
+
   // Resurrect a specific card selected by the player from the graveyard
   resurrectSelectedCard(gameId: string, cardId: string, playerName: string): { success: boolean; cardName?: string } {
     const game = this.games.get(gameId);
@@ -14110,7 +14127,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     } else {
       // No insurance, character dies
-      this.moveToGraveyard(gameId, card.id, ownerName, 'PTI a 0');
+      this.killAndCheck(gameId, card.id, ownerName, 'PTI a 0');
     }
   }
 
@@ -14714,7 +14731,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         console.log(`🎲 Applied: ${selectedCharName} halved stats to ${targetCard.pti} PTI, ${targetCard.stars} stars`);
       } else if (effectLower.includes('morte')) {
         targetCard.pti = 0;
-        this.moveToGraveyard(gameId, targetCard.id, targetCard.owner || '', rollingPlayer);
+        this.killAndCheck(gameId, targetCard.id, targetCard.owner || '', rollingPlayer);
         console.log(`🎲 Applied: ${selectedCharName} died from dice effect`);
       }
       this.updateCardTextWithPTI(targetCard);
@@ -15363,7 +15380,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           timestamp: Date.now()
         });
         if (attackTarget.pti <= 0) {
-          this.moveToGraveyard(gameId, attackTarget.id, attackTarget.owner || '', 'ATTACCO_SIMULTANEO');
+          this.killAndCheck(gameId, attackTarget.id, attackTarget.owner || '', 'ATTACCO_SIMULTANEO');
         }
       }
       game.pendingTargetSelections.delete(selectionId);
@@ -15868,7 +15885,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         this.updateCardTextWithPTI(targetCard);
         console.log(`🎯 Dealt ${action.value} damage to ${targetName}: ${currentPTI} → ${newPTI}`);
         if (newPTI <= 0) {
-          this.moveToGraveyard(gameId, targetCard.id, targetCard.owner, 'Effetto');
+          this.killAndCheck(gameId, targetCard.id, targetCard.owner, 'Effetto');
         }
         break;
 
@@ -15898,7 +15915,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           break;
         }
         console.log(`🎯 Killed ${targetName}`);
-        this.moveToGraveyard(gameId, targetCard.id, targetCard.owner, 'Effetto');
+        this.killAndCheck(gameId, targetCard.id, targetCard.owner, 'Effetto');
         break;
 
       case 'weaken':
@@ -16038,7 +16055,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             if (action.description?.toLowerCase().includes('morte') && gambleChar.pti <= 0) {
               gambleChar.pti = 0;
               this.updateCardTextWithPTI(gambleChar);
-              this.moveToGraveyard(gameId, gambleChar.id, gambleChar.owner || '', 'SCOMMESSA_PERSA');
+              this.killAndCheck(gameId, gambleChar.id, gambleChar.owner || '', 'SCOMMESSA_PERSA');
             }
           }
         }
@@ -16134,7 +16151,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             timestamp: Date.now()
           });
           if (targetCard.pti <= 0) {
-            this.moveToGraveyard(gameId, targetCard.id, targetCard.owner || '', 'ATTACCO_SIMULTANEO');
+            this.killAndCheck(gameId, targetCard.id, targetCard.owner || '', 'ATTACCO_SIMULTANEO');
           }
         }
         break;
@@ -16660,7 +16677,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       this.updateCardTextWithPTI(card);
       console.log(`🎲 ${cardName} lost ${amount} PTI: ${currentPTI} → ${newPTI}`);
       if (newPTI <= 0) {
-        this.moveToGraveyard(gameId, characterId, card.owner, 'DADO');
+        this.killAndCheck(gameId, characterId, card.owner, 'DADO');
       }
       return;
     }
@@ -17119,7 +17136,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           this.updateCardTextWithPTI(target);
           console.log(`⚡ Dealt ${action.value} damage to ${target.name}: ${oldPTI} → ${newPTI}`);
           if (newPTI <= 0) {
-            this.moveToGraveyard(gameId, target.id, target.owner, 'Effetto');
+            this.killAndCheck(gameId, target.id, target.owner, 'Effetto');
           }
         }
         break;
@@ -17147,7 +17164,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           target.pti = newPTI;
           this.updateCardTextWithPTI(target);
           if (newPTI <= 0) {
-            this.moveToGraveyard(gameId, target.id, target.owner, 'Effetto');
+            this.killAndCheck(gameId, target.id, target.owner, 'Effetto');
           }
         }
         break;
@@ -17737,7 +17754,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           this.updateCardTextWithPTI(target);
           totalDrained += drainAmount;
           if (target.pti <= 0) {
-            this.moveToGraveyard(gameId, target.id, target.owner, 'Drain');
+            this.killAndCheck(gameId, target.id, target.owner, 'Drain');
           }
         }
         // Heal player's active character
@@ -17865,7 +17882,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         for (const target of executeTargets) {
           const targetPTI = target.pti || this.extractPTIFromNote(target.text || '');
           if (targetPTI < action.value) {
-            this.moveToGraveyard(gameId, target.id, target.owner || '', 'Esecuzione');
+            this.killAndCheck(gameId, target.id, target.owner || '', 'Esecuzione');
             io?.to(gameId).emit('chat-message', {
               id: `${Date.now()}-execute`,
               playerName: 'Sistema',
@@ -18141,7 +18158,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     for (const affected of affectedCards) {
       if (affected.newPTI <= 0) {
         console.log(`💀 ${affected.name} killed by CIMICE death effect!`);
-        this.moveToGraveyard(gameId, affected.id, affected.owner, 'CIMICE');
+        this.killAndCheck(gameId, affected.id, affected.owner, 'CIMICE');
       }
     }
     
@@ -18163,6 +18180,12 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     
     if (result.success) {
       console.log(`📦 Card ${cardId} sent to graveyard (reason: ${reason})`);
+      if (result.eliminationCheck) {
+        const io = (global as any).io;
+        if (io) {
+          this.processEliminationAfterDeath(gameId, result.cardOwner || card.owner, io, reason);
+        }
+      }
     }
     
     return { success: result.success };
@@ -19393,7 +19416,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       // Process deaths
       for (const dd of deathsToProcess) {
         console.log(`💀 Delayed death triggered for ${dd.cardName}`);
-        this.moveToGraveyard(gameId, dd.cardId, dd.owner, 'MORTE_RITARDATA');
+        this.killAndCheck(gameId, dd.cardId, dd.owner, 'MORTE_RITARDATA');
         
         // Emit notification
         const io = (global as any).io;
@@ -19534,7 +19557,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         
         // Check death
         if (newPTI <= 0) {
-          this.moveToGraveyard(gameId, card.id, playerName, 'VELENO');
+          this.killAndCheck(gameId, card.id, playerName, 'VELENO');
         }
       }
       
@@ -19559,7 +19582,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         
         // Check death
         if (newPTI <= 0) {
-          this.moveToGraveyard(gameId, card.id, playerName, 'BRUCIATURA');
+          this.killAndCheck(gameId, card.id, playerName, 'BRUCIATURA');
         }
       }
       
@@ -21865,7 +21888,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           });
           if (newPti <= 0) {
             console.log(`[DEFENSE-BONUS] ${targetPlayerName}'s ${cardName} DIED from ${reason}!`);
-            this.moveToGraveyard(gameId, targetChar.id, targetPlayerName, defender);
+            this.killAndCheck(gameId, targetChar.id, targetPlayerName, defender);
           }
         };
 
@@ -21896,7 +21919,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           });
           if (newPti <= 0) {
             console.log(`[DEFENSE-BONUS] ${targetPlayerName}'s ${cardName} DIED from ${reason}!`);
-            this.moveToGraveyard(gameId, targetChar.id, targetPlayerName, defender);
+            this.killAndCheck(gameId, targetChar.id, targetPlayerName, defender);
           }
         };
 

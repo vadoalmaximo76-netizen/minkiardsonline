@@ -5444,8 +5444,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
             }
             
-            // Move MOSSE card to graveyard
-            gameManager.moveToGraveyard(gameId, mosseCardId, attackerName, 'MOSSE_RITARDATA');
+            // Move MOSSE card to graveyard (and check elimination, defensive no-op for mosse cards)
+            const mosseMtgResult1 = gameManager.moveToGraveyard(gameId, mosseCardId, attackerName, 'MOSSE_RITARDATA');
+            if (mosseMtgResult1.success && mosseMtgResult1.eliminationCheck) {
+              gameManager.processEliminationAfterDeath(gameId, mosseMtgResult1.cardOwner || attackerName, io, 'MOSSE_RITARDATA');
+            }
             
             // Auto-draw replacement
             const drawnSuccess = await gameManager.pickCard(gameId, 'mosse', attackerName);
@@ -5503,7 +5506,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             } as any;
             fullGame.timedEffects.push(fallbackTimedEffect);
             
-            gameManager.moveToGraveyard(gameId, mosseCardId, attackerName, 'MOSSE_RITARDATA');
+            const mosseMtgResult2 = gameManager.moveToGraveyard(gameId, mosseCardId, attackerName, 'MOSSE_RITARDATA');
+            if (mosseMtgResult2.success && mosseMtgResult2.eliminationCheck) {
+              gameManager.processEliminationAfterDeath(gameId, mosseMtgResult2.cardOwner || attackerName, io, 'MOSSE_RITARDATA');
+            }
             const drawnFallback = await gameManager.pickCard(gameId, 'mosse', attackerName);
             if (drawnFallback) console.log(`[AUTO-DRAW] ${attackerName} drew replacement MOSSE after delayed attack`);
             
