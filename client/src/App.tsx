@@ -846,6 +846,8 @@ function App() {
           isOpen={true}
           onClose={handleGoHome}
           currentUserId={authenticatedUser?.id}
+          currentGameId={gameId}
+          onNavigate={(s) => handleNavigate(s as any)}
         />
         <SpotifyPlayer disabled={false} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />

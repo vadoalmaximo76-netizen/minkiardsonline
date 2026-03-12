@@ -12927,6 +12927,15 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         .returning();
       
       emitSync('conversations', 'insert', { participant1Id: currentUser.id, participant2Id: recipientId, lastMessageAt: new Date() });
+
+      createNotification(
+        recipientId,
+        'message',
+        '💬 Nuovo messaggio',
+        `${currentUser.username} ti ha scritto un messaggio privato`,
+        { conversationId: newConv.id, senderUsername: currentUser.username, url: '/profilo', tag: `message-conv-${newConv.id}` }
+      ).catch(() => {});
+
       res.json(newConv);
     } catch (error) {
       console.error('Error creating conversation:', error);

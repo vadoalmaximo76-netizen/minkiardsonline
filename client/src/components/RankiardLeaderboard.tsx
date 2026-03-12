@@ -16,6 +16,7 @@ interface RankiardLeaderboardProps {
   onClose: () => void;
   currentUserId?: number;
   currentGameId?: string;
+  onNavigate?: (section: string) => void;
 }
 
 type ActionState = 'idle' | 'loading' | 'success' | 'error';
@@ -109,7 +110,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({ icon, successIcon, tooltip,
   );
 };
 
-export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({ isOpen, onClose, currentUserId, currentGameId }) => {
+export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({ isOpen, onClose, currentUserId, currentGameId, onNavigate }) => {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [actions, setActions] = useState<Record<number, PlayerActions>>({});
@@ -158,16 +159,22 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({ isOpen
     try {
       const res = await authFetch('/api/messages/conversation', { method: 'POST', body: JSON.stringify({ recipientId: p.id }) });
       const data = await res.json();
-      if (res.ok && data.id) { setAction(p.id, 'message', 'success'); showToast(`Conversazione aperta con ${p.username}`, true); setTimeout(() => setAction(p.id, 'message', 'idle'), 3000); }
+      if (res.ok && data.id) {
+        setAction(p.id, 'message', 'success');
+        showToast(`Conversazione aperta con ${p.username}`, true);
+        localStorage.setItem('openConversationId', String(data.id));
+        if (onNavigate) onNavigate('profile');
+      }
       else { setAction(p.id, 'message', 'error'); showToast(data.error || 'Errore', false); setTimeout(() => setAction(p.id, 'message', 'idle'), 2500); }
     } catch { setAction(p.id, 'message', 'error'); showToast('Errore di rete', false); setTimeout(() => setAction(p.id, 'message', 'idle'), 2500); }
   };
 
   const handleChallenge = async (p: LeaderboardEntry) => {
-    if (!currentGameId) { showToast('Devi essere in una partita per sfidare', false); return; }
     setAction(p.id, 'challenge', 'loading');
     try {
-      const res = await authFetch('/api/friends/invite', { method: 'POST', body: JSON.stringify({ friendId: p.id, gameId: currentGameId }) });
+      const body: Record<string, any> = { friendId: p.id };
+      if (currentGameId) body.gameId = currentGameId;
+      const res = await authFetch('/api/friends/invite', { method: 'POST', body: JSON.stringify(body) });
       const data = await res.json();
       if (res.ok && data.success) { setAction(p.id, 'challenge', 'success'); showToast(`Sfida inviata a ${p.username}!`, true); setTimeout(() => setAction(p.id, 'challenge', 'idle'), 3000); }
       else { setAction(p.id, 'challenge', 'error'); showToast(data.error || 'Errore', false); setTimeout(() => setAction(p.id, 'challenge', 'idle'), 2500); }
@@ -353,7 +360,7 @@ export const RankiardLeaderboard: React.FC<RankiardLeaderboardProps> = ({ isOpen
                           <>
                             <ActionButton icon={<UserPlus width={14} height={14} />} successIcon={<Check width={14} height={14} />} tooltip={getAction(p.id, 'friend') === 'success' ? 'Richiesta inviata' : 'Aggiungi amico'} state={getAction(p.id, 'friend')} color="rgba(74,222,128,0.7)" onClick={() => handleFriend(p)} />
                             <ActionButton icon={<MessageCircle width={14} height={14} />} successIcon={<Check width={14} height={14} />} tooltip="Messaggio privato" state={getAction(p.id, 'message')} color="rgba(103,232,249,0.7)" onClick={() => handleMessage(p)} />
-                            <ActionButton icon={<Swords width={14} height={14} />} successIcon={<Check width={14} height={14} />} tooltip={currentGameId ? 'Sfida' : 'Non sei in partita'} state={getAction(p.id, 'challenge')} color={currentGameId ? 'rgba(250,204,21,0.7)' : 'rgba(255,255,255,0.2)'} onClick={() => handleChallenge(p)} />
+                            <ActionButton icon={<Swords width={14} height={14} />} successIcon={<Check width={14} height={14} />} tooltip="Sfida" state={getAction(p.id, 'challenge')} color="rgba(250,204,21,0.7)" onClick={() => handleChallenge(p)} />
                           </>
                         ) : (
                           <div style={{ width: 90 }} />
