@@ -12,6 +12,9 @@ interface SessionSummary {
   maxParticipants: number;
   status: string;
   createdAt: number;
+  isPublic?: boolean;
+  scheduledStart?: number;
+  invitedUsers?: string[];
 }
 
 interface FantaParticipant {
@@ -19,8 +22,11 @@ interface FantaParticipant {
   credits: number;
   deck: { personaggi: any[]; mosse: any[]; bonus: any[] };
   isCPU: boolean;
+  socketId?: string;
   teamName?: string;
   teamColor?: string;
+  teamLogo?: string;
+  isReady?: boolean;
 }
 
 interface FantaPlayerStats {
@@ -58,6 +64,9 @@ interface FantaSession {
   startingBudget?: number;
   tournamentStats?: Record<string, FantaPlayerStats>;
   market?: { listings: FantaMarketListing[] };
+  isPublic: boolean;
+  invitedUsers: string[];
+  scheduledStart?: number;
 }
 
 interface Props {
@@ -110,10 +119,19 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
   const [showDecksPanel, setShowDecksPanel] = useState(false);
   const [selectedDeckPlayer, setSelectedDeckPlayer] = useState<string>('');
 
-  // T001: Team name/color
+  // T001: Team name/color/logo
   const [teamNameInput, setTeamNameInput] = useState('');
   const [teamColorInput, setTeamColorInput] = useState('#3b82f6');
+  const [teamLogoInput, setTeamLogoInput] = useState<string>('');
   const [savingTeamInfo, setSavingTeamInfo] = useState(false);
+
+  // Creation: public/private, invites, schedule
+  const [isPublicAuction, setIsPublicAuction] = useState(true);
+  const [createInvitedUsers, setCreateInvitedUsers] = useState<string[]>([]);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userSearchResults, setUserSearchResults] = useState<Array<{ username: string; displayName?: string }>>([]);
+  const [scheduledStartInput, setScheduledStartInput] = useState('');
+  const [canStartLobby, setCanStartLobby] = useState<{ canStart: boolean; missing: string[] }>({ canStart: true, missing: [] });
 
   // T002: Formation picker
   const [showFormation, setShowFormation] = useState(false);
@@ -139,7 +157,7 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
       const headers: Record<string, string> = {};
       if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
       const [lobbyRes, myRes] = await Promise.all([
-        fetch('/api/fanta/sessions', { headers }),
+        fetch(playerName ? `/api/fanta/sessions?playerName=${encodeURIComponent(playerName)}` : '/api/fanta/sessions', { headers }),
         playerName ? fetch(`/api/fanta/my-sessions?playerName=${encodeURIComponent(playerName)}`, { headers }) : Promise.resolve(null),
       ]);
       if (lobbyRes.ok) setLobbySessions(await lobbyRes.json());
@@ -339,6 +357,10 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
       setFormationDeckLoading(false);
     });
 
+    socket.on('fanta:lobby-status', (data: { canStart: boolean; missing: string[] }) => {
+      setCanStartLobby(data);
+    });
+
     return () => {
       socket.off('fanta:session-created');
       socket.off('fanta:joined');
@@ -362,6 +384,7 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
       socket.off('fanta:market-update');
       socket.off('fanta:market-sale');
       socket.off('fanta:deck-data');
+      socket.off('fanta:lobby-status');
     };
   }, [playerName, view]);
 
@@ -394,6 +417,7 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
       if (me) {
         setTeamNameInput(me.teamName || '');
         setTeamColorInput(me.teamColor || '#3b82f6');
+        setTeamLogoInput(me.teamLogo || '');
       }
     }
   }, [view, currentSession, playerName]);
@@ -404,11 +428,55 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
     if (currentSession?.market?.listings) setMarketListings(currentSession.market.listings);
   }, [currentSession]);
 
+  const searchUsers = useCallback(async (q: string) => {
+    if (!q || q.length < 2 || !authToken) { setUserSearchResults([]); return; }
+    try {
+      const res = await fetch(`/api/users/search?q=${encodeURIComponent(q)}`, {
+        headers: { 'Authorization': `Bearer ${authToken}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUserSearchResults((data.users || []).filter((u: any) => u.username !== playerName && !createInvitedUsers.includes(u.username)));
+      }
+    } catch { setUserSearchResults([]); }
+  }, [authToken, playerName, createInvitedUsers]);
+
+  useEffect(() => {
+    const t = setTimeout(() => searchUsers(userSearchQuery), 300);
+    return () => clearTimeout(t);
+  }, [userSearchQuery, searchUsers]);
+
+  useEffect(() => {
+    if (currentSession && view === 'lobby') {
+      const canStart = fantaManager_canStart(currentSession);
+      setCanStartLobby(canStart);
+    }
+  }, [currentSession, view]);
+
+  function fantaManager_canStart(sess: FantaSession): { canStart: boolean; missing: string[] } {
+    if (!sess.invitedUsers || sess.invitedUsers.length === 0) return { canStart: true, missing: [] };
+    const missing = sess.invitedUsers.filter(u => {
+      const p = sess.participants[u];
+      return !p || p.isCPU || !p.socketId;
+    });
+    return { canStart: missing.length === 0, missing };
+  }
+
   const handleCreate = () => {
     if (!playerName) return;
     setLoading(true);
-    socket.emit('fanta:create', { cpuCount, cpuLevel, playerName, maxParticipants: totalParticipants, cardsNeeded: deckSizeConfig, startingBudget });
+    const scheduledStart = scheduledStartInput ? new Date(scheduledStartInput).getTime() : undefined;
+    socket.emit('fanta:create', {
+      cpuCount, cpuLevel, playerName, maxParticipants: totalParticipants,
+      cardsNeeded: deckSizeConfig, startingBudget,
+      isPublic: isPublicAuction,
+      invitedUsers: createInvitedUsers,
+      scheduledStart,
+    });
     setShowCreateDialog(false);
+    setCreateInvitedUsers([]);
+    setUserSearchQuery('');
+    setScheduledStartInput('');
   };
 
   const handleRequestJoin = (id: string) => {
@@ -1459,13 +1527,30 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
   }
 
   if (view === 'lobby' && currentSession) {
+    const invitedNotJoined = (currentSession.invitedUsers || []).filter(u => !currentSession.participants[u]?.socketId);
+    const scheduledDate = currentSession.scheduledStart ? new Date(currentSession.scheduledStart) : null;
+    const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (file.size > 2 * 1024 * 1024) { setError('Logo troppo grande (max 2MB)'); return; }
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const dataUrl = ev.target?.result as string;
+        setTeamLogoInput(dataUrl);
+      };
+      reader.readAsDataURL(file);
+    };
+
     return (
       <div className="fixed inset-0 bg-gray-900 z-50 flex flex-col">
         <div className="flex items-center justify-between px-4 py-3 bg-gray-950 border-b border-gray-800 flex-shrink-0">
           <button onClick={handleLeave} className="text-white/50 hover:text-white text-sm font-medium">← Esci</button>
           <span className="text-base font-bold text-yellow-400">⭐ FantaMinkiards</span>
-          <div className="text-[10px] text-white/30 font-mono bg-gray-800 px-2 py-1 rounded">
-            #{fantaId.slice(-6)}
+          <div className="flex items-center gap-2">
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${currentSession.isPublic ? 'bg-green-900/60 text-green-400' : 'bg-purple-900/60 text-purple-400'}`}>
+              {currentSession.isPublic ? '🌐 Pubblica' : '🔒 Privata'}
+            </span>
+            <div className="text-[10px] text-white/30 font-mono bg-gray-800 px-2 py-1 rounded">#{fantaId.slice(-6)}</div>
           </div>
         </div>
 
@@ -1473,84 +1558,175 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
           <div className="max-w-lg mx-auto space-y-4">
 
             <div className="text-center">
-              <h2 className="text-xl font-bold text-white">Sala d'Attesa</h2>
-              <p className="text-white/50 text-sm">
-                {isCreator ? 'Approva le richieste e avvia l\'asta' : 'Aspetta che il creatore avvii l\'asta'}
+              <h2 className="text-xl font-bold text-white">🏟️ Sala d'Attesa</h2>
+              <p className="text-white/50 text-sm mt-1">
+                {isCreator ? 'Configura la tua squadra e aspetta tutti i partecipanti' : 'Configura la tua squadra e aspetta che il creatore avvii l\'asta'}
               </p>
             </div>
 
-            {/* Participants list */}
+            {/* Scheduled start banner */}
+            {scheduledDate && (
+              <div className="bg-amber-950/40 rounded-xl border border-amber-600/50 p-4 flex items-center gap-3">
+                <span className="text-2xl flex-shrink-0">📅</span>
+                <div className="flex-1">
+                  <div className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-0.5">Data d'inizio programmata</div>
+                  <div className="text-white font-bold text-base">
+                    {scheduledDate.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}
+                  </div>
+                  <div className="text-amber-300 text-sm font-semibold">
+                    ore {scheduledDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+                {isCreator && (
+                  <button
+                    onClick={() => {
+                      const newVal = scheduledStartInput ? new Date(scheduledStartInput).getTime() : undefined;
+                      socket.emit('fanta:update-scheduled-start', { fantaId, playerName, scheduledStart: newVal });
+                    }}
+                    className="text-xs text-amber-400/70 hover:text-amber-300 underline"
+                  >Modifica</button>
+                )}
+              </div>
+            )}
+
+            {/* Participants / waiting room */}
             <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-bold text-white/40 uppercase tracking-widest">
-                  Partecipanti ({participants.length}/{currentSession.maxParticipants})
+                  Sala d'attesa ({participants.length}/{currentSession.maxParticipants})
                 </span>
-                <span className="text-xs text-white/30">
-                  {availableHumanSlots > 0 ? `${availableHumanSlots} posto${availableHumanSlots > 1 ? 'i' : ''} libero` : 'Al completo'}
-                </span>
+                {canStartLobby.canStart ? (
+                  <span className="text-xs font-bold text-green-400 bg-green-900/30 px-2 py-0.5 rounded-full">✓ Tutti presenti</span>
+                ) : (
+                  <span className="text-xs font-bold text-amber-400 bg-amber-900/30 px-2 py-0.5 rounded-full">
+                    {canStartLobby.missing.length} attendo{canStartLobby.missing.length > 1 ? 'no' : ''}
+                  </span>
+                )}
               </div>
               <div className="space-y-2">
                 {participants.map(p => (
-                  <div key={p.name} className="flex items-center gap-3 bg-gray-700/50 rounded-lg px-3 py-2">
-                    {p.teamColor ? (
-                      <div style={{ width: 28, height: 28, borderRadius: 6, background: p.teamColor, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>{p.isCPU ? '🤖' : '👤'}</div>
+                  <div key={p.name} className={`flex items-center gap-3 rounded-lg px-3 py-2 ${p.name === playerName ? 'bg-indigo-900/30 border border-indigo-700/40' : 'bg-gray-700/50'}`}>
+                    {p.teamLogo ? (
+                      <img src={p.teamLogo} alt="logo" style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover', flexShrink: 0, border: `2px solid ${p.teamColor || '#4b5563'}` }} />
                     ) : (
-                      <span className="text-base">{p.isCPU ? '🤖' : '👤'}</span>
+                      <div style={{ width: 32, height: 32, borderRadius: 6, background: p.teamColor || '#374151', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, border: `2px solid ${p.teamColor || '#4b5563'}66` }}>
+                        {p.isCPU ? '🤖' : '👤'}
+                      </div>
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="font-bold text-white text-sm truncate">{p.teamName || p.name}</div>
                       {p.teamName && p.teamName !== p.name && <div className="text-white/40 text-xs truncate">{p.name}</div>}
                     </div>
                     {p.name === currentSession.creatorName && (
-                      <span className="text-xs bg-yellow-700/60 text-yellow-300 px-2 py-0.5 rounded font-semibold">Creator</span>
+                      <span className="text-[10px] bg-yellow-700/60 text-yellow-300 px-1.5 py-0.5 rounded font-semibold">Creator</span>
                     )}
-                    <span className="text-yellow-300 text-sm font-black tabular-nums">{p.credits} cr</span>
+                    {p.name === playerName && (
+                      <span className="text-[10px] bg-indigo-700/60 text-indigo-300 px-1.5 py-0.5 rounded font-semibold">Tu</span>
+                    )}
+                    <span className="text-yellow-300 text-xs font-black tabular-nums">{p.credits} cr</span>
                   </div>
                 ))}
-                {/* Empty human slots */}
-                {Array.from({ length: Math.max(0, availableHumanSlots) }).map((_, i) => (
+                {/* Invited but not yet joined */}
+                {invitedNotJoined.map(username => (
+                  <div key={`waiting-${username}`} className="flex items-center gap-3 border border-dashed border-amber-700/40 bg-amber-950/10 rounded-lg px-3 py-2">
+                    <div style={{ width: 32, height: 32, borderRadius: 6, background: '#451a03', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>⏳</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-amber-300 text-sm truncate">{username}</div>
+                      <div className="text-amber-400/60 text-xs">Invitato · non ancora entrato</div>
+                    </div>
+                  </div>
+                ))}
+                {/* Empty non-invited human slots */}
+                {Array.from({ length: Math.max(0, availableHumanSlots - invitedNotJoined.length) }).map((_, i) => (
                   <div key={`empty-${i}`} className="flex items-center gap-3 border border-dashed border-gray-600 rounded-lg px-3 py-2">
-                    <span className="text-base opacity-40">👤</span>
+                    <span className="text-base opacity-30">👤</span>
                     <span className="text-gray-600 text-sm italic">Slot libero</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Team name + color (for current player only) */}
+            {/* Team setup (for current human player) */}
             {!currentSession.participants[playerName]?.isCPU && (
               <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
                 <div className="text-xs font-bold text-white/40 uppercase tracking-widest mb-3">🎨 La tua squadra</div>
-                <div className="flex gap-3 items-center mb-3">
-                  <div
-                    style={{ width: 36, height: 36, borderRadius: 8, background: teamColorInput, flexShrink: 0, border: '2px solid rgba(255,255,255,0.15)' }}
-                  />
-                  <Input
-                    placeholder="Nome squadra (es. I Devastatori)"
-                    value={teamNameInput}
-                    onChange={e => setTeamNameInput(e.target.value)}
-                    maxLength={30}
-                    className="bg-gray-700 border-gray-600 text-white text-sm h-9 flex-1"
-                  />
-                  <input
-                    type="color"
-                    value={teamColorInput}
-                    onChange={e => setTeamColorInput(e.target.value)}
-                    style={{ width: 36, height: 36, borderRadius: 8, border: 'none', cursor: 'pointer', background: 'none', padding: 0, flexShrink: 0 }}
-                    title="Colore squadra"
-                  />
+
+                {/* Logo upload */}
+                <div className="flex items-center gap-3 mb-3">
+                  <label className="cursor-pointer flex-shrink-0" title="Carica logo squadra">
+                    <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                    {teamLogoInput ? (
+                      <img src={teamLogoInput} alt="logo" style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover', border: `2px solid ${teamColorInput}` }} />
+                    ) : (
+                      <div style={{ width: 48, height: 48, borderRadius: 8, background: teamColorInput, border: '2px dashed rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>📷</div>
+                    )}
+                  </label>
+                  <div className="flex-1 flex flex-col gap-2">
+                    <Input
+                      placeholder="Nome squadra (es. I Devastatori)"
+                      value={teamNameInput}
+                      onChange={e => setTeamNameInput(e.target.value)}
+                      maxLength={30}
+                      className="bg-gray-700 border-gray-600 text-white text-sm h-9"
+                    />
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={teamColorInput}
+                        onChange={e => setTeamColorInput(e.target.value)}
+                        style={{ width: 32, height: 32, borderRadius: 6, border: 'none', cursor: 'pointer', background: 'none', padding: 0, flexShrink: 0 }}
+                        title="Colore squadra"
+                      />
+                      <span className="text-xs text-white/40">Colore squadra</span>
+                      {teamLogoInput && (
+                        <button onClick={() => setTeamLogoInput('')} className="text-xs text-red-400 hover:text-red-300 ml-auto">✕ Rimuovi logo</button>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 <Button
                   onClick={() => {
                     setSavingTeamInfo(true);
                     socket.emit('fanta:set-team-info', { fantaId, playerName, teamName: teamNameInput, teamColor: teamColorInput });
+                    if (teamLogoInput !== (currentSession.participants[playerName]?.teamLogo || '')) {
+                      socket.emit('fanta:set-team-logo', { fantaId, playerName, logoDataUrl: teamLogoInput });
+                    }
                     setTimeout(() => setSavingTeamInfo(false), 1500);
                   }}
                   disabled={savingTeamInfo}
                   className="w-full h-9 bg-indigo-700 hover:bg-indigo-600 text-white font-bold text-sm"
                 >
-                  {savingTeamInfo ? '✅ Salvato!' : '💾 Salva nome squadra'}
+                  {savingTeamInfo ? '✅ Salvato!' : '💾 Salva impostazioni squadra'}
                 </Button>
+              </div>
+            )}
+
+            {/* Scheduled start editor (creator only, if not set yet) */}
+            {isCreator && !scheduledDate && (
+              <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
+                <div className="text-xs font-bold text-white/40 uppercase tracking-widest mb-3">📅 Orario d'inizio (opzionale)</div>
+                <p className="text-xs text-white/40 mb-3">Imposta una data e ora per l'asta — i partecipanti riceveranno notifiche 24h e 1h prima.</p>
+                <div className="flex gap-2">
+                  <input
+                    type="datetime-local"
+                    value={scheduledStartInput}
+                    onChange={e => setScheduledStartInput(e.target.value)}
+                    min={new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16)}
+                    style={{ flex: 1, background: '#1e293b', border: '1px solid #374151', borderRadius: 8, color: 'white', padding: '8px 10px', fontSize: 13 }}
+                  />
+                  <Button
+                    onClick={() => {
+                      if (!scheduledStartInput) return;
+                      const ts = new Date(scheduledStartInput).getTime();
+                      socket.emit('fanta:update-scheduled-start', { fantaId, playerName, scheduledStart: ts });
+                      setScheduledStartInput('');
+                    }}
+                    disabled={!scheduledStartInput}
+                    className="h-10 px-4 bg-amber-700 hover:bg-amber-600 text-white font-bold text-sm"
+                  >
+                    Imposta
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -1565,49 +1741,46 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
                     <div key={req.name} className="flex items-center gap-3 bg-gray-800 rounded-lg px-3 py-2">
                       <span className="text-base">👤</span>
                       <span className="font-bold text-white text-sm flex-1">{req.name}</span>
-                      <button
-                        onClick={() => handleApprove(req.name)}
-                        className="bg-green-700 hover:bg-green-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-all"
-                      >
-                        ✓ Approva
-                      </button>
-                      <button
-                        onClick={() => handleReject(req.name)}
-                        className="bg-red-800 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-all"
-                      >
-                        ✕ Rifiuta
-                      </button>
+                      <button onClick={() => handleApprove(req.name)} className="bg-green-700 hover:bg-green-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-all">✓ Approva</button>
+                      <button onClick={() => handleReject(req.name)} className="bg-red-800 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-all">✕ Rifiuta</button>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Invite by name (creator only) */}
+            {/* Invite additional players (creator only) */}
             {isCreator && (
               <div className="bg-gray-800 rounded-xl border border-gray-700 p-4">
-                <div className="text-xs font-bold text-white/40 uppercase tracking-widest mb-3">Invita giocatore</div>
-                <div className="flex gap-2">
+                <div className="text-xs font-bold text-white/40 uppercase tracking-widest mb-3">➕ Invita altri giocatori</div>
+                <div className="relative">
                   <Input
-                    placeholder="Nome utente da invitare..."
+                    placeholder="Cerca utente da invitare..."
                     value={inviteTarget}
-                    onChange={e => setInviteTarget(e.target.value)}
+                    onChange={e => { setInviteTarget(e.target.value); setUserSearchQuery(e.target.value); }}
                     onKeyDown={e => e.key === 'Enter' && handleInvite()}
-                    className="bg-gray-700 border-gray-600 text-white text-sm h-10 flex-1"
+                    className="bg-gray-700 border-gray-600 text-white text-sm h-10"
                   />
-                  <Button
-                    onClick={handleInvite}
-                    disabled={!inviteTarget.trim()}
-                    className="h-10 px-4 bg-blue-700 hover:bg-blue-600 text-white font-bold"
-                  >
-                    Invita
-                  </Button>
+                  {userSearchResults.length > 0 && inviteTarget.length >= 2 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg overflow-hidden z-10 shadow-xl">
+                      {userSearchResults.slice(0, 5).map(u => (
+                        <button key={u.username} onClick={() => { setInviteTarget(u.username); setUserSearchResults([]); }}
+                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-700 text-left transition-colors">
+                          <span className="text-sm text-white font-medium">{u.username}</span>
+                          {u.displayName && u.displayName !== u.username && <span className="text-xs text-white/40">{u.displayName}</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
+                <Button onClick={handleInvite} disabled={!inviteTarget.trim()} className="w-full h-10 mt-2 bg-blue-700 hover:bg-blue-600 text-white font-bold text-sm">
+                  📨 Invita
+                </Button>
                 <p className="text-xs text-white/30 mt-2">L'utente riceverà una notifica se è online nella sezione FantaMinkiards</p>
               </div>
             )}
 
-            {/* Session code (creator) */}
+            {/* Session code */}
             {isCreator && (
               <div className="bg-gray-800 rounded-xl border border-gray-700 p-3">
                 <div className="text-xs text-white/40 mb-1">Codice sessione da condividere:</div>
@@ -1617,12 +1790,11 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
 
             {/* How it works */}
             <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-4 text-xs text-white/50 leading-relaxed">
-              <div className="font-bold text-white/70 mb-1.5">Come funziona:</div>
+              <div className="font-bold text-white/70 mb-1.5">ℹ️ Come funziona:</div>
               <ul className="space-y-1 list-disc list-inside">
                 <li>Ogni giocatore inizia con <span className="text-yellow-300 font-bold">{(currentSession?.startingBudget ?? 1000).toLocaleString('it-IT')} crediti</span></li>
-                <li>Tutte le carte scorrono in ordine alfabetico</li>
-                <li>Fai offerte per aggiudicarti le carte che vuoi</li>
                 <li>Squadra completa: <strong className="text-white">{currentSession?.cardsNeeded?.personaggi ?? 20} personaggi · {currentSession?.cardsNeeded?.mosse ?? 9} mosse · {currentSession?.cardsNeeded?.bonus ?? 15} bonus</strong></li>
+                <li>Fai offerte per aggiudicarti le carte che vuoi</li>
                 <li>Chi finisce i crediti senza completare la squadra viene squalificato</li>
               </ul>
             </div>
@@ -1632,9 +1804,19 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
         {/* Sticky start button (creator only) */}
         {isCreator && (
           <div className="flex-shrink-0 px-4 py-4 bg-gray-950 border-t border-gray-800">
+            {!canStartLobby.canStart && (
+              <p className="text-center text-xs text-amber-400 mb-2">
+                ⏳ In attesa di: <strong>{canStartLobby.missing.join(', ')}</strong>
+              </p>
+            )}
             <Button
               onClick={handleStartAuction}
-              className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-black py-4 text-lg rounded-xl shadow-lg shadow-yellow-500/20"
+              disabled={!canStartLobby.canStart}
+              className={`w-full font-black py-4 text-lg rounded-xl shadow-lg transition-all ${
+                canStartLobby.canStart
+                  ? 'bg-yellow-500 hover:bg-yellow-400 text-black shadow-yellow-500/20'
+                  : 'bg-gray-700 text-gray-400 cursor-not-allowed opacity-50 shadow-none'
+              }`}
             >
               🔨 Avvia l'Asta
             </Button>
@@ -1781,14 +1963,28 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
               <div className="space-y-2">
                 {lobbySessions.map(s => {
                   const slotsLeft = s.maxParticipants ? s.maxParticipants - s.participantCount : '?';
+                  const scheduledDate = s.scheduledStart ? new Date(s.scheduledStart) : null;
+                  const isInvited = s.invitedUsers?.includes(playerName);
                   return (
-                    <div key={s.id} className="bg-gray-800 rounded-xl border border-gray-700 p-4 flex items-center gap-4">
+                    <div key={s.id} className={`bg-gray-800 rounded-xl border p-4 flex items-center gap-4 ${isInvited ? 'border-blue-700/60 bg-blue-950/10' : 'border-gray-700'}`}>
                       <div className="flex-1 min-w-0">
-                        <div className="font-bold text-white text-sm">{s.creatorName}</div>
-                        <div className="text-xs text-white/50 mt-0.5">
-                          {s.participantCount}/{s.maxParticipants ?? '?'} partecipanti
-                          {s.participants?.length > 0 && ` · ${s.participants.join(', ')}`}
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-bold text-white text-sm">{s.creatorName}</span>
+                          {s.isPublic === false ? (
+                            <span className="text-[10px] bg-purple-900/60 text-purple-400 px-1.5 py-0.5 rounded-full font-semibold">🔒 Privata</span>
+                          ) : (
+                            <span className="text-[10px] bg-green-900/40 text-green-500 px-1.5 py-0.5 rounded-full font-semibold">🌐 Pubblica</span>
+                          )}
+                          {isInvited && <span className="text-[10px] bg-blue-900/60 text-blue-400 px-1.5 py-0.5 rounded-full font-semibold">📨 Invitato</span>}
                         </div>
+                        <div className="text-xs text-white/50">
+                          {s.participantCount}/{s.maxParticipants ?? '?'} partecipanti
+                        </div>
+                        {scheduledDate && (
+                          <div className="text-[11px] text-amber-400 mt-0.5">
+                            📅 {scheduledDate.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })} ore {scheduledDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        )}
                         {isAdmin && s.status !== 'lobby' && (
                           <div className={`text-xs font-semibold mt-0.5 ${s.status === 'complete' ? 'text-green-400' : 'text-orange-400'}`}>
                             {s.status === 'complete' ? '✅ Completata' : '🔥 In corso'}
@@ -1800,9 +1996,9 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
                         size="sm"
                         onClick={() => handleRequestJoin(s.id)}
                         disabled={loading || slotsLeft === 0}
-                        className={`flex-shrink-0 font-bold ${slotsLeft === 0 ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-blue-700 hover:bg-blue-600 text-white'}`}
+                        className={`flex-shrink-0 font-bold ${slotsLeft === 0 ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : isInvited ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-blue-700 hover:bg-blue-600 text-white'}`}
                       >
-                        {slotsLeft === 0 ? 'Pieno' : 'Richiedi'}
+                        {slotsLeft === 0 ? 'Pieno' : isInvited ? '✓ Accetta' : 'Richiedi'}
                       </Button>
                       {isAdmin && (
                         <Button
@@ -1826,7 +2022,25 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
       {showCreateDialog && (
         <div className="fixed inset-0 bg-black/80 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-gray-800 rounded-t-2xl sm:rounded-2xl border border-gray-700 p-6 w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold text-white mb-5">Crea FantaTorneo</h2>
+            <h2 className="text-xl font-bold text-white mb-5">⭐ Crea FantaTorneo</h2>
+
+            {/* Public / Private toggle */}
+            <div className="mb-5">
+              <label className="text-sm font-semibold text-white/80 mb-2 block">Visibilità asta</label>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  { val: true, icon: '🌐', label: 'Pubblica', desc: 'Visibile e accessibile a tutti' },
+                  { val: false, icon: '🔒', label: 'Privata', desc: 'Solo su invito diretto' },
+                ] as const).map(({ val, icon, label, desc }) => (
+                  <button key={String(val)} onClick={() => setIsPublicAuction(val)}
+                    className={`flex flex-col items-start p-3 rounded-xl border text-left transition-all ${isPublicAuction === val ? (val ? 'bg-green-900/30 border-green-500/60 text-green-300' : 'bg-purple-900/30 border-purple-500/60 text-purple-300') : 'bg-gray-700 border-gray-600 text-white/60'}`}>
+                    <span className="text-xl mb-1">{icon}</span>
+                    <span className="font-bold text-sm">{label}</span>
+                    <span className="text-[11px] text-white/40 leading-tight">{desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {/* Total participants */}
             <div className="mb-5">
@@ -1960,19 +2174,88 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
               </div>
             </div>
 
+            {/* User invite (only when human slots > 0) */}
+            {totalParticipants - 1 - cpuCount > 0 && (
+              <div className="mb-5">
+                <label className="text-sm font-semibold text-white/80 mb-2 block">
+                  👥 Invita giocatori umani <span className="text-white/40 font-normal text-xs">({createInvitedUsers.length}/{totalParticipants - 1 - cpuCount} slot umani)</span>
+                </label>
+                {createInvitedUsers.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {createInvitedUsers.map(u => (
+                      <div key={u} className="flex items-center gap-1.5 bg-blue-900/40 border border-blue-700/50 rounded-full px-3 py-1">
+                        <span className="text-xs text-blue-300 font-medium">{u}</span>
+                        <button onClick={() => setCreateInvitedUsers(prev => prev.filter(x => x !== u))} className="text-blue-400/70 hover:text-red-400 text-xs leading-none">✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {createInvitedUsers.length < totalParticipants - 1 - cpuCount && (
+                  <div className="relative">
+                    <Input
+                      placeholder="Cerca utente da invitare..."
+                      value={userSearchQuery}
+                      onChange={e => setUserSearchQuery(e.target.value)}
+                      className="bg-gray-700 border-gray-600 text-white text-sm h-9"
+                    />
+                    {userSearchResults.length > 0 && userSearchQuery.length >= 2 && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg overflow-hidden z-20 shadow-xl">
+                        {userSearchResults.slice(0, 5).map(u => (
+                          <button key={u.username} onClick={() => {
+                            setCreateInvitedUsers(prev => [...prev, u.username]);
+                            setUserSearchQuery('');
+                            setUserSearchResults([]);
+                          }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-700 text-left transition-colors">
+                            <span className="text-blue-400 text-sm font-medium">+</span>
+                            <span className="text-sm text-white">{u.username}</span>
+                            {u.displayName && u.displayName !== u.username && <span className="text-xs text-white/40">{u.displayName}</span>}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {createInvitedUsers.length > 0 && (
+                  <p className="text-xs text-white/30 mt-1.5">Gli utenti invitati riceveranno una notifica.</p>
+                )}
+              </div>
+            )}
+
+            {/* Scheduled start */}
+            <div className="mb-5">
+              <label className="text-sm font-semibold text-white/80 mb-2 block">📅 Data d'inizio (opzionale)</label>
+              <input
+                type="datetime-local"
+                value={scheduledStartInput}
+                onChange={e => setScheduledStartInput(e.target.value)}
+                min={new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16)}
+                style={{ width: '100%', background: '#1e293b', border: '1px solid #374151', borderRadius: 10, color: 'white', padding: '10px 12px', fontSize: 14 }}
+              />
+              {scheduledStartInput && (
+                <p className="text-xs text-amber-400/70 mt-1.5">
+                  ⏰ Notifiche automatiche 24h e 1h prima dell'asta.
+                </p>
+              )}
+            </div>
+
             {/* Summary */}
             <div className="bg-gray-700/40 rounded-lg px-4 py-3 mb-5 text-sm text-white/60">
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isPublicAuction ? 'bg-green-900/60 text-green-400' : 'bg-purple-900/60 text-purple-400'}`}>
+                  {isPublicAuction ? '🌐 Pubblica' : '🔒 Privata'}
+                </span>
+              </div>
               Torneo da <strong className="text-white">{totalParticipants}</strong> partecipanti:
               tu + <strong className="text-blue-300">{cpuCount} CPU</strong>
-              {totalParticipants - 1 - cpuCount > 0 && <> + <strong className="text-green-300">{totalParticipants - 1 - cpuCount} umani</strong> (approvazione richiesta)</>}
+              {totalParticipants - 1 - cpuCount > 0 && <> + <strong className="text-green-300">{totalParticipants - 1 - cpuCount} umani</strong>{createInvitedUsers.length > 0 ? <> (<strong className="text-blue-300">{createInvitedUsers.length}</strong> già invitati)</> : <> (inviti dalla sala d'attesa)</>}</>}
             </div>
 
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setShowCreateDialog(false)} className="flex-1 border-gray-600 text-white h-12">
+              <Button variant="outline" onClick={() => { setShowCreateDialog(false); setCreateInvitedUsers([]); setUserSearchQuery(''); setScheduledStartInput(''); }} className="flex-1 border-gray-600 text-white h-12">
                 Annulla
               </Button>
               <Button onClick={handleCreate} disabled={loading} className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-black font-black h-12 text-base">
-                {loading ? 'Creazione...' : 'Crea'}
+                {loading ? 'Creazione...' : '🚀 Crea'}
               </Button>
             </div>
           </div>

@@ -54,6 +54,8 @@ export interface FantaParticipant {
   socketId?: string;
   teamName?: string;
   teamColor?: string;
+  teamLogo?: string;
+  isReady?: boolean;
 }
 
 export interface FantaPlayerStats {
@@ -141,6 +143,9 @@ export interface FantaSession {
   startingBudget?: number;
   tournamentStats?: Record<string, FantaPlayerStats>;
   market?: { listings: FantaMarketListing[] };
+  isPublic: boolean;
+  invitedUsers: string[];
+  scheduledStart?: number;
 }
 
 const STARTING_CREDITS = 1000;
@@ -273,6 +278,8 @@ export class FantaManager {
     const stored = readFantaSessions();
     for (const s of stored) {
       s.currentAuction = null;
+      if (s.isPublic === undefined) s.isPublic = true;
+      if (!s.invitedUsers) s.invitedUsers = [];
       this.sessions.set(s.id, s);
     }
   }
@@ -287,7 +294,7 @@ export class FantaManager {
     writeFantaSessions(arr);
   }
 
-  createSession(creatorName: string, cpuCount: number = 0, cpuLevel: 'easy' | 'medium' | 'hard' = 'medium', maxParticipants: number = cpuCount + 1, creatorSocketId?: string, cardsNeeded?: Partial<Record<'personaggi' | 'mosse' | 'bonus', number>>, startingBudget?: number): FantaSession {
+  createSession(creatorName: string, cpuCount: number = 0, cpuLevel: 'easy' | 'medium' | 'hard' = 'medium', maxParticipants: number = cpuCount + 1, creatorSocketId?: string, cardsNeeded?: Partial<Record<'personaggi' | 'mosse' | 'bonus', number>>, startingBudget?: number, isPublic: boolean = true, invitedUsers: string[] = [], scheduledStart?: number): FantaSession {
     const id = `fanta-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
     const participants: Record<string, FantaParticipant> = {};
     const actualMax = Math.max(maxParticipants, cpuCount + 1);
@@ -337,6 +344,9 @@ export class FantaManager {
       createdAt: Date.now(),
       cardsNeeded: resolvedCardsNeeded,
       startingBudget: budget,
+      isPublic,
+      invitedUsers: invitedUsers.filter(u => u !== creatorName),
+      scheduledStart,
     };
 
     this.sessions.set(id, session);
@@ -1080,6 +1090,47 @@ export class FantaManager {
     if (!participant) return false;
     participant.teamName = teamName.trim().slice(0, 30) || undefined;
     participant.teamColor = teamColor || undefined;
+    this.persist();
+    return true;
+  }
+
+  setTeamLogo(fantaId: string, playerName: string, logoDataUrl: string): boolean {
+    const session = this.sessions.get(fantaId);
+    if (!session) return false;
+    const participant = session.participants[playerName];
+    if (!participant) return false;
+    participant.teamLogo = logoDataUrl || undefined;
+    this.persist();
+    return true;
+  }
+
+  setParticipantReady(fantaId: string, playerName: string, ready: boolean): boolean {
+    const session = this.sessions.get(fantaId);
+    if (!session) return false;
+    const participant = session.participants[playerName];
+    if (!participant) return false;
+    participant.isReady = ready;
+    this.persist();
+    return true;
+  }
+
+  canStartAuction(fantaId: string): { canStart: boolean; missing: string[] } {
+    const session = this.sessions.get(fantaId);
+    if (!session) return { canStart: false, missing: [] };
+    const missing: string[] = [];
+    for (const invited of session.invitedUsers) {
+      const p = session.participants[invited];
+      if (!p || p.isCPU || !p.socketId) {
+        missing.push(invited);
+      }
+    }
+    return { canStart: missing.length === 0, missing };
+  }
+
+  updateScheduledStart(fantaId: string, creatorName: string, scheduledStart: number | undefined): boolean {
+    const session = this.sessions.get(fantaId);
+    if (!session || session.creatorName !== creatorName) return false;
+    session.scheduledStart = scheduledStart;
     this.persist();
     return true;
   }

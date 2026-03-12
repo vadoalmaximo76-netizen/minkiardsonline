@@ -8091,12 +8091,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // ============ FANTAMINKIARDS SOCKET EVENTS ============
-    socket.on('fanta:create', ({ cpuCount, cpuLevel, playerName, maxParticipants, cardsNeeded, startingBudget }: { cpuCount: number; cpuLevel: 'easy' | 'medium' | 'hard'; playerName: string; maxParticipants?: number; cardsNeeded?: { personaggi?: number; mosse?: number; bonus?: number }; startingBudget?: number }) => {
+    socket.on('fanta:create', ({ cpuCount, cpuLevel, playerName, maxParticipants, cardsNeeded, startingBudget, isPublic, invitedUsers, scheduledStart }: { cpuCount: number; cpuLevel: 'easy' | 'medium' | 'hard'; playerName: string; maxParticipants?: number; cardsNeeded?: { personaggi?: number; mosse?: number; bonus?: number }; startingBudget?: number; isPublic?: boolean; invitedUsers?: string[]; scheduledStart?: number }) => {
       if (!playerName) return;
-      const session = fantaManager.createSession(playerName, cpuCount || 0, cpuLevel || 'medium', maxParticipants, socket.id, cardsNeeded, startingBudget);
+      const session = fantaManager.createSession(playerName, cpuCount || 0, cpuLevel || 'medium', maxParticipants, socket.id, cardsNeeded, startingBudget, isPublic !== false, invitedUsers || [], scheduledStart);
       socket.join(session.id);
       socket.emit('fanta:session-created', { fantaId: session.id, session: fantaManager.getSafeSession(session.id) });
-      console.log(`🌟 FantaMinkiards session created: ${session.id} by ${playerName}`);
+      console.log(`🌟 FantaMinkiards session created: ${session.id} by ${playerName} (${isPublic !== false ? 'pubblica' : 'privata'})`);
+
+      if (scheduledStart && scheduledStart > Date.now()) {
+        const notify24h = scheduledStart - 24 * 60 * 60 * 1000 - Date.now();
+        const notify1h  = scheduledStart -      60 * 60 * 1000 - Date.now();
+        const sessionTitle = `FantaMinkiards #${session.id.slice(-6).toUpperCase()}`;
+
+        const sendScheduledNotif = async (msFromNow: number, title: string, body: string) => {
+          if (msFromNow <= 0) return;
+          setTimeout(async () => {
+            try {
+              const sess = fantaManager.getSession(session.id);
+              if (!sess || sess.status !== 'lobby') return;
+              const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
+              const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
+              if (!vapidPublicKey || !vapidPrivateKey || !isDatabaseAvailable()) return;
+              const webpush = (await import('web-push')).default;
+              webpush.setVapidDetails('mailto:vadoalmaximo76@gmail.com', vapidPublicKey, vapidPrivateKey);
+              const allInvited = [sess.creatorName, ...(sess.invitedUsers || [])];
+              const payload = JSON.stringify({ title, body, url: '/fanta' });
+              for (const username of allInvited) {
+                const subs = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.username, username));
+                for (const sub of subs) {
+                  try {
+                    await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload);
+                  } catch (e: any) {
+                    if (e.statusCode === 410 || e.statusCode === 404) {
+                      await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, sub.endpoint));
+                    }
+                  }
+                }
+              }
+            } catch (e) { console.error(`[Fanta] Scheduled push error:`, e); }
+          }, msFromNow);
+        };
+
+        sendScheduledNotif(notify24h, `⏰ ${sessionTitle}`, `L'asta inizia tra 24 ore! Accedi alla sala d'attesa.`);
+        sendScheduledNotif(notify1h,  `🚨 ${sessionTitle}`, `L'asta inizia tra 1 ora! Sei pronto?`);
+      }
     });
 
     socket.on('fanta:join', ({ fantaId, playerName }: { fantaId: string; playerName: string }) => {
@@ -8108,6 +8146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sess = fantaManager.getSafeSession(fantaId);
       io.to(fantaId).emit('fanta:session-updated', { session: sess });
       socket.emit('fanta:joined', { fantaId, session: sess });
+      io.to(fantaId).emit('fanta:lobby-status', fantaManager.canStartAuction(fantaId));
       console.log(`🌟 ${playerName} joined FantaMinkiards session ${fantaId}`);
     });
 
@@ -8126,6 +8165,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sess = fantaManager.getSession(fantaId);
       if (!sess) { socket.emit('fanta:error', { message: 'Sessione non trovata' }); return; }
       if (sess.creatorName !== playerName) { socket.emit('fanta:error', { message: 'Solo il creatore può avviare l\'asta' }); return; }
+      const { canStart, missing } = fantaManager.canStartAuction(fantaId);
+      if (!canStart) {
+        socket.emit('fanta:error', { message: `Mancano ancora: ${missing.join(', ')}` }); return;
+      }
       const allMods = jsonStorage.cardModifications.getAll();
       const result = fantaManager.startAuctionPhase(fantaId, allMods, io);
       if (!result.success) socket.emit('fanta:error', { message: result.error });
@@ -8561,6 +8604,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }) => {
       const ok = fantaManager.setTeamInfo(fantaId, playerName, teamName, teamColor);
       if (!ok) { socket.emit('fanta:error', { message: 'Impossibile impostare info squadra' }); return; }
+      io.to(fantaId).emit('fanta:session-updated', { session: fantaManager.getSafeSession(fantaId) });
+    });
+
+    // ─── fanta:set-team-logo ─────────────────────────────────────────────────────
+    socket.on('fanta:set-team-logo', ({ fantaId, playerName, logoDataUrl }: {
+      fantaId: string; playerName: string; logoDataUrl: string;
+    }) => {
+      if (logoDataUrl && logoDataUrl.length > 2 * 1024 * 1024) {
+        socket.emit('fanta:error', { message: 'Logo troppo grande (max 2MB)' }); return;
+      }
+      const ok = fantaManager.setTeamLogo(fantaId, playerName, logoDataUrl);
+      if (!ok) { socket.emit('fanta:error', { message: 'Impossibile impostare logo' }); return; }
+      io.to(fantaId).emit('fanta:session-updated', { session: fantaManager.getSafeSession(fantaId) });
+    });
+
+    // ─── fanta:set-ready ─────────────────────────────────────────────────────────
+    socket.on('fanta:set-ready', ({ fantaId, playerName, ready }: {
+      fantaId: string; playerName: string; ready: boolean;
+    }) => {
+      const ok = fantaManager.setParticipantReady(fantaId, playerName, ready);
+      if (!ok) { socket.emit('fanta:error', { message: 'Impossibile aggiornare stato' }); return; }
+      const sess = fantaManager.getSafeSession(fantaId);
+      io.to(fantaId).emit('fanta:session-updated', { session: sess });
+      const canStart = fantaManager.canStartAuction(fantaId);
+      io.to(fantaId).emit('fanta:lobby-status', canStart);
+    });
+
+    // ─── fanta:update-scheduled-start ────────────────────────────────────────────
+    socket.on('fanta:update-scheduled-start', ({ fantaId, playerName, scheduledStart }: {
+      fantaId: string; playerName: string; scheduledStart: number | undefined;
+    }) => {
+      const ok = fantaManager.updateScheduledStart(fantaId, playerName, scheduledStart);
+      if (!ok) { socket.emit('fanta:error', { message: 'Non autorizzato' }); return; }
       io.to(fantaId).emit('fanta:session-updated', { session: fantaManager.getSafeSession(fantaId) });
     });
 
@@ -16208,10 +16284,15 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
     try {
       const user = (req as any).user;
       const callerIsAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-      const rawSessions = callerIsAdmin
-        ? fantaManager.getAllSessions()
-        : fantaManager.getLobbySession();
-      const sessions = rawSessions.map(s => ({
+      const playerName = req.query.playerName as string | undefined;
+      const allLobbySessions = callerIsAdmin ? fantaManager.getAllSessions() : fantaManager.getLobbySession();
+      const visibleSessions = allLobbySessions.filter(s => {
+        if (callerIsAdmin) return true;
+        if (s.isPublic !== false) return true;
+        if (!playerName) return false;
+        return s.creatorName === playerName || Object.keys(s.participants).includes(playerName) || (s.invitedUsers || []).includes(playerName);
+      });
+      const sessions = visibleSessions.map(s => ({
         id: s.id,
         creatorName: s.creatorName,
         participantCount: Object.keys(s.participants).length,
@@ -16219,6 +16300,9 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         maxParticipants: s.maxParticipants,
         status: s.status,
         createdAt: s.createdAt,
+        isPublic: s.isPublic !== false,
+        scheduledStart: s.scheduledStart,
+        invitedUsers: s.invitedUsers || [],
       }));
       res.json(sessions);
     } catch (err) {
