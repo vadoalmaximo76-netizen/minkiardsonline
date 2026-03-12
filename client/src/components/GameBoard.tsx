@@ -71,6 +71,7 @@ import AmbientParticles from "./AmbientParticles";
 import { GameBoard3D } from "./GameBoard3D";
 import VictoryDefeatAnimation from "./VictoryDefeatAnimation";
 import { PreGameLobbyPanel } from "./PreGameLobbyPanel";
+import { InvitePanel } from "./InvitePanel";
 import { useScreenShake } from "../lib/useScreenShake";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
@@ -191,6 +192,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     timestamp: number;
   }>>([]);
   const [lobbyCharacterLimit, setLobbyCharacterLimit] = useState('3');
+  const [showInvitePanel, setShowInvitePanel] = useState(false);
   const [eliminationDialogOpen, setEliminationDialogOpen] = useState(false);
   const [victoryDialogOpen, setVictoryDialogOpen] = useState(false);
   const [victoryPlayer, setVictoryPlayer] = useState<string>('');
@@ -3723,6 +3725,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             >
               3D
             </Button>
+            <Button
+              onClick={() => { playButtonClick(); setShowInvitePanel(!showInvitePanel); }}
+              className={`${showInvitePanel ? 'bg-emerald-500/90 border-emerald-400/30 shadow-emerald-500/25' : 'bg-white/10 border-white/10 shadow-none'} text-white font-bold text-[11px] landscape:text-sm md:text-sm px-3 landscape:px-4 md:px-4 py-1.5 landscape:py-2 md:py-2 rounded-xl shadow-lg border transition-all duration-200 hover:bg-emerald-500/70 whitespace-nowrap`}
+            >
+              INVITA
+            </Button>
           </div>
           )}
 
@@ -3864,6 +3872,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
         {/* CPU Controls - centered modal panel */}
         {showCpuControls && <CPUControls onClose={() => setShowCpuControls(false)} />}
+
+        {/* Invite Panel */}
+        {showInvitePanel && (
+          <InvitePanel
+            gameId={gameId || ''}
+            authToken={authToken}
+            onClose={() => setShowInvitePanel(false)}
+          />
+        )}
 
         {is3DMode ? (
           <GameBoard3D onCardClick={(card) => setSelectedCard(card)} />
