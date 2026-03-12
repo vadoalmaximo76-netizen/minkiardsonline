@@ -767,3 +767,19 @@ export const draftTournaments = pgTable("draft_tournaments", {
 export const insertDraftTournamentSchema = createInsertSchema(draftTournaments).omit({ id: true, startedAt: true });
 export type DraftTournament = typeof draftTournaments.$inferSelect;
 export type InsertDraftTournament = z.infer<typeof insertDraftTournamentSchema>;
+
+// ── Unified Notification Inbox ───────────────────────────────────────────────
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  type: text("type").notNull(), // 'fanta_invite' | 'friend_request' | 'game_invite' | 'clan_request' | 'message' | 'achievement' | 'market_sale' | 'tournament' | 'general'
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  data: jsonb("data").default({}), // extra payload (fantaId, gameId, etc.)
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;

@@ -7,7 +7,7 @@ import jwt from "jsonwebtoken";
 import fs from "fs";
 import path from "path";
 import { db, legacyDb, isDatabaseAvailable, isLegacyDbAvailable } from "./db";
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, draftTournaments } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, draftTournaments, notifications } from "../shared/schema";
 import { jsonStorage, homePanelsStorage, newsTickerStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray } from "drizzle-orm";
 import { CARD_DATA, DECK_BACK_IMAGES } from "../client/src/lib/cardData";
@@ -8098,6 +8098,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       socket.emit('fanta:session-created', { fantaId: session.id, session: fantaManager.getSafeSession(session.id) });
       console.log(`🌟 FantaMinkiards session created: ${session.id} by ${playerName} (${isPublic !== false ? 'pubblica' : 'privata'})`);
 
+      // Send immediate persistent notification to all invited users
+      if (invitedUsers && invitedUsers.length > 0) {
+        for (const invitedName of invitedUsers) {
+          resolveUserId(invitedName).then(uid => {
+            if (!uid) return;
+            createNotification(
+              uid,
+              'fanta_invite',
+              '🏆 Invito FantaMinkiards',
+              `${playerName} ti ha invitato a partecipare a un'asta FantaMinkiards`,
+              { fantaId: session.id, url: '/fanta', tag: `fanta-invite-${session.id}` }
+            ).catch(() => {});
+          }).catch(() => {});
+        }
+      }
+
       if (scheduledStart && scheduledStart > Date.now()) {
         const notify24h = scheduledStart - 24 * 60 * 60 * 1000 - Date.now();
         const notify1h  = scheduledStart -      60 * 60 * 1000 - Date.now();
@@ -8243,7 +8259,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sess = fantaManager.getSession(fantaId);
       if (!sess || sess.creatorName !== creatorName) { socket.emit('fanta:error', { message: 'Non autorizzato' }); return; }
       const result = fantaManager.invitePlayer(fantaId, targetName, io);
-      if (!result.success) socket.emit('fanta:error', { message: result.error });
+      if (!result.success) { socket.emit('fanta:error', { message: result.error }); return; }
+      // Persistent notification for invited user
+      resolveUserId(targetName).then(uid => {
+        if (!uid) return;
+        createNotification(
+          uid,
+          'fanta_invite',
+          '🏆 Invito FantaMinkiards',
+          `${creatorName} ti ha invitato all'asta FantaMinkiards`,
+          { fantaId, url: '/fanta', tag: `fanta-invite-${fantaId}` }
+        ).catch(() => {});
+      }).catch(() => {});
     });
 
     socket.on('fanta:start-tournament', async ({ fantaId, playerName }: { fantaId: string; playerName: string }) => {
@@ -10709,6 +10736,20 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
           userId: currentUser[0].id
         });
         emitSync('clan_join_requests', 'insert', { clanId, userId: currentUser[0].id });
+
+        // Notify clan leader persistently
+        const leader = await db.select({ userId: clanMembers.userId }).from(clanMembers)
+          .where(and(eq(clanMembers.clanId, clanId), eq(clanMembers.role, 'leader'))).limit(1);
+        if (leader.length) {
+          createNotification(
+            leader[0].userId,
+            'clan_request',
+            '🛡️ Richiesta di ingresso',
+            `${currentUser[0].username} vuole entrare nel tuo clan "${clan[0].name}"`,
+            { clanId, userId: currentUser[0].id, url: '/profilo', tag: `clan-req-${clanId}-${currentUser[0].id}` }
+          ).catch(() => {});
+        }
+
         return res.json({ success: true, message: 'Join request sent' });
       }
       
@@ -11990,7 +12031,17 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         status: 'pending'
       });
       emitSync('friend_requests', 'insert', { requesterId, addresseeId, message: message || null, status: 'pending' });
-      
+
+      // Persistent notification for addressee
+      const senderUser = await db.select({ username: users.username }).from(users).where(eq(users.id, requesterId)).limit(1);
+      createNotification(
+        addresseeId,
+        'friend_request',
+        '👤 Richiesta di amicizia',
+        `${senderUser[0]?.username ?? 'Qualcuno'} ti ha inviato una richiesta di amicizia`,
+        { requesterId, url: '/profilo', tag: `friend-req-${requesterId}` }
+      ).catch(() => {});
+
       res.json({ success: true });
     } catch (error) {
       console.error('Error sending friend request:', error);
@@ -12119,6 +12170,16 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         url: `/?gameId=${gameId}`,
         tag: `game-invite-${gameId}`
       }).catch(() => {});
+
+      // Persistent notification in inbox
+      createNotification(
+        friendId,
+        'game_invite',
+        '🎮 Invito partita',
+        `${currentUser[0].username} ti ha invitato in una partita! Codice: ${gameId.replace('room-', '')}`,
+        { gameId, url: `/gioca`, tag: `game-invite-${gameId}` },
+        false
+      ).catch(() => {});
 
       res.json({ success: true });
     } catch (error) {
@@ -12872,6 +12933,16 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         tag: `dm-${conversationId}`
       }).catch(() => {});
 
+      // Persistent notification in inbox
+      createNotification(
+        recipientId,
+        'message',
+        `💬 Messaggio da ${currentUser.username}`,
+        content.length > 100 ? content.substring(0, 97) + '...' : content,
+        { conversationId, url: '/profilo', tag: `dm-${conversationId}` },
+        false
+      ).catch(() => {});
+
       res.json(newMessage);
     } catch (error) {
       console.error('Error sending message:', error);
@@ -12960,6 +13031,118 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       console.error('[Push] sendPushToUser error:', e);
     }
   }
+
+  // ── Unified Notification Inbox helper ────────────────────────────────────────
+  async function createNotification(
+    userId: number,
+    type: string,
+    title: string,
+    body: string,
+    data: Record<string, any> = {},
+    sendPush = true
+  ): Promise<void> {
+    if (!isDatabaseAvailable()) return;
+    try {
+      await db.insert(notifications).values({ userId, type, title, body, data, isRead: false });
+      if (sendPush) {
+        sendPushToUser(userId, { title, body, url: data.url, tag: data.tag }).catch(() => {});
+      }
+    } catch (e) {
+      console.error('[Notification] createNotification error:', e);
+    }
+  }
+
+  // Resolve username -> userId (returns null if not found)
+  async function resolveUserId(username: string): Promise<number | null> {
+    if (!isDatabaseAvailable()) return null;
+    try {
+      const u = await db.select({ id: users.id }).from(users).where(eq(users.username, username)).limit(1);
+      return u.length ? u[0].id : null;
+    } catch { return null; }
+  }
+
+  // ── Notification Inbox API ───────────────────────────────────────────────────
+
+  // GET /api/notifications — fetch all notifications for the authenticated user
+  app.get('/api/notifications', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json([]);
+      const user = (req as any).user;
+      const [currentUser] = await db.select({ id: users.id }).from(users).where(eq(users.email, user.email));
+      if (!currentUser) return res.json([]);
+      const notifs = await db.select().from(notifications)
+        .where(eq(notifications.userId, currentUser.id))
+        .orderBy(desc(notifications.createdAt))
+        .limit(100);
+      res.json(notifs);
+    } catch (e) {
+      console.error('[Notifications] GET error:', e);
+      res.json([]);
+    }
+  });
+
+  // PATCH /api/notifications/:id/read — mark one notification as read
+  app.patch('/api/notifications/:id/read', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json({ success: true });
+      const user = (req as any).user;
+      const [currentUser] = await db.select({ id: users.id }).from(users).where(eq(users.email, user.email));
+      if (!currentUser) return res.status(404).json({ success: false });
+      const notifId = parseInt(req.params.id);
+      await db.update(notifications).set({ isRead: true })
+        .where(and(eq(notifications.id, notifId), eq(notifications.userId, currentUser.id)));
+      res.json({ success: true });
+    } catch (e) {
+      console.error('[Notifications] PATCH read error:', e);
+      res.json({ success: true });
+    }
+  });
+
+  // PATCH /api/notifications/read-all — mark all as read
+  app.patch('/api/notifications/read-all', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json({ success: true });
+      const user = (req as any).user;
+      const [currentUser] = await db.select({ id: users.id }).from(users).where(eq(users.email, user.email));
+      if (!currentUser) return res.status(404).json({ success: false });
+      await db.update(notifications).set({ isRead: true }).where(eq(notifications.userId, currentUser.id));
+      res.json({ success: true });
+    } catch (e) {
+      console.error('[Notifications] PATCH read-all error:', e);
+      res.json({ success: true });
+    }
+  });
+
+  // DELETE /api/notifications/:id — delete one notification
+  app.delete('/api/notifications/:id', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json({ success: true });
+      const user = (req as any).user;
+      const [currentUser] = await db.select({ id: users.id }).from(users).where(eq(users.email, user.email));
+      if (!currentUser) return res.status(404).json({ success: false });
+      const notifId = parseInt(req.params.id);
+      await db.delete(notifications).where(and(eq(notifications.id, notifId), eq(notifications.userId, currentUser.id)));
+      res.json({ success: true });
+    } catch (e) {
+      console.error('[Notifications] DELETE error:', e);
+      res.json({ success: true });
+    }
+  });
+
+  // DELETE /api/notifications — delete all notifications for user
+  app.delete('/api/notifications', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json({ success: true });
+      const user = (req as any).user;
+      const [currentUser] = await db.select({ id: users.id }).from(users).where(eq(users.email, user.email));
+      if (!currentUser) return res.status(404).json({ success: false });
+      await db.delete(notifications).where(eq(notifications.userId, currentUser.id));
+      res.json({ success: true });
+    } catch (e) {
+      console.error('[Notifications] DELETE all error:', e);
+      res.json({ success: true });
+    }
+  });
 
   // Subscribe to push notifications
   app.post('/api/push/subscribe', authMiddleware, async (req, res) => {
@@ -16166,13 +16349,14 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         listingId, buyerId: currentUser.id, buyerName: currentUser.username, creditsSpent: listing.priceCredits,
       });
 
-      // Notify seller: push notification + socket event
-      sendPushToUser(listing.sellerId, {
-        title: '💰 Carta venduta!',
-        body: `${listing.cardName} è stata acquistata da ${currentUser.username} per ${listing.priceCredits} crediti`,
-        url: '/profile',
-        tag: 'marketplace-sale'
-      });
+      // Notify seller: push notification + persistent inbox notification
+      createNotification(
+        listing.sellerId,
+        'market_sale',
+        '💰 Carta venduta!',
+        `${listing.cardName} è stata acquistata da ${currentUser.username} per ${listing.priceCredits} crediti`,
+        { listingId, cardName: listing.cardName, buyerName: currentUser.username, price: listing.priceCredits, url: '/draft', tag: 'marketplace-sale' }
+      ).catch(() => {});
       io.emit('marketplace-sale', {
         sellerId: listing.sellerId,
         cardName: listing.cardName,

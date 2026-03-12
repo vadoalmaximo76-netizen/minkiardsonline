@@ -141,3 +141,11 @@ Pre-tournament auction system where players bid on cards to build decks, then co
 ## Fonts and Assets
 - **Inter**: Web font.
 - **PostImg/Imgur**: External image hosting.
+
+## Unified Notification Inbox
+- **DB table**: `notifications` (id, userId, type, title, body, data jsonb, isRead, createdAt)
+- **Types**: `fanta_invite`, `friend_request`, `game_invite`, `clan_request`, `message`, `market_sale`, `achievement`, `tournament`, `general`
+- **Backend helper**: `createNotification(userId, type, title, body, data?, sendPush?)` in `server/routes.ts` — inserts to DB and optionally fires a Web Push
+- **Trigger points**: fanta:create (invited users), fanta:invite socket, POST /api/friends/requests, POST /api/friends/invite, POST /api/clans/:id/join, POST /api/messages/send, POST marketplace buy
+- **API**: GET /api/notifications, PATCH /api/notifications/:id/read, PATCH /api/notifications/read-all, DELETE /api/notifications/:id, DELETE /api/notifications
+- **Frontend**: `NotificationInbox.tsx` — fixed bell icon (top-right, z=11000) with red unread badge, slide-in panel, poll 30s + window focus. Integrated in all App.tsx sections alongside NotificationPromptBanner.
