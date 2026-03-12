@@ -137,6 +137,8 @@ export function isCloudinaryConfigured(): boolean {
   return !!(cloudName && apiKey && apiSecret);
 }
 
+export { cloudinary as cloudinaryInstance };
+
 export default {
   optimizeImageUrl,
   getOptimizedCardUrl,

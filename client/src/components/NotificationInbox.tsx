@@ -107,6 +107,12 @@ export function NotificationInbox({ onNavigate, socket, onOpenConversation, onJo
     const handler = (notif: AppNotification) => {
       setNotifs((prev) => {
         if (prev.some((n) => n.id === notif.id)) return prev;
+        // Play notification sound
+        try {
+          const audio = new Audio('/sounds/success.mp3');
+          audio.volume = 0.4;
+          audio.play().catch(() => {});
+        } catch {}
         return [notif, ...prev];
       });
     };

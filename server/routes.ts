@@ -13,7 +13,7 @@ import { eq, ilike, and, desc, or, ne, sql, inArray } from "drizzle-orm";
 import { CARD_DATA, DECK_BACK_IMAGES } from "../client/src/lib/cardData";
 import { authMiddleware, ADMIN_FALLBACK, JWT_SECRET } from "./auth";
 import { setPlayerOnline, rateLimit as redisRateLimit, isRedisConfigured, updateLeaderboard as redisUpdateLeaderboard, cacheGet, cacheSet } from "./redis";
-import { getOptimizedCardUrl, isCloudinaryConfigured } from "./cloudinary";
+import { getOptimizedCardUrl, isCloudinaryConfigured, cloudinaryInstance } from "./cloudinary";
 import { captureError } from "./sentry";
 import { emitSync } from "./dbSync";
 
@@ -1197,6 +1197,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }).catch(err => {
     console.error('❌ Failed to load active games:', err);
   });
+
+  // Track which users are actively viewing a conversation (key: userId, value: conversationId)
+  const watchingConversations = new Map<number, number>();
 
   io.on('connection', (socket) => {
     console.log('Player connected:', socket.id);
@@ -8055,8 +8058,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
     // ─────────────────────────────────────────────────────────────────────────
 
+    // Track user actively viewing a conversation (suppresses inbox notifications for that chat)
+    socket.on('watching-conversation', ({ conversationId }: { conversationId: number }) => {
+      const uid = (socket as any).data?.userId;
+      if (uid) watchingConversations.set(uid, conversationId);
+    });
+    socket.on('stop-watching-conversation', () => {
+      const uid = (socket as any).data?.userId;
+      if (uid) watchingConversations.delete(uid);
+    });
+
     socket.on('disconnect', () => {
       console.log('Player disconnected:', socket.id);
+      // Clear watching state on disconnect
+      const uid = (socket as any).data?.userId;
+      if (uid) watchingConversations.delete(uid);
       
       // Clean up spectators on disconnect
       if (socket.data.isSpectator && socket.data.gameId && socket.data.spectatorName) {
@@ -12996,23 +13012,25 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         }
       }
 
-      // Send push notification to recipient (works even if offline)
-      sendPushToUser(recipientId, {
-        title: `💬 Messaggio da ${currentUser.username}`,
-        body: content.length > 80 ? content.substring(0, 77) + '...' : content,
-        url: '/profile',
-        tag: `dm-${conversationId}`
-      }).catch(() => {});
+      // Only notify if recipient is NOT actively viewing this conversation
+      const recipientWatching = watchingConversations.get(recipientId) === conversationId;
+      if (!recipientWatching) {
+        sendPushToUser(recipientId, {
+          title: `💬 Messaggio da ${currentUser.username}`,
+          body: content.length > 80 ? content.substring(0, 77) + '...' : content,
+          url: '/profile',
+          tag: `dm-${conversationId}`
+        }).catch(() => {});
 
-      // Persistent notification in inbox
-      createNotification(
-        recipientId,
-        'message',
-        `💬 Messaggio da ${currentUser.username}`,
-        content.length > 100 ? content.substring(0, 97) + '...' : content,
-        { conversationId, url: '/profilo', tag: `dm-${conversationId}` },
-        false
-      ).catch(() => {});
+        createNotification(
+          recipientId,
+          'message',
+          `💬 Messaggio da ${currentUser.username}`,
+          content.length > 100 ? content.substring(0, 97) + '...' : content,
+          { conversationId, url: '/profilo', tag: `dm-${conversationId}` },
+          false
+        ).catch(() => {});
+      }
 
       res.json(newMessage);
     } catch (error) {
@@ -13021,6 +13039,109 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
     }
   });
   
+  // Upload and send a voice message
+  app.post('/api/messages/voice', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ error: 'Database non disponibile' });
+      }
+      const user = (req as any).user;
+      const conversationId = parseInt(req.headers['x-conversation-id'] as string);
+      if (!conversationId) return res.status(400).json({ error: 'conversationId required' });
+
+      const [currentUser] = await db.select().from(users).where(eq(users.email, user.email));
+      if (!currentUser) return res.status(404).json({ error: 'User not found' });
+
+      const [conv] = await db.select().from(conversations).where(eq(conversations.id, conversationId));
+      if (!conv || (conv.participant1Id !== currentUser.id && conv.participant2Id !== currentUser.id)) {
+        return res.status(403).json({ error: 'Not authorized' });
+      }
+
+      // Receive raw audio buffer
+      const chunks: Buffer[] = [];
+      req.on('data', (chunk: Buffer) => chunks.push(chunk));
+      await new Promise<void>((resolve, reject) => {
+        req.on('end', resolve);
+        req.on('error', reject);
+      });
+      const audioBuffer = Buffer.concat(chunks);
+      if (!audioBuffer.length) return res.status(400).json({ error: 'Empty audio' });
+
+      // Upload to Cloudinary
+      const uploadResult = await new Promise<any>((resolve, reject) => {
+        const stream = cloudinaryInstance.uploader.upload_stream(
+          { resource_type: 'video', folder: 'minkiards-voice', format: 'webm' },
+          (err, result) => { if (err) reject(err); else resolve(result); }
+        );
+        stream.end(audioBuffer);
+      });
+
+      const recipientId = conv.participant1Id === currentUser.id ? conv.participant2Id : conv.participant1Id;
+
+      const [newMessage] = await db.insert(privateMessages).values({
+        conversationId,
+        senderId: currentUser.id,
+        content: '🎤 Messaggio vocale',
+        isRead: false,
+        messageType: 'voice',
+        audioUrl: uploadResult.secure_url,
+        audioPublicId: uploadResult.public_id,
+      }).returning();
+
+      await db.update(conversations).set({ lastMessageAt: new Date() }).where(eq(conversations.id, conversationId));
+
+      const targetSockets = await io.fetchSockets();
+      for (const s of targetSockets) {
+        const uid = (s as any).data?.userId;
+        if (uid === recipientId || uid === currentUser.id) {
+          s.emit('new-private-message', { conversationId, message: newMessage, senderUsername: currentUser.username, recipientId });
+        }
+      }
+
+      const recipientWatching = watchingConversations.get(recipientId) === conversationId;
+      if (!recipientWatching) {
+        sendPushToUser(recipientId, {
+          title: `🎤 Messaggio vocale da ${currentUser.username}`,
+          body: 'Hai ricevuto un messaggio vocale',
+          url: '/profile',
+          tag: `dm-${conversationId}`
+        }).catch(() => {});
+        createNotification(recipientId, 'message', `🎤 Messaggio vocale da ${currentUser.username}`, 'Hai ricevuto un messaggio vocale', { conversationId, url: '/profilo', tag: `dm-${conversationId}` }, false).catch(() => {});
+      }
+
+      res.json(newMessage);
+    } catch (error) {
+      console.error('Error sending voice message:', error);
+      res.status(500).json({ error: 'Failed to send voice message' });
+    }
+  });
+
+  // Cleanup voice messages older than 7 days
+  async function cleanupExpiredVoiceMessages() {
+    if (!isDatabaseAvailable()) return;
+    try {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const expired = await db.select()
+        .from(privateMessages)
+        .where(and(eq(privateMessages.messageType, 'voice'), sql`${privateMessages.createdAt} < ${sevenDaysAgo}`));
+      if (!expired.length) return;
+      for (const msg of expired) {
+        if (msg.audioPublicId) {
+          cloudinaryInstance.uploader.destroy(msg.audioPublicId, { resource_type: 'video' }).catch(() => {});
+        }
+        await db.update(privateMessages)
+          .set({ audioUrl: null, audioPublicId: null, content: '🎤 Messaggio vocale (scaduto)' })
+          .where(eq(privateMessages.id, msg.id));
+      }
+      console.log(`[VoiceCleanup] Cleaned up ${expired.length} expired voice messages`);
+    } catch (e) {
+      console.error('[VoiceCleanup] Error:', e);
+    }
+  }
+  // Run cleanup on startup and every 24h
+  cleanupExpiredVoiceMessages();
+  setInterval(cleanupExpiredVoiceMessages, 24 * 60 * 60 * 1000);
+
   // Get unread message count
   app.get('/api/messages/unread-count', authMiddleware, async (req, res) => {
     try {

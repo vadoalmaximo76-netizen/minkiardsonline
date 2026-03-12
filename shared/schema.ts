@@ -576,6 +576,9 @@ export const privateMessages = pgTable("private_messages", {
   senderId: integer("sender_id").notNull(),
   content: text("content").notNull(),
   isRead: boolean("is_read").notNull().default(false),
+  messageType: text("message_type").default("text"),
+  audioUrl: text("audio_url"),
+  audioPublicId: text("audio_public_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

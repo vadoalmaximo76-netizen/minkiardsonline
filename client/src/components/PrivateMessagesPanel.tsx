@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, Search, Send, MessageCircle, X, Check, CheckCheck } from 'lucide-react';
+import { ArrowLeft, Search, Send, MessageCircle, X, Check, CheckCheck, Mic, Square, Trash2, Loader } from 'lucide-react';
 
 interface ConversationWithDetails {
   id: number;
@@ -18,6 +18,8 @@ interface Message {
   senderId: number;
   content: string;
   isRead: boolean;
+  messageType?: string;
+  audioUrl?: string | null;
   createdAt: string;
 }
 
@@ -78,10 +80,16 @@ export default function PrivateMessagesPanel({ authToken, currentUserId, socket,
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showSearch, setShowSearch] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [sendingVoice, setSendingVoice] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const initialHandled = useRef(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const headers = useCallback(() => ({
     'Content-Type': 'application/json',
@@ -156,6 +164,78 @@ export default function PrivateMessagesPanel({ authToken, currentUserId, socket,
       setTimeout(() => scrollToBottom(false), 30);
     }
   }, [messages.length]);
+
+  // Tell server we're watching a conversation (suppresses inbox notifications for it)
+  useEffect(() => {
+    if (!socket) return;
+    if (selectedConv) {
+      socket.emit('watching-conversation', { conversationId: selectedConv.id });
+    } else {
+      socket.emit('stop-watching-conversation');
+    }
+    return () => { socket.emit('stop-watching-conversation'); };
+  }, [socket, selectedConv?.id]);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunksRef.current = [];
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
+      const recorder = new MediaRecorder(stream, { mimeType });
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      recorder.start(100);
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+      setRecordingTime(0);
+      recordingTimerRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
+    } catch {
+      alert('Impossibile accedere al microfono');
+    }
+  };
+
+  const stopRecording = () => {
+    if (!mediaRecorderRef.current) return;
+    mediaRecorderRef.current.stop();
+    mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop());
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    setIsRecording(false);
+    setRecordingTime(0);
+    const chunks = audioChunksRef.current;
+    if (chunks.length && selectedConv) sendVoiceMessage(chunks);
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop());
+      mediaRecorderRef.current = null;
+    }
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    audioChunksRef.current = [];
+    setIsRecording(false);
+    setRecordingTime(0);
+  };
+
+  const sendVoiceMessage = async (chunks: Blob[]) => {
+    if (!selectedConv || !authToken) return;
+    setSendingVoice(true);
+    try {
+      const blob = new Blob(chunks, { type: chunks[0].type || 'audio/webm' });
+      const res = await fetch('/api/messages/voice', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}`, 'x-conversation-id': String(selectedConv.id), 'Content-Type': blob.type },
+        body: blob,
+      });
+      if (res.ok) {
+        const msg = await res.json();
+        setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
+        fetchConversations();
+        setTimeout(() => scrollToBottom(true), 50);
+      }
+    } catch {}
+    setSendingVoice(false);
+  };
+
+  const formatRecordingTime = (secs: number) => `${Math.floor(secs / 60).toString().padStart(2,'0')}:${(secs % 60).toString().padStart(2,'0')}`;
 
   const sendMessage = async () => {
     const text = input.trim();
@@ -294,7 +374,7 @@ export default function PrivateMessagesPanel({ authToken, currentUserId, socket,
                   {!isMe && !isLast && <div style={{ width: 26, marginRight: 6 }} />}
                   <div style={{ maxWidth: '72%' }}>
                     <div style={{
-                      padding: '8px 12px',
+                      padding: msg.messageType === 'voice' ? '8px 10px' : '8px 12px',
                       borderRadius: isMe
                         ? `16px 16px ${groupWithNext ? '16px' : '4px'} 16px`
                         : `16px 16px 16px ${groupWithNext ? '16px' : '4px'}`,
@@ -308,7 +388,22 @@ export default function PrivateMessagesPanel({ authToken, currentUserId, socket,
                       border: isMe ? 'none' : '1px solid rgba(255,255,255,0.06)',
                       boxShadow: isMe ? '0 2px 8px rgba(109,40,217,0.3)' : '0 1px 4px rgba(0,0,0,0.3)',
                     }}>
-                      {msg.content}
+                      {msg.messageType === 'voice' ? (
+                        msg.audioUrl ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 180 }}>
+                            <Mic size={14} color={isMe ? 'rgba(255,255,255,0.7)' : 'rgba(167,139,250,0.8)'} style={{ flexShrink: 0 }} />
+                            <audio
+                              controls
+                              src={msg.audioUrl}
+                              style={{ height: 28, flex: 1, minWidth: 0, filter: isMe ? 'invert(1) brightness(1.5)' : 'none', opacity: 0.9 }}
+                            />
+                          </div>
+                        ) : (
+                          <span style={{ opacity: 0.5, fontStyle: 'italic', fontSize: 12 }}>🎤 Messaggio vocale (scaduto)</span>
+                        )
+                      ) : (
+                        msg.content
+                      )}
                     </div>
                     {isLast && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 3, justifyContent: isMe ? 'flex-end' : 'flex-start', paddingRight: isMe ? 2 : 0, paddingLeft: isMe ? 0 : 2 }}>
@@ -336,57 +431,67 @@ export default function PrivateMessagesPanel({ authToken, currentUserId, socket,
           backdropFilter: 'blur(12px)',
           flexShrink: 0,
         }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              placeholder="Scrivi un messaggio... (Invio per inviare)"
-              rows={1}
-              style={{
-                flex: 1,
-                resize: 'none',
-                background: 'rgba(15,23,42,0.8)',
-                border: '1px solid rgba(139,92,246,0.25)',
-                borderRadius: 12,
-                padding: '10px 14px',
-                color: 'white',
-                fontSize: 14,
-                outline: 'none',
-                lineHeight: 1.4,
-                maxHeight: 120,
-                overflowY: 'auto',
-                fontFamily: 'inherit',
-                transition: 'border-color 0.2s',
-              }}
-              onFocus={e => { e.target.style.borderColor = 'rgba(139,92,246,0.6)'; }}
-              onBlur={e => { e.target.style.borderColor = 'rgba(139,92,246,0.25)'; }}
-            />
-            <button
-              onClick={sendMessage}
-              disabled={!input.trim() || sending}
-              style={{
-                width: 40, height: 40,
-                borderRadius: '50%',
-                background: input.trim() && !sending
-                  ? 'linear-gradient(135deg,#7c3aed,#6d28d9)'
-                  : 'rgba(30,41,59,0.6)',
-                border: 'none',
-                cursor: input.trim() && !sending ? 'pointer' : 'default',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0,
-                transition: 'all 0.2s',
-                boxShadow: input.trim() && !sending ? '0 2px 12px rgba(109,40,217,0.4)' : 'none',
-                outline: 'none',
-              }}
-            >
-              <Send size={16} color={input.trim() && !sending ? 'white' : 'rgba(148,163,184,0.4)'} />
-            </button>
-          </div>
-          <div style={{ fontSize: 10, color: 'rgba(148,163,184,0.3)', marginTop: 4, textAlign: 'right' }}>
-            Shift+Invio per andare a capo
-          </div>
+          {isRecording ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444', animation: 'pulse 1s infinite' }} />
+              <span style={{ color: '#ef4444', fontWeight: 700, fontSize: 15, fontVariantNumeric: 'tabular-nums' }}>{formatRecordingTime(recordingTime)}</span>
+              <span style={{ color: 'rgba(148,163,184,0.6)', fontSize: 12, flex: 1 }}>Registrazione in corso…</span>
+              <button onClick={cancelRecording} style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, cursor: 'pointer', color: '#ef4444', padding: '7px 10px', display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, outline: 'none' }}>
+                <Trash2 size={14} /> Annulla
+              </button>
+              <button onClick={stopRecording} style={{ background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', border: 'none', borderRadius: 8, cursor: 'pointer', color: 'white', padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, outline: 'none', boxShadow: '0 2px 10px rgba(109,40,217,0.4)' }}>
+                <Square size={14} /> Invia
+              </button>
+            </div>
+          ) : sendingVoice ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0' }}>
+              <Loader size={16} color="rgba(167,139,250,0.7)" style={{ animation: 'spin 1s linear infinite' }} />
+              <span style={{ color: 'rgba(148,163,184,0.6)', fontSize: 13 }}>Invio messaggio vocale…</span>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Scrivi un messaggio…"
+                  rows={1}
+                  style={{
+                    flex: 1,
+                    resize: 'none',
+                    background: 'rgba(15,23,42,0.8)',
+                    border: '1px solid rgba(139,92,246,0.25)',
+                    borderRadius: 12,
+                    padding: '10px 14px',
+                    color: 'white',
+                    fontSize: 14,
+                    outline: 'none',
+                    lineHeight: 1.4,
+                    maxHeight: 120,
+                    overflowY: 'auto',
+                    fontFamily: 'inherit',
+                    transition: 'border-color 0.2s',
+                  }}
+                  onFocus={e => { e.target.style.borderColor = 'rgba(139,92,246,0.6)'; }}
+                  onBlur={e => { e.target.style.borderColor = 'rgba(139,92,246,0.25)'; }}
+                />
+                {input.trim() ? (
+                  <button onClick={sendMessage} disabled={sending} style={{ width: 40, height: 40, borderRadius: '50%', background: sending ? 'rgba(30,41,59,0.6)' : 'linear-gradient(135deg,#7c3aed,#6d28d9)', border: 'none', cursor: sending ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.2s', boxShadow: sending ? 'none' : '0 2px 12px rgba(109,40,217,0.4)', outline: 'none' }}>
+                    <Send size={16} color={sending ? 'rgba(148,163,184,0.4)' : 'white'} />
+                  </button>
+                ) : (
+                  <button onClick={startRecording} style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(30,41,59,0.6)', border: '1px solid rgba(139,92,246,0.25)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.2s', outline: 'none' }} title="Messaggio vocale">
+                    <Mic size={16} color="rgba(148,163,184,0.7)" />
+                  </button>
+                )}
+              </div>
+              <div style={{ fontSize: 10, color: 'rgba(148,163,184,0.3)', marginTop: 4, textAlign: 'right' }}>
+                Shift+Invio per andare a capo • 🎤 tieni premuto mic per vocale
+              </div>
+            </>
+          )}
         </div>
       </div>
     ), document.body);
@@ -587,7 +692,10 @@ export default function PrivateMessagesPanel({ authToken, currentUserId, socket,
         )}
       </div>
 
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+      `}</style>
     </div>
   ), document.body);
 }
