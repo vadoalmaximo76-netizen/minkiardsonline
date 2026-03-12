@@ -54,6 +54,7 @@ export const CPUDamageDialog: React.FC = () => {
   const [currentDiceRoll, setCurrentDiceRoll] = useState<number | undefined>(undefined);
   const [playerWhoRolled, setPlayerWhoRolled] = useState<string | undefined>(undefined);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const [autoSubmitCountdown, setAutoSubmitCountdown] = useState<number | null>(null);
   const { playerName } = useGameState();
 
   // Listen for CPU damage requests
@@ -74,8 +75,11 @@ export const CPUDamageDialog: React.FC = () => {
         if (request.suggestedDamage !== null && request.suggestedDamage !== undefined) {
           setDamageValue(request.suggestedDamage.toString());
           console.log(`🎯 Auto-filled damage: ${request.suggestedDamage} (${request.mosseDamageValue} x ${request.attackerStars} stars)`);
+          // Start auto-submit countdown for preset-damage cards
+          setAutoSubmitCountdown(3);
         } else {
           setDamageValue('');
+          setAutoSubmitCountdown(null);
         }
         setStarsToRemove('');
         setIsProcessing(false);
@@ -98,7 +102,34 @@ export const CPUDamageDialog: React.FC = () => {
     };
   }, [playerName]);
 
+  // Auto-submit countdown: when suggestedDamage is provided, count down and auto-confirm
+  useEffect(() => {
+    if (autoSubmitCountdown === null) return;
+    if (autoSubmitCountdown <= 0) {
+      // Auto-submit now
+      if (damageRequest && !isProcessing) {
+        const damage = damageValue.trim() !== '' ? (parseInt(damageValue) || 0) : 0;
+        socket.emit('cpu-damage-submit', {
+          cpuName: damageRequest.cpuName,
+          mosseCardId: damageRequest.mosseCardId,
+          targetCardId: damageRequest.targetCardId,
+          targetOwner: damageRequest.targetOwner,
+          damageValue: damage,
+          starsToRemove: 0,
+          mosseEffect: damageRequest.mosseDamageEffect || null
+        });
+        setDamageRequest(null);
+        setDamageValue('');
+        setAutoSubmitCountdown(null);
+      }
+      return;
+    }
+    const t = setTimeout(() => setAutoSubmitCountdown(c => (c !== null ? c - 1 : null)), 1000);
+    return () => clearTimeout(t);
+  }, [autoSubmitCountdown, damageRequest, damageValue, isProcessing]);
+
   const handleDamageSubmit = () => {
+    if (autoSubmitCountdown !== null) setAutoSubmitCountdown(null);
     if (!damageRequest || isProcessing) return;
     
     // Allow 0 damage if there's a special effect like "death"
@@ -332,12 +363,22 @@ export const CPUDamageDialog: React.FC = () => {
                 LANCIA IL DADO
               </Button>
               
+              {autoSubmitCountdown !== null && (
+                <button
+                  onClick={() => setAutoSubmitCountdown(null)}
+                  className="text-xs text-yellow-300 underline"
+                >
+                  Annulla auto-invio ({autoSubmitCountdown}s)
+                </button>
+              )}
               <Button
                 onClick={handleDamageSubmit}
                 disabled={isProcessing || !damageValue}
                 className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 text-lg transition-all duration-200"
               >
-                {isProcessing ? 'APPLICANDO...' : 'APPLICA DANNO'}
+                {autoSubmitCountdown !== null
+                  ? `AUTO-INVIO IN ${autoSubmitCountdown}s`
+                  : isProcessing ? 'APPLICANDO...' : 'APPLICA DANNO'}
               </Button>
             </div>
           </CardContent>

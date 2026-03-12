@@ -112,6 +112,39 @@ export class CPUPlayer {
     return this.waitingForAttackResolution;
   }
 
+  // Parse a preset/fixed damage value from a card's effect text.
+  // Returns { damage: number, effect: string | null } if the card has a deterministic
+  // damage that doesn't require manual input, otherwise { damage: null, effect: null }.
+  private parsePresetDamageFromEffect(effect: string | null | undefined, cardName: string | null | undefined): { damage: number | null; effect: string | null } {
+    const text = [effect, cardName].filter(Boolean).join(' ');
+    if (!text) return { damage: null, effect: null };
+
+    // Special effect patterns (no numeric damage, but auto-submittable)
+    if (/\bmorte\b.*personaggio|personaggio.*\bmorte\b|\buccide\b|\bmorte\s+istantanea\b/i.test(text)) {
+      return { damage: 0, effect: 'death' };
+    }
+    if (/dimezza\s+(?:i\s+)?pti|pti\s+dimezz/i.test(text)) {
+      return { damage: 0, effect: 'halve_pti' };
+    }
+
+    // Numeric flat-damage patterns (order matters — most specific first)
+    const numericPatterns = [
+      /infligi[e]?\s+(\d+)\s*pti/i,           // "Infligge 200 PTI"
+      /causa\s+(\d+)\s*pti/i,                  // "Causa 200 PTI"
+      /(\d+)\s*pti\s+(?:di\s+)?danno/i,       // "200 PTI di danno"
+      /danno\s*(?:fisso|preimpostato)\s*:?\s*(\d+)/i, // "danno fisso: 200"
+    ];
+
+    for (const pattern of numericPatterns) {
+      const match = text.match(pattern);
+      if (match) {
+        return { damage: parseInt(match[1], 10), effect: null };
+      }
+    }
+
+    return { damage: null, effect: null };
+  }
+
   // NEW: Turn state management methods
   resetTurnState() {
     this.turnState = {
@@ -2163,6 +2196,24 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         } else if (mosseCard?.mosseDamageValue) {
           suggestedDamage = mosseCard.mosseDamageValue * attackerStars;
         }
+
+        // PRESET FALLBACK (legacy): if no damage yet, try effect text / mosseDamageEffect
+        if (suggestedDamage === null) {
+          if (effectiveEffect) {
+            suggestedDamage = 0;
+            console.log(`🎯 CPU ${this.playerName}: LEGACY - mosseDamageEffect="${effectiveEffect}" → auto-submit damage=0`);
+          } else {
+            const parsed = this.parsePresetDamageFromEffect(mosseCard?.effect, mosseCardName);
+            if (parsed.damage !== null) {
+              suggestedDamage = parsed.damage;
+              console.log(`🎯 CPU ${this.playerName}: LEGACY - parsed preset damage ${suggestedDamage} PTI from effect text`);
+            } else if (parsed.effect) {
+              suggestedDamage = 0;
+              effectiveEffect = parsed.effect;
+              console.log(`🎯 CPU ${this.playerName}: LEGACY - parsed preset effect "${parsed.effect}" from effect text → auto-submit damage=0`);
+            }
+          }
+        }
         
         // AUTO-SUBMIT: If damage is pre-calculated, execute the attack directly
         if (suggestedDamage !== null && suggestedDamage !== undefined && this.gameManager) {
@@ -2316,13 +2367,35 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     } else if (mosseCard.mosseDamageValue) {
       suggestedDamage = mosseCard.mosseDamageValue * attackerStars;
     }
+
+    // PRESET FALLBACK: if no damage yet, try parsing it from the effect text or mosseDamageEffect
+    if (suggestedDamage === null) {
+      if (effectiveEffect) {
+        // Special effect without numeric damage → auto-submit with 0
+        suggestedDamage = 0;
+        console.log(`🎯 CPU ${this.playerName}: ATOMIC - mosseDamageEffect="${effectiveEffect}" → auto-submit damage=0`);
+      } else {
+        const parsed = this.parsePresetDamageFromEffect(mosseCard.effect, mosseCardName);
+        if (parsed.damage !== null) {
+          suggestedDamage = parsed.damage;
+          console.log(`🎯 CPU ${this.playerName}: ATOMIC - parsed preset damage ${suggestedDamage} PTI from effect text`);
+        } else if (parsed.effect) {
+          suggestedDamage = 0;
+          effectiveEffect = parsed.effect;
+          console.log(`🎯 CPU ${this.playerName}: ATOMIC - parsed preset effect "${parsed.effect}" from effect text → auto-submit damage=0`);
+        }
+      }
+    }
     
     // AUTO-SUBMIT: If we have pre-calculated damage, execute the attack directly on the server
     // without requiring the game creator to manually confirm via the dialog
     if (suggestedDamage !== null && suggestedDamage !== undefined && this.gameManager) {
       console.log(`🎯 CPU ${this.playerName}: AUTO-SUBMITTING attack with pre-calculated damage ${suggestedDamage} (${effectiveDamageValue} × ${attackerStars} stars)`);
       
-      this.sendChatMessage(`Attacco ${target.name} con ${mosseCardName}! Danno: ${suggestedDamage} PTI!`);
+      const chatMsg = effectiveEffect
+        ? `Uso ${mosseCardName} su ${target.name}! Effetto: ${effectiveEffect === 'death' ? 'MORTE ISTANTANEA' : effectiveEffect === 'halve_pti' ? 'DIMEZZA PTI' : effectiveEffect}!`
+        : `Attacco ${target.name} con ${mosseCardName}! Danno: ${suggestedDamage} PTI!`;
+      this.sendChatMessage(chatMsg);
       
       // Broadcast attack animation to all players
       this.socketEmitter.to(this.gameId).emit('card-attacked', {

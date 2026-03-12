@@ -45,6 +45,30 @@ const getHealthBarColor = (percentage: number): string => {
   return 'from-red-600 via-red-700 to-red-900';
 };
 
+// Parse a preset/fixed damage value from a MOSSE card's effect text.
+// Used to auto-fill the damage input without manual entry for cards with known fixed effects.
+const parsePresetDamageFromEffect = (effect: string | null | undefined, cardName: string | null | undefined): { damage: number | null; effect: string | null } => {
+  const text = [effect, cardName].filter(Boolean).join(' ');
+  if (!text) return { damage: null, effect: null };
+
+  if (/\bmorte\b.*personaggio|personaggio.*\bmorte\b|\bmorte\s+istantanea\b/i.test(text))
+    return { damage: 0, effect: 'death' };
+  if (/dimezza\s+(?:i\s+)?pti|pti\s+dimezz/i.test(text))
+    return { damage: 0, effect: 'halve_pti' };
+
+  const patterns = [
+    /infligi[e]?\s+(\d+)\s*pti/i,
+    /causa\s+(\d+)\s*pti/i,
+    /(\d+)\s*pti\s+(?:di\s+)?danno/i,
+    /danno\s*(?:fisso|preimpostato)\s*:?\s*(\d+)/i,
+  ];
+  for (const p of patterns) {
+    const m = text.match(p);
+    if (m) return { damage: parseInt(m[1], 10), effect: null };
+  }
+  return { damage: null, effect: null };
+};
+
 // Helper to check character-specific overrides for MOSSE cards
 interface CharacterOverrideResult {
   damageValue: number | null;
@@ -498,9 +522,20 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           setMosseHasPreset(true);
           setSelectedMosseEffect(mosseCard.mosseDamageEffect || null);
         } else {
-          setDamageValue('');
-          setMosseHasPreset(!!mosseCard.mosseDamageEffect);
-          setSelectedMosseEffect(mosseCard.mosseDamageEffect || null);
+          const presetParsed = parsePresetDamageFromEffect(mosseCard.effect, mosseCard.name);
+          if (presetParsed.damage !== null) {
+            setDamageValue(presetParsed.damage.toString());
+            setMosseHasPreset(true);
+            setSelectedMosseEffect(presetParsed.effect || mosseCard.mosseDamageEffect || null);
+          } else if (presetParsed.effect) {
+            setDamageValue('0');
+            setMosseHasPreset(true);
+            setSelectedMosseEffect(presetParsed.effect);
+          } else {
+            setDamageValue('');
+            setMosseHasPreset(!!mosseCard.mosseDamageEffect);
+            setSelectedMosseEffect(mosseCard.mosseDamageEffect || null);
+          }
         }
         
         // Open damage input dialog instead of attacking immediately
@@ -720,9 +755,20 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       setMosseHasPreset(true);
       setSelectedMosseEffect(mosseCard.mosseDamageEffect || null);
     } else {
-      setDamageValue('');
-      setMosseHasPreset(!!mosseCard?.mosseDamageEffect);
-      setSelectedMosseEffect(mosseCard?.mosseDamageEffect || null);
+      const presetParsed = parsePresetDamageFromEffect(mosseCard?.effect, mosseCard?.name);
+      if (presetParsed.damage !== null) {
+        setDamageValue(presetParsed.damage.toString());
+        setMosseHasPreset(true);
+        setSelectedMosseEffect(presetParsed.effect || mosseCard?.mosseDamageEffect || null);
+      } else if (presetParsed.effect) {
+        setDamageValue('0');
+        setMosseHasPreset(true);
+        setSelectedMosseEffect(presetParsed.effect);
+      } else {
+        setDamageValue('');
+        setMosseHasPreset(!!mosseCard?.mosseDamageEffect);
+        setSelectedMosseEffect(mosseCard?.mosseDamageEffect || null);
+      }
     }
     
     setShowDamageInput(true);
@@ -790,9 +836,20 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         setSelectedMosseEffect(mosseCard.mosseDamageEffect || null);
         console.log(`🎯 Multi-target autofill: ${mosseCard.mosseDamageValue} × ${attackerStars} = ${suggestedDamage}`);
       } else {
-        setDamageValue('');
-        setMosseHasPreset(!!mosseCard.mosseDamageEffect);
-        setSelectedMosseEffect(mosseCard.mosseDamageEffect || null);
+        const presetParsed = parsePresetDamageFromEffect(mosseCard.effect, mosseCard.name);
+        if (presetParsed.damage !== null) {
+          setDamageValue(presetParsed.damage.toString());
+          setMosseHasPreset(true);
+          setSelectedMosseEffect(presetParsed.effect || mosseCard.mosseDamageEffect || null);
+        } else if (presetParsed.effect) {
+          setDamageValue('0');
+          setMosseHasPreset(true);
+          setSelectedMosseEffect(presetParsed.effect);
+        } else {
+          setDamageValue('');
+          setMosseHasPreset(!!mosseCard.mosseDamageEffect);
+          setSelectedMosseEffect(mosseCard.mosseDamageEffect || null);
+        }
       }
     }
     

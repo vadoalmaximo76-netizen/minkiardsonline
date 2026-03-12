@@ -6998,8 +6998,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           }
                           let suggestedDamage: number | null = null;
                           const mosseCard = result.card!;
+                          let routesMosseEffect: string | null = (mosseCard as any).mosseDamageEffect || null;
                           if ((mosseCard as any).mosseDamageValue) {
                             suggestedDamage = (mosseCard as any).mosseDamageValue * attackerStars;
+                          }
+
+                          // PRESET FALLBACK: parse fixed damage/effect from the card's effect text
+                          if (suggestedDamage === null) {
+                            if (routesMosseEffect) {
+                              suggestedDamage = 0; // has special effect, no numeric damage needed
+                            } else {
+                              const effectText = (mosseCard as any).effect || '';
+                              const cardText = [effectText, mosseName].join(' ');
+                              const numericPatterns = [
+                                /infligi[e]?\s+(\d+)\s*pti/i,
+                                /causa\s+(\d+)\s*pti/i,
+                                /(\d+)\s*pti\s+(?:di\s+)?danno/i,
+                                /danno\s*(?:fisso|preimpostato)\s*:?\s*(\d+)/i,
+                              ];
+                              for (const pattern of numericPatterns) {
+                                const match = cardText.match(pattern);
+                                if (match) { suggestedDamage = parseInt(match[1], 10); break; }
+                              }
+                              if (suggestedDamage === null) {
+                                if (/\bmorte\b.*personaggio|personaggio.*\bmorte\b|\bmorte\s+istantanea\b/i.test(cardText)) {
+                                  suggestedDamage = 0; routesMosseEffect = 'death';
+                                } else if (/dimezza\s+(?:i\s+)?pti/i.test(cardText)) {
+                                  suggestedDamage = 0; routesMosseEffect = 'halve_pti';
+                                }
+                              }
+                            }
                           }
                           
                           io.to(gameId).emit('cpu-damage-request', {
@@ -7551,8 +7579,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
                             }
                             let suggestedDamageFE: number | null = null;
                             const mosseCardFE = playResult.card!;
+                            let routesMosseEffectFE: string | null = (mosseCardFE as any).mosseDamageEffect || null;
                             if ((mosseCardFE as any).mosseDamageValue) {
                               suggestedDamageFE = (mosseCardFE as any).mosseDamageValue * attackerStarsFE;
+                            }
+                            // PRESET FALLBACK for second path
+                            if (suggestedDamageFE === null) {
+                              if (routesMosseEffectFE) {
+                                suggestedDamageFE = 0;
+                              } else {
+                                const cardTextFE = [(mosseCardFE as any).effect || '', mosseName].join(' ');
+                                const numericPatternsFE = [/infligi[e]?\s+(\d+)\s*pti/i, /causa\s+(\d+)\s*pti/i, /(\d+)\s*pti\s+(?:di\s+)?danno/i, /danno\s*(?:fisso|preimpostato)\s*:?\s*(\d+)/i];
+                                for (const p of numericPatternsFE) {
+                                  const m = cardTextFE.match(p);
+                                  if (m) { suggestedDamageFE = parseInt(m[1], 10); break; }
+                                }
+                                if (suggestedDamageFE === null) {
+                                  if (/\bmorte\b.*personaggio|personaggio.*\bmorte\b|\bmorte\s+istantanea\b/i.test(cardTextFE)) { suggestedDamageFE = 0; routesMosseEffectFE = 'death'; }
+                                  else if (/dimezza\s+(?:i\s+)?pti/i.test(cardTextFE)) { suggestedDamageFE = 0; routesMosseEffectFE = 'halve_pti'; }
+                                }
+                              }
                             }
                             
                             io.to(gameId).emit('cpu-damage-request', {
@@ -7568,7 +7614,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                               timestamp: Date.now(),
                               // MOSSE damage auto-fill
                               mosseDamageValue: (mosseCardFE as any).mosseDamageValue || null,
-                              mosseDamageEffect: (mosseCardFE as any).mosseDamageEffect || null,
+                              mosseDamageEffect: routesMosseEffectFE,
                               suggestedDamage: suggestedDamageFE,
                               attackerStars: attackerStarsFE,
                               attackerCharacter: cpuCharacter ? {
