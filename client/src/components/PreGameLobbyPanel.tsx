@@ -13,6 +13,7 @@ interface PreGameLobbyPanelProps {
   onCharacterLimitChange: (limit: string) => void;
   onStartGame: () => void;
   roomCode: string;
+  isStartingGame?: boolean;
 }
 
 const MORTI_OPTIONS = [
@@ -33,6 +34,7 @@ export const PreGameLobbyPanel: React.FC<PreGameLobbyPanelProps> = ({
   onCharacterLimitChange,
   onStartGame,
   roomCode,
+  isStartingGame = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<{ id: number; username: string; avatar?: string; puntiRankiard?: number }[]>([]);
@@ -232,12 +234,12 @@ export const PreGameLobbyPanel: React.FC<PreGameLobbyPanelProps> = ({
         {isCreator ? (
           <Button
             onClick={onStartGame}
-            disabled={!canStart}
+            disabled={!canStart || isStartingGame}
             className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-black text-lg py-4 rounded-2xl shadow-lg shadow-emerald-500/30 border border-emerald-400/30 transition-all duration-200 flex items-center justify-center gap-2"
           >
             <Play size={20} />
-            COMINCIA
-            {!canStart && <span className="text-xs font-normal opacity-70 ml-1">(min. 2 giocatori)</span>}
+            {isStartingGame ? 'Avvio in corso...' : 'COMINCIA'}
+            {!canStart && !isStartingGame && <span className="text-xs font-normal opacity-70 ml-1">(min. 2 giocatori)</span>}
           </Button>
         ) : (
           <div className="text-center py-4">

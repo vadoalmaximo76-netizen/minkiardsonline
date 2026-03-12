@@ -192,6 +192,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     timestamp: number;
   }>>([]);
   const [lobbyCharacterLimit, setLobbyCharacterLimit] = useState('3');
+  const [isStartingGame, setIsStartingGame] = useState(false);
   const [showInvitePanel, setShowInvitePanel] = useState(false);
   const [eliminationDialogOpen, setEliminationDialogOpen] = useState(false);
   const [victoryDialogOpen, setVictoryDialogOpen] = useState(false);
@@ -561,6 +562,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   };
 
   const handleStartGame = () => {
+    if (isStartingGame) return;
+    setIsStartingGame(true);
     if ((gameState as any)?.tournamentCharacterLimit) {
       socket.emit('start-game', { gameId, playerName, characterLimit: (gameState as any).tournamentCharacterLimit });
       return;
@@ -568,6 +571,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.emit('start-game', { gameId, playerName, characterLimit: lobbyCharacterLimit });
   };
 
+  // Reset isStartingGame when the game actually starts
+  useEffect(() => {
+    if ((gameState as any)?.isPlaying && isStartingGame) {
+      setIsStartingGame(false);
+    }
+  }, [(gameState as any)?.isPlaying, isStartingGame]);
 
   const handleLobbyCharacterLimitChange = (limit: string) => {
     setLobbyCharacterLimit(limit);
@@ -3864,6 +3873,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             onCharacterLimitChange={handleLobbyCharacterLimitChange}
             onStartGame={() => { playConfirm(); handleStartGame(); }}
             roomCode={gameId?.replace('room-', '') || ''}
+            isStartingGame={isStartingGame}
           />
         ) : (
         <>
