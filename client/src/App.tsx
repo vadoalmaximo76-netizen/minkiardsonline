@@ -28,6 +28,29 @@ import "./index.css";
 
 type AppSection = 'home' | 'play' | 'training' | 'rooms' | 'profile' | 'spectator' | 'admin' | 'draft' | 'leaderboard' | 'tournaments' | 'fanta';
 
+const SECTION_PATHS: Record<AppSection, string> = {
+  home:        '/',
+  play:        '/gioca',
+  training:    '/allenamento',
+  rooms:       '/stanze',
+  profile:     '/profilo',
+  spectator:   '/spettatore',
+  admin:       '/admin',
+  draft:       '/draft',
+  leaderboard: '/classifica',
+  tournaments: '/tornei',
+  fanta:       '/fanta',
+};
+
+const PATH_SECTIONS: Record<string, AppSection> = Object.fromEntries(
+  Object.entries(SECTION_PATHS).map(([k, v]) => [v, k as AppSection])
+);
+
+function sectionFromPath(): AppSection {
+  const path = window.location.pathname;
+  return PATH_SECTIONS[path] || 'home';
+}
+
 function getResetPasswordToken(): string | null {
   const urlParams = new URLSearchParams(window.location.search);
   return urlParams.get('token');
@@ -111,7 +134,7 @@ function App() {
   const [isInitializing, setIsInitializing] = useState(true);
   const [serverReady, setServerReady] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
-  const [currentSection, setCurrentSection] = useState<AppSection>('home');
+  const [currentSection, setCurrentSection] = useState<AppSection>(sectionFromPath);
   const [overlayPhase, setOverlayPhase] = useState<'idle' | 'in' | 'out'>('idle');
   const overlayTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const [openHomeTournaments, setOpenHomeTournaments] = useState(false);
@@ -338,7 +361,23 @@ function App() {
 
   useEffect(() => {
     (window as any).__minkAppSection = currentSection;
+    const path = SECTION_PATHS[currentSection];
+    const hasGame = window.location.search.includes('game=');
+    if (currentSection !== 'play' && path && window.location.pathname !== path) {
+      window.history.replaceState({ section: currentSection }, '', path);
+    } else if (currentSection === 'play' && !hasGame && window.location.pathname !== path) {
+      window.history.replaceState({ section: currentSection }, '', path);
+    }
   }, [currentSection]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const section = sectionFromPath();
+      setCurrentSection(section);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const [pendingAvatar, setPendingAvatar] = useState<string | null>(null);
 
@@ -503,6 +542,11 @@ function App() {
     setOverlayPhase('in');
     const t1 = setTimeout(() => {
       setCurrentSection(section);
+      const path = SECTION_PATHS[section];
+      const hasGame = window.location.search.includes('game=');
+      if (!hasGame || section !== 'play') {
+        window.history.pushState({ section }, '', path);
+      }
       setOverlayPhase('out');
     }, 170);
     const t2 = setTimeout(() => setOverlayPhase('idle'), 420);
