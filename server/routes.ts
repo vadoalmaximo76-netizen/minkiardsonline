@@ -13043,7 +13043,20 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
   ): Promise<void> {
     if (!isDatabaseAvailable()) return;
     try {
-      await db.insert(notifications).values({ userId, type, title, body, data, isRead: false });
+      const [inserted] = await db.insert(notifications).values({ userId, type, title, body, data, isRead: false }).returning();
+      console.log(`[Notification] Created for userId ${userId}: [${type}] ${title}`);
+
+      // Real-time socket delivery to online users
+      try {
+        const sockets = await io.fetchSockets();
+        for (const s of sockets) {
+          if ((s as any).data?.userId === userId) {
+            s.emit('notification:new', inserted);
+            break;
+          }
+        }
+      } catch {}
+
       if (sendPush) {
         sendPushToUser(userId, { title, body, url: data.url, tag: data.tag }).catch(() => {});
       }
@@ -13066,6 +13079,8 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
   // GET /api/notifications — fetch all notifications for the authenticated user
   app.get('/api/notifications', authMiddleware, async (req, res) => {
     try {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
       if (!isDatabaseAvailable()) return res.json([]);
       const user = (req as any).user;
       const [currentUser] = await db.select({ id: users.id }).from(users).where(eq(users.email, user.email));

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import type { Socket } from "socket.io-client";
 
 type NotifType =
   | "fanta_invite"
@@ -24,6 +25,7 @@ interface AppNotification {
 
 interface Props {
   onNavigate?: (section: string) => void;
+  socket?: Socket;
 }
 
 const TYPE_ICONS: Record<string, string> = {
@@ -62,7 +64,7 @@ function timeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("it-IT", { day: "numeric", month: "short" });
 }
 
-export function NotificationInbox({ onNavigate }: Props) {
+export function NotificationInbox({ onNavigate, socket }: Props) {
   const [open, setOpen] = useState(false);
   const [notifs, setNotifs] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(false);
@@ -77,6 +79,7 @@ export function NotificationInbox({ onNavigate }: Props) {
     try {
       const res = await fetch("/api/notifications", {
         headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
       });
       if (res.ok) {
         const data = await res.json();
@@ -85,6 +88,7 @@ export function NotificationInbox({ onNavigate }: Props) {
     } catch {}
   }, []);
 
+  // Poll and focus-refresh
   useEffect(() => {
     fetchNotifs();
     intervalRef.current = setInterval(fetchNotifs, 30000);
@@ -95,6 +99,19 @@ export function NotificationInbox({ onNavigate }: Props) {
       window.removeEventListener("focus", onFocus);
     };
   }, [fetchNotifs]);
+
+  // Real-time socket delivery
+  useEffect(() => {
+    if (!socket) return;
+    const handler = (notif: AppNotification) => {
+      setNotifs((prev) => {
+        if (prev.some((n) => n.id === notif.id)) return prev;
+        return [notif, ...prev];
+      });
+    };
+    socket.on("notification:new", handler);
+    return () => { socket.off("notification:new", handler); };
+  }, [socket]);
 
   useEffect(() => {
     if (open) {

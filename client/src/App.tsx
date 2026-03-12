@@ -666,7 +666,7 @@ function App() {
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
-        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} />
+        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} />
         <BottomNav currentSection={currentSection} onNavigate={handleBottomNavNavigate} hasActiveGame={!!gameId} />
       </QueryClientProvider>
     );
@@ -688,7 +688,7 @@ function App() {
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
-        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} />
+        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} />
       </QueryClientProvider>
     );
   }
@@ -710,7 +710,7 @@ function App() {
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
-        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} />
+        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} />
       </QueryClientProvider>
     );
   }
@@ -735,7 +735,7 @@ function App() {
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
-        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} />
+        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} />
         <BottomNav currentSection={currentSection} onNavigate={handleBottomNavNavigate} hasActiveGame={!!gameId} />
       </QueryClientProvider>
     );
@@ -759,7 +759,7 @@ function App() {
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
-        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} />
+        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} />
         <BottomNav currentSection={currentSection} onNavigate={handleBottomNavNavigate} hasActiveGame={!!gameId} />
       </QueryClientProvider>
     );
@@ -780,7 +780,7 @@ function App() {
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
-        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} />
+        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} />
         <BottomNav currentSection={currentSection} onNavigate={handleBottomNavNavigate} hasActiveGame={!!gameId} />
       </QueryClientProvider>
     );
@@ -803,7 +803,7 @@ function App() {
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
-        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} />
+        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} />
         <BottomNav currentSection={currentSection} onNavigate={handleBottomNavNavigate} hasActiveGame={!!gameId} />
       </QueryClientProvider>
     );
@@ -820,7 +820,7 @@ function App() {
         />
         <SpotifyPlayer disabled={false} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
-        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} />
+        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} />
         <BottomNav currentSection={currentSection} onNavigate={handleBottomNavNavigate} hasActiveGame={!!gameId} />
       </QueryClientProvider>
     );
@@ -852,7 +852,7 @@ function App() {
         />
         <SpotifyPlayer disabled={false} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
-        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} />
+        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} />
         <BottomNav currentSection={currentSection} onNavigate={handleBottomNavNavigate} hasActiveGame={!!gameId} />
       </QueryClientProvider>
     );
@@ -877,7 +877,7 @@ function App() {
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
-        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} />
+        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} />
       </QueryClientProvider>
     );
   }
