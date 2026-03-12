@@ -89,15 +89,24 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
   const [showTradeHistory, setShowTradeHistory] = useState(false);
 
   useEffect(() => {
-    const storedConvId = localStorage.getItem('openConversationId');
-    if (storedConvId) {
-      localStorage.removeItem('openConversationId');
-      const convId = parseInt(storedConvId, 10);
-      if (!isNaN(convId)) {
-        setInitialConversationId(convId);
-        setShowMessagesPanel(true);
+    const checkForConversation = () => {
+      const storedConvId = localStorage.getItem('openConversationId');
+      if (storedConvId) {
+        localStorage.removeItem('openConversationId');
+        const convId = parseInt(storedConvId, 10);
+        if (!isNaN(convId)) {
+          setInitialConversationId(convId);
+          setShowMessagesPanel(true);
+        }
       }
-    }
+    };
+    checkForConversation();
+    window.addEventListener('storage', checkForConversation);
+    const interval = setInterval(checkForConversation, 500);
+    return () => {
+      window.removeEventListener('storage', checkForConversation);
+      clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {
