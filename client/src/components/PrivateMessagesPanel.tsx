@@ -1,25 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, Send, ArrowLeft, Bell, BellOff, Search, User } from 'lucide-react';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { ArrowLeft, Search, Send, MessageCircle, X, Check, CheckCheck } from 'lucide-react';
 
 interface ConversationWithDetails {
   id: number;
   participant1Id: number;
   participant2Id: number;
   lastMessageAt: string;
-  otherUser: {
-    id: number;
-    username: string;
-    avatar: string | null;
-  } | null;
+  otherUser: { id: number; username: string; avatar: string | null } | null;
   unreadCount: number;
-  lastMessage: {
-    id: number;
-    content: string;
-    senderId: number;
-    createdAt: string;
-  } | null;
+  lastMessage: { id: number; content: string; senderId: number; createdAt: string } | null;
 }
 
 interface Message {
@@ -39,266 +28,352 @@ interface PrivateMessagesPanelProps {
   initialConversationId?: number | null;
 }
 
+const AVATARS = ['😎','🔥','⚡','🎮','👑','💎','🐉','🦁','🦊','🐺','🎯','🚀'];
+
+function getAvatarEmoji(avatar: string | null): string {
+  if (!avatar) return '👤';
+  const idx = parseInt(avatar.replace('avatar-', '') || '1') - 1;
+  if (!isNaN(idx) && idx >= 0) return AVATARS[idx % AVATARS.length];
+  return '👤';
+}
+
+function formatTime(dateStr: string): string {
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffDays === 0) return d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+  if (diffDays === 1) return 'Ieri';
+  if (diffDays < 7) return d.toLocaleDateString('it-IT', { weekday: 'short' });
+  return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
+}
+
+function formatFullTime(dateStr: string): string {
+  return new Date(dateStr).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+}
+
+function isSameDay(a: string, b: string): boolean {
+  const da = new Date(a), db = new Date(b);
+  return da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth() && da.getDate() === db.getDate();
+}
+
+function dayLabel(dateStr: string): string {
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
+  if (diffDays === 0) return 'Oggi';
+  if (diffDays === 1) return 'Ieri';
+  return d.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
 export default function PrivateMessagesPanel({ authToken, currentUserId, socket, onClose, initialConversationId }: PrivateMessagesPanelProps) {
   const [conversations, setConversations] = useState<ConversationWithDetails[]>([]);
-  const [selectedConversation, setSelectedConversation] = useState<ConversationWithDetails | null>(null);
+  const [selectedConv, setSelectedConv] = useState<ConversationWithDetails | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState('');
+  const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showSearch, setShowSearch] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const initialConvHandled = useRef(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const initialHandled = useRef(false);
+
+  const headers = useCallback(() => ({
+    'Content-Type': 'application/json',
+    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+  }), [authToken]);
+
+  const fetchConversations = useCallback(async () => {
+    if (!authToken) return;
+    try {
+      const res = await fetch('/api/messages/conversations', { headers: headers() });
+      if (res.ok) setConversations(await res.json());
+    } catch {} finally { setLoading(false); }
+  }, [authToken, headers]);
+
+  const fetchMessages = useCallback(async (convId: number) => {
+    if (!authToken) return;
+    try {
+      const res = await fetch(`/api/messages/conversation/${convId}`, { headers: headers() });
+      if (res.ok) {
+        setMessages(await res.json());
+        fetchConversations();
+      }
+    } catch {}
+  }, [authToken, headers, fetchConversations]);
+
+  useEffect(() => { fetchConversations(); }, [fetchConversations]);
 
   useEffect(() => {
-    fetchConversations();
-  }, [authToken]);
-
-  useEffect(() => {
-    if (initialConversationId && conversations.length > 0 && !initialConvHandled.current) {
-      initialConvHandled.current = true;
+    if (initialConversationId && conversations.length > 0 && !initialHandled.current) {
+      initialHandled.current = true;
       const conv = conversations.find(c => c.id === initialConversationId);
-      if (conv) setSelectedConversation(conv);
+      if (conv) setSelectedConv(conv);
     }
   }, [initialConversationId, conversations]);
 
   useEffect(() => {
-    if (selectedConversation) {
-      fetchMessages(selectedConversation.id);
-    }
-  }, [selectedConversation?.id]);
+    if (selectedConv) fetchMessages(selectedConv.id);
+  }, [selectedConv?.id]);
 
   useEffect(() => {
-    if (socket) {
-      const handleNewMessage = (data: any) => {
-        if (data.recipientId === currentUserId) {
-          if (selectedConversation && data.conversationId === selectedConversation.id) {
-            setMessages(prev => [...prev, data.message]);
-            scrollToBottom();
-          }
-          fetchConversations();
-        }
-      };
-
-      socket.on('new-private-message', handleNewMessage);
-      return () => {
-        socket.off('new-private-message', handleNewMessage);
-      };
-    }
-  }, [socket, selectedConversation, currentUserId]);
+    if (!socket) return;
+    const handleMsg = (data: any) => {
+      if (data.conversationId === selectedConv?.id) {
+        setMessages(prev => {
+          if (prev.some(m => m.id === data.message.id)) return prev;
+          return [...prev, data.message];
+        });
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+      }
+      fetchConversations();
+    };
+    socket.on('new-private-message', handleMsg);
+    return () => socket.off('new-private-message', handleMsg);
+  }, [socket, selectedConv?.id, fetchConversations]);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 100);
+  }, [selectedConv?.id]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const fetchConversations = async () => {
-    try {
-      const response = await fetch('/api/messages/conversations', {
-        headers: { Authorization: `Bearer ${authToken}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setConversations(data);
-      }
-    } catch (error) {
-      console.error('Error fetching conversations:', error);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
     }
-  };
-
-  const fetchMessages = async (conversationId: number) => {
-    try {
-      const response = await fetch(`/api/messages/conversation/${conversationId}`, {
-        headers: { Authorization: `Bearer ${authToken}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setMessages(data);
-        fetchConversations();
-      }
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-    }
-  };
+  }, [messages.length]);
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation) return;
-
+    const text = input.trim();
+    if (!text || !selectedConv || sending) return;
+    setSending(true);
+    setInput('');
+    if (textareaRef.current) { textareaRef.current.style.height = 'auto'; }
     try {
-      const response = await fetch('/api/messages/send', {
+      const res = await fetch('/api/messages/send', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken}`
-        },
-        body: JSON.stringify({
-          conversationId: selectedConversation.id,
-          content: newMessage.trim()
-        })
+        headers: headers(),
+        body: JSON.stringify({ conversationId: selectedConv.id, content: text }),
       });
-
-      if (response.ok) {
-        const message = await response.json();
-        setMessages(prev => [...prev, message]);
-        setNewMessage('');
-        scrollToBottom();
+      if (res.ok) {
+        const msg = await res.json();
+        setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg]);
+        fetchConversations();
+      } else {
+        setInput(text);
       }
-    } catch (error) {
-      console.error('Error sending message:', error);
+    } catch { setInput(text); }
+    setSending(false);
+    textareaRef.current?.focus();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
     }
   };
 
-  const searchUsers = async (query: string) => {
-    if (!query.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/search-users?query=${encodeURIComponent(query)}`, {
-        headers: { Authorization: `Bearer ${authToken}` }
-      });
-      if (response.ok) {
-        const users = await response.json();
-        setSearchResults(users.filter((u: any) => u.id !== currentUserId));
-      }
-    } catch (error) {
-      console.error('Error searching users:', error);
-    }
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    const ta = e.target;
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(ta.scrollHeight, 120) + 'px';
   };
 
-  const startConversation = async (recipientId: number) => {
+  const searchUsers = async (q: string) => {
+    if (!q.trim()) { setSearchResults([]); return; }
+    setSearchLoading(true);
     try {
-      const response = await fetch('/api/messages/conversation', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken}`
-        },
-        body: JSON.stringify({ recipientId })
-      });
+      const res = await fetch(`/api/search-users?query=${encodeURIComponent(q)}`, { headers: headers() });
+      if (res.ok) setSearchResults((await res.json()).filter((u: any) => u.id !== currentUserId));
+    } catch {} finally { setSearchLoading(false); }
+  };
 
-      if (response.ok) {
-        const conv = await response.json();
+  const startConversation = async (recipientId: number, user: any) => {
+    try {
+      const res = await fetch('/api/messages/conversation', {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({ recipientId }),
+      });
+      if (res.ok) {
+        const conv = await res.json();
+        setShowSearch(false); setSearchQuery(''); setSearchResults([]);
         await fetchConversations();
-        const fullConv = conversations.find(c => c.id === conv.id);
-        if (fullConv) {
-          setSelectedConversation(fullConv);
-        } else {
-          const recipient = searchResults.find(u => u.id === recipientId);
-          setSelectedConversation({
-            ...conv,
-            otherUser: recipient ? { id: recipient.id, username: recipient.username, avatar: recipient.avatar } : null,
-            unreadCount: 0,
-            lastMessage: null
-          });
-        }
-        setShowSearch(false);
-        setSearchQuery('');
-        setSearchResults([]);
+        setSelectedConv({
+          ...conv,
+          otherUser: { id: user.id, username: user.username, avatar: user.avatar },
+          unreadCount: 0,
+          lastMessage: null,
+        });
       }
-    } catch (error) {
-      console.error('Error starting conversation:', error);
-    }
+    } catch {}
   };
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) {
-      return date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-    } else if (diffDays === 1) {
-      return 'Ieri';
-    } else if (diffDays < 7) {
-      return date.toLocaleDateString('it-IT', { weekday: 'short' });
-    }
-    return date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' });
-  };
+  const totalUnread = conversations.reduce((s, c) => s + (c.unreadCount || 0), 0);
 
-  const getAvatarEmoji = (avatar: string | null) => {
-    if (!avatar) return '👤';
-    const avatars: Record<string, string> = {
-      'goku': '🔥', 'vegeta': '👑', 'gohan': '📚', 'piccolo': '🟢',
-      'trunks': '⚔️', 'goten': '😊', 'krillin': '🥚', 'yamcha': '⚾',
-      'tien': '👁️', 'frieza': '❄️', 'cell': '🦠', 'buu': '🍬',
-      'android18': '💎', 'broly': '💪', 'beerus': '😼', 'whis': '👼',
-      'jiren': '🔴', 'hit': '⏱️', 'zamasu': '👹', 'goku_black': '🖤',
-      'bardock': '🌟', 'raditz': '🦁', 'nappa': '🦲', 'ginyu': '💜'
-    };
-    return avatars[avatar] || '👤';
-  };
+  if (selectedConv) {
+    const otherName = selectedConv.otherUser?.username || 'Utente';
+    const otherAvatar = getAvatarEmoji(selectedConv.otherUser?.avatar || null);
 
-  if (selectedConversation) {
     return (
-      <div className="fixed inset-0 z-50 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col">
-        <div className="flex items-center gap-3 p-4 border-b border-purple-500/30 bg-black/30">
-          <Button
-            onClick={() => setSelectedConversation(null)}
-            variant="ghost"
-            className="text-white hover:bg-purple-600/30"
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 9000,
+        background: 'linear-gradient(160deg,#060914,#08101e,#060912)',
+        display: 'flex', flexDirection: 'column',
+      }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12,
+          padding: '12px 16px',
+          borderBottom: '1px solid rgba(139,92,246,0.2)',
+          background: 'rgba(0,0,0,0.5)',
+          backdropFilter: 'blur(12px)',
+          flexShrink: 0,
+        }}>
+          <button
+            onClick={() => setSelectedConv(null)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(192,132,252,0.8)', padding: 4, display: 'flex', outline: 'none' }}
           >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div className="text-3xl">{getAvatarEmoji(selectedConversation.otherUser?.avatar || null)}</div>
-          <div>
-            <h2 className="text-white font-bold text-lg">{selectedConversation.otherUser?.username || 'Utente'}</h2>
+            <ArrowLeft size={20} />
+          </button>
+          <div style={{ fontSize: 28, lineHeight: 1 }}>{otherAvatar}</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ color: 'white', fontWeight: 700, fontSize: 16 }}>{otherName}</div>
+            <div style={{ color: 'rgba(148,163,184,0.5)', fontSize: 11 }}>Messaggio privato</div>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
           {messages.length === 0 ? (
-            <div className="text-center text-gray-400 mt-8">
-              <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
-              <p>Inizia una conversazione!</p>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'rgba(148,163,184,0.4)', gap: 12 }}>
+              <MessageCircle size={48} style={{ opacity: 0.3 }} />
+              <div style={{ fontSize: 14 }}>Nessun messaggio ancora</div>
+              <div style={{ fontSize: 12, color: 'rgba(148,163,184,0.3)' }}>Scrivi qualcosa a {otherName}!</div>
             </div>
-          ) : (
-            messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex ${msg.senderId === currentUserId ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-[75%] rounded-2xl px-4 py-2 ${
-                    msg.senderId === currentUserId
-                      ? 'bg-purple-600 text-white rounded-br-sm'
-                      : 'bg-slate-700 text-white rounded-bl-sm'
-                  }`}
-                >
-                  <p className="break-words">{msg.content}</p>
-                  <p className={`text-xs mt-1 ${msg.senderId === currentUserId ? 'text-purple-200' : 'text-gray-400'}`}>
-                    {formatTime(msg.createdAt)}
-                  </p>
+          ) : (() => {
+            const items: React.ReactNode[] = [];
+            let lastDate = '';
+            messages.forEach((msg, i) => {
+              const isMe = msg.senderId === currentUserId;
+              const showDay = !lastDate || !isSameDay(lastDate, msg.createdAt);
+              if (showDay) {
+                lastDate = msg.createdAt;
+                items.push(
+                  <div key={`day-${i}`} style={{ textAlign: 'center', margin: '12px 0 8px' }}>
+                    <span style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(148,163,184,0.6)', fontSize: 11, borderRadius: 10, padding: '3px 10px' }}>
+                      {dayLabel(msg.createdAt)}
+                    </span>
+                  </div>
+                );
+              }
+              const prev = messages[i - 1];
+              const next = messages[i + 1];
+              const groupWithPrev = prev && prev.senderId === msg.senderId && isSameDay(prev.createdAt, msg.createdAt);
+              const groupWithNext = next && next.senderId === msg.senderId && isSameDay(next.createdAt, msg.createdAt);
+              const isLast = !groupWithNext;
+              items.push(
+                <div key={msg.id} style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start', marginBottom: isLast ? 6 : 1 }}>
+                  {!isMe && isLast && (
+                    <div style={{ fontSize: 20, alignSelf: 'flex-end', marginRight: 6, marginBottom: 2, opacity: 0.8 }}>{otherAvatar}</div>
+                  )}
+                  {!isMe && !isLast && <div style={{ width: 26, marginRight: 6 }} />}
+                  <div style={{ maxWidth: '72%' }}>
+                    <div style={{
+                      padding: '8px 12px',
+                      borderRadius: isMe
+                        ? `16px 16px ${groupWithNext ? '16px' : '4px'} 16px`
+                        : `16px 16px 16px ${groupWithNext ? '16px' : '4px'}`,
+                      background: isMe
+                        ? 'linear-gradient(135deg,#7c3aed,#6d28d9)'
+                        : 'rgba(30,41,59,0.9)',
+                      color: 'white',
+                      fontSize: 14,
+                      lineHeight: 1.45,
+                      wordBreak: 'break-word',
+                      border: isMe ? 'none' : '1px solid rgba(255,255,255,0.06)',
+                      boxShadow: isMe ? '0 2px 8px rgba(109,40,217,0.3)' : '0 1px 4px rgba(0,0,0,0.3)',
+                    }}>
+                      {msg.content}
+                    </div>
+                    {isLast && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 3, justifyContent: isMe ? 'flex-end' : 'flex-start', paddingRight: isMe ? 2 : 0, paddingLeft: isMe ? 0 : 2 }}>
+                        <span style={{ fontSize: 10, color: 'rgba(148,163,184,0.4)' }}>{formatFullTime(msg.createdAt)}</span>
+                        {isMe && (
+                          msg.isRead
+                            ? <CheckCheck size={12} color="rgba(167,139,250,0.8)" />
+                            : <Check size={12} color="rgba(148,163,184,0.4)" />
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))
-          )}
+              );
+            });
+            return items;
+          })()}
           <div ref={messagesEndRef} />
         </div>
 
-        <div className="p-4 border-t border-purple-500/30 bg-black/30">
-          <div className="flex gap-2">
-            <Input
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Scrivi un messaggio..."
-              className="flex-1 bg-slate-800 border-purple-500/30 text-white"
-              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+        <div style={{
+          padding: '10px 12px',
+          borderTop: '1px solid rgba(139,92,246,0.15)',
+          background: 'rgba(0,0,0,0.4)',
+          backdropFilter: 'blur(12px)',
+          flexShrink: 0,
+        }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              placeholder="Scrivi un messaggio... (Invio per inviare)"
+              rows={1}
+              style={{
+                flex: 1,
+                resize: 'none',
+                background: 'rgba(15,23,42,0.8)',
+                border: '1px solid rgba(139,92,246,0.25)',
+                borderRadius: 12,
+                padding: '10px 14px',
+                color: 'white',
+                fontSize: 14,
+                outline: 'none',
+                lineHeight: 1.4,
+                maxHeight: 120,
+                overflowY: 'auto',
+                fontFamily: 'inherit',
+                transition: 'border-color 0.2s',
+              }}
+              onFocus={e => { e.target.style.borderColor = 'rgba(139,92,246,0.6)'; }}
+              onBlur={e => { e.target.style.borderColor = 'rgba(139,92,246,0.25)'; }}
             />
-            <Button
+            <button
               onClick={sendMessage}
-              disabled={!newMessage.trim()}
-              className="bg-purple-600 hover:bg-purple-700"
+              disabled={!input.trim() || sending}
+              style={{
+                width: 40, height: 40,
+                borderRadius: '50%',
+                background: input.trim() && !sending
+                  ? 'linear-gradient(135deg,#7c3aed,#6d28d9)'
+                  : 'rgba(30,41,59,0.6)',
+                border: 'none',
+                cursor: input.trim() && !sending ? 'pointer' : 'default',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+                transition: 'all 0.2s',
+                boxShadow: input.trim() && !sending ? '0 2px 12px rgba(109,40,217,0.4)' : 'none',
+                outline: 'none',
+              }}
             >
-              <Send className="w-5 h-5" />
-            </Button>
+              <Send size={16} color={input.trim() && !sending ? 'white' : 'rgba(148,163,184,0.4)'} />
+            </button>
+          </div>
+          <div style={{ fontSize: 10, color: 'rgba(148,163,184,0.3)', marginTop: 4, textAlign: 'right' }}>
+            Shift+Invio per andare a capo
           </div>
         </div>
       </div>
@@ -306,97 +381,201 @@ export default function PrivateMessagesPanel({ authToken, currentUserId, socket,
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col">
-      <div className="flex items-center justify-between p-4 border-b border-purple-500/30 bg-black/30">
-        <div className="flex items-center gap-3">
-          <Button
-            onClick={onClose}
-            variant="ghost"
-            className="text-white hover:bg-purple-600/30"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <h1 className="text-white font-bold text-xl">Messaggi</h1>
-        </div>
-        <Button
-          onClick={() => setShowSearch(!showSearch)}
-          variant="ghost"
-          className="text-white hover:bg-purple-600/30"
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9000,
+      background: 'linear-gradient(160deg,#060914,#08101e,#060912)',
+      display: 'flex', flexDirection: 'column',
+    }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 12,
+        padding: '12px 16px',
+        borderBottom: '1px solid rgba(139,92,246,0.2)',
+        background: 'rgba(0,0,0,0.5)',
+        backdropFilter: 'blur(12px)',
+        flexShrink: 0,
+      }}>
+        <button
+          onClick={onClose}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(192,132,252,0.8)', padding: 4, display: 'flex', outline: 'none' }}
         >
-          <Search className="w-5 h-5" />
-        </Button>
+          <ArrowLeft size={20} />
+        </button>
+        <div style={{ flex: 1 }}>
+          <div style={{ color: 'white', fontWeight: 700, fontSize: 18 }}>Messaggi</div>
+          {totalUnread > 0 && (
+            <div style={{ color: 'rgba(192,132,252,0.7)', fontSize: 11 }}>{totalUnread} non lett{totalUnread === 1 ? 'o' : 'i'}</div>
+          )}
+        </div>
+        <button
+          onClick={() => { setShowSearch(v => !v); setSearchQuery(''); setSearchResults([]); }}
+          style={{
+            background: showSearch ? 'rgba(139,92,246,0.2)' : 'none',
+            border: `1px solid ${showSearch ? 'rgba(139,92,246,0.4)' : 'transparent'}`,
+            borderRadius: 8,
+            cursor: 'pointer',
+            color: showSearch ? 'rgba(192,132,252,0.9)' : 'rgba(148,163,184,0.6)',
+            padding: '6px 8px',
+            display: 'flex', alignItems: 'center', gap: 5,
+            fontSize: 12, fontWeight: 600,
+            outline: 'none',
+          }}
+        >
+          <Search size={14} />
+          Nuova chat
+        </button>
       </div>
 
       {showSearch && (
-        <div className="p-4 border-b border-purple-500/30 bg-black/20">
-          <Input
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              searchUsers(e.target.value);
-            }}
-            placeholder="Cerca utenti..."
-            className="bg-slate-800 border-purple-500/30 text-white"
-          />
+        <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(139,92,246,0.15)', background: 'rgba(0,0,0,0.3)', flexShrink: 0 }}>
+          <div style={{ position: 'relative' }}>
+            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'rgba(148,163,184,0.4)' }} />
+            <input
+              value={searchQuery}
+              onChange={e => { setSearchQuery(e.target.value); searchUsers(e.target.value); }}
+              placeholder="Cerca utente..."
+              autoFocus
+              style={{
+                width: '100%',
+                padding: '9px 34px 9px 32px',
+                background: 'rgba(15,23,42,0.8)',
+                border: '1px solid rgba(139,92,246,0.3)',
+                borderRadius: 10,
+                color: 'white',
+                fontSize: 14,
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => { setSearchQuery(''); setSearchResults([]); }}
+                style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(148,163,184,0.5)', outline: 'none', display: 'flex' }}
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+          {searchLoading && (
+            <div style={{ color: 'rgba(148,163,184,0.4)', fontSize: 12, textAlign: 'center', padding: '12px 0' }}>Ricerca...</div>
+          )}
           {searchResults.length > 0 && (
-            <div className="mt-2 space-y-1">
-              {searchResults.map((user) => (
+            <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {searchResults.map(user => (
                 <div
                   key={user.id}
-                  onClick={() => startConversation(user.id)}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 hover:bg-purple-600/30 cursor-pointer transition-colors"
+                  onClick={() => startConversation(user.id, user)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '10px 12px', borderRadius: 10,
+                    background: 'rgba(30,41,59,0.5)',
+                    border: '1px solid rgba(255,255,255,0.05)',
+                    cursor: 'pointer',
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(139,92,246,0.15)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(30,41,59,0.5)')}
                 >
-                  <div className="text-2xl">{getAvatarEmoji(user.avatar)}</div>
-                  <span className="text-white font-medium">{user.username}</span>
+                  <div style={{ fontSize: 24 }}>{getAvatarEmoji(user.avatar)}</div>
+                  <div>
+                    <div style={{ color: 'white', fontWeight: 600, fontSize: 14 }}>{user.username}</div>
+                    {user.puntiRankiard != null && (
+                      <div style={{ color: 'rgba(250,204,21,0.6)', fontSize: 11 }}>{user.puntiRankiard} PR</div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
           )}
+          {!searchLoading && searchQuery && searchResults.length === 0 && (
+            <div style={{ color: 'rgba(148,163,184,0.4)', fontSize: 13, textAlign: 'center', padding: '12px 0' }}>Nessun utente trovato</div>
+          )}
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto">
+      <div style={{ flex: 1, overflowY: 'auto' }}>
         {loading ? (
-          <div className="flex items-center justify-center h-40">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-purple-500"></div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120 }}>
+            <div style={{ width: 28, height: 28, border: '2px solid rgba(139,92,246,0.3)', borderTopColor: 'rgba(139,92,246,0.8)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
           </div>
         ) : conversations.length === 0 ? (
-          <div className="text-center text-gray-400 mt-12">
-            <MessageCircle className="w-16 h-16 mx-auto mb-4 opacity-50" />
-            <p className="text-lg mb-2">Nessuna conversazione</p>
-            <p className="text-sm">Cerca un utente per iniziare a chattare!</p>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, gap: 12, color: 'rgba(148,163,184,0.4)' }}>
+            <MessageCircle size={48} style={{ opacity: 0.3 }} />
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'rgba(203,213,225,0.5)' }}>Nessuna conversazione</div>
+            <div style={{ fontSize: 12 }}>Cerca un utente per iniziare a chattare</div>
           </div>
         ) : (
-          conversations.map((conv) => (
-            <div
-              key={conv.id}
-              onClick={() => setSelectedConversation(conv)}
-              className="flex items-center gap-3 p-4 border-b border-purple-500/20 hover:bg-purple-600/20 cursor-pointer transition-colors"
-            >
-              <div className="relative">
-                <div className="text-3xl">{getAvatarEmoji(conv.otherUser?.avatar || null)}</div>
-                {conv.unreadCount > 0 && (
-                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                    {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
+          conversations.map((conv, i) => {
+            const avatar = getAvatarEmoji(conv.otherUser?.avatar || null);
+            const name = conv.otherUser?.username || 'Utente';
+            const hasUnread = conv.unreadCount > 0;
+            const isLastMsg = !!conv.lastMessage;
+            const isMine = conv.lastMessage?.senderId === currentUserId;
+            return (
+              <div
+                key={conv.id}
+                onClick={() => setSelectedConv(conv)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  padding: '13px 16px',
+                  borderBottom: i < conversations.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                  background: hasUnread ? 'rgba(139,92,246,0.05)' : 'transparent',
+                  cursor: 'pointer',
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(139,92,246,0.1)')}
+                onMouseLeave={e => (e.currentTarget.style.background = hasUnread ? 'rgba(139,92,246,0.05)' : 'transparent')}
+              >
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  <div style={{
+                    width: 48, height: 48, borderRadius: '50%',
+                    background: 'rgba(30,41,59,0.7)',
+                    border: `1.5px solid ${hasUnread ? 'rgba(139,92,246,0.5)' : 'rgba(255,255,255,0.08)'}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 22,
+                  }}>
+                    {avatar}
                   </div>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-white font-semibold truncate">{conv.otherUser?.username || 'Utente'}</h3>
-                  <span className="text-gray-400 text-xs">{formatTime(conv.lastMessageAt)}</span>
+                  {hasUnread && (
+                    <div style={{
+                      position: 'absolute', top: -3, right: -3,
+                      minWidth: 18, height: 18,
+                      background: 'linear-gradient(135deg,#9333ea,#7c3aed)',
+                      borderRadius: 9, border: '2px solid #060914',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 10, fontWeight: 800, color: 'white', padding: '0 3px',
+                    }}>
+                      {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
+                    </div>
+                  )}
                 </div>
-                {conv.lastMessage && (
-                  <p className={`text-sm truncate ${conv.unreadCount > 0 ? 'text-white font-medium' : 'text-gray-400'}`}>
-                    {conv.lastMessage.senderId === currentUserId ? 'Tu: ' : ''}
-                    {conv.lastMessage.content}
-                  </p>
-                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
+                    <span style={{ color: 'white', fontWeight: hasUnread ? 700 : 500, fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }}>{name}</span>
+                    <span style={{ color: hasUnread ? 'rgba(192,132,252,0.8)' : 'rgba(100,116,139,0.6)', fontSize: 11, flexShrink: 0 }}>
+                      {formatTime(conv.lastMessageAt)}
+                    </span>
+                  </div>
+                  {isLastMsg && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      {isMine && <CheckCheck size={12} color={conv.lastMessage?.senderId === currentUserId && conv.unreadCount === 0 ? 'rgba(167,139,250,0.6)' : 'rgba(100,116,139,0.5)'} style={{ flexShrink: 0 }} />}
+                      <span style={{
+                        color: hasUnread ? 'rgba(203,213,225,0.8)' : 'rgba(100,116,139,0.6)',
+                        fontSize: 13,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        fontWeight: hasUnread ? 500 : 400,
+                      }}>
+                        {isMine ? 'Tu: ' : ''}{conv.lastMessage?.content}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
+
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

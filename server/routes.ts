@@ -12984,13 +12984,19 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       // Get recipient for notification
       const recipientId = conv.participant1Id === currentUser.id ? conv.participant2Id : conv.participant1Id;
       
-      // Emit socket event for real-time update
-      io.emit('new-private-message', {
-        conversationId,
-        message: newMessage,
-        senderUsername: currentUser.username,
-        recipientId
-      });
+      // Emit socket event for real-time update — targeted to recipient and sender (multi-device)
+      const targetSockets = await io.fetchSockets();
+      for (const s of targetSockets) {
+        const uid = (s as any).data?.userId;
+        if (uid === recipientId || uid === currentUser.id) {
+          s.emit('new-private-message', {
+            conversationId,
+            message: newMessage,
+            senderUsername: currentUser.username,
+            recipientId
+          });
+        }
+      }
 
       // Send push notification to recipient (works even if offline)
       sendPushToUser(recipientId, {
