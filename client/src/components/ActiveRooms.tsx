@@ -13,6 +13,7 @@ interface ActiveRoom {
   requiresApproval: boolean;
   status: 'waiting' | 'playing';
   spectatorCount?: number;
+  isFormerPlayer?: boolean;
 }
 
 interface ActiveRoomsProps {
@@ -33,7 +34,10 @@ export function ActiveRooms({ playerName, userId, avatarId, onBack, onJoinRoom, 
   const fetchRooms = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/active-rooms');
+      const token = localStorage.getItem('authToken');
+      const res = await fetch('/api/active-rooms', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       if (res.ok) {
         const data = await res.json();
         setRooms(data);
@@ -239,12 +243,22 @@ export function ActiveRooms({ playerName, userId, avatarId, onBack, onJoinRoom, 
                       )}
                     </button>
                   )}
+                  {room.isFormerPlayer && room.playerCount < room.maxPlayers && (
+                    <button
+                      onClick={() => onJoinRoom(room.gameId)}
+                      disabled={joiningRoom === room.gameId}
+                      className="flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white hover:scale-105"
+                    >
+                      <UserPlus className="w-5 h-5" />
+                      Rientra
+                    </button>
+                  )}
                   {pendingApproval === room.gameId ? (
                     <div className="flex items-center gap-2 px-6 py-3 bg-amber-500/20 text-amber-400 rounded-xl">
                       <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
                       <span>In attesa di approvazione...</span>
                     </div>
-                  ) : room.playerCount < room.maxPlayers && (
+                  ) : !room.isFormerPlayer && room.playerCount < room.maxPlayers && (
                     <button
                       onClick={() => handleJoinRoom(room)}
                       disabled={joiningRoom === room.gameId}

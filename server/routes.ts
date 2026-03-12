@@ -12314,20 +12314,37 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
   });
 
   // ============ ACTIVE ROOMS API ============
-  app.get('/api/active-rooms', (req, res) => {
+  app.get('/api/active-rooms', authMiddleware, async (req, res) => {
     try {
+      const user = (req as any).user;
+      let currentUser = null;
+      if (user && isDatabaseAvailable()) {
+        const found = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+        currentUser = found[0];
+      }
+
       const activeGames = gameManager.getActiveGames();
-      const rooms = activeGames.map(game => ({
-        gameId: game.gameId,
-        roomCode: game.gameId.replace('room-', ''),
-        playerCount: game.playerCount,
-        maxPlayers: 8,
-        players: game.players,
-        createdAt: game.createdAt,
-        creatorName: game.creatorName || game.players[0]?.name || 'Unknown',
-        requiresApproval: game.requiresApproval,
-        creatorSocketId: game.creatorSocketId,
-        status: game.status || 'waiting'
+      const rooms = await Promise.all(activeGames.map(async (game) => {
+        let isFormerPlayer = false;
+        if (currentUser) {
+          const formerMatch = await db.select().from(matches)
+            .where(sql`${matches.gameId} LIKE ${game.gameId} AND ${matches.players}::text LIKE ${'%' + currentUser.username + '%'}`)
+            .limit(1);
+          isFormerPlayer = formerMatch.length > 0;
+        }
+        return {
+          gameId: game.gameId,
+          roomCode: game.gameId.replace('room-', ''),
+          playerCount: game.playerCount,
+          maxPlayers: 8,
+          players: game.players,
+          createdAt: game.createdAt,
+          creatorName: game.creatorName || game.players[0]?.name || 'Unknown',
+          requiresApproval: game.requiresApproval,
+          creatorSocketId: game.creatorSocketId,
+          status: game.status || 'waiting',
+          isFormerPlayer
+        };
       }));
       res.json(rooms);
     } catch (error) {
