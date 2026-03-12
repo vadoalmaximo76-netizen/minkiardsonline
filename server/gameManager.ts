@@ -3060,7 +3060,8 @@ Rispondi SOLO in JSON:`;
             mosse: decks.mosse.length,
             bonus: decks.bonus.length,
           }]))
-        : {}
+        : {},
+      playerDeathModifiers: gameState.playerDeathModifiers ? Object.fromEntries(gameState.playerDeathModifiers) : {}
     };
 
     // Sanitize players by removing cpuInstance references

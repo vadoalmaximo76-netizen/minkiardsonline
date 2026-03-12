@@ -56,6 +56,21 @@ const RoundTableComponent: React.FC = () => {
   const turnOrder: string[] = [];
   const scenarioCardsActive = false;
 
+  const charLimit = gameState?.characterLimit;
+  const isUnlimitedDeaths = charLimit === 'unlimited';
+  const baseDeathLimit = isUnlimitedDeaths ? 0 : parseInt(charLimit) || 0;
+  const deathModifiers: Record<string, number> = (gameState as any)?.playerDeathModifiers || {};
+  const graveyard = gameState?.graveyard || [];
+
+  const getDeathCount = (name: string): number =>
+    graveyard.filter((c: any) => c.owner === name && (c.type === 'personaggi' || c.type === 'personaggi_speciali')).length;
+
+  const getDeathLimit = (name: string): number =>
+    Math.max(1, baseDeathLimit + (deathModifiers[name] || 0));
+
+  const isPlayerOnline = (name: string): boolean =>
+    players[name]?.socketId != null;
+
   // Compute card filtering directly (no memoization for real-time updates)
   const attachedParasiticCards = fieldCards.filter(card => card.attachedTo);
   const regularCards = fieldCards.filter(card => !card.attachedTo);
@@ -359,8 +374,10 @@ const RoundTableComponent: React.FC = () => {
                   top: `${Math.max(1, playerPosition.y - 6)}%`,
                 }}
               >
-                <span className={`${player === currentTurnPlayer ? 'bg-green-600/90 ring-2 ring-green-400 turn-glow-active' : 'bg-blue-800/80'} text-white font-bold px-2 py-1 rounded-full text-xs shadow-lg whitespace-nowrap`} style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                <span className={`${player === currentTurnPlayer ? 'bg-green-600/90 ring-2 ring-green-400 turn-glow-active' : 'bg-blue-800/80'} text-white font-bold px-2 py-1 rounded-full text-xs shadow-lg whitespace-nowrap inline-flex items-center gap-1`} style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${isPlayerOnline(player) ? 'bg-green-400' : 'bg-red-500'}`} />
                   {player}
+                  {!isUnlimitedDeaths && <span className="text-[9px] opacity-80 ml-0.5">💀{getDeathCount(player)}/{getDeathLimit(player)}</span>}
                 </span>
               </div>
               
@@ -556,8 +573,14 @@ const RoundTableComponent: React.FC = () => {
                 return (
                 <div key={player} className="mb-3 md:mb-4 last:mb-0">
                   <div className="flex items-center justify-between mb-1 md:mb-2">
-                    <h4 className={`font-semibold text-sm md:text-base ${player === currentTurnPlayer ? 'text-green-400 turn-text-glow' : isCurrentPlayer ? 'text-yellow-400' : 'text-white'}`} style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                    <h4 className={`font-semibold text-sm md:text-base ${player === currentTurnPlayer ? 'text-green-400 turn-text-glow' : isCurrentPlayer ? 'text-yellow-400' : 'text-white'} flex items-center gap-1.5`} style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                      {!isCurrentPlayer && <span className={`w-2 h-2 rounded-full shrink-0 ${isPlayerOnline(player) ? 'bg-green-400' : 'bg-red-500'}`} />}
                       {player} {isCurrentPlayer && '(Tu)'}{player === currentTurnPlayer && <span className="ml-1 text-xs">🟢</span>}
+                      {!isUnlimitedDeaths && (
+                        <span className={`text-[10px] font-normal ml-1 ${getDeathCount(player) >= getDeathLimit(player) ? 'text-red-400' : 'text-gray-400'}`}>
+                          💀{getDeathCount(player)}/{getDeathLimit(player)}
+                        </span>
+                      )}
                     </h4>
                     <span className="text-white/60 text-xs md:text-sm" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
                       {playerCards.length} carte
