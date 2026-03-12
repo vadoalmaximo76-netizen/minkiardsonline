@@ -78,6 +78,7 @@ export default function PrivateMessagesPanel({ authToken, currentUserId, socket,
   const [showSearch, setShowSearch] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const initialHandled = useRef(false);
 
@@ -119,6 +120,16 @@ export default function PrivateMessagesPanel({ authToken, currentUserId, socket,
     if (selectedConv) fetchMessages(selectedConv.id);
   }, [selectedConv?.id]);
 
+  const scrollToBottom = useCallback((smooth = false) => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    if (smooth) {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    } else {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, []);
+
   useEffect(() => {
     if (!socket) return;
     const handleMsg = (data: any) => {
@@ -127,21 +138,21 @@ export default function PrivateMessagesPanel({ authToken, currentUserId, socket,
           if (prev.some(m => m.id === data.message.id)) return prev;
           return [...prev, data.message];
         });
-        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+        setTimeout(() => scrollToBottom(true), 50);
       }
       fetchConversations();
     };
     socket.on('new-private-message', handleMsg);
     return () => socket.off('new-private-message', handleMsg);
-  }, [socket, selectedConv?.id, fetchConversations]);
+  }, [socket, selectedConv?.id, fetchConversations, scrollToBottom]);
 
   useEffect(() => {
-    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 100);
+    setTimeout(() => scrollToBottom(false), 80);
   }, [selectedConv?.id]);
 
   useEffect(() => {
     if (messages.length > 0) {
-      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+      setTimeout(() => scrollToBottom(false), 30);
     }
   }, [messages.length]);
 
@@ -246,7 +257,7 @@ export default function PrivateMessagesPanel({ authToken, currentUserId, socket,
           </div>
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <div ref={messagesContainerRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
           {messages.length === 0 ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'rgba(148,163,184,0.4)', gap: 12 }}>
               <MessageCircle size={48} style={{ opacity: 0.3 }} />
@@ -492,7 +503,7 @@ export default function PrivateMessagesPanel({ authToken, currentUserId, socket,
         </div>
       )}
 
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
         {loading ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120 }}>
             <div style={{ width: 28, height: 28, border: '2px solid rgba(139,92,246,0.3)', borderTopColor: 'rgba(139,92,246,0.8)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />

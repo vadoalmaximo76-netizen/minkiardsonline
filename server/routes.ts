@@ -13117,13 +13117,12 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const [inserted] = await db.insert(notifications).values({ userId, type, title, body, data, isRead: false }).returning();
       console.log(`[Notification] Created for userId ${userId}: [${type}] ${title}`);
 
-      // Real-time socket delivery to online users
+      // Real-time socket delivery to all active sessions of this user (multi-tab/device)
       try {
         const sockets = await io.fetchSockets();
         for (const s of sockets) {
           if ((s as any).data?.userId === userId) {
             s.emit('notification:new', inserted);
-            break;
           }
         }
       } catch {}

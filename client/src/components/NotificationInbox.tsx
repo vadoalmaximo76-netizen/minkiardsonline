@@ -93,7 +93,7 @@ export function NotificationInbox({ onNavigate, socket, onOpenConversation, onJo
 
   useEffect(() => {
     fetchNotifs();
-    intervalRef.current = setInterval(fetchNotifs, 30000);
+    intervalRef.current = setInterval(fetchNotifs, 10000);
     const onFocus = () => fetchNotifs();
     window.addEventListener("focus", onFocus);
     return () => {
