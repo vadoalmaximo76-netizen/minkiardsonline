@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { ArrowLeft, Search, Send, MessageCircle, X, Check, CheckCheck } from 'lucide-react';
 
 interface ConversationWithDetails {
@@ -230,7 +231,7 @@ export default function PrivateMessagesPanel({ authToken, currentUserId, socket,
     const otherName = selectedConv.otherUser?.username || 'Utente';
     const otherAvatar = getAvatarEmoji(selectedConv.otherUser?.avatar || null);
 
-    return (
+    return createPortal((
       <div style={{
         position: 'fixed', inset: 0, zIndex: 9000,
         background: 'linear-gradient(160deg,#060914,#08101e,#060912)',
@@ -388,10 +389,10 @@ export default function PrivateMessagesPanel({ authToken, currentUserId, socket,
           </div>
         </div>
       </div>
-    );
+    ), document.body);
   }
 
-  return (
+  return createPortal((
     <div style={{
       position: 'fixed', inset: 0, zIndex: 9000,
       background: 'linear-gradient(160deg,#060914,#08101e,#060912)',
@@ -588,5 +589,5 @@ export default function PrivateMessagesPanel({ authToken, currentUserId, socket,
 
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
-  );
+  ), document.body);
 }
