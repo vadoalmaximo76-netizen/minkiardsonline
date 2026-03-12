@@ -1,1 +1,64 @@
-[]
+[
+  {
+    "id": "fanta-1773313197198-p4sdz9",
+    "creatorName": "Fake",
+    "creatorSocketId": "OnbfxQuzqcJ9OH3QAAAD",
+    "participants": {
+      "Fake": {
+        "name": "Fake",
+        "credits": 1000,
+        "deck": {
+          "personaggi": [],
+          "mosse": [],
+          "bonus": []
+        },
+        "isCPU": false,
+        "cpuLevel": "medium",
+        "socketId": "OnbfxQuzqcJ9OH3QAAAD"
+      },
+      "CPU 1": {
+        "name": "CPU 1",
+        "credits": 1000,
+        "deck": {
+          "personaggi": [],
+          "mosse": [],
+          "bonus": []
+        },
+        "isCPU": true,
+        "cpuLevel": "medium"
+      },
+      "CPU 2": {
+        "name": "CPU 2",
+        "credits": 1000,
+        "deck": {
+          "personaggi": [],
+          "mosse": [],
+          "bonus": []
+        },
+        "isCPU": true,
+        "cpuLevel": "medium"
+      }
+    },
+    "maxParticipants": 4,
+    "cpuCount": 2,
+    "pendingRequests": [],
+    "status": "lobby",
+    "cardQueue": [],
+    "currentCardIndex": 0,
+    "currentAuction": null,
+    "recentAwarded": [],
+    "isPaused": false,
+    "disqualified": [],
+    "createdAt": 1773313197198,
+    "cardsNeeded": {
+      "personaggi": 20,
+      "mosse": 9,
+      "bonus": 15
+    },
+    "startingBudget": 1000,
+    "isPublic": true,
+    "invitedUsers": [
+      "Lord Ernesto"
+    ]
+  }
+]
