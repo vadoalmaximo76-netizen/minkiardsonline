@@ -12326,11 +12326,13 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const activeGames = gameManager.getActiveGames();
       const rooms = await Promise.all(activeGames.map(async (game) => {
         let isFormerPlayer = false;
+        let isCreator = false;
         if (currentUser) {
           const formerMatch = await db.select().from(matches)
             .where(sql`${matches.gameId} LIKE ${game.gameId} AND ${matches.players}::text LIKE ${'%' + currentUser.username + '%'}`)
             .limit(1);
           isFormerPlayer = formerMatch.length > 0;
+          isCreator = (game.creatorName === currentUser.username);
         }
         return {
           gameId: game.gameId,
@@ -12343,7 +12345,8 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
           requiresApproval: game.requiresApproval,
           creatorSocketId: game.creatorSocketId,
           status: game.status || 'waiting',
-          isFormerPlayer
+          isFormerPlayer,
+          isCreator
         };
       }));
       res.json(rooms);

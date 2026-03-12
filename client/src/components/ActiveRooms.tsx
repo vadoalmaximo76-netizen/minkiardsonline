@@ -14,6 +14,7 @@ interface ActiveRoom {
   status: 'waiting' | 'playing';
   spectatorCount?: number;
   isFormerPlayer?: boolean;
+  isCreator?: boolean;
 }
 
 interface ActiveRoomsProps {
@@ -243,7 +244,7 @@ export function ActiveRooms({ playerName, userId, avatarId, onBack, onJoinRoom, 
                       )}
                     </button>
                   )}
-                  {room.isFormerPlayer && room.playerCount < room.maxPlayers && (
+                  {(room.isFormerPlayer || room.isCreator) && room.playerCount < room.maxPlayers && (
                     <button
                       onClick={() => onJoinRoom(room.gameId)}
                       disabled={joiningRoom === room.gameId}
@@ -258,7 +259,7 @@ export function ActiveRooms({ playerName, userId, avatarId, onBack, onJoinRoom, 
                       <div className="w-5 h-5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
                       <span>In attesa di approvazione...</span>
                     </div>
-                  ) : !room.isFormerPlayer && room.playerCount < room.maxPlayers && (
+                  ) : !room.isFormerPlayer && !room.isCreator && room.playerCount < room.maxPlayers && (
                     <button
                       onClick={() => handleJoinRoom(room)}
                       disabled={joiningRoom === room.gameId}
