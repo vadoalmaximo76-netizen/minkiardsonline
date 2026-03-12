@@ -12912,31 +12912,29 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
           and(eq(conversations.participant1Id, recipientId), eq(conversations.participant2Id, currentUser.id))
         ))
         .limit(1);
-      
-      if (existingConv.length > 0) {
-        return res.json(existingConv[0]);
-      }
-      
-      // Create new conversation
-      const [newConv] = await db.insert(conversations)
-        .values({
-          participant1Id: currentUser.id,
-          participant2Id: recipientId,
-          lastMessageAt: new Date()
-        })
-        .returning();
-      
-      emitSync('conversations', 'insert', { participant1Id: currentUser.id, participant2Id: recipientId, lastMessageAt: new Date() });
 
+      const conv = existingConv.length > 0 ? existingConv[0] : await (async () => {
+        const [newConv] = await db.insert(conversations)
+          .values({
+            participant1Id: currentUser.id,
+            participant2Id: recipientId,
+            lastMessageAt: new Date()
+          })
+          .returning();
+        emitSync('conversations', 'insert', { participant1Id: currentUser.id, participant2Id: recipientId, lastMessageAt: new Date() });
+        return newConv;
+      })();
+
+      // Notify the recipient regardless of whether conversation is new or existing
       createNotification(
         recipientId,
         'message',
         '💬 Nuovo messaggio',
         `${currentUser.username} ti ha scritto un messaggio privato`,
-        { conversationId: newConv.id, senderUsername: currentUser.username, url: '/profilo', tag: `message-conv-${newConv.id}` }
+        { conversationId: conv.id, senderUsername: currentUser.username, url: '/profilo', tag: `message-conv-${conv.id}` }
       ).catch(() => {});
 
-      res.json(newConv);
+      res.json(conv);
     } catch (error) {
       console.error('Error creating conversation:', error);
       res.status(500).json({ error: 'Failed to create conversation' });
