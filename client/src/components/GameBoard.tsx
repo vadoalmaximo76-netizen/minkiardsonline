@@ -3853,7 +3853,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           </div>
         </div>
 
-        {!(gameState as any)?.isPlaying && gameState?.players ? (
+        {!(gameState as any)?.isPlaying && gameState?.players && !gameId?.startsWith('tournament-') && !(gameState as any)?.fantaTournamentId ? (
           <PreGameLobbyPanel
             gameId={gameId}
             playerName={playerName}
