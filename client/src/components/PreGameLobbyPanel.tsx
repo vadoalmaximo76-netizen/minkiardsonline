@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "./ui/button";
-import { Users, Search, Send, Check, Skull, Crown, UserPlus, Play } from "lucide-react";
+import { Users, Search, Send, Check, Skull, Crown, UserPlus, Play, Bot } from "lucide-react";
+import { socket } from "../lib/socket";
 
 interface PreGameLobbyPanelProps {
   gameId: string;
@@ -94,6 +95,10 @@ export const PreGameLobbyPanel: React.FC<PreGameLobbyPanelProps> = ({
 
   const canStart = players.length >= 2;
 
+  const handleAddCPU = () => {
+    socket.emit('add-cpu-player', { gameId });
+  };
+
   return (
     <div className="fixed inset-0 z-30 flex items-center justify-center p-4" style={{ background: 'radial-gradient(ellipse at center, rgba(15,10,40,0.95) 0%, rgba(5,3,20,0.98) 100%)' }}>
       <div className="w-full max-w-lg mx-auto space-y-4 max-h-[90vh] overflow-y-auto px-1">
@@ -118,7 +123,7 @@ export const PreGameLobbyPanel: React.FC<PreGameLobbyPanelProps> = ({
                   {p.isCPU ? '🤖' : p.name.charAt(0).toUpperCase()}
                 </div>
                 <span className="text-white/90 text-sm font-medium truncate">{p.name}</span>
-                {p.name === (players.find(pl => !pl.isCPU)?.name) && isCreator && p.name === playerName && (
+                {p.name === playerName && isCreator && (
                   <Crown size={14} className="text-yellow-400 flex-shrink-0 ml-auto" />
                 )}
                 {p.isCPU && (
@@ -127,6 +132,15 @@ export const PreGameLobbyPanel: React.FC<PreGameLobbyPanelProps> = ({
               </div>
             ))}
           </div>
+          {isCreator && (
+            <button
+              onClick={handleAddCPU}
+              className="mt-3 w-full flex items-center justify-center gap-2 bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 text-sm font-semibold py-2 rounded-xl border border-purple-500/20 hover:border-purple-400/30 transition-all duration-200"
+            >
+              <Bot size={15} />
+              Aggiungi CPU
+            </button>
+          )}
         </div>
 
         {isCreator && authToken && (

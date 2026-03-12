@@ -1569,8 +1569,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         socket.emit('game-started', { playerOrder: joinedGame.turnOrder });
       }
       
-      // Notify other players
+      // Notify other players AND broadcast updated game state so their lobby lists refresh
       socket.to(gameId).emit('player-joined', { playerName });
+      const broadcastState = gameManager.getSanitizedGameState(gameId);
+      socket.to(gameId).emit('game-state-update', broadcastState);
     });
 
     socket.on('rejoin-game', async ({ gameId, playerName, sessionId, authToken }) => {
