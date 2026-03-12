@@ -18419,23 +18419,30 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const result = await this.playCard(gameId, action.data.cardId, cpuName);
         emitState();
         await new Promise(r => setTimeout(r, 800));
-        if (result.card && action.data.drawType) {
-          await this.pickCard(gameId, action.data.drawType, cpuName);
+        // Always auto-draw a replacement card of the same type after playing
+        if (result.card) {
+          const drawType = action.data.drawType || result.card.type;
+          const normalizedDrawType = (drawType === 'personaggi_speciali' ? 'personaggi_speciali' : drawType) as keyof GameState['decks'];
+          await this.pickCard(gameId, normalizedDrawType, cpuName);
           emitState();
+          await new Promise(r => setTimeout(r, 400));
         }
-        await new Promise(r => setTimeout(r, 800));
+        await new Promise(r => setTimeout(r, 400));
         await advanceTurn(cpuName);
         break;
       }
       case 'play-and-draw': {
-        await this.playCard(gameId, action.data.playCardId, cpuName);
+        const playAndDrawResult = await this.playCard(gameId, action.data.playCardId, cpuName);
         emitState();
         await new Promise(r => setTimeout(r, 800));
-        if (action.data.drawType) {
-          await this.pickCard(gameId, action.data.drawType, cpuName);
+        // Always auto-draw: use specified drawType or infer from played card type
+        const drawTypeForPlayAndDraw = action.data.drawType || playAndDrawResult.card?.type;
+        if (drawTypeForPlayAndDraw) {
+          await this.pickCard(gameId, drawTypeForPlayAndDraw as keyof GameState['decks'], cpuName);
           emitState();
+          await new Promise(r => setTimeout(r, 400));
         }
-        await new Promise(r => setTimeout(r, 800));
+        await new Promise(r => setTimeout(r, 400));
         await advanceTurn(cpuName);
         break;
       }
