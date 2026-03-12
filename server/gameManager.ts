@@ -3050,6 +3050,7 @@ Rispondi SOLO in JSON:`;
       } : undefined,
       turnTimeoutSeconds: gameState.turnTimeoutSeconds !== undefined ? gameState.turnTimeoutSeconds : 30,
       creatorName: gameState.creatorName,
+      isPlaying: gameState.isPlaying || false,
       fantaTournamentId: gameState.fantaTournamentId || null,
       tournamentCharacterLimit: (gameState as any).tournamentCharacterLimit || null,
       isDraftMode: gameState.isDraftMode || false,

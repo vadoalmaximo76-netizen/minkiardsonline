@@ -103,6 +103,9 @@ Pre-tournament auction system where players bid on cards to build decks, then co
 - **Evolution/Transformation Animation System**: A multi-phase, full-screen animation with 3D card flips, particles, and theming for character evolutions, transformations, or taroccata.
 - **Turn Transition Animation**: Cinematic full-screen overlay animation for turn changes with distinct styling for player's turn vs. opponent's turn.
 
+## Pre-Game Lobby Panel
+When a player creates or joins a room (before the game starts), a full-screen "SALA D'ATTESA" (waiting room) panel shows instead of the game board. The creator can: invite players by searching usernames (reuses `/api/users/search` + `/api/friends/invite`), set the "morti" (character limit: 1/2/3/5/unlimited, default 3), and click COMINCIA to start. Other players see a read-only view with the selected settings and a "waiting for host" message. The morti setting syncs in real-time via `set-lobby-settings` / `lobby-settings-updated` socket events. The old character-limit dialog (post-COMINCIA) is bypassed; the value is set in the lobby. Component: `client/src/components/PreGameLobbyPanel.tsx`. Server: `set-lobby-settings` socket event in `server/routes.ts`. `isPlaying` is now included in `getSanitizedGameState()` output.
+
 ## UI/UX Design
 - **Layout**: Compact header with essential actions and a glassmorphism dropdown menu for secondary actions. A compact glassmorphism toolbar at the bottom-right provides game action buttons.
 - **Background**: Animated CSS gradient background with floating radial gradient orbs.

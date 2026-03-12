@@ -70,6 +70,7 @@ import CardTrailParticles from "./CardTrailParticles";
 import AmbientParticles from "./AmbientParticles";
 import { GameBoard3D } from "./GameBoard3D";
 import VictoryDefeatAnimation from "./VictoryDefeatAnimation";
+import { PreGameLobbyPanel } from "./PreGameLobbyPanel";
 import { useScreenShake } from "../lib/useScreenShake";
 import { useGameState } from "../lib/stores/useGameState";
 import { useAudio } from "../lib/stores/useAudio";
@@ -190,6 +191,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     timestamp: number;
   }>>([]);
   const [characterLimitDialogOpen, setCharacterLimitDialogOpen] = useState(false);
+  const [lobbyCharacterLimit, setLobbyCharacterLimit] = useState('3');
   const [eliminationDialogOpen, setEliminationDialogOpen] = useState(false);
   const [victoryDialogOpen, setVictoryDialogOpen] = useState(false);
   const [victoryPlayer, setVictoryPlayer] = useState<string>('');
@@ -558,18 +560,21 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   };
 
   const handleStartGame = () => {
-    // For fanta tournament matches, skip the dialog and use the pre-configured limit
     if ((gameState as any)?.tournamentCharacterLimit) {
       socket.emit('start-game', { gameId, playerName, characterLimit: (gameState as any).tournamentCharacterLimit });
       return;
     }
-    // Show character limit selection dialog first
-    setCharacterLimitDialogOpen(true);
+    socket.emit('start-game', { gameId, playerName, characterLimit: lobbyCharacterLimit });
   };
 
   const handleCharacterLimitSelected = (limit: string) => {
     setCharacterLimitDialogOpen(false);
     socket.emit('start-game', { gameId, playerName, characterLimit: limit });
+  };
+
+  const handleLobbyCharacterLimitChange = (limit: string) => {
+    setLobbyCharacterLimit(limit);
+    socket.emit('set-lobby-settings', { gameId, characterLimit: limit });
   };
 
   const handleLeaveGame = () => {
@@ -1038,6 +1043,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('card-played-face-down', handleCardPlayedFaceDown);
     socket.on('card-revealed', handleCardRevealed);
     socket.on('game-started', handleGameStarted);
+    const handleLobbySettingsUpdated = ({ characterLimit: newLimit }: { characterLimit: string }) => {
+      setLobbyCharacterLimit(newLimit);
+    };
+    socket.on('lobby-settings-updated', handleLobbySettingsUpdated);
     socket.on('next-turn', handleNextTurn);
     socket.on('player-left', handlePlayerLeft);
     socket.on('super-dice-opened', handleOpenSuperDice);
@@ -2012,6 +2021,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('card-played-face-down', handleCardPlayedFaceDown);
       socket.off('card-revealed', handleCardRevealed);
       socket.off('game-started', handleGameStarted);
+      socket.off('lobby-settings-updated', handleLobbySettingsUpdated);
       socket.off('next-turn', handleNextTurn);
       socket.off('player-left', handlePlayerLeft);
       socket.off('super-dice-opened', handleOpenSuperDice);
@@ -3724,14 +3734,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             )}
           </div>
 
-          {/* Center: Primary actions */}
+          {/* Center: Primary actions - only show when game is playing */}
+          {gameState?.turnOrder && gameState.turnOrder.length > 0 && (gameState as any)?.isPlaying && (
           <div className="flex items-center gap-1.5 landscape:gap-2 md:gap-2">
-            <Button
-              onClick={() => { playConfirm(); handleStartGame(); }}
-              className="bg-emerald-500/90 hover:bg-emerald-400 text-white font-bold text-[11px] landscape:text-sm md:text-sm px-3 landscape:px-5 md:px-5 py-1.5 landscape:py-2 md:py-2 rounded-xl shadow-lg shadow-emerald-500/25 border border-emerald-400/30 transition-all duration-200"
-            >
-              COMINCIA
-            </Button>
             <Button
               onClick={() => { playButtonClick(); setShowCpuControls(!showCpuControls); }}
               className={`${showCpuControls ? 'bg-purple-500/90 border-purple-400/30 shadow-purple-500/25' : 'bg-white/10 border-white/10 shadow-none'} text-white font-bold text-[11px] landscape:text-sm md:text-sm px-3 landscape:px-4 md:px-4 py-1.5 landscape:py-2 md:py-2 rounded-xl shadow-lg border transition-all duration-200 hover:bg-purple-500/70`}
@@ -3745,6 +3750,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               3D
             </Button>
           </div>
+          )}
 
           {/* Right: User info + Menu */}
           <div className="flex items-center gap-1.5">
@@ -3865,6 +3871,20 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           </div>
         </div>
 
+        {!(gameState as any)?.isPlaying && gameState?.players ? (
+          <PreGameLobbyPanel
+            gameId={gameId}
+            playerName={playerName}
+            isCreator={gameState?.creatorName === playerName}
+            players={Object.values(gameState.players).map((p: any) => ({ name: p.name, isCPU: p.isCPU, avatar: p.avatar }))}
+            characterLimit={lobbyCharacterLimit}
+            authToken={authToken}
+            onCharacterLimitChange={handleLobbyCharacterLimitChange}
+            onStartGame={() => { playConfirm(); handleStartGame(); }}
+            roomCode={gameId?.replace('room-', '') || ''}
+          />
+        ) : (
+        <>
         {/* Player Hand */}
         <PlayerHand />
 
@@ -3881,6 +3901,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             {/* Round Table - replaces the old decks and game field */}
             <RoundTable />
           </>
+        )}
+        </>
         )}
 
         {/* Graveyard Modal */}

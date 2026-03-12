@@ -6592,6 +6592,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on('set-lobby-settings', ({ gameId, characterLimit }: { gameId: string; characterLimit: string }) => {
+      const game = gameManager.getGame(gameId);
+      if (game && !game.isPlaying) {
+        game.characterLimit = characterLimit;
+        socket.to(gameId).emit('lobby-settings-updated', { characterLimit });
+      }
+    });
+
     socket.on('start-game', async ({ gameId, playerName, characterLimit }) => {
       const gameState = gameManager.getSanitizedGameState(gameId);
       if (gameState) {
