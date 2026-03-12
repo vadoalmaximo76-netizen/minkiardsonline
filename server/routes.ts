@@ -4861,6 +4861,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         await emitCardPlayed(io, gameId, result.card, cpuAction.data.playerName);
                       }
                       
+                      // Draw replacement card of same type
+                      if (result.card) {
+                        const cardType = result.card.type;
+                        if (cardType === 'personaggi' || cardType === 'mosse' || cardType === 'bonus' || cardType === 'personaggi_speciali') {
+                          const replacementDrawn = await gameManager.pickCard(gameId, cardType, cpuAction.data.playerName);
+                          if (replacementDrawn) {
+                            console.log(`CPU ${cpuAction.data.playerName} drew replacement ${cardType} card after playing`);
+                          }
+                        }
+                      }
+                      
                       const updatedGameState = gameManager.getSanitizedGameState(gameId);
                       emitThrottledGameState(io, gameId, updatedGameState);
                       
