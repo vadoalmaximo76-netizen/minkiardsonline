@@ -36,9 +36,10 @@ interface PrivateMessagesPanelProps {
   currentUserId: number;
   socket: any;
   onClose: () => void;
+  initialConversationId?: number | null;
 }
 
-export default function PrivateMessagesPanel({ authToken, currentUserId, socket, onClose }: PrivateMessagesPanelProps) {
+export default function PrivateMessagesPanel({ authToken, currentUserId, socket, onClose, initialConversationId }: PrivateMessagesPanelProps) {
   const [conversations, setConversations] = useState<ConversationWithDetails[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<ConversationWithDetails | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -48,10 +49,19 @@ export default function PrivateMessagesPanel({ authToken, currentUserId, socket,
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showSearch, setShowSearch] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const initialConvHandled = useRef(false);
 
   useEffect(() => {
     fetchConversations();
   }, [authToken]);
+
+  useEffect(() => {
+    if (initialConversationId && conversations.length > 0 && !initialConvHandled.current) {
+      initialConvHandled.current = true;
+      const conv = conversations.find(c => c.id === initialConversationId);
+      if (conv) setSelectedConversation(conv);
+    }
+  }, [initialConversationId, conversations]);
 
   useEffect(() => {
     if (selectedConversation) {

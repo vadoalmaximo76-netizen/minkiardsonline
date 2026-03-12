@@ -79,6 +79,7 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
   const [isAdmin, setIsAdmin] = useState(false);
   const [showMessagesPanel, setShowMessagesPanel] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [initialConversationId, setInitialConversationId] = useState<number | null>(null);
 
   const [offlineStats, setOfflineStats] = useState<{ cached: number; total: number; enabled: boolean } | null>(null);
   const [offlineDownloading, setOfflineDownloading] = useState(false);
@@ -86,6 +87,18 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
   const offlineAbortRef = useRef<AbortController | null>(null);
   const [tradeHistory, setTradeHistory] = useState<TradeHistoryEntry[]>([]);
   const [showTradeHistory, setShowTradeHistory] = useState(false);
+
+  useEffect(() => {
+    const storedConvId = localStorage.getItem('openConversationId');
+    if (storedConvId) {
+      localStorage.removeItem('openConversationId');
+      const convId = parseInt(storedConvId, 10);
+      if (!isNaN(convId)) {
+        setInitialConversationId(convId);
+        setShowMessagesPanel(true);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -964,8 +977,10 @@ export function ProfileSection({ playerName, userId, userEmail, userAvatar, sock
             authToken={localStorage.getItem('authToken')}
             currentUserId={userId}
             socket={socket}
+            initialConversationId={initialConversationId}
             onClose={() => {
               setShowMessagesPanel(false);
+              setInitialConversationId(null);
               fetchUnreadCount();
             }}
           />

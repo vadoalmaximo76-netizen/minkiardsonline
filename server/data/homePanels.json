@@ -55,7 +55,7 @@
     "titleColor": "#ffffff",
     "subtitleColor": "rgba(255,255,255,0.75)",
     "badge": "NUOVO",
-    "badgeColor": "rgba(245,158,11,0.4)",
+    "badgeColor": "rgba(0,0,0,0.35)",
     "sortOrder": 3,
     "adminOnly": false
   },
