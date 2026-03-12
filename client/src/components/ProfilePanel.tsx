@@ -200,7 +200,7 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
   };
 
   const inviteFriend = async (friendId: number) => {
-    if (!authToken || !gameId) return;
+    if (!authToken) return;
     try {
       setInvitingFriend(friendId);
       const response = await fetch('/api/friends/invite', {
@@ -209,7 +209,7 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authToken}`
         },
-        body: JSON.stringify({ friendId, gameId })
+        body: JSON.stringify({ friendId, ...(gameId ? { gameId } : {}) })
       });
       if (response.ok) {
         onInviteFriend?.(friendId);
@@ -447,20 +447,20 @@ export const ProfilePanel: React.FC<ProfilePanelProps> = ({
                           <div className="text-xs text-yellow-400">{friend.puntiRankiard} PR</div>
                         </div>
                       </div>
-                      {gameId && (
-                        <Button
-                          onClick={() => inviteFriend(friend.id)}
-                          disabled={invitingFriend === friend.id}
-                          size="sm"
-                          className="bg-green-600 hover:bg-green-700"
-                        >
-                          {invitingFriend === friend.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <><Mail className="w-4 h-4 mr-1" /> Invita</>
-                          )}
-                        </Button>
-                      )}
+                      <Button
+                        onClick={() => inviteFriend(friend.id)}
+                        disabled={invitingFriend === friend.id}
+                        size="sm"
+                        className={gameId ? "bg-green-600 hover:bg-green-700" : "bg-orange-600 hover:bg-orange-700"}
+                      >
+                        {invitingFriend === friend.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : gameId ? (
+                          <><Mail className="w-4 h-4 mr-1" /> Invita</>
+                        ) : (
+                          <><Mail className="w-4 h-4 mr-1" /> Sfida</>
+                        )}
+                      </Button>
                     </div>
                   ))
                 )}

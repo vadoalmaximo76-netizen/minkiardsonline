@@ -11765,21 +11765,29 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const targetUser = await db.select().from(users).where(eq(users.id, targetUserId)).limit(1);
       if (!targetUser.length) return res.status(404).json({ success: false, error: 'Utente destinatario non trovato' });
 
-      io.emit(`tournament-invite-${targetUserId}`, {
-        tournamentId,
-        tournamentName: tournament[0].name,
-        inviterName: currentUser[0].username,
-        inviterId: currentUser[0].id,
-        maxParticipants: tournament[0].maxParticipants,
-        currentParticipants: tournament[0].currentParticipants,
-      });
-      // Also broadcast on general channel
-      io.emit('tournament-invite', {
+      const sockets = await io.fetchSockets();
+      for (const s of sockets) {
+        if ((s as any).data?.userId === targetUserId) {
+          s.emit('tournament-invite', {
+            targetUserId,
+            tournamentId,
+            tournamentName: tournament[0].name,
+            inviterName: currentUser[0].username,
+            inviterId: currentUser[0].id,
+            maxParticipants: tournament[0].maxParticipants,
+            currentParticipants: tournament[0].currentParticipants,
+          });
+          break;
+        }
+      }
+
+      createNotification(
         targetUserId,
-        tournamentId,
-        tournamentName: tournament[0].name,
-        inviterName: currentUser[0].username,
-      });
+        'tournament',
+        '🥊 Invito a torneo',
+        `${currentUser[0].username} ti ha invitato al torneo "${tournament[0].name}"`,
+        { tournamentId, tournamentName: tournament[0].name, url: '/tornei', tag: `tournament-invite-${tournamentId}` }
+      ).catch(() => {});
 
       res.json({ success: true, message: `Invito inviato a ${targetUser[0].username}` });
     } catch (error) {
@@ -12024,22 +12032,21 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         return res.status(400).json({ success: false, error: 'Already friends' });
       }
       
-      await db.insert(friendRequests).values({
+      const [newRequest] = await db.insert(friendRequests).values({
         requesterId,
         addresseeId,
         message: message || null,
         status: 'pending'
-      });
+      }).returning();
       emitSync('friend_requests', 'insert', { requesterId, addresseeId, message: message || null, status: 'pending' });
 
-      // Persistent notification for addressee
       const senderUser = await db.select({ username: users.username }).from(users).where(eq(users.id, requesterId)).limit(1);
       createNotification(
         addresseeId,
         'friend_request',
         '👤 Richiesta di amicizia',
         `${senderUser[0]?.username ?? 'Qualcuno'} ti ha inviato una richiesta di amicizia`,
-        { requesterId, url: '/profilo', tag: `friend-req-${requesterId}` }
+        { requesterId, requestId: newRequest.id, senderUsername: senderUser[0]?.username ?? 'Qualcuno', url: '/profilo', tag: `friend-req-${requesterId}` }
       ).catch(() => {});
 
       res.json({ success: true });
@@ -12107,7 +12114,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
     }
   });
 
-  // Invite friend to game
+  // Invite friend to game (gameId is optional — if absent, creates a "pending challenge")
   app.post('/api/friends/invite', authMiddleware, async (req, res) => {
     try {
       if (!isDatabaseAvailable()) {
@@ -12115,76 +12122,129 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       }
 
       const user = (req as any).user;
-      const { friendId, gameId } = req.body;
-      
+      let { friendId, gameId, targetUsername } = req.body;
+
       const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
       if (!currentUser.length) {
         return res.status(404).json({ success: false, error: 'User not found' });
       }
-      
+
+      if (!friendId && targetUsername) {
+        const resolved = await db.select({ id: users.id }).from(users).where(eq(users.username, targetUsername)).limit(1);
+        if (!resolved.length) return res.status(404).json({ success: false, error: 'Utente non trovato' });
+        friendId = resolved[0].id;
+      }
+      if (!friendId) return res.status(400).json({ success: false, error: 'friendId o targetUsername obbligatorio' });
+
       const friend = await db.select().from(users).where(eq(users.id, friendId)).limit(1);
       if (!friend.length) {
         return res.status(404).json({ success: false, error: 'Friend not found' });
       }
-      
-      await db.insert(gameInvitations).values({
-        senderId: currentUser[0].id,
-        receiverId: friendId,
-        gameId,
-        status: 'pending',
-        expiresAt: new Date(Date.now() + 30 * 60 * 1000)
-      });
-      emitSync('game_invitations', 'insert', { senderId: currentUser[0].id, receiverId: friendId, gameId, status: 'pending', expiresAt: new Date(Date.now() + 30 * 60 * 1000) });
-      
-      // Emit to specific user's socket only - find their socket by iterating connections
+
+      const pendingChallenge = !gameId;
+
+      if (gameId) {
+        await db.insert(gameInvitations).values({
+          senderId: currentUser[0].id,
+          receiverId: friendId,
+          gameId,
+          status: 'pending',
+          expiresAt: new Date(Date.now() + 30 * 60 * 1000)
+        });
+        emitSync('game_invitations', 'insert', { senderId: currentUser[0].id, receiverId: friendId, gameId, status: 'pending', expiresAt: new Date(Date.now() + 30 * 60 * 1000) });
+      }
+
       const sockets = await io.fetchSockets();
-      console.log(`Looking for socket for user ${friendId} (${friend[0].username}) among ${sockets.length} connected sockets`);
-      
-      let inviteSent = false;
       for (const s of sockets) {
         const socketData = (s as any).data;
-        console.log(`Checking socket ${s.id}: userId=${socketData?.userId}, username=${socketData?.username}`);
         if (socketData && socketData.userId === friendId) {
           s.emit('game-invitation', {
             type: 'game-invite',
             senderId: currentUser[0].id,
             senderUsername: currentUser[0].username,
             receiverId: friendId,
-            gameId,
-            roomCode: gameId.replace('room-', '')
+            gameId: gameId || null,
+            roomCode: gameId ? gameId.replace('room-', '') : null,
+            pendingChallenge,
           });
-          console.log(`Game invitation sent to ${friend[0].username} via socket ${s.id}`);
-          inviteSent = true;
           break;
         }
       }
-      
-      if (!inviteSent) {
-        console.log(`Friend ${friend[0].username} (id: ${friendId}) not found online - no socket with matching userId`);
-      }
 
-      // Send push notification to the invited player (works even if offline)
+      const bodyText = pendingChallenge
+        ? `${currentUser[0].username} ti ha sfidato a una partita!`
+        : `${currentUser[0].username} ti ha invitato in una partita! Codice: ${gameId.replace('room-', '')}`;
+
       sendPushToUser(friendId, {
         title: '🎮 Invito partita MINKIARDS',
-        body: `${currentUser[0].username} ti ha invitato in una partita! Codice: ${gameId.replace('room-', '')}`,
-        url: `/?gameId=${gameId}`,
-        tag: `game-invite-${gameId}`
+        body: bodyText,
+        url: pendingChallenge ? '/gioca' : `/?gameId=${gameId}`,
+        tag: pendingChallenge ? `challenge-${currentUser[0].id}` : `game-invite-${gameId}`
       }).catch(() => {});
 
-      // Persistent notification in inbox
       createNotification(
         friendId,
         'game_invite',
-        '🎮 Invito partita',
-        `${currentUser[0].username} ti ha invitato in una partita! Codice: ${gameId.replace('room-', '')}`,
-        { gameId, url: `/gioca`, tag: `game-invite-${gameId}` },
-        false
+        '🎮 Sfida a Minkiards',
+        bodyText,
+        { gameId: gameId || null, pendingChallenge, senderId: currentUser[0].id, senderUsername: currentUser[0].username, url: '/gioca', tag: pendingChallenge ? `challenge-${currentUser[0].id}` : `game-invite-${gameId}` }
       ).catch(() => {});
 
       res.json({ success: true });
     } catch (error) {
       console.error('Error inviting friend:', error);
       res.status(500).json({ success: false, error: 'Failed to invite friend' });
+    }
+  });
+
+  // Accept a pending game challenge — auto-create a room and notify the inviter
+  app.post('/api/friends/invite/accept', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile in modalità offline" });
+      }
+
+      const user = (req as any).user;
+      const { senderId, notificationId } = req.body;
+
+      const currentUser = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+      if (!currentUser.length) return res.status(404).json({ success: false, error: 'User not found' });
+
+      const sender = await db.select().from(users).where(eq(users.id, senderId)).limit(1);
+      if (!sender.length) return res.status(404).json({ success: false, error: 'Inviter not found' });
+
+      const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const newGameId = `room-${roomCode}`;
+
+      if (notificationId) {
+        await db.update(notifications).set({ isRead: true }).where(eq(notifications.id, notificationId)).catch(() => {});
+      }
+
+      const sockets = await io.fetchSockets();
+      for (const s of sockets) {
+        if ((s as any).data?.userId === senderId) {
+          s.emit('challenge-accepted', {
+            gameId: newGameId,
+            roomCode,
+            acceptedBy: currentUser[0].username,
+            acceptedById: currentUser[0].id,
+          });
+          break;
+        }
+      }
+
+      createNotification(
+        senderId,
+        'game_invite',
+        '🎮 Sfida accettata!',
+        `${currentUser[0].username} ha accettato la tua sfida! Stanza: ${roomCode}`,
+        { gameId: newGameId, url: '/gioca', tag: `challenge-accepted-${newGameId}` }
+      ).catch(() => {});
+
+      res.json({ success: true, gameId: newGameId, roomCode });
+    } catch (error) {
+      console.error('Error accepting challenge:', error);
+      res.status(500).json({ success: false, error: 'Failed to accept challenge' });
     }
   });
 

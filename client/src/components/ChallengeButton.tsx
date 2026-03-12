@@ -29,10 +29,12 @@ export function ChallengeButton({ targetUsername, className = "" }: ChallengeBut
     setFeedback(null);
 
     try {
+      const token = localStorage.getItem('authToken');
       const response = await fetch('/api/friends/invite', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ targetUsername }),
       });

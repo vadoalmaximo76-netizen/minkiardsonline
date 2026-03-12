@@ -238,6 +238,22 @@ function App() {
           console.log(`Join requires approval for game ${gameId}: ${message}`);
           alert(message || 'Questa partita è già iniziata. Usa la lista delle stanze attive per richiedere di unirti.');
         });
+
+        socket.on('challenge-accepted', (data: { gameId: string; roomCode: string; acceptedBy: string }) => {
+          console.log(`Challenge accepted by ${data.acceptedBy}, room: ${data.roomCode}`);
+          if (confirm(`${data.acceptedBy} ha accettato la tua sfida! Vuoi entrare nella stanza ${data.roomCode}?`)) {
+            setGameId(data.gameId);
+            generateSessionId();
+            socket.emit('join-game', {
+              gameId: data.gameId,
+              playerName,
+              avatarId: pendingAvatar,
+              userId: authenticatedUser?.id,
+              authToken: localStorage.getItem('authToken'),
+            });
+            navigateTo('play');
+          }
+        });
         
         // socket.ts 'connect' handler already sends set-user-data — no need to duplicate here
         socket.on('connect', () => {
@@ -572,6 +588,19 @@ function App() {
     navigateTo(section);
   };
 
+  const handleJoinGameFromNotification = (newGameId: string) => {
+    setGameId(newGameId);
+    generateSessionId();
+    socket.emit('join-game', {
+      gameId: newGameId,
+      playerName,
+      avatarId: pendingAvatar,
+      userId: authenticatedUser?.id,
+      authToken: localStorage.getItem('authToken'),
+    });
+    navigateTo('play');
+  };
+
   const handleJoinRoom = (roomGameId: string) => {
     setGameId(roomGameId);
     generateSessionId();
@@ -666,7 +695,7 @@ function App() {
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
-        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} />
+        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} onJoinGame={handleJoinGameFromNotification} />
         <BottomNav currentSection={currentSection} onNavigate={handleBottomNavNavigate} hasActiveGame={!!gameId} />
       </QueryClientProvider>
     );
@@ -688,7 +717,7 @@ function App() {
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
-        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} />
+        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} onJoinGame={handleJoinGameFromNotification} />
       </QueryClientProvider>
     );
   }
@@ -710,7 +739,7 @@ function App() {
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
-        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} />
+        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} onJoinGame={handleJoinGameFromNotification} />
       </QueryClientProvider>
     );
   }
@@ -735,7 +764,7 @@ function App() {
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
-        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} />
+        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} onJoinGame={handleJoinGameFromNotification} />
         <BottomNav currentSection={currentSection} onNavigate={handleBottomNavNavigate} hasActiveGame={!!gameId} />
       </QueryClientProvider>
     );
@@ -759,7 +788,7 @@ function App() {
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
-        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} />
+        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} onJoinGame={handleJoinGameFromNotification} />
         <BottomNav currentSection={currentSection} onNavigate={handleBottomNavNavigate} hasActiveGame={!!gameId} />
       </QueryClientProvider>
     );
@@ -780,7 +809,7 @@ function App() {
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
-        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} />
+        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} onJoinGame={handleJoinGameFromNotification} />
         <BottomNav currentSection={currentSection} onNavigate={handleBottomNavNavigate} hasActiveGame={!!gameId} />
       </QueryClientProvider>
     );
@@ -803,7 +832,7 @@ function App() {
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
-        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} />
+        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} onJoinGame={handleJoinGameFromNotification} />
         <BottomNav currentSection={currentSection} onNavigate={handleBottomNavNavigate} hasActiveGame={!!gameId} />
       </QueryClientProvider>
     );
@@ -820,7 +849,7 @@ function App() {
         />
         <SpotifyPlayer disabled={false} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
-        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} />
+        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} onJoinGame={handleJoinGameFromNotification} />
         <BottomNav currentSection={currentSection} onNavigate={handleBottomNavNavigate} hasActiveGame={!!gameId} />
       </QueryClientProvider>
     );
@@ -852,7 +881,7 @@ function App() {
         />
         <SpotifyPlayer disabled={false} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
-        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} />
+        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} onJoinGame={handleJoinGameFromNotification} />
         <BottomNav currentSection={currentSection} onNavigate={handleBottomNavNavigate} hasActiveGame={!!gameId} />
       </QueryClientProvider>
     );
@@ -877,7 +906,7 @@ function App() {
         <SpotifyPlayer disabled={false} />
         <PageTransitionOverlay phase={overlayPhase} />
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
-        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} />
+        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} onJoinGame={handleJoinGameFromNotification} />
       </QueryClientProvider>
     );
   }

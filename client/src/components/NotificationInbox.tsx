@@ -26,6 +26,8 @@ interface AppNotification {
 interface Props {
   onNavigate?: (section: string) => void;
   socket?: Socket;
+  onOpenConversation?: (conversationId: number) => void;
+  onJoinGame?: (gameId: string) => void;
 }
 
 const TYPE_ICONS: Record<string, string> = {
@@ -64,10 +66,11 @@ function timeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("it-IT", { day: "numeric", month: "short" });
 }
 
-export function NotificationInbox({ onNavigate, socket }: Props) {
+export function NotificationInbox({ onNavigate, socket, onOpenConversation, onJoinGame }: Props) {
   const [open, setOpen] = useState(false);
   const [notifs, setNotifs] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState<number | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval>>();
 
@@ -88,7 +91,6 @@ export function NotificationInbox({ onNavigate, socket }: Props) {
     } catch {}
   }, []);
 
-  // Poll and focus-refresh
   useEffect(() => {
     fetchNotifs();
     intervalRef.current = setInterval(fetchNotifs, 30000);
@@ -100,7 +102,6 @@ export function NotificationInbox({ onNavigate, socket }: Props) {
     };
   }, [fetchNotifs]);
 
-  // Real-time socket delivery
   useEffect(() => {
     if (!socket) return;
     const handler = (notif: AppNotification) => {
@@ -173,8 +174,85 @@ export function NotificationInbox({ onNavigate, socket }: Props) {
     }).catch(() => {});
   };
 
+  const handleFriendRequest = async (notif: AppNotification, accept: boolean, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const token = authToken();
+    if (!token) return;
+    const requestId = notif.data?.requestId;
+    if (!requestId) return;
+    setActionLoading(notif.id);
+    try {
+      const res = await fetch(`/api/friends/requests/${requestId}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ accept }),
+      });
+      if (res.ok) {
+        setNotifs((prev) => prev.map((n) =>
+          n.id === notif.id
+            ? { ...n, isRead: true, body: accept ? "Richiesta accettata ✅" : "Richiesta rifiutata" }
+            : n
+        ));
+      }
+    } catch {} finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleAcceptChallenge = async (notif: AppNotification, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const token = authToken();
+    if (!token) return;
+    setActionLoading(notif.id);
+    try {
+      if (notif.data?.gameId && !notif.data?.pendingChallenge) {
+        markRead(notif.id);
+        if (onJoinGame) onJoinGame(notif.data.gameId);
+        if (onNavigate) onNavigate("play");
+        setOpen(false);
+        return;
+      }
+
+      const res = await fetch("/api/friends/invite/accept", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ senderId: notif.data?.senderId, notificationId: notif.id }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNotifs((prev) => prev.map((n) =>
+          n.id === notif.id
+            ? { ...n, isRead: true, body: `Sfida accettata! Stanza: ${data.roomCode}` }
+            : n
+        ));
+        if (data.gameId && onJoinGame) onJoinGame(data.gameId);
+        if (onNavigate) onNavigate("play");
+        setOpen(false);
+      }
+    } catch {} finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeclineChallenge = async (notif: AppNotification, e: React.MouseEvent) => {
+    e.stopPropagation();
+    markRead(notif.id);
+    setNotifs((prev) => prev.map((n) =>
+      n.id === notif.id ? { ...n, isRead: true, body: "Sfida rifiutata" } : n
+    ));
+  };
+
   const handleAction = (notif: AppNotification) => {
     markRead(notif.id);
+
+    if (notif.type === "message" && notif.data?.conversationId) {
+      localStorage.setItem("openConversationId", String(notif.data.conversationId));
+      if (onOpenConversation) onOpenConversation(notif.data.conversationId);
+      if (onNavigate) onNavigate("profile");
+      setOpen(false);
+      return;
+    }
+
     const url = notif.data?.url;
     if (url && onNavigate) {
       const sectionMap: Record<string, string> = {
@@ -191,12 +269,31 @@ export function NotificationInbox({ onNavigate, socket }: Props) {
     setOpen(false);
   };
 
+  const hasActionButtons = (notif: AppNotification) => {
+    if (notif.type === "friend_request" && notif.data?.requestId && !notif.isRead) return true;
+    if (notif.type === "game_invite" && !notif.isRead) return true;
+    return false;
+  };
+
   const TOKEN = authToken();
   if (!TOKEN) return null;
 
+  const actionBtnStyle = (color: string): React.CSSProperties => ({
+    padding: "4px 10px",
+    borderRadius: 6,
+    fontSize: 11,
+    fontWeight: 700,
+    cursor: "pointer",
+    border: "none",
+    outline: "none",
+    transition: "opacity 0.15s",
+    color: "white",
+    background: color,
+    opacity: actionLoading !== null ? 0.5 : 1,
+  });
+
   return (
     <>
-      {/* Bell button — fixed top-right */}
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label="Notifiche"
@@ -254,7 +351,6 @@ export function NotificationInbox({ onNavigate, socket }: Props) {
         )}
       </button>
 
-      {/* Backdrop */}
       {open && (
         <div
           onClick={() => setOpen(false)}
@@ -268,7 +364,6 @@ export function NotificationInbox({ onNavigate, socket }: Props) {
         />
       )}
 
-      {/* Slide-in panel */}
       <div
         ref={panelRef}
         style={{
@@ -288,7 +383,6 @@ export function NotificationInbox({ onNavigate, socket }: Props) {
           willChange: "transform",
         }}
       >
-        {/* Header */}
         <div style={{
           display: "flex",
           alignItems: "center",
@@ -378,7 +472,6 @@ export function NotificationInbox({ onNavigate, socket }: Props) {
           </div>
         </div>
 
-        {/* List */}
         <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
           {loading && notifs.length === 0 ? (
             <div style={{ padding: 40, textAlign: "center", color: "rgba(148,163,184,0.4)", fontSize: 13 }}>
@@ -393,23 +486,23 @@ export function NotificationInbox({ onNavigate, socket }: Props) {
             notifs.map((notif) => {
               const icon = TYPE_ICONS[notif.type] ?? "🔔";
               const bg = TYPE_COLORS[notif.type] ?? "rgba(148,163,184,0.08)";
+              const showActions = hasActionButtons(notif);
               return (
                 <div
                   key={notif.id}
-                  onClick={() => handleAction(notif)}
+                  onClick={() => !showActions && handleAction(notif)}
                   style={{
                     display: "flex",
                     alignItems: "flex-start",
                     gap: 10,
                     padding: "11px 14px",
-                    cursor: "pointer",
+                    cursor: showActions ? "default" : "pointer",
                     background: notif.isRead ? "transparent" : "rgba(139,92,246,0.05)",
                     borderBottom: "1px solid rgba(255,255,255,0.04)",
                     transition: "background 0.15s",
                     position: "relative",
                   }}
                 >
-                  {/* Unread dot */}
                   {!notif.isRead && (
                     <span style={{
                       position: "absolute",
@@ -424,7 +517,6 @@ export function NotificationInbox({ onNavigate, socket }: Props) {
                     }} />
                   )}
 
-                  {/* Icon */}
                   <div style={{
                     width: 38,
                     height: 38,
@@ -440,7 +532,6 @@ export function NotificationInbox({ onNavigate, socket }: Props) {
                     {icon}
                   </div>
 
-                  {/* Content */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{
                       fontWeight: notif.isRead ? 500 : 700,
@@ -462,12 +553,50 @@ export function NotificationInbox({ onNavigate, socket }: Props) {
                     }}>
                       {notif.body}
                     </div>
+
+                    {notif.type === "friend_request" && notif.data?.requestId && !notif.isRead && (
+                      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                        <button
+                          onClick={(e) => handleFriendRequest(notif, true, e)}
+                          disabled={actionLoading === notif.id}
+                          style={actionBtnStyle("#16a34a")}
+                        >
+                          {actionLoading === notif.id ? "..." : "✓ Accetta"}
+                        </button>
+                        <button
+                          onClick={(e) => handleFriendRequest(notif, false, e)}
+                          disabled={actionLoading === notif.id}
+                          style={actionBtnStyle("#dc2626")}
+                        >
+                          ✕ Rifiuta
+                        </button>
+                      </div>
+                    )}
+
+                    {notif.type === "game_invite" && !notif.isRead && (
+                      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                        <button
+                          onClick={(e) => handleAcceptChallenge(notif, e)}
+                          disabled={actionLoading === notif.id}
+                          style={actionBtnStyle("#2563eb")}
+                        >
+                          {actionLoading === notif.id ? "..." : "⚔️ Accetta"}
+                        </button>
+                        <button
+                          onClick={(e) => handleDeclineChallenge(notif, e)}
+                          disabled={actionLoading === notif.id}
+                          style={actionBtnStyle("#64748b")}
+                        >
+                          Ignora
+                        </button>
+                      </div>
+                    )}
+
                     <div style={{ fontSize: 10, color: "rgba(100,116,139,0.6)", marginTop: 4 }}>
                       {timeAgo(notif.createdAt)}
                     </div>
                   </div>
 
-                  {/* Delete button */}
                   <button
                     onClick={(e) => deleteNotif(notif.id, e)}
                     style={{
