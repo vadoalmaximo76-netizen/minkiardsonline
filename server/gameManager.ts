@@ -16483,6 +16483,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     // Parse known effects
     const effectLower = effectStr.toLowerCase();
 
+    // Helper: move card to graveyard and trigger elimination check if needed
+    const graveyardAndCheck = (gId: string, cardId: string, owner: string, killer: string) => {
+      const res = this.moveToGraveyard(gId, cardId, owner, killer);
+      if (res.success && res.eliminationCheck) {
+        const ioGlobal = (global as any).io;
+        if (ioGlobal) {
+          this.processEliminationAfterDeath(gId, res.cardOwner || owner, ioGlobal, killer);
+        }
+      }
+    };
+
     // Combined PTI + stars loss: "Perde X PTI e perde Y stella/stelle" (bonus-6 face 5)
     const combinedLossMatch = effectStr.match(/perde\s+(\d+)\s+pti.*?perde\s+(\d+)\s+stell/i);
     if (combinedLossMatch) {
@@ -16497,7 +16508,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       card.text = `PTI: ${newPTI} | Stelle: ${newStars}`;
       console.log(`🎲 ${cardName} lost ${ptiLoss} PTI and ${starLoss} stars → PTI: ${newPTI}, Stelle: ${newStars}`);
       if (newPTI <= 0) {
-        this.moveToGraveyard(gameId, characterId, card.owner, 'DADO');
+        graveyardAndCheck(gameId, characterId, card.owner, 'DADO');
       }
       return;
     }
@@ -16511,19 +16522,19 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const rollerChar = game.field.find((c: any) => c.owner === rollingPlayer && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
         if (rollerChar) {
           console.log(`🎲💀 ${rollerChar.name || rollerChar.id} (roller) dies from dice effect (self-only)`);
-          this.moveToGraveyard(gameId, rollerChar.id, rollingPlayer, 'DADO');
+          graveyardAndCheck(gameId, rollerChar.id, rollingPlayer, 'DADO');
         }
       } else {
         // Kill the target character
         console.log(`🎲💀 ${cardName} dies from dice effect`);
-        this.moveToGraveyard(gameId, characterId, card.owner, 'DADO');
+        graveyardAndCheck(gameId, characterId, card.owner, 'DADO');
 
         if (isCoinvolti && rollingPlayer && rollingPlayer !== card.owner) {
           // Also kill the rolling player's own character (faces 1-2 of bonus-64)
           const rollerChar = game.field.find((c: any) => c.owner === rollingPlayer && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
           if (rollerChar) {
             console.log(`🎲💀 ${rollerChar.name || rollerChar.id} (roller) also dies — COINVOLTI`);
-            this.moveToGraveyard(gameId, rollerChar.id, rollingPlayer, 'DADO_COINVOLTI');
+            graveyardAndCheck(gameId, rollerChar.id, rollingPlayer, 'DADO_COINVOLTI');
           }
         }
       }
