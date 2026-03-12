@@ -22216,6 +22216,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const nextPlayer = this.endTurn(gameId, attacker);
         if (nextPlayer) {
           io.to(gameId).emit('next-turn', { nextPlayer });
+          const freshGame = this.games.get(gameId);
+          if (freshGame?.players[nextPlayer]?.isCPU) {
+            setTimeout(async () => {
+              const action = await this.processCPUTurn(gameId, nextPlayer, io);
+              if (action) await this.applyCPUAction(gameId, nextPlayer, action, io);
+            }, 2000);
+          } else {
+            this.startTurnTimer(gameId, nextPlayer);
+          }
         }
       }
 
