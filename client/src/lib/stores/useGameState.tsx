@@ -53,7 +53,9 @@ interface Card {
 interface Player {
   name: string;
   hand: Card[];
-  avatar?: string; // Player's chosen avatar ID
+  avatar?: string;
+  socketId?: string | null;
+  isCPU?: boolean;
 }
 
 interface PendingDefense {
