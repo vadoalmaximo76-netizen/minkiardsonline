@@ -3773,7 +3773,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               {headerMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setHeaderMenuOpen(false)} />
-                  <div className="absolute right-0 top-full mt-2 z-50 w-56 rounded-2xl overflow-hidden shadow-2xl shadow-black/40 border border-white/15"
+                  <div className="absolute left-0 top-full mt-2 z-50 w-56 rounded-2xl overflow-hidden shadow-2xl shadow-black/40 border border-white/15"
                     style={{ background: 'rgba(15, 10, 40, 0.92)', backdropFilter: 'blur(20px)' }}
                   >
                     <div className="py-1.5">
