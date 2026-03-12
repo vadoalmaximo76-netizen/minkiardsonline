@@ -2024,8 +2024,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }, 1500);
         
-        // Start CPU turn after a short delay
+        // Start CPU turn only if the game is already playing and it's this CPU's turn
         setTimeout(async () => {
+          const currentGame = gameManager.getGame(gameId);
+          const isGamePlaying = currentGame?.isPlaying === true;
+          const isThisCPUsTurn = currentGame?.turnOrder[currentGame.currentTurnIndex] === cpuName;
+          if (!isGamePlaying || !isThisCPUsTurn) return;
           const cpuAction = await gameManager.processCPUTurn(gameId, cpuName, io);
           if (cpuAction) {
             // Execute the CPU's action
