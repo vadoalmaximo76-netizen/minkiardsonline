@@ -12143,16 +12143,14 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
 
       const pendingChallenge = !gameId;
 
-      if (gameId) {
-        await db.insert(gameInvitations).values({
-          senderId: currentUser[0].id,
-          receiverId: friendId,
-          gameId,
-          status: 'pending',
-          expiresAt: new Date(Date.now() + 30 * 60 * 1000)
-        });
-        emitSync('game_invitations', 'insert', { senderId: currentUser[0].id, receiverId: friendId, gameId, status: 'pending', expiresAt: new Date(Date.now() + 30 * 60 * 1000) });
-      }
+      await db.insert(gameInvitations).values({
+        senderId: currentUser[0].id,
+        receiverId: friendId,
+        gameId: gameId || `pending-${currentUser[0].id}-${Date.now()}`,
+        status: 'pending',
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000)
+      });
+      emitSync('game_invitations', 'insert', { senderId: currentUser[0].id, receiverId: friendId, gameId: gameId || null, status: 'pending', expiresAt: new Date(Date.now() + 30 * 60 * 1000) });
 
       const sockets = await io.fetchSockets();
       for (const s of sockets) {

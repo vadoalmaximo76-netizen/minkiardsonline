@@ -208,7 +208,6 @@ export function NotificationInbox({ onNavigate, socket, onOpenConversation, onJo
       if (notif.data?.gameId && !notif.data?.pendingChallenge) {
         markRead(notif.id);
         if (onJoinGame) onJoinGame(notif.data.gameId);
-        if (onNavigate) onNavigate("play");
         setOpen(false);
         return;
       }
@@ -226,7 +225,6 @@ export function NotificationInbox({ onNavigate, socket, onOpenConversation, onJo
             : n
         ));
         if (data.gameId && onJoinGame) onJoinGame(data.gameId);
-        if (onNavigate) onNavigate("play");
         setOpen(false);
       }
     } catch {} finally {
