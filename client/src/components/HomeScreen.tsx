@@ -539,7 +539,7 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
       )}
 
       {/* Menu Grid */}
-      <div className="grid grid-cols-2 gap-3 md:gap-5 max-w-2xl w-full relative z-10">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5 max-w-4xl w-full relative z-10">
         {visiblePanels.map((panel, idx) => {
           const IconComp = ICON_MAP[panel.icon] || Star;
           const isHovered = hoveredId === panel.id;
