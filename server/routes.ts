@@ -6625,6 +6625,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const playerOrder = gameManager.startGame(gameId, effectiveLimit);
         if (playerOrder) {
           io.to(gameId).emit('game-started', { playerOrder });
+          // Send updated game state so clients know the game has started (isPlaying = true)
+          const updatedGameState = gameManager.getSanitizedGameState(gameId);
+          emitThrottledGameState(io, gameId, updatedGameState);
           if (playerOrder.length > 0) {
             const firstPlayer = playerOrder[0];
             const firstPlayerData = gameManager.getGameState(gameId)?.players[firstPlayer];
