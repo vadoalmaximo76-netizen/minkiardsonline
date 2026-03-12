@@ -539,7 +539,7 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
       )}
 
       {/* Menu Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6 max-w-4xl w-full relative z-10">
+      <div className="grid grid-cols-2 gap-3 md:gap-5 max-w-2xl w-full relative z-10">
         {visiblePanels.map((panel, idx) => {
           const IconComp = ICON_MAP[panel.icon] || Star;
           const isHovered = hoveredId === panel.id;
@@ -556,7 +556,7 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
               {/* Animated glow ring behind card */}
               {isHovered && !editMode && (
                 <div style={{
-                  position: 'absolute', inset: -3, borderRadius: 27, pointerEvents: 'none', zIndex: 0,
+                  position: 'absolute', inset: -3, borderRadius: 28, pointerEvents: 'none', zIndex: 0,
                   background: `linear-gradient(135deg, ${panel.gradientFrom}, ${panel.gradientTo})`,
                   animation: 'cardGlowBorder 1.4s ease-in-out infinite',
                   filter: 'blur(8px)',
@@ -568,16 +568,18 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
                 onMouseLeave={() => setHoveredId(null)}
                 style={{
                   width: '100%', position: 'relative', zIndex: 1,
+                  aspectRatio: '1 / 1',
                   background: `linear-gradient(135deg, ${panel.gradientFrom}, ${panel.gradientTo})`,
-                  borderRadius: 20, padding: '20px 12px',
+                  borderRadius: 24, padding: '28px 16px',
                   border: editMode ? '2px dashed rgba(255,255,255,0.4)' : `1px solid ${isHovered ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.1)'}`,
                   cursor: editMode ? 'default' : 'pointer',
-                  transform: !editMode && isHovered ? 'scale(1.05) translateY(-5px)' : 'scale(1)',
+                  transform: !editMode && isHovered ? 'scale(1.04) translateY(-5px)' : 'scale(1)',
                   transition: 'transform 0.35s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.35s ease, border-color 0.2s',
                   boxShadow: isHovered
                     ? `0 30px 60px -10px ${panel.gradientFrom}88, 0 0 0 1px ${panel.gradientFrom}44`
                     : '0 10px 30px rgba(0,0,0,0.3)',
                   overflow: 'hidden',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}
               >
                 {/* Shimmer sweep on hover */}
@@ -589,28 +591,28 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
                     pointerEvents: 'none', zIndex: 2,
                   }} />
                 )}
-                <div style={{ position: 'relative', zIndex: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                <div style={{ position: 'relative', zIndex: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', width: '100%' }}>
                   <div style={{
-                    width: 52, height: 52, borderRadius: 14,
+                    width: 64, height: 64, borderRadius: 18,
                     background: isHovered ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.2)',
-                    backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+                    backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16,
                     animation: isHovered && !editMode ? 'iconFloat 1.6s ease-in-out infinite' : 'none',
                     transition: 'background 0.3s',
-                    boxShadow: isHovered ? `0 0 20px ${panel.gradientFrom}88` : 'none',
+                    boxShadow: isHovered ? `0 0 24px ${panel.gradientFrom}99` : 'none',
                   }}>
-                    <IconComp size={26} color={panel.titleColor ?? '#ffffff'} />
+                    <IconComp size={32} color={panel.titleColor ?? '#ffffff'} />
                   </div>
                   <h2 style={{
-                    margin: 0, marginBottom: 6, fontSize: 15, fontWeight: 700, color: panel.titleColor ?? '#ffffff',
+                    margin: 0, marginBottom: 8, fontSize: 17, fontWeight: 800, color: panel.titleColor ?? '#ffffff',
                     transition: 'letter-spacing 0.3s, text-shadow 0.3s',
                     letterSpacing: isHovered && !editMode ? '0.04em' : '0',
                     textShadow: isHovered ? `0 0 16px ${panel.titleColor ?? '#ffffff'}cc` : 'none',
                   }}>{panel.title}</h2>
-                  <p style={{ margin: 0, marginBottom: 10, fontSize: 11, color: panel.subtitleColor ?? 'rgba(255,255,255,0.7)', transition: 'opacity 0.3s', opacity: isHovered ? 1 : 0.75, lineHeight: 1.3 }}>{panel.subtitle}</p>
+                  <p style={{ margin: 0, marginBottom: 14, fontSize: 12, color: panel.subtitleColor ?? 'rgba(255,255,255,0.7)', transition: 'opacity 0.3s', opacity: isHovered ? 1 : 0.75, lineHeight: 1.4 }}>{panel.subtitle}</p>
                   {dynamicBadge && (
                     <div style={{
                       background: panel.badgeColor ?? 'rgba(0,0,0,0.3)', backdropFilter: 'blur(8px)', borderRadius: 20,
-                      padding: '4px 10px', fontSize: 11, color: panel.titleColor ?? '#ffffff', fontWeight: 600,
+                      padding: '5px 14px', fontSize: 12, color: panel.titleColor ?? '#ffffff', fontWeight: 700,
                       transform: isHovered ? 'scale(1.07)' : 'scale(1)', transition: 'transform 0.3s',
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%',
                     }}>
@@ -618,8 +620,8 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
                     </div>
                   )}
                 </div>
-                <div style={{ position: 'absolute', bottom: -16, right: -16, width: 96, height: 96, background: 'rgba(255,255,255,0.05)', borderRadius: '50%', filter: 'blur(20px)' }} />
-                <div style={{ position: 'absolute', top: -16, left: -16, width: 64, height: 64, background: 'rgba(255,255,255,0.05)', borderRadius: '50%', filter: 'blur(16px)' }} />
+                <div style={{ position: 'absolute', bottom: -20, right: -20, width: 120, height: 120, background: 'rgba(255,255,255,0.05)', borderRadius: '50%', filter: 'blur(24px)' }} />
+                <div style={{ position: 'absolute', top: -20, left: -20, width: 80, height: 80, background: 'rgba(255,255,255,0.05)', borderRadius: '50%', filter: 'blur(18px)' }} />
               </button>
 
               {/* Admin edit controls */}
