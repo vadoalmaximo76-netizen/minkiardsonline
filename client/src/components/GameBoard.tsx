@@ -1966,7 +1966,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     const handleRematchReady = ({ newGameId }: { newGameId: string }) => {
       setRematchState(prev => ({ ...prev, newGameId }));
       setTimeout(() => {
-        window.location.href = `${window.location.origin}?gameId=${newGameId}`;
+        window.location.href = `${window.location.origin}?game=${newGameId}`;
       }, 2000);
     };
     const handleRematchDeclined = ({ declinedBy }: { declinedBy: string }) => {
@@ -1986,7 +1986,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     const handleBo3SeriesStarted = ({ seriesId, newGameId, player1, player2 }: { seriesId: string; newGameId: string; player1: string; player2: string }) => {
       setBo3State(prev => ({ ...prev, seriesStarted: true, newGameId }));
       setTimeout(() => {
-        window.location.href = `${window.location.origin}?gameId=${newGameId}`;
+        window.location.href = `${window.location.origin}?game=${newGameId}`;
       }, 2500);
     };
     const handleBo3Declined = ({ declinedBy }: { declinedBy: string }) => {

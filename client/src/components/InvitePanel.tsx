@@ -18,7 +18,7 @@ export const InvitePanel: React.FC<InvitePanelProps> = ({ gameId, authToken, onC
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const gameLink = `${window.location.origin}?gameId=${gameId}`;
+  const gameLink = `${window.location.origin}?game=${gameId}`;
 
   useEffect(() => {
     setTimeout(() => inputRef.current?.focus(), 100);

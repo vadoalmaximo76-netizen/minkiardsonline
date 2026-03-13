@@ -218,7 +218,8 @@ export const GameEndRewardsPanel: React.FC<GameEndRewardsPanelProps> = ({
                 } catch (err) {
                   console.error('[REWARDS-PANEL] clearSession error:', err);
                 }
-                window.location.href = window.location.origin;
+                const newGameId = Math.random().toString(36).substring(2, 8).toUpperCase();
+                window.location.href = `${window.location.origin}?game=${newGameId}`;
               }}
               className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-700 hover:from-green-500 hover:to-emerald-600 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-green-500/30 hover:shadow-green-500/50 cursor-pointer"
               style={{ position: 'relative', zIndex: 9999 }}
