@@ -1105,7 +1105,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         setTimeout(() => setChoosingNotification({ visible: false, message: '' }), 10000);
       }
     };
-    socket.on('control-turn-active', handleControlTurnActive);
+    socket.on('opponent-turn-control', handleControlTurnActive);
 
     // MOSSE ATTACK ERROR: Handle attack errors (e.g., one MOSSE per turn limit)
     const handleAttackError = ({ message }: { message: string }) => {
@@ -2085,7 +2085,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('next-turn', handleCpuDoneThinking);
       socket.off('control-turn-set', handleControlTurnSet);
       socket.off('block-card-type-select', handleBlockCardTypeSelect);
-      socket.off('control-turn-active', handleControlTurnActive);
+      socket.off('opponent-turn-control', handleControlTurnActive);
       socket.off('instruction-executed', handleInstructionExecuted);
       socket.off('instruction-success', handleInstructionSuccess);
       socket.off('instruction-error', handleInstructionError);

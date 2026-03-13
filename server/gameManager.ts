@@ -20184,7 +20184,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               message: `🎮 ${controllerName} sta controllando il turno di ${nextPlayer}!`,
               timestamp: Date.now()
             });
-            ctrlIo.to(gameId).emit('control-turn-active', {
+            ctrlIo.to(gameId).emit('opponent-turn-control', {
               controllingPlayer: controllerName,
               controlledPlayer: nextPlayer
             });
@@ -24100,7 +24100,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               if (!pData) continue;
 
               const mosseDeck = pData.playerDraftDecks?.mosse || gameForChain.decks?.mosse || [];
-              const drawnMosse = mosseDeck.length > 0 ? mosseDeck.pop() : null;
+              const drawnMosse = mosseDeck.length > 0 ? mosseDeck.shift() : null;
               if (!drawnMosse) {
                 ioChain.to(gameId).emit('chat-message', {
                   id: `${Date.now()}-chain-no-mosse-${pName}`,
