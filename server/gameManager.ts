@@ -18789,6 +18789,21 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const gs = this.getSanitizedGameState(gameId);
       if (gs) io.to(gameId).emit('game-state-update', gs);
     };
+    const emitCpuPlayedHelp = (playedCard: any) => {
+      const gsHelp = this.getGameState(gameId);
+      if (!gsHelp?.helpEnabled || !playedCard) return;
+      const humanPlayers = Object.entries(gsHelp.players).filter(([, p]) => !p.isCPU).map(([n]) => n);
+      if (humanPlayers.length === 0) return;
+      const humanName = humanPlayers[0];
+      const helpCtx = buildHelpContext(gsHelp, humanName, {
+        cardName: playedCard.name || 'Carta',
+        cardType: playedCard.type || 'sconosciuto',
+        targetPlayer: humanName,
+      });
+      generateHelpMessage(gameId, 'cpu_played', helpCtx).then(helpMsg => {
+        emitHelpMessage(io, gameId, helpMsg);
+      });
+    };
     const advanceTurn = async (playerName: string) => {
       const next = this.endTurn(gameId, playerName);
       if (next) {
@@ -18834,9 +18849,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
       case 'play-card': {
         const result = await this.playCard(gameId, action.data.cardId, cpuName);
+        emitCpuPlayedHelp(result.card);
         emitState();
         await new Promise(r => setTimeout(r, 800));
-        // Always auto-draw a replacement card of the same type after playing
         if (result.card) {
           const drawType = action.data.drawType || result.card.type;
           const normalizedDrawType = (drawType === 'personaggi_speciali' ? 'personaggi_speciali' : drawType) as keyof GameState['decks'];
@@ -18850,6 +18865,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
       case 'play-and-draw': {
         const playAndDrawResult = await this.playCard(gameId, action.data.playCardId, cpuName);
+        emitCpuPlayedHelp(playAndDrawResult.card);
         emitState();
         await new Promise(r => setTimeout(r, 800));
         // Always auto-draw: use specified drawType or infer from played card type

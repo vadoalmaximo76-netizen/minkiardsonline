@@ -18,6 +18,8 @@ import { captureError } from "./sentry";
 import { emitSync } from "./dbSync";
 import { generateHelpMessage, buildHelpContext, emitHelpMessage } from "./helpCoach";
 
+const helpCooldowns = new Map<string, number>();
+
 const jwtSecret = JWT_SECRET;
 
 async function checkAdminAccess(user: { userId: number; email: string | null }): Promise<boolean> {
@@ -4973,11 +4975,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const helpGameState = gameManager.getGameState(gameId);
           if (helpGameState?.helpEnabled) {
             const helpCooldownKey = `help_${gameId}_${playerName}`;
-            const lastHelpTime = (global as any).__helpCooldowns?.[helpCooldownKey] || 0;
+            const lastHelpTime = helpCooldowns.get(helpCooldownKey) || 0;
             const now = Date.now();
             if (now - lastHelpTime >= 5000) {
-              if (!(global as any).__helpCooldowns) (global as any).__helpCooldowns = {};
-              (global as any).__helpCooldowns[helpCooldownKey] = now;
+              helpCooldowns.set(helpCooldownKey, now);
               const helpCtx = buildHelpContext(helpGameState, playerName);
               helpCtx.humanQuestion = message;
               generateHelpMessage(gameId, 'human_question', helpCtx).then(helpMsg => {
@@ -7715,6 +7716,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       break;
                     case 'play-card':
                       const playResult = await gameManager.playCard(gameId, cpuAction.data.cardId, cpuAction.data.playerName);
+
+                      if (playResult.card) {
+                        const feHelpGS = gameManager.getGameState(gameId);
+                        if (feHelpGS?.helpEnabled) {
+                          const feHumanPlayers = Object.entries(feHelpGS.players).filter(([, p]) => !p.isCPU).map(([n]) => n);
+                          if (feHumanPlayers.length > 0) {
+                            const feHumanName = feHumanPlayers[0];
+                            const feHelpCtx = buildHelpContext(feHelpGS, feHumanName, {
+                              cardName: playResult.card.name || 'Carta',
+                              cardType: playResult.card.type || 'sconosciuto',
+                              targetPlayer: feHumanName,
+                            });
+                            generateHelpMessage(gameId, 'cpu_played', feHelpCtx).then(helpMsg => {
+                              emitHelpMessage(io, gameId, helpMsg);
+                            });
+                          }
+                        }
+                      }
                       
                       // According to MINKIARDS rules: when you play a card, you automatically draw a replacement of the same type
                       if (playResult.card) {
