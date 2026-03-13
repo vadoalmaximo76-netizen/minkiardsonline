@@ -2720,7 +2720,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('play-card', async ({ cardId, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
-        const result = await gameManager.playCard(gameId, cardId, playerName);
+        const game = gameManager.games.get(gameId);
+        const activeCtrl = game ? (game as any).activeControlTurn : null;
+        let effectivePlayerName = playerName;
+        if (activeCtrl && activeCtrl.controllingPlayer === playerName && activeCtrl.controlledPlayer) {
+          effectivePlayerName = activeCtrl.controlledPlayer;
+          console.log(`🎮 CONTROL TURN: ${playerName} playing card ${cardId} for controlled player ${effectivePlayerName}`);
+        }
+        const result = await gameManager.playCard(gameId, cardId, effectivePlayerName);
         
         // FIXED: CPU should maintain only 1 card of each type (PERSONAGGI, MOSSE, BONUS)
         // Removed automatic replacement draw that caused duplicates
@@ -3747,8 +3754,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const safeTurns = Math.min(Math.max(1, turns || 1), 5);
 
-      if (!(game as any).pendingBlockChoice) {
+      const pendingPlayer = (game as any).pendingBlockChoice;
+      if (!pendingPlayer) {
         console.log(`🧊 IBERNAZIONE: No pending block choice for this game, ignoring`);
+        return;
+      }
+      const socketPlayerName = gameManager.getPlayerNameFromSocket(socket.id);
+      if (socketPlayerName && socketPlayerName !== pendingPlayer) {
+        console.log(`🧊 IBERNAZIONE: ${socketPlayerName} tried to choose but only ${pendingPlayer} is authorized`);
         return;
       }
       delete (game as any).pendingBlockChoice;

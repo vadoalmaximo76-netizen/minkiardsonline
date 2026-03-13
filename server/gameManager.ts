@@ -3065,7 +3065,8 @@ Rispondi SOLO in JSON:`;
       activeBombs: (gameState as any).activeBombs || [],
       blockedCardTypes: (gameState as any).blockedCardTypes || [],
       controlledPlayer: (gameState as any).controlledPlayer || null,
-      controllingPlayer: (gameState as any).controllingPlayer || null
+      controllingPlayer: (gameState as any).controllingPlayer || null,
+      activeControlTurn: (gameState as any).activeControlTurn || null
     };
 
     // Sanitize players by removing cpuInstance references
@@ -3543,6 +3544,22 @@ Rispondi SOLO in JSON:`;
   async playCard(gameId: string, cardId: string, playerName: string): Promise<{ card?: any, isPersonaggio?: boolean, duelAutoAttack?: boolean, customAnimation?: string }> {
     const game = this.games.get(gameId);
     if (!game || !game.players[playerName]) return {};
+
+    // CONTROL TURN: Block the controlled player from playing on their own
+    const activeControl = (game as any).activeControlTurn;
+    if (activeControl && activeControl.controlledPlayer === playerName) {
+      const ioCtrlBlock = (global as any).io;
+      if (ioCtrlBlock) {
+        ioCtrlBlock.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-control-block`,
+          playerName: 'Sistema',
+          message: `🎮 Il tuo turno è controllato da ${activeControl.controllingPlayer}! Non puoi giocare carte.`,
+          timestamp: Date.now()
+        });
+      }
+      console.log(`🎮 CONTROL TURN BLOCKED: ${playerName} tried to play but their turn is controlled by ${activeControl.controllingPlayer}`);
+      return {};
+    }
 
     // DUELLO: Check if there's an active duel
     if (game.activeDuel && game.activeDuel.active) {
@@ -8487,7 +8504,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             });
           }
         } else {
-          (game as any).pendingBlockChoice = true;
+          (game as any).pendingBlockChoice = playerName;
           const ioBlock = (global as any).io;
           if (ioBlock) {
             ioBlock.to(gameId).emit('block-card-type-select', {
@@ -8560,36 +8577,49 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           'LEGA MEME': ['PEPE THE FROG', 'DOGE', 'CHAD', 'WOJAK', 'GIGACHAD'],
           'LEGA ITALIA': ['BERLUSCONI', 'SALVINI', 'MELONI', 'DRAGHI', 'RENZI'],
         };
-        const myChars = game.field.filter((c: Card) =>
-          c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
-        );
-        if (myChars.length === 0) break;
+        const activeChar = this.getPlayerActiveCharacter(game, playerName);
+        if (!activeChar) break;
+        const activeCharName = (activeChar.name || this.getCardNameFromUrl(activeChar.frontImage || '')).toUpperCase().trim();
         let foundLeague: string | null = null;
-        let foundMembers: Card[] = [];
         for (const [leagueName, members] of Object.entries(LEAGUE_GROUPS)) {
-          const matching = myChars.filter(c => {
-            const cName = (c.name || this.getCardNameFromUrl(c.frontImage || '')).toUpperCase().trim();
-            return members.some(m => cName.includes(m.toUpperCase()) || m.toUpperCase().includes(cName));
-          });
-          if (matching.length >= 2) {
+          if (members.some(m => activeCharName.includes(m.toUpperCase()) || m.toUpperCase().includes(activeCharName))) {
             foundLeague = leagueName;
-            foundMembers = matching;
             break;
           }
         }
-        if (!foundLeague || foundMembers.length < 2) {
+        if (!foundLeague) {
           const ioNoLeague = (global as any).io;
           if (ioNoLeague) {
             ioNoLeague.to(gameId).emit('chat-message', {
               id: `${Date.now()}-no-league`,
               playerName: 'Sistema',
-              message: `❌ AGGLOMERA LEGHE: Serve almeno 2 personaggi della stessa lega in campo!`,
+              message: `❌ AGGLOMERA LEGHE: Il tuo personaggio attivo non appartiene a nessuna lega!`,
               timestamp: Date.now()
             });
           }
           break;
         }
-        const mainChar = foundMembers[0];
+        const leagueMembers = LEAGUE_GROUPS[foundLeague];
+        const allFieldChars = game.field.filter((c: Card) =>
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        const foundMembers = allFieldChars.filter(c => {
+          const cName = (c.name || this.getCardNameFromUrl(c.frontImage || '')).toUpperCase().trim();
+          return leagueMembers.some(m => cName.includes(m.toUpperCase()) || m.toUpperCase().includes(cName));
+        });
+        if (foundMembers.length < 2) {
+          const ioNoLeague = (global as any).io;
+          if (ioNoLeague) {
+            ioNoLeague.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-no-league`,
+              playerName: 'Sistema',
+              message: `❌ AGGLOMERA LEGHE: Serve almeno 2 personaggi della lega "${foundLeague}" in campo!`,
+              timestamp: Date.now()
+            });
+          }
+          break;
+        }
+        const mainChar = foundMembers.find(c => c.id === activeChar.id) || foundMembers[0];
         let totalPTI = 0;
         let totalStars = 0;
         const fusedNames: string[] = [];
@@ -8598,13 +8628,15 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           totalStars += member.stars ?? this.extractStarsFromNote(member.text || '');
           fusedNames.push(member.name || this.getCardNameFromUrl(member.frontImage || ''));
         }
-        for (const member of foundMembers.slice(1)) {
+        for (const member of foundMembers) {
+          if (member.id === mainChar.id) continue;
           game.field = game.field.filter((c: Card) => c.id !== member.id);
           if (!game.graveyard) game.graveyard = [];
           game.graveyard.push(member);
         }
         mainChar.pti = totalPTI;
         mainChar.stars = totalStars;
+        mainChar.owner = playerName;
         mainChar.text = `PTI: ${totalPTI} | Stelle: ${totalStars}`;
         const ioAgg = (global as any).io;
         if (ioAgg) {
@@ -10792,6 +10824,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             return !bombNames.some(b => mosseName.includes(b));
           });
         }
+        const activeBombsBefore = ((game as any).activeBombs || []).length;
+        (game as any).activeBombs = [];
+        removedCount += activeBombsBefore;
         if (io) {
           io.to(gameId).emit('chat-message', {
             id: `${Date.now()}-remove-bombs`,
@@ -20133,6 +20168,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
         if ((gameState as any).controlledPlayer === nextPlayer && (gameState as any).controllingPlayer) {
           const controllerName = (gameState as any).controllingPlayer;
+          (gameState as any).activeControlTurn = {
+            controllingPlayer: controllerName,
+            controlledPlayer: nextPlayer
+          };
           const ctrlIo = (global as any).io;
           if (ctrlIo) {
             ctrlIo.to(gameId).emit('chat-message', {
@@ -20148,6 +20187,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
           (gameState as any).controlledPlayer = null;
           (gameState as any).controllingPlayer = null;
+        } else {
+          (gameState as any).activeControlTurn = null;
         }
 
         // Increment turn counters for cards on field owned by the NEXT player
@@ -24048,64 +24089,68 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             const ioChain = (global as any).io;
             if (!ioChain) return;
 
-            for (const [pName, pData] of Object.entries(gameForChain.players as Record<string, any>)) {
+            const turnOrder = gameForChain.turnOrder || Object.keys(gameForChain.players);
+            for (const pName of turnOrder) {
               if (pName === attackerName) continue;
+              const pData = gameForChain.players[pName] as any;
+              if (!pData) continue;
 
-              // Find first available MOSSE in their hand
-              const handMosse = pData.hand?.find((c: Card) => c.type === 'mosse');
-              if (!handMosse) {
+              const mosseDeck = pData.playerDraftDecks?.mosse || gameForChain.decks?.mosse || [];
+              const drawnMosse = mosseDeck.length > 0 ? mosseDeck.pop() : null;
+              if (!drawnMosse) {
                 ioChain.to(gameId).emit('chat-message', {
                   id: `${Date.now()}-chain-no-mosse-${pName}`,
                   playerName: 'Sistema',
-                  message: `⚡ ${pName} non ha MOSSE in mano — turno catena saltato.`,
+                  message: `⚡ ${pName} non ha MOSSE nel mazzo — turno catena saltato.`,
                   timestamp: Date.now()
                 });
                 continue;
               }
 
-              // Move chain mosse to field
-              pData.hand = pData.hand.filter((c: Card) => c.id !== handMosse.id);
-              handMosse.owner = pName;
-              gameForChain.field.push(handMosse);
+              drawnMosse.owner = pName;
+              gameForChain.field.push(drawnMosse);
 
-              const chainMosseName = handMosse.name || this.getCardNameFromUrl(handMosse.frontImage || '') || handMosse.id;
-              const chainMosseDmgBase = handMosse.mosseDamageValue ?? 0;
+              const chainMosseName = drawnMosse.name || this.getCardNameFromUrl(drawnMosse.frontImage || '') || drawnMosse.id;
+              const chainMosseDmgBase = drawnMosse.mosseDamageValue ?? 0;
 
-              // Find this player's active character for star calculation
               const chainAttackerChar = gameForChain.field.find((c: Card) =>
                 c.owner === pName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
               );
               const chainStars = chainAttackerChar ? (chainAttackerChar.stars ?? this.extractStarsFromNote(chainAttackerChar.text || '')) : 1;
               const chainDmg = chainMosseDmgBase > 0 ? chainMosseDmgBase * chainStars : 0;
 
-              // Find all enemy characters of this player
-              const chainEnemies = gameForChain.field.filter((c: Card) =>
-                c.owner !== pName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+              const pIdx = turnOrder.indexOf(pName);
+              const nextOpponentIdx = (pIdx + 1) % turnOrder.length;
+              const nextOpponent = turnOrder[nextOpponentIdx] === pName
+                ? turnOrder[(nextOpponentIdx + 1) % turnOrder.length]
+                : turnOrder[nextOpponentIdx];
+              const chainTarget = gameForChain.field.find((c: Card) =>
+                c.owner === nextOpponent && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
               );
 
               ioChain.to(gameId).emit('chat-message', {
                 id: `${Date.now()}-chain-play-${pName}`,
                 playerName: 'Sistema',
-                message: `⚡ CATENA: ${pName} gioca automaticamente "${chainMosseName}" contro tutti i personaggi avversari (danno: ${chainDmg > 0 ? chainDmg : '?'} PTI)!`,
+                message: chainTarget
+                  ? `⚡ CATENA: ${pName} pesca e gioca "${chainMosseName}" contro il personaggio di ${nextOpponent} (danno: ${chainDmg > 0 ? chainDmg : '?'} PTI)!`
+                  : `⚡ CATENA: ${pName} pesca "${chainMosseName}" ma ${nextOpponent} non ha personaggi in campo!`,
                 timestamp: Date.now()
               });
 
-              if (chainDmg > 0) {
-                for (const enemy of chainEnemies) {
-                  const enemyPTI = this.extractPTIFromNote(enemy.text || '');
-                  const newEnemyPTI = Math.max(0, enemyPTI - chainDmg);
-                  enemy.pti = newEnemyPTI;
-                  this.updateCardTextWithPTI(enemy);
-                  console.log(`⚡ CHAIN MOSSE: ${enemy.name || enemy.id} (owner: ${enemy.owner}) perde ${chainDmg} PTI: ${enemyPTI} → ${newEnemyPTI}`);
+              if (chainDmg > 0 && chainTarget) {
+                const enemyPTI = this.extractPTIFromNote(chainTarget.text || '');
+                const newEnemyPTI = Math.max(0, enemyPTI - chainDmg);
+                chainTarget.pti = newEnemyPTI;
+                this.updateCardTextWithPTI(chainTarget);
+                console.log(`⚡ CHAIN MOSSE: ${chainTarget.name || chainTarget.id} (owner: ${chainTarget.owner}) perde ${chainDmg} PTI: ${enemyPTI} → ${newEnemyPTI}`);
 
-                  if (newEnemyPTI <= 0) {
-                    const chainDeathResult = this.moveToGraveyard(gameId, enemy.id, enemy.owner, pName);
-                    if (chainDeathResult.eliminationCheck) {
-                      this.processEliminationAfterDeath(gameId, enemy.owner, ioChain, 'CHAIN_MOSSE');
-                    }
+                if (newEnemyPTI <= 0) {
+                  const chainDeathResult = this.moveToGraveyard(gameId, chainTarget.id, chainTarget.owner, pName);
+                  if (chainDeathResult.eliminationCheck) {
+                    this.processEliminationAfterDeath(gameId, chainTarget.owner, ioChain, 'CHAIN_MOSSE');
                   }
                 }
-              } else {
+              } else if (chainDmg <= 0) {
                 ioChain.to(gameId).emit('chat-message', {
                   id: `${Date.now()}-chain-no-dmg-${pName}`,
                   playerName: 'Sistema',
@@ -24114,10 +24159,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
                 });
               }
 
-              // Move chain mosse to graveyard after use
-              gameForChain.field = gameForChain.field.filter((c: Card) => c.id !== handMosse.id);
+              gameForChain.field = gameForChain.field.filter((c: Card) => c.id !== drawnMosse.id);
               if (!gameForChain.graveyard) gameForChain.graveyard = [];
-              gameForChain.graveyard.push(handMosse);
+              gameForChain.graveyard.push(drawnMosse);
             }
 
             const chainFinalState = this.getSanitizedGameState(gameId);

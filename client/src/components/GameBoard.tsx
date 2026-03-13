@@ -1098,11 +1098,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
     const handleControlTurnActive = (data: { controllingPlayer: string; controlledPlayer: string }) => {
       if (data.controlledPlayer === playerName) {
-        setChoosingNotification({ visible: true, message: `🎮 Il tuo turno è controllato da ${data.controllingPlayer}! Le tue azioni sono limitate.` });
-        setTimeout(() => setChoosingNotification({ visible: false, message: '' }), 6000);
+        setChoosingNotification({ visible: true, message: `🎮 Il tuo turno è controllato da ${data.controllingPlayer}! Non puoi giocare carte.` });
+        setTimeout(() => setChoosingNotification({ visible: false, message: '' }), 10000);
       } else if (data.controllingPlayer === playerName) {
-        setChoosingNotification({ visible: true, message: `🎮 Stai controllando il turno di ${data.controlledPlayer}! Gioca le sue carte.` });
-        setTimeout(() => setChoosingNotification({ visible: false, message: '' }), 6000);
+        setChoosingNotification({ visible: true, message: `🎮 Stai controllando il turno di ${data.controlledPlayer}! Puoi giocare le carte dalla sua mano.` });
+        setTimeout(() => setChoosingNotification({ visible: false, message: '' }), 10000);
       }
     };
     socket.on('control-turn-active', handleControlTurnActive);
