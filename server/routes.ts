@@ -2720,15 +2720,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on('play-card', async ({ cardId, playerName }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);
       if (gameId) {
-        const game = gameManager.games.get(gameId);
-        const activeCtrl = game ? (game as any).activeControlTurn : null;
-        let effectivePlayerName = playerName;
-        if (activeCtrl && activeCtrl.controllingPlayer === playerName && activeCtrl.controlledPlayer) {
-          effectivePlayerName = activeCtrl.controlledPlayer;
-          (game as any)._controllerReroute = true;
-          console.log(`🎮 CONTROL TURN: ${playerName} playing card ${cardId} for controlled player ${effectivePlayerName}`);
-        }
-        const result = await gameManager.playCard(gameId, cardId, effectivePlayerName);
+        const result = await gameManager.playCard(gameId, cardId, playerName);
         
         // FIXED: CPU should maintain only 1 card of each type (PERSONAGGI, MOSSE, BONUS)
         // Removed automatic replacement draw that caused duplicates
@@ -3738,6 +3730,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gameId) {
         console.log(`🎲 ${playerName} confirmed auto dice with ${selectedCharacterIds.length} characters`);
         await gameManager.processAutoDiceConfirm(gameId, autoDiceId, selectedCharacterIds, customEffects, playerName, io);
+      }
+    });
+
+    socket.on('control-turn-choice', async ({ gameId: gId, cardType, targetPlayer }: { gameId: string; cardType: string; targetPlayer?: string }) => {
+      const gameId = gId || gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = gameManager.games.get(gameId);
+      if (!game) return;
+      const activeCtrl = (game as any).activeControlTurn;
+      if (!activeCtrl) return;
+
+      const { controllingPlayer, controlledPlayer } = activeCtrl;
+      const controlledPlayerObj = game.players[controlledPlayer];
+      if (!controlledPlayerObj) return;
+
+      const hand: any[] = controlledPlayerObj.hand || [];
+      const matchFn = (c: any) => {
+        if (cardType === 'personaggio') return c.type === 'personaggi' || c.type === 'personaggi_speciali';
+        return c.type === cardType;
+      };
+      const candidates = hand.filter(matchFn);
+      if (candidates.length === 0) {
+        const ioNoCard = (global as any).io;
+        if (ioNoCard) {
+          ioNoCard.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-ctrl-no-card`,
+            playerName: 'Sistema',
+            message: `❌ ${controlledPlayer} non ha carte di tipo "${cardType}" in mano!`,
+            timestamp: Date.now()
+          });
+        }
+        return;
+      }
+
+      const chosenCard = candidates[Math.floor(Math.random() * candidates.length)];
+      console.log(`🎮 CONTROL TURN CHOICE: ${controllingPlayer} forces ${controlledPlayer} to play ${chosenCard.name || chosenCard.id} (type: ${cardType})`);
+
+      await gameManager.playCard(gameId, chosenCard.id, controlledPlayer);
+
+      const ioCtrl = (global as any).io;
+      if (ioCtrl) {
+        if (cardType === 'mosse' && targetPlayer) {
+          const attackResult = await gameManager.attackPlayer(gameId, controlledPlayer, targetPlayer);
+          ioCtrl.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-ctrl-choice`,
+            playerName: 'Sistema',
+            message: `🎮 ${controllingPlayer} ha costretto ${controlledPlayer} a giocare una MOSSA e ad attaccare ${targetPlayer}!`,
+            timestamp: Date.now()
+          });
+        } else {
+          ioCtrl.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-ctrl-choice`,
+            playerName: 'Sistema',
+            message: `🎮 ${controllingPlayer} ha costretto ${controlledPlayer} a giocare un ${cardType.toUpperCase()}!`,
+            timestamp: Date.now()
+          });
+        }
+
+        (game as any).activeControlTurn = null;
+        const ctrlState = gameManager.getSanitizedGameState(gameId);
+        ioCtrl.to(gameId).emit('game-state-update', ctrlState);
+        ioCtrl.to(gameId).emit('control-turn-resolved', { controlledPlayer, controllingPlayer });
       }
     });
 

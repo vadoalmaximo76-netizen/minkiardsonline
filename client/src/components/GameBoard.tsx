@@ -295,6 +295,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [deathEffectKey, setDeathEffectKey] = useState(0);
   const [choosingNotification, setChoosingNotification] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
   const [blockTypeSelection, setBlockTypeSelection] = useState<{ visible: boolean; options: string[]; turns: number } | null>(null);
+  const [controlTurnPanel, setControlTurnPanel] = useState<{ visible: boolean; controlledPlayer: string; availableTypes: string[]; possibleTargets: string[]; selectedType: string | null; selectedTarget: string | null }>({ visible: false, controlledPlayer: '', availableTypes: [], possibleTargets: [], selectedType: null, selectedTarget: null });
   const [cpuThinkingPlayer, setCpuThinkingPlayer] = useState<string | null>(null);
   const [graveyardSelectionModal, setGraveyardSelectionModal] = useState<{
     visible: boolean;
@@ -1096,16 +1097,27 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     };
     socket.on('block-card-type-select', handleBlockCardTypeSelect);
 
-    const handleControlTurnActive = (data: { controllingPlayer: string; controlledPlayer: string }) => {
+    const handleControlTurnActive = (data: { controllingPlayer: string; controlledPlayer: string; availableTypes?: string[]; possibleTargets?: string[] }) => {
       if (data.controlledPlayer === playerName) {
-        setChoosingNotification({ visible: true, message: `🎮 Il tuo turno è controllato da ${data.controllingPlayer}! Non puoi giocare carte.` });
+        setChoosingNotification({ visible: true, message: `🎮 Il tuo turno è controllato da ${data.controllingPlayer}! Un avversario sceglierà cosa giochi.` });
         setTimeout(() => setChoosingNotification({ visible: false, message: '' }), 10000);
       } else if (data.controllingPlayer === playerName) {
-        setChoosingNotification({ visible: true, message: `🎮 Stai controllando il turno di ${data.controlledPlayer}! Puoi giocare le carte dalla sua mano.` });
-        setTimeout(() => setChoosingNotification({ visible: false, message: '' }), 10000);
+        setControlTurnPanel({
+          visible: true,
+          controlledPlayer: data.controlledPlayer,
+          availableTypes: data.availableTypes || [],
+          possibleTargets: data.possibleTargets || [],
+          selectedType: null,
+          selectedTarget: null,
+        });
       }
     };
     socket.on('opponent-turn-control', handleControlTurnActive);
+
+    const handleControlTurnResolved = () => {
+      setControlTurnPanel(prev => ({ ...prev, visible: false, selectedType: null, selectedTarget: null }));
+    };
+    socket.on('control-turn-resolved', handleControlTurnResolved);
 
     // MOSSE ATTACK ERROR: Handle attack errors (e.g., one MOSSE per turn limit)
     const handleAttackError = ({ message }: { message: string }) => {
@@ -2086,6 +2098,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('control-turn-set', handleControlTurnSet);
       socket.off('block-card-type-select', handleBlockCardTypeSelect);
       socket.off('opponent-turn-control', handleControlTurnActive);
+      socket.off('control-turn-resolved', handleControlTurnResolved);
       socket.off('instruction-executed', handleInstructionExecuted);
       socket.off('instruction-success', handleInstructionSuccess);
       socket.off('instruction-error', handleInstructionError);
@@ -4533,41 +4546,74 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           </div>
         )}
 
-        {gameState && (gameState as any).activeControlTurn && (gameState as any).activeControlTurn.controllingPlayer === playerName && (() => {
-          const controlInfo = (gameState as any).activeControlTurn;
-          const controlledPlayerData = gameState.players?.[controlInfo.controlledPlayer];
-          const controlledHand = controlledPlayerData?.hand || [];
-          return (
-            <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-[9998] max-w-3xl w-full px-4">
-              <div className="bg-gradient-to-b from-purple-900/95 to-purple-800/95 rounded-xl p-4 shadow-2xl border border-purple-400/40 backdrop-blur-sm">
-                <div className="text-center mb-3">
-                  <span className="text-2xl">🎮</span>
-                  <span className="text-white font-bold ml-2">CONTROLLO TURNO — Mano di {controlInfo.controlledPlayer}</span>
-                </div>
-                {controlledHand.length > 0 ? (
-                  <div className="flex gap-2 overflow-x-auto pb-2 justify-center">
-                    {controlledHand.map((card: any) => (
-                      <button
-                        key={card.id}
-                        onClick={() => {
-                          socket.emit('play-card', { cardId: card.id, playerName: playerName });
-                        }}
-                        className="flex-shrink-0 w-20 h-28 rounded-lg overflow-hidden border-2 border-purple-400/50 hover:border-yellow-400 hover:scale-110 transition-all duration-200 relative group"
-                      >
-                        <img src={card.frontImage} alt={card.name || card.id} className="w-full h-full object-cover" />
-                        <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[10px] text-center py-0.5 truncate">
-                          {card.name || card.type}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-purple-300 text-center text-sm">Nessuna carta in mano</p>
-                )}
+        {controlTurnPanel.visible && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9998]">
+            <div className="bg-gradient-to-b from-purple-900/95 to-purple-800/95 rounded-xl p-6 shadow-2xl border border-purple-400/40 backdrop-blur-sm max-w-md w-full mx-4">
+              <div className="text-center mb-4">
+                <span className="text-3xl">🎮</span>
+                <h3 className="text-white font-bold text-lg mt-1">M DI MAJIN BU</h3>
+                <p className="text-purple-300 text-sm mt-1">Scegli che tipo di carta far giocare a <span className="text-yellow-300 font-bold">{controlTurnPanel.controlledPlayer}</span></p>
               </div>
+
+              {!controlTurnPanel.selectedType ? (
+                <div className="flex flex-col gap-3">
+                  {(controlTurnPanel.availableTypes.length > 0 ? controlTurnPanel.availableTypes : ['personaggio', 'mosse', 'bonus']).map((type) => {
+                    const typeLabels: Record<string, string> = { personaggio: '🧍 PERSONAGGIO', mosse: '⚔️ MOSSA', bonus: '✨ BONUS' };
+                    return (
+                      <button
+                        key={type}
+                        onClick={() => setControlTurnPanel(prev => ({ ...prev, selectedType: type }))}
+                        className="w-full py-3 px-4 bg-purple-700 hover:bg-purple-500 text-white font-bold rounded-lg border border-purple-400/50 hover:border-yellow-400 transition-all duration-200 text-center"
+                      >
+                        {typeLabels[type] || type.toUpperCase()}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : controlTurnPanel.selectedType === 'mosse' && !controlTurnPanel.selectedTarget ? (
+                <div className="flex flex-col gap-3">
+                  <p className="text-purple-300 text-sm text-center mb-2">Scegli il bersaglio da attaccare:</p>
+                  {controlTurnPanel.possibleTargets.filter(p => p !== controlTurnPanel.controlledPlayer).map((target) => (
+                    <button
+                      key={target}
+                      onClick={() => {
+                        socket.emit('control-turn-choice', { gameId, cardType: 'mosse', targetPlayer: target });
+                        setControlTurnPanel(prev => ({ ...prev, visible: false, selectedType: null, selectedTarget: null }));
+                      }}
+                      className="w-full py-3 px-4 bg-red-700 hover:bg-red-500 text-white font-bold rounded-lg border border-red-400/50 hover:border-yellow-400 transition-all duration-200 text-center"
+                    >
+                      ⚔️ Attacca {target}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setControlTurnPanel(prev => ({ ...prev, selectedType: null }))}
+                    className="w-full py-2 px-4 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-all"
+                  >
+                    ← Indietro
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={() => {
+                      socket.emit('control-turn-choice', { gameId, cardType: controlTurnPanel.selectedType! });
+                      setControlTurnPanel(prev => ({ ...prev, visible: false, selectedType: null, selectedTarget: null }));
+                    }}
+                    className="w-full py-3 px-4 bg-green-700 hover:bg-green-500 text-white font-bold rounded-lg border border-green-400/50 hover:border-yellow-400 transition-all"
+                  >
+                    ✅ Conferma: fai giocare {controlTurnPanel.selectedType?.toUpperCase()}
+                  </button>
+                  <button
+                    onClick={() => setControlTurnPanel(prev => ({ ...prev, selectedType: null }))}
+                    className="w-full py-2 px-4 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-all"
+                  >
+                    ← Indietro
+                  </button>
+                </div>
+              )}
             </div>
-          );
-        })()}
+          </div>
+        )}
 
         {/* Graveyard Milestone Notification */}
         <FullScreenNotification

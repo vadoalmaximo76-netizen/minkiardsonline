@@ -3545,26 +3545,6 @@ Rispondi SOLO in JSON:`;
     const game = this.games.get(gameId);
     if (!game || !game.players[playerName]) return {};
 
-    // CONTROL TURN: Block the controlled player from playing on their own
-    // (but allow if it's a rerouted play from the controller via routes.ts)
-    const activeControl = (game as any).activeControlTurn;
-    if (activeControl && activeControl.controlledPlayer === playerName && !(game as any)._controllerReroute) {
-      const ioCtrlBlock = (global as any).io;
-      if (ioCtrlBlock) {
-        ioCtrlBlock.to(gameId).emit('chat-message', {
-          id: `${Date.now()}-control-block`,
-          playerName: 'Sistema',
-          message: `🎮 Il tuo turno è controllato da ${activeControl.controllingPlayer}! Non puoi giocare carte.`,
-          timestamp: Date.now()
-        });
-      }
-      console.log(`🎮 CONTROL TURN BLOCKED: ${playerName} tried to play but their turn is controlled by ${activeControl.controllingPlayer}`);
-      return {};
-    }
-    if ((game as any)._controllerReroute) {
-      delete (game as any)._controllerReroute;
-    }
-
     // DUELLO: Check if there's an active duel
     if (game.activeDuel && game.activeDuel.active) {
       const duel = game.activeDuel;
@@ -8585,32 +8565,51 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if (!activeChar) break;
         const activeCharName = (activeChar.name || this.getCardNameFromUrl(activeChar.frontImage || '')).toUpperCase().trim();
         let foundLeague: string | null = null;
+        let leagueMembers: string[] = [];
         for (const [leagueName, members] of Object.entries(LEAGUE_GROUPS)) {
           if (members.some(m => activeCharName.includes(m.toUpperCase()) || m.toUpperCase().includes(activeCharName))) {
             foundLeague = leagueName;
+            leagueMembers = members;
             break;
           }
         }
-        if (!foundLeague) {
-          const ioNoLeague = (global as any).io;
-          if (ioNoLeague) {
-            ioNoLeague.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-no-league`,
-              playerName: 'Sistema',
-              message: `❌ AGGLOMERA LEGHE: Il tuo personaggio attivo non appartiene a nessuna lega!`,
-              timestamp: Date.now()
-            });
-          }
-          break;
-        }
-        const leagueMembers = LEAGUE_GROUPS[foundLeague];
+
+        let foundMembers: Card[] = [];
         const allFieldChars = game.field.filter((c: Card) =>
           (c.type === 'personaggi' || c.type === 'personaggi_speciali')
         );
-        const foundMembers = allFieldChars.filter(c => {
-          const cName = (c.name || this.getCardNameFromUrl(c.frontImage || '')).toUpperCase().trim();
-          return leagueMembers.some(m => cName.includes(m.toUpperCase()) || m.toUpperCase().includes(cName));
-        });
+
+        if (!foundLeague) {
+          const lastGroup = (game as any)._lastGroupSummon;
+          if (lastGroup && lastGroup.characterNames && lastGroup.characterNames.length > 1) {
+            foundLeague = 'GRUPPO';
+            foundMembers = allFieldChars.filter(c => {
+              const cName = (c.name || this.getCardNameFromUrl(c.frontImage || '')).toUpperCase().trim();
+              return lastGroup.characterNames.some((n: string) => cName.includes(n.toUpperCase()) || n.toUpperCase().includes(cName));
+            });
+          }
+          if (foundMembers.length < 2) {
+            foundMembers = allFieldChars.filter((c: Card) => c.owner === playerName);
+            if (foundMembers.length < 2) {
+              const ioNoLeague = (global as any).io;
+              if (ioNoLeague) {
+                ioNoLeague.to(gameId).emit('chat-message', {
+                  id: `${Date.now()}-no-league`,
+                  playerName: 'Sistema',
+                  message: `❌ AGGLOMERA LEGHE: Il tuo personaggio attivo non appartiene a nessuna lega riconosciuta e non hai abbastanza personaggi in campo da fondere!`,
+                  timestamp: Date.now()
+                });
+              }
+              break;
+            }
+            foundLeague = 'CAMPO';
+          }
+        } else {
+          foundMembers = allFieldChars.filter(c => {
+            const cName = (c.name || this.getCardNameFromUrl(c.frontImage || '')).toUpperCase().trim();
+            return leagueMembers.some(m => cName.includes(m.toUpperCase()) || m.toUpperCase().includes(cName));
+          });
+        }
         if (foundMembers.length < 2) {
           const ioNoLeague = (global as any).io;
           if (ioNoLeague) {
@@ -10092,12 +10091,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           
           if (foundCard) {
             foundCard.owner = playerName;
+            this.autoAnalyzePersonaggioCardSync(foundCard, playerName);
             game.field.push(foundCard);
             summonedNames.push(foundCard.name || charName);
-            console.log(`🎭 GROUP_SUMMON: Summoned "${foundCard.name || charName}" from ${foundSource}`);
+            console.log(`🎭 GROUP_SUMMON: Summoned "${foundCard.name || charName}" from ${foundSource} (PTI=${foundCard.pti}, Stars=${foundCard.stars})`);
           } else {
             console.log(`⚠️ GROUP_SUMMON: "${charName}" not found anywhere`);
           }
+        }
+
+        if (summonedNames.length > 0) {
+          (game as any)._lastGroupSummon = { playerName, characterNames: groupNames };
         }
         
         if (summonedNames.length > 0) {
@@ -20178,15 +20182,24 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           };
           const ctrlIo = (global as any).io;
           if (ctrlIo) {
+            const controlledHand = gameState.players[nextPlayer]?.hand || [];
+            const availableTypes = [...new Set(controlledHand.map((c: Card) => {
+              if (c.type === 'personaggi' || c.type === 'personaggi_speciali') return 'personaggio';
+              return c.type;
+            }).filter(Boolean))] as string[];
+            const enemyPlayers = Object.keys(gameState.players).filter(p => p !== nextPlayer && p !== controllerName);
+
             ctrlIo.to(gameId).emit('chat-message', {
               id: `${Date.now()}-control-active`,
               playerName: 'Sistema',
-              message: `🎮 ${controllerName} sta controllando il turno di ${nextPlayer}!`,
+              message: `🎮 M DI MAJIN BU! ${controllerName} controlla il turno di ${nextPlayer}! Scegli cosa far giocare.`,
               timestamp: Date.now()
             });
             ctrlIo.to(gameId).emit('opponent-turn-control', {
               controllingPlayer: controllerName,
-              controlledPlayer: nextPlayer
+              controlledPlayer: nextPlayer,
+              availableTypes,
+              possibleTargets: Object.keys(gameState.players).filter(p => p !== nextPlayer)
             });
           }
           (gameState as any).controlledPlayer = null;
