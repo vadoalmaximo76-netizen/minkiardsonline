@@ -263,6 +263,17 @@ const HOME_STYLES = `
     0%, 100% { text-shadow: 0 0 40px rgba(168,85,247,0.5), 0 0 80px rgba(168,85,247,0.3); }
     50%       { text-shadow: 0 0 70px rgba(168,85,247,1), 0 0 130px rgba(168,85,247,0.7), 0 0 180px rgba(236,72,153,0.5); }
   }
+  @keyframes logoGlowPulse {
+    0%, 100% { filter: drop-shadow(0 0 12px rgba(168,85,247,0.5)) drop-shadow(0 0 24px rgba(168,85,247,0.3)); }
+    50%       { filter: drop-shadow(0 0 28px rgba(168,85,247,1)) drop-shadow(0 0 50px rgba(168,85,247,0.8)) drop-shadow(0 0 70px rgba(236,72,153,0.6)); }
+  }
+  @keyframes logoBounce {
+    0%   { transform: scale(1) translateY(0); }
+    25%  { transform: scale(1.06) translateY(-8px); }
+    55%  { transform: scale(0.98) translateY(2px); }
+    75%  { transform: scale(1.03) translateY(-3px); }
+    100% { transform: scale(1) translateY(0); }
+  }
   @keyframes cardGlowBorder {
     0%, 100% { opacity: 0.35; }
     50%       { opacity: 0.85; }
@@ -316,6 +327,7 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
   const [editingPanel, setEditingPanel] = useState<HomePanel | null | 'new'>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [titleHovered, setTitleHovered] = useState(false);
+  const [titleAutoGlow, setTitleAutoGlow] = useState(false);
   const [saving, setSaving] = useState(false);
   const isAdmin = userEmail === 'lucaforte94@gmail.com';
 
@@ -408,6 +420,14 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
       clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
     };
+  }, []);
+
+  useEffect(() => {
+    const glowInterval = setInterval(() => {
+      setTitleAutoGlow(true);
+      setTimeout(() => setTitleAutoGlow(false), 1800);
+    }, 10000);
+    return () => clearInterval(glowInterval);
   }, []);
 
   const savePanels = async (updated: HomePanel[]) => {
@@ -503,31 +523,27 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
 
       {/* Header */}
       <div className="text-center mb-12 relative z-10">
-        <h1
-          className="text-6xl md:text-7xl font-black tracking-wider mb-4 cursor-default select-none"
-          style={{ fontFamily: 'Inter, sans-serif', animation: titleHovered ? 'titleGlowPulse 1.2s ease-in-out infinite' : 'none', display: 'flex', justifyContent: 'center', gap: 2 }}
+        <div
+          className="mb-4 cursor-default select-none flex justify-center"
           onMouseEnter={() => setTitleHovered(true)}
           onMouseLeave={() => setTitleHovered(false)}
         >
-          {'MINKIARDS'.split('').map((letter, i) => (
-            <span
-              key={i}
-              style={{
-                display: 'inline-block',
-                background: 'linear-gradient(135deg, #c084fc, #f472b6, #c084fc)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                animation: titleHovered ? `letterBounce 0.55s cubic-bezier(0.34,1.56,0.64,1) both` : 'none',
-                animationDelay: titleHovered ? `${i * 45}ms` : '0ms',
-                transition: 'filter 0.2s',
-                filter: titleHovered ? 'drop-shadow(0 0 8px rgba(192,132,252,0.9))' : 'drop-shadow(0 0 4px rgba(192,132,252,0.4))',
-              }}
-            >
-              {letter}
-            </span>
-          ))}
-        </h1>
+          <img
+            src="https://i.ibb.co/B55FsW7p/logo-testo-minkiards.png"
+            alt="MINKIARDS"
+            style={{
+              height: 'clamp(80px, 14vw, 140px)',
+              width: 'auto',
+              animation: (titleHovered || titleAutoGlow)
+                ? `logoBounce 0.65s cubic-bezier(0.34,1.56,0.64,1) both, logoGlowPulse 1.2s ease-in-out infinite`
+                : 'none',
+              filter: (titleHovered || titleAutoGlow)
+                ? 'drop-shadow(0 0 18px rgba(192,132,252,0.95)) drop-shadow(0 0 36px rgba(236,72,153,0.6))'
+                : 'drop-shadow(0 0 6px rgba(192,132,252,0.4))',
+              transition: 'filter 0.35s ease',
+            }}
+          />
+        </div>
         <p className="text-slate-400 text-lg">
           Benvenuto, <span className="text-white font-semibold">{playerName}</span>
         </p>
