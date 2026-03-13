@@ -3650,6 +3650,24 @@ Rispondi SOLO in JSON:`;
       card.faceDown = false;
       card.owner = playerName;
 
+      if (player.isCPU && game.helpEnabled) {
+        const ioHelp = (global as any).io;
+        if (ioHelp) {
+          const humanPlayers = Object.entries(game.players).filter(([, p]) => !p.isCPU).map(([n]) => n);
+          if (humanPlayers.length > 0) {
+            const humanName = humanPlayers[0];
+            const helpCtx = buildHelpContext(game as any, humanName, {
+              cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+              cardType: card.type || 'sconosciuto',
+              targetPlayer: humanName,
+            });
+            generateHelpMessage(gameId, 'cpu_played', helpCtx).then(helpMsg => {
+              emitHelpMessage(ioHelp, gameId, helpMsg);
+            }).catch(() => {});
+          }
+        }
+      }
+
       // Track card played stat
       this.trackPlayerStat(game, playerName, 'cardsPlayed');
       this.trackLastAction(game, {
@@ -18789,21 +18807,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       const gs = this.getSanitizedGameState(gameId);
       if (gs) io.to(gameId).emit('game-state-update', gs);
     };
-    const emitCpuPlayedHelp = (playedCard: any) => {
-      const gsHelp = this.getGameState(gameId);
-      if (!gsHelp?.helpEnabled || !playedCard) return;
-      const humanPlayers = Object.entries(gsHelp.players).filter(([, p]) => !p.isCPU).map(([n]) => n);
-      if (humanPlayers.length === 0) return;
-      const humanName = humanPlayers[0];
-      const helpCtx = buildHelpContext(gsHelp, humanName, {
-        cardName: playedCard.name || 'Carta',
-        cardType: playedCard.type || 'sconosciuto',
-        targetPlayer: humanName,
-      });
-      generateHelpMessage(gameId, 'cpu_played', helpCtx).then(helpMsg => {
-        emitHelpMessage(io, gameId, helpMsg);
-      });
-    };
     const advanceTurn = async (playerName: string) => {
       const next = this.endTurn(gameId, playerName);
       if (next) {
@@ -18849,7 +18852,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
       case 'play-card': {
         const result = await this.playCard(gameId, action.data.cardId, cpuName);
-        emitCpuPlayedHelp(result.card);
         emitState();
         await new Promise(r => setTimeout(r, 800));
         if (result.card) {
@@ -18865,7 +18867,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
       case 'play-and-draw': {
         const playAndDrawResult = await this.playCard(gameId, action.data.playCardId, cpuName);
-        emitCpuPlayedHelp(playAndDrawResult.card);
         emitState();
         await new Promise(r => setTimeout(r, 800));
         // Always auto-draw: use specified drawType or infer from played card type

@@ -6996,25 +6996,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     const playDrawGameState = gameManager.getSanitizedGameState(gameId);
                     emitThrottledGameState(io, gameId, playDrawGameState);
 
-                    // Help system: explain CPU's action to human player
-                    {
-                      const helpGS = gameManager.getGameState(gameId);
-                      if (helpGS?.helpEnabled && playDrawResult.card) {
-                        const humanPlayers = Object.values(helpGS.players).filter(p => !p.isCPU);
-                        if (humanPlayers.length > 0) {
-                          const humanName = humanPlayers[0].name;
-                          const cpuCardName = playDrawResult.card.name || (playDrawResult.card.frontImage ? playDrawResult.card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ') : 'carta');
-                          const helpCtx = buildHelpContext(helpGS, humanName, {
-                            cardName: cpuCardName || 'carta',
-                            cardType: cpuAction.data.drawType,
-                          });
-                          generateHelpMessage(gameId, 'cpu_played', helpCtx).then(helpMsg => {
-                            emitHelpMessage(io, gameId, helpMsg);
-                          }).catch(err => console.error('[HelpCoach] Error on cpu_played:', err));
-                        }
-                      }
-                    }
-                    
                     if (playDrawResult.isPersonaggio && playDrawResult.card) {
                       const getCardNameFromUrl = (url: string) => {
                         const parts = url.split('/');
@@ -7716,24 +7697,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       break;
                     case 'play-card':
                       const playResult = await gameManager.playCard(gameId, cpuAction.data.cardId, cpuAction.data.playerName);
-
-                      if (playResult.card) {
-                        const feHelpGS = gameManager.getGameState(gameId);
-                        if (feHelpGS?.helpEnabled) {
-                          const feHumanPlayers = Object.entries(feHelpGS.players).filter(([, p]) => !p.isCPU).map(([n]) => n);
-                          if (feHumanPlayers.length > 0) {
-                            const feHumanName = feHumanPlayers[0];
-                            const feHelpCtx = buildHelpContext(feHelpGS, feHumanName, {
-                              cardName: playResult.card.name || 'Carta',
-                              cardType: playResult.card.type || 'sconosciuto',
-                              targetPlayer: feHumanName,
-                            });
-                            generateHelpMessage(gameId, 'cpu_played', feHelpCtx).then(helpMsg => {
-                              emitHelpMessage(io, gameId, helpMsg);
-                            });
-                          }
-                        }
-                      }
                       
                       // According to MINKIARDS rules: when you play a card, you automatically draw a replacement of the same type
                       if (playResult.card) {
