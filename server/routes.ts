@@ -4975,7 +4975,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const helpCooldownKey = `help_${gameId}_${playerName}`;
             const lastHelpTime = (global as any).__helpCooldowns?.[helpCooldownKey] || 0;
             const now = Date.now();
-            if (now - lastHelpTime >= 10000) {
+            if (now - lastHelpTime >= 5000) {
               if (!(global as any).__helpCooldowns) (global as any).__helpCooldowns = {};
               (global as any).__helpCooldowns[helpCooldownKey] = now;
               const helpCtx = buildHelpContext(helpGameState, playerName);

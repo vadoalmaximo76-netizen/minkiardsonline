@@ -8,6 +8,7 @@ import { awardSeasonPassXP } from './seasonPassHelper';
 import { getPersonaggioFromCache } from './personaggiCache';
 import { jsonStorage } from './jsonStorage';
 import { emitSync } from './dbSync';
+import { generateHelpMessage, buildHelpContext, emitHelpMessage } from './helpCoach';
 
 interface Card {
   id: string;
@@ -18801,6 +18802,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           if (nextAction) await this.applyCPUAction(gameId, next, nextAction, io);
         } else {
           this.startTurnTimer(gameId, next);
+          const gsHelp = this.getGameState(gameId);
+          if (gsHelp?.helpEnabled) {
+            const helpCtx = buildHelpContext(gsHelp, next);
+            generateHelpMessage(gameId, 'human_turn_start', helpCtx).then(helpMsg => {
+              emitHelpMessage(io, gameId, helpMsg);
+            });
+          }
         }
       }
     };
