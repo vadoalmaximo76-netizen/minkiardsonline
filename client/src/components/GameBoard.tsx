@@ -294,6 +294,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [deadCharacterName, setDeadCharacterName] = useState<string>("");
   const [deathEffectKey, setDeathEffectKey] = useState(0);
   const [choosingNotification, setChoosingNotification] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
+  const [blockTypeSelection, setBlockTypeSelection] = useState<{ visible: boolean; options: string[]; turns: number } | null>(null);
   const [cpuThinkingPlayer, setCpuThinkingPlayer] = useState<string | null>(null);
   const [graveyardSelectionModal, setGraveyardSelectionModal] = useState<{
     visible: boolean;
@@ -1076,6 +1077,35 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     socket.on('cpu-thinking', handleCpuThinking);
     socket.on('cpu-done-thinking', handleCpuDoneThinking);
     socket.on('next-turn', handleCpuDoneThinking);
+
+    const handleControlTurnSet = (data: { controllingPlayer: string; controlledPlayer: string }) => {
+      if (data.controlledPlayer === playerName) {
+        setChoosingNotification({ visible: true, message: `🎮 Il tuo prossimo turno è controllato da ${data.controllingPlayer}!` });
+        setTimeout(() => setChoosingNotification({ visible: false, message: '' }), 5000);
+      } else if (data.controllingPlayer === playerName) {
+        setChoosingNotification({ visible: true, message: `🎮 Controllerai il prossimo turno di ${data.controlledPlayer}!` });
+        setTimeout(() => setChoosingNotification({ visible: false, message: '' }), 5000);
+      }
+    };
+    socket.on('control-turn-set', handleControlTurnSet);
+
+    const handleBlockCardTypeSelect = (data: { cardId: string; cardName: string; options: string[]; turns: number; playerName: string }) => {
+      if (data.playerName === playerName) {
+        setBlockTypeSelection({ visible: true, options: data.options, turns: data.turns });
+      }
+    };
+    socket.on('block-card-type-select', handleBlockCardTypeSelect);
+
+    const handleControlTurnActive = (data: { controllingPlayer: string; controlledPlayer: string }) => {
+      if (data.controlledPlayer === playerName) {
+        setChoosingNotification({ visible: true, message: `🎮 Il tuo turno è controllato da ${data.controllingPlayer}! Le tue azioni sono limitate.` });
+        setTimeout(() => setChoosingNotification({ visible: false, message: '' }), 6000);
+      } else if (data.controllingPlayer === playerName) {
+        setChoosingNotification({ visible: true, message: `🎮 Stai controllando il turno di ${data.controlledPlayer}! Gioca le sue carte.` });
+        setTimeout(() => setChoosingNotification({ visible: false, message: '' }), 6000);
+      }
+    };
+    socket.on('control-turn-active', handleControlTurnActive);
 
     // MOSSE ATTACK ERROR: Handle attack errors (e.g., one MOSSE per turn limit)
     const handleAttackError = ({ message }: { message: string }) => {
@@ -2053,6 +2083,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('cpu-thinking', handleCpuThinking);
       socket.off('cpu-done-thinking', handleCpuDoneThinking);
       socket.off('next-turn', handleCpuDoneThinking);
+      socket.off('control-turn-set', handleControlTurnSet);
+      socket.off('block-card-type-select', handleBlockCardTypeSelect);
+      socket.off('control-turn-active', handleControlTurnActive);
       socket.off('instruction-executed', handleInstructionExecuted);
       socket.off('instruction-success', handleInstructionSuccess);
       socket.off('instruction-error', handleInstructionError);
@@ -4470,6 +4503,32 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             <div className="bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3">
               <span className="text-2xl">🎴</span>
               <span className="font-semibold">{choosingNotification.message}</span>
+            </div>
+          </div>
+        )}
+
+        {blockTypeSelection?.visible && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60">
+            <div className="bg-gradient-to-b from-blue-900 to-blue-800 rounded-xl p-6 shadow-2xl border border-blue-400/40 max-w-sm w-full mx-4">
+              <div className="text-center mb-4">
+                <span className="text-4xl">🧊</span>
+                <h3 className="text-white text-xl font-bold mt-2">IBERNAZIONE</h3>
+                <p className="text-blue-200 text-sm mt-1">Scegli il tipo di carte da bloccare per {blockTypeSelection.turns} turni</p>
+              </div>
+              <div className="flex flex-col gap-3">
+                {blockTypeSelection.options.map((option) => (
+                  <button
+                    key={option}
+                    onClick={() => {
+                      socket.emit('block-card-type-choice', { gameId: gameId, cardType: option.toLowerCase(), turns: blockTypeSelection.turns });
+                      setBlockTypeSelection(null);
+                    }}
+                    className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-all duration-200 hover:scale-105 border border-blue-400/30"
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}

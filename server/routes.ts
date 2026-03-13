@@ -3733,6 +3733,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on('block-card-type-choice', ({ gameId: gId, cardType, turns }: { gameId: string; cardType: string; turns: number }) => {
+      const gameId = gId || gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = gameManager.games.get(gameId);
+      if (!game) return;
+
+      const validTypes = ['personaggi', 'mosse', 'bonus', 'personaggi_speciali'];
+      if (!validTypes.includes(cardType?.toLowerCase())) {
+        console.log(`🧊 IBERNAZIONE: Invalid card type "${cardType}" rejected`);
+        return;
+      }
+
+      const safeTurns = Math.min(Math.max(1, turns || 1), 5);
+
+      if (!(game as any).pendingBlockChoice) {
+        console.log(`🧊 IBERNAZIONE: No pending block choice for this game, ignoring`);
+        return;
+      }
+      delete (game as any).pendingBlockChoice;
+
+      if (!(game as any).blockedCardTypes) (game as any).blockedCardTypes = [];
+      (game as any).blockedCardTypes.push({
+        type: cardType.toLowerCase(),
+        turnsRemaining: safeTurns,
+        blockedBy: 'player'
+      });
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-block-type-chosen`,
+        playerName: 'Sistema',
+        message: `🧊 IBERNAZIONE! Le carte ${cardType.toUpperCase()} sono bloccate per ${safeTurns} turni!`,
+        timestamp: Date.now()
+      });
+      const state = gameManager.getSanitizedGameState(gameId);
+      io.to(gameId).emit('game-state-update', state);
+    });
+
     // CUSTOM EFFECT: Handle manual activation of custom card effects
     socket.on('activate-custom-effect', async ({ cardId, playerName }: { cardId: string; playerName: string }) => {
       const gameId = gameManager.getPlayerGameId(socket.id);

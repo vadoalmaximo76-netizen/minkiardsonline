@@ -3061,7 +3061,11 @@ Rispondi SOLO in JSON:`;
             bonus: decks.bonus.length,
           }]))
         : {},
-      playerDeathModifiers: gameState.playerDeathModifiers ? Object.fromEntries(gameState.playerDeathModifiers) : {}
+      playerDeathModifiers: gameState.playerDeathModifiers ? Object.fromEntries(gameState.playerDeathModifiers) : {},
+      activeBombs: (gameState as any).activeBombs || [],
+      blockedCardTypes: (gameState as any).blockedCardTypes || [],
+      controlledPlayer: (gameState as any).controlledPlayer || null,
+      controllingPlayer: (gameState as any).controllingPlayer || null
     };
 
     // Sanitize players by removing cpuInstance references
@@ -3609,6 +3613,25 @@ Rispondi SOLO in JSON:`;
         }
       }
 
+      // IBERNAZIONE check: prevent playing blocked card types
+      if ((game as any).blockedCardTypes && (game as any).blockedCardTypes.length > 0) {
+        const cardType = card.type?.toLowerCase();
+        const blocked = (game as any).blockedCardTypes.find((b: any) => b.turnsRemaining > 0 && b.type === cardType);
+        if (blocked) {
+          const ioBlock = (global as any).io;
+          if (ioBlock) {
+            ioBlock.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-ibernazione-block`,
+              playerName: 'Sistema',
+              message: `🧊 IBERNAZIONE! Le carte ${cardType!.toUpperCase()} sono bloccate per ancora ${blocked.turnsRemaining} turni! Non puoi giocare questa carta.`,
+              timestamp: Date.now()
+            });
+          }
+          console.log(`🧊 IBERNAZIONE BLOCKED: ${playerName} tried to play ${cardType} card but it's blocked for ${blocked.turnsRemaining} turns`);
+          return {};
+        }
+      }
+
       // Card is allowed - remove from hand and place on field
       player.hand.splice(cardIndex, 1);
       card.faceDown = false;
@@ -4070,6 +4093,38 @@ Rispondi SOLO in JSON:`;
       const thresholdVal = extractNumberForKeyword(text, ['pti'], 100);
       const turnsVal = extractNumberForKeyword(text, ['turni', 'turno'], 5);
       actions.push({ type: 'dittatura', target: 'all', value: thresholdVal, description: `Dittatura: personaggi con meno di ${thresholdVal} PTI non possono essere giocati per ${turnsVal} turni` });
+    }
+
+    // ============ REVERSE TURN ORDER PATTERN ============
+    if (/inverte.*ordine.*turni|inverti.*ordine.*turni|ordine.*turni.*invertit|dall.ultimo\s+al\s+primo|turni.*invertit|reverse.*turn/i.test(text)) {
+      actions.push({ type: 'reverse_turn_order', target: 'all', value: 0, description: "Inverte l'ordine dei turni" });
+    }
+
+    // ============ COPY POWER / POTERITUO PATTERN ============
+    if (/pannello\s+dei\s+poterituo|poterituo|copia.*potere|aggiunge.*potere.*personaggio.*scelta|si\s+aggiunge\s+il\s+potere/i.test(text)) {
+      actions.push({ type: 'copy_power', target: 'self', value: 0, description: "Copia il potere di un personaggio a scelta" });
+    }
+
+    // ============ BLOCK CARD TYPE PATTERN ============
+    if (/quale\s+tipo\s+di\s+carte\s+non\s+si\s+pu[oò]\s+mettere|blocca.*tipo.*carte.*turni|ibernazione|tipo.*carte.*blocc/i.test(text)) {
+      const blockTurnsVal = extractNumberForKeyword(text, ['turni', 'turno'], 3);
+      actions.push({ type: 'block_card_type', target: 'all', value: blockTurnsVal, description: `Blocca un tipo di carte per ${blockTurnsVal} turni` });
+    }
+
+    // ============ DETONATE BOMBS PATTERN ============
+    if (/bomba\s+senza\s+detonatore.*esplo|fa\s+esplodere|detonat|esplod.*bomba/i.test(text) && /danno|pti/i.test(text)) {
+      const bombDmg = extractNumberForKeyword(text, ['pti', 'danno', 'danni'], 50);
+      actions.push({ type: 'detonate_bombs', target: 'opponents', value: bombDmg, description: `Detona le bombe sul campo per ${bombDmg} danni` });
+    }
+
+    // ============ AGGLOMERA LEGHE PATTERN ============
+    if (/agglomera\s+leghe|fonde.*personaggi.*stessa\s+lega|fusione.*lega/i.test(text)) {
+      actions.push({ type: 'agglomera_leghe', target: 'self', value: 0, description: "Fonde tutti i personaggi della stessa lega in un unico personaggio" });
+    }
+
+    // ============ CONTROL TURN PATTERN ============
+    if (/controlla.*prossimo\s+turno|controlla.*turno.*avversario|m\s+di\s+majin\s+bu|scegl.*quali\s+carte\s+gioca/i.test(text)) {
+      actions.push({ type: 'control_turn', target: 'opponents', value: 1, description: "Controlla il prossimo turno di un avversario" });
     }
 
     // ============ DELAYED DEATH PATTERN ============
@@ -8338,16 +8393,232 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         break;
 
-      case 'control_turn':
-        // Mark opponent for turn control
+      case 'control_turn': {
         const controlOpponents = Object.keys(game.players).filter(p => p !== playerName);
         if (controlOpponents.length > 0) {
           const targetOpponent = controlOpponents[Math.floor(Math.random() * controlOpponents.length)];
           (game as any).controlledPlayer = targetOpponent;
           (game as any).controllingPlayer = playerName;
-          console.log(`🎮👤 CONTROL TURN: ${playerName} will control ${targetOpponent}'s next turn!`);
+          const ioCtrl = (global as any).io;
+          if (ioCtrl) {
+            ioCtrl.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-control-turn`,
+              playerName: 'Sistema',
+              message: `🎮 M DI MAJIN BU! ${playerName} controllerà il prossimo turno di ${targetOpponent}!`,
+              timestamp: Date.now()
+            });
+            ioCtrl.to(gameId).emit('control-turn-set', {
+              controllingPlayer: playerName,
+              controlledPlayer: targetOpponent
+            });
+          }
         }
         break;
+      }
+
+      case 'reverse_turn_order': {
+        if (game.turnOrder && game.turnOrder.length > 1) {
+          const currentIdx = game.currentTurnIndex;
+          const currentPlayer = game.turnOrder[currentIdx];
+          game.turnOrder.reverse();
+          game.currentTurnIndex = game.turnOrder.indexOf(currentPlayer);
+          if (game.currentTurnIndex === -1) game.currentTurnIndex = 0;
+          const ioRev = (global as any).io;
+          if (ioRev) {
+            ioRev.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-reverse-turn`,
+              playerName: 'Sistema',
+              message: `🔄 L'ordine dei turni è stato invertito! Nuovo ordine: ${game.turnOrder.join(' → ')}`,
+              timestamp: Date.now()
+            });
+            const revState = this.getSanitizedGameState(gameId);
+            ioRev.to(gameId).emit('game-state-update', revState);
+          }
+        }
+        break;
+      }
+
+      case 'copy_power': {
+        const myChar = this.getPlayerActiveCharacter(game, playerName);
+        if (!myChar) break;
+        const otherChars = game.field.filter((c: Card) =>
+          c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (otherChars.length === 0) break;
+        const chosen = otherChars[Math.floor(Math.random() * otherChars.length)];
+        const chosenEffect = (chosen as any).effect || (chosen as any).characterEffect || '';
+        if (chosenEffect) {
+          (myChar as any).copiedPower = chosenEffect;
+          (myChar as any).copiedPowerFrom = chosen.name || this.getCardNameFromUrl(chosen.frontImage || '');
+        }
+        const ioCopy = (global as any).io;
+        if (ioCopy) {
+          const chosenName = chosen.name || this.getCardNameFromUrl(chosen.frontImage || '');
+          const myName = myChar.name || this.getCardNameFromUrl(myChar.frontImage || '');
+          ioCopy.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-copy-power`,
+            playerName: 'Sistema',
+            message: `📋 POTERITUO! ${myName} copia il potere di ${chosenName}!`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      }
+
+      case 'block_card_type': {
+        const blockTurns = action.value || 3;
+        const cardTypes = ['mosse', 'bonus', 'personaggi'];
+        const isCPUBlocker = this.isPlayerCPU(gameId, playerName);
+        if (isCPUBlocker) {
+          const chosenType = cardTypes[Math.floor(Math.random() * cardTypes.length)];
+          if (!(game as any).blockedCardTypes) (game as any).blockedCardTypes = [];
+          (game as any).blockedCardTypes.push({
+            type: chosenType,
+            turnsRemaining: blockTurns,
+            blockedBy: playerName
+          });
+          const ioBlock = (global as any).io;
+          if (ioBlock) {
+            ioBlock.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-block-type`,
+              playerName: 'Sistema',
+              message: `🧊 IBERNAZIONE! Le carte ${chosenType.toUpperCase()} sono bloccate per ${blockTurns} turni!`,
+              timestamp: Date.now()
+            });
+          }
+        } else {
+          (game as any).pendingBlockChoice = true;
+          const ioBlock = (global as any).io;
+          if (ioBlock) {
+            ioBlock.to(gameId).emit('block-card-type-select', {
+              cardId: card.id,
+              cardName: card.name || this.getCardNameFromUrl(card.frontImage || ''),
+              options: cardTypes.map(t => t.toUpperCase()),
+              turns: blockTurns,
+              playerName: playerName
+            });
+          }
+        }
+        break;
+      }
+
+      case 'detonate_bombs': {
+        const bombDamage = action.value || 50;
+        const activeBombs: any[] = (game as any).activeBombs || [];
+        if (activeBombs.length === 0) {
+          const ioNoBomb = (global as any).io;
+          if (ioNoBomb) {
+            ioNoBomb.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-no-bombs`,
+              playerName: 'Sistema',
+              message: `💣 Nessuna bomba attiva sul campo da detonare!`,
+              timestamp: Date.now()
+            });
+          }
+          break;
+        }
+        const lastTurnIdx = (game.currentTurnIndex - 1 + game.turnOrder.length) % game.turnOrder.length;
+        const lastTurnPlayer = game.turnOrder[lastTurnIdx];
+        const lastTurnChar = game.field.find((c: Card) =>
+          c.owner === lastTurnPlayer && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (lastTurnChar) {
+          const charPTI = this.extractPTIFromNote(lastTurnChar.text || '');
+          const totalBombDmg = bombDamage * activeBombs.length;
+          const newPTI = Math.max(0, charPTI - totalBombDmg);
+          lastTurnChar.pti = newPTI;
+          this.updateCardTextWithPTI(lastTurnChar);
+          if (newPTI <= 0) {
+            const bombDeathResult = this.moveToGraveyard(gameId, lastTurnChar.id, lastTurnPlayer, playerName);
+            if (bombDeathResult.eliminationCheck) {
+              this.processEliminationAfterDeath(gameId, lastTurnPlayer, (global as any).io, 'BOMB_DETONATE');
+            }
+          }
+          const charName = lastTurnChar.name || this.getCardNameFromUrl(lastTurnChar.frontImage || '');
+          const ioDet = (global as any).io;
+          if (ioDet) {
+            ioDet.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-bomb-detonate`,
+              playerName: 'Sistema',
+              message: `💥 ${activeBombs.length} BOMBA/E DETONATA/E! ${charName} di ${lastTurnPlayer} subisce ${totalBombDmg} danni! (PTI: ${charPTI} → ${newPTI})`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        (game as any).activeBombs = [];
+        const detState = this.getSanitizedGameState(gameId);
+        const ioDet2 = (global as any).io;
+        if (ioDet2) ioDet2.to(gameId).emit('game-state-update', detState);
+        break;
+      }
+
+      case 'agglomera_leghe': {
+        const LEAGUE_GROUPS: Record<string, string[]> = {
+          'BELLO FIGO': ['BELLO FIGO GU', 'BELLO FIGO', 'LUCA NERVI', 'JERRY PISCIO', 'CARL BRAVO', 'DANI FAIV'],
+          'LEGA ARABA': ['ARABO 1', 'ARABO 2', 'ARABO 3', 'ARABO ESPLOSIVO', 'SCEICCO'],
+          'LEGA KEBAB': ['KEBABBARO', 'KEBAB MAN', 'KEBAB KING', 'KEBAB CHEF'],
+          'LEGA MEME': ['PEPE THE FROG', 'DOGE', 'CHAD', 'WOJAK', 'GIGACHAD'],
+          'LEGA ITALIA': ['BERLUSCONI', 'SALVINI', 'MELONI', 'DRAGHI', 'RENZI'],
+        };
+        const myChars = game.field.filter((c: Card) =>
+          c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (myChars.length === 0) break;
+        let foundLeague: string | null = null;
+        let foundMembers: Card[] = [];
+        for (const [leagueName, members] of Object.entries(LEAGUE_GROUPS)) {
+          const matching = myChars.filter(c => {
+            const cName = (c.name || this.getCardNameFromUrl(c.frontImage || '')).toUpperCase().trim();
+            return members.some(m => cName.includes(m.toUpperCase()) || m.toUpperCase().includes(cName));
+          });
+          if (matching.length >= 2) {
+            foundLeague = leagueName;
+            foundMembers = matching;
+            break;
+          }
+        }
+        if (!foundLeague || foundMembers.length < 2) {
+          const ioNoLeague = (global as any).io;
+          if (ioNoLeague) {
+            ioNoLeague.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-no-league`,
+              playerName: 'Sistema',
+              message: `❌ AGGLOMERA LEGHE: Serve almeno 2 personaggi della stessa lega in campo!`,
+              timestamp: Date.now()
+            });
+          }
+          break;
+        }
+        const mainChar = foundMembers[0];
+        let totalPTI = 0;
+        let totalStars = 0;
+        const fusedNames: string[] = [];
+        for (const member of foundMembers) {
+          totalPTI += member.pti ?? this.extractPTIFromNote(member.text || '');
+          totalStars += member.stars ?? this.extractStarsFromNote(member.text || '');
+          fusedNames.push(member.name || this.getCardNameFromUrl(member.frontImage || ''));
+        }
+        for (const member of foundMembers.slice(1)) {
+          game.field = game.field.filter((c: Card) => c.id !== member.id);
+          if (!game.graveyard) game.graveyard = [];
+          game.graveyard.push(member);
+        }
+        mainChar.pti = totalPTI;
+        mainChar.stars = totalStars;
+        mainChar.text = `PTI: ${totalPTI} | Stelle: ${totalStars}`;
+        const ioAgg = (global as any).io;
+        if (ioAgg) {
+          ioAgg.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-agglomera`,
+            playerName: 'Sistema',
+            message: `🔗 AGGLOMERA LEGHE (${foundLeague})! ${fusedNames.join(' + ')} si fondono in un unico personaggio con ${totalPTI} PTI e ${totalStars} stelle!`,
+            timestamp: Date.now()
+          });
+          const aggState = this.getSanitizedGameState(gameId);
+          ioAgg.to(gameId).emit('game-state-update', aggState);
+        }
+        break;
+      }
 
       case 'send_to_deck':
         // Send a card back to deck
@@ -19481,6 +19752,27 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
 
+    if ((gameState as any).blockedCardTypes && (gameState as any).blockedCardTypes.length > 0) {
+      for (const block of (gameState as any).blockedCardTypes) {
+        block.turnsRemaining--;
+      }
+      const expiredBlocks = (gameState as any).blockedCardTypes.filter((b: any) => b.turnsRemaining <= 0);
+      (gameState as any).blockedCardTypes = (gameState as any).blockedCardTypes.filter((b: any) => b.turnsRemaining > 0);
+      if (expiredBlocks.length > 0) {
+        const ioBlock = (global as any).io;
+        if (ioBlock) {
+          for (const expired of expiredBlocks) {
+            ioBlock.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-block-expired-${expired.type}`,
+              playerName: 'Sistema',
+              message: `🧊 Il blocco su carte ${expired.type.toUpperCase()} è scaduto!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+      }
+    }
+
     // Process timed effects (generic delayed effects from Wizard cards)
     // Decrement only effects belonging to the player whose turn is ending
     if (gameState.timedEffects && gameState.timedEffects.length > 0) {
@@ -19837,6 +20129,25 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }
           attempts++;
           continue;
+        }
+
+        if ((gameState as any).controlledPlayer === nextPlayer && (gameState as any).controllingPlayer) {
+          const controllerName = (gameState as any).controllingPlayer;
+          const ctrlIo = (global as any).io;
+          if (ctrlIo) {
+            ctrlIo.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-control-active`,
+              playerName: 'Sistema',
+              message: `🎮 ${controllerName} sta controllando il turno di ${nextPlayer}!`,
+              timestamp: Date.now()
+            });
+            ctrlIo.to(gameId).emit('control-turn-active', {
+              controllingPlayer: controllerName,
+              controlledPlayer: nextPlayer
+            });
+          }
+          (gameState as any).controlledPlayer = null;
+          (gameState as any).controllingPlayer = null;
         }
 
         // Increment turn counters for cards on field owned by the NEXT player
@@ -23814,6 +24125,104 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           }, 1500);
           } // end if (!chainAlreadyFired)
 
+          break;
+        }
+
+        case 'place_bomb': {
+          if (!game) break;
+          if (!(game as any).activeBombs) (game as any).activeBombs = [];
+          (game as any).activeBombs.push({
+            id: `bomb-${Date.now()}`,
+            placedBy: attackerName,
+            mosseCardId: mosseCardId,
+            mosseName: attackerName,
+            placedAt: Date.now()
+          });
+          effectiveDamage = 0;
+          effectMessage = `💣 BOMBA piazzata sul campo da ${attackerName}! Rimane attiva fino alla detonazione o disinnescare.`;
+          break;
+        }
+
+        case 'send_enemy_to_deck': {
+          if (!game) break;
+          const targetDeckType = targetCard.type as 'personaggi' | 'personaggi_speciali';
+          game.field = game.field.filter((c: Card) => c.id !== targetCardId);
+          if (game.decks[targetDeckType]) {
+            const shuffleIdx = Math.floor(Math.random() * (game.decks[targetDeckType].length + 1));
+            game.decks[targetDeckType].splice(shuffleIdx, 0, targetCard);
+          }
+          effectiveDamage = 0;
+          forceInstantDeath = false;
+          const targetName = targetCard.name || this.getCardNameFromUrl(targetCard.frontImage || '');
+          effectMessage = `🌪️ FRUSHTALLA! ${targetName} torna nel mazzo ${targetDeckType} di ${targetCard.owner}!`;
+          const sendDeckState = this.getSanitizedGameState(gameId);
+          io.to(gameId).emit('game-state-update', sendDeckState);
+          break;
+        }
+
+        case 'force_draw_mosse_5': {
+          if (!game) break;
+          const targetOwner = targetCard.owner;
+          const ownerPlayer = game.players[targetOwner];
+          const mosseDeck = game.decks['mosse'] || [];
+          const drawn: Array<{ name: string; dmg: number }> = [];
+          for (let i = 0; i < 5 && mosseDeck.length > 0; i++) {
+            const drawnCard = mosseDeck.shift()!;
+            const drawnName = drawnCard.name || this.getCardNameFromUrl(drawnCard.frontImage || '') || drawnCard.id;
+            const drawnDmg = drawnCard.mosseDamageValue ?? 0;
+            drawn.push({ name: drawnName, dmg: drawnDmg });
+            if (!game.graveyard) game.graveyard = [];
+            game.graveyard.push(drawnCard);
+          }
+          const totalDrawnDmg = drawn.reduce((sum, d) => sum + d.dmg, 0);
+          const drawnNames = drawn.map(d => `${d.name}(${d.dmg})`).join(', ');
+          if (totalDrawnDmg >= 100) {
+            effectiveDamage = totalDrawnDmg;
+            effectMessage = `🎴 LELLELLELELLE! Pescate ${drawn.length} MOSSE: ${drawnNames}. Danno totale: ${totalDrawnDmg} PTI (≥100 → danno pieno)!`;
+          } else {
+            const targetPTI = this.extractPTIFromNote(targetCard.text || '');
+            effectiveDamage = Math.max(0, targetPTI - 5);
+            additionalStarsToRemove = Math.max(0, (targetCard.stars ?? this.extractStarsFromNote(targetCard.text || '')) - 1);
+            effectMessage = `🎴 LELLELLELELLE! Pescate ${drawn.length} MOSSE: ${drawnNames}. Danno totale: ${totalDrawnDmg} PTI (<100 → bersaglio scende a 5 PTI e 1 stella)!`;
+          }
+          break;
+        }
+
+        case 'dice_split': {
+          if (!game) break;
+          const diceRoll = Math.floor(Math.random() * 6) + 1;
+          const isEven = diceRoll % 2 === 0;
+          io.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-dice-split-roll`,
+            playerName: 'Sistema',
+            message: `🎲 MINI CICCIOLO: dado = ${diceRoll} (${isEven ? 'PARI' : 'DISPARI'})!`,
+            timestamp: Date.now()
+          });
+          if (isEven) {
+            effectMessage = `🎲 Dado PARI (${diceRoll}): danno normale all'avversario!`;
+          } else {
+            const attackerChar = game.field.find((c: Card) =>
+              c.owner === attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+            );
+            const atkStars = attackerChar ? (attackerChar.stars ?? this.extractStarsFromNote(attackerChar.text || '')) : 1;
+            const selfDamage = effectiveDamage * atkStars;
+            effectiveDamage = 0;
+            if (attackerChar) {
+              const atkPTI = this.extractPTIFromNote(attackerChar.text || '');
+              const newAtkPTI = Math.max(0, atkPTI - selfDamage);
+              attackerChar.pti = newAtkPTI;
+              this.updateCardTextWithPTI(attackerChar);
+              if (newAtkPTI <= 0) {
+                const selfDeathResult = this.moveToGraveyard(gameId, attackerChar.id, attackerName, attackerName);
+                if (selfDeathResult.eliminationCheck) {
+                  this.processEliminationAfterDeath(gameId, attackerName, io, 'DICE_SPLIT_SELF');
+                }
+              }
+            }
+            effectMessage = `🎲 Dado DISPARI (${diceRoll}): ${selfDamage} danni (danno × ${atkStars} stelle) inflitti a te stesso!`;
+            const diceSplitState = this.getSanitizedGameState(gameId);
+            io.to(gameId).emit('game-state-update', diceSplitState);
+          }
           break;
         }
       }

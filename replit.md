@@ -79,6 +79,18 @@ Server-side OCR using Tesseract.js (`server/ocrBonusCards.ts`) extracts text fro
 ## Custom Card Effect System
 Supports a wide range of custom card effects via `[COMPORTAMENTO: ...]` tags, including status effects, combat effects, and advanced bonus effects like conditional taroccata, KEBAB buff, character inheritance, block and evolve, character stealing, bomb removal, card swapping, mirror effects, dividing stats, and self-cloning.
 
+### Card Effects Implemented (Task #6)
+- **BOMBA passive (mosse-9)**: Places a bomb via `mosseDamageEffect: "place_bomb"`. Tracked in `game.activeBombs[]`. Detonated by bonus-36 (`detonate_bombs` action) dealing 50 PTI to last turn player. Removed by bonus-38 (`remove_bombs`).
+- **FRUSHTALLA (mosse-33)**: `mosseDamageEffect: "send_enemy_to_deck"` — after attack, target character returns to its deck instead of taking damage.
+- **LELLELLELELLE (mosse-45)**: `mosseDamageEffect: "force_draw_mosse_5"` — draws 5 MOSSE from deck, sums damage. If ≥100, applies full damage; else target drops to 5 PTI / 1 star.
+- **MINI CICCIOLO (mosse-54)**: `mosseDamageEffect: "dice_split"` — auto dice roll; even = normal damage to enemy; odd = damage × your stars to yourself.
+- **AGGLOMERA LEGHE (bonus-2)**: `agglomera_leghe` action — fuses all same-league characters on field into one with combined PTI/stars.
+- **M DI MAJIN BU (bonus-82)**: `control_turn` action — controls next turn of random opponent. Server emits `control-turn-set` and `control-turn-active` socket events; client shows notification banners.
+- **Reverse Turn Order (bonus-72)**: `reverse_turn_order` action — reverses `game.turnOrder[]` array.
+- **Copy Power (bonus-70)**: `copy_power` action — copies effect of a random enemy character.
+- **Block Card Type (bonus-67)**: `block_card_type` action — blocks a chosen card type for N turns. Interactive panel for humans, random for CPU. Tracked in `game.blockedCardTypes[]`, decremented each turn in `endTurn()`.
+- **flat_5_chain_mosse (mosse-75)**: Already implemented — deals 5 flat PTI to all field characters, then chains auto-MOSSE plays from other players' hands.
+
 ## Audio System
 A comprehensive sound effect system using the Web Audio API provides in-game event feedback with per-category toggles and localStorage persistence.
 
