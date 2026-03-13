@@ -217,7 +217,7 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack, 
         setTutorialStep(0);
       }, 1500);
     }
-  }, [playerName, avatarId, userId, setGameId, setPlayerName, generateSessionId, shouldShowTutorial, isOfflineMode]);
+  }, [playerName, avatarId, userId, setGameId, setPlayerName, generateSessionId, shouldShowTutorial, isOfflineMode, helpEnabled]);
 
   // Auto-start game for offline mode (no intro screen)
   useEffect(() => {
