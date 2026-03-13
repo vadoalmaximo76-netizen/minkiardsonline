@@ -4533,6 +4533,42 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           </div>
         )}
 
+        {gameState && (gameState as any).activeControlTurn && (gameState as any).activeControlTurn.controllingPlayer === playerName && (() => {
+          const controlInfo = (gameState as any).activeControlTurn;
+          const controlledPlayerData = gameState.players?.[controlInfo.controlledPlayer];
+          const controlledHand = controlledPlayerData?.hand || [];
+          return (
+            <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-[9998] max-w-3xl w-full px-4">
+              <div className="bg-gradient-to-b from-purple-900/95 to-purple-800/95 rounded-xl p-4 shadow-2xl border border-purple-400/40 backdrop-blur-sm">
+                <div className="text-center mb-3">
+                  <span className="text-2xl">🎮</span>
+                  <span className="text-white font-bold ml-2">CONTROLLO TURNO — Mano di {controlInfo.controlledPlayer}</span>
+                </div>
+                {controlledHand.length > 0 ? (
+                  <div className="flex gap-2 overflow-x-auto pb-2 justify-center">
+                    {controlledHand.map((card: any) => (
+                      <button
+                        key={card.id}
+                        onClick={() => {
+                          socket.emit('play-card', { cardId: card.id, playerName: playerName });
+                        }}
+                        className="flex-shrink-0 w-20 h-28 rounded-lg overflow-hidden border-2 border-purple-400/50 hover:border-yellow-400 hover:scale-110 transition-all duration-200 relative group"
+                      >
+                        <img src={card.frontImage} alt={card.name || card.id} className="w-full h-full object-cover" />
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[10px] text-center py-0.5 truncate">
+                          {card.name || card.type}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-purple-300 text-center text-sm">Nessuna carta in mano</p>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Graveyard Milestone Notification */}
         <FullScreenNotification
           isVisible={notificationVisible}

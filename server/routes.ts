@@ -2725,6 +2725,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let effectivePlayerName = playerName;
         if (activeCtrl && activeCtrl.controllingPlayer === playerName && activeCtrl.controlledPlayer) {
           effectivePlayerName = activeCtrl.controlledPlayer;
+          (game as any)._controllerReroute = true;
           console.log(`🎮 CONTROL TURN: ${playerName} playing card ${cardId} for controlled player ${effectivePlayerName}`);
         }
         const result = await gameManager.playCard(gameId, cardId, effectivePlayerName);

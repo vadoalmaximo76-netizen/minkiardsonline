@@ -3546,8 +3546,9 @@ Rispondi SOLO in JSON:`;
     if (!game || !game.players[playerName]) return {};
 
     // CONTROL TURN: Block the controlled player from playing on their own
+    // (but allow if it's a rerouted play from the controller via routes.ts)
     const activeControl = (game as any).activeControlTurn;
-    if (activeControl && activeControl.controlledPlayer === playerName) {
+    if (activeControl && activeControl.controlledPlayer === playerName && !(game as any)._controllerReroute) {
       const ioCtrlBlock = (global as any).io;
       if (ioCtrlBlock) {
         ioCtrlBlock.to(gameId).emit('chat-message', {
@@ -3559,6 +3560,9 @@ Rispondi SOLO in JSON:`;
       }
       console.log(`🎮 CONTROL TURN BLOCKED: ${playerName} tried to play but their turn is controlled by ${activeControl.controllingPlayer}`);
       return {};
+    }
+    if ((game as any)._controllerReroute) {
+      delete (game as any)._controllerReroute;
     }
 
     // DUELLO: Check if there's an active duel
@@ -24208,10 +24212,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           if (!game) break;
           const targetOwner = targetCard.owner;
           const ownerPlayer = game.players[targetOwner];
-          const mosseDeck = game.decks['mosse'] || [];
+          const opponentMosseDeck = ownerPlayer?.playerDraftDecks?.mosse || game.decks?.['mosse'] || [];
           const drawn: Array<{ name: string; dmg: number }> = [];
-          for (let i = 0; i < 5 && mosseDeck.length > 0; i++) {
-            const drawnCard = mosseDeck.shift()!;
+          for (let i = 0; i < 5 && opponentMosseDeck.length > 0; i++) {
+            const drawnCard = opponentMosseDeck.shift()!;
             const drawnName = drawnCard.name || this.getCardNameFromUrl(drawnCard.frontImage || '') || drawnCard.id;
             const drawnDmg = drawnCard.mosseDamageValue ?? 0;
             drawn.push({ name: drawnName, dmg: drawnDmg });
