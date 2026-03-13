@@ -3792,6 +3792,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const ctrlState = gameManager.getSanitizedGameState(gameId);
         ioCtrl.to(gameId).emit('game-state-update', ctrlState);
         ioCtrl.to(gameId).emit('control-turn-resolved', { controlledPlayer, controllingPlayer });
+
+        const controlledPlayerData = gameManager.games.get(gameId)?.players[controlledPlayer];
+        if (controlledPlayerData?.isCPU || controlledPlayer.startsWith('CPU-')) {
+          setTimeout(async () => {
+            try {
+              const nextP = await gameManager.endTurn(gameId, controlledPlayer);
+              if (nextP) {
+                ioCtrl.to(gameId).emit('next-turn', { currentPlayer: controlledPlayer, nextPlayer: nextP });
+                ioCtrl.to(gameId).emit('game-state-update', gameManager.getSanitizedGameState(gameId));
+                console.log(`🎮 CONTROL TURN: CPU ${controlledPlayer} turn ended after control. Next: ${nextP}`);
+              }
+            } catch (e) {
+              console.error(`Error ending controlled CPU turn:`, e);
+            }
+          }, 1000);
+        }
       }
     });
 
@@ -6863,7 +6879,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const gameState = gameManager.getSanitizedGameState(gameId);
         const nextPlayerData = gameState?.players[nextPlayer];
         
-        if (nextPlayerData && (nextPlayerData.isCPU || nextPlayer.startsWith('CPU-'))) {
+        const activeCtrlCheck = (gameManager.games.get(gameId) as any)?.activeControlTurn;
+        const cpuTurnIsControlled = activeCtrlCheck && activeCtrlCheck.controlledPlayer === nextPlayer;
+
+        if (nextPlayerData && (nextPlayerData.isCPU || nextPlayer.startsWith('CPU-')) && !cpuTurnIsControlled) {
           // Give a moment for UI to update, then process CPU turn
           setTimeout(async () => {
             try {
@@ -7579,7 +7598,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const gs = gameManager.getGameState(gameId);
             return gs?.players[nextPlayer!]?.isCPU || nextPlayer?.startsWith('CPU-');
           })();
-          if (nextPlayer && nextPlayerIsCPU) {
+          const activeCtrlCheck2 = (gameManager.games.get(gameId) as any)?.activeControlTurn;
+          const cpuTurnIsControlled2 = nextPlayer && activeCtrlCheck2 && activeCtrlCheck2.controlledPlayer === nextPlayer;
+          if (nextPlayer && nextPlayerIsCPU && !cpuTurnIsControlled2) {
             console.log(`Processing automated turn for CPU: ${nextPlayer}`);
             setTimeout(async () => {
               try {
