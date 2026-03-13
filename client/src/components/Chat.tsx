@@ -17,6 +17,7 @@ interface ChatMessage {
   playerName: string;
   message: string;
   timestamp: number;
+  isHelp?: boolean;
 }
 
 export const Chat: React.FC<ChatProps> = ({ onClose }) => {
@@ -142,10 +143,21 @@ export const Chat: React.FC<ChatProps> = ({ onClose }) => {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {messages.map((msg) => (
-          <div key={msg.id} className="text-sm">
-            <span className="text-sky-blue font-semibold">{msg.playerName}:</span>
-            <span className="text-white ml-2">{msg.message}</span>
-          </div>
+          msg.isHelp ? (
+            <div key={msg.id} className="text-sm bg-purple-900/40 border border-purple-500/30 rounded-lg p-2.5">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="text-lg">💡</span>
+                <span className="bg-amber-500/90 text-black text-[10px] font-bold px-1.5 py-0.5 rounded">[AIUTO]</span>
+                <span className="text-purple-300 font-semibold text-xs">{msg.playerName}</span>
+              </div>
+              <span className="text-purple-100">{msg.message.replace(/^\[AIUTO\]\s*/, '')}</span>
+            </div>
+          ) : (
+            <div key={msg.id} className="text-sm">
+              <span className="text-sky-blue font-semibold">{msg.playerName}:</span>
+              <span className="text-white ml-2">{msg.message}</span>
+            </div>
+          )
         ))}
         <div ref={messagesEndRef} />
       </div>

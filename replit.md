@@ -61,6 +61,16 @@ Advanced AI CPU players make strategic decisions based on complete game rules, i
 ## Training Mode Tutorial System
 A 9-step, event-based tutorial guides new players through game mechanics with in-game action triggers and skip functionality.
 
+## Sistema Aiuti (Help System)
+An AI-powered in-game coaching system (`server/helpCoach.ts`) available in Training and Offline modes. When enabled via the "💡 Aiuti" toggle before starting a game, the system:
+- Uses OpenAI `gpt-4o-mini` to generate contextual help messages in Italian
+- Sends suggestions at the start of each human player's turn
+- Responds to player questions in chat with contextual AI answers
+- Displays help messages in chat with distinct purple styling and `[AIUTO]` badge
+- Shows a dismissable help banner at the top of the game board
+- Falls back to predefined static tips if OpenAI is unavailable
+- Game state flag: `helpEnabled` in `GameState` interface, set via `gameManager.setHelpEnabled()`
+
 ## User Authentication
 Supports email/password and Google OAuth, with bcrypt-hashed passwords and JWT tokens for secure authentication.
 

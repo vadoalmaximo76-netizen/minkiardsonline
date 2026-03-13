@@ -16,6 +16,7 @@ import { setPlayerOnline, rateLimit as redisRateLimit, isRedisConfigured, update
 import { getOptimizedCardUrl, isCloudinaryConfigured, cloudinaryInstance } from "./cloudinary";
 import { captureError } from "./sentry";
 import { emitSync } from "./dbSync";
+import { generateHelpMessage, buildHelpContext, emitHelpMessage } from "./helpCoach";
 
 const jwtSecret = JWT_SECRET;
 
@@ -1964,7 +1965,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // Create a training game with CPU opponent
-    socket.on('create-training-game', async ({ gameId, playerName, avatarId, userId }) => {
+    socket.on('create-training-game', async ({ gameId, playerName, avatarId, userId, helpEnabled }) => {
       try {
         console.log(`Creating training game ${gameId} for ${playerName}`);
         
@@ -1987,6 +1988,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Set user ID for tracking
         if (userId) {
           gameManager.setPlayerUserId(gameId, playerName, userId);
+        }
+
+        if (helpEnabled) {
+          gameManager.setHelpEnabled(gameId, true);
         }
         
         // Send initial game state
@@ -4964,6 +4969,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!senderIsCPU) {
           console.log(`Processing CPU chat responses for: ${message}`);
           gameManager.processCPUChatResponses(gameId, message, playerName);
+
+          const helpGameState = gameManager.getGameState(gameId);
+          if (helpGameState?.helpEnabled) {
+            const helpCooldownKey = `help_${gameId}_${playerName}`;
+            const lastHelpTime = (global as any).__helpCooldowns?.[helpCooldownKey] || 0;
+            const now = Date.now();
+            if (now - lastHelpTime >= 10000) {
+              if (!(global as any).__helpCooldowns) (global as any).__helpCooldowns = {};
+              (global as any).__helpCooldowns[helpCooldownKey] = now;
+              const helpCtx = buildHelpContext(helpGameState, playerName);
+              helpCtx.humanQuestion = message;
+              generateHelpMessage('human_question', helpCtx).then(helpMsg => {
+                emitHelpMessage(io, gameId, helpMsg);
+              }).catch(err => console.error('[HelpCoach] Error answering question:', err));
+            }
+          }
         }
         
         // If CPU processed the response and was waiting, try to continue their turn
@@ -6920,6 +6941,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const activeCtrlCheck = (gameManager.games.get(gameId) as any)?.activeControlTurn;
         const cpuTurnIsControlled = activeCtrlCheck && activeCtrlCheck.controlledPlayer === nextPlayer;
+
+        // Help system: send suggestion when human player's turn starts
+        const rawHelpState = gameManager.getGameState(gameId);
+        if (rawHelpState?.helpEnabled && nextPlayerData && !nextPlayerData.isCPU && !nextPlayer.startsWith('CPU-')) {
+          const humanName = nextPlayer;
+          const helpCtx = buildHelpContext(rawHelpState, humanName);
+          generateHelpMessage('human_turn_start', helpCtx).then(helpMsg => {
+            emitHelpMessage(io, gameId, helpMsg);
+          }).catch(err => console.error('[HelpCoach] Error on turn start:', err));
+        }
 
         if (nextPlayerData && (nextPlayerData.isCPU || nextPlayer.startsWith('CPU-')) && !cpuTurnIsControlled) {
           // Give a moment for UI to update, then process CPU turn

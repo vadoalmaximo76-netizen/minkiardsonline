@@ -298,6 +298,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [controlTurnPanel, setControlTurnPanel] = useState<{ visible: boolean; controlledPlayer: string; availableTypes: string[]; possibleTargets: string[]; selectedType: string | null; selectedTarget: string | null }>({ visible: false, controlledPlayer: '', availableTypes: [], possibleTargets: [], selectedType: null, selectedTarget: null });
   const [controlTurnTargetPanel, setControlTurnTargetPanel] = useState<{ visible: boolean; opponents: string[] }>({ visible: false, opponents: [] });
   const [cpuThinkingPlayer, setCpuThinkingPlayer] = useState<string | null>(null);
+  const [helpBanner, setHelpBanner] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
   const [graveyardSelectionModal, setGraveyardSelectionModal] = useState<{
     visible: boolean;
     reason: string;
@@ -693,7 +694,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       setNotificationVisible(true);
     };
 
-    const handleChatMessage = (message: { id: string; playerName: string; message: string; timestamp: number }) => {
+    const handleChatMessage = (message: { id: string; playerName: string; message: string; timestamp: number; isHelp?: boolean }) => {
       const isSystemEvent = message.playerName === 'Sistema';
       
       if (gameId) {
@@ -707,6 +708,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         } catch (error) {
           console.error('Error persisting chat message:', error);
         }
+      }
+
+      if (message.isHelp) {
+        const cleanMsg = message.message.replace(/^\[AIUTO\]\s*/, '');
+        setHelpBanner({ visible: true, message: cleanMsg });
       }
       
       if (isSystemEvent) return;
@@ -2312,6 +2318,21 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         visible={narratorVisible}
         onDismiss={dismissNarrator}
       />
+
+      {helpBanner.visible && (
+        <div className="fixed top-2 left-1/2 -translate-x-1/2 z-[60] max-w-lg w-[calc(100%-2rem)] animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="bg-purple-900/90 backdrop-blur-md border border-purple-400/40 rounded-xl px-4 py-3 shadow-2xl flex items-start gap-3">
+            <span className="text-2xl flex-shrink-0 mt-0.5">💡</span>
+            <p className="text-purple-100 text-sm flex-1 leading-relaxed">{helpBanner.message}</p>
+            <button
+              onClick={() => setHelpBanner({ visible: false, message: '' })}
+              className="text-purple-300 hover:text-white flex-shrink-0 mt-0.5 transition-colors"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+      )}
       <NarratorVoiceSelector
         visible={voiceSelectorOpen}
         onClose={() => setVoiceSelectorOpen(false)}

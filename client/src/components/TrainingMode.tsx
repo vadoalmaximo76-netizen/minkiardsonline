@@ -92,8 +92,7 @@ const TUTORIAL_STEPS = [
 ];
 
 export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack, skipTutorial = false, isOfflineMode = false }: TrainingModeProps) {
-  // For offline mode, start the game immediately (no intro screen)
-  const [gameStarted, setGameStarted] = useState(isOfflineMode);
+  const [gameStarted, setGameStarted] = useState(false);
   const [currentTip, setCurrentTip] = useState<CardTip | null>(null);
   const [shownTips, setShownTips] = useState<Set<string>>(new Set());
   const [isAdmin, setIsAdmin] = useState(false);
@@ -108,6 +107,7 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack, 
   const [managerTipContent, setManagerTipContent] = useState('');
   const [managerCardName, setManagerCardName] = useState('');
   const [managerCardType, setManagerCardType] = useState('personaggi');
+  const [helpEnabled, setHelpEnabled] = useState(false);
   const [cpuAdded, setCpuAdded] = useState(false);
   const [cpuName, setCpuName] = useState<string | null>(null);
   const [addingCpu, setAddingCpu] = useState(false);
@@ -204,7 +204,8 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack, 
       gameId: newTrainingGameId,
       playerName,
       avatarId,
-      userId
+      userId,
+      helpEnabled
     });
     
     setGameStarted(true);
@@ -594,6 +595,23 @@ export function TrainingMode({ playerName, userId, avatarId, userEmail, onBack, 
               </ul>
             </div>
           )}
+
+          <div className="bg-slate-900/70 backdrop-blur-sm rounded-2xl p-4 mb-6 border border-purple-500/30 shadow-xl">
+            <label className="flex items-center gap-3 cursor-pointer select-none">
+              <div
+                onClick={() => setHelpEnabled(!helpEnabled)}
+                className={`relative w-12 h-7 rounded-full transition-colors duration-200 ${helpEnabled ? 'bg-purple-500' : 'bg-slate-600'}`}
+              >
+                <div className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform duration-200 ${helpEnabled ? 'translate-x-5' : ''}`} />
+              </div>
+              <span className="text-white font-medium text-lg">💡 Aiuti (guida per principianti)</span>
+            </label>
+            {helpEnabled && (
+              <p className="text-purple-300/80 text-sm mt-2 ml-15">
+                L'assistente AI ti guiderà durante la partita con suggerimenti e spiegazioni in chat.
+              </p>
+            )}
+          </div>
 
           <div className="flex gap-4">
             <button

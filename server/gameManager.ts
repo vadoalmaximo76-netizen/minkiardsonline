@@ -433,6 +433,7 @@ interface GameState {
   isDraftMode?: boolean;
   playerDraftDecks?: Record<string, { personaggi: Card[], mosse: Card[], bonus: Card[] }>;
   fantaTournamentId?: string;
+  helpEnabled?: boolean;
 }
 
 export class GameManager {
@@ -2891,6 +2892,14 @@ Rispondi SOLO in JSON:`;
     }
   }
 
+  setHelpEnabled(gameId: string, enabled: boolean): void {
+    const game = this.games.get(gameId);
+    if (game) {
+      game.helpEnabled = enabled;
+      console.log(`Help system ${enabled ? 'enabled' : 'disabled'} for game ${gameId}`);
+    }
+  }
+
   removePlayer(socketId: string): void {
     // Use markPlayerDisconnected instead of removing player completely
     this.markPlayerDisconnected(socketId);
@@ -3066,7 +3075,8 @@ Rispondi SOLO in JSON:`;
       blockedCardTypes: (gameState as any).blockedCardTypes || [],
       controlledPlayer: (gameState as any).controlledPlayer || null,
       controllingPlayer: (gameState as any).controllingPlayer || null,
-      activeControlTurn: (gameState as any).activeControlTurn || null
+      activeControlTurn: (gameState as any).activeControlTurn || null,
+      helpEnabled: gameState.helpEnabled || false
     };
 
     // Sanitize players by removing cpuInstance references
@@ -3291,6 +3301,7 @@ Rispondi SOLO in JSON:`;
             isDraftMode: state.isDraftMode || false,
             playerDraftDecks: state.playerDraftDecks || {},
             fantaTournamentId: state.fantaTournamentId || undefined,
+            helpEnabled: state.helpEnabled || false,
           };
 
           this.games.set(savedGame.gameId, gameState);
