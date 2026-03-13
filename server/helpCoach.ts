@@ -112,6 +112,7 @@ Rispondi alla sua domanda in modo chiaro e utile, nel contesto della partita in 
 }
 
 export async function generateHelpMessage(
+  gameId: string,
   event: HelpEvent,
   context: HelpContext
 ): Promise<string> {
@@ -121,7 +122,7 @@ export async function generateHelpMessage(
     }
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5",
       messages: [
         { role: "system", content: buildSystemPrompt() },
         { role: "user", content: buildContextMessage(event, context) },

@@ -127,6 +127,7 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
 
   // Creation: public/private, invites, schedule
   const [isPublicAuction, setIsPublicAuction] = useState(true);
+  const [helpEnabled, setHelpEnabled] = useState(false);
   const [createInvitedUsers, setCreateInvitedUsers] = useState<string[]>([]);
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [userSearchResults, setUserSearchResults] = useState<Array<{ username: string; displayName?: string }>>([]);
@@ -472,6 +473,7 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
       isPublic: isPublicAuction,
       invitedUsers: createInvitedUsers,
       scheduledStart,
+      helpEnabled,
     });
     setShowCreateDialog(false);
     setCreateInvitedUsers([]);
@@ -2248,6 +2250,18 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
               Torneo da <strong className="text-white">{totalParticipants}</strong> partecipanti:
               tu + <strong className="text-blue-300">{cpuCount} CPU</strong>
               {totalParticipants - 1 - cpuCount > 0 && <> + <strong className="text-green-300">{totalParticipants - 1 - cpuCount} umani</strong>{createInvitedUsers.length > 0 ? <> (<strong className="text-blue-300">{createInvitedUsers.length}</strong> già invitati)</> : <> (inviti dalla sala d'attesa)</>}</>}
+            </div>
+
+            <div className="bg-slate-800/60 rounded-xl p-3 border border-purple-500/30">
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <div
+                  onClick={() => setHelpEnabled(!helpEnabled)}
+                  className={`relative w-11 h-6 rounded-full transition-colors duration-200 flex-shrink-0 ${helpEnabled ? 'bg-purple-500' : 'bg-slate-600'}`}
+                >
+                  <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${helpEnabled ? 'translate-x-5' : ''}`} />
+                </div>
+                <span className="text-white font-medium text-sm">💡 Aiuti (guida per principianti)</span>
+              </label>
             </div>
 
             <div className="flex gap-3">

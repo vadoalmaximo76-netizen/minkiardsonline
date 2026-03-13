@@ -146,6 +146,7 @@ export interface FantaSession {
   isPublic: boolean;
   invitedUsers: string[];
   scheduledStart?: number;
+  helpEnabled?: boolean;
 }
 
 const STARTING_CREDITS = 1000;
@@ -294,7 +295,7 @@ export class FantaManager {
     writeFantaSessions(arr);
   }
 
-  createSession(creatorName: string, cpuCount: number = 0, cpuLevel: 'easy' | 'medium' | 'hard' = 'medium', maxParticipants: number = cpuCount + 1, creatorSocketId?: string, cardsNeeded?: Partial<Record<'personaggi' | 'mosse' | 'bonus', number>>, startingBudget?: number, isPublic: boolean = true, invitedUsers: string[] = [], scheduledStart?: number): FantaSession {
+  createSession(creatorName: string, cpuCount: number = 0, cpuLevel: 'easy' | 'medium' | 'hard' = 'medium', maxParticipants: number = cpuCount + 1, creatorSocketId?: string, cardsNeeded?: Partial<Record<'personaggi' | 'mosse' | 'bonus', number>>, startingBudget?: number, isPublic: boolean = true, invitedUsers: string[] = [], scheduledStart?: number, helpEnabled?: boolean): FantaSession {
     const id = `fanta-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
     const participants: Record<string, FantaParticipant> = {};
     const actualMax = Math.max(maxParticipants, cpuCount + 1);
@@ -347,6 +348,7 @@ export class FantaManager {
       isPublic,
       invitedUsers: invitedUsers.filter(u => u !== creatorName),
       scheduledStart,
+      helpEnabled: helpEnabled || false,
     };
 
     this.sessions.set(id, session);

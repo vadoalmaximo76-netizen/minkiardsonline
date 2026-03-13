@@ -4980,7 +4980,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               (global as any).__helpCooldowns[helpCooldownKey] = now;
               const helpCtx = buildHelpContext(helpGameState, playerName);
               helpCtx.humanQuestion = message;
-              generateHelpMessage('human_question', helpCtx).then(helpMsg => {
+              generateHelpMessage(gameId, 'human_question', helpCtx).then(helpMsg => {
                 emitHelpMessage(io, gameId, helpMsg);
               }).catch(err => console.error('[HelpCoach] Error answering question:', err));
             }
@@ -6947,7 +6947,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (rawHelpState?.helpEnabled && nextPlayerData && !nextPlayerData.isCPU && !nextPlayer.startsWith('CPU-')) {
           const humanName = nextPlayer;
           const helpCtx = buildHelpContext(rawHelpState, humanName);
-          generateHelpMessage('human_turn_start', helpCtx).then(helpMsg => {
+          generateHelpMessage(gameId, 'human_turn_start', helpCtx).then(helpMsg => {
             emitHelpMessage(io, gameId, helpMsg);
           }).catch(err => console.error('[HelpCoach] Error on turn start:', err));
         }
@@ -6994,6 +6994,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     
                     const playDrawGameState = gameManager.getSanitizedGameState(gameId);
                     emitThrottledGameState(io, gameId, playDrawGameState);
+
+                    // Help system: explain CPU's action to human player
+                    {
+                      const helpGS = gameManager.getGameState(gameId);
+                      if (helpGS?.helpEnabled && playDrawResult.card) {
+                        const humanPlayers = Object.values(helpGS.players).filter(p => !p.isCPU);
+                        if (humanPlayers.length > 0) {
+                          const humanName = humanPlayers[0].name;
+                          const cpuCardName = playDrawResult.card.name || (playDrawResult.card.frontImage ? playDrawResult.card.frontImage.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ') : 'carta');
+                          const helpCtx = buildHelpContext(helpGS, humanName, {
+                            cardName: cpuCardName || 'carta',
+                            cardType: cpuAction.data.drawType,
+                          });
+                          generateHelpMessage(gameId, 'cpu_played', helpCtx).then(helpMsg => {
+                            emitHelpMessage(io, gameId, helpMsg);
+                          }).catch(err => console.error('[HelpCoach] Error on cpu_played:', err));
+                        }
+                      }
+                    }
                     
                     if (playDrawResult.isPersonaggio && playDrawResult.card) {
                       const getCardNameFromUrl = (url: string) => {
@@ -7670,6 +7689,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })();
           const activeCtrlCheck2 = (gameManager.games.get(gameId) as any)?.activeControlTurn;
           const cpuTurnIsControlled2 = nextPlayer && activeCtrlCheck2 && activeCtrlCheck2.controlledPlayer === nextPlayer;
+
+          if (nextPlayer && !nextPlayerIsCPU) {
+            const gsHelp = gameManager.getGameState(gameId);
+            if (gsHelp?.helpEnabled) {
+              const helpCtx = buildHelpContext(gsHelp, nextPlayer);
+              generateHelpMessage(gameId, 'human_turn_start', helpCtx).then(helpMsg => {
+                emitHelpMessage(io, gameId, helpMsg);
+              });
+            }
+          }
+
           if (nextPlayer && nextPlayerIsCPU && !cpuTurnIsControlled2) {
             console.log(`Processing automated turn for CPU: ${nextPlayer}`);
             setTimeout(async () => {
@@ -8440,9 +8470,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // ============ FANTAMINKIARDS SOCKET EVENTS ============
-    socket.on('fanta:create', ({ cpuCount, cpuLevel, playerName, maxParticipants, cardsNeeded, startingBudget, isPublic, invitedUsers, scheduledStart }: { cpuCount: number; cpuLevel: 'easy' | 'medium' | 'hard'; playerName: string; maxParticipants?: number; cardsNeeded?: { personaggi?: number; mosse?: number; bonus?: number }; startingBudget?: number; isPublic?: boolean; invitedUsers?: string[]; scheduledStart?: number }) => {
+    socket.on('fanta:create', ({ cpuCount, cpuLevel, playerName, maxParticipants, cardsNeeded, startingBudget, isPublic, invitedUsers, scheduledStart, helpEnabled: fantaHelpEnabled }: { cpuCount: number; cpuLevel: 'easy' | 'medium' | 'hard'; playerName: string; maxParticipants?: number; cardsNeeded?: { personaggi?: number; mosse?: number; bonus?: number }; startingBudget?: number; isPublic?: boolean; invitedUsers?: string[]; scheduledStart?: number; helpEnabled?: boolean }) => {
       if (!playerName) return;
-      const session = fantaManager.createSession(playerName, cpuCount || 0, cpuLevel || 'medium', maxParticipants, socket.id, cardsNeeded, startingBudget, isPublic !== false, invitedUsers || [], scheduledStart);
+      const session = fantaManager.createSession(playerName, cpuCount || 0, cpuLevel || 'medium', maxParticipants, socket.id, cardsNeeded, startingBudget, isPublic !== false, invitedUsers || [], scheduledStart, fantaHelpEnabled);
       socket.join(session.id);
       socket.emit('fanta:session-created', { fantaId: session.id, session: fantaManager.getSafeSession(session.id) });
       console.log(`🌟 FantaMinkiards session created: ${session.id} by ${playerName} (${isPublic !== false ? 'pubblica' : 'privata'})`);
@@ -8643,6 +8673,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const game = (gameManager as any).games?.get(gameId);
       if (!game) { socket.emit('fanta:error', { message: 'Errore nella creazione della stanza' }); return; }
 
+      if (sess.helpEnabled) {
+        gameManager.setHelpEnabled(gameId, true);
+      }
+
       // Ensure playerDraftDecks is initialized
       if (!game.playerDraftDecks) game.playerDraftDecks = {};
 
@@ -8834,6 +8868,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const game = (gameManager as any).games?.get(gameId);
       if (!game) { socket.emit('fanta:error', { message: 'Errore creazione stanza match' }); return; }
+
+      if (sess.helpEnabled) {
+        gameManager.setHelpEnabled(gameId, true);
+      }
+
       if (!game.playerDraftDecks) game.playerDraftDecks = {};
 
       const allMods = (jsonStorage as any).cardModifications.getAll();
