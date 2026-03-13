@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Trophy, Target, Gamepad2, TrendingUp, Award, CheckCircle2 } from 'lucide-react';
+import { X, Trophy, Target, Gamepad2, TrendingUp, Award, CheckCircle2, Clock, History, Users } from 'lucide-react';
 import { Skeleton } from './ui/skeleton';
 import { cn } from '@/lib/utils';
 
@@ -14,6 +14,18 @@ interface StatsData {
   recentResults: ('win' | 'loss')[];
 }
 
+interface MatchEntry {
+  id: number;
+  gameId: string;
+  players: string[];
+  startedAt: string;
+  endedAt: string | null;
+  winner: string | null;
+  isWin: boolean;
+  duration: number | null;
+  gameMode: string | null;
+}
+
 interface StatsPanelProps {
   username: string;
   userId: number;
@@ -24,6 +36,11 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ username, userId, onClose }) =>
   const [stats, setStats] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'stats' | 'history'>('stats');
+  const [matchHistory, setMatchHistory] = useState<MatchEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -44,6 +61,45 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ username, userId, onClose }) =>
 
     fetchStats();
   }, [username]);
+
+  const fetchMatchHistory = async () => {
+    try {
+      setHistoryLoading(true);
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/match-history?limit=20', {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      });
+      if (!response.ok) throw new Error('Errore');
+      const data = await response.json();
+      if (data.success) {
+        setMatchHistory(data.matches);
+        setHistoryTotal(data.total);
+      }
+    } catch (err) {
+      setMatchHistory([]);
+      setHistoryError('Impossibile caricare lo storico');
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'history' && matchHistory.length === 0) {
+      fetchMatchHistory();
+    }
+  }, [activeTab]);
+
+  const formatDuration = (seconds: number | null) => {
+    if (!seconds) return '-';
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}m ${s}s`;
+  };
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
 
   const getWinrateColor = (rate: number) => {
     if (rate >= 60) return 'bg-green-500';
@@ -67,20 +123,82 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ username, userId, onClose }) =>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-slate-900/95 border border-slate-700 rounded-2xl shadow-2xl text-white scrollbar-hide">
         {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between p-6 bg-slate-900/95 backdrop-blur border-b border-slate-700">
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <span role="img" aria-label="stats">📊</span> Statistiche: {username}
-          </h2>
-          <button 
-            onClick={onClose}
-            className="p-2 hover:bg-slate-800 rounded-full transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
+        <div className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur border-b border-slate-700">
+          <div className="flex items-center justify-between p-6 pb-3">
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <span role="img" aria-label="stats">📊</span> Statistiche: {username}
+            </h2>
+            <button 
+              onClick={onClose}
+              className="p-2 hover:bg-slate-800 rounded-full transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          <div className="flex gap-1 px-6 pb-3">
+            <button
+              onClick={() => setActiveTab('stats')}
+              className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-colors", activeTab === 'stats' ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 hover:text-white")}
+            >
+              <Gamepad2 className="w-4 h-4 inline mr-1.5" />Statistiche
+            </button>
+            <button
+              onClick={() => setActiveTab('history')}
+              className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-colors", activeTab === 'history' ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 hover:text-white")}
+            >
+              <History className="w-4 h-4 inline mr-1.5" />Storico Partite
+            </button>
+          </div>
         </div>
 
         <div className="p-6">
-          {loading ? (
+          {activeTab === 'history' ? (
+            <div className="space-y-3">
+              {historyLoading ? (
+                <div className="space-y-3">
+                  {[1,2,3,4].map(i => <Skeleton key={i} className="h-16 w-full bg-slate-800/50" />)}
+                </div>
+              ) : historyError ? (
+                <p className="text-center text-red-400 py-8">{historyError}</p>
+              ) : matchHistory.length === 0 ? (
+                <p className="text-center text-slate-500 py-8">Nessuna partita trovata.</p>
+              ) : (
+                <>
+                  <p className="text-xs text-slate-500 mb-2">{historyTotal} partite totali</p>
+                  {matchHistory.map((match) => (
+                    <div key={match.id} className={cn(
+                      "p-3 rounded-xl border flex items-center gap-3",
+                      match.isWin ? "bg-green-950/30 border-green-800/50" : "bg-red-950/30 border-red-800/50"
+                    )}>
+                      <div className={cn(
+                        "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-lg font-bold",
+                        match.isWin ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
+                      )}>
+                        {match.isWin ? 'W' : 'L'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Users className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                          <span className="text-sm font-medium truncate">
+                            {match.players.filter(p => p !== username).join(', ') || 'Solo'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-500">
+                          <span>{formatDate(match.startedAt)}</span>
+                          {match.duration && (
+                            <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDuration(match.duration)}</span>
+                          )}
+                          {match.winner && (
+                            <span className="flex items-center gap-1"><Trophy className="w-3 h-3 text-yellow-500" />{match.winner}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          ) : loading ? (
             renderSkeleton()
           ) : error ? (
             <div className="text-center py-12">

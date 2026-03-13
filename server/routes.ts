@@ -922,7 +922,7 @@ async function getPersonaggioFromDatabase(cardName: string): Promise<{ pti: numb
   }
   
   try {
-    console.log(`🔍 Looking up ${cardName} in PERSONAGGI database...`);
+    // DB lookup
     
     // First try exact match
     let result = await db.select().from(personaggi).where(eq(personaggi.name, cardName.toUpperCase())).limit(1);
@@ -944,7 +944,7 @@ async function getPersonaggioFromDatabase(cardName: string): Promise<{ pti: numb
     }
     
     if (result.length > 0) {
-      console.log(`✅ Found in database: ${result[0].name} - PTI: ${result[0].pti}, Stelle: ${result[0].stars}`);
+      // DB found
       
       // Add to cache for future lookups
       const normalizedName = cardName.toLowerCase().replace(/[-_]/g, ' ').trim();
@@ -956,7 +956,7 @@ async function getPersonaggioFromDatabase(cardName: string): Promise<{ pti: numb
       };
     }
     
-    console.log(`❌ Not found in database: ${cardName}`);
+    // DB not found
     return null;
   } catch (error) {
     console.error('Error querying PERSONAGGI database:', error);
@@ -970,7 +970,7 @@ function getLocalCardData(imageUrl: string): { pti: number, stars: number, power
   const cardData = MINKIARDS_CARD_DATA[cardName];
   
   if (cardData) {
-    console.log(`Found local data for ${cardName}:`, cardData);
+    // local data found
     return {
       ...cardData,
       name: cardName.split('-').map(word => 
@@ -2463,7 +2463,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return;
         }
 
-        console.log(`Processing CPU instruction in game ${gameId}: "${instruction}"`);
+        // processing CPU instruction
         
         // Find player name from socket
         const game = gameManager.getGameState(gameId);
@@ -2701,7 +2701,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           const gameState = gameManager.getSanitizedGameState(gameId);
-          console.log(`Emitting game-state-update to room ${gameId}`);
+          // game state update emitted
           emitImmediateGameState(io, gameId, gameState);
           console.log(`Game state updated after ${playerName} picked card ${cardId}`);
           
@@ -2713,7 +2713,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           socket.emit('error', { message: 'Failed to pick card' });
         }
       } else {
-        console.log(`No gameId found for player ${playerName} (socketId: ${socket.id})`);
+        // no gameId for player
       }
     });
 
@@ -12928,6 +12928,52 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
     } catch (error) {
       console.error('Error fetching user stats:', error);
       res.status(500).json({ error: 'Failed to fetch stats' });
+    }
+  });
+
+  app.get('/api/match-history', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) {
+        return res.status(503).json({ success: false, error: "Database non disponibile" });
+      }
+
+      const user = (req as any).user;
+      if (!user) return res.status(401).json({ error: 'Non autenticato' });
+
+      const username = user.username;
+      const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 20, 1), 50);
+      const offset = Math.max(parseInt(req.query.offset as string) || 0, 0);
+
+      const playerFilter = sql`${matches.players} @> ${JSON.stringify([username])}::jsonb`;
+
+      const countResult = await db.select({ count: sql<number>`count(*)` })
+        .from(matches)
+        .where(playerFilter);
+      const total = Number(countResult[0]?.count ?? 0);
+
+      const userMatches = await db.select()
+        .from(matches)
+        .where(playerFilter)
+        .orderBy(desc(matches.startedAt))
+        .limit(limit)
+        .offset(offset);
+
+      const history = userMatches.map(m => ({
+        id: m.id,
+        gameId: m.gameId,
+        players: m.players as string[],
+        startedAt: m.startedAt,
+        endedAt: m.endedAt,
+        winner: m.winnerPlayer,
+        isWin: m.winnerPlayer === username,
+        duration: m.duration,
+        gameMode: m.gameMode,
+      }));
+
+      res.json({ success: true, matches: history, total, offset, limit });
+    } catch (error) {
+      console.error('Error fetching match history:', error);
+      res.status(500).json({ error: 'Failed to fetch match history' });
     }
   });
 

@@ -795,7 +795,7 @@ export class GameManager {
           const mod = modifications.get(card.id);
           if (mod) {
             this.applyModificationToCard(card, mod);
-            console.log(`✏️ Applied modifications to card ${card.id}: name=${mod.name}, effect=${mod.effect ? `"${mod.effect}"` : 'none'}, audioUrl=${mod.audioUrl}, mosseDamageValue=${mod.mosseDamageValue}, mosseDamageEffect=${mod.mosseDamageEffect}, mosseCanCounter=${mod.mosseCanCounter}, mosseCanBeCountered=${mod.mosseCanBeCountered}`);
+            // card modification applied
           }
         });
       }
@@ -909,7 +909,7 @@ export class GameManager {
             const mod = modifications.get(card.id);
             if (mod) {
               this.applyModificationToCard(card, mod);
-              console.log(`Refreshed card ${card.id} in ${player.name}'s hand: audioUrl=${mod.audioUrl}`);
+              // card refreshed
             }
           });
         });
@@ -931,7 +931,7 @@ export class GameManager {
         });
         
         refreshedGameIds.push(gameId);
-        console.log(`Refreshed card metadata for game ${gameId}`);
+        // card metadata refreshed
       });
     } catch (error) {
       console.error('Error refreshing card metadata:', error);
@@ -3774,7 +3774,7 @@ Rispondi SOLO in JSON:`;
       const combinedEffect = effectText || textContent;
       const hasEffect = this.cardHasCustomEffect(effectText, textContent);
       
-      console.log(`📋 Card played: ${card.id} (${card.name || 'unnamed'}), effect: ${effectText ? `"${effectText}"` : 'NONE'}, text: ${textContent ? `"${textContent.substring(0, 50)}..."` : 'NONE'}, hasEffect: ${hasEffect}`);
+      // card played
       let customAnimation: string | undefined;
       if (hasEffect) {
         // Use effect field if available, otherwise use text field as effect
@@ -5984,7 +5984,7 @@ Rispondi SOLO in JSON:`;
 
     // PRIORITY: Always try keyword parser FIRST before AI - it's more reliable for known patterns
     {
-      console.log('🔧 Trying keyword-based effect parsing FIRST (before AI)');
+      // keyword parsing
       
       // ============ CONDITIONAL CHARACTER CHECK PRE-PROCESSOR ============
       // Detect "base effect; SE IL TUO PERSONAGGIO È X, enhanced effect" patterns
@@ -6148,7 +6148,7 @@ Rispondi SOLO in JSON:`;
       console.log(`🔑 AI Key check (keyword parser found 0 actions, falling back): Replit native=${replitKey ? 'YES' : 'NO'}, User key=${userKey ? 'YES' : 'NO'}`);
       
       if (!apiKey) {
-        console.log('🔧 No OpenAI API key and keyword parser found no actions - no effect applied');
+        // no effect applied
         return { customAnimation };
       }
 
@@ -6234,7 +6234,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       console.error('Error processing custom card effect with AI:', error);
       
       // Fallback to keyword-based parsing when AI fails
-      console.log('🔧 AI failed - falling back to keyword-based effect parsing');
+      // AI failed, keyword fallback
       const actions = this.parseEffectKeywords(card.effect);
       console.log(`🎴 Fallback keyword-parsed actions:`, actions);
       
@@ -13316,7 +13316,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if (mod.effect && !card.effect) {
           card.effect = mod.effect;
         }
-        console.log(`✅ Card ${card.id} PTI from modifications: pti=${pti}, stars=${stars}, effect=${card.effect ? 'YES' : 'none'}`);
+        // card PTI checked
         return;
       }
       

@@ -200,20 +200,27 @@ export class CPUPlayer {
         this.turnState.phase = 'turn_end';
         break;
     }
-    console.log(`CPU ${this.playerName} marked ${actionType} as completed. New phase: ${this.turnState.phase}`);
+    // verbose: marked completed
   }
 
   // NEW: Deterministic target selection for MOSSE attacks
+  private extractPtiFromCard(card: any): number {
+    const notes = card.notes || card.text || '';
+    const m = notes.match(/PTI[:\s]*(\d+)/i);
+    return m ? parseInt(m[1]) : (card.pti ?? 100);
+  }
+
+  private extractStarsFromCard(card: any): number {
+    const notes = card.notes || card.text || '';
+    const m = notes.match(/(?:stelle|stars)[:\s]*(\d+)/i);
+    return m ? parseInt(m[1]) : (card.stars ?? 1);
+  }
+
   pickEnemyTarget(): { cardId: string; owner: string; name: string } | null {
-    // Use existing gameManager property and this.gameId
-    if (!this.gameManager) {
-      console.error(`CPU ${this.playerName}: No gameManager instance available for target selection`);
-      return null;
-    }
+    if (!this.gameManager) return null;
     const gameState = this.gameManager.getGameState(this.gameId);
     if (!gameState) return null;
 
-    // Find all enemy characters on field
     const enemies = gameState.field.filter((card: any) => 
       (card.type === 'personaggi' || card.type === 'personaggi_speciali') && 
       card.owner !== this.playerName && 
@@ -223,51 +230,49 @@ export class CPUPlayer {
 
     if (enemies.length === 0) return null;
 
-    // Choose target: lowest PTI if available, else first
+    const myChar = gameState.field.find((c: any) =>
+      c.owner === this.playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+    );
+    const myDmg = myChar ? this.getMyAttackDamage(gameState) : 50;
+
     let target = enemies[0];
-    
-    // Try to find lowest PTI target if we have metadata
+    let bestScore = -Infinity;
+
     for (const enemy of enemies) {
-      if (enemy.notes && enemy.notes.includes('PTI:')) {
-        const ptiMatch = enemy.notes.match(/PTI:\s*(\d+)/);
-        if (ptiMatch) {
-          const currentPti = parseInt(ptiMatch[1]);
-          
-          if (target.notes && target.notes.includes('PTI:')) {
-            const targetPtiMatch = target.notes.match(/PTI:\s*(\d+)/);
-            if (targetPtiMatch) {
-              const targetPti = parseInt(targetPtiMatch[1]);
-              if (currentPti < targetPti) {
-                target = enemy;
-              }
-            }
-          } else {
-            target = enemy; // Prefer enemy with known PTI
-          }
-        }
+      const pti = this.extractPtiFromCard(enemy);
+      const stars = this.extractStarsFromCard(enemy);
+      const canKill = pti > 0 && pti <= myDmg;
+      const threatScore = stars * 50 + pti;
+      const score = canKill ? 100000 + threatScore : threatScore;
+
+      if (score > bestScore) {
+        bestScore = score;
+        target = enemy;
       }
     }
 
-    // Extract name from frontImage URL
     let targetName = 'personaggio nemico';
     if (target.frontImage) {
       try {
         const url = new URL(target.frontImage);
-        const pathname = url.pathname;
-        const filename = pathname.split('/').pop() || '';
+        const filename = url.pathname.split('/').pop() || '';
         targetName = filename.replace(/\.[^/.]+$/, '').replace(/-/g, ' ').toUpperCase();
       } catch {
         targetName = 'personaggio nemico';
       }
     }
 
-    console.log(`CPU ${this.playerName} selected target: ${target.id} (${targetName}) owned by ${target.owner}`);
+    console.log(`🤖 CPU ${this.playerName} target: ${targetName} (PTI=${this.extractPtiFromCard(target)}, ★=${this.extractStarsFromCard(target)}, killable=${this.extractPtiFromCard(target) <= myDmg})`);
     
-    return {
-      cardId: target.id,
-      owner: target.owner,
-      name: targetName
-    };
+    return { cardId: target.id, owner: target.owner, name: targetName };
+  }
+
+  private getMyAttackDamage(gameState: any): number {
+    const mosseOnField = gameState.field.find((c: any) => c.owner === this.playerName && c.type === 'mosse');
+    if (mosseOnField && mosseOnField.mosseDamageValue) return mosseOnField.mosseDamageValue;
+    const mosseInHand = (gameState.players[this.playerName]?.hand || []).find((c: any) => c.type === 'mosse');
+    if (mosseInHand && mosseInHand.mosseDamageValue) return mosseInHand.mosseDamageValue;
+    return 50;
   }
 
   // NEW: Pick enemy character from HAND (for ATTACCO DISONESTO)
@@ -444,7 +449,7 @@ export class CPUPlayer {
   // Look up PERSONAGGI data from database first
   private async getPersonaggioFromDatabase(cardName: string): Promise<{ pti: number | null, stars: number | null } | null> {
     try {
-      console.log(`🔍 Looking up ${cardName} in PERSONAGGI database...`);
+      // DB lookup
       
       // First try exact match
       let result = await db.select().from(personaggi).where(eq(personaggi.name, cardName.toUpperCase())).limit(1);
@@ -466,14 +471,14 @@ export class CPUPlayer {
       }
       
       if (result.length > 0) {
-        console.log(`✅ Found in database: ${result[0].name} - PTI: ${result[0].pti}, Stelle: ${result[0].stars}`);
+        // DB found
         return {
           pti: result[0].pti,
           stars: result[0].stars
         };
       }
       
-      console.log(`❌ Not found in database: ${cardName}`);
+      // DB not found
       return null;
     } catch (error) {
       console.error('Error querying PERSONAGGI database:', error);
@@ -649,7 +654,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       });
 
       const analysis = JSON.parse(response.choices[0].message.content || '{}');
-      console.log(`CPU ${this.playerName} analyzed card ${imageUrl}:`, analysis);
+      // card analyzed
       return analysis;
     } catch (error) {
       console.error('Error analyzing card image:', error);
@@ -665,7 +670,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
   // Auto-update card notes when CPU plays a PERSONAGGI card
   async autoUpdateCardNotes(cardId: string, cardImage: string, gameState: any) {
     try {
-      console.log(`CPU ${this.playerName} auto-updating notes for card ${cardId}`);
+      // auto-updating notes
       
       // Analyze the card image to extract PTI and stars
       const cardAnalysis = await this.analyzeCardImage(cardImage);
@@ -678,7 +683,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         // Create comprehensive notes
         const notes = `PTI: ${pti} | Stelle: ${stars}` + (powers ? ` | Poteri: ${powers}` : '');
         
-        console.log(`CPU ${this.playerName} setting notes for ${cardAnalysis.name}: ${notes}`);
+        // notes set
         
         // Update the card notes on the server
         if (this.socketEmitter) {
@@ -778,7 +783,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       
       if (analysis.cardType === 'mosse') {
         const damage = analysis.damage || 0;
-        console.log(`CPU ${this.playerName} analyzed move card: ${analysis.name}, damage: ${damage}`);
+        // move card analyzed
         return { name: analysis.name, damage, canCounter: analysis.canCounter, canBeCountered: analysis.canBeCountered };
       }
     } catch (error) {
@@ -948,16 +953,16 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
   async executeAction(gameState: any, action: GameAnalysis['recommendedAction']) {
     const cpuPlayer = gameState.players[this.playerName];
     if (!cpuPlayer) {
-      console.log(`CPU ${this.playerName} not found in game state`);
+      // CPU not in game state
       return null;
     }
     
     if (!cpuPlayer.hand || cpuPlayer.hand.length === 0) {
-      console.log(`CPU ${this.playerName} has no cards in hand`);
+      // CPU has no cards
       return null;
     }
 
-    console.log(`CPU ${this.playerName} executing action: ${action.type}, has ${cpuPlayer.hand.length} cards`);
+    // executing action
 
     switch (action.type) {
       case 'play_card':
@@ -1122,7 +1127,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       // Removed pass_turn case as it's not a supported action type
     }
 
-    console.log(`CPU ${this.playerName} could not execute action, returning null`);
+    // could not execute
     return null;
   }
 
@@ -1136,7 +1141,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         timestamp: Date.now()
       };
       this.socketEmitter.to(this.gameId).emit('chat-message', chatMessage);
-      console.log(`CPU ${this.playerName} says: ${message}`);
+      // CPU says message
     }
   }
 
@@ -1419,17 +1424,17 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         this.resetTurnState();
       }
       
-      console.log(`CPU ${this.playerName} is thinking... Current phase: ${this.turnState.phase}`);
+      // verbose: thinking
       
       // If waiting for response, don't take action
       if (this.waitingForResponse) {
-        console.log(`CPU ${this.playerName} is waiting for human response`);
+        // verbose: waiting
         return null;
       }
       
       // NEW: If waiting for attack resolution, don't take action
       if (this.waitingForAttackResolution) {
-        console.log(`CPU ${this.playerName} is waiting for MOSSE attack resolution`);
+        // verbose: waiting for attack
         return null;
       }
       
@@ -1437,7 +1442,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       
       let cpuPlayer = gameState.players[this.playerName];
       if (!cpuPlayer) {
-        console.log(`CPU ${this.playerName} not found in game state`);
+        // CPU not in game state
         return null;
       }
       
@@ -1597,7 +1602,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       
       // NEW: Process pending orders from human players first
       if (this.pendingOrder) {
-        console.log(`CPU ${this.playerName} processing pending order:`, this.pendingOrder);
+        // processing pending order
         const orderAction = this.processPendingOrder(gameState);
         this.pendingOrder = null; // Clear after processing
         if (orderAction) {
@@ -1622,10 +1627,10 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         );
         
         if (hasUsableCharacterOnField && this.openingSequenceState.phase === 'pick-initial') {
-          console.log(`CPU ${this.playerName} already has character on field, skipping opening sequence`);
+          // skipping opening sequence
           this.openingSequenceState.phase = 'completed';
         } else {
-          console.log(`CPU ${this.playerName} executing opening sequence phase: ${this.openingSequenceState.phase}`);
+          // opening sequence phase
           
           switch (this.openingSequenceState.phase) {
             case 'pick-initial':
@@ -1709,7 +1714,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       }
       
       // NEW OPTIMIZED TURN LOGIC: Execute ALL phases in one turn
-      console.log(`CPU ${this.playerName} executing complete turn in one go`);
+      // verbose: complete turn
       
       // Phase 1: Draw ALL missing card types (not just one)
       if (this.gameManager) {
@@ -1746,7 +1751,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         // The card will be played by routes.ts — mark turnState as played so next takeTurn knows
         const cardType = playAction.data.cardType || 'unknown';
         this.markActionExecuted('play', playAction.data.cardId, cardType);
-        console.log(`CPU ${this.playerName} will play card ${playAction.data.cardId} (type: ${cardType}), turnState updated`);
+        // play action selected
       } else if (playAction && playAction.type === 'end-turn') {
         // No card to play, end turn
         this.sendChatMessage(`Non ho carte da giocare, finisco il turno.`);
@@ -1798,7 +1803,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     }
     
     // All cards are optimal, move to play phase
-    console.log(`CPU ${this.playerName} hand composition optimal - moving to play phase`);
+    // verbose: hand optimal
     this.turnState.phase = 'play_card';
     return null; // Return null to indicate no draw needed, caller will call handlePlayPhase separately
   }
@@ -1955,14 +1960,14 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     }
     
     if (!playedCardType || !playedCardId) {
-      console.log(`CPU ${this.playerName} no played card to execute`);
+      // verbose: no card to execute
       this.markActionExecuted('execute');
       this.turnState.phase = 'turn_end';
       return this.handleTurnEnd();
     }
 
     // CRITICAL FIX: Execute action and handle potential attack return value
-    console.log(`CPU ${this.playerName} executing action for ${playedCardType} card`);
+    // verbose: executing action
     
     const deckType = playedCardType === 'personaggi_speciali' ? 'personaggi' : playedCardType;
     
@@ -2165,9 +2170,9 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         const attackerCard = gameState?.field.find((c: any) => c.owner === this.playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
         const defenderCard = gameState?.field.find((c: any) => c.id === target.cardId);
         
-        console.log(`🎯 CPU ${this.playerName}: DEBUG - Attacker card:`, attackerCard ? { id: attackerCard.id, image: !!attackerCard.frontImage } : 'NOT FOUND');
-        console.log(`🎯 CPU ${this.playerName}: DEBUG - Defender card:`, defenderCard ? { id: defenderCard.id, image: !!defenderCard.frontImage } : 'NOT FOUND');
-        console.log(`🎯 CPU ${this.playerName}: DEBUG - MOSSE card:`, mosseCard ? { id: mosseCard.id, image: !!mosseCard.frontImage } : 'NOT FOUND');
+        // DEBUG removed
+        // DEBUG removed
+        // DEBUG removed
         
         // Calculate suggested damage based on mosse card settings and attacker stars
         const attackerStars = attackerCard?.stars ?? 1;
@@ -2563,7 +2568,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     const bonusInHand = hand.filter((c: any) => c.type === 'bonus');
     const personaggiInHand = hand.filter((c: any) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
     
-    console.log(`CPU ${this.playerName} hand: PERSONAGGI=${personaggiInHand.length}, MOSSE=${mosseInHand.length}, BONUS=${bonusInHand.length}`);
+    // hand composition: P=${personaggiInHand.length}, M=${mosseInHand.length}, B=${bonusInHand.length}
     
     if (!hasPersonaggioOnField) {
       if (personaggiInHand.length > 0) {
@@ -2603,36 +2608,61 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     }
     
     if (myCharacter) {
-      const characterText = myCharacter.notes || myCharacter.text || '';
-      const starsMatch = characterText.match(/(?:stelle|stars)[:\s]*(\d+)/i);
-      const currentStars = starsMatch ? parseInt(starsMatch[1]) : 1;
-      const ptiMatch = characterText.match(/PTI[:\s]*(\d+)/i);
-      const currentPTI = ptiMatch ? parseInt(ptiMatch[1]) : 100;
-      const isDead = characterText === "0" || (starsMatch && currentStars <= 0) || (ptiMatch && currentPTI <= 0);
+      const currentPTI = this.extractPtiFromCard(myCharacter);
+      const currentStars = this.extractStarsFromCard(myCharacter);
+      const isDead = currentPTI <= 0 || currentStars <= 0;
       
-      if (!isDead && enemies.length > 0 && mosseInHand.length > 0) {
-        console.log(`CPU ${this.playerName} playing MOSSE from hand (can attack with ${currentStars} stars, ${currentPTI} PTI)`);
-        return mosseInHand[0];
+      if (!isDead && enemies.length > 0) {
+        const weakestEnemy = enemies.reduce((w: any, e: any) => {
+          const ePti = this.extractPtiFromCard(e);
+          const wPti = this.extractPtiFromCard(w);
+          return ePti < wPti ? e : w;
+        }, enemies[0]);
+        const weakestPti = this.extractPtiFromCard(weakestEnemy);
+
+        const bestMosse = mosseInHand.length > 0 ? mosseInHand.reduce((best: any, c: any) => {
+          const dmg = c.mosseDamageValue || 0;
+          const bestDmg = best.mosseDamageValue || 0;
+          return dmg > bestDmg ? c : best;
+        }, mosseInHand[0]) : null;
+
+        if (bestMosse) {
+          const dmg = bestMosse.mosseDamageValue || 0;
+          if (dmg >= weakestPti && weakestPti > 0) {
+            console.log(`🤖 CPU ${this.playerName}: MOSSE can kill (dmg=${dmg} ≥ enemy PTI=${weakestPti})`);
+            return bestMosse;
+          }
+        }
+
+        if (currentPTI <= 50 && bonusInHand.length > 0) {
+          const healBonus = bonusInHand.find((c: any) => {
+            const eff = (c.effect || '').toLowerCase();
+            return eff.includes('aumenta') || eff.includes('pti') || eff.includes('cura') || eff.includes('stelle');
+          });
+          if (healBonus) {
+            console.log(`🤖 CPU ${this.playerName}: Low PTI (${currentPTI}), playing heal/buff BONUS`);
+            return healBonus;
+          }
+        }
+
+        if (bestMosse) {
+          console.log(`🤖 CPU ${this.playerName}: Playing MOSSE (dmg=${bestMosse.mosseDamageValue || '?'})`);
+          return bestMosse;
+        }
       }
       
       if (!isDead && bonusInHand.length > 0) {
-        console.log(`CPU ${this.playerName} playing BONUS from hand`);
         return bonusInHand[0];
       }
       
       if (!isDead && mosseInHand.length > 0) {
-        console.log(`CPU ${this.playerName} playing MOSSE from hand (fallback)`);
         return mosseInHand[0];
       }
     }
     
     const anyCard = hand.find((c: any) => c.type === 'mosse' || c.type === 'bonus');
-    if (anyCard) {
-      console.log(`CPU ${this.playerName} playing ${anyCard.type} card from hand (final fallback)`);
-      return anyCard;
-    }
+    if (anyCard) return anyCard;
     
-    console.log(`CPU ${this.playerName} has no actionable cards in hand this turn`);
     return null;
   }
 
@@ -2646,7 +2676,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     const mosseInHand = hand.filter((c: any) => c.type === 'mosse').length;
     const bonusInHand = hand.filter((c: any) => c.type === 'bonus').length;
     
-    console.log(`CPU ${this.playerName} hand count: PERSONAGGI=${personaggiInHand}, MOSSE=${mosseInHand}, BONUS=${bonusInHand}`);
+    // hand count checked
     
     // MINKIARDS RULE 1: Must have 1 PERSONAGGI card in hand (if no character on field)
     // Don't draw more than 1 PERSONAGGI
@@ -2667,7 +2697,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     }
     
     // If we have exactly 1 of each required type, don't draw more
-    console.log(`CPU ${this.playerName} has optimal hand composition - no drawing needed`);
+    // optimal hand - no draw needed
     return { shouldDraw: false };
   }
   
@@ -2707,7 +2737,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     if (!this.pendingOrder) return null;
     
     const order = this.pendingOrder;
-    console.log(`CPU ${this.playerName} executing pending order:`, order);
+    // executing pending order
     
     switch (order.type) {
       case 'show-card':
@@ -2719,7 +2749,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       case 'attack':
         return this.executeAttackAction(order, gameState);
       default:
-        console.log(`CPU ${this.playerName} unknown order type:`, order.type);
+        // unknown order type
         return null;
     }
   }
@@ -2825,7 +2855,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     
     const canPlay = hasPersonaggi && hasMosse && hasBonus;
     
-    console.log(`CPU ${this.playerName} hand analysis: PERSONAGGI=${hasPersonaggi}, MOSSE=${hasMosse}, BONUS=${hasBonus}, canPlay=${canPlay}`);
+    // hand analysis done
     
     return {
       canPlay,
@@ -2913,7 +2943,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
   // Handle player chat messages for specific CPU functions
   async handlePlayerMessage(message: string, senderName: string, gameState: any): Promise<boolean> {
     const text = message.toLowerCase();
-    console.log(`CPU ${this.playerName} processing potential command: "${text}"`);
+    // processing command
     
     // Function 1: Random number generator - simplified regex for better matching
     // Matches: "dimmi un numero da 1 a 10", "spara un numero tra 1 e 100", etc.
@@ -2950,7 +2980,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       return true;
     }
 
-    console.log(`CPU ${this.playerName} no special command matched`);
+    // no command matched
     return false;
   }
 
@@ -3026,7 +3056,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
 
     // If CPU already has a personaggio in hand, complete opening and start normal gameplay
     if (hasPersonaggioInHand) {
-      console.log(`CPU ${this.playerName} already has personaggio in hand, starting normal gameplay`);
+      // has personaggio, normal gameplay
       this.sendChatMessage("Ho già le carte, ora gioco attivamente!");
       this.openingSequenceState.phase = 'completed';
       
@@ -3039,7 +3069,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       
       // IMPORTANT: If handleDrawPhase returns null, we need to proceed to play phase
       if (drawAction === null) {
-        console.log(`CPU ${this.playerName}: No draw needed, forcing play phase immediately`);
+        // no draw needed
         // CRITICAL FIX: Use handlePlayPhase instead of selectCardToPlay
         // handlePlayPhase handles MOSSE attacks atomically with proper target selection
         return await this.handlePlayPhase(cpuPlayer, gameState);
@@ -3096,12 +3126,12 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
 
   // Process human chat messages to respond appropriately and follow advice
   processHumanChat(message: string, senderName: string): boolean {
-    console.log(`CPU ${this.playerName} processing human chat: "${message}" from ${senderName}`);
+    // processing chat
     const lowerMessage = message.toLowerCase();
     
     // If waiting for response to our question, process the advice
     if (this.waitingForResponse) {
-      console.log(`CPU ${this.playerName} was waiting for response, processing advice`);
+      // processing advice
       this.processAdvice(message, senderName);
       return true;
     }
@@ -3114,7 +3144,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
     
     // Respond to greetings
     if (lowerMessage.includes('ciao') || lowerMessage.includes('salve') || lowerMessage.includes('buongiorno')) {
-      console.log(`CPU ${this.playerName} responding to greeting`);
+      // responding to greeting
       setTimeout(() => {
         this.sendChatMessage(`Ciao ${senderName}! Dimmi, conosci bene le regole di MINKIARDS?`);
       }, 1000 + Math.random() * 2000);
@@ -3153,7 +3183,7 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
       return true;
     }
     
-    console.log(`CPU ${this.playerName} finished processing chat message, no specific response triggered`);
+    // chat processed, no response
     return false;
   }
   
@@ -3315,7 +3345,7 @@ Rispondi in modo appropriato al messaggio del giocatore. Puoi fare battute, dare
   
   // NEW: Execute direct orders from human players
   executeDirectOrder(message: string, senderName: string, lowerMessage: string): boolean {
-    console.log(`CPU ${this.playerName} checking for direct orders from ${senderName}: "${message}"`);
+    // checking direct orders
     
     // Order: Show specific card type
     if (lowerMessage.includes('mostra') || lowerMessage.includes('fammi vedere') || lowerMessage.includes('fai vedere')) {
@@ -3396,7 +3426,7 @@ Rispondi in modo appropriato al messaggio del giocatore. Puoi fare battute, dare
         message: `${this.playerName} sta mostrando la sua carta ${cardType.toUpperCase()} su richiesta di ${senderName}`
       };
       
-      console.log(`CPU ${this.playerName} stored pending show card order:`, this.pendingOrder);
+      // stored show order
     }, 1000);
   }
   
@@ -3414,7 +3444,7 @@ Rispondi in modo appropriato al messaggio del giocatore. Puoi fare battute, dare
         senderName: senderName
       };
       
-      console.log(`CPU ${this.playerName} stored pending pick card order:`, this.pendingOrder);
+      // stored pick order
     }, 1000);
   }
   
@@ -3432,7 +3462,7 @@ Rispondi in modo appropriato al messaggio del giocatore. Puoi fare battute, dare
         senderName: senderName
       };
       
-      console.log(`CPU ${this.playerName} stored pending play card order:`, this.pendingOrder);
+      // stored play order
     }, 1000);
   }
   
@@ -3449,13 +3479,13 @@ Rispondi in modo appropriato al messaggio del giocatore. Puoi fare battute, dare
         senderName: senderName
       };
       
-      console.log(`CPU ${this.playerName} stored pending attack order:`, this.pendingOrder);
+      // stored attack order
     }, 1000);
   }
   
   // NEW: Set pending order directly (for system commands)
   setPendingOrder(order: any): void {
     this.pendingOrder = order;
-    console.log(`CPU ${this.playerName} received pending order from system:`, order);
+    // received pending order
   }
 }

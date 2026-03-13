@@ -4678,6 +4678,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           />
         )}
         
+        {/* CPU Thinking Indicator */}
+        {cpuThinkingPlayer && (
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] pointer-events-none">
+            <div className="bg-black/80 text-white px-5 py-2.5 rounded-full flex items-center gap-3 shadow-lg border border-yellow-500/40 animate-pulse">
+              <div className="w-3 h-3 rounded-full bg-yellow-400 animate-ping" />
+              <span className="text-sm font-medium">🤖 {cpuThinkingPlayer} sta pensando...</span>
+            </div>
+          </div>
+        )}
+        
         {/* CPU Damage Request Dialog */}
         <CPUDamageDialog />
         
