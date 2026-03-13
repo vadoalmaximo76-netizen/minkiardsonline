@@ -3811,6 +3811,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    socket.on('control-turn-target-choice', ({ gameId: gId, targetPlayer }: { gameId: string; targetPlayer: string }) => {
+      const gameId = gId || gameManager.getPlayerGameId(socket.id);
+      if (!gameId) return;
+      const game = gameManager.games.get(gameId);
+      if (!game) return;
+
+      const controllingPlayer = (game as any).pendingControlTurnBy;
+      if (!controllingPlayer) {
+        console.warn(`⚠️ control-turn-target-choice: no pending control turn for game ${gameId}`);
+        return;
+      }
+
+      if (!game.players[targetPlayer]) {
+        console.warn(`⚠️ control-turn-target-choice: invalid target ${targetPlayer}`);
+        return;
+      }
+
+      (game as any).pendingControlTurnBy = null;
+      (game as any).controlledPlayer = targetPlayer;
+      (game as any).controllingPlayer = controllingPlayer;
+
+      const ioTarget = (global as any).io;
+      if (ioTarget) {
+        ioTarget.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-control-target`,
+          playerName: 'Sistema',
+          message: `🎮 M DI MAJIN BU! ${controllingPlayer} controllerà il prossimo turno di ${targetPlayer}!`,
+          timestamp: Date.now()
+        });
+        ioTarget.to(gameId).emit('control-turn-set', {
+          controllingPlayer,
+          controlledPlayer: targetPlayer
+        });
+        const targetState = gameManager.getSanitizedGameState(gameId);
+        ioTarget.to(gameId).emit('game-state-update', targetState);
+        console.log(`🎮 CONTROL TURN TARGET SET: ${controllingPlayer} will control ${targetPlayer}'s next turn`);
+      }
+    });
+
     socket.on('block-card-type-choice', ({ gameId: gId, cardType, turns }: { gameId: string; cardType: string; turns: number }) => {
       const gameId = gId || gameManager.getPlayerGameId(socket.id);
       if (!gameId) return;

@@ -296,6 +296,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [choosingNotification, setChoosingNotification] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
   const [blockTypeSelection, setBlockTypeSelection] = useState<{ visible: boolean; options: string[]; turns: number } | null>(null);
   const [controlTurnPanel, setControlTurnPanel] = useState<{ visible: boolean; controlledPlayer: string; availableTypes: string[]; possibleTargets: string[]; selectedType: string | null; selectedTarget: string | null }>({ visible: false, controlledPlayer: '', availableTypes: [], possibleTargets: [], selectedType: null, selectedTarget: null });
+  const [controlTurnTargetPanel, setControlTurnTargetPanel] = useState<{ visible: boolean; opponents: string[] }>({ visible: false, opponents: [] });
   const [cpuThinkingPlayer, setCpuThinkingPlayer] = useState<string | null>(null);
   const [graveyardSelectionModal, setGraveyardSelectionModal] = useState<{
     visible: boolean;
@@ -1096,6 +1097,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       }
     };
     socket.on('block-card-type-select', handleBlockCardTypeSelect);
+
+    const handleControlTurnChooseTarget = (data: { controllingPlayer: string; opponents: string[] }) => {
+      if (data.controllingPlayer === playerName) {
+        setControlTurnTargetPanel({ visible: true, opponents: data.opponents });
+      }
+    };
+    socket.on('control-turn-choose-target', handleControlTurnChooseTarget);
 
     const handleControlTurnActive = (data: { controllingPlayer: string; controlledPlayer: string; availableTypes?: string[]; possibleTargets?: string[] }) => {
       if (data.controlledPlayer === playerName) {
@@ -2097,6 +2105,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('next-turn', handleCpuDoneThinking);
       socket.off('control-turn-set', handleControlTurnSet);
       socket.off('block-card-type-select', handleBlockCardTypeSelect);
+      socket.off('control-turn-choose-target', handleControlTurnChooseTarget);
       socket.off('opponent-turn-control', handleControlTurnActive);
       socket.off('control-turn-resolved', handleControlTurnResolved);
       socket.off('instruction-executed', handleInstructionExecuted);
@@ -4611,6 +4620,32 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {controlTurnTargetPanel.visible && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999]">
+            <div className="bg-gradient-to-b from-purple-900/95 to-purple-800/95 rounded-xl p-6 shadow-2xl border border-purple-400/40 backdrop-blur-sm max-w-md w-full mx-4">
+              <div className="text-center mb-4">
+                <span className="text-3xl">🎮</span>
+                <h3 className="text-white font-bold text-lg mt-1">M DI MAJIN BU</h3>
+                <p className="text-purple-300 text-sm mt-1">Scegli quale avversario controllare al suo prossimo turno:</p>
+              </div>
+              <div className="flex flex-col gap-3">
+                {controlTurnTargetPanel.opponents.map((opponent) => (
+                  <button
+                    key={opponent}
+                    onClick={() => {
+                      socket.emit('control-turn-target-choice', { gameId, targetPlayer: opponent });
+                      setControlTurnTargetPanel({ visible: false, opponents: [] });
+                    }}
+                    className="w-full py-3 px-4 bg-purple-700 hover:bg-purple-500 text-white font-bold rounded-lg border border-purple-400/50 hover:border-yellow-400 transition-all duration-200 text-center"
+                  >
+                    🎯 {opponent}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}

@@ -8396,8 +8396,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       case 'control_turn': {
         const controlOpponents = Object.keys(game.players).filter(p => p !== playerName);
-        if (controlOpponents.length > 0) {
-          const targetOpponent = controlOpponents[Math.floor(Math.random() * controlOpponents.length)];
+        if (controlOpponents.length === 1) {
+          // Only one opponent: auto-pick
+          const targetOpponent = controlOpponents[0];
           (game as any).controlledPlayer = targetOpponent;
           (game as any).controllingPlayer = playerName;
           const ioCtrl = (global as any).io;
@@ -8412,6 +8413,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               controllingPlayer: playerName,
               controlledPlayer: targetOpponent
             });
+          }
+        } else if (controlOpponents.length > 1) {
+          // Multiple opponents: let the player choose
+          (game as any).pendingControlTurnBy = playerName;
+          const ioCtrl = (global as any).io;
+          if (ioCtrl) {
+            ioCtrl.to(gameId).emit('control-turn-choose-target', {
+              controllingPlayer: playerName,
+              opponents: controlOpponents
+            });
+            console.log(`🎮 CONTROL TURN: ${playerName} must choose which opponent to control (${controlOpponents.join(', ')})`);
           }
         }
         break;
