@@ -1148,7 +1148,9 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
   }
 
   // Send chat message to game
-  sendChatMessage(message: string) {
+  sendChatMessage(message: string, forceEvenInGymMode: boolean = false) {
+    // In gym mode with custom messages, suppress all standard CPU chatter
+    if (this.gymLeaderMessages && !forceEvenInGymMode) return;
     if (this.socketEmitter) {
       const chatMessage = {
         id: `${Date.now()}-${Math.random()}`,
@@ -1157,7 +1159,6 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         timestamp: Date.now()
       };
       this.socketEmitter.to(this.gameId).emit('chat-message', chatMessage);
-      // CPU says message
     }
   }
 

@@ -83,6 +83,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
   const [storyDeckIds, setStoryDeckIds] = useState<string[]>([]);
   const [cardPickLoading, setCardPickLoading] = useState(false);
   const [battleYoutubeVideoId, setBattleYoutubeVideoId] = useState<string | null>(null);
+  const [musicActive, setMusicActive] = useState(false);
 
   const selectedLeaderRef = useRef<GymLeader | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -268,6 +269,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
     // re-renders with null gameState before being unmounted.
     setGameIdLocal(null);
     setBattleYoutubeVideoId(null);
+    setMusicActive(false);
     setPhase('map');
     setSelectedLeader(null);
     resumeHomeMusic();
@@ -324,8 +326,8 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
   if (phase === 'battle' && gameId && selectedLeader) {
     return (
       <div className="fixed inset-0 z-50 overflow-y-auto">
-        {/* Hidden YouTube battle music player */}
-        {battleYoutubeVideoId && (
+        {/* YouTube battle music – shown when user activates */}
+        {battleYoutubeVideoId && musicActive && (
           <iframe
             key={battleYoutubeVideoId}
             src={`https://www.youtube.com/embed/${battleYoutubeVideoId}?autoplay=1&loop=1&playlist=${battleYoutubeVideoId}&controls=0`}
@@ -358,6 +360,19 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
               <Heart key={i} className="w-3.5 h-3.5 text-red-400 fill-red-400" />
             ))}
           </div>
+          {battleYoutubeVideoId && (
+            <button
+              onClick={() => setMusicActive(a => !a)}
+              title={musicActive ? 'Disattiva musica battaglia' : 'Attiva musica battaglia'}
+              className={`px-3 py-2 rounded-xl text-sm font-semibold border backdrop-blur-sm transition-colors ${
+                musicActive
+                  ? 'bg-red-600/80 hover:bg-red-700/90 text-white border-red-400/40'
+                  : 'bg-black/70 hover:bg-black/90 text-white/60 hover:text-white border-white/20'
+              }`}
+            >
+              {musicActive ? '🎵 On' : '🎵 Off'}
+            </button>
+          )}
         </div>
         <GameBoard />
       </div>

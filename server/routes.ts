@@ -2086,7 +2086,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               : (isGymMode && leaderName
                   ? `Benvenuto nella mia palestra! Sono ${leaderName}. Preparati alla battaglia!`
                   : "Ciao! Sono il tuo avversario di allenamento. Ti aiuterò a imparare a giocare a MINKIARDS!");
-            cpuPlayer.cpuInstance.sendChatMessage(greeting);
+            // force=true bypasses the gym-mode message suppression for the opening greeting
+            cpuPlayer.cpuInstance.sendChatMessage(greeting, true);
           }
         }, 1500);
         
@@ -10401,7 +10402,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const user = (req as any).user;
       const isAdmin = await checkAdminAccess(user);
       if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
-      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, livesCount, playerStartingDeck, rewardCredits, rewardDescription, orderIndex, isActive } = req.body;
+      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, livesCount, playerStartingDeck, rewardCredits, rewardDescription, youtubeMusicUrl, leaderMessages, orderIndex, isActive } = req.body;
       if (!name || !gymName) return res.status(400).json({ success: false, error: 'name e gymName obbligatori' });
       const [created] = await db.insert(gymLeaders).values({
         name, gymName,
@@ -10417,6 +10418,8 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         playerStartingDeck: Array.isArray(playerStartingDeck) ? playerStartingDeck : [],
         rewardCredits: rewardCredits ?? 50,
         rewardDescription: rewardDescription || null,
+        youtubeMusicUrl: youtubeMusicUrl || null,
+        leaderMessages: leaderMessages && typeof leaderMessages === 'object' ? leaderMessages : null,
         orderIndex: orderIndex ?? 1,
         isActive: isActive !== false,
       }).returning();
@@ -10435,7 +10438,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const isAdmin = await checkAdminAccess(user);
       if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
       const id = parseInt(req.params.id);
-      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, livesCount, playerStartingDeck, rewardCredits, rewardDescription, orderIndex, isActive } = req.body;
+      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, livesCount, playerStartingDeck, rewardCredits, rewardDescription, youtubeMusicUrl, leaderMessages, orderIndex, isActive } = req.body;
       const [updated] = await db.update(gymLeaders).set({
         name, gymName,
         description: description || null,
@@ -10450,6 +10453,8 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         playerStartingDeck: Array.isArray(playerStartingDeck) ? playerStartingDeck : [],
         rewardCredits: rewardCredits ?? 50,
         rewardDescription: rewardDescription || null,
+        youtubeMusicUrl: youtubeMusicUrl || null,
+        leaderMessages: leaderMessages && typeof leaderMessages === 'object' ? leaderMessages : null,
         orderIndex: orderIndex ?? 1,
         isActive: isActive !== false,
       }).where(eq(gymLeaders.id, id)).returning();
