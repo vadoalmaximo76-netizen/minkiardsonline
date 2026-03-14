@@ -1812,10 +1812,10 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
         </div>
 
         {/* Main content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
 
         {activeTab === 'add' && (
-          <>
+          <div className="flex-1 overflow-y-auto p-6">
             <div className="mb-6">
               <h4 className="text-white font-semibold mb-3">Carica immagini:</h4>
               <div className="border-2 border-dashed border-gray-400 rounded-lg p-6 text-center">
@@ -1877,29 +1877,31 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                         <X size={12} />
                       </Button>
                       
-                      <div className="flex gap-4">
+                      <div className="flex gap-3">
                         <img
                           src={URL.createObjectURL(card.file)}
                           alt={card.name}
-                          className="w-20 h-28 object-cover rounded border-2 border-orange-500 flex-shrink-0"
+                          className="w-16 h-24 object-cover rounded border-2 border-orange-500 flex-shrink-0"
                         />
                         
-                        <div className="flex-1 space-y-3">
-                          <div>
-                            <label className="text-white text-sm mb-1 block">Nome carta *</label>
-                            <Input
-                              type="text"
-                              value={card.name}
-                              onChange={(e) => updateCardData(index, 'name', e.target.value)}
-                              placeholder="Inserisci nome carta"
-                              className="bg-gray-600 text-white border-gray-500"
-                            />
+                        <div className="flex-1 space-y-2.5">
+                          <div className="flex gap-2 items-end">
+                            <div className="flex-1">
+                              <label className="text-gray-400 text-xs mb-1 block">Nome carta *</label>
+                              <Input
+                                type="text"
+                                value={card.name}
+                                onChange={(e) => updateCardData(index, 'name', e.target.value)}
+                                placeholder="Inserisci nome carta"
+                                className="bg-gray-600 text-white border-gray-500"
+                              />
+                            </div>
                           </div>
                           
                           {isCharacterDeck && (
-                            <div className="flex gap-3">
-                              <div className="flex-1">
-                                <label className="text-white text-sm mb-1 block">PTI</label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-gray-400 text-xs mb-1 block">PTI</label>
                                 <Input
                                   type="number"
                                   value={card.pti ?? ''}
@@ -1908,15 +1910,15 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                                   className="bg-gray-600 text-white border-gray-500"
                                 />
                               </div>
-                              <div className="flex-1">
-                                <label className="text-white text-sm mb-1 block">Stelle</label>
+                              <div>
+                                <label className="text-gray-400 text-xs mb-1 block">Stelle</label>
                                 <Input
                                   type="number"
                                   min="1"
                                   max="10"
                                   value={card.stars ?? ''}
                                   onChange={(e) => updateCardData(index, 'stars', e.target.value ? parseInt(e.target.value) : null)}
-                                  placeholder="Stelle"
+                                  placeholder="Stelle (1-10)"
                                   className="bg-gray-600 text-white border-gray-500"
                                 />
                               </div>
@@ -1924,56 +1926,57 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                           )}
                           
                           <div>
-                            <label className="text-white text-sm mb-1 flex items-center gap-1">
-                              <Sparkles size={14} className="text-purple-400" />
+                            <label className="text-gray-400 text-xs mb-1 flex items-center gap-1">
+                              <Sparkles size={11} className="text-purple-400" />
                               Effetto (elaborato da AI)
                             </label>
                             <div className="flex gap-2">
                               <textarea
                                 value={card.effect}
                                 onChange={(e) => updateCardData(index, 'effect', e.target.value)}
-                                placeholder="Descrivi l'effetto della carta... (non visibile sulla carta, gestito dal sistema)"
+                                placeholder="Descrivi l'effetto..."
                                 className="flex-1 bg-gray-600 text-white border border-gray-500 rounded-md p-2 text-sm resize-none"
                                 rows={2}
                               />
                               <Button
                                 type="button"
                                 onClick={() => openEffectWizard('new', index)}
-                                className="bg-purple-600 hover:bg-purple-700 text-white px-3 flex items-center gap-1"
-                                title="Usa la procedura guidata per configurare l'effetto"
+                                className="bg-purple-600 hover:bg-purple-700 text-white px-2.5 flex items-center gap-1 self-start"
+                                title="Usa la procedura guidata"
                               >
-                                <Wand2 size={16} />
-                                <span className="text-xs">Wizard</span>
+                                <Wand2 size={14} />
+                                <span className="text-xs">AI</span>
                               </Button>
                             </div>
                           </div>
                           
-                          <div>
-                            <label className="text-white text-sm mb-1 flex items-center gap-1">
-                              <Volume2 size={14} className="text-cyan-400" />
-                              Audio (URL o link)
-                            </label>
-                            <Input
-                              type="text"
-                              value={card.audioUrl}
-                              onChange={(e) => updateCardData(index, 'audioUrl', e.target.value)}
-                              placeholder="https://... o link audio da riprodurre quando la carta viene giocata"
-                              className="bg-gray-600 text-white border-gray-500"
-                            />
-                          </div>
-                          
-                          <div>
-                            <label className="text-white text-sm mb-1 flex items-center gap-1">
-                              <Video size={14} className="text-red-500" />
-                              Video YouTube (URL)
-                            </label>
-                            <Input
-                              type="text"
-                              value={card.youtubeUrl}
-                              onChange={(e) => updateCardData(index, 'youtubeUrl', e.target.value)}
-                              placeholder="https://www.youtube.com/watch?v=... o https://youtu.be/..."
-                              className="bg-gray-600 text-white border-gray-500"
-                            />
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-gray-400 text-xs mb-1 flex items-center gap-1">
+                                <Volume2 size={11} className="text-cyan-400" />
+                                Audio URL
+                              </label>
+                              <Input
+                                type="text"
+                                value={card.audioUrl}
+                                onChange={(e) => updateCardData(index, 'audioUrl', e.target.value)}
+                                placeholder="https://..."
+                                className="bg-gray-600 text-white border-gray-500 text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-gray-400 text-xs mb-1 flex items-center gap-1">
+                                <Video size={11} className="text-red-400" />
+                                YouTube URL
+                              </label>
+                              <Input
+                                type="text"
+                                value={card.youtubeUrl}
+                                onChange={(e) => updateCardData(index, 'youtubeUrl', e.target.value)}
+                                placeholder="https://youtu.be/..."
+                                className="bg-gray-600 text-white border-gray-500 text-sm"
+                              />
+                            </div>
                           </div>
                           
                           {/* MOSSE Damage Settings - Only for MOSSE cards */}
@@ -2379,11 +2382,11 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
               <p><strong>Permanente:</strong> La carta sara salvata e disponibile in tutte le partite future</p>
               <p><strong>Effetto:</strong> Descrivi come funziona la carta - il sistema lo elaborera automaticamente</p>
             </div>
-          </>
+          </div>
         )}
 
         {activeTab === 'manage' && (
-          <div>
+          <div className="flex-1 overflow-y-auto p-6">
             <h4 className="text-white font-semibold mb-3">
               Carte permanenti in {getDeckLabel(selectedDeck)} ({filteredPermanentCards.length}):
             </h4>
@@ -2799,70 +2802,71 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
         )}
 
         {activeTab === 'existing' && isAdmin && (
-          <div>
-            <div className="bg-yellow-600/20 border border-yellow-500 rounded-lg p-3 mb-4">
-              <p className="text-yellow-300 text-sm flex items-center gap-2">
-                <Shield size={16} />
-                <strong>Modalita Admin:</strong> Modifica le carte esistenti del gioco. Le modifiche sono permanenti.
-              </p>
-            </div>
-
-            <div className="mb-4">
-              <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <Input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Cerca carta per nome..."
-                  className="bg-gray-700 text-white border-gray-500 pl-10"
-                />
+          <div className="flex flex-col h-full">
+            {/* Header */}
+            <div className="px-5 py-3 border-b border-gray-700 flex-shrink-0 flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Shield size={14} className="text-yellow-400" />
+                <span className="text-yellow-300 text-sm font-semibold">Modalità Admin</span>
+                <span className="text-gray-500 text-xs">— modifiche permanenti</span>
               </div>
-            </div>
-
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-white font-semibold">
-                Carte in {getDeckLabel(selectedDeck)} ({filteredExistingCards.length}):
-              </h4>
               {pendingChanges.size > 0 && (
-                <Button
-                  onClick={handleBulkSave}
-                  disabled={isBulkSaving}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 flex items-center gap-2"
-                >
-                  <Save size={16} />
-                  {isBulkSaving ? 'Salvando...' : `Salva Tutti (${pendingChanges.size})`}
-                </Button>
+                <div className="ml-auto flex gap-2">
+                  <Button onClick={() => { setPendingChanges(new Map()); setEditingExistingCard(null); }} className="bg-gray-600 hover:bg-gray-700 text-white text-xs px-3 py-1.5" size="sm">Annulla tutto</Button>
+                  <Button onClick={handleBulkSave} disabled={isBulkSaving} className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1.5 flex items-center gap-1.5" size="sm">
+                    <Save size={13} />
+                    {isBulkSaving ? 'Salvataggio...' : `Salva tutti (${pendingChanges.size})`}
+                  </Button>
+                </div>
               )}
             </div>
-            
-            {loadingExisting ? (
-              <div className="text-center text-gray-400 py-8">Caricamento...</div>
-            ) : filteredExistingCards.length === 0 ? (
-              <div className="text-center text-gray-400 py-8">
-                Nessuna carta trovata
+            <div className="px-5 py-2 border-b border-gray-700 flex-shrink-0">
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={`Cerca in ${getDeckLabel(selectedDeck)}... (${filteredExistingCards.length} carte)`} className="bg-gray-700 text-white border-gray-600 pl-9 text-sm" />
               </div>
+            </div>
+
+            {loadingExisting ? (
+              <div className="flex-1 flex items-center justify-center text-gray-400">Caricamento...</div>
             ) : (
-              <div className="space-y-4 pr-2">
-                {filteredExistingCards.map((card) => (
-                  <div key={card.id} className={`bg-gray-700 rounded-lg p-4 ${card.isDeleted ? 'opacity-50 border-2 border-red-500' : pendingChanges.has(card.id) ? 'border-2 border-green-500' : card.isModified ? 'border-2 border-yellow-500' : ''}`}>
-                    <div className="flex gap-4">
-                      <div className="relative">
-                        <img
-                          src={card.imageUrl || card.originalImageUrl}
-                          alt={card.name || card.originalName}
-                          className={`w-20 h-28 object-cover rounded border-2 flex-shrink-0 ${card.isDeleted ? 'grayscale' : ''} ${getDeckColor(card.deckType).replace('bg-', 'border-')}`}
-                        />
-                        {card.isDeleted && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-red-900/60 rounded">
-                            <Trash2 size={24} className="text-red-300" />
-                          </div>
-                        )}
+              <div className="flex flex-1 min-h-0">
+                {/* Left: compact card list */}
+                <div className="w-64 flex-shrink-0 border-r border-gray-700 overflow-y-auto">
+                  {filteredExistingCards.length === 0 ? (
+                    <div className="flex items-center justify-center h-32 text-gray-500 text-sm">Nessuna carta trovata</div>
+                  ) : filteredExistingCards.map(card => (
+                    <button
+                      key={card.id}
+                      onClick={() => handleEditExistingCard(card)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-left border-b border-gray-700/40 transition-colors ${
+                        editingExistingCard === card.id ? 'bg-yellow-600/20 border-l-2 border-l-yellow-500' : 'hover:bg-gray-700/40'
+                      }`}
+                    >
+                      <div className="relative flex-shrink-0">
+                        <img src={card.imageUrl || card.originalImageUrl} className={`w-9 h-12 object-cover rounded border ${card.isDeleted ? 'grayscale opacity-50' : ''} ${getDeckColor(card.deckType).replace('bg-', 'border-')}`} alt="" />
+                        {card.isDeleted && <div className="absolute inset-0 flex items-center justify-center bg-red-900/60 rounded"><Trash2 size={9} className="text-red-300" /></div>}
                       </div>
-                      
-                      <div className="flex-1">
-                        {editingExistingCard === card.id ? (
-                          <div className="space-y-3">
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs font-medium truncate ${card.isDeleted ? 'text-red-400 line-through' : 'text-white'}`}>{card.name || card.originalName}</p>
+                        <div className="flex gap-1 mt-0.5 flex-wrap">
+                          {card.isDeleted && <span className="text-[9px] bg-red-500/20 text-red-400 px-1 rounded">eliminata</span>}
+                          {card.isModified && !card.isDeleted && <span className="text-[9px] bg-yellow-500/20 text-yellow-300 px-1 rounded">modif.</span>}
+                          {pendingChanges.has(card.id) && <span className="text-[9px] bg-green-500/20 text-green-400 px-1 rounded">✓ in attesa</span>}
+                          {isCharacterDeck && card.pti && <span className="text-[9px] text-blue-300">PTI {card.pti}</span>}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Right: Edit form */}
+                <div className="flex-1 overflow-y-auto">
+                  {editingExistingCard ? (() => {
+                    const card = filteredExistingCards.find(c => c.id === editingExistingCard);
+                    if (!card) return <div className="flex items-center justify-center h-full text-gray-400 text-sm">Carta non trovata</div>;
+                    return (
+                      <div className="p-5 space-y-4">
                             {/* Real-time Card Preview */}
                             <div className="bg-gray-900/60 rounded-lg p-3 border border-white/10">
                               <label className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-2 block">Anteprima in tempo reale</label>
@@ -3539,133 +3543,38 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                               </div>
                             )}
                             
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 pt-3 border-t border-gray-700">
                               <Button
                                 onClick={() => handleSaveExistingEdit(card)}
-                                className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1"
-                                size="sm"
+                                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 flex items-center gap-1.5"
                               >
-                                <Save size={14} className="mr-1" />
+                                <Save size={14} />
                                 Salva Modifiche
                               </Button>
                               <Button
                                 onClick={() => setEditingExistingCard(null)}
-                                className="bg-gray-500 hover:bg-gray-600 text-white text-xs px-3 py-1"
-                                size="sm"
+                                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2"
                               >
                                 Annulla
                               </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h5 className={`font-bold text-lg ${card.isDeleted ? 'text-red-400 line-through' : 'text-white'}`}>
-                                {card.name || card.originalName}
-                              </h5>
-                              {card.isDeleted && (
-                                <span className="bg-red-500 text-white text-xs px-1 rounded">Eliminata</span>
-                              )}
-                              {card.isModified && !card.isDeleted && (
-                                <span className="bg-yellow-500 text-black text-xs px-1 rounded">Modificata</span>
-                              )}
-                              {pendingChanges.has(card.id) && !card.isDeleted && (
-                                <span className="bg-green-500 text-white text-xs px-1 rounded">Da salvare</span>
-                              )}
-                            </div>
-                            
-                            {card.name && card.name !== card.originalName && (
-                              <div className="text-gray-400 text-xs">
-                                Originale: {card.originalName}
-                              </div>
-                            )}
-                            
-                            <div className={`inline-block px-2 py-1 rounded text-xs text-white mb-2 ${getDeckColor(card.deckType)}`}>
-                              {getDeckLabel(card.deckType)}
-                            </div>
-                            
-                            {isCharacterDeck && (card.pti || card.stars) && (
-                              <div className="text-gray-300 text-sm">
-                                {card.pti !== null && <span className="mr-3">PTI: {card.pti}</span>}
-                                {card.stars !== null && <span>Stelle: {card.stars}</span>}
-                              </div>
-                            )}
-                            
-                            {card.effect && (
-                              <div className="text-purple-300 text-xs mt-1 flex items-start gap-1">
-                                <Sparkles size={12} className="mt-0.5 flex-shrink-0" />
-                                <span>Effetto: {card.effect.substring(0, 80)}{card.effect.length > 80 ? '...' : ''}</span>
-                              </div>
-                            )}
-                            
-                            <div className="flex gap-2 mt-3">
-                              {!card.isDeleted && (
-                                <Button
-                                  onClick={() => handleEditExistingCard(card)}
-                                  className="bg-yellow-600 hover:bg-yellow-700 text-white text-xs px-3 py-1"
-                                  size="sm"
-                                >
-                                  <Pencil size={14} className="mr-1" />
-                                  Modifica
-                                </Button>
-                              )}
                               <Button
                                 onClick={() => handleToggleDeleteExisting(card)}
-                                className={`${card.isDeleted ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'} text-white text-xs px-3 py-1`}
-                                size="sm"
+                                className={`ml-auto px-4 py-2 flex items-center gap-1.5 ${card.isDeleted ? 'bg-green-600 hover:bg-green-700' : 'bg-red-700 hover:bg-red-600'} text-white`}
                               >
-                                {card.isDeleted ? (
-                                  <>
-                                    <RotateCcw size={14} className="mr-1" />
-                                    Ripristina
-                                  </>
-                                ) : (
-                                  <>
-                                    <Trash2 size={14} className="mr-1" />
-                                    Elimina
-                                  </>
-                                )}
+                                {card.isDeleted ? <><RotateCcw size={14} />Ripristina</> : <><Trash2 size={14} />Elimina</>}
                               </Button>
                             </div>
-                          </>
-                        )}
-                      </div>
+                          </div>
+                    );
+                  })() : (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-500 gap-4">
+                      <Pencil size={48} className="opacity-20" />
+                      <p className="text-sm">Seleziona una carta dalla lista per modificarla</p>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {pendingChanges.size > 0 && (
-              <div className="sticky bottom-0 bg-gray-800 border-t border-green-500 p-3 mt-2 rounded-b-lg flex items-center justify-between">
-                <span className="text-green-400 text-sm font-medium">
-                  {pendingChanges.size} {pendingChanges.size === 1 ? 'carta modificata' : 'carte modificate'} da salvare
-                </span>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => { setPendingChanges(new Map()); setEditingExistingCard(null); }}
-                    className="bg-gray-600 hover:bg-gray-700 text-white text-sm px-3 py-1"
-                    size="sm"
-                  >
-                    Annulla Tutto
-                  </Button>
-                  <Button
-                    onClick={handleBulkSave}
-                    disabled={isBulkSaving}
-                    className="bg-green-600 hover:bg-green-700 text-white text-sm px-4 py-1"
-                    size="sm"
-                  >
-                    <Save size={14} className="mr-1" />
-                    {isBulkSaving ? 'Salvando...' : `Salva Tutti (${pendingChanges.size})`}
-                  </Button>
+                  )}
                 </div>
               </div>
             )}
-            
-            <div className="mt-4 text-gray-400 text-xs text-center">
-              <p>Le modifiche vengono applicate a tutte le partite future</p>
-              <p className="text-purple-300 mt-1">L'effetto descritto verra elaborato dall'AI durante il gioco</p>
-            </div>
           </div>
         )}
         </div>{/* end main content */}
