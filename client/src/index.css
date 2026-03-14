@@ -2676,6 +2676,8 @@ input:focus, select:focus {
   animation: pageEnter 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Opacity-only fade for sections with fixed-position children (e.g. admin).
+   transform/filter would create a containing block that breaks position:fixed. */
 .page-enter-no-transform {
   animation: pageEnterNoTransform 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
