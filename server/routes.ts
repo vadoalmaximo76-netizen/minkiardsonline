@@ -2057,10 +2057,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (leaderImageUrl && game.players[cpuName]) {
               game.players[cpuName].customAvatarUrl = leaderImageUrl;
             }
-            // Store leader messages and CPU name on the game for event hooks
-            if (leaderMessages && typeof leaderMessages === 'object') {
-              game.gymLeaderMessages = leaderMessages;
-              game.gymLeaderCpuName = cpuName;
+            // Always set gym leader CPU name so eliminateEnemy/other hooks work
+            game.gymLeaderCpuName = cpuName;
+
+            // Load leader messages from DB (always authoritative) falling back to client payload
+            let resolvedMessages: Record<string, string[]> | null = null;
+            if (leaderName) {
+              try {
+                const [dbLeader] = await db.select({ leaderMessages: gymLeaders.leaderMessages })
+                  .from(gymLeaders)
+                  .where(eq(gymLeaders.name, leaderName))
+                  .limit(1);
+                if (dbLeader?.leaderMessages && typeof dbLeader.leaderMessages === 'object') {
+                  resolvedMessages = dbLeader.leaderMessages as Record<string, string[]>;
+                  console.log(`🗨️ Gym mode: loaded ${Object.keys(resolvedMessages).length} message occasions from DB for ${leaderName}`);
+                }
+              } catch (e) {
+                console.warn(`⚠️ Could not load gym leader messages from DB for ${leaderName}:`, e);
+              }
+            }
+            // Fallback to client-provided messages if DB returned nothing
+            if (!resolvedMessages && leaderMessages && typeof leaderMessages === 'object') {
+              resolvedMessages = leaderMessages as Record<string, string[]>;
+              console.log(`🗨️ Gym mode: using client-provided messages for ${leaderName}`);
+            }
+            // Only store if there is at least one non-empty message string
+            const hasRealMessages = resolvedMessages && Object.values(resolvedMessages).some(
+              arr => Array.isArray(arr) && arr.some((m: string) => typeof m === 'string' && m.trim() !== '')
+            );
+            if (hasRealMessages) {
+              game.gymLeaderMessages = resolvedMessages!;
+              console.log(`✅ Gym mode: messages active for ${leaderName}`);
+            } else {
+              console.log(`ℹ️ Gym mode: no custom messages configured for ${leaderName}`);
             }
           }
         }
@@ -2073,14 +2102,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         setTimeout(() => {
           const game = gameManager.getGameState(gameId);
           const cpuPlayer = game?.players[cpuName];
+          const resolvedMsgs = game?.gymLeaderMessages;
           if (cpuPlayer?.isCPU && cpuPlayer.cpuInstance) {
-            // Pass leader messages to the CPU instance for damage/death messages
-            if (leaderMessages && typeof leaderMessages === 'object') {
-              cpuPlayer.cpuInstance.setLeaderMessages(leaderMessages);
+            // Pass leader messages to CPU instance only when there are real messages
+            const hasMsgs = resolvedMsgs && Object.values(resolvedMsgs).some(
+              arr => Array.isArray(arr) && arr.some((m: string) => typeof m === 'string' && m.trim() !== '')
+            );
+            if (hasMsgs) {
+              cpuPlayer.cpuInstance.setLeaderMessages(resolvedMsgs!);
             }
             // Use custom gameStart message if available, otherwise default greeting
-            const msgs = leaderMessages?.gameStart;
-            const customStart = Array.isArray(msgs) ? msgs.filter((m: string) => m?.trim()) : [];
+            const startMsgs = resolvedMsgs?.gameStart;
+            const customStart = Array.isArray(startMsgs) ? startMsgs.filter((m: string) => m?.trim()) : [];
             const greeting = customStart.length > 0
               ? customStart[Math.floor(Math.random() * customStart.length)]
               : (isGymMode && leaderName
