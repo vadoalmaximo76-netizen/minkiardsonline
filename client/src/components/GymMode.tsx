@@ -180,8 +180,23 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
     setPlayerName(playerName);
     generateSessionId();
 
-    let currentDeckIds = storyDeckIds;
+    // Always fetch the latest story deck fresh from server before each battle
+    // so the accumulated deck is always up-to-date across the whole story mode
+    let currentDeckIds: string[] = [];
+    if (authToken) {
+      try {
+        const deckRes = await fetch('/api/story-mode/deck', {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        const deckData = await deckRes.json();
+        if (deckData.success) {
+          currentDeckIds = deckData.cardIds || [];
+          setStoryDeckIds(currentDeckIds);
+        }
+      } catch {}
+    }
 
+    // Initialize with first-leader starting deck only if story deck is still empty
     if (authToken && currentDeckIds.length === 0 && leader.playerStartingDeck && leader.playerStartingDeck.length > 0) {
       try {
         const res = await fetch('/api/story-mode/deck/initialize', {
@@ -221,18 +236,22 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
 
     pauseHomeMusic();
     setPhase('battle');
-  }, [playerName, avatarId, userId, setGameId, setPlayerName, generateSessionId, storyDeckIds, authToken]);
+  }, [playerName, avatarId, userId, setGameId, setPlayerName, generateSessionId, authToken]);
 
   const handleBackFromBattle = () => {
     if (gameId) {
       socket.emit('leave-game', { gameId });
     }
-    reset();
+    // Change phase FIRST so GameBoard unmounts before reset() clears the game state.
+    // Calling reset() while GameBoard is still mounted causes a crash because GameBoard
+    // re-renders with null gameState before being unmounted.
     setGameIdLocal(null);
     setPhase('map');
     setSelectedLeader(null);
     resumeHomeMusic();
     fetchLeaders();
+    // Defer reset() to let React unmount GameBoard cleanly first
+    setTimeout(() => reset(), 150);
   };
 
   const handleChallengeLeader = (leader: GymLeader) => {
