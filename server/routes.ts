@@ -10343,7 +10343,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const user = (req as any).user;
       const isAdmin = await checkAdminAccess(user);
       if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
-      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, rewardCredits, rewardDescription, orderIndex, isActive } = req.body;
+      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, rewardCredits, rewardDescription, orderIndex, isActive } = req.body;
       if (!name || !gymName) return res.status(400).json({ success: false, error: 'name e gymName obbligatori' });
       const [created] = await db.insert(gymLeaders).values({
         name, gymName,
@@ -10354,6 +10354,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         backgroundImageUrl: backgroundImageUrl || null,
         cpuLevel: cpuLevel || 'medium',
         deckBias: deckBias || { personaggi: 1.0, mosse: 1.0, bonus: 1.0 },
+        customDeck: Array.isArray(customDeck) ? customDeck : [],
         rewardCredits: rewardCredits ?? 50,
         rewardDescription: rewardDescription || null,
         orderIndex: orderIndex ?? 1,
@@ -10374,7 +10375,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const isAdmin = await checkAdminAccess(user);
       if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
       const id = parseInt(req.params.id);
-      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, rewardCredits, rewardDescription, orderIndex, isActive } = req.body;
+      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, rewardCredits, rewardDescription, orderIndex, isActive } = req.body;
       const [updated] = await db.update(gymLeaders).set({
         name, gymName,
         description: description || null,
@@ -10384,6 +10385,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         backgroundImageUrl: backgroundImageUrl || null,
         cpuLevel: cpuLevel || 'medium',
         deckBias: deckBias || { personaggi: 1.0, mosse: 1.0, bonus: 1.0 },
+        customDeck: Array.isArray(customDeck) ? customDeck : [],
         rewardCredits: rewardCredits ?? 50,
         rewardDescription: rewardDescription || null,
         orderIndex: orderIndex ?? 1,

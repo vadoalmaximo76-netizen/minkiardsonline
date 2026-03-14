@@ -800,6 +800,7 @@ export const gymLeaders = pgTable("gym_leaders", {
   backgroundImageUrl: text("background_image_url"),
   cpuLevel: text("cpu_level").notNull().default("medium"),
   deckBias: jsonb("deck_bias").default({ personaggi: 1.0, mosse: 1.0, bonus: 1.0 }),
+  customDeck: jsonb("custom_deck").default([]),
   rewardCredits: integer("reward_credits").notNull().default(50),
   rewardDescription: text("reward_description"),
   isActive: boolean("is_active").notNull().default(true),
