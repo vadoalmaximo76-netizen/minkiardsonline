@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { Button } from "./ui/button";
-import { Shuffle, Shield, Check, Clock } from "lucide-react";
+import { Shuffle, Shield, Check, Clock, Lightbulb } from "lucide-react";
 
 interface RoomCodeDialogProps {
   open: boolean;
-  onSubmit: (roomCode: string, isDraftMode?: boolean, turnTimerSeconds?: number) => void;
+  onSubmit: (roomCode: string, isDraftMode?: boolean, turnTimerSeconds?: number, helpEnabled?: boolean) => void;
 }
 
 type GameMode = 'classic' | 'draft';
@@ -20,19 +20,20 @@ export const RoomCodeDialog: React.FC<RoomCodeDialogProps> = ({ open, onSubmit }
   const [roomCode, setRoomCode] = useState("");
   const [gameMode, setGameMode] = useState<GameMode>('classic');
   const [turnTimer, setTurnTimer] = useState<number>(30);
+  const [helpEnabled, setHelpEnabled] = useState(false);
 
   if (!open) return null;
 
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
     if (roomCode.trim()) {
-      onSubmit(roomCode.trim().toUpperCase(), gameMode === 'draft', turnTimer);
+      onSubmit(roomCode.trim().toUpperCase(), gameMode === 'draft', turnTimer, helpEnabled);
     }
   };
 
   const handleCreate = () => {
     const newRoomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    onSubmit(newRoomCode, gameMode === 'draft', turnTimer);
+    onSubmit(newRoomCode, gameMode === 'draft', turnTimer, helpEnabled);
   };
 
   return (
@@ -115,6 +116,30 @@ export const RoomCodeDialog: React.FC<RoomCodeDialogProps> = ({ open, onSubmit }
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Aiuti */}
+        <div className="mb-5">
+          <button
+            type="button"
+            onClick={() => setHelpEnabled(v => !v)}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all ${
+              helpEnabled
+                ? 'border-purple-500 bg-purple-900/30 text-white'
+                : 'border-white/10 bg-white/5 text-white/60 hover:border-white/30 hover:bg-white/10'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Lightbulb className={`w-5 h-5 ${helpEnabled ? 'text-purple-400' : ''}`} />
+              <div className="text-left">
+                <p className="font-bold text-sm">Aiuti (guida per principianti)</p>
+                <p className="text-xs opacity-70">Suggerimenti AI durante la partita</p>
+              </div>
+            </div>
+            <div className={`w-10 h-6 rounded-full transition-colors flex items-center px-1 ${helpEnabled ? 'bg-purple-500' : 'bg-white/20'}`}>
+              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${helpEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+            </div>
+          </button>
         </div>
 
         {/* Join room */}

@@ -1357,7 +1357,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
-    socket.on('join-game', async ({ gameId, playerName, avatarId, userId, authToken, isDraftMode, turnTimerSeconds, tournamentMatchId }) => {
+    socket.on('join-game', async ({ gameId, playerName, avatarId, userId, authToken, isDraftMode, turnTimerSeconds, tournamentMatchId, helpEnabled }) => {
       // SECURITY: For reconnection to existing games, require authenticated identity
       // Use socket.data.userId if already authenticated, or verify authToken if provided
       let validatedUserId = socket.data?.userId;
@@ -1486,6 +1486,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const validSeconds = [0, 15, 30, 60].includes(turnTimerSeconds) ? turnTimerSeconds : 30;
         gameManager.setTurnTimeoutSeconds(gameId, validSeconds);
         console.log(`⏱️ Turn timer set to ${validSeconds}s for game ${gameId} by ${playerName}`);
+      }
+
+      // Apply help system (only the creator can enable it, on first join)
+      const gameForHelp = gameManager.getGame(gameId);
+      if (gameForHelp && gameForHelp.creatorName === playerName && helpEnabled) {
+        gameManager.setHelpEnabled(gameId, true);
+        console.log(`💡 Aiuti abilitati per la partita ${gameId} da ${playerName}`);
       }
 
       // ── Tournament match room setup ──────────────────────────────────────────

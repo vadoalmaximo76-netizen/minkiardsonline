@@ -131,7 +131,7 @@ function App() {
   const [showNameDialog, setShowNameDialog] = useState(false);
   const [showRoomDialog, setShowRoomDialog] = useState(false);
   const [showDeckSelectDialog, setShowDeckSelectDialog] = useState(false);
-  const [pendingDraftParams, setPendingDraftParams] = useState<{ gameId: string; playerName: string; avatarId: number | undefined; userId: number | undefined; turnTimerSeconds: number } | null>(null);
+  const [pendingDraftParams, setPendingDraftParams] = useState<{ gameId: string; playerName: string; avatarId: number | undefined; userId: number | undefined; turnTimerSeconds: number; helpEnabled?: boolean } | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [serverReady, setServerReady] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -420,9 +420,9 @@ function App() {
     }
   };
 
-  const handleRoomSubmit = (roomCode: string, isDraftMode?: boolean, turnTimerSeconds?: number) => {
+  const handleRoomSubmit = (roomCode: string, isDraftMode?: boolean, turnTimerSeconds?: number, helpEnabled?: boolean) => {
     const newGameId = `room-${roomCode}`;
-    console.log(`Attempting to join room: ${newGameId} with player: ${playerName}${isDraftMode ? ' [DRAFT]' : ''}`);
+    console.log(`Attempting to join room: ${newGameId} with player: ${playerName}${isDraftMode ? ' [DRAFT]' : ''}${helpEnabled ? ' [AIUTI]' : ''}`);
     
     setShowRoomDialog(false);
     setShowDeckSelectDialog(false);
@@ -436,6 +436,7 @@ function App() {
         avatarId: pendingAvatar,
         userId: authenticatedUser?.id,
         turnTimerSeconds: turnTimerSeconds ?? 30,
+        helpEnabled: helpEnabled ?? false,
       });
       setShowDeckSelectDialog(true);
       return;
@@ -455,7 +456,8 @@ function App() {
       avatarId: pendingAvatar,
       userId: authenticatedUser?.id,
       isDraftMode: false,
-      turnTimerSeconds: turnTimerSeconds ?? 30
+      turnTimerSeconds: turnTimerSeconds ?? 30,
+      helpEnabled: helpEnabled ?? false,
     });
   };
 
@@ -475,6 +477,7 @@ function App() {
       userId: p.userId,
       isDraftMode: true,
       turnTimerSeconds: p.turnTimerSeconds,
+      helpEnabled: p.helpEnabled ?? false,
     });
   };
 
