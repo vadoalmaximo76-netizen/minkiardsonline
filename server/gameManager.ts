@@ -3143,6 +3143,7 @@ Rispondi SOLO in JSON:`;
         isDraftMode: game.isDraftMode || false,
         playerDraftDecks: game.playerDraftDecks || {},
         fantaTournamentId: game.fantaTournamentId || null,
+        helpEnabled: game.helpEnabled || false,
         // Store player info without cpuInstance
         players: Object.fromEntries(
           Object.entries(game.players).map(([name, player]) => [
