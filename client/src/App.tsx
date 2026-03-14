@@ -17,6 +17,7 @@ import { FantaMinkiardsSection } from "./components/FantaMinkiardsSection";
 import { ClassicTournamentHub } from "./components/ClassicTournamentHub";
 import { DeckSelectDialog } from "./components/DeckSelectDialog";
 import { RankiardLeaderboard } from "./components/RankiardLeaderboard";
+import { GymMode } from "./components/GymMode";
 import { SpotifyPlayer } from "./components/SpotifyPlayer";
 import { useGameState } from "./lib/stores/useGameState";
 import { socket } from "./lib/socket";
@@ -26,7 +27,7 @@ import { Toaster } from "./components/ui/sonner";
 import "@fontsource/inter";
 import "./index.css";
 
-type AppSection = 'home' | 'play' | 'training' | 'rooms' | 'profile' | 'spectator' | 'admin' | 'draft' | 'leaderboard' | 'tournaments' | 'fanta';
+type AppSection = 'home' | 'play' | 'training' | 'rooms' | 'profile' | 'spectator' | 'admin' | 'draft' | 'leaderboard' | 'tournaments' | 'fanta' | 'gym';
 
 const SECTION_PATHS: Record<AppSection, string> = {
   home:        '/',
@@ -40,6 +41,7 @@ const SECTION_PATHS: Record<AppSection, string> = {
   leaderboard: '/classifica',
   tournaments: '/tornei',
   fanta:       '/fanta',
+  gym:         '/palestre',
 };
 
 const PATH_SECTIONS: Record<string, AppSection> = Object.fromEntries(
@@ -891,6 +893,23 @@ function App() {
         <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
         <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} onJoinGame={handleJoinGameFromNotification} />
         <BottomNav currentSection={currentSection} onNavigate={handleBottomNavNavigate} hasActiveGame={!!gameId} />
+      </QueryClientProvider>
+    );
+  }
+
+  // Show Gym / Story Mode
+  if (currentSection === 'gym') {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <GymMode
+          playerName={authenticatedUser?.username || playerName}
+          userId={authenticatedUser?.id}
+          avatarId={authenticatedUser?.avatar}
+          onBack={handleGoHome}
+        />
+        <SpotifyPlayer disabled={false} />
+        <NotificationPromptBanner authToken={localStorage.getItem('authToken')} />
+        <NotificationInbox onNavigate={(s) => handleNavigate(s as any)} socket={socket} onJoinGame={handleJoinGameFromNotification} />
       </QueryClientProvider>
     );
   }

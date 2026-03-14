@@ -36,7 +36,7 @@ interface HomePanel {
 interface HomeScreenProps {
   playerName: string;
   userId?: number;
-  onNavigate: (section: 'play' | 'training' | 'rooms' | 'profile' | 'admin' | 'draft' | 'leaderboard' | 'tournaments' | 'fanta') => void;
+  onNavigate: (section: 'play' | 'training' | 'rooms' | 'profile' | 'admin' | 'draft' | 'leaderboard' | 'tournaments' | 'fanta' | 'gym') => void;
   onJoinTournamentMatch?: (gameId: string, matchId: number, tournamentName: string) => void;
   userEmail?: string;
   initialShowTournaments?: boolean;
@@ -58,6 +58,7 @@ const PANEL_KEY_ACTIONS: Record<string, string> = {
   draft: 'navigate:draft',
   fanta: 'navigate:fanta',
   leaderboard: 'navigate:leaderboard',
+  gym: 'navigate:gym',
   'tournaments-classic': 'navigate:tournaments',
   tournaments: 'modal:tournaments',
   clubs: 'modal:clubs',
