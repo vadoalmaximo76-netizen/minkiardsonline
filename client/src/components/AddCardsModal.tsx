@@ -1734,72 +1734,85 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
   });
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-lg p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-3">
-            <h3 className="text-white font-bold text-xl">GESTIONE CARTE</h3>
-            {isAdmin && (
-              <span className="bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded flex items-center gap-1">
-                <Shield size={12} />
-                ADMIN
-              </span>
-            )}
-          </div>
-          <Button
-            onClick={onClose}
-            className="bg-red-600 hover:bg-red-700 text-white p-2"
-            size="sm"
-          >
-            <X size={16} />
-          </Button>
-        </div>
-
-        <div className="flex gap-2 mb-6 flex-wrap">
-          <Button
-            onClick={() => setActiveTab('add')}
-            className={`flex-1 py-3 font-bold ${activeTab === 'add' ? 'bg-green-600' : 'bg-gray-600 hover:bg-gray-500'}`}
-          >
-            <Plus size={18} className="mr-2" />
-            AGGIUNGI CARTE
-          </Button>
-          <Button
-            onClick={() => setActiveTab('manage')}
-            className={`flex-1 py-3 font-bold ${activeTab === 'manage' ? 'bg-purple-600' : 'bg-gray-600 hover:bg-gray-500'}`}
-          >
-            <Pencil size={18} className="mr-2" />
-            CARTE PERMANENTI ({permanentCards.length})
-          </Button>
+    <div className="fixed inset-0 bg-gray-900 z-50 flex flex-col">
+      {/* Top bar */}
+      <div className="flex-shrink-0 bg-gray-800 border-b border-white/10 px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h3 className="text-white font-bold text-xl">GESTIONE CARTE</h3>
           {isAdmin && (
-            <Button
-              onClick={() => setActiveTab('existing')}
-              className={`flex-1 py-3 font-bold ${activeTab === 'existing' ? 'bg-yellow-600' : 'bg-gray-600 hover:bg-gray-500'}`}
-            >
-              <Shield size={18} className="mr-2" />
-              MODIFICA CARTE GIOCO
-            </Button>
+            <span className="bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded flex items-center gap-1">
+              <Shield size={12} />
+              ADMIN
+            </span>
           )}
         </div>
+        <Button
+          onClick={onClose}
+          className="bg-red-600 hover:bg-red-700 text-white p-2"
+          size="sm"
+        >
+          <X size={16} />
+        </Button>
+      </div>
 
-        <div className="mb-6">
-          <h4 className="text-white font-semibold mb-3">Scegli il mazzo:</h4>
-          <div className="grid grid-cols-2 gap-3">
-            {deckOptions.map((deck) => (
-              <Button
-                key={deck.value}
-                onClick={() => {
-                  setSelectedDeck(deck.value as DeckType);
-                  setUploadedCards([]);
-                }}
-                className={`${deck.color} hover:opacity-80 text-white font-bold py-3 border-2 ${
-                  selectedDeck === deck.value ? 'border-yellow-400' : 'border-transparent'
+      {/* Body: sidebar + main content */}
+      <div className="flex flex-1 min-h-0">
+        {/* Left sidebar */}
+        <div className="w-56 bg-gray-800/60 border-r border-white/10 flex flex-col p-4 gap-6 overflow-y-auto flex-shrink-0">
+          <div>
+            <p className="text-white/40 text-xs font-bold uppercase tracking-wider mb-3">Mazzo</p>
+            <div className="flex flex-col gap-2">
+              {deckOptions.map((deck) => (
+                <button
+                  key={deck.value}
+                  onClick={() => { setSelectedDeck(deck.value as DeckType); setUploadedCards([]); }}
+                  className={`${deck.color} hover:opacity-90 text-white font-bold py-2 px-3 rounded-lg border-2 text-sm text-left transition-all ${
+                    selectedDeck === deck.value ? 'border-yellow-400 ring-1 ring-yellow-400/40' : 'border-transparent opacity-70'
+                  }`}
+                >
+                  {deck.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-white/40 text-xs font-bold uppercase tracking-wider mb-3">Sezione</p>
+            <div className="flex flex-col gap-1">
+              <button
+                onClick={() => setActiveTab('add')}
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all text-left w-full ${
+                  activeTab === 'add' ? 'bg-green-600 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'
                 }`}
               >
-                {deck.label}
-              </Button>
-            ))}
+                <Plus size={15} />
+                Aggiungi Carte
+              </button>
+              <button
+                onClick={() => setActiveTab('manage')}
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all text-left w-full ${
+                  activeTab === 'manage' ? 'bg-purple-600 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Pencil size={15} />
+                Permanenti ({permanentCards.length})
+              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => setActiveTab('existing')}
+                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all text-left w-full ${
+                    activeTab === 'existing' ? 'bg-yellow-600 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <Shield size={15} />
+                  Modifica Carte Gioco
+                </button>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* Main content */}
+        <div className="flex-1 overflow-y-auto p-6">
 
         {activeTab === 'add' && (
           <>
@@ -1853,7 +1866,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                   </div>
                 </div>
                 
-                <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
+                <div className="space-y-4 pr-2">
                   {uploadedCards.map((card, index) => (
                     <div key={index} className="bg-gray-700 rounded-lg p-4 relative">
                       <Button
@@ -2382,7 +2395,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                 Nessuna carta permanente in questo mazzo
               </div>
             ) : (
-              <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2">
+              <div className="space-y-4 pr-2">
                 {filteredPermanentCards.map((card) => (
                   <div key={card.id} className="bg-gray-700 rounded-lg p-4">
                     <div className="flex gap-4">
@@ -2830,7 +2843,7 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                 Nessuna carta trovata
               </div>
             ) : (
-              <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2">
+              <div className="space-y-4 pr-2">
                 {filteredExistingCards.map((card) => (
                   <div key={card.id} className={`bg-gray-700 rounded-lg p-4 ${card.isDeleted ? 'opacity-50 border-2 border-red-500' : pendingChanges.has(card.id) ? 'border-2 border-green-500' : card.isModified ? 'border-2 border-yellow-500' : ''}`}>
                     <div className="flex gap-4">
@@ -3655,7 +3668,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
             </div>
           </div>
         )}
-      </div>
+        </div>{/* end main content */}
+      </div>{/* end body */}
 
       {/* Effect Wizard Dialog */}
       {showEffectWizard && (
