@@ -432,6 +432,7 @@ interface GameState {
   kebabMultiplier?: Record<string, number>;
   hands?: Record<string, Record<string, Card[]>>;
   isDraftMode?: boolean;
+  isGymMode?: boolean;
   playerDraftDecks?: Record<string, { personaggi: Card[], mosse: Card[], bonus: Card[] }>;
   fantaTournamentId?: string;
   helpEnabled?: boolean;
@@ -3064,7 +3065,8 @@ Rispondi SOLO in JSON:`;
       fantaTournamentId: gameState.fantaTournamentId || null,
       tournamentCharacterLimit: (gameState as any).tournamentCharacterLimit || null,
       isDraftMode: gameState.isDraftMode || false,
-      playerDraftDeckCounts: gameState.isDraftMode && gameState.playerDraftDecks
+      isGymMode: gameState.isGymMode || false,
+      playerDraftDeckCounts: (gameState.isDraftMode || gameState.isGymMode) && gameState.playerDraftDecks
         ? Object.fromEntries(Object.entries(gameState.playerDraftDecks).map(([name, decks]) => [name, {
             personaggi: decks.personaggi.length,
             mosse: decks.mosse.length,
@@ -3351,9 +3353,9 @@ Rispondi SOLO in JSON:`;
     const game = this.games.get(gameId);
     if (!game || !game.players[playerName]) return false;
 
-    // In draft mode, use player's personal deck — never fall back to shared deck
+    // In draft/gym mode, use player's personal deck — never fall back to shared deck
     let deck: Card[];
-    if (game.isDraftMode && game.playerDraftDecks?.[playerName] && deckType !== 'personaggi_speciali') {
+    if ((game.isDraftMode || game.isGymMode) && game.playerDraftDecks?.[playerName] && deckType !== 'personaggi_speciali') {
       const personalDecks = game.playerDraftDecks[playerName];
       deck = personalDecks[deckType as 'personaggi' | 'mosse' | 'bonus'] || [];
     } else {
@@ -3391,7 +3393,7 @@ Rispondi SOLO in JSON:`;
     if (!game || !game.players[playerName]) return null;
 
     let deck: Card[];
-    if (game.isDraftMode && game.playerDraftDecks?.[playerName] && deckType !== 'personaggi_speciali') {
+    if ((game.isDraftMode || game.isGymMode) && game.playerDraftDecks?.[playerName] && deckType !== 'personaggi_speciali') {
       const personalDecks = game.playerDraftDecks[playerName];
       deck = personalDecks[deckType as 'personaggi' | 'mosse' | 'bonus'] || [];
     } else {
@@ -3434,11 +3436,11 @@ Rispondi SOLO in JSON:`;
       let deck: Card[] | undefined;
 
       // In draft mode, use the player's personal deck if available
-      if (game.isDraftMode && game.playerDraftDecks?.[playerName] && deckType !== 'personaggi_speciali') {
+      if ((game.isDraftMode || game.isGymMode) && game.playerDraftDecks?.[playerName] && deckType !== 'personaggi_speciali') {
         const personalDecks = game.playerDraftDecks[playerName];
         deck = personalDecks[deckType as 'personaggi' | 'mosse' | 'bonus'];
         if (!deck || deck.length === 0) {
-          console.log(`⚠️ Draft opening: personal ${deckType} deck empty for ${playerName}`);
+          console.log(`⚠️ Draft/Gym opening: personal ${deckType} deck empty for ${playerName}`);
           continue;
         }
       } else {
@@ -3525,7 +3527,7 @@ Rispondi SOLO in JSON:`;
     const game = this.games.get(gameId);
     if (!game || !game.players[playerName]) return false;
 
-    const isDraft = (game as any).isDraftMode;
+    const isDraft = (game as any).isDraftMode || (game as any).isGymMode;
     const personalDeck: any[] | undefined = isDraft ? (game as any).playerDraftDecks?.[playerName]?.[deckType] : undefined;
     const deck = personalDeck ?? game.decks[deckType];
     const cardIndex = deck.findIndex((card: any) => card.id === cardId);
@@ -18776,6 +18778,129 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     await this.addPlayer(gameId, cpuName, fakeSocketId, true);
     
     return cpuName;
+  }
+
+  async resolveCardIdsToDecks(cardIds: string[]): Promise<{ personaggi: Card[], mosse: Card[], bonus: Card[] }> {
+    const allMods = jsonStorage.cardModifications.getAll();
+    const modMap = new Map(allMods.map((m: any) => [m.originalCardId, m]));
+    const allCustomCards = jsonStorage.customCards.getAll() as any[];
+    const customCardMap = new Map(allCustomCards.map((c: any) => [`custom-${c.id}`, c]));
+
+    const buildCards = (ids: string[], deckType: string): Card[] => {
+      const deckUrls = (CARD_DATA as any)[deckType] as string[] || [];
+      return ids.map(id => {
+        if (id.startsWith('custom-')) {
+          const cc = customCardMap.get(id) as any;
+          if (!cc) return null;
+          const card: Card = {
+            id: `${id}-${Math.random().toString(36).substr(2, 6)}`,
+            type: deckType,
+            frontImage: cc.id ? `/api/card-image/${cc.id}` : (cc.imageData || ''),
+            backImage: (DECK_BACK_IMAGES as any)[deckType] || '',
+            owner: '',
+            name: cc.name || 'Carta',
+            pti: cc.pti ?? 0,
+            stars: cc.stars ?? 0,
+            effect: cc.effect || undefined,
+            audioUrl: cc.audioUrl || undefined,
+            youtubeUrl: cc.youtubeUrl || undefined,
+            mosseDamageValue: cc.mosseDamageValue ?? undefined,
+            mosseDamageEffect: cc.mosseDamageEffect || undefined,
+            mosseCharacterOverrides: cc.mosseCharacterOverrides || undefined,
+            mosseRestrictedFrom: cc.mosseRestrictedFrom || undefined,
+            mosseRestrictedAgainst: cc.mosseRestrictedAgainst || undefined,
+            mosseTargetingMode: cc.mosseTargetingMode || undefined,
+            mosseTargetCount: cc.mosseTargetCount ?? undefined,
+            mosseCanCounter: cc.mosseCanCounter ?? false,
+            mosseCanBeCountered: cc.mosseCanBeCountered ?? false,
+          } as Card;
+          if (deckType === 'personaggi' && card.pti != null) {
+            const stars = card.stars ?? 1;
+            (card as any).originalPti = card.pti;
+            card.text = `PTI: ${card.pti} | Stelle: ${stars} | PTI originali: ${card.pti}`;
+          }
+          return card;
+        }
+        const parts = id.split('-');
+        const index = parseInt(parts[parts.length - 1]);
+        if (isNaN(index) || index < 0 || index >= deckUrls.length) return null;
+        const imageUrl = deckUrls[index];
+        if (!imageUrl) return null;
+        const mod = modMap.get(id) as any;
+        const urlParts = imageUrl.split('/');
+        const filename = urlParts[urlParts.length - 1] || '';
+        const defaultName = decodeURIComponent(filename)
+          .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '')
+          .replace(/[-_]/g, ' ')
+          .trim();
+        const card: Card = {
+          id: `${id}-${Math.random().toString(36).substr(2, 6)}`,
+          type: deckType,
+          frontImage: imageUrl,
+          backImage: (DECK_BACK_IMAGES as any)[deckType] || '',
+          owner: '',
+          name: defaultName,
+        };
+        if (mod) {
+          this.applyModificationToCard(card, mod);
+        }
+        if (deckType === 'personaggi') {
+          if (card.pti == null || card.stars == null) {
+            const cached = getPersonaggioFromCache(defaultName);
+            if (card.pti == null) card.pti = cached?.pti ?? undefined;
+            if (card.stars == null) card.stars = cached?.stars ?? undefined;
+          }
+          if (card.pti != null) {
+            const stars = card.stars ?? 1;
+            (card as any).originalPti = card.pti;
+            card.text = `PTI: ${card.pti} | Stelle: ${stars} | PTI originali: ${card.pti}`;
+          }
+        }
+        return card;
+      }).filter(Boolean) as Card[];
+    };
+
+    const personaggiIds = cardIds.filter(id => {
+      if (id.startsWith('personaggi_speciali')) return false;
+      if (id.startsWith('personaggi')) return true;
+      if (id.startsWith('custom-')) {
+        const cc = customCardMap.get(id) as any;
+        return cc && (cc.deckType === 'personaggi' || !cc.deckType);
+      }
+      return false;
+    });
+    const mosseIds = cardIds.filter(id => {
+      if (id.startsWith('mosse')) return true;
+      if (id.startsWith('custom-')) {
+        const cc = customCardMap.get(id) as any;
+        return cc && cc.deckType === 'mosse';
+      }
+      return false;
+    });
+    const bonusIds = cardIds.filter(id => {
+      if (id.startsWith('bonus')) return true;
+      if (id.startsWith('custom-')) {
+        const cc = customCardMap.get(id) as any;
+        return cc && cc.deckType === 'bonus';
+      }
+      return false;
+    });
+
+    const personaggiCards = buildCards(personaggiIds, 'personaggi');
+    const mosseCards = buildCards(mosseIds, 'mosse');
+    const bonusCards = buildCards(bonusIds, 'bonus');
+
+    const shuffle = (arr: any[]) => {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+    };
+    shuffle(personaggiCards);
+    shuffle(mosseCards);
+    shuffle(bonusCards);
+
+    return { personaggi: personaggiCards, mosse: mosseCards, bonus: bonusCards };
   }
 
   async processCPUTurn(gameId: string, cpuPlayerName: string, socketEmitter?: any): Promise<any> {

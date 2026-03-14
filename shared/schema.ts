@@ -801,6 +801,8 @@ export const gymLeaders = pgTable("gym_leaders", {
   cpuLevel: text("cpu_level").notNull().default("medium"),
   deckBias: jsonb("deck_bias").default({ personaggi: 1.0, mosse: 1.0, bonus: 1.0 }),
   customDeck: jsonb("custom_deck").default([]),
+  livesCount: integer("lives_count").notNull().default(3),
+  playerStartingDeck: jsonb("player_starting_deck").default([]),
   rewardCredits: integer("reward_credits").notNull().default(50),
   rewardDescription: text("reward_description"),
   isActive: boolean("is_active").notNull().default(true),
@@ -814,8 +816,16 @@ export const userGymProgress = pgTable("user_gym_progress", {
   completedAt: timestamp("completed_at").notNull().defaultNow(),
 });
 
+export const userStoryDeck = pgTable("user_story_deck", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().unique(),
+  cardIds: jsonb("card_ids").notNull().default([]),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 export const insertGymLeaderSchema = createInsertSchema(gymLeaders).omit({ id: true, createdAt: true });
 export const insertUserGymProgressSchema = createInsertSchema(userGymProgress).omit({ id: true });
 export type GymLeader = typeof gymLeaders.$inferSelect;
 export type UserGymProgress = typeof userGymProgress.$inferSelect;
+export type UserStoryDeck = typeof userStoryDeck.$inferSelect;
 export type InsertGymLeader = z.infer<typeof insertGymLeaderSchema>;

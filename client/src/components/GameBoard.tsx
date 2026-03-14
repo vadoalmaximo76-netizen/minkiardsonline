@@ -3965,7 +3965,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           </div>
         </div>
 
-        {!(gameState as any)?.isPlaying && gameState?.players && !gameId?.startsWith('tournament-') && !(gameState as any)?.fantaTournamentId ? (
+        {!(gameState as any)?.isPlaying && gameState?.players && !gameId?.startsWith('tournament-') && !(gameState as any)?.fantaTournamentId && !gameId?.startsWith('gym-') ? (
           <PreGameLobbyPanel
             gameId={gameId}
             playerName={playerName}

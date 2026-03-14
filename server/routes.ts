@@ -7,7 +7,7 @@ import jwt from "jsonwebtoken";
 import fs from "fs";
 import path from "path";
 import { db, legacyDb, isDatabaseAvailable, isLegacyDbAvailable } from "./db";
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, draftTournaments, notifications, gymLeaders, userGymProgress } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, draftTournaments, notifications, gymLeaders, userGymProgress, userStoryDeck } from "../shared/schema";
 import { jsonStorage, homePanelsStorage, newsTickerStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray } from "drizzle-orm";
 import { CARD_DATA, DECK_BACK_IMAGES } from "../client/src/lib/cardData";
@@ -1974,9 +1974,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // Create a training game with CPU opponent
-    socket.on('create-training-game', async ({ gameId, playerName, avatarId, userId, helpEnabled }) => {
+    socket.on('create-training-game', async ({ gameId, playerName, avatarId, userId, helpEnabled, isGymMode, playerDeck, livesCount }) => {
       try {
-        console.log(`Creating training game ${gameId} for ${playerName}`);
+        console.log(`Creating training game ${gameId} for ${playerName}${isGymMode ? ' [GYM MODE]' : ''}`);
         
         // Create the game and add the player
         const result = await gameManager.addPlayer(gameId, playerName, socket.id, false, userId);
@@ -2002,6 +2002,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (helpEnabled) {
           gameManager.setHelpEnabled(gameId, true);
         }
+
+        // Gym mode: set player's story deck and mark isGymMode
+        if (isGymMode) {
+          const game = gameManager.getGame(gameId);
+          if (game) {
+            game.isGymMode = true;
+            if (!game.playerDraftDecks) game.playerDraftDecks = {};
+            const deckIds: string[] = Array.isArray(playerDeck) && playerDeck.length > 0 ? playerDeck : [];
+            if (deckIds.length > 0) {
+              const resolvedDeck = await gameManager.resolveCardIdsToDecks(deckIds);
+              game.playerDraftDecks[playerName] = resolvedDeck;
+              console.log(`🗂️ Gym mode: player ${playerName} deck set with ${resolvedDeck.personaggi.length}p/${resolvedDeck.mosse.length}m/${resolvedDeck.bonus.length}b cards`);
+            }
+            if (livesCount && livesCount > 0) {
+              game.characterLimit = String(livesCount);
+            }
+          }
+        }
         
         // Send initial game state
         const gameState = gameManager.getSanitizedGameState(gameId);
@@ -2016,19 +2034,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // Add CPU player to training game
-    socket.on('add-training-cpu', async ({ gameId }) => {
+    socket.on('add-training-cpu', async ({ gameId, isGymMode, customDeck, cpuLevel, leaderName }) => {
       try {
         const cpuName = await gameManager.addCPUPlayer(gameId);
+
+        // Gym mode: configure CPU with leader's custom deck
+        if (isGymMode) {
+          const game = gameManager.getGame(gameId);
+          if (game) {
+            game.isGymMode = true;
+            if (!game.playerDraftDecks) game.playerDraftDecks = {};
+            const deckIds: string[] = Array.isArray(customDeck) && customDeck.length > 0 ? customDeck : [];
+            if (deckIds.length > 0) {
+              const resolvedDeck = await gameManager.resolveCardIdsToDecks(deckIds);
+              game.playerDraftDecks[cpuName] = resolvedDeck;
+              console.log(`🤖 Gym mode CPU ${cpuName} deck: ${resolvedDeck.personaggi.length}p/${resolvedDeck.mosse.length}m/${resolvedDeck.bonus.length}b cards`);
+            }
+          }
+        }
+
         const gameState = gameManager.getSanitizedGameState(gameId);
         emitThrottledGameState(io, gameId, gameState);
         io.to(gameId).emit('player-joined', { playerName: cpuName });
         
-        // CPU sends a greeting message for training
+        // CPU sends a greeting message for training/gym
         setTimeout(() => {
           const game = gameManager.getGameState(gameId);
           const cpuPlayer = game?.players[cpuName];
           if (cpuPlayer?.isCPU && cpuPlayer.cpuInstance) {
-            cpuPlayer.cpuInstance.sendChatMessage("Ciao! Sono il tuo avversario di allenamento. Ti aiuterò a imparare a giocare a MINKIARDS!");
+            const greeting = isGymMode && leaderName
+              ? `Benvenuto nella mia palestra! Sono ${leaderName}. Preparati alla battaglia!`
+              : "Ciao! Sono il tuo avversario di allenamento. Ti aiuterò a imparare a giocare a MINKIARDS!";
+            cpuPlayer.cpuInstance.sendChatMessage(greeting);
           }
         }, 1500);
         
@@ -10343,7 +10380,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const user = (req as any).user;
       const isAdmin = await checkAdminAccess(user);
       if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
-      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, rewardCredits, rewardDescription, orderIndex, isActive } = req.body;
+      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, livesCount, playerStartingDeck, rewardCredits, rewardDescription, orderIndex, isActive } = req.body;
       if (!name || !gymName) return res.status(400).json({ success: false, error: 'name e gymName obbligatori' });
       const [created] = await db.insert(gymLeaders).values({
         name, gymName,
@@ -10355,6 +10392,8 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         cpuLevel: cpuLevel || 'medium',
         deckBias: deckBias || { personaggi: 1.0, mosse: 1.0, bonus: 1.0 },
         customDeck: Array.isArray(customDeck) ? customDeck : [],
+        livesCount: livesCount ?? 3,
+        playerStartingDeck: Array.isArray(playerStartingDeck) ? playerStartingDeck : [],
         rewardCredits: rewardCredits ?? 50,
         rewardDescription: rewardDescription || null,
         orderIndex: orderIndex ?? 1,
@@ -10375,7 +10414,7 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       const isAdmin = await checkAdminAccess(user);
       if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
       const id = parseInt(req.params.id);
-      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, rewardCredits, rewardDescription, orderIndex, isActive } = req.body;
+      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, customDeck, livesCount, playerStartingDeck, rewardCredits, rewardDescription, orderIndex, isActive } = req.body;
       const [updated] = await db.update(gymLeaders).set({
         name, gymName,
         description: description || null,
@@ -10386,6 +10425,8 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
         cpuLevel: cpuLevel || 'medium',
         deckBias: deckBias || { personaggi: 1.0, mosse: 1.0, bonus: 1.0 },
         customDeck: Array.isArray(customDeck) ? customDeck : [],
+        livesCount: livesCount ?? 3,
+        playerStartingDeck: Array.isArray(playerStartingDeck) ? playerStartingDeck : [],
         rewardCredits: rewardCredits ?? 50,
         rewardDescription: rewardDescription || null,
         orderIndex: orderIndex ?? 1,
@@ -10458,6 +10499,77 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       res.json({ success: true });
     } catch (e) {
       console.error('Error completing gym:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // ============= STORY MODE DECK ENDPOINTS =============
+
+  // GET /api/story-mode/deck - get player's accumulated story deck
+  app.get('/api/story-mode/deck', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json({ success: true, cardIds: [] });
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+      const rows = await db.select().from(userStoryDeck).where(eq(userStoryDeck.userId, user.userId)).limit(1);
+      const cardIds = rows.length > 0 ? (rows[0].cardIds as string[]) : [];
+      res.json({ success: true, cardIds });
+    } catch (e) {
+      console.error('Error fetching story deck:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // POST /api/story-mode/deck/add-card - add a card to player's story deck after gym victory
+  app.post('/api/story-mode/deck/add-card', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+      const { cardId } = req.body;
+      if (!cardId || typeof cardId !== 'string') return res.status(400).json({ success: false, error: 'cardId obbligatorio' });
+      const rows = await db.select().from(userStoryDeck).where(eq(userStoryDeck.userId, user.userId)).limit(1);
+      if (rows.length === 0) {
+        await db.insert(userStoryDeck).values({ userId: user.userId, cardIds: [cardId] });
+      } else {
+        const current = (rows[0].cardIds as string[]) || [];
+        const updated = [...current, cardId];
+        await db.update(userStoryDeck).set({ cardIds: updated, updatedAt: new Date() }).where(eq(userStoryDeck.userId, user.userId));
+      }
+      const finalRows = await db.select().from(userStoryDeck).where(eq(userStoryDeck.userId, user.userId)).limit(1);
+      res.json({ success: true, cardIds: finalRows[0].cardIds });
+    } catch (e) {
+      console.error('Error adding card to story deck:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // POST /api/story-mode/deck/initialize - initialize story deck with a gym leader's playerStartingDeck (if deck is empty)
+  app.post('/api/story-mode/deck/initialize', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+      const { gymLeaderId } = req.body;
+      const rows = await db.select().from(userStoryDeck).where(eq(userStoryDeck.userId, user.userId)).limit(1);
+      if (rows.length > 0 && (rows[0].cardIds as string[]).length > 0) {
+        return res.json({ success: true, cardIds: rows[0].cardIds, alreadyInitialized: true });
+      }
+      if (gymLeaderId) {
+        const [gym] = await db.select().from(gymLeaders).where(eq(gymLeaders.id, parseInt(gymLeaderId)));
+        if (gym && Array.isArray(gym.playerStartingDeck) && (gym.playerStartingDeck as string[]).length > 0) {
+          const startingCards = gym.playerStartingDeck as string[];
+          if (rows.length === 0) {
+            await db.insert(userStoryDeck).values({ userId: user.userId, cardIds: startingCards });
+          } else {
+            await db.update(userStoryDeck).set({ cardIds: startingCards, updatedAt: new Date() }).where(eq(userStoryDeck.userId, user.userId));
+          }
+          return res.json({ success: true, cardIds: startingCards });
+        }
+      }
+      res.json({ success: true, cardIds: [] });
+    } catch (e) {
+      console.error('Error initializing story deck:', e);
       res.status(500).json({ success: false, error: 'Errore server' });
     }
   });

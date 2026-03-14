@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, Shield, Star, Lock, CheckCircle, Swords, Trophy, ChevronRight, Sparkles } from 'lucide-react';
+import { ArrowLeft, Shield, Star, Lock, CheckCircle, Swords, Trophy, ChevronRight, Sparkles, Heart } from 'lucide-react';
 import { GameBoard } from './GameBoard';
 import { socket } from '../lib/socket';
 import { useGameState } from '../lib/stores/useGameState';
+import { CARD_DATA } from '../lib/cardData';
 
 interface GymLeader {
   id: number;
@@ -17,6 +18,8 @@ interface GymLeader {
   cpuLevel: string;
   deckBias: { personaggi: number; mosse: number; bonus: number };
   customDeck: string[];
+  livesCount: number;
+  playerStartingDeck: string[];
   rewardCredits: number;
   rewardDescription: string | null;
 }
@@ -28,7 +31,30 @@ interface GymModeProps {
   onBack: () => void;
 }
 
-type Phase = 'map' | 'intro' | 'battle' | 'victory' | 'defeat';
+type Phase = 'map' | 'intro' | 'battle' | 'victory' | 'defeat' | 'card-pick';
+
+function getCardImageFromId(cardId: string): string {
+  if (cardId.startsWith('custom-')) {
+    const num = cardId.replace('custom-', '');
+    return `/api/card-image/${num}`;
+  }
+  const parts = cardId.split('-');
+  const idx = parseInt(parts[parts.length - 1]);
+  const deckKey = parts.slice(0, parts.length - 1).join('_');
+  const mappedKey = deckKey === 'personaggi_speciali' ? 'personaggi_speciali' : deckKey;
+  const urls = (CARD_DATA as any)[mappedKey] as string[] | undefined;
+  if (urls && !isNaN(idx) && idx >= 0 && idx < urls.length) return urls[idx];
+  return '';
+}
+
+function getCardDeckLabel(cardId: string): string {
+  if (cardId.startsWith('personaggi_speciali')) return 'Speciale';
+  if (cardId.startsWith('personaggi')) return 'Personaggio';
+  if (cardId.startsWith('mosse')) return 'Mossa';
+  if (cardId.startsWith('bonus')) return 'Bonus';
+  if (cardId.startsWith('custom-')) return 'Carta';
+  return 'Carta';
+}
 
 export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) {
   const [leaders, setLeaders] = useState<GymLeader[]>([]);
@@ -37,8 +63,12 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
   const [phase, setPhase] = useState<Phase>('map');
   const [selectedLeader, setSelectedLeader] = useState<GymLeader | null>(null);
   const [gameId, setGameIdLocal] = useState<string | null>(null);
-  const [cpuAdded, setCpuAdded] = useState(false);
   const [justWon, setJustWon] = useState(false);
+  const [storyDeckIds, setStoryDeckIds] = useState<string[]>([]);
+  const [cardPickLoading, setCardPickLoading] = useState(false);
+
+  const selectedLeaderRef = useRef<GymLeader | null>(null);
+  const gameIdRef = useRef<string | null>(null);
 
   const { setGameId, setPlayerName, generateSessionId, reset } = useGameState();
 
@@ -59,34 +89,73 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
     finally { setLoading(false); }
   }, [authToken]);
 
-  useEffect(() => { fetchLeaders(); }, [fetchLeaders]);
+  const fetchStoryDeck = useCallback(async () => {
+    if (!authToken) return;
+    try {
+      const res = await fetch('/api/story-mode/deck', {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const data = await res.json();
+      if (data.success) setStoryDeckIds(data.cardIds || []);
+    } catch {}
+  }, [authToken]);
 
-  // Listen for game-over to detect win/loss
+  useEffect(() => {
+    fetchLeaders();
+    fetchStoryDeck();
+  }, [fetchLeaders, fetchStoryDeck]);
+
+  useEffect(() => {
+    selectedLeaderRef.current = selectedLeader;
+  }, [selectedLeader]);
+
+  useEffect(() => {
+    gameIdRef.current = gameId;
+  }, [gameId]);
+
   useEffect(() => {
     const handleGameOver = (data: any) => {
-      if (!gameId || data.gameId !== gameId) return;
-      const myName = playerName;
-      const iWon = data.winner === myName || (data.winner && data.winner !== myName && data.loser === myName ? false : data.winner === myName);
-      const actuallyWon = data.winner && (data.winner.toLowerCase() === myName.toLowerCase() || (data.winnerId && data.winnerId === userId));
+      const gid = gameIdRef.current;
+      if (!gid || data.gameId !== gid) return;
+      const actuallyWon = data.winner && (
+        data.winner.toLowerCase() === playerName.toLowerCase() ||
+        (data.winnerId && data.winnerId === userId)
+      );
       if (actuallyWon) {
-        setPhase('victory');
         setJustWon(true);
+        const leader = selectedLeaderRef.current;
+        if (leader && leader.customDeck && leader.customDeck.length > 0) {
+          setPhase('card-pick');
+        } else {
+          setPhase('victory');
+        }
       } else {
         setPhase('defeat');
       }
     };
     socket.on('game-over', handleGameOver);
     return () => { socket.off('game-over', handleGameOver); };
-  }, [gameId, playerName, userId]);
+  }, [playerName, userId]);
 
-  // After CPU added, nothing special needed — GameBoard handles it
   useEffect(() => {
-    const handler = () => setCpuAdded(true);
-    socket.on('training-cpu-added', handler);
-    return () => { socket.off('training-cpu-added', handler); };
-  }, []);
+    const handleCpuAdded = ({ cpuName }: { cpuName: string }) => {
+      const leader = selectedLeaderRef.current;
+      const gid = gameIdRef.current;
+      if (!gid || !leader) return;
+      const livesLimit = leader.livesCount > 0 ? String(leader.livesCount) : '3';
+      console.log(`[GymMode] CPU added (${cpuName}), auto-starting game ${gid} with characterLimit=${livesLimit}`);
+      setTimeout(() => {
+        socket.emit('start-game', {
+          gameId: gid,
+          playerName,
+          characterLimit: livesLimit,
+        });
+      }, 400);
+    };
+    socket.on('training-cpu-added', handleCpuAdded);
+    return () => { socket.off('training-cpu-added', handleCpuAdded); };
+  }, [playerName]);
 
-  // Mark gym as complete on victory
   useEffect(() => {
     if (phase === 'victory' && justWon && selectedLeader && authToken) {
       fetch(`/api/gym-leaders/${selectedLeader.id}/complete`, {
@@ -99,15 +168,33 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
     }
   }, [phase, justWon, selectedLeader, authToken]);
 
-  const startBattle = useCallback((leader: GymLeader) => {
+  const startBattle = useCallback(async (leader: GymLeader) => {
     const newGameId = `gym-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     setGameIdLocal(newGameId);
     setSelectedLeader(leader);
-    setCpuAdded(false);
+    selectedLeaderRef.current = leader;
+    gameIdRef.current = newGameId;
 
     setGameId(newGameId);
     setPlayerName(playerName);
     generateSessionId();
+
+    let currentDeckIds = storyDeckIds;
+
+    if (authToken && currentDeckIds.length === 0 && leader.playerStartingDeck && leader.playerStartingDeck.length > 0) {
+      try {
+        const res = await fetch('/api/story-mode/deck/initialize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+          body: JSON.stringify({ gymLeaderId: leader.id }),
+        });
+        const data = await res.json();
+        if (data.success && data.cardIds) {
+          currentDeckIds = data.cardIds;
+          setStoryDeckIds(data.cardIds);
+        }
+      } catch {}
+    }
 
     socket.emit('create-training-game', {
       gameId: newGameId,
@@ -115,26 +202,23 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
       avatarId,
       userId,
       helpEnabled: false,
-      gymLeaderId: leader.id,
-      gymLeaderName: leader.name,
-      cpuLevel: leader.cpuLevel,
-      customDeck: leader.customDeck,
-      deckBias: leader.deckBias,
+      isGymMode: true,
+      playerDeck: currentDeckIds.length > 0 ? currentDeckIds : undefined,
+      livesCount: leader.livesCount || 3,
     });
 
     setTimeout(() => {
       socket.emit('add-training-cpu', {
         gameId: newGameId,
-        gymLeaderId: leader.id,
-        gymLeaderName: leader.name,
+        isGymMode: true,
+        customDeck: leader.customDeck && leader.customDeck.length > 0 ? leader.customDeck : undefined,
         cpuLevel: leader.cpuLevel,
-        customDeck: leader.customDeck,
-        deckBias: leader.deckBias,
+        leaderName: leader.name,
       });
     }, 800);
 
     setPhase('battle');
-  }, [playerName, avatarId, userId, setGameId, setPlayerName, generateSessionId]);
+  }, [playerName, avatarId, userId, setGameId, setPlayerName, generateSessionId, storyDeckIds, authToken]);
 
   const handleBackFromBattle = () => {
     if (gameId) {
@@ -144,7 +228,6 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
     setGameIdLocal(null);
     setPhase('map');
     setSelectedLeader(null);
-    setCpuAdded(false);
     fetchLeaders();
   };
 
@@ -153,7 +236,35 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
     setPhase('intro');
   };
 
-  // Determine which gyms are unlocked: the first uncompleted one
+  const handlePickCard = async (cardId: string) => {
+    if (!authToken || cardPickLoading) return;
+    setCardPickLoading(true);
+    try {
+      const res = await fetch('/api/story-mode/deck/add-card', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ cardId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setStoryDeckIds(data.cardIds || []);
+      }
+    } catch {}
+    finally {
+      setCardPickLoading(false);
+      if (justWon && selectedLeader && authToken) {
+        fetch(`/api/gym-leaders/${selectedLeader.id}/complete`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${authToken}` },
+        }).then(() => {
+          setCompletedIds(prev => selectedLeader && !prev.includes(selectedLeader.id) ? [...prev, selectedLeader.id] : prev);
+          setJustWon(false);
+        }).catch(() => {});
+      }
+      setPhase('victory');
+    }
+  };
+
   const getLeaderStatus = (leader: GymLeader) => {
     if (completedIds.includes(leader.id)) return 'completed';
     const allBefore = leaders
@@ -184,8 +295,78 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
             <span className="text-white text-xs font-bold">{selectedLeader.gymName}</span>
             <span className="text-white/50 text-xs">vs {selectedLeader.name}</span>
           </div>
+          <div className="bg-black/60 backdrop-blur-sm border border-red-500/30 rounded-xl px-3 py-2 flex items-center gap-1">
+            {Array.from({ length: selectedLeader.livesCount || 3 }).map((_, i) => (
+              <Heart key={i} className="w-3.5 h-3.5 text-red-400 fill-red-400" />
+            ))}
+          </div>
         </div>
         <GameBoard />
+      </div>
+    );
+  }
+
+  if (phase === 'card-pick' && selectedLeader && selectedLeader.customDeck && selectedLeader.customDeck.length > 0) {
+    const pickableCards = selectedLeader.customDeck;
+    return (
+      <div
+        className="fixed inset-0 z-50 flex flex-col"
+        style={{
+          background: selectedLeader.backgroundImageUrl
+            ? `linear-gradient(to bottom, rgba(0,0,0,0.8), rgba(0,0,0,0.96)), url(${selectedLeader.backgroundImageUrl}) center/cover`
+            : 'linear-gradient(135deg, #1a0a2e 0%, #0a1a2e 100%)',
+        }}
+      >
+        <div className="flex-shrink-0 text-center pt-10 pb-4 px-4">
+          <div className="text-5xl mb-2">✨</div>
+          <h2 className="text-yellow-300 font-black text-2xl mb-1">Scegli una carta!</h2>
+          <p className="text-white/60 text-sm">
+            Hai sconfitto <span className="text-yellow-300 font-bold">{selectedLeader.name}</span>!
+            Scegli una carta del Capopalestra da aggiungere al tuo mazzo Story Mode.
+          </p>
+          <p className="text-white/40 text-xs mt-2">
+            Il tuo mazzo: {storyDeckIds.length} carte
+          </p>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-4 pb-6">
+          <div className="grid grid-cols-3 gap-3 max-w-sm mx-auto">
+            {pickableCards.map((cardId, idx) => {
+              const imgUrl = getCardImageFromId(cardId);
+              const label = getCardDeckLabel(cardId);
+              return (
+                <button
+                  key={`${cardId}-${idx}`}
+                  onClick={() => handlePickCard(cardId)}
+                  disabled={cardPickLoading}
+                  className="relative rounded-xl overflow-hidden border-2 border-white/20 hover:border-yellow-400 transition-all group disabled:opacity-50 disabled:cursor-not-allowed aspect-[2/3] bg-gray-900"
+                >
+                  {imgUrl ? (
+                    <img
+                      src={imgUrl}
+                      alt={label}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gray-800">
+                      <Shield className="w-8 h-8 text-white/20" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-center py-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="text-yellow-300 text-[10px] font-bold">{label}</span>
+                  </div>
+                  {cardPickLoading && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
     );
   }
@@ -212,16 +393,22 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
             </div>
           )}
 
-          <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-2xl px-6 py-4 mb-6">
+          <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-2xl px-6 py-4 mb-4">
             <p className="text-yellow-300 font-black text-2xl">+{selectedLeader.rewardCredits} Rankiard</p>
             {selectedLeader.rewardDescription && (
               <p className="text-white/60 text-sm mt-1">{selectedLeader.rewardDescription}</p>
             )}
           </div>
 
+          {storyDeckIds.length > 0 && (
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl px-4 py-3 mb-6">
+              <p className="text-blue-300 text-sm font-semibold">📖 Mazzo Story Mode: {storyDeckIds.length} carte</p>
+            </div>
+          )}
+
           <div className="flex gap-3">
             <button
-              onClick={() => { setPhase('map'); setSelectedLeader(null); fetchLeaders(); }}
+              onClick={() => { setPhase('map'); setSelectedLeader(null); fetchLeaders(); fetchStoryDeck(); }}
               className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-black font-black py-3 rounded-2xl transition-all"
             >
               Continua percorso →
@@ -299,7 +486,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
             <p className="text-white/50 text-sm mb-6 leading-relaxed italic">"{selectedLeader.description}"</p>
           )}
 
-          <div className="bg-white/5 border border-white/10 rounded-2xl px-5 py-3 mb-6 flex items-center justify-center gap-6">
+          <div className="bg-white/5 border border-white/10 rounded-2xl px-5 py-3 mb-4 flex items-center justify-center gap-4 flex-wrap">
             <div className="text-center">
               <div className={`text-xs font-bold px-2 py-1 rounded-full mb-1 ${
                 selectedLeader.cpuLevel === 'easy' ? 'bg-green-900/50 text-green-300'
@@ -309,6 +496,15 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
                 {selectedLeader.cpuLevel === 'easy' ? '🟢 Facile' : selectedLeader.cpuLevel === 'medium' ? '🟡 Medio' : '🔴 Difficile'}
               </div>
               <p className="text-white/40 text-[10px]">Difficoltà</p>
+            </div>
+            <div className="w-px h-8 bg-white/10" />
+            <div className="text-center">
+              <div className="flex items-center gap-0.5 justify-center mb-1">
+                {Array.from({ length: selectedLeader.livesCount || 3 }).map((_, i) => (
+                  <Heart key={i} className="w-4 h-4 text-red-400 fill-red-400" />
+                ))}
+              </div>
+              <p className="text-white/40 text-[10px]">Vite</p>
             </div>
             <div className="w-px h-8 bg-white/10" />
             <div className="text-center">
@@ -326,6 +522,13 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
             )}
           </div>
 
+          {storyDeckIds.length > 0 && (
+            <div className="bg-blue-900/20 border border-blue-500/20 rounded-xl px-4 py-2 mb-4 text-left">
+              <p className="text-blue-300 text-xs font-semibold">📖 Mazzo Story Mode: {storyDeckIds.length} carte</p>
+              <p className="text-blue-400/60 text-[10px] mt-0.5">Il tuo mazzo accumulato verrà usato in questa battaglia</p>
+            </div>
+          )}
+
           <button
             onClick={() => startBattle(selectedLeader)}
             className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-black font-black py-4 rounded-2xl text-lg transition-all shadow-lg shadow-orange-500/30 flex items-center justify-center gap-3"
@@ -337,13 +540,11 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
     );
   }
 
-  // MAP view
   const completedCount = completedIds.length;
   const totalCount = leaders.length;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'linear-gradient(180deg, #03050d 0%, #070b1a 40%, #0a1028 100%)' }}>
-      {/* Header */}
       <div className="flex-shrink-0 flex items-center gap-4 px-4 pt-safe py-4 border-b border-white/10 bg-black/30 backdrop-blur-sm">
         <button onClick={onBack} className="p-2 text-white/60 hover:text-white transition-colors">
           <ArrowLeft className="w-5 h-5" />
@@ -363,7 +564,13 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
         </div>
       </div>
 
-      {/* Progress bar */}
+      {storyDeckIds.length > 0 && (
+        <div className="flex-shrink-0 px-4 py-2 bg-blue-900/20 border-b border-blue-500/20 flex items-center gap-2">
+          <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+          <p className="text-blue-300 text-xs font-semibold">Mazzo Story Mode: {storyDeckIds.length} carte accumulate</p>
+        </div>
+      )}
+
       {totalCount > 0 && (
         <div className="flex-shrink-0 px-4 py-2 bg-black/20">
           <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
@@ -375,7 +582,6 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
         </div>
       )}
 
-      {/* Gym list */}
       <div className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center h-64 text-white/40">
@@ -398,9 +604,8 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
 
               return (
                 <div key={leader.id} className="relative">
-                  {/* Connector line */}
                   {idx < leaders.length - 1 && (
-                    <div className="absolute left-8 top-full w-px h-6 bg-white/10 z-0" style={{ marginLeft: '0px' }} />
+                    <div className="absolute left-8 top-full w-px h-6 bg-white/10 z-0" />
                   )}
 
                   <div
@@ -412,7 +617,6 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
                         : 'bg-white/3 border-white/8 opacity-50'
                     } ${isCurrent ? 'ring-2 ring-yellow-400/40' : ''}`}
                   >
-                    {/* Leader portrait / status icon */}
                     <div className="relative flex-shrink-0">
                       {leader.leaderImageUrl ? (
                         <img
@@ -429,7 +633,6 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
                           <Shield className={`w-8 h-8 ${isCompleted ? 'text-green-400' : isAvailable ? 'text-yellow-400' : 'text-white/20'}`} />
                         </div>
                       )}
-                      {/* Status overlay */}
                       <div className="absolute -bottom-1 -right-1">
                         {isCompleted ? (
                           <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow-md border-2 border-gray-900">
@@ -447,7 +650,6 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
                       </div>
                     </div>
 
-                    {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
                         <span className={`text-xs font-bold ${isCompleted ? 'text-green-400' : isAvailable ? 'text-yellow-400' : 'text-white/30'}`}>
@@ -469,9 +671,15 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
                       {isCompleted && (
                         <p className="text-green-400 text-xs font-semibold mt-0.5">✓ Completata</p>
                       )}
+                      {!isLocked && (
+                        <div className="flex items-center gap-0.5 mt-1">
+                          {Array.from({ length: leader.livesCount || 3 }).map((_, i) => (
+                            <Heart key={i} className="w-3 h-3 text-red-400 fill-red-400" />
+                          ))}
+                        </div>
+                      )}
                     </div>
 
-                    {/* Right side */}
                     <div className="flex-shrink-0 text-right flex flex-col items-end gap-2">
                       {!isLocked && (
                         <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
@@ -510,7 +718,6 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
               );
             })}
 
-            {/* All completed message */}
             {completedCount === totalCount && totalCount > 0 && (
               <div className="text-center py-8">
                 <div className="text-5xl mb-3">🏆</div>

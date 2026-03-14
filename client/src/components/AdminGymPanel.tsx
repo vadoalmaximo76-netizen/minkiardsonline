@@ -15,6 +15,8 @@ interface GymLeader {
   cpuLevel: string;
   deckBias: { personaggi: number; mosse: number; bonus: number };
   customDeck: string[];
+  livesCount: number;
+  playerStartingDeck: string[];
   rewardCredits: number;
   rewardDescription: string | null;
   isActive: boolean;
@@ -43,6 +45,8 @@ const EMPTY_FORM = {
   cpuLevel: 'medium' as string,
   deckBias: { personaggi: 1.0, mosse: 1.0, bonus: 1.0 },
   customDeck: [] as string[],
+  livesCount: 3,
+  playerStartingDeck: [] as string[],
   rewardCredits: 50,
   rewardDescription: '',
   orderIndex: 1,
@@ -103,6 +107,7 @@ export function AdminGymPanel({ onClose }: Props) {
   const [loadingCards, setLoadingCards] = useState(false);
   const [cardSearch, setCardSearch] = useState('');
   const [cardDeckFilter, setCardDeckFilter] = useState('personaggi');
+  const [deckEditTarget, setDeckEditTarget] = useState<'cpu' | 'player'>('cpu');
 
   const authToken = localStorage.getItem('authToken');
 
@@ -143,6 +148,7 @@ export function AdminGymPanel({ onClose }: Props) {
     setForm({ ...EMPTY_FORM, orderIndex: maxOrder });
     setCardSearch('');
     setCardDeckFilter('personaggi');
+    setDeckEditTarget('cpu');
     setError(''); setSuccess('');
     setShowForm(true);
     loadCards();
@@ -161,6 +167,8 @@ export function AdminGymPanel({ onClose }: Props) {
       cpuLevel: leader.cpuLevel,
       deckBias: leader.deckBias || { personaggi: 1.0, mosse: 1.0, bonus: 1.0 },
       customDeck: Array.isArray(leader.customDeck) ? leader.customDeck : [],
+      livesCount: leader.livesCount ?? 3,
+      playerStartingDeck: Array.isArray(leader.playerStartingDeck) ? leader.playerStartingDeck : [],
       rewardCredits: leader.rewardCredits,
       rewardDescription: leader.rewardDescription || '',
       orderIndex: leader.orderIndex,
@@ -168,6 +176,7 @@ export function AdminGymPanel({ onClose }: Props) {
     });
     setCardSearch('');
     setCardDeckFilter('personaggi');
+    setDeckEditTarget('cpu');
     setError(''); setSuccess('');
     setShowForm(true);
     loadCards();
@@ -252,19 +261,21 @@ export function AdminGymPanel({ onClose }: Props) {
     fetchLeaders();
   };
 
+  const activeDeckKey: 'customDeck' | 'playerStartingDeck' = deckEditTarget === 'cpu' ? 'customDeck' : 'playerStartingDeck';
+
   const toggleCardInDeck = (cardId: string) => {
     setForm(f => {
-      const deck = f.customDeck || [];
+      const deck = (f[activeDeckKey] || []) as string[];
       if (deck.includes(cardId)) {
-        return { ...f, customDeck: deck.filter(id => id !== cardId) };
+        return { ...f, [activeDeckKey]: deck.filter(id => id !== cardId) };
       } else {
-        return { ...f, customDeck: [...deck, cardId] };
+        return { ...f, [activeDeckKey]: [...deck, cardId] };
       }
     });
   };
 
   const removeCardFromDeck = (cardId: string) => {
-    setForm(f => ({ ...f, customDeck: (f.customDeck || []).filter(id => id !== cardId) }));
+    setForm(f => ({ ...f, [activeDeckKey]: ((f[activeDeckKey] || []) as string[]).filter(id => id !== cardId) }));
   };
 
   const filteredCards = useMemo(() => {
@@ -278,19 +289,18 @@ export function AdminGymPanel({ onClose }: Props) {
   }, [availableCards, cardDeckFilter, cardSearch]);
 
   const selectedCardEntries = useMemo(() =>
-    (form.customDeck || []).map(id => availableCards.find(c => c.id === id)).filter(Boolean) as CardEntry[],
-    [form.customDeck, availableCards]
+    ((form[activeDeckKey] || []) as string[]).map(id => availableCards.find(c => c.id === id)).filter(Boolean) as CardEntry[],
+    [form, activeDeckKey, availableCards]
   );
 
   const deckCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    (form.customDeck || []).forEach(id => {
-      const type = id.split('-')[0] + (id.includes('speciali') ? '_speciali' : '');
+    ((form[activeDeckKey] || []) as string[]).forEach(id => {
       const cleanType = availableCards.find(c => c.id === id)?.deckType || '';
       if (cleanType) counts[cleanType] = (counts[cleanType] || 0) + 1;
     });
     return counts;
-  }, [form.customDeck, availableCards]);
+  }, [form, activeDeckKey, availableCards]);
 
   const sorted = [...leaders].sort((a, b) => a.orderIndex - b.orderIndex);
 
@@ -413,6 +423,18 @@ export function AdminGymPanel({ onClose }: Props) {
                   </div>
                 </div>
 
+                {/* Numero vite */}
+                <div>
+                  <label className="block text-white/70 text-xs font-semibold mb-1.5">Numero Vite Giocatore ❤️</label>
+                  <input
+                    type="number" min={1} max={10}
+                    value={form.livesCount}
+                    onChange={e => setForm(f => ({ ...f, livesCount: Math.max(1, parseInt(e.target.value) || 3) }))}
+                    className="w-full bg-gray-700 text-white rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  />
+                  <p className="text-white/30 text-xs mt-1">Numero di personaggi che il giocatore può schierare (vite)</p>
+                </div>
+
                 {/* Descrizione */}
                 <div className="md:col-span-2">
                   <label className="block text-white/70 text-xs font-semibold mb-1.5">Descrizione / Testo narrativo</label>
@@ -467,24 +489,45 @@ export function AdminGymPanel({ onClose }: Props) {
                   )}
                 </div>
 
-                {/* ── MAZZO CPU ──────────────────────────────────────────────────── */}
+                {/* ── MAZZI ──────────────────────────────────────────────────────── */}
                 <div className="md:col-span-2">
                   <div className="flex items-center gap-2 mb-3">
                     <Layers className="w-4 h-4 text-yellow-400" />
-                    <label className="text-white/70 text-xs font-semibold uppercase tracking-wider">Mazzo CPU</label>
+                    <label className="text-white/70 text-xs font-semibold uppercase tracking-wider">Mazzi</label>
+                    <div className="flex gap-1 ml-2">
+                      <button
+                        type="button"
+                        onClick={() => setDeckEditTarget('cpu')}
+                        className={`text-xs px-3 py-1 rounded-lg font-bold transition-all ${deckEditTarget === 'cpu' ? 'bg-yellow-600 text-black' : 'bg-white/10 text-white/50 hover:bg-white/20'}`}
+                      >
+                        🤖 CPU
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeckEditTarget('player')}
+                        className={`text-xs px-3 py-1 rounded-lg font-bold transition-all ${deckEditTarget === 'player' ? 'bg-blue-600 text-white' : 'bg-white/10 text-white/50 hover:bg-white/20'}`}
+                      >
+                        👤 Iniziale
+                      </button>
+                    </div>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ml-auto ${
-                      (form.customDeck?.length || 0) > 0
-                        ? 'bg-yellow-600/30 text-yellow-300 border border-yellow-600/40'
+                      (((form[activeDeckKey] as string[]) || []).length) > 0
+                        ? deckEditTarget === 'cpu' ? 'bg-yellow-600/30 text-yellow-300 border border-yellow-600/40' : 'bg-blue-600/30 text-blue-300 border border-blue-600/40'
                         : 'bg-white/10 text-white/40'
                     }`}>
-                      {(form.customDeck?.length || 0) > 0
-                        ? `${form.customDeck.length} carte specifiche`
-                        : 'Casuale (usa pesi)'}
+                      {(((form[activeDeckKey] as string[]) || []).length) > 0
+                        ? `${((form[activeDeckKey] as string[]) || []).length} carte${deckEditTarget === 'player' ? ' iniziali' : ' specifiche'}`
+                        : deckEditTarget === 'cpu' ? 'Casuale (usa pesi)' : 'Nessuna carta iniziale'}
                     </span>
                   </div>
+                  {deckEditTarget === 'player' && (
+                    <p className="text-blue-400/60 text-[11px] bg-blue-900/20 border border-blue-500/20 rounded-lg px-3 py-2 mb-3">
+                      💡 Il mazzo iniziale viene assegnato al giocatore alla prima partita dello Story Mode (solo se non ha ancora carte). Nelle partite successive userà il mazzo accumulato.
+                    </p>
+                  )}
 
-                  {/* Deck bias sliders — shown when no custom deck */}
-                  {(form.customDeck?.length || 0) === 0 && (
+                  {/* Deck bias sliders — shown only for CPU mode with no custom deck */}
+                  {deckEditTarget === 'cpu' && (form.customDeck?.length || 0) === 0 && (
                     <div className="bg-gray-700/50 rounded-xl p-4 space-y-4 mb-4">
                       <p className="text-white/40 text-xs mb-2">Pesi per la selezione casuale delle carte. Aggiungi carte specifiche qui sotto per sovrascrivere.</p>
                       <BiasSlider label="🧑 Personaggi" value={form.deckBias.personaggi} onChange={v => setForm(f => ({ ...f, deckBias: { ...f.deckBias, personaggi: v } }))} />
@@ -494,7 +537,7 @@ export function AdminGymPanel({ onClose }: Props) {
                   )}
 
                   {/* Selected cards summary */}
-                  {(form.customDeck?.length || 0) > 0 && (
+                  {(((form[activeDeckKey] as string[]) || []).length) > 0 && (
                     <div className="mb-3">
                       <div className="flex items-center gap-2 mb-2 flex-wrap">
                         {Object.entries(deckCounts).map(([type, count]) => {
@@ -507,7 +550,7 @@ export function AdminGymPanel({ onClose }: Props) {
                         })}
                         <button
                           type="button"
-                          onClick={() => setForm(f => ({ ...f, customDeck: [] }))}
+                          onClick={() => setForm(f => ({ ...f, [activeDeckKey]: [] }))}
                           className="text-xs text-red-400 hover:text-red-300 ml-auto"
                         >
                           Svuota tutto
@@ -582,7 +625,7 @@ export function AdminGymPanel({ onClose }: Props) {
                         ) : (
                           <div className="flex flex-wrap gap-1.5 p-2">
                             {filteredCards.map(card => {
-                              const isSelected = (form.customDeck || []).includes(card.id);
+                              const isSelected = ((form[activeDeckKey] as string[]) || []).includes(card.id);
                               const displayName = card.name || card.originalName;
                               return (
                                 <button
