@@ -477,6 +477,7 @@ export class GameManager {
         playerName: game.gymLeaderCpuName,
         message,
         timestamp: Date.now(),
+        isGymLeader: true,
       });
     }
   }
@@ -3728,6 +3729,10 @@ Rispondi SOLO in JSON:`;
         } else if (ctype === 'bonus') {
           setTimeout(() => this.sendGymLeaderMessage(gameId, 'playBonus'), 200);
         }
+      }
+      // Gym mode: human plays a mossa against the gym leader → leader reacts
+      if (game.isGymMode && game.gymLeaderCpuName && playerName !== game.gymLeaderCpuName && card.type === 'mosse') {
+        setTimeout(() => this.sendGymLeaderMessage(gameId, 'takeMossa'), 400);
       }
 
       // Auto-analyze cards for ALL players (PERSONAGGI only) - ALWAYS set PTI from cache
@@ -14217,6 +14222,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       // Gym mode: send leader message when CPU eliminates an opponent's character
       if (game.isGymMode && game.gymLeaderCpuName && attacker === game.gymLeaderCpuName && cardOwner !== game.gymLeaderCpuName) {
         setTimeout(() => this.sendGymLeaderMessage(gameId, 'eliminateEnemy'), 300);
+      }
+      // Gym mode: gym leader's own personaggio dies → leader reacts
+      if (game.isGymMode && game.gymLeaderCpuName && cardOwner === game.gymLeaderCpuName && (card.type === 'personaggi' || card.type === 'personaggi_speciali')) {
+        setTimeout(() => this.sendGymLeaderMessage(gameId, 'ownPersonaggioDies'), 300);
       }
 
       if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && game.activeDuel && game.activeDuel.active) {

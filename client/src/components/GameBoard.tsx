@@ -177,6 +177,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     id: string;
     message: string;
     playerName: string;
+    isGymLeader?: boolean;
   }>>([]);
   const [rankiardOpen, setRankiardOpen] = useState(false);
   const [rankiardPoints, setRankiardPoints] = useState<string>(() => {
@@ -694,7 +695,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       setNotificationVisible(true);
     };
 
-    const handleChatMessage = (message: { id: string; playerName: string; message: string; timestamp: number; isHelp?: boolean }) => {
+    const handleChatMessage = (message: { id: string; playerName: string; message: string; timestamp: number; isHelp?: boolean; isGymLeader?: boolean }) => {
       const isSystemEvent = message.playerName === 'Sistema';
       
       if (gameId) {
@@ -723,7 +724,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         setChatNotifications(prev => [...prev, {
           id: message.id,
           message: message.message,
-          playerName: message.playerName
+          playerName: message.playerName,
+          isGymLeader: message.isGymLeader,
         }]);
       }
       playChatMessage();
@@ -4536,6 +4538,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             key={notification.id}
             message={notification.message}
             playerName={notification.playerName}
+            isGymLeader={notification.isGymLeader}
             onClose={() => removeChatNotification(notification.id)}
             onOpenChat={handleOpenChat}
           />

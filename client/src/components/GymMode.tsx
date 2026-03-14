@@ -503,18 +503,18 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
           <h2 className="text-red-400 font-black text-3xl mb-2">SCONFITTO!</h2>
           <p className="text-white/70 mb-6">{selectedLeader.name} era troppo forte. Allenati e riprova!</p>
 
-          <div className="flex gap-3">
-            <button
-              onClick={() => { resumeHomeMusic(); setPhase('map'); setSelectedLeader(null); }}
-              className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-2xl transition-all"
-            >
-              ← Mappa
-            </button>
+          <div className="flex flex-col gap-3">
             <button
               onClick={() => startBattle(selectedLeader)}
-              className="flex-1 bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-2xl transition-all"
+              className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-3 rounded-2xl transition-all text-lg"
             >
-              Riprova!
+              🔄 Rivincita
+            </button>
+            <button
+              onClick={() => { resumeHomeMusic(); setPhase('map'); setSelectedLeader(null); }}
+              className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-2xl transition-all"
+            >
+              🗺️ Continua Story Mode
             </button>
           </div>
         </div>

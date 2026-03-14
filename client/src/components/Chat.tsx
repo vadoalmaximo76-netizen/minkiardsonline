@@ -18,6 +18,7 @@ interface ChatMessage {
   message: string;
   timestamp: number;
   isHelp?: boolean;
+  isGymLeader?: boolean;
 }
 
 export const Chat: React.FC<ChatProps> = ({ onClose }) => {
@@ -151,6 +152,15 @@ export const Chat: React.FC<ChatProps> = ({ onClose }) => {
                 <span className="text-purple-300 font-semibold text-xs">{msg.playerName}</span>
               </div>
               <span className="text-purple-100">{msg.message.replace(/^\[AIUTO\]\s*/, '')}</span>
+            </div>
+          ) : msg.isGymLeader ? (
+            <div key={msg.id} className="text-sm rounded-lg p-2.5" style={{ background: 'linear-gradient(135deg, rgba(26,10,0,0.9), rgba(61,31,0,0.9))', border: '1px solid #f59e0b' }}>
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="text-base">⚔️</span>
+                <span className="font-black text-xs" style={{ color: '#f59e0b' }}>{msg.playerName}</span>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded ml-1" style={{ background: 'rgba(245,158,11,0.2)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.5)' }}>CAPOPALESTRA</span>
+              </div>
+              <span className="text-yellow-100 font-medium">{msg.message}</span>
             </div>
           ) : (
             <div key={msg.id} className="text-sm">
