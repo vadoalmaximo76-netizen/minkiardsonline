@@ -794,8 +794,12 @@ export const GameBoard3D: React.FC<GameBoard3DProps> = ({ onCardClick }) => {
             const opCards = cardsByPlayer[opName] || [];
             return (
               <div key={opName} className="flex flex-col items-center gap-1 min-w-0">
-                <span className={`${opName === currentTurnPlayer ? 'bg-green-600/90 ring-2 ring-green-400' : 'bg-blue-800/80'} text-white font-bold px-2 py-0.5 rounded-full text-[10px] shadow-lg whitespace-nowrap`}>
-                  {players[opName]?.avatar && <span className="mr-1">{getAvatarEmoji(players[opName]?.avatar || '')}</span>}
+                <span className={`${opName === currentTurnPlayer ? 'bg-green-600/90 ring-2 ring-green-400' : 'bg-blue-800/80'} text-white font-bold px-2 py-0.5 rounded-full text-[10px] shadow-lg whitespace-nowrap flex items-center gap-1`}>
+                  {(players[opName] as any)?.customAvatarUrl ? (
+                    <img src={(players[opName] as any).customAvatarUrl} alt={opName} className="w-4 h-4 rounded-full object-cover inline-block" />
+                  ) : players[opName]?.avatar ? (
+                    <span>{getAvatarEmoji(players[opName]?.avatar || '')}</span>
+                  ) : null}
                   {opName}
                 </span>
                 <div className="flex gap-0.5 items-center flex-wrap justify-center">

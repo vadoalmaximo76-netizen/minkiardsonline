@@ -4,6 +4,7 @@ import { GameBoard } from './GameBoard';
 import { socket } from '../lib/socket';
 import { useGameState } from '../lib/stores/useGameState';
 import { CARD_DATA } from '../lib/cardData';
+import { pauseHomeMusic, resumeHomeMusic } from './SpotifyPlayer';
 
 interface GymLeader {
   id: number;
@@ -214,9 +215,11 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
         customDeck: leader.customDeck && leader.customDeck.length > 0 ? leader.customDeck : undefined,
         cpuLevel: leader.cpuLevel,
         leaderName: leader.name,
+        leaderImageUrl: leader.leaderImageUrl || undefined,
       });
     }, 800);
 
+    pauseHomeMusic();
     setPhase('battle');
   }, [playerName, avatarId, userId, setGameId, setPlayerName, generateSessionId, storyDeckIds, authToken]);
 
@@ -228,6 +231,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
     setGameIdLocal(null);
     setPhase('map');
     setSelectedLeader(null);
+    resumeHomeMusic();
     fetchLeaders();
   };
 
@@ -278,16 +282,19 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
 
   if (phase === 'battle' && gameId && selectedLeader) {
     return (
-      <div className="fixed inset-0 z-50">
-        <div className="absolute top-4 left-4 z-50 flex items-center gap-3">
+      <div className="fixed inset-0 z-50 overflow-y-auto">
+        {/* Floating battle header overlay */}
+        <div className="fixed top-4 left-4 z-[60] flex items-center gap-3 flex-wrap">
           <button
             onClick={handleBackFromBattle}
-            className="px-3 py-2 bg-black/60 hover:bg-black/80 text-white rounded-xl text-sm font-semibold flex items-center gap-2 border border-white/20 backdrop-blur-sm"
+            className="px-3 py-2 bg-black/70 hover:bg-black/90 text-white rounded-xl text-sm font-semibold flex items-center gap-2 border border-white/20 backdrop-blur-sm"
           >
             <ArrowLeft className="w-4 h-4" /> Abbandona
           </button>
-          <div className="bg-black/60 backdrop-blur-sm border border-white/20 rounded-xl px-3 py-2 flex items-center gap-2">
-            {selectedLeader.badgeImageUrl ? (
+          <div className="bg-black/70 backdrop-blur-sm border border-white/20 rounded-xl px-3 py-2 flex items-center gap-2">
+            {selectedLeader.leaderImageUrl ? (
+              <img src={selectedLeader.leaderImageUrl} alt={selectedLeader.name} className="w-6 h-6 rounded-full object-cover border border-yellow-400/40" />
+            ) : selectedLeader.badgeImageUrl ? (
               <img src={selectedLeader.badgeImageUrl} alt="" className="w-5 h-5 rounded-full" />
             ) : (
               <Shield className="w-4 h-4 text-yellow-400" />
@@ -295,7 +302,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
             <span className="text-white text-xs font-bold">{selectedLeader.gymName}</span>
             <span className="text-white/50 text-xs">vs {selectedLeader.name}</span>
           </div>
-          <div className="bg-black/60 backdrop-blur-sm border border-red-500/30 rounded-xl px-3 py-2 flex items-center gap-1">
+          <div className="bg-black/70 backdrop-blur-sm border border-red-500/30 rounded-xl px-3 py-2 flex items-center gap-1">
             {Array.from({ length: selectedLeader.livesCount || 3 }).map((_, i) => (
               <Heart key={i} className="w-3.5 h-3.5 text-red-400 fill-red-400" />
             ))}
@@ -408,7 +415,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
 
           <div className="flex gap-3">
             <button
-              onClick={() => { setPhase('map'); setSelectedLeader(null); fetchLeaders(); fetchStoryDeck(); }}
+              onClick={() => { resumeHomeMusic(); setPhase('map'); setSelectedLeader(null); fetchLeaders(); fetchStoryDeck(); }}
               className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-black font-black py-3 rounded-2xl transition-all"
             >
               Continua percorso →
@@ -432,7 +439,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
 
           <div className="flex gap-3">
             <button
-              onClick={() => { setPhase('map'); setSelectedLeader(null); }}
+              onClick={() => { resumeHomeMusic(); setPhase('map'); setSelectedLeader(null); }}
               className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-2xl transition-all"
             >
               ← Mappa

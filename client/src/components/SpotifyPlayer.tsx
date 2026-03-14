@@ -88,6 +88,10 @@ function fadeIn() {
   }, FADE_TICK);
 }
 
+/** Exported helpers to pause/resume the background music from anywhere */
+export function pauseHomeMusic() { fadeOut(); }
+export function resumeHomeMusic() { fadeIn(); }
+
 // ── YT Iframe Player init ─────────────────────────────────────────────────
 function buildYTPlayer() {
   const st = gs();

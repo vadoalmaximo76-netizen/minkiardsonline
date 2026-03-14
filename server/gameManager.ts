@@ -141,6 +141,7 @@ interface Player {
   disconnectedAt?: Date; // When player disconnected (null if connected)
   eliminationCount?: number; // Track how many opponent personaggi cards this player has eliminated (for SOROS activation)
   avatar?: string; // Player's chosen avatar ID
+  customAvatarUrl?: string; // Custom image URL (e.g. gym leader image)
 }
 
 interface TransferRequest {
@@ -3090,7 +3091,8 @@ Rispondi SOLO in JSON:`;
         handCount: player.hand.length,
         socketId: player.socketId,
         isCPU: player.isCPU,
-        avatar: player.avatar
+        avatar: player.avatar,
+        customAvatarUrl: player.customAvatarUrl,
       };
     }
 

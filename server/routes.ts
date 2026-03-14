@@ -2034,11 +2034,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // Add CPU player to training game
-    socket.on('add-training-cpu', async ({ gameId, isGymMode, customDeck, cpuLevel, leaderName }) => {
+    socket.on('add-training-cpu', async ({ gameId, isGymMode, customDeck, cpuLevel, leaderName, leaderImageUrl }) => {
       try {
-        const cpuName = await gameManager.addCPUPlayer(gameId);
+        // Use leader name as CPU name for gym mode, otherwise auto-generate
+        const cpuName = (isGymMode && leaderName)
+          ? await gameManager.addCPUPlayerWithName(gameId, leaderName)
+          : await gameManager.addCPUPlayer(gameId);
 
-        // Gym mode: configure CPU with leader's custom deck
+        // Gym mode: configure CPU with leader's custom deck and avatar
         if (isGymMode) {
           const game = gameManager.getGame(gameId);
           if (game) {
@@ -2049,6 +2052,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const resolvedDeck = await gameManager.resolveCardIdsToDecks(deckIds);
               game.playerDraftDecks[cpuName] = resolvedDeck;
               console.log(`🤖 Gym mode CPU ${cpuName} deck: ${resolvedDeck.personaggi.length}p/${resolvedDeck.mosse.length}m/${resolvedDeck.bonus.length}b cards`);
+            }
+            // Set leader image as custom avatar URL for the CPU player
+            if (leaderImageUrl && game.players[cpuName]) {
+              game.players[cpuName].customAvatarUrl = leaderImageUrl;
             }
           }
         }
