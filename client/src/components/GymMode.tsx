@@ -84,6 +84,8 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
   const [cardPickLoading, setCardPickLoading] = useState(false);
   const [battleYoutubeVideoId, setBattleYoutubeVideoId] = useState<string | null>(null);
   const [musicActive, setMusicActive] = useState(false);
+  const [pickedCardId, setPickedCardId] = useState<string | null>(null);
+  const [victoryStep, setVictoryStep] = useState(0);
 
   const selectedLeaderRef = useRef<GymLeader | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -185,6 +187,16 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
       }).catch(() => {});
     }
   }, [phase, justWon, selectedLeader, authToken]);
+
+  // Victory animation sequencing
+  useEffect(() => {
+    if (phase !== 'victory') { setVictoryStep(0); return; }
+    setVictoryStep(1);
+    const t1 = setTimeout(() => setVictoryStep(2), 700);
+    const t2 = setTimeout(() => setVictoryStep(3), 2000);
+    const t3 = setTimeout(() => setVictoryStep(4), 3500);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, [phase]);
 
   const startBattle = useCallback(async (leader: GymLeader) => {
     const newGameId = `gym-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -308,6 +320,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
           setJustWon(false);
         }).catch(() => {});
       }
+      setPickedCardId(cardId);
       setPhase('victory');
     }
   };
@@ -445,48 +458,110 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
   }
 
   if (phase === 'victory' && selectedLeader) {
+    const pickedImgUrl = pickedCardId ? getCardImageFromId(pickedCardId) : null;
+    const pickedLabel = pickedCardId ? getCardDeckLabel(pickedCardId) : null;
     return (
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        className="fixed inset-0 z-50 overflow-y-auto"
         style={{
           background: selectedLeader.backgroundImageUrl
-            ? `linear-gradient(to bottom, rgba(0,0,0,0.7), rgba(0,0,0,0.92)), url(${selectedLeader.backgroundImageUrl}) center/cover`
-            : 'linear-gradient(135deg, #1a0a2e 0%, #0a1a2e 100%)',
+            ? `linear-gradient(to bottom, rgba(0,0,0,0.85), rgba(0,0,0,0.97)), url(${selectedLeader.backgroundImageUrl}) center/cover`
+            : 'linear-gradient(135deg, #0d0820 0%, #0a1a0e 100%)',
         }}
       >
-        <div className="text-center max-w-sm w-full">
-          <div className="text-7xl mb-4">🏆</div>
-          <h2 className="text-yellow-300 font-black text-3xl mb-2">VITTORIA!</h2>
-          <p className="text-white/70 mb-6">Hai sconfitto {selectedLeader.name} della {selectedLeader.gymName}!</p>
+        <div className="min-h-full flex flex-col items-center justify-center px-6 py-12 gap-6">
 
-          {selectedLeader.badgeImageUrl && (
-            <div className="flex flex-col items-center mb-6">
-              <img src={selectedLeader.badgeImageUrl} alt="badge" className="w-20 h-20 object-cover rounded-full border-4 border-yellow-400 shadow-lg shadow-yellow-400/30 mb-2" />
-              <p className="text-yellow-400 font-bold text-sm">Medaglia ottenuta!</p>
+          {/* Step 1 — Header */}
+          <div
+            className="text-center transition-all duration-700"
+            style={{ opacity: victoryStep >= 1 ? 1 : 0, transform: victoryStep >= 1 ? 'translateY(0)' : 'translateY(-30px)' }}
+          >
+            <div className="text-7xl mb-3">🏆</div>
+            <h2 className="text-yellow-300 font-black text-4xl tracking-wide drop-shadow-lg">VITTORIA!</h2>
+            <p className="text-white/60 mt-2 text-sm">Hai sconfitto <span className="text-yellow-200 font-bold">{selectedLeader.name}</span> della {selectedLeader.gymName}!</p>
+            <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-xl px-5 py-2 mt-3 inline-block">
+              <p className="text-yellow-300 font-black text-xl">+{selectedLeader.rewardCredits} Rankiard</p>
             </div>
-          )}
+          </div>
 
-          <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-2xl px-6 py-4 mb-4">
-            <p className="text-yellow-300 font-black text-2xl">+{selectedLeader.rewardCredits} Rankiard</p>
-            {selectedLeader.rewardDescription && (
-              <p className="text-white/60 text-sm mt-1">{selectedLeader.rewardDescription}</p>
+          {/* Step 2 — Badge animation */}
+          <div
+            className="flex flex-col items-center text-center transition-all duration-700"
+            style={{ opacity: victoryStep >= 2 ? 1 : 0, transform: victoryStep >= 2 ? 'scale(1)' : 'scale(0.3)' }}
+          >
+            {selectedLeader.badgeImageUrl ? (
+              <>
+                <div
+                  className="rounded-full mb-3"
+                  style={{
+                    boxShadow: victoryStep >= 2 ? '0 0 40px 12px rgba(234,179,8,0.6), 0 0 80px 20px rgba(234,179,8,0.25)' : 'none',
+                    transition: 'box-shadow 0.8s ease',
+                  }}
+                >
+                  <img src={selectedLeader.badgeImageUrl} alt="medaglia" className="w-28 h-28 object-cover rounded-full border-4 border-yellow-400" />
+                </div>
+                <p className="text-yellow-300 font-black text-lg tracking-wide">⭐ Medaglia conquistata!</p>
+              </>
+            ) : (
+              <div className="flex flex-col items-center">
+                <div className="w-24 h-24 rounded-full bg-yellow-500/20 border-4 border-yellow-400 flex items-center justify-center mb-3"
+                  style={{ boxShadow: victoryStep >= 2 ? '0 0 40px 12px rgba(234,179,8,0.5)' : 'none', transition: 'box-shadow 0.8s ease' }}>
+                  <Star className="w-12 h-12 text-yellow-300" />
+                </div>
+                <p className="text-yellow-300 font-black text-lg">⭐ Palestra completata!</p>
+              </div>
             )}
           </div>
 
-          {storyDeckIds.length > 0 && (
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl px-4 py-3 mb-6">
-              <p className="text-blue-300 text-sm font-semibold">📖 Mazzo Story Mode: {storyDeckIds.length} carte</p>
+          {/* Step 3 — Conquered card animation */}
+          {pickedCardId && (
+            <div
+              className="flex flex-col items-center text-center transition-all duration-700"
+              style={{ opacity: victoryStep >= 3 ? 1 : 0, transform: victoryStep >= 3 ? 'translateY(0) scale(1)' : 'translateY(60px) scale(0.8)' }}
+            >
+              <p className="text-white/70 text-sm mb-3 font-semibold uppercase tracking-widest">Carta conquistata</p>
+              <div
+                className="w-36 rounded-xl overflow-hidden border-2 border-yellow-400/80"
+                style={{
+                  aspectRatio: '2/3',
+                  boxShadow: victoryStep >= 3 ? '0 0 30px 8px rgba(234,179,8,0.5), 0 8px 32px rgba(0,0,0,0.6)' : 'none',
+                  transition: 'box-shadow 0.8s ease',
+                }}
+              >
+                {pickedImgUrl ? (
+                  <img src={pickedImgUrl} alt={pickedLabel || 'carta'} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+                    <Shield className="w-10 h-10 text-white/20" />
+                  </div>
+                )}
+              </div>
+              {pickedLabel && <p className="text-yellow-400/80 text-xs font-bold mt-2 uppercase">{pickedLabel}</p>}
+              <p className="text-blue-300 text-xs mt-1">📖 Aggiunta al tuo mazzo Story Mode ({storyDeckIds.length} carte)</p>
             </div>
           )}
 
-          <div className="flex gap-3">
+          {/* Step 4 — Continue button */}
+          <div
+            className="transition-all duration-500"
+            style={{ opacity: victoryStep >= 4 ? 1 : 0, transform: victoryStep >= 4 ? 'translateY(0)' : 'translateY(20px)' }}
+          >
             <button
-              onClick={() => { resumeHomeMusic(); setPhase('map'); setSelectedLeader(null); fetchLeaders(); fetchStoryDeck(); }}
-              className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-black font-black py-3 rounded-2xl transition-all"
+              onClick={() => {
+                resumeHomeMusic();
+                setPickedCardId(null);
+                setVictoryStep(0);
+                setPhase('map');
+                setSelectedLeader(null);
+                fetchLeaders();
+                fetchStoryDeck();
+              }}
+              className="px-10 py-4 bg-yellow-500 hover:bg-yellow-400 text-black font-black text-lg rounded-2xl transition-all shadow-lg shadow-yellow-500/30"
             >
-              Continua percorso →
+              🗺️ Continua Story Mode
             </button>
           </div>
+
         </div>
       </div>
     );
