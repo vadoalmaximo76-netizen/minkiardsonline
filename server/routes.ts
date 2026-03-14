@@ -2384,12 +2384,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                                   console.log(`🎯 CPU ${cpuName} turn ended after BARRIERA attack, next: ${nextAfterCPU}`);
                                   io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
                                   
-                                  // Fetch fresh game state after turn ended
                                   const freshGameAfterBarriera = gameManager.getGameState(gameId);
                                   if (freshGameAfterBarriera && freshGameAfterBarriera.players[nextAfterCPU]?.isCPU) {
                                     setTimeout(() => {
                                       gameManager.processCPUTurn(gameId, nextAfterCPU, io);
                                     }, 1500);
+                                  } else if (freshGameAfterBarriera?.helpEnabled) {
+                                    const helpCtx = buildHelpContext(freshGameAfterBarriera, nextAfterCPU);
+                                    generateHelpMessage(gameId, 'human_turn_start', helpCtx).then(helpMsg => {
+                                      emitHelpMessage(io, gameId, helpMsg);
+                                    });
                                   }
                                 }
                               }, 1500);
@@ -5166,12 +5170,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     if (nextAfterCPU) {
                       io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
                       
-                      // CRITICAL FIX: Trigger next CPU turn if next player is also CPU
                       const freshGameState = gameManager.getGameState(gameId);
                       if (freshGameState && freshGameState.players[nextAfterCPU]?.isCPU) {
                         setTimeout(() => {
                           gameManager.processCPUTurn(gameId, nextAfterCPU, io);
                         }, 2000);
+                      } else if (freshGameState?.helpEnabled) {
+                        const helpCtx = buildHelpContext(freshGameState, nextAfterCPU);
+                        generateHelpMessage(gameId, 'human_turn_start', helpCtx).then(helpMsg => {
+                          emitHelpMessage(io, gameId, helpMsg);
+                        });
                       }
                     }
                   }, 1500);
@@ -7075,12 +7083,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
                         console.log(`Turn ended for ${nextPlayer} after play-and-draw, next: ${nextAfterCPU}`);
                         
-                        // CRITICAL FIX: Trigger next CPU turn if next player is also CPU
                         const freshGameState = gameManager.getGameState(gameId);
                         if (freshGameState && freshGameState.players[nextAfterCPU]?.isCPU) {
                           setTimeout(() => {
                             gameManager.processCPUTurn(gameId, nextAfterCPU, io);
                           }, 2000);
+                        } else if (freshGameState?.helpEnabled) {
+                          const helpCtx = buildHelpContext(freshGameState, nextAfterCPU);
+                          generateHelpMessage(gameId, 'human_turn_start', helpCtx).then(helpMsg => {
+                            emitHelpMessage(io, gameId, helpMsg);
+                          });
                         }
                       }
                     }, 1500);
@@ -7434,12 +7446,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     if (nextAfterCPU) {
                       io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
                       
-                      // CRITICAL FIX: Trigger next CPU turn if next player is also CPU
                       const freshGameState = gameManager.getGameState(gameId);
                       if (freshGameState && freshGameState.players[nextAfterCPU]?.isCPU) {
                         setTimeout(() => {
                           gameManager.processCPUTurn(gameId, nextAfterCPU, io);
                         }, 2000);
+                      } else if (freshGameState?.helpEnabled) {
+                        const helpCtx = buildHelpContext(freshGameState, nextAfterCPU);
+                        generateHelpMessage(gameId, 'human_turn_start', helpCtx).then(helpMsg => {
+                          emitHelpMessage(io, gameId, helpMsg);
+                        });
                       }
                     }
                     return;
@@ -7488,12 +7504,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       if (nextAfterCPU) {
                         io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
                         
-                        // CRITICAL FIX: Trigger next CPU turn if next player is also CPU
                         const freshGameState = gameManager.getGameState(gameId);
                         if (freshGameState && freshGameState.players[nextAfterCPU]?.isCPU) {
                           setTimeout(() => {
                             gameManager.processCPUTurn(gameId, nextAfterCPU, io);
                           }, 2000);
+                        } else if (freshGameState?.helpEnabled) {
+                          const helpCtx = buildHelpContext(freshGameState, nextAfterCPU);
+                          generateHelpMessage(gameId, 'human_turn_start', helpCtx).then(helpMsg => {
+                            emitHelpMessage(io, gameId, helpMsg);
+                          });
                         }
                       }
                     }
@@ -7503,33 +7523,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 await processContinuous();
                 
               } else {
-                // CPU had no valid actions, just end turn
                 const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
                 if (nextAfterCPU) {
                   io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
                   
-                  // CRITICAL FIX: Trigger next CPU turn if next player is also CPU
                   const freshGameState = gameManager.getGameState(gameId);
                   if (freshGameState && freshGameState.players[nextAfterCPU]?.isCPU) {
                     setTimeout(() => {
                       gameManager.processCPUTurn(gameId, nextAfterCPU, io);
                     }, 2000);
+                  } else if (freshGameState?.helpEnabled) {
+                    const helpCtx = buildHelpContext(freshGameState, nextAfterCPU);
+                    generateHelpMessage(gameId, 'human_turn_start', helpCtx).then(helpMsg => {
+                      emitHelpMessage(io, gameId, helpMsg);
+                    });
                   }
                 }
               }
             } catch (error) {
               console.error(`Error processing CPU turn for ${nextPlayer}:`, error);
-              // If CPU fails, just end their turn
               const nextAfterCPU = gameManager.endTurn(gameId, nextPlayer);
               if (nextAfterCPU) {
                 io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
                 
-                // CRITICAL FIX: Trigger next CPU turn if next player is also CPU
                 const freshGameState = gameManager.getGameState(gameId);
                 if (freshGameState && freshGameState.players[nextAfterCPU]?.isCPU) {
                   setTimeout(() => {
                     gameManager.processCPUTurn(gameId, nextAfterCPU, io);
                   }, 2000);
+                } else if (freshGameState?.helpEnabled) {
+                  const helpCtx = buildHelpContext(freshGameState, nextAfterCPU);
+                  generateHelpMessage(gameId, 'human_turn_start', helpCtx).then(helpMsg => {
+                    emitHelpMessage(io, gameId, helpMsg);
+                  });
                 }
               }
             }
@@ -7855,12 +7881,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                         if (nextAfterCPU) {
                           io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
                           
-                          // CRITICAL FIX: Trigger next CPU turn if next player is also CPU
                           const freshGameState = gameManager.getGameState(gameId);
                           if (freshGameState && freshGameState.players[nextAfterCPU]?.isCPU) {
                             setTimeout(() => {
                               gameManager.processCPUTurn(gameId, nextAfterCPU, io);
                             }, 2000);
+                          } else if (freshGameState?.helpEnabled) {
+                            const helpCtx = buildHelpContext(freshGameState, nextAfterCPU);
+                            generateHelpMessage(gameId, 'human_turn_start', helpCtx).then(helpMsg => {
+                              emitHelpMessage(io, gameId, helpMsg);
+                            });
                           }
                         }
                       }, 1500);
@@ -7908,12 +7938,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                             if (nextAfterCPU) {
                               io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
                               
-                              // CRITICAL FIX: Trigger next CPU turn if next player is also CPU
                               const freshGameState = gameManager.getGameState(gameId);
                               if (freshGameState && freshGameState.players[nextAfterCPU]?.isCPU) {
                                 setTimeout(() => {
                                   gameManager.processCPUTurn(gameId, nextAfterCPU, io);
                                 }, 2000);
+                              } else if (freshGameState?.helpEnabled) {
+                                const helpCtx = buildHelpContext(freshGameState, nextAfterCPU);
+                                generateHelpMessage(gameId, 'human_turn_start', helpCtx).then(helpMsg => {
+                                  emitHelpMessage(io, gameId, helpMsg);
+                                });
                               }
                             }
                           }, 1500);
@@ -8001,12 +8035,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           if (nextAfterCPU) {
                             io.to(gameId).emit('next-turn', { nextPlayer: nextAfterCPU });
                             
-                            // CRITICAL FIX: Trigger next CPU turn if next player is also CPU
                             const freshGameState = gameManager.getGameState(gameId);
                             if (freshGameState && freshGameState.players[nextAfterCPU]?.isCPU) {
                               setTimeout(() => {
                                 gameManager.processCPUTurn(gameId, nextAfterCPU, io);
                               }, 2000);
+                            } else if (freshGameState?.helpEnabled) {
+                              const helpCtx = buildHelpContext(freshGameState, nextAfterCPU);
+                              generateHelpMessage(gameId, 'human_turn_start', helpCtx).then(helpMsg => {
+                                emitHelpMessage(io, gameId, helpMsg);
+                              });
                             }
                           }
                         }, 1000);

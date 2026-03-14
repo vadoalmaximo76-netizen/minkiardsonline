@@ -2323,6 +2323,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         <div className="fixed top-2 left-1/2 -translate-x-1/2 z-[60] max-w-lg w-[calc(100%-2rem)] animate-in fade-in slide-in-from-top-2 duration-300">
           <div className="bg-purple-900/90 backdrop-blur-md border border-purple-400/40 rounded-xl px-4 py-3 shadow-2xl flex items-start gap-3">
             <span className="text-2xl flex-shrink-0 mt-0.5">💡</span>
+            <span className="bg-purple-500/60 text-purple-100 text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 mt-0.5">AIUTO</span>
             <p className="text-purple-100 text-sm flex-1 leading-relaxed">{helpBanner.message}</p>
             <button
               onClick={() => setHelpBanner({ visible: false, message: '' })}
