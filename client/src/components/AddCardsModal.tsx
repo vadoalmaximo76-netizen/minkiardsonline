@@ -1756,58 +1756,58 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
       </div>
 
       {/* Body: sidebar + main content */}
-      <div className="flex flex-1 min-h-0">
-        {/* Left sidebar */}
-        <div className="w-56 bg-gray-800/60 border-r border-white/10 flex flex-col p-4 gap-6 overflow-y-auto flex-shrink-0">
-          <div>
-            <p className="text-white/40 text-xs font-bold uppercase tracking-wider mb-3">Mazzo</p>
-            <div className="flex flex-col gap-2">
-              {deckOptions.map((deck) => (
-                <button
-                  key={deck.value}
-                  onClick={() => { setSelectedDeck(deck.value as DeckType); setUploadedCards([]); }}
-                  className={`${deck.color} hover:opacity-90 text-white font-bold py-2 px-3 rounded-lg border-2 text-sm text-left transition-all ${
-                    selectedDeck === deck.value ? 'border-yellow-400 ring-1 ring-yellow-400/40' : 'border-transparent opacity-70'
-                  }`}
-                >
-                  {deck.label}
-                </button>
-              ))}
-            </div>
+      <div className="flex flex-col sm:flex-row flex-1 min-h-0">
+        {/* Navigation — vertical sidebar on desktop, horizontal compact bar on mobile */}
+        <div className="flex-shrink-0 bg-gray-800/60 border-b sm:border-b-0 sm:border-r border-white/10 flex flex-row sm:flex-col sm:w-56 overflow-x-auto sm:overflow-x-hidden sm:overflow-y-auto sm:p-4 sm:gap-6">
+          {/* Deck selector group */}
+          <div className="flex sm:flex-col gap-1.5 sm:gap-2 px-3 sm:px-0 py-2 sm:py-0 flex-shrink-0">
+            <p className="hidden sm:block text-white/40 text-xs font-bold uppercase tracking-wider mb-1">Mazzo</p>
+            {deckOptions.map((deck) => (
+              <button
+                key={deck.value}
+                onClick={() => { setSelectedDeck(deck.value as DeckType); setUploadedCards([]); }}
+                className={`${deck.color} hover:opacity-90 text-white font-bold py-1 sm:py-2 px-2.5 sm:px-3 rounded-lg border-2 text-xs sm:text-sm text-left transition-all whitespace-nowrap flex-shrink-0 ${
+                  selectedDeck === deck.value ? 'border-yellow-400 ring-1 ring-yellow-400/40' : 'border-transparent opacity-70'
+                }`}
+              >
+                {deck.label}
+              </button>
+            ))}
           </div>
-          <div>
-            <p className="text-white/40 text-xs font-bold uppercase tracking-wider mb-3">Sezione</p>
-            <div className="flex flex-col gap-1">
+          {/* Divider */}
+          <div className="w-px sm:hidden bg-white/10 mx-2 self-stretch flex-shrink-0" />
+          {/* Section tabs */}
+          <div className="flex sm:flex-col gap-1 px-2 sm:px-0 py-2 sm:py-0 flex-shrink-0">
+            <p className="hidden sm:block text-white/40 text-xs font-bold uppercase tracking-wider mb-1">Sezione</p>
+            <button
+              onClick={() => setActiveTab('add')}
+              className={`flex items-center gap-1.5 sm:gap-2.5 px-2.5 sm:px-3 py-1 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all text-left whitespace-nowrap flex-shrink-0 sm:w-full ${
+                activeTab === 'add' ? 'bg-green-600 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <Plus size={13} />
+              <span className="sm:inline">Aggiungi</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('manage')}
+              className={`flex items-center gap-1.5 sm:gap-2.5 px-2.5 sm:px-3 py-1 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all text-left whitespace-nowrap flex-shrink-0 sm:w-full ${
+                activeTab === 'manage' ? 'bg-purple-600 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <Pencil size={13} />
+              <span className="sm:inline">Permanenti ({permanentCards.length})</span>
+            </button>
+            {isAdmin && (
               <button
-                onClick={() => setActiveTab('add')}
-                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all text-left w-full ${
-                  activeTab === 'add' ? 'bg-green-600 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'
+                onClick={() => setActiveTab('existing')}
+                className={`flex items-center gap-1.5 sm:gap-2.5 px-2.5 sm:px-3 py-1 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all text-left whitespace-nowrap flex-shrink-0 sm:w-full ${
+                  activeTab === 'existing' ? 'bg-yellow-600 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'
                 }`}
               >
-                <Plus size={15} />
-                Aggiungi Carte
+                <Shield size={13} />
+                <span className="sm:inline">Modifica</span>
               </button>
-              <button
-                onClick={() => setActiveTab('manage')}
-                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all text-left w-full ${
-                  activeTab === 'manage' ? 'bg-purple-600 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <Pencil size={15} />
-                Permanenti ({permanentCards.length})
-              </button>
-              {isAdmin && (
-                <button
-                  onClick={() => setActiveTab('existing')}
-                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all text-left w-full ${
-                    activeTab === 'existing' ? 'bg-yellow-600 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  <Shield size={15} />
-                  Modifica Carte Gioco
-                </button>
-              )}
-            </div>
+            )}
           </div>
         </div>
 
@@ -2388,8 +2388,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
 
         {activeTab === 'manage' && (
           <div className="flex flex-1 min-h-0">
-            {/* Left panel: compact card list */}
-            <div className="w-60 flex-shrink-0 border-r border-white/10 flex flex-col">
+            {/* Left panel: compact card list — hidden on mobile when a card is being edited */}
+            <div className={`${editingCard !== null ? 'hidden sm:flex' : 'flex'} w-full sm:w-60 flex-shrink-0 border-r border-white/10 flex-col`}>
               <div className="px-3 py-2 border-b border-white/10 flex-shrink-0">
                 <p className="text-white text-xs font-semibold">Carte permanenti ({filteredPermanentCards.length})</p>
               </div>
@@ -2424,8 +2424,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
               </div>
             </div>
 
-            {/* Right panel: edit form */}
-            <div className="flex-1 overflow-y-auto">
+            {/* Right panel: edit form — full screen on mobile when editing */}
+            <div className={`${editingCard !== null ? 'flex' : 'hidden sm:flex'} flex-1 flex-col overflow-y-auto`}>
               {editingCard !== null ? (() => {
                 const card = filteredPermanentCards.find(c => c.id === editingCard);
                 if (!card) return (
@@ -2433,6 +2433,13 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                 );
                 return (
                   <div className="p-5 space-y-4">
+                    {/* Mobile back button */}
+                    <button
+                      onClick={() => setEditingCard(null)}
+                      className="sm:hidden flex items-center gap-2 text-white/60 hover:text-white text-sm font-medium mb-1 -mt-1"
+                    >
+                      ← Lista carte
+                    </button>
                     {/* Card preview header */}
                     <div className="flex items-center gap-3 bg-gray-800/60 rounded-lg p-3 border border-white/10">
                       <img
@@ -2863,8 +2870,8 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
               <div className="flex-1 flex items-center justify-center text-gray-400">Caricamento...</div>
             ) : (
               <div className="flex flex-1 min-h-0">
-                {/* Left: compact card list */}
-                <div className="w-64 flex-shrink-0 border-r border-gray-700 overflow-y-auto">
+                {/* Left: compact card list — hidden on mobile when editing */}
+                <div className={`${editingExistingCard ? 'hidden sm:block' : 'block'} w-full sm:w-64 flex-shrink-0 border-r border-gray-700 overflow-y-auto`}>
                   {filteredExistingCards.length === 0 ? (
                     <div className="flex items-center justify-center h-32 text-gray-500 text-sm">Nessuna carta trovata</div>
                   ) : filteredExistingCards.map(card => (
@@ -2892,13 +2899,20 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
                   ))}
                 </div>
 
-                {/* Right: Edit form */}
-                <div className="flex-1 overflow-y-auto">
+                {/* Right: Edit form — full screen on mobile when editing */}
+                <div className={`${editingExistingCard ? 'flex' : 'hidden sm:flex'} flex-1 flex-col overflow-y-auto`}>
                   {editingExistingCard ? (() => {
                     const card = filteredExistingCards.find(c => c.id === editingExistingCard);
                     if (!card) return <div className="flex items-center justify-center h-full text-gray-400 text-sm">Carta non trovata</div>;
                     return (
                       <div className="p-5 space-y-4">
+                            {/* Mobile back button */}
+                            <button
+                              onClick={() => setEditingExistingCard(null)}
+                              className="sm:hidden flex items-center gap-2 text-white/60 hover:text-white text-sm font-medium mb-1 -mt-1"
+                            >
+                              ← Lista carte
+                            </button>
                             {/* Real-time Card Preview */}
                             <div className="bg-gray-900/60 rounded-lg p-3 border border-white/10">
                               <label className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-2 block">Anteprima in tempo reale</label>
