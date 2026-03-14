@@ -134,13 +134,10 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
   }, [gameId]);
 
   useEffect(() => {
-    const handleGameOver = (data: any) => {
+    const handleGameVictory = ({ winner }: { winner: string }) => {
       const gid = gameIdRef.current;
-      if (!gid || data.gameId !== gid) return;
-      const actuallyWon = data.winner && (
-        data.winner.toLowerCase() === playerName.toLowerCase() ||
-        (data.winnerId && data.winnerId === userId)
-      );
+      if (!gid) return;
+      const actuallyWon = winner && winner.toLowerCase() === playerName.toLowerCase();
       if (actuallyWon) {
         setJustWon(true);
         const leader = selectedLeaderRef.current;
@@ -153,9 +150,9 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
         setPhase('defeat');
       }
     };
-    socket.on('game-over', handleGameOver);
-    return () => { socket.off('game-over', handleGameOver); };
-  }, [playerName, userId]);
+    socket.on('game-victory', handleGameVictory);
+    return () => { socket.off('game-victory', handleGameVictory); };
+  }, [playerName]);
 
   useEffect(() => {
     const handleCpuAdded = ({ cpuName }: { cpuName: string }) => {
@@ -387,7 +384,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
             </button>
           )}
         </div>
-        <GameBoard />
+        <GameBoard isGymMode={true} />
       </div>
     );
   }

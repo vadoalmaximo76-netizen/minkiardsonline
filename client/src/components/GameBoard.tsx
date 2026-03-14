@@ -97,13 +97,14 @@ interface GameBoardProps {
   onLogout?: () => void;
   authToken?: string | null;
   isTrainingMode?: boolean;
+  isGymMode?: boolean;
   onBack?: () => void;
   onLeaveGame?: () => void;
   onContinueTournament?: () => void;
   onContinueFantaTournament?: (fantaId: string) => void;
 }
 
-export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogout, authToken, onBack, onLeaveGame, onContinueTournament, onContinueFantaTournament }) => {
+export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogout, authToken, onBack, onLeaveGame, onContinueTournament, onContinueFantaTournament, isGymMode }) => {
   const [, _forceCloudUpdate] = useState(0);
   const _cloudNameReadyAtMount = useRef(!!getCloudinaryCloudName());
   useEffect(() => {
@@ -1908,6 +1909,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         shake('heavy');
       }
       setVictoryPlayer(winner);
+      // In gym mode, suppress GameBoard's own victory/defeat screen — GymMode handles it
+      if (isGymMode) return;
       const myStats = playerStats?.[playerName || ''];
       const stats = myStats ? {
         cardsPlayed: myStats.cardsPlayed || 0,
@@ -1924,6 +1927,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
     let rewardsTimeoutId: ReturnType<typeof setTimeout> | null = null;
     const handleGameEndRewards = ({ rewards, winner }: { rewards: Record<string, { pointsEarned: number; newTotal: number; placement: number; isWinner: boolean }>; winner: string }) => {
       console.log('[REWARDS] game-end-rewards received:', { rewards, winner, playerName });
+      // In gym mode, suppress the rewards panel — GymMode has its own victory screen
+      if (isGymMode) return;
       const currentPlayerName = useGameState.getState().playerName || playerName;
       const myRewards = rewards[currentPlayerName];
       if (myRewards) {
