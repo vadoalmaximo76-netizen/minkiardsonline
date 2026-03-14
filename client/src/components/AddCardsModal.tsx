@@ -2385,418 +2385,450 @@ export const AddCardsModal: React.FC<AddCardsModalProps> = ({ isOpen, onClose })
           </div>
         )}
 
+
         {activeTab === 'manage' && (
-          <div className="flex-1 overflow-y-auto p-6">
-            <h4 className="text-white font-semibold mb-3">
-              Carte permanenti in {getDeckLabel(selectedDeck)} ({filteredPermanentCards.length}):
-            </h4>
-            
-            {loadingPermanent ? (
-              <div className="text-center text-gray-400 py-8">Caricamento...</div>
-            ) : filteredPermanentCards.length === 0 ? (
-              <div className="text-center text-gray-400 py-8">
-                Nessuna carta permanente in questo mazzo
+          <div className="flex flex-1 min-h-0">
+            {/* Left panel: compact card list */}
+            <div className="w-60 flex-shrink-0 border-r border-white/10 flex flex-col">
+              <div className="px-3 py-2 border-b border-white/10 flex-shrink-0">
+                <p className="text-white text-xs font-semibold">Carte permanenti ({filteredPermanentCards.length})</p>
               </div>
-            ) : (
-              <div className="space-y-4 pr-2">
-                {filteredPermanentCards.map((card) => (
-                  <div key={card.id} className="bg-gray-700 rounded-lg p-4">
-                    <div className="flex gap-4">
+              <div className="flex-1 overflow-y-auto">
+                {loadingPermanent ? (
+                  <div className="flex items-center justify-center h-24 text-gray-400 text-xs">Caricamento...</div>
+                ) : filteredPermanentCards.length === 0 ? (
+                  <div className="flex items-center justify-center h-24 text-gray-400 text-xs text-center px-4">
+                    Nessuna carta permanente in {getDeckLabel(selectedDeck)}
+                  </div>
+                ) : filteredPermanentCards.map(card => (
+                  <button
+                    key={card.id}
+                    onClick={() => handleEditCard(card)}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-left border-b border-white/5 transition-colors ${
+                      editingCard === card.id ? 'bg-blue-600/20 border-l-2 border-l-blue-500' : 'hover:bg-white/5'
+                    }`}
+                  >
+                    <img
+                      src={card.imageData}
+                      alt={card.name}
+                      className={`w-8 h-11 object-cover rounded border flex-shrink-0 ${getDeckColor(card.deckType).replace('bg-', 'border-')}`}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-xs font-medium truncate">{card.name}</p>
+                      {(card.deckType === 'personaggi' || card.deckType === 'personaggi_speciali') && card.pti && (
+                        <p className="text-blue-300 text-[10px]">PTI {card.pti}{card.stars ? ` • ★${card.stars}` : ''}</p>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Right panel: edit form */}
+            <div className="flex-1 overflow-y-auto">
+              {editingCard !== null ? (() => {
+                const card = filteredPermanentCards.find(c => c.id === editingCard);
+                if (!card) return (
+                  <div className="flex items-center justify-center h-full text-gray-400 text-sm">Carta non trovata</div>
+                );
+                return (
+                  <div className="p-5 space-y-4">
+                    {/* Card preview header */}
+                    <div className="flex items-center gap-3 bg-gray-800/60 rounded-lg p-3 border border-white/10">
                       <img
                         src={card.imageData}
                         alt={card.name}
-                        className={`w-20 h-28 object-cover rounded border-2 flex-shrink-0 ${getDeckColor(card.deckType).replace('bg-', 'border-')}`}
+                        className={`w-12 h-16 object-cover rounded border-2 flex-shrink-0 ${getDeckColor(card.deckType).replace('bg-', 'border-')}`}
                       />
-                      
-                      <div className="flex-1">
-                        {editingCard === card.id ? (
-                          <div className="space-y-3">
+                      <div>
+                        <p className="text-white font-bold">{card.name}</p>
+                        <span className={`text-xs text-white px-2 py-0.5 rounded ${getDeckColor(card.deckType)}`}>
+                          {getDeckLabel(card.deckType)}
+                        </span>
+                        {card.createdBy && <p className="text-gray-400 text-xs mt-0.5">di {card.createdBy}</p>}
+                      </div>
+                    </div>
+
+                    {/* Nome */}
+                    <div>
+                      <label className="text-gray-400 text-xs mb-1 block">Nome carta</label>
+                      <Input
+                        type="text"
+                        value={editForm.name}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="Nome carta"
+                        className="bg-gray-700 text-white border-gray-600"
+                      />
+                    </div>
+
+                    {/* PTI + Stelle */}
+                    {(card.deckType === 'personaggi' || card.deckType === 'personaggi_speciali') && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-gray-400 text-xs mb-1 block">PTI</label>
+                          <Input
+                            type="number"
+                            value={editForm.pti}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, pti: e.target.value }))}
+                            placeholder="PTI"
+                            className="bg-gray-700 text-white border-gray-600"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-gray-400 text-xs mb-1 block">Stelle</label>
+                          <Input
+                            type="number"
+                            value={editForm.stars}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, stars: e.target.value }))}
+                            placeholder="Stelle"
+                            className="bg-gray-700 text-white border-gray-600"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Effetto + AI Wizard */}
+                    <div>
+                      <label className="text-gray-400 text-xs mb-1 flex items-center gap-1">
+                        <Sparkles size={11} className="text-purple-400" />
+                        Effetto (AI)
+                      </label>
+                      <div className="flex gap-2">
+                        <textarea
+                          value={editForm.effect}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, effect: e.target.value }))}
+                          placeholder="Descrivi l'effetto..."
+                          className="flex-1 bg-gray-700 text-white border border-gray-600 rounded-md p-2 text-sm resize-none"
+                          rows={3}
+                        />
+                        <Button
+                          type="button"
+                          onClick={() => openEffectWizard('permanent', null)}
+                          className="bg-purple-600 hover:bg-purple-700 text-white px-2.5 flex items-center gap-1 self-start"
+                        >
+                          <Wand2 size={14} /><span className="text-xs">AI</span>
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Audio + YouTube */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-gray-400 text-xs mb-1 flex items-center gap-1">
+                          <Volume2 size={11} className="text-cyan-400" />Audio URL
+                        </label>
+                        <Input
+                          type="text"
+                          value={editForm.audioUrl}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, audioUrl: e.target.value }))}
+                          placeholder="https://..."
+                          className="bg-gray-700 text-white border-gray-600"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-gray-400 text-xs mb-1 flex items-center gap-1">
+                          <Video size={11} className="text-red-400" />YouTube URL
+                        </label>
+                        <Input
+                          type="text"
+                          value={editForm.youtubeUrl}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, youtubeUrl: e.target.value }))}
+                          placeholder="https://youtu.be/..."
+                          className="bg-gray-700 text-white border-gray-600"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Audio attacchi (personaggi) - collapsibile */}
+                    {(card.deckType === 'personaggi' || card.deckType === 'personaggi_speciali') && (
+                      <details className="bg-orange-900/20 rounded-lg border border-orange-500/30">
+                        <summary className="px-3 py-2 text-orange-400 text-xs font-bold cursor-pointer select-none">
+                          🔊 Audio Attacchi Personaggio
+                        </summary>
+                        <div className="px-3 pb-3 space-y-2 mt-2">
+                          <div>
+                            <label className="text-white text-xs mb-1 block">Attacco Debole ({'<'} 150 PTI)</label>
                             <Input
                               type="text"
-                              value={editForm.name}
-                              onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                              placeholder="Nome carta"
-                              className="bg-gray-600 text-white border-gray-500"
+                              value={editForm.attackLowAudioUrl}
+                              onChange={(e) => setEditForm(prev => ({ ...prev, attackLowAudioUrl: e.target.value }))}
+                              placeholder="URL audio attacco debole"
+                              className="bg-gray-700 text-white border-gray-600"
                             />
-                            
-                            {(card.deckType === 'personaggi' || card.deckType === 'personaggi_speciali') && (
-                              <div className="flex gap-3">
-                                <Input
-                                  type="number"
-                                  value={editForm.pti}
-                                  onChange={(e) => setEditForm(prev => ({ ...prev, pti: e.target.value }))}
-                                  placeholder="PTI"
-                                  className="bg-gray-600 text-white border-gray-500 flex-1"
-                                />
-                                <Input
-                                  type="number"
-                                  value={editForm.stars}
-                                  onChange={(e) => setEditForm(prev => ({ ...prev, stars: e.target.value }))}
-                                  placeholder="Stelle"
-                                  className="bg-gray-600 text-white border-gray-500 flex-1"
-                                />
-                              </div>
-                            )}
-                            
+                          </div>
+                          <div>
+                            <label className="text-white text-xs mb-1 block">Attacco Forte ({'≥'} 150 PTI)</label>
+                            <Input
+                              type="text"
+                              value={editForm.attackHighAudioUrl}
+                              onChange={(e) => setEditForm(prev => ({ ...prev, attackHighAudioUrl: e.target.value }))}
+                              placeholder="URL audio attacco forte"
+                              className="bg-gray-700 text-white border-gray-600"
+                            />
+                          </div>
+                        </div>
+                      </details>
+                    )}
+
+                    {/* Impostazioni Mossa - collapsibile */}
+                    {card.deckType === 'mosse' && (
+                      <details className="bg-red-900/20 rounded-lg border border-red-500/30">
+                        <summary className="px-3 py-2 text-red-400 text-xs font-bold cursor-pointer select-none">
+                          ⚔️ Impostazioni Mossa
+                        </summary>
+                        <div className="px-3 pb-3 space-y-3 mt-2">
+                          <div className="grid grid-cols-2 gap-3">
                             <div>
-                              <label className="text-white text-sm mb-1 flex items-center gap-1">
-                                <Sparkles size={14} className="text-purple-400" />
-                                Effetto (AI)
-                              </label>
-                              <div className="flex gap-2">
-                                <textarea
-                                  value={editForm.effect}
-                                  onChange={(e) => setEditForm(prev => ({ ...prev, effect: e.target.value }))}
-                                  placeholder="Descrivi l'effetto..."
-                                  className="flex-1 bg-gray-600 text-white border border-gray-500 rounded-md p-2 text-sm resize-none"
-                                  rows={2}
-                                />
-                                <Button
-                                  type="button"
-                                  onClick={() => openEffectWizard('permanent', null)}
-                                  className="bg-purple-600 hover:bg-purple-700 text-white px-3 flex items-center gap-1"
-                                  title="Usa la procedura guidata per configurare l'effetto"
-                                >
-                                  <Wand2 size={16} />
-                                  <span className="text-xs">Wizard</span>
-                                </Button>
-                              </div>
-                            </div>
-                            
-                            <div>
-                              <label className="text-white text-sm mb-1 flex items-center gap-1">
-                                <Volume2 size={14} className="text-cyan-400" />
-                                Audio URL
-                              </label>
+                              <label className="text-white text-xs mb-1 block">Danno PTI</label>
                               <Input
-                                type="text"
-                                value={editForm.audioUrl}
-                                onChange={(e) => setEditForm(prev => ({ ...prev, audioUrl: e.target.value }))}
-                                placeholder="https://... link audio"
-                                className="bg-gray-600 text-white border-gray-500"
+                                type="number"
+                                value={editForm.mosseDamageValue}
+                                onChange={(e) => setEditForm(prev => ({ ...prev, mosseDamageValue: e.target.value }))}
+                                placeholder="Es: 100"
+                                className="bg-gray-700 text-white border-gray-600"
                               />
+                              <p className="text-gray-500 text-xs mt-1">× stelle attaccante</p>
                             </div>
-                            
-                            {(card.deckType === 'personaggi' || card.deckType === 'personaggi_speciali') && (
-                              <div className="p-3 bg-orange-900/30 rounded-lg border border-orange-500/50">
-                                <div className="text-orange-400 text-sm font-bold mb-2">🔊 AUDIO ATTACCHI PERSONAGGIO</div>
-                                <p className="text-gray-400 text-xs mb-3">
-                                  Audio personalizzati che si attivano quando questo personaggio usa una MOSSA in base al danno originale (senza moltiplicazione stelle).
-                                </p>
-                                <div className="grid grid-cols-1 gap-3">
-                                  <div>
-                                    <label className="text-white text-xs mb-1 block">Audio Attacco Debole (danno {'<'} 150 PTI)</label>
-                                    <Input
-                                      type="text"
-                                      value={editForm.attackLowAudioUrl}
-                                      onChange={(e) => setEditForm(prev => ({ ...prev, attackLowAudioUrl: e.target.value }))}
-                                      placeholder="https://... audio per attacchi con danno < 150 PTI"
-                                      className="bg-gray-600 text-white border-gray-500"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="text-white text-xs mb-1 block">Audio Attacco Forte (danno {'≥'} 150 PTI)</label>
-                                    <Input
-                                      type="text"
-                                      value={editForm.attackHighAudioUrl}
-                                      onChange={(e) => setEditForm(prev => ({ ...prev, attackHighAudioUrl: e.target.value }))}
-                                      placeholder="https://... audio per attacchi con danno ≥ 150 PTI"
-                                      className="bg-gray-600 text-white border-gray-500"
-                                    />
-                                  </div>
+                            <div>
+                              <label className="text-white text-xs mb-1 block">Effetto speciale</label>
+                              <select
+                                value={editForm.mosseDamageEffect}
+                                onChange={(e) => setEditForm(prev => ({ ...prev, mosseDamageEffect: e.target.value }))}
+                                className="w-full bg-gray-700 text-white border border-gray-600 rounded px-2 py-2 text-sm"
+                              >
+                                <option value="">Nessun effetto</option>
+                                <option value="death">💀 Morte istantanea</option>
+                                <option value="halve_pti">➗ PTI dimezzati</option>
+                                <option value="zero_stars">⭐ 0 stelle</option>
+                                <option value="set_5_pti">5️⃣ 5 PTI</option>
+                                <option value="remove_1_star">⭐ -1 stella</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="border-t border-red-500/30 pt-3">
+                            <div className="text-cyan-400 text-xs font-bold mb-2">↩️ Sistema Respinta</div>
+                            <div className="space-y-2">
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <Checkbox
+                                  id="edit-can-counter"
+                                  checked={editForm.mosseCanCounter || false}
+                                  onCheckedChange={(checked) => setEditForm(prev => ({ ...prev, mosseCanCounter: !!checked }))}
+                                />
+                                <span className="text-white text-xs">Può respingere</span>
+                              </label>
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <Checkbox
+                                  id="edit-can-be-countered"
+                                  checked={editForm.mosseCanBeCountered || false}
+                                  onCheckedChange={(checked) => setEditForm(prev => ({ ...prev, mosseCanBeCountered: !!checked }))}
+                                />
+                                <span className="text-white text-xs">Può essere respinta</span>
+                              </label>
+                            </div>
+                          </div>
+
+                          <div className="border-t border-red-500/30 pt-3">
+                            <div className="text-orange-400 text-xs font-bold mb-2">🎯 Danno specifico per personaggio</div>
+                            {editForm.mosseCharacterOverrides.map((override, idx) => (
+                              <div key={idx} className="bg-gray-800/50 p-2 rounded mb-2 text-xs">
+                                <div className="flex justify-between mb-1">
+                                  <span className="text-white font-bold">{override.characterName}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditForm(prev => ({ ...prev, mosseCharacterOverrides: prev.mosseCharacterOverrides.filter((_, i) => i !== idx) }))}
+                                    className="text-red-400"
+                                  >×</button>
                                 </div>
-                              </div>
-                            )}
-                            
-                            <div>
-                              <label className="text-white text-sm mb-1 flex items-center gap-1">
-                                <Video size={14} className="text-red-500" />
-                                Video YouTube URL
-                              </label>
-                              <Input
-                                type="text"
-                                value={editForm.youtubeUrl}
-                                onChange={(e) => setEditForm(prev => ({ ...prev, youtubeUrl: e.target.value }))}
-                                placeholder="https://www.youtube.com/watch?v=..."
-                                className="bg-gray-600 text-white border-gray-500"
-                              />
-                            </div>
-                            
-                            {/* MOSSE Damage Settings */}
-                            {card.deckType === 'mosse' && (
-                              <div className="p-3 bg-red-900/30 rounded-lg border border-red-500/50">
-                                <div className="text-red-400 text-sm font-bold mb-2">⚔️ DANNO MOSSA</div>
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-2 gap-2">
                                   <div>
-                                    <label className="text-white text-xs mb-1 block">Danno PTI</label>
+                                    <p className="text-blue-400 text-xs mb-1">Usata DA:</p>
                                     <Input
                                       type="number"
-                                      value={editForm.mosseDamageValue}
-                                      onChange={(e) => setEditForm(prev => ({ ...prev, mosseDamageValue: e.target.value }))}
-                                      placeholder="Es: 100"
-                                      className="bg-gray-600 text-white border-gray-500"
+                                      value={override.usedBy?.damageValue || ''}
+                                      onChange={(e) => {
+                                        const o = [...editForm.mosseCharacterOverrides];
+                                        o[idx] = { ...o[idx], usedBy: { ...o[idx].usedBy, damageValue: e.target.value ? parseInt(e.target.value) : null, effect: o[idx].usedBy?.effect || null } };
+                                        setEditForm(prev => ({ ...prev, mosseCharacterOverrides: o }));
+                                      }}
+                                      placeholder="PTI"
+                                      className="bg-gray-600 text-white text-xs h-7 mb-1"
                                     />
-                                    <p className="text-gray-500 text-xs mt-1">x stelle attaccante</p>
-                                  </div>
-                                  <div>
-                                    <label className="text-white text-xs mb-1 block">Effetto speciale</label>
                                     <select
-                                      value={editForm.mosseDamageEffect}
-                                      onChange={(e) => setEditForm(prev => ({ ...prev, mosseDamageEffect: e.target.value }))}
-                                      className="w-full bg-gray-600 text-white border border-gray-500 rounded px-2 py-2 text-sm"
+                                      value={override.usedBy?.effect || ''}
+                                      onChange={(e) => {
+                                        const o = [...editForm.mosseCharacterOverrides];
+                                        o[idx] = { ...o[idx], usedBy: { damageValue: o[idx].usedBy?.damageValue || null, effect: e.target.value || null } };
+                                        setEditForm(prev => ({ ...prev, mosseCharacterOverrides: o }));
+                                      }}
+                                      className="w-full bg-gray-600 text-white text-xs px-1 py-1 rounded border border-gray-500"
                                     >
                                       <option value="">Nessun effetto</option>
-                                      <option value="death">💀 Morte istantanea</option>
-                                      <option value="halve_pti">➗ PTI dimezzati</option>
-                                      <option value="zero_stars">⭐ 0 stelle</option>
-                                      <option value="set_5_pti">5️⃣ 5 PTI</option>
-                                      <option value="remove_1_star">⭐ -1 stella</option>
+                                      <option value="death">Morte</option>
+                                      <option value="halve_pti">PTI dimezzati</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <p className="text-purple-400 text-xs mb-1">Usata SU:</p>
+                                    <Input
+                                      type="number"
+                                      value={override.usedOn?.damageValue || ''}
+                                      onChange={(e) => {
+                                        const o = [...editForm.mosseCharacterOverrides];
+                                        o[idx] = { ...o[idx], usedOn: { ...o[idx].usedOn, damageValue: e.target.value ? parseInt(e.target.value) : null, effect: o[idx].usedOn?.effect || null } };
+                                        setEditForm(prev => ({ ...prev, mosseCharacterOverrides: o }));
+                                      }}
+                                      placeholder="PTI"
+                                      className="bg-gray-600 text-white text-xs h-7 mb-1"
+                                    />
+                                    <select
+                                      value={override.usedOn?.effect || ''}
+                                      onChange={(e) => {
+                                        const o = [...editForm.mosseCharacterOverrides];
+                                        o[idx] = { ...o[idx], usedOn: { damageValue: o[idx].usedOn?.damageValue || null, effect: e.target.value || null } };
+                                        setEditForm(prev => ({ ...prev, mosseCharacterOverrides: o }));
+                                      }}
+                                      className="w-full bg-gray-600 text-white text-xs px-1 py-1 rounded border border-gray-500"
+                                    >
+                                      <option value="">Nessun effetto</option>
+                                      <option value="death">Morte</option>
+                                      <option value="halve_pti">PTI dimezzati</option>
                                     </select>
                                   </div>
                                 </div>
-                                
-                                {/* Character-Specific Overrides */}
-                                <div className="mt-3 border-t border-red-500/30 pt-3">
-                                  <div className="text-orange-400 text-xs font-bold mb-2">🎯 Danno specifico per personaggio</div>
-                                  {editForm.mosseCharacterOverrides.map((override, idx) => (
-                                    <div key={idx} className="bg-gray-800/50 p-2 rounded mb-2 text-xs">
-                                      <div className="flex justify-between mb-1">
-                                        <span className="text-white font-bold">{override.characterName}</span>
-                                        <button type="button" onClick={() => setEditForm(prev => ({
-                                          ...prev,
-                                          mosseCharacterOverrides: prev.mosseCharacterOverrides.filter((_, i) => i !== idx)
-                                        }))} className="text-red-400 text-xs">×</button>
-                                      </div>
-                                      <div className="grid grid-cols-2 gap-2">
-                                        <div>
-                                          <p className="text-blue-400 text-xs mb-1">Usata DA:</p>
-                                          <Input type="number" value={override.usedBy?.damageValue || ''} 
-                                            onChange={(e) => {
-                                              const newOverrides = [...editForm.mosseCharacterOverrides];
-                                              newOverrides[idx] = { ...newOverrides[idx], usedBy: { ...newOverrides[idx].usedBy, damageValue: e.target.value ? parseInt(e.target.value) : null, effect: newOverrides[idx].usedBy?.effect || null }};
-                                              setEditForm(prev => ({ ...prev, mosseCharacterOverrides: newOverrides }));
-                                            }} placeholder="PTI" className="bg-gray-600 text-white text-xs h-7 mb-1" />
-                                          <select value={override.usedBy?.effect || ''} onChange={(e) => {
-                                            const newOverrides = [...editForm.mosseCharacterOverrides];
-                                            newOverrides[idx] = { ...newOverrides[idx], usedBy: { damageValue: newOverrides[idx].usedBy?.damageValue || null, effect: e.target.value || null }};
-                                            setEditForm(prev => ({ ...prev, mosseCharacterOverrides: newOverrides }));
-                                          }} className="w-full bg-gray-600 text-white text-xs px-1 py-1 rounded border border-gray-500">
-                                            <option value="">Nessun effetto</option>
-                                            <option value="death">Morte</option>
-                                            <option value="halve_pti">PTI dimezzati</option>
-                                          </select>
-                                        </div>
-                                        <div>
-                                          <p className="text-purple-400 text-xs mb-1">Usata SU:</p>
-                                          <Input type="number" value={override.usedOn?.damageValue || ''} 
-                                            onChange={(e) => {
-                                              const newOverrides = [...editForm.mosseCharacterOverrides];
-                                              newOverrides[idx] = { ...newOverrides[idx], usedOn: { ...newOverrides[idx].usedOn, damageValue: e.target.value ? parseInt(e.target.value) : null, effect: newOverrides[idx].usedOn?.effect || null }};
-                                              setEditForm(prev => ({ ...prev, mosseCharacterOverrides: newOverrides }));
-                                            }} placeholder="PTI" className="bg-gray-600 text-white text-xs h-7 mb-1" />
-                                          <select value={override.usedOn?.effect || ''} onChange={(e) => {
-                                            const newOverrides = [...editForm.mosseCharacterOverrides];
-                                            newOverrides[idx] = { ...newOverrides[idx], usedOn: { damageValue: newOverrides[idx].usedOn?.damageValue || null, effect: e.target.value || null }};
-                                            setEditForm(prev => ({ ...prev, mosseCharacterOverrides: newOverrides }));
-                                          }} className="w-full bg-gray-600 text-white text-xs px-1 py-1 rounded border border-gray-500">
-                                            <option value="">Nessun effetto</option>
-                                            <option value="death">Morte</option>
-                                            <option value="halve_pti">PTI dimezzati</option>
-                                          </select>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                  <select value="" onChange={(e) => {
-                                    if (e.target.value) {
-                                      const char = availableCharacters.find(c => c.id === e.target.value);
-                                      if (char && !editForm.mosseCharacterOverrides.some(o => o.characterId === char.id)) {
-                                        setEditForm(prev => ({ ...prev, mosseCharacterOverrides: [...prev.mosseCharacterOverrides, { characterId: char.id, characterName: char.name }]}));
-                                      }
-                                    }
-                                  }} className="w-full bg-gray-700 text-white text-xs px-2 py-1 rounded border border-gray-500">
-                                    <option value="">+ Aggiungi personaggio...</option>
-                                    {availableCharacters.filter(c => !editForm.mosseCharacterOverrides.some(o => o.characterId === c.id)).map(c => (
-                                      <option key={c.id} value={c.id}>{c.name}</option>
-                                    ))}
-                                  </select>
-                                </div>
-                                
-                                {/* Targeting Mode */}
-                                <div className="mt-3 border-t border-red-500/30 pt-3">
-                                  <div className="text-cyan-400 text-xs font-bold mb-2">🎯 Targeting Automatico</div>
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <div>
-                                      <p className="text-white text-xs mb-1">Modalità</p>
-                                      <select 
-                                        value={editForm.mosseTargetingMode || ''} 
-                                        onChange={(e) => setEditForm(prev => ({ ...prev, mosseTargetingMode: e.target.value }))} 
-                                        className="w-full bg-gray-700 text-white text-xs px-1 py-1 rounded border border-gray-500"
-                                      >
-                                        <option value="">Manuale</option>
-                                        <option value="single">🎯 Singolo casuale</option>
-                                        <option value="highest_pti">⬆️ PTI più alti</option>
-                                        <option value="all_enemies">👥 Tutti nemici</option>
-                                        <option value="all_characters">🌍 Tutti</option>
-                                        <option value="specific_count">🔢 Numero specifico</option>
-                                      </select>
-                                    </div>
-                                    {editForm.mosseTargetingMode === 'specific_count' && (
-                                      <div>
-                                        <p className="text-white text-xs mb-1">Numero bersagli</p>
-                                        <Input 
-                                          type="number" 
-                                          min="1"
-                                          value={editForm.mosseTargetCount || ''} 
-                                          onChange={(e) => setEditForm(prev => ({ ...prev, mosseTargetCount: e.target.value }))} 
-                                          placeholder="es. 2"
-                                          className="bg-gray-600 text-white border-gray-500 text-xs h-7"
-                                        />
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                                
-                                {/* Counter Attack Settings */}
-                                <div className="mt-3 border-t border-red-500/30 pt-3">
-                                  <div className="text-cyan-400 text-xs font-bold mb-2">↩️ Sistema Respinta</div>
-                                  <div className="space-y-2">
-                                    <div className="flex items-center gap-2">
-                                      <Checkbox
-                                        id="edit-can-counter"
-                                        checked={editForm.mosseCanCounter || false}
-                                        onCheckedChange={(checked) => setEditForm(prev => ({ ...prev, mosseCanCounter: !!checked }))}
-                                      />
-                                      <label htmlFor="edit-can-counter" className="text-white text-xs cursor-pointer">
-                                        Può respingere
-                                      </label>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <Checkbox
-                                        id="edit-can-be-countered"
-                                        checked={editForm.mosseCanBeCountered || false}
-                                        onCheckedChange={(checked) => setEditForm(prev => ({ ...prev, mosseCanBeCountered: !!checked }))}
-                                      />
-                                      <label htmlFor="edit-can-be-countered" className="text-white text-xs cursor-pointer">
-                                        Può essere respinta
-                                      </label>
-                                    </div>
-                                  </div>
-                                </div>
-                                
-                                {/* Restrictions */}
-                                <div className="mt-3 border-t border-red-500/30 pt-3">
-                                  <div className="text-yellow-400 text-xs font-bold mb-2">🚫 Restrizioni</div>
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <div>
-                                      <p className="text-white text-xs mb-1">Non usabile DA:</p>
-                                      <div className="max-h-16 overflow-y-auto bg-gray-800/50 rounded p-1 mb-1">
-                                        {editForm.mosseRestrictedFrom.map((name, i) => (
-                                          <div key={i} className="flex justify-between text-xs text-white py-0.5">
-                                            <span>{name}</span>
-                                            <button type="button" onClick={() => setEditForm(prev => ({ ...prev, mosseRestrictedFrom: prev.mosseRestrictedFrom.filter((_, idx) => idx !== i) }))} className="text-red-400">×</button>
-                                          </div>
-                                        ))}
-                                      </div>
-                                      <select value="" onChange={(e) => { if (e.target.value && !editForm.mosseRestrictedFrom.includes(e.target.value)) setEditForm(prev => ({ ...prev, mosseRestrictedFrom: [...prev.mosseRestrictedFrom, e.target.value] })); }} className="w-full bg-gray-700 text-white text-xs px-1 py-1 rounded border border-gray-500">
-                                        <option value="">+ Aggiungi...</option>
-                                        {availableCharacters.filter(c => !editForm.mosseRestrictedFrom.includes(c.name)).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                                      </select>
-                                    </div>
-                                    <div>
-                                      <p className="text-white text-xs mb-1">Non usabile SU:</p>
-                                      <div className="max-h-16 overflow-y-auto bg-gray-800/50 rounded p-1 mb-1">
-                                        {editForm.mosseRestrictedAgainst.map((name, i) => (
-                                          <div key={i} className="flex justify-between text-xs text-white py-0.5">
-                                            <span>{name}</span>
-                                            <button type="button" onClick={() => setEditForm(prev => ({ ...prev, mosseRestrictedAgainst: prev.mosseRestrictedAgainst.filter((_, idx) => idx !== i) }))} className="text-red-400">×</button>
-                                          </div>
-                                        ))}
-                                      </div>
-                                      <select value="" onChange={(e) => { if (e.target.value && !editForm.mosseRestrictedAgainst.includes(e.target.value)) setEditForm(prev => ({ ...prev, mosseRestrictedAgainst: [...prev.mosseRestrictedAgainst, e.target.value] })); }} className="w-full bg-gray-700 text-white text-xs px-1 py-1 rounded border border-gray-500">
-                                        <option value="">+ Aggiungi...</option>
-                                        {availableCharacters.filter(c => !editForm.mosseRestrictedAgainst.includes(c.name)).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                                      </select>
-                                    </div>
-                                  </div>
-                                </div>
                               </div>
-                            )}
-                            
-                            <div className="flex gap-2">
-                              <Button
-                                onClick={() => handleSaveEdit(card.id)}
-                                className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1"
-                                size="sm"
-                              >
-                                <Save size={14} className="mr-1" />
-                                Salva
-                              </Button>
-                              <Button
-                                onClick={() => setEditingCard(null)}
-                                className="bg-gray-500 hover:bg-gray-600 text-white text-xs px-3 py-1"
-                                size="sm"
-                              >
-                                Annulla
-                              </Button>
+                            ))}
+                            <select
+                              value=""
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  const char = availableCharacters.find(c => c.id === e.target.value);
+                                  if (char && !editForm.mosseCharacterOverrides.some(o => o.characterId === char.id)) {
+                                    setEditForm(prev => ({ ...prev, mosseCharacterOverrides: [...prev.mosseCharacterOverrides, { characterId: char.id, characterName: char.name }] }));
+                                  }
+                                }
+                              }}
+                              className="w-full bg-gray-700 text-white text-xs px-2 py-1 rounded border border-gray-500"
+                            >
+                              <option value="">+ Aggiungi personaggio...</option>
+                              {availableCharacters.filter(c => !editForm.mosseCharacterOverrides.some(o => o.characterId === c.id)).map(c => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="border-t border-red-500/30 pt-3">
+                            <div className="text-cyan-400 text-xs font-bold mb-2">🎯 Targeting Automatico</div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-white text-xs mb-1 block">Modalità</label>
+                                <select
+                                  value={editForm.mosseTargetingMode || ''}
+                                  onChange={(e) => setEditForm(prev => ({ ...prev, mosseTargetingMode: e.target.value }))}
+                                  className="w-full bg-gray-700 text-white text-xs px-1 py-1 rounded border border-gray-500"
+                                >
+                                  <option value="">Manuale</option>
+                                  <option value="single">🎯 Singolo casuale</option>
+                                  <option value="highest_pti">⬆️ PTI più alti</option>
+                                  <option value="all_enemies">👥 Tutti nemici</option>
+                                  <option value="all_characters">🌍 Tutti</option>
+                                  <option value="specific_count">🔢 Numero specifico</option>
+                                </select>
+                              </div>
+                              {editForm.mosseTargetingMode === 'specific_count' && (
+                                <div>
+                                  <label className="text-white text-xs mb-1 block">N° bersagli</label>
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    value={editForm.mosseTargetCount}
+                                    onChange={(e) => setEditForm(prev => ({ ...prev, mosseTargetCount: e.target.value }))}
+                                    placeholder="es. 2"
+                                    className="bg-gray-700 text-white border-gray-600"
+                                  />
+                                </div>
+                              )}
                             </div>
                           </div>
-                        ) : (
-                          <>
-                            <h5 className="text-white font-bold text-lg">{card.name}</h5>
-                            <div className={`inline-block px-2 py-1 rounded text-xs text-white mb-2 ${getDeckColor(card.deckType)}`}>
-                              {getDeckLabel(card.deckType)}
+
+                          <div className="border-t border-red-500/30 pt-3">
+                            <div className="text-yellow-400 text-xs font-bold mb-2">🚫 Restrizioni</div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <p className="text-white text-xs mb-1">Non usabile DA:</p>
+                                <div className="max-h-16 overflow-y-auto bg-gray-800/50 rounded p-1 mb-1">
+                                  {editForm.mosseRestrictedFrom.map((name, i) => (
+                                    <div key={i} className="flex justify-between text-xs text-white py-0.5">
+                                      <span>{name}</span>
+                                      <button type="button" onClick={() => setEditForm(prev => ({ ...prev, mosseRestrictedFrom: prev.mosseRestrictedFrom.filter((_, idx) => idx !== i) }))} className="text-red-400">×</button>
+                                    </div>
+                                  ))}
+                                </div>
+                                <select
+                                  value=""
+                                  onChange={(e) => { if (e.target.value && !editForm.mosseRestrictedFrom.includes(e.target.value)) setEditForm(prev => ({ ...prev, mosseRestrictedFrom: [...prev.mosseRestrictedFrom, e.target.value] })); }}
+                                  className="w-full bg-gray-700 text-white text-xs px-1 py-1 rounded border border-gray-500"
+                                >
+                                  <option value="">+ Aggiungi...</option>
+                                  {availableCharacters.filter(c => !editForm.mosseRestrictedFrom.includes(c.name)).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                                </select>
+                              </div>
+                              <div>
+                                <p className="text-white text-xs mb-1">Non usabile SU:</p>
+                                <div className="max-h-16 overflow-y-auto bg-gray-800/50 rounded p-1 mb-1">
+                                  {editForm.mosseRestrictedAgainst.map((name, i) => (
+                                    <div key={i} className="flex justify-between text-xs text-white py-0.5">
+                                      <span>{name}</span>
+                                      <button type="button" onClick={() => setEditForm(prev => ({ ...prev, mosseRestrictedAgainst: prev.mosseRestrictedAgainst.filter((_, idx) => idx !== i) }))} className="text-red-400">×</button>
+                                    </div>
+                                  ))}
+                                </div>
+                                <select
+                                  value=""
+                                  onChange={(e) => { if (e.target.value && !editForm.mosseRestrictedAgainst.includes(e.target.value)) setEditForm(prev => ({ ...prev, mosseRestrictedAgainst: [...prev.mosseRestrictedAgainst, e.target.value] })); }}
+                                  className="w-full bg-gray-700 text-white text-xs px-1 py-1 rounded border border-gray-500"
+                                >
+                                  <option value="">+ Aggiungi...</option>
+                                  {availableCharacters.filter(c => !editForm.mosseRestrictedAgainst.includes(c.name)).map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                                </select>
+                              </div>
                             </div>
-                            
-                            {(card.deckType === 'personaggi' || card.deckType === 'personaggi_speciali') && (
-                              <div className="text-gray-300 text-sm">
-                                {card.pti !== null && <span className="mr-3">PTI: {card.pti}</span>}
-                                {card.stars !== null && <span>Stelle: {card.stars}</span>}
-                              </div>
-                            )}
-                            
-                            {card.effect && (
-                              <div className="text-purple-300 text-xs mt-1 flex items-center gap-1">
-                                <Sparkles size={12} />
-                                Effetto: {card.effect.substring(0, 50)}...
-                              </div>
-                            )}
-                            
-                            {card.createdBy && (
-                              <div className="text-gray-400 text-xs mt-1">
-                                Creata da: {card.createdBy}
-                              </div>
-                            )}
-                            
-                            <div className="flex gap-2 mt-3">
-                              <Button
-                                onClick={() => handleEditCard(card)}
-                                className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1"
-                                size="sm"
-                              >
-                                <Pencil size={14} className="mr-1" />
-                                Modifica
-                              </Button>
-                              <Button
-                                onClick={() => handleDeleteCard(card.id)}
-                                className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1"
-                                size="sm"
-                              >
-                                <Trash2 size={14} className="mr-1" />
-                                Elimina
-                              </Button>
-                            </div>
-                          </>
-                        )}
-                      </div>
+                          </div>
+                        </div>
+                      </details>
+                    )}
+
+                    {/* Pulsanti azione */}
+                    <div className="flex gap-2 pt-3 border-t border-gray-700">
+                      <Button
+                        onClick={() => handleSaveEdit(card.id)}
+                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 flex items-center gap-1.5"
+                      >
+                        <Save size={14} />
+                        Salva Modifiche
+                      </Button>
+                      <Button
+                        onClick={() => setEditingCard(null)}
+                        className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2"
+                      >
+                        Annulla
+                      </Button>
+                      <Button
+                        onClick={() => handleDeleteCard(card.id)}
+                        className="ml-auto bg-red-700 hover:bg-red-600 text-white px-4 py-2 flex items-center gap-1.5"
+                      >
+                        <Trash2 size={14} />
+                        Elimina
+                      </Button>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-            
-            <div className="mt-4 text-gray-400 text-xs text-center">
-              <p>Le carte permanenti vengono caricate automaticamente all'inizio di ogni nuova partita</p>
+                );
+              })() : (
+                <div className="flex flex-col items-center justify-center h-full text-gray-500 gap-4">
+                  <Pencil size={48} className="opacity-20" />
+                  <p className="text-sm">Seleziona una carta dalla lista per modificarla</p>
+                </div>
+              )}
             </div>
           </div>
         )}
