@@ -7,7 +7,7 @@ import jwt from "jsonwebtoken";
 import fs from "fs";
 import path from "path";
 import { db, legacyDb, isDatabaseAvailable, isLegacyDbAvailable } from "./db";
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, draftTournaments, notifications } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, draftTournaments, notifications, gymLeaders, userGymProgress } from "../shared/schema";
 import { jsonStorage, homePanelsStorage, newsTickerStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray } from "drizzle-orm";
 import { CARD_DATA, DECK_BACK_IMAGES } from "../client/src/lib/cardData";
@@ -10316,6 +10316,147 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
     } catch (error) {
       console.error('Error deleting seasonal card:', error);
       res.status(500).json({ success: false, error: 'Failed to delete card' });
+    }
+  });
+
+  // ============= GYM LEADERS (PERCORSO PALESTRE) =============
+
+  // GET /api/admin/gym-leaders - list all (admin)
+  app.get('/api/admin/gym-leaders', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      const isAdmin = await checkAdminAccess(user);
+      if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
+      const list = await db.select().from(gymLeaders).orderBy(gymLeaders.orderIndex);
+      res.json({ success: true, gymLeaders: list });
+    } catch (e) {
+      console.error('Error fetching gym leaders:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // POST /api/admin/gym-leaders - create
+  app.post('/api/admin/gym-leaders', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      const isAdmin = await checkAdminAccess(user);
+      if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
+      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, rewardCredits, rewardDescription, orderIndex, isActive } = req.body;
+      if (!name || !gymName) return res.status(400).json({ success: false, error: 'name e gymName obbligatori' });
+      const [created] = await db.insert(gymLeaders).values({
+        name, gymName,
+        description: description || null,
+        specialty: specialty || null,
+        leaderImageUrl: leaderImageUrl || null,
+        badgeImageUrl: badgeImageUrl || null,
+        backgroundImageUrl: backgroundImageUrl || null,
+        cpuLevel: cpuLevel || 'medium',
+        deckBias: deckBias || { personaggi: 1.0, mosse: 1.0, bonus: 1.0 },
+        rewardCredits: rewardCredits ?? 50,
+        rewardDescription: rewardDescription || null,
+        orderIndex: orderIndex ?? 1,
+        isActive: isActive !== false,
+      }).returning();
+      res.json({ success: true, gymLeader: created });
+    } catch (e) {
+      console.error('Error creating gym leader:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // PUT /api/admin/gym-leaders/:id - update
+  app.put('/api/admin/gym-leaders/:id', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      const isAdmin = await checkAdminAccess(user);
+      if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
+      const id = parseInt(req.params.id);
+      const { name, gymName, description, specialty, leaderImageUrl, badgeImageUrl, backgroundImageUrl, cpuLevel, deckBias, rewardCredits, rewardDescription, orderIndex, isActive } = req.body;
+      const [updated] = await db.update(gymLeaders).set({
+        name, gymName,
+        description: description || null,
+        specialty: specialty || null,
+        leaderImageUrl: leaderImageUrl || null,
+        badgeImageUrl: badgeImageUrl || null,
+        backgroundImageUrl: backgroundImageUrl || null,
+        cpuLevel: cpuLevel || 'medium',
+        deckBias: deckBias || { personaggi: 1.0, mosse: 1.0, bonus: 1.0 },
+        rewardCredits: rewardCredits ?? 50,
+        rewardDescription: rewardDescription || null,
+        orderIndex: orderIndex ?? 1,
+        isActive: isActive !== false,
+      }).where(eq(gymLeaders.id, id)).returning();
+      if (!updated) return res.status(404).json({ success: false, error: 'Palestra non trovata' });
+      res.json({ success: true, gymLeader: updated });
+    } catch (e) {
+      console.error('Error updating gym leader:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // DELETE /api/admin/gym-leaders/:id
+  app.delete('/api/admin/gym-leaders/:id', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      const isAdmin = await checkAdminAccess(user);
+      if (!isAdmin) return res.status(403).json({ success: false, error: 'Admin richiesto' });
+      const id = parseInt(req.params.id);
+      await db.delete(gymLeaders).where(eq(gymLeaders.id, id));
+      await db.delete(userGymProgress).where(eq(userGymProgress.gymLeaderId, id));
+      res.json({ success: true });
+    } catch (e) {
+      console.error('Error deleting gym leader:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // GET /api/gym-leaders - player-facing (active only, with progress)
+  app.get('/api/gym-leaders', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      const list = await db.select().from(gymLeaders)
+        .where(eq(gymLeaders.isActive, true))
+        .orderBy(gymLeaders.orderIndex);
+      let completedIds: number[] = [];
+      if (user?.userId) {
+        const progress = await db.select().from(userGymProgress)
+          .where(eq(userGymProgress.userId, user.userId));
+        completedIds = progress.map(p => p.gymLeaderId);
+      }
+      res.json({ success: true, gymLeaders: list, completedIds });
+    } catch (e) {
+      console.error('Error fetching gym leaders:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // POST /api/gym-leaders/:id/complete - mark gym as beaten
+  app.post('/api/gym-leaders/:id/complete', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+      const gymLeaderId = parseInt(req.params.id);
+      const existing = await db.select().from(userGymProgress)
+        .where(and(eq(userGymProgress.userId, user.userId), eq(userGymProgress.gymLeaderId, gymLeaderId)));
+      if (existing.length === 0) {
+        await db.insert(userGymProgress).values({ userId: user.userId, gymLeaderId });
+        // Grant reward credits
+        const [gym] = await db.select().from(gymLeaders).where(eq(gymLeaders.id, gymLeaderId));
+        if (gym && gym.rewardCredits > 0) {
+          await db.update(users).set({ puntiRankiard: sql`${users.puntiRankiard} + ${gym.rewardCredits}` })
+            .where(eq(users.id, user.userId));
+        }
+      }
+      res.json({ success: true });
+    } catch (e) {
+      console.error('Error completing gym:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
     }
   });
 

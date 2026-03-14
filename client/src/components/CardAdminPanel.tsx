@@ -3,8 +3,9 @@ import { AddCardsModal } from './AddCardsModal';
 import { AdminTooltipsPanel } from './AdminTooltipsPanel';
 import { OcrReviewPanel } from './OcrReviewPanel';
 import { DraftCostEditorPanel } from './DraftCostEditorPanel';
+import { AdminGymPanel } from './AdminGymPanel';
 import { Button } from './ui/button';
-import { Info, Eye, Coins, Check, X, Zap, ListOrdered, Menu } from 'lucide-react';
+import { Info, Eye, Coins, Check, X, Zap, ListOrdered, Menu, Shield } from 'lucide-react';
 
 interface CardAdminPanelProps {
   onBack: () => void;
@@ -153,6 +154,7 @@ export function CardAdminPanel({ onBack }: CardAdminPanelProps) {
   const [showTooltipsPanel, setShowTooltipsPanel] = useState(false);
   const [showOcrPanel, setShowOcrPanel] = useState(false);
   const [showCreditsPanel, setShowCreditsPanel] = useState(false);
+  const [showGymPanel, setShowGymPanel] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [showDraftCostEditor, setShowDraftCostEditor] = useState(false);
@@ -209,6 +211,7 @@ export function CardAdminPanel({ onBack }: CardAdminPanelProps) {
         {showMenu && (
           <div className="absolute top-full right-0 mt-1 w-52 bg-gray-800 border border-white/15 rounded-xl shadow-2xl overflow-hidden">
             {[
+              { label: 'Palestre', icon: <Shield size={14} />, color: 'text-yellow-300', onClick: () => { setShowGymPanel(true); setShowMenu(false); } },
               { label: 'Editor Costi Draft', icon: <ListOrdered size={14} />, color: 'text-indigo-300', onClick: () => { setShowDraftCostEditor(true); setShowMenu(false); } },
               { label: 'Costi Draft Auto', icon: <Zap size={14} />, color: 'text-orange-300', onClick: () => { setShowAutoCostDialog(true); setAutoCostResult(null); setAutoCostError(null); setShowMenu(false); } },
               { label: 'Crediti Draft', icon: <Coins size={14} />, color: 'text-teal-300', onClick: () => { setShowCreditsPanel(true); setShowMenu(false); } },
@@ -246,6 +249,11 @@ export function CardAdminPanel({ onBack }: CardAdminPanelProps) {
       {showCreditsPanel && (
         <AdminDraftCreditsPanel
           onClose={() => setShowCreditsPanel(false)}
+        />
+      )}
+      {showGymPanel && (
+        <AdminGymPanel
+          onClose={() => setShowGymPanel(false)}
         />
       )}
       {showDraftCostEditor && (

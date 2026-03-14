@@ -786,3 +786,35 @@ export const notifications = pgTable("notifications", {
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+
+// ── Percorso Palestre (Gym Leaders) ──────────────────────────────────────────
+export const gymLeaders = pgTable("gym_leaders", {
+  id: serial("id").primaryKey(),
+  orderIndex: integer("order_index").notNull().default(1),
+  name: text("name").notNull(),
+  gymName: text("gym_name").notNull(),
+  description: text("description"),
+  specialty: text("specialty"),
+  leaderImageUrl: text("leader_image_url"),
+  badgeImageUrl: text("badge_image_url"),
+  backgroundImageUrl: text("background_image_url"),
+  cpuLevel: text("cpu_level").notNull().default("medium"),
+  deckBias: jsonb("deck_bias").default({ personaggi: 1.0, mosse: 1.0, bonus: 1.0 }),
+  rewardCredits: integer("reward_credits").notNull().default(50),
+  rewardDescription: text("reward_description"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const userGymProgress = pgTable("user_gym_progress", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  gymLeaderId: integer("gym_leader_id").notNull(),
+  completedAt: timestamp("completed_at").notNull().defaultNow(),
+});
+
+export const insertGymLeaderSchema = createInsertSchema(gymLeaders).omit({ id: true, createdAt: true });
+export const insertUserGymProgressSchema = createInsertSchema(userGymProgress).omit({ id: true });
+export type GymLeader = typeof gymLeaders.$inferSelect;
+export type UserGymProgress = typeof userGymProgress.$inferSelect;
+export type InsertGymLeader = z.infer<typeof insertGymLeaderSchema>;
