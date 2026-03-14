@@ -2,6 +2,30 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { X, Plus, Edit2, Trash2, Save, Shield, ChevronUp, ChevronDown, Eye, EyeOff, Search, Check, Layers } from 'lucide-react';
 import { Button } from './ui/button';
 
+type LeaderMessages = {
+  gameStart: string[];
+  playPersonaggio: string[];
+  playMossa: string[];
+  playBonus: string[];
+  takeMossa: string[];
+  eliminateEnemy: string[];
+  ownPersonaggioDies: string[];
+  gameWin: string[];
+  gameLose: string[];
+};
+
+const EMPTY_LEADER_MESSAGES: LeaderMessages = {
+  gameStart: ['', '', ''],
+  playPersonaggio: ['', '', ''],
+  playMossa: ['', '', ''],
+  playBonus: ['', '', ''],
+  takeMossa: ['', '', ''],
+  eliminateEnemy: ['', '', ''],
+  ownPersonaggioDies: ['', '', ''],
+  gameWin: ['', '', ''],
+  gameLose: ['', '', ''],
+};
+
 interface GymLeader {
   id: number;
   orderIndex: number;
@@ -19,6 +43,8 @@ interface GymLeader {
   playerStartingDeck: string[];
   rewardCredits: number;
   rewardDescription: string | null;
+  youtubeMusicUrl: string | null;
+  leaderMessages: LeaderMessages | null;
   isActive: boolean;
   createdAt: string;
 }
@@ -49,6 +75,8 @@ const EMPTY_FORM = {
   playerStartingDeck: [] as string[],
   rewardCredits: 50,
   rewardDescription: '',
+  youtubeMusicUrl: '',
+  leaderMessages: { ...EMPTY_LEADER_MESSAGES } as LeaderMessages,
   orderIndex: 1,
   isActive: true,
 };
@@ -108,6 +136,7 @@ export function AdminGymPanel({ onClose }: Props) {
   const [cardSearch, setCardSearch] = useState('');
   const [cardDeckFilter, setCardDeckFilter] = useState('personaggi');
   const [deckEditTarget, setDeckEditTarget] = useState<'cpu' | 'player'>('cpu');
+  const [messagesExpanded, setMessagesExpanded] = useState(false);
 
   const authToken = localStorage.getItem('authToken');
 
@@ -149,6 +178,7 @@ export function AdminGymPanel({ onClose }: Props) {
     setCardSearch('');
     setCardDeckFilter('personaggi');
     setDeckEditTarget('cpu');
+    setMessagesExpanded(false);
     setError(''); setSuccess('');
     setShowForm(true);
     loadCards();
@@ -171,12 +201,17 @@ export function AdminGymPanel({ onClose }: Props) {
       playerStartingDeck: Array.isArray(leader.playerStartingDeck) ? leader.playerStartingDeck : [],
       rewardCredits: leader.rewardCredits,
       rewardDescription: leader.rewardDescription || '',
+      youtubeMusicUrl: leader.youtubeMusicUrl || '',
+      leaderMessages: leader.leaderMessages
+        ? { ...EMPTY_LEADER_MESSAGES, ...leader.leaderMessages }
+        : { ...EMPTY_LEADER_MESSAGES },
       orderIndex: leader.orderIndex,
       isActive: leader.isActive,
     });
     setCardSearch('');
     setCardDeckFilter('personaggi');
     setDeckEditTarget('cpu');
+    setMessagesExpanded(false);
     setError(''); setSuccess('');
     setShowForm(true);
     loadCards();
@@ -679,6 +714,72 @@ export function AdminGymPanel({ onClose }: Props) {
                     placeholder="es. +50 Rankiard + Medaglia Roccia"
                     className="w-full bg-gray-700 text-white rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 placeholder-white/30"
                   />
+                </div>
+              </div>
+
+              {/* YouTube Music URL */}
+              <div className="mt-4">
+                <label className="block text-white/70 text-xs font-semibold mb-1.5">🎵 URL YouTube Music (musica battaglia)</label>
+                <input
+                  value={form.youtubeMusicUrl}
+                  onChange={e => setForm(f => ({ ...f, youtubeMusicUrl: e.target.value }))}
+                  placeholder="es. https://music.youtube.com/watch?v=XXXXXXXX o https://youtu.be/XXXXXXXX"
+                  className="w-full bg-gray-700 text-white rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 placeholder-white/30"
+                />
+                <p className="text-white/30 text-[11px] mt-1">Verrà riprodotta in sottofondo durante la battaglia contro questo capopalestra.</p>
+              </div>
+
+              {/* Leader Messages Editor */}
+              <div className="mt-4">
+                <div className="bg-gray-800 rounded-xl border border-white/10">
+                  <button
+                    type="button"
+                    className="w-full flex items-center justify-between px-4 py-3 text-left"
+                    onClick={() => setMessagesExpanded(x => !x)}
+                  >
+                    <span className="text-white/80 text-sm font-semibold">💬 Messaggi personalizzati capopalestra</span>
+                    <span className="text-white/40 text-xs">{messagesExpanded ? '▲ Nascondi' : '▼ Espandi'}</span>
+                  </button>
+                  {messagesExpanded && (
+                    <div className="px-4 pb-4 space-y-4">
+                      <p className="text-white/40 text-[11px]">Inserisci fino a 3 messaggi per ogni occasione. Uno verrà scelto casualmente. Lascia vuoto per non inviare messaggi.</p>
+                      {(
+                        [
+                          { key: 'gameStart', label: '🎮 Inizio partita' },
+                          { key: 'playPersonaggio', label: '🧑 CPU gioca un Personaggio' },
+                          { key: 'playMossa', label: '⚔️ CPU gioca una Mossa' },
+                          { key: 'playBonus', label: '⭐ CPU gioca un Bonus' },
+                          { key: 'takeMossa', label: '🛡️ CPU riceve una Mossa' },
+                          { key: 'eliminateEnemy', label: '💀 CPU elimina un personaggio avversario' },
+                          { key: 'ownPersonaggioDies', label: '😢 Personaggio CPU muore' },
+                          { key: 'gameWin', label: '🏆 CPU vince la partita' },
+                          { key: 'gameLose', label: '😔 CPU perde la partita' },
+                        ] as { key: keyof LeaderMessages; label: string }[]
+                      ).map(({ key, label }) => (
+                        <div key={key} className="bg-gray-700/50 rounded-xl p-3">
+                          <p className="text-white/70 text-xs font-semibold mb-2">{label}</p>
+                          <div className="space-y-1.5">
+                            {[0, 1, 2].map(idx => (
+                              <input
+                                key={idx}
+                                value={(form.leaderMessages as LeaderMessages)[key]?.[idx] ?? ''}
+                                onChange={e => {
+                                  const newArr = [...((form.leaderMessages as LeaderMessages)[key] ?? ['', '', ''])];
+                                  newArr[idx] = e.target.value;
+                                  setForm(f => ({
+                                    ...f,
+                                    leaderMessages: { ...(f.leaderMessages as LeaderMessages), [key]: newArr },
+                                  }));
+                                }}
+                                placeholder={`Messaggio ${idx + 1}...`}
+                                className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-purple-500 placeholder-white/20"
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 

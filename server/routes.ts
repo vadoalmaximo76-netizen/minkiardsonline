@@ -2034,14 +2034,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // Add CPU player to training game
-    socket.on('add-training-cpu', async ({ gameId, isGymMode, customDeck, cpuLevel, leaderName, leaderImageUrl }) => {
+    socket.on('add-training-cpu', async ({ gameId, isGymMode, customDeck, cpuLevel, leaderName, leaderImageUrl, leaderMessages }) => {
       try {
         // Use leader name as CPU name for gym mode, otherwise auto-generate
         const cpuName = (isGymMode && leaderName)
           ? await gameManager.addCPUPlayerWithName(gameId, leaderName)
           : await gameManager.addCPUPlayer(gameId);
 
-        // Gym mode: configure CPU with leader's custom deck and avatar
+        // Gym mode: configure CPU with leader's custom deck, avatar and messages
         if (isGymMode) {
           const game = gameManager.getGame(gameId);
           if (game) {
@@ -2057,6 +2057,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (leaderImageUrl && game.players[cpuName]) {
               game.players[cpuName].customAvatarUrl = leaderImageUrl;
             }
+            // Store leader messages and CPU name on the game for event hooks
+            if (leaderMessages && typeof leaderMessages === 'object') {
+              game.gymLeaderMessages = leaderMessages;
+              game.gymLeaderCpuName = cpuName;
+            }
           }
         }
 
@@ -2069,9 +2074,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const game = gameManager.getGameState(gameId);
           const cpuPlayer = game?.players[cpuName];
           if (cpuPlayer?.isCPU && cpuPlayer.cpuInstance) {
-            const greeting = isGymMode && leaderName
-              ? `Benvenuto nella mia palestra! Sono ${leaderName}. Preparati alla battaglia!`
-              : "Ciao! Sono il tuo avversario di allenamento. Ti aiuterò a imparare a giocare a MINKIARDS!";
+            // Pass leader messages to the CPU instance for damage/death messages
+            if (leaderMessages && typeof leaderMessages === 'object') {
+              cpuPlayer.cpuInstance.setLeaderMessages(leaderMessages);
+            }
+            // Use custom gameStart message if available, otherwise default greeting
+            const msgs = leaderMessages?.gameStart;
+            const customStart = Array.isArray(msgs) ? msgs.filter((m: string) => m?.trim()) : [];
+            const greeting = customStart.length > 0
+              ? customStart[Math.floor(Math.random() * customStart.length)]
+              : (isGymMode && leaderName
+                  ? `Benvenuto nella mia palestra! Sono ${leaderName}. Preparati alla battaglia!`
+                  : "Ciao! Sono il tuo avversario di allenamento. Ti aiuterò a imparare a giocare a MINKIARDS!");
             cpuPlayer.cpuInstance.sendChatMessage(greeting);
           }
         }, 1500);

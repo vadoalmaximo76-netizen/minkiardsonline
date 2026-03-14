@@ -81,12 +81,26 @@ export class CPUPlayer {
   };
   
   private openaiApiKey: string | undefined;
+  private gymLeaderMessages: Record<string, string[]> | null = null;
 
   constructor(playerName: string, gameId: string, socketEmitter?: any) {
     this.playerName = playerName;
     this.gameId = gameId;
     this.socketEmitter = socketEmitter;
     this.openaiApiKey = process.env.OPENAI_API_KEY;
+  }
+
+  setLeaderMessages(messages: Record<string, string[]>) {
+    this.gymLeaderMessages = messages;
+  }
+
+  pickLeaderMessage(occasion: string): string | null {
+    if (!this.gymLeaderMessages) return null;
+    const msgs = this.gymLeaderMessages[occasion];
+    if (!Array.isArray(msgs) || msgs.length === 0) return null;
+    const filtered = msgs.filter((m: string) => typeof m === 'string' && m.trim() !== '');
+    if (filtered.length === 0) return null;
+    return filtered[Math.floor(Math.random() * filtered.length)];
   }
 
   // Reset opening sequence for new game
@@ -760,11 +774,13 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
         });
       }
       
-      // Send chat message about the damage
+      // Send chat message about the damage (use custom leader messages if available)
       if (newPTI > 0) {
-        this.sendChatMessage(`Il mio personaggio ha subito ${totalDamage} danni! PTI rimanenti: ${newPTI}`);
+        const customMsg = this.pickLeaderMessage('takeMossa');
+        this.sendChatMessage(customMsg ?? `Il mio personaggio ha subito ${totalDamage} danni! PTI rimanenti: ${newPTI}`);
       } else {
-        this.sendChatMessage(`Nooo! Il mio personaggio è stato eliminato con ${totalDamage} danni!`);
+        const customMsg = this.pickLeaderMessage('ownPersonaggioDies');
+        this.sendChatMessage(customMsg ?? `Nooo! Il mio personaggio è stato eliminato con ${totalDamage} danni!`);
       }
       
       return { newPTI, totalDamage, eliminated: newPTI === 0 };

@@ -23,6 +23,8 @@ interface GymLeader {
   playerStartingDeck: string[];
   rewardCredits: number;
   rewardDescription: string | null;
+  youtubeMusicUrl: string | null;
+  leaderMessages: Record<string, string[]> | null;
 }
 
 interface GymModeProps {
@@ -57,6 +59,19 @@ function getCardDeckLabel(cardId: string): string {
   return 'Carta';
 }
 
+function extractYoutubeVideoId(url: string): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    const v = u.searchParams.get('v');
+    if (v) return v;
+    const pathId = u.pathname.split('/').filter(Boolean).pop();
+    if (pathId && /^[\w-]{11}$/.test(pathId)) return pathId;
+  } catch {}
+  const m = url.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
 export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) {
   const [leaders, setLeaders] = useState<GymLeader[]>([]);
   const [completedIds, setCompletedIds] = useState<number[]>([]);
@@ -67,6 +82,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
   const [justWon, setJustWon] = useState(false);
   const [storyDeckIds, setStoryDeckIds] = useState<string[]>([]);
   const [cardPickLoading, setCardPickLoading] = useState(false);
+  const [battleYoutubeVideoId, setBattleYoutubeVideoId] = useState<string | null>(null);
 
   const selectedLeaderRef = useRef<GymLeader | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -231,8 +247,13 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
         cpuLevel: leader.cpuLevel,
         leaderName: leader.name,
         leaderImageUrl: leader.leaderImageUrl || undefined,
+        leaderMessages: leader.leaderMessages || undefined,
       });
     }, 800);
+
+    // YouTube battle music
+    const ytId = leader.youtubeMusicUrl ? extractYoutubeVideoId(leader.youtubeMusicUrl) : null;
+    setBattleYoutubeVideoId(ytId);
 
     pauseHomeMusic();
     setPhase('battle');
@@ -246,6 +267,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
     // Calling reset() while GameBoard is still mounted causes a crash because GameBoard
     // re-renders with null gameState before being unmounted.
     setGameIdLocal(null);
+    setBattleYoutubeVideoId(null);
     setPhase('map');
     setSelectedLeader(null);
     resumeHomeMusic();
@@ -302,6 +324,16 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
   if (phase === 'battle' && gameId && selectedLeader) {
     return (
       <div className="fixed inset-0 z-50 overflow-y-auto">
+        {/* Hidden YouTube battle music player */}
+        {battleYoutubeVideoId && (
+          <iframe
+            key={battleYoutubeVideoId}
+            src={`https://www.youtube.com/embed/${battleYoutubeVideoId}?autoplay=1&loop=1&playlist=${battleYoutubeVideoId}&controls=0`}
+            allow="autoplay"
+            style={{ position: 'fixed', top: '-9999px', left: '-9999px', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
+            title="battle-music"
+          />
+        )}
         {/* Floating battle header overlay */}
         <div className="fixed top-4 left-4 z-[60] flex items-center gap-3 flex-wrap">
           <button

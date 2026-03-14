@@ -435,6 +435,8 @@ interface GameState {
   isDraftMode?: boolean;
   isGymMode?: boolean;
   playerDraftDecks?: Record<string, { personaggi: Card[], mosse: Card[], bonus: Card[] }>;
+  gymLeaderMessages?: Record<string, string[]>;
+  gymLeaderCpuName?: string;
   fantaTournamentId?: string;
   helpEnabled?: boolean;
 }
@@ -458,6 +460,25 @@ export class GameManager {
     if (t) { clearTimeout(t); this.turnTimers.delete(gameId); }
     const w = this.turnWarningTimers.get(gameId);
     if (w) { clearTimeout(w); this.turnWarningTimers.delete(gameId); }
+  }
+
+  sendGymLeaderMessage(gameId: string, occasion: string): void {
+    const game = this.games.get(gameId);
+    if (!game?.isGymMode || !game.gymLeaderMessages || !game.gymLeaderCpuName) return;
+    const msgs = game.gymLeaderMessages[occasion];
+    if (!Array.isArray(msgs) || msgs.length === 0) return;
+    const filtered = msgs.filter((m: string) => typeof m === 'string' && m.trim() !== '');
+    if (filtered.length === 0) return;
+    const message = filtered[Math.floor(Math.random() * filtered.length)];
+    const io = (global as any).io;
+    if (io) {
+      io.to(gameId).emit('chat-message', {
+        id: `gym-msg-${Date.now()}-${Math.random()}`,
+        playerName: game.gymLeaderCpuName,
+        message,
+        timestamp: Date.now(),
+      });
+    }
   }
 
   startTurnTimer(gameId: string, playerName: string): void {
@@ -2185,6 +2206,12 @@ Rispondi SOLO in JSON:`;
       const game = this.games.get(gameId);
       if (!game) return;
       
+      // Gym mode: send win/lose message from the leader
+      if (game.isGymMode && game.gymLeaderCpuName) {
+        const leaderWon = winnerPlayer === game.gymLeaderCpuName;
+        setTimeout(() => this.sendGymLeaderMessage(gameId, leaderWon ? 'gameWin' : 'gameLose'), 500);
+      }
+
       // Skip training games - no rewards, missions, or points
       if (gameId.startsWith('training-')) {
         console.log(`Training match ${gameId} completed - no rewards awarded`);
@@ -3690,6 +3717,18 @@ Rispondi SOLO in JSON:`;
       }
 
       game.field.push(card);
+
+      // Gym mode: send leader message when CPU plays a card
+      if (game.isGymMode && game.gymLeaderCpuName && playerName === game.gymLeaderCpuName) {
+        const ctype = card.type;
+        if (ctype === 'personaggi' || ctype === 'personaggi_speciali') {
+          setTimeout(() => this.sendGymLeaderMessage(gameId, 'playPersonaggio'), 200);
+        } else if (ctype === 'mosse') {
+          setTimeout(() => this.sendGymLeaderMessage(gameId, 'playMossa'), 200);
+        } else if (ctype === 'bonus') {
+          setTimeout(() => this.sendGymLeaderMessage(gameId, 'playBonus'), 200);
+        }
+      }
 
       // Auto-analyze cards for ALL players (PERSONAGGI only) - ALWAYS set PTI from cache
       if (isPersonaggio) {
@@ -14174,6 +14213,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       card.eliminatedBy = attacker || 'Unknown';
       game.graveyard.push(card);
       console.log(`Card ${cardId} moved to graveyard. Owner: ${cardOwner}, RequestedBy: ${playerName}, Killed by: ${attacker || 'Unknown'}`);
+
+      // Gym mode: send leader message when CPU eliminates an opponent's character
+      if (game.isGymMode && game.gymLeaderCpuName && attacker === game.gymLeaderCpuName && cardOwner !== game.gymLeaderCpuName) {
+        setTimeout(() => this.sendGymLeaderMessage(gameId, 'eliminateEnemy'), 300);
+      }
 
       if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && game.activeDuel && game.activeDuel.active) {
         const duelParticipants = [game.activeDuel.player1, game.activeDuel.player2];
