@@ -2696,7 +2696,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (gameId) {
         const gameState = gameManager.getGameState(gameId);
         if (gameState) {
-          if (gameState.isDraftMode) {
+          if (gameState.isDraftMode || gameState.isGymMode) {
             const playerName = gameManager.getPlayerNameFromSocket(socket.id);
             const personalDeck = playerName && (gameState as any).playerDraftDecks?.[playerName]?.[deckType];
             if (personalDeck && personalDeck.length > 0) {
