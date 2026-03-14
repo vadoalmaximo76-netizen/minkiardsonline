@@ -903,7 +903,7 @@ function App() {
     }
     return (
       <QueryClientProvider client={queryClient}>
-        <div className="page-enter">
+        <div className="page-enter-no-transform">
           <CardAdminPanel 
             onBack={() => {
               window.history.pushState(null, '', window.location.origin);

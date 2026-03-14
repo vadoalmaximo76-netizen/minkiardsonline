@@ -2676,6 +2676,15 @@ input:focus, select:focus {
   animation: pageEnter 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+.page-enter-no-transform {
+  animation: pageEnterNoTransform 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes pageEnterNoTransform {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
 .transition-overlay-in {
   animation: overlayFadeIn 0.16s ease forwards;
 }
