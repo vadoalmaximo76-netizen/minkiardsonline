@@ -182,7 +182,7 @@ function getRarity(draftCost: number, sortedCosts: number[]): FantaRarity {
   return 'leggendaria';
 }
 
-function buildCardQueue(mods: any[]): FantaCard[] {
+function buildCardQueue(mods: any[], customCards: any[] = []): FantaCard[] {
   const deckTypes: Array<'personaggi' | 'mosse' | 'bonus'> = ['personaggi', 'mosse', 'bonus'];
   const queue: FantaCard[] = [];
 
@@ -213,6 +213,23 @@ function buildCardQueue(mods: any[]): FantaCard[] {
         effect: mod?.effect ?? null,
       });
     });
+
+    // Add custom permanent cards of this type
+    const typeCustom = customCards.filter((cc: any) => cc.deckType === type);
+    for (const cc of typeCustom) {
+      const draftCost = cc.draftCost || 0;
+      queue.push({
+        id: `custom-${cc.id}`,
+        type,
+        frontImage: `/api/card-image/${cc.id}`,
+        name: cc.name || `Carta custom ${cc.id}`,
+        rarity: getRarity(draftCost, sortedCosts),
+        draftCost,
+        pti: cc.pti ?? null,
+        stars: cc.stars ?? null,
+        effect: cc.effect ?? null,
+      });
+    }
   }
 
   queue.sort((a, b) => a.name.localeCompare(b.name, 'it'));
@@ -510,12 +527,12 @@ export class FantaManager {
     }
   }
 
-  startAuctionPhase(fantaId: string, mods: any[], io: any): { success: boolean; error?: string } {
+  startAuctionPhase(fantaId: string, mods: any[], io: any, customCards: any[] = []): { success: boolean; error?: string } {
     const session = this.sessions.get(fantaId);
     if (!session) return { success: false, error: 'Sessione non trovata' };
     if (session.status !== 'lobby') return { success: false, error: 'Asta già iniziata' };
 
-    session.cardQueue = buildCardQueue(mods);
+    session.cardQueue = buildCardQueue(mods, customCards);
     session.currentCardIndex = 0;
     session.status = 'auction';
     this.persist();

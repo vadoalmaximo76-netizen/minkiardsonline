@@ -8684,7 +8684,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         socket.emit('fanta:error', { message: `Mancano ancora: ${missing.join(', ')}` }); return;
       }
       const allMods = jsonStorage.cardModifications.getAll();
-      const result = fantaManager.startAuctionPhase(fantaId, allMods, io);
+      const customCardsForFanta = jsonStorage.customCards.getAll();
+      const result = fantaManager.startAuctionPhase(fantaId, allMods, io, customCardsForFanta);
       if (!result.success) socket.emit('fanta:error', { message: result.error });
     });
 
@@ -9494,6 +9495,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
             isModified: !!mod,
             draftCost: (mod as any)?.draftCost ?? 0
           });
+        });
+      }
+
+      // Append custom permanent cards from jsonStorage
+      const customCardsAll = jsonStorage.customCards.getAll();
+      const filteredCustom = deckType
+        ? customCardsAll.filter(cc => cc.deckType === deckType)
+        : customCardsAll;
+      for (const cc of filteredCustom) {
+        cards.push({
+          id: `custom-${cc.id}`,
+          deckType: cc.deckType,
+          originalName: cc.name,
+          originalImageUrl: `/api/card-image/${cc.id}`,
+          name: cc.name,
+          imageUrl: `/api/card-image/${cc.id}`,
+          pti: cc.pti || null,
+          stars: cc.stars || null,
+          effect: cc.effect || null,
+          audioUrl: cc.audioUrl || null,
+          attackLowAudioUrl: cc.attackLowAudioUrl || null,
+          attackHighAudioUrl: cc.attackHighAudioUrl || null,
+          youtubeUrl: cc.youtubeUrl || null,
+          mosseDamageValue: cc.mosseDamageValue || null,
+          mosseDamageEffect: cc.mosseDamageEffect || null,
+          mosseCharacterOverrides: cc.mosseCharacterOverrides || null,
+          mosseRestrictedFrom: cc.mosseRestrictedFrom || null,
+          mosseRestrictedAgainst: cc.mosseRestrictedAgainst || null,
+          mosseTargetingMode: cc.mosseTargetingMode || null,
+          mosseTargetCount: cc.mosseTargetCount || null,
+          mosseCanCounter: cc.mosseCanCounter || false,
+          mosseCanBeCountered: cc.mosseCanBeCountered || false,
+          isCustom: true,
+          isModified: false,
+          isDeleted: false,
+          draftCost: 0,
         });
       }
 
