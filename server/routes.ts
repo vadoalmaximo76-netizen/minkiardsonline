@@ -6929,6 +6929,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const playerOrder = gameManager.startGame(gameId, effectiveLimit);
         if (playerOrder) {
           io.to(gameId).emit('game-started', { playerOrder });
+          // Gym mode: send leader greeting at battle start
+          const startedGame = gameManager.getGame(gameId);
+          if (startedGame?.isGymMode) {
+            setTimeout(() => gameManager.sendGymLeaderMessage(gameId, 'gameStart'), 1200);
+          }
           // Send updated game state so clients know the game has started (isPlaying = true)
           const updatedGameState = gameManager.getSanitizedGameState(gameId);
           emitThrottledGameState(io, gameId, updatedGameState);
