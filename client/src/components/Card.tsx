@@ -683,6 +683,9 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         return;
       }
 
+      // Attacker thrust animation — 160ms pulse toward target
+      if (location === 'field') { setIsAttacking(true); setTimeout(() => setIsAttacking(false), 400); }
+
       // Attack with damage value and optional effect
       socket.emit('mosse-attack', { 
         mosseCardId: selectedMosseCard?.id,
@@ -864,6 +867,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       const firstTarget = targets[0];
       if (firstTarget) {
         console.log(`🤝 CONTRATTAZIONE: emitting mosse-attack directly for ${firstTarget.owner}`);
+        if (location === 'field') { setIsAttacking(true); setTimeout(() => setIsAttacking(false), 400); }
         socket.emit('mosse-attack', {
           mosseCardId: selectedMosseCard?.id,
           targetCardId: firstTarget.id,
@@ -1205,7 +1209,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     for (let i = 0; i < card.id.length; i++) {
       hash = (hash * 31 + card.id.charCodeAt(i)) & 0xffff;
     }
-    return (hash % 5) * 55; // 0, 55, 110, 165, or 220ms
+    return (hash % 5) * 60; // 0, 60, 120, 180, or 240ms
   }, [card.id]);
 
   const getFieldBreathClass = () => {
@@ -1304,7 +1308,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     <div 
       ref={cardRef}
       onMouseMove={handleMouseMove3D}
-      className={`relative flex flex-col gap-2 card-play-transition card-3d-tilt ${damageFlash ? 'card-damage-flash' : ''} ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? getEntryAnimationClass() : ''} ${isPlayable ? 'card-playable-glow' : ''} ${getFieldBreathClass()} ${location === 'field' && !isNewlyPlaced && !isEliminated ? 'card-levitate-field' : ''}`}
+      className={`relative flex flex-col gap-2 ${location !== 'field' ? 'card-play-transition' : ''} card-3d-tilt ${damageFlash ? 'card-damage-flash' : ''} ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? getEntryAnimationClass() : ''} ${isPlayable ? 'card-playable-glow' : ''} ${getFieldBreathClass()} ${location === 'field' && !isNewlyPlaced && !isEliminated ? 'card-levitate-field' : ''}`}
       style={{
         perspective: location === 'field' ? '800px' : undefined,
         transformStyle: location === 'field' ? 'preserve-3d' as any : undefined,

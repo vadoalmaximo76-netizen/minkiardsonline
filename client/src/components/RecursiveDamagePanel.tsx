@@ -37,10 +37,11 @@ interface ShowDamage {
 }
 
 // Damage display framer-motion variants
+// Note: exit has an 80ms delay baked in — eliminates one imperative setTimeout
 const damageVariants = {
   hidden: { opacity: 0, scale: 2, y: -20 },
   visible: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.1 } },
-  exit: { opacity: 0, scale: 0.5, transition: { duration: 0.08 } },
+  exit: { opacity: 0, scale: 0.5, transition: { delay: 0.08, duration: 0.07 } },
 };
 
 export const RecursiveDamagePanel: React.FC = () => {
@@ -108,15 +109,15 @@ export const RecursiveDamagePanel: React.FC = () => {
     if (ev.type === 'PARTITA_DI_TENNIS') playTennisHit(); else playSempafaagaraHit();
   };
 
-  // Called by motion.div onAnimationComplete (enter phase) — update PTI, then hide
+  // Called by motion.div onAnimationComplete (enter phase) — update PTI then hide immediately
+  // The exit variant has an 80ms built-in delay before actually fading out
   const onDamageEnterComplete = () => {
     if (cancelledRef.current || !activeStepRef.current) return;
     const step = activeStepRef.current.stepObj;
     if (step.target === 'attacker') setAttackerPTI(step.newPTI);
     else setDefenderPTI(step.newPTI);
     setCurrentStep(stepIndexRef.current);
-    // Hide the damage display after a brief pause — triggers exit animation
-    setTimeout(() => { if (!cancelledRef.current) setShowDamage(null); }, 80);
+    setShowDamage(null); // triggers exit variant which has 80ms delay baked in
   };
 
   // Called by AnimatePresence onExitComplete — advance to next step or close
@@ -132,7 +133,7 @@ export const RecursiveDamagePanel: React.FC = () => {
       }, 800);
     } else {
       stepIndexRef.current++;
-      setTimeout(() => advanceStep(event), 100);
+      advanceStep(event); // advance immediately — enter delay handles pacing via framer-motion
     }
   };
 
