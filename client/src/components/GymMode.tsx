@@ -93,6 +93,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
   const selectedLeaderRef = useRef<GymLeader | null>(null);
   const gameIdRef = useRef<string | null>(null);
   const battleStartingRef = useRef(false);
+  const mapScrollRef = useRef<HTMLDivElement>(null);
 
   const { setGameId, setPlayerName, generateSessionId, reset } = useGameState();
 
@@ -745,8 +746,30 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
   const completedCount = completedIds.length;
   const totalCount = leaders.length;
 
+  useEffect(() => {
+    if (phase === 'map' && !loading && mapScrollRef.current) {
+      const node = mapScrollRef.current.querySelector('.current-gym-node') as HTMLElement | null;
+      if (node) {
+        setTimeout(() => node.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+      }
+    }
+  }, [phase, loading, leaders]);
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'linear-gradient(180deg, #03050d 0%, #070b1a 40%, #0a1028 100%)' }}>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes gymNodeGlow {
+          0%, 100% { box-shadow: 0 0 18px 4px rgba(234,179,8,0.35), inset 0 0 8px rgba(234,179,8,0.25); }
+          50% { box-shadow: 0 0 32px 12px rgba(234,179,8,0.6), inset 0 0 16px rgba(234,179,8,0.45); }
+        }
+        .gym-node-glow { animation: gymNodeGlow 2s cubic-bezier(0.4,0,0.6,1) infinite; }
+        @keyframes gymCompletedPulse {
+          0%, 100% { box-shadow: 0 0 8px 2px rgba(34,197,94,0.3); }
+          50% { box-shadow: 0 0 14px 5px rgba(34,197,94,0.55); }
+        }
+        .gym-completed-glow { animation: gymCompletedPulse 3s ease-in-out infinite; }
+      ` }} />
+
       {/* Injured Personaggi Disclaimer — shown before battle starts */}
       {pendingBattle && (
         <InjuredPersonaggiDisclaimer
@@ -755,13 +778,14 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
           userCredits={userCredits}
           onCreditsUpdated={setUserCredits}
           onConfirm={(availableIds) => {
-            // Merge: keep non-personaggi cards + available personaggi cards
             const nonPersonaggi = pendingBattle.deckIds.filter(id => !id.startsWith('personaggi'));
             doStartBattle(pendingBattle.leader, [...availableIds, ...nonPersonaggi]);
           }}
           onCancel={() => { setPendingBattle(null); battleStartingRef.current = false; }}
         />
       )}
+
+      {/* ── Header ── */}
       <div className="flex-shrink-0 flex items-center gap-4 px-4 pt-safe py-4 border-b border-white/10 bg-black/30 backdrop-blur-sm">
         <button onClick={onBack} className="p-2 text-white/60 hover:text-white transition-colors">
           <ArrowLeft className="w-5 h-5" />
@@ -781,6 +805,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
         </div>
       </div>
 
+      {/* Story deck banner */}
       {storyDeckIds.length > 0 && (
         <div className="flex-shrink-0 px-4 py-2 bg-blue-900/20 border-b border-blue-500/20 flex items-center gap-2">
           <Sparkles className="w-3.5 h-3.5 text-blue-400" />
@@ -788,18 +813,23 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
         </div>
       )}
 
+      {/* Progress bar */}
       {totalCount > 0 && (
         <div className="flex-shrink-0 px-4 py-2 bg-black/20">
           <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full transition-all duration-700"
-              style={{ width: `${(completedCount / totalCount) * 100}%` }}
+              className="h-full rounded-full transition-all duration-700"
+              style={{
+                width: `${(completedCount / totalCount) * 100}%`,
+                background: 'linear-gradient(to right, #7c3aed, #eab308)',
+              }}
             />
           </div>
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto">
+      {/* ── Scrollable map area ── */}
+      <div ref={mapScrollRef} className="flex-1 overflow-y-auto relative">
         {loading ? (
           <div className="flex items-center justify-center h-64 text-white/40">
             Caricamento percorso...
@@ -811,140 +841,220 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
             <p className="text-white/25 text-sm mt-1">Le palestre verranno aggiunte presto!</p>
           </div>
         ) : (
-          <div className="px-4 py-6 space-y-0">
-            {leaders.map((leader, idx) => {
-              const status = getLeaderStatus(leader);
-              const isCompleted = status === 'completed';
-              const isAvailable = status === 'available';
-              const isLocked = status === 'locked';
-              const isCurrent = leader.id === currentLeader?.id;
+          <div className="relative py-10 pb-24">
+            {/* Central vertical gradient line */}
+            <div
+              className="absolute top-10 bottom-24 rounded-full z-0 pointer-events-none"
+              style={{
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: 4,
+                background: 'linear-gradient(to bottom, #1e40af 0%, #7c3aed 40%, #eab308 70%, #92400e 100%)',
+                boxShadow: '0 0 18px rgba(124,58,237,0.35)',
+              }}
+            />
 
-              return (
-                <div key={leader.id} className="relative">
-                  {idx < leaders.length - 1 && (
-                    <div className="absolute left-8 top-full w-px h-6 bg-white/10 z-0" />
-                  )}
+            {/* Nodes */}
+            <div className="flex flex-col gap-14 relative z-10 px-4 py-4">
+              {leaders.map((leader, idx) => {
+                const status = getLeaderStatus(leader);
+                const isCompleted = status === 'completed';
+                const isAvailable = status === 'available';
+                const isLocked = status === 'locked';
+                const isCurrent = leader.id === currentLeader?.id;
+                const labelOnLeft = idx % 2 === 0;
 
+                return (
                   <div
-                    className={`relative flex items-center gap-4 p-4 rounded-2xl border transition-all mb-6 ${
-                      isCompleted
-                        ? 'bg-green-900/15 border-green-500/25'
-                        : isAvailable
-                        ? 'bg-yellow-900/20 border-yellow-500/40 shadow-lg shadow-yellow-500/10'
-                        : 'bg-white/3 border-white/8 opacity-50'
-                    } ${isCurrent ? 'ring-2 ring-yellow-400/40' : ''}`}
+                    key={leader.id}
+                    className={`flex items-center justify-center w-full relative ${isCurrent ? 'current-gym-node my-6' : ''}`}
                   >
-                    <div className="relative flex-shrink-0">
-                      {leader.leaderImageUrl ? (
-                        <img
-                          src={leader.leaderImageUrl}
-                          alt={leader.name}
-                          className={`w-16 h-16 object-cover rounded-xl border-2 ${
-                            isCompleted ? 'border-green-500/50' : isAvailable ? 'border-yellow-400/60' : 'border-white/10'
-                          } ${isLocked ? 'grayscale' : ''}`}
-                        />
-                      ) : (
-                        <div className={`w-16 h-16 rounded-xl border-2 flex items-center justify-center ${
-                          isCompleted ? 'bg-green-900/40 border-green-500/40' : isAvailable ? 'bg-yellow-900/40 border-yellow-400/40' : 'bg-gray-800 border-white/10'
-                        }`}>
-                          <Shield className={`w-8 h-8 ${isCompleted ? 'text-green-400' : isAvailable ? 'text-yellow-400' : 'text-white/20'}`} />
-                        </div>
-                      )}
-                      <div className="absolute -bottom-1 -right-1">
-                        {isCompleted ? (
-                          <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center shadow-md border-2 border-gray-900">
-                            <CheckCircle className="w-4 h-4 text-white" />
-                          </div>
-                        ) : isLocked ? (
-                          <div className="w-6 h-6 bg-gray-700 rounded-full flex items-center justify-center shadow-md border-2 border-gray-900">
-                            <Lock className="w-3 h-3 text-white/40" />
-                          </div>
-                        ) : isCurrent ? (
-                          <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center shadow-md border-2 border-gray-900 animate-pulse">
-                            <Swords className="w-3 h-3 text-black" />
-                          </div>
-                        ) : null}
+                    {/* ── Completed/Locked status indicator (opposite side from label) ── */}
+                    {!isCurrent && (
+                      <div
+                        className="absolute flex items-center justify-center rounded-full border border-white/10 bg-[#0a0e1a]"
+                        style={{
+                          [labelOnLeft ? 'right' : 'left']: 16,
+                          width: 36,
+                          height: 36,
+                        }}
+                      >
+                        {isCompleted && <span style={{ fontSize: 16, color: '#22c55e' }}>✓</span>}
+                        {isLocked && <span style={{ fontSize: 14 }}>🔒</span>}
                       </div>
-                    </div>
+                    )}
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className={`text-xs font-bold ${isCompleted ? 'text-green-400' : isAvailable ? 'text-yellow-400' : 'text-white/30'}`}>
-                          Palestra #{leader.orderIndex}
-                        </span>
-                        {isCompleted && leader.badgeImageUrl && (
-                          <img src={leader.badgeImageUrl} alt="" className="w-4 h-4 rounded-full object-cover" />
+                    {/* ── Central node ── */}
+                    {isCurrent ? (
+                      <div
+                        className="gym-node-glow relative flex items-center justify-center rounded-full z-10 border-2"
+                        style={{
+                          width: 80,
+                          height: 80,
+                          background: 'linear-gradient(135deg, #1a1200, #3b2800)',
+                          borderColor: '#eab308',
+                        }}
+                      >
+                        {leader.leaderImageUrl ? (
+                          <img
+                            src={leader.leaderImageUrl}
+                            alt={leader.name}
+                            className="rounded-full object-cover border border-yellow-400/30"
+                            style={{ width: 64, height: 64 }}
+                          />
+                        ) : (
+                          <div
+                            className="rounded-full flex items-center justify-center font-black text-2xl text-white border border-white/20"
+                            style={{
+                              width: 64,
+                              height: 64,
+                              background: 'linear-gradient(135deg, #92400e, #b45309)',
+                            }}
+                          >
+                            {leader.gymName.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        {/* Swords badge */}
+                        <div
+                          className="absolute -bottom-2 -right-2 rounded-full border-2 flex items-center justify-center"
+                          style={{ width: 24, height: 24, background: '#eab308', borderColor: '#0a0e1a' }}
+                        >
+                          <Swords className="text-black" style={{ width: 12, height: 12 }} />
+                        </div>
+                      </div>
+                    ) : isCompleted ? (
+                      <div
+                        className="gym-completed-glow relative flex items-center justify-center rounded-full z-10 border-2"
+                        style={{
+                          width: 48,
+                          height: 48,
+                          background: '#0d1f15',
+                          borderColor: 'rgba(34,197,94,0.6)',
+                        }}
+                      >
+                        {leader.leaderImageUrl ? (
+                          <img
+                            src={leader.leaderImageUrl}
+                            alt={leader.name}
+                            className="rounded-full object-cover grayscale opacity-70"
+                            style={{ width: 38, height: 38 }}
+                          />
+                        ) : (
+                          <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px rgba(34,197,94,0.8)' }} />
+                        )}
+                        {leader.badgeImageUrl && (
+                          <div className="absolute -bottom-2 -right-2">
+                            <img src={leader.badgeImageUrl} alt="" className="rounded-full border border-yellow-400/60 object-cover" style={{ width: 20, height: 20 }} />
+                          </div>
                         )}
                       </div>
-                      <h3 className={`font-black text-base leading-tight ${isLocked ? 'text-white/30' : 'text-white'}`}>
-                        {leader.gymName}
-                      </h3>
-                      <p className={`text-sm ${isLocked ? 'text-white/20' : 'text-white/60'}`}>
-                        {leader.name}
-                      </p>
-                      {leader.specialty && !isLocked && (
-                        <p className="text-yellow-400/70 text-xs mt-0.5">⚡ {leader.specialty}</p>
-                      )}
-                      {isCompleted && (
-                        <p className="text-green-400 text-xs font-semibold mt-0.5">✓ Completata</p>
-                      )}
-                      {!isLocked && (
-                        <div className="flex items-center gap-0.5 mt-1">
-                          {Array.from({ length: leader.livesCount || 3 }).map((_, i) => (
-                            <Heart key={i} className="w-3 h-3 text-red-400 fill-red-400" />
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    ) : (
+                      <div
+                        className="relative flex items-center justify-center rounded-full z-10 border-2"
+                        style={{
+                          width: 44,
+                          height: 44,
+                          background: '#0a0e1a',
+                          borderColor: 'rgba(255,255,255,0.12)',
+                          opacity: 0.65,
+                        }}
+                      >
+                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'rgba(255,255,255,0.18)' }} />
+                      </div>
+                    )}
 
-                    <div className="flex-shrink-0 text-right flex flex-col items-end gap-2">
-                      {!isLocked && (
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
-                          leader.cpuLevel === 'easy' ? 'bg-green-900/50 text-green-300'
-                          : leader.cpuLevel === 'medium' ? 'bg-yellow-900/50 text-yellow-300'
-                          : 'bg-red-900/50 text-red-300'
-                        }`}>
-                          {leader.cpuLevel === 'easy' ? '🟢' : leader.cpuLevel === 'medium' ? '🟡' : '🔴'}
-                          {' '}{leader.cpuLevel === 'easy' ? 'Facile' : leader.cpuLevel === 'medium' ? 'Medio' : 'Difficile'}
-                        </span>
-                      )}
-                      {isAvailable && (
-                        <button
-                          onClick={() => handleChallengeLeader(leader)}
-                          className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-black font-black px-4 py-2 rounded-xl text-sm transition-all shadow-md shadow-orange-500/20 flex items-center gap-1.5"
+                    {/* ── Label card ── */}
+                    <div
+                      className="absolute"
+                      style={{
+                        [labelOnLeft ? 'left' : 'right']: 8,
+                        width: 140,
+                        maxWidth: '38%',
+                      }}
+                    >
+                      {isCurrent ? (
+                        /* Current leader — full info + SFIDA button */
+                        <div
+                          className="rounded-xl p-2.5 border"
+                          style={{
+                            background: 'linear-gradient(135deg, rgba(146,64,14,0.4), rgba(120,53,15,0.25))',
+                            borderColor: 'rgba(234,179,8,0.4)',
+                            backdropFilter: 'blur(8px)',
+                          }}
                         >
-                          <Swords className="w-3.5 h-3.5" /> Sfida
-                        </button>
-                      )}
-                      {isCompleted && (
-                        <button
-                          onClick={() => handleChallengeLeader(leader)}
-                          className="border border-green-500/30 text-green-400/70 hover:text-green-300 px-3 py-1.5 rounded-xl text-xs transition-all flex items-center gap-1"
+                          <p className="text-yellow-400 font-black text-xs leading-tight">⚔️ #{leader.orderIndex}</p>
+                          <h3 className="text-white font-black text-sm leading-tight mt-0.5 truncate">{leader.gymName}</h3>
+                          <p className="text-white/60 text-xs truncate">{leader.name}</p>
+                          {leader.specialty && (
+                            <p className="text-yellow-400/80 text-[10px] mt-0.5 truncate">⚡ {leader.specialty}</p>
+                          )}
+                          <div className="flex items-center gap-0.5 mt-1">
+                            {Array.from({ length: leader.livesCount || 3 }).map((_, i) => (
+                              <Heart key={i} className="text-red-400 fill-red-400" style={{ width: 10, height: 10 }} />
+                            ))}
+                            <span className="ml-auto text-yellow-300 font-black text-[10px]">+{leader.rewardCredits}⭐</span>
+                          </div>
+                          <button
+                            onClick={() => handleChallengeLeader(leader)}
+                            className="w-full mt-2 py-1.5 rounded-lg font-black text-xs text-black transition-all active:scale-95"
+                            style={{ background: 'linear-gradient(to right, #eab308, #f97316)' }}
+                          >
+                            SFIDA!
+                          </button>
+                        </div>
+                      ) : isCompleted ? (
+                        /* Completed leader */
+                        <div
+                          className="rounded-xl p-2 border"
+                          style={{
+                            background: 'rgba(5,30,15,0.7)',
+                            borderColor: 'rgba(34,197,94,0.25)',
+                            backdropFilter: 'blur(6px)',
+                          }}
                         >
-                          Rigioca
-                        </button>
-                      )}
-                      {isLocked && (
-                        <div className="flex items-center gap-1 text-white/20 text-xs">
-                          <Lock className="w-3 h-3" /> Bloccata
+                          <p className="text-green-400 font-bold text-[10px]">✓ #{leader.orderIndex}</p>
+                          <h3 className="text-white font-black text-xs leading-tight truncate">{leader.gymName}</h3>
+                          <p className="text-white/40 text-[10px] truncate">{leader.name}</p>
+                          <button
+                            onClick={() => handleChallengeLeader(leader)}
+                            className="mt-1.5 text-green-400/60 hover:text-green-300 text-[10px] font-semibold flex items-center gap-0.5 transition-colors"
+                          >
+                            <ChevronRight style={{ width: 10, height: 10 }} /> Rigioca
+                          </button>
+                        </div>
+                      ) : (
+                        /* Locked leader */
+                        <div
+                          className="rounded-xl p-2 border"
+                          style={{
+                            background: 'rgba(10,14,26,0.6)',
+                            borderColor: 'rgba(255,255,255,0.05)',
+                            backdropFilter: 'blur(4px)',
+                            opacity: 0.55,
+                          }}
+                        >
+                          <p className="text-white/25 font-bold text-[10px]">🔒 #{leader.orderIndex}</p>
+                          <h3 className="text-white/30 font-black text-xs leading-tight truncate">{leader.gymName}</h3>
+                          <p className="text-white/20 text-[10px] truncate">{leader.name}</p>
                         </div>
                       )}
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
 
-            {completedCount === totalCount && totalCount > 0 && (
-              <div className="text-center py-8">
-                <div className="text-5xl mb-3">🏆</div>
-                <p className="text-yellow-300 font-black text-xl">Campione delle Palestre!</p>
-                <p className="text-white/40 text-sm mt-1">Hai completato tutte le palestre disponibili</p>
-                <div className="flex items-center justify-center gap-1 mt-2">
-                  {[...Array(5)].map((_, i) => <Star key={i} className="w-5 h-5 text-yellow-400 fill-yellow-400" />)}
+              {/* All completed banner */}
+              {completedCount === totalCount && totalCount > 0 && (
+                <div className="text-center py-8">
+                  <div className="text-5xl mb-3">🏆</div>
+                  <p className="text-yellow-300 font-black text-xl">Campione delle Palestre!</p>
+                  <p className="text-white/40 text-sm mt-1">Hai completato tutte le palestre disponibili</p>
+                  <div className="flex items-center justify-center gap-1 mt-2">
+                    {[...Array(5)].map((_, i) => <Star key={i} className="w-5 h-5 text-yellow-400 fill-yellow-400" />)}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
       </div>
