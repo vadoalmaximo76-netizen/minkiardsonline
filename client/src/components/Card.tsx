@@ -161,10 +161,12 @@ interface CardProps {
   location: 'hand' | 'field' | 'graveyard';
   showBack?: boolean;
   onCardPlayed?: () => void;
+  cardIndexInHand?: number;
+  totalHandCards?: number;
 }
 
 
-const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, onCardPlayed }) => {
+const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, onCardPlayed, cardIndexInHand, totalHandCards }) => {
   const [, forceUpdate] = useState(0);
   // Only listen for cloudName if it wasn't available at mount (prevents double-loading)
   const cloudNameReadyAtMount = useRef(!!getCloudinaryCloudName());
@@ -1289,6 +1291,13 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     setCardTilt({ rotateX: tiltX, rotateY: tiltY, glareX: x * 100, glareY: y * 100 });
   }, [location]);
 
+  // Fan arc: cards in hand rotate like held cards; ±8° max spread, only when > 3 cards
+  const totalCards = totalHandCards ?? 1;
+  const cardIdx = cardIndexInHand ?? 0;
+  const fanRotation = location === 'hand' && totalCards > 3
+    ? ((cardIdx - (totalCards - 1) / 2) / Math.max(totalCards - 1, 1)) * 16
+    : 0;
+
   return (
     <motion.div
       initial={isNewlyPlaced && location === 'field' ? { scale: 0.85 } : false}
@@ -1297,13 +1306,19 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           ? { scale: [1, 1.12, 0.95, 1.0], y: [0, card.owner === playerName ? -6 : 6, 0, 0] }
           : isNewlyPlaced && location === 'field'
             ? { scale: [0.85, 1.05, 1.0] }
-            : {}
+            : location === 'hand'
+              ? { rotate: fanRotation }
+              : {}
       }
+      whileHover={location === 'hand' ? { y: -14, scale: 1.08 } : undefined}
       transition={
         isAttacking && location === 'field'
           ? { duration: 0.16, times: [0, 0.3, 0.7, 1], ease: 'easeOut' }
-          : { type: 'spring', stiffness: 700, damping: 25 }
+          : location === 'hand'
+            ? { type: 'spring', stiffness: 500, damping: 18 }
+            : { type: 'spring', stiffness: 700, damping: 25 }
       }
+      style={location === 'hand' ? { transformOrigin: '50% 150%' } : undefined}
     >
     <div 
       ref={cardRef}

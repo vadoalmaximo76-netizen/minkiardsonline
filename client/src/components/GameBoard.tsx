@@ -68,6 +68,7 @@ import CardTrailParticles from "./CardTrailParticles";
 import AmbientParticles from "./AmbientParticles";
 import { GameBoard3D } from "./GameBoard3D";
 import VictoryDefeatAnimation from "./VictoryDefeatAnimation";
+import { AnimatedNumber } from "./AnimatedNumber";
 import { PreGameLobbyPanel } from "./PreGameLobbyPanel";
 import { InvitePanel } from "./InvitePanel";
 import { useScreenShake } from "../lib/useScreenShake";
@@ -258,6 +259,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [attackedCharacterName, setAttackedCharacterName] = useState<string>("");
   const [attackEffectType, setAttackEffectType] = useState<AttackEffectType>('physical');
   const [attackSlash3D, setAttackSlash3D] = useState<{ visible: boolean; attackerName: string; targetName: string; damage: number }>({ visible: false, attackerName: '', targetName: '', damage: 0 });
+  const [damageVignetteVisible, setDamageVignetteVisible] = useState(false);
+  const damageVignetteTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   const [cinematicFlash, setCinematicFlash] = useState<{ visible: boolean; type: 'attack' | 'heal' }>({ visible: false, type: 'attack' });
   const [cardShatter3D, setCardShatter3D] = useState<{ visible: boolean; cardImage: string; cardName: string }>({ visible: false, cardImage: '', cardName: '' });
   const [attackEffectKey, setAttackEffectKey] = useState(0);
@@ -726,6 +729,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       shake(dmg > 50 ? 'heavy' : dmg > 20 ? 'medium' : 'light');
       playAttackSound();
       playDamageSound();
+      // Screen damage vignette when the current player's card is hit
+      if (targetOwner === playerName && dmg > 0) {
+        if (damageVignetteTimerRef.current) clearTimeout(damageVignetteTimerRef.current);
+        setDamageVignetteVisible(true);
+        damageVignetteTimerRef.current = setTimeout(() => setDamageVignetteVisible(false), 700);
+      }
     };
 
     const handleCardToGraveyard = ({ cardName, cardType }: { cardName: string, cardType?: string }) => {
@@ -2328,6 +2337,23 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         )}
       </AnimatePresence>
 
+      {/* Screen damage vignette — red rim flash when player's card is hit */}
+      <AnimatePresence>
+        {damageVignetteVisible && (
+          <motion.div
+            key="damage-vignette"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.6 } }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 pointer-events-none z-[45]"
+            style={{
+              background: 'radial-gradient(ellipse at center, transparent 30%, rgba(239,68,68,0.3) 70%, rgba(239,68,68,0.55) 100%)'
+            }}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Animated gradient background - dynamic colors based on game events */}
       <div className="fixed inset-0 pointer-events-none dynamic-bg-transition animate-color-shift" style={{ background: bgColors.gradient }} />
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
@@ -3825,7 +3851,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   {authenticatedUser.username}
                 </span>
                 <span className="text-yellow-400 text-[11px] landscape:text-xs md:text-xs font-bold whitespace-nowrap">
-                  {authenticatedUser.puntiRankiard || 0}
+                  <AnimatedNumber value={authenticatedUser.puntiRankiard || 0} />
                 </span>
                 {onLogout && (
                   <button
@@ -4000,11 +4026,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             className="flex items-center gap-1 px-1.5 py-1 rounded-2xl border border-white/15 shadow-2xl shadow-black/50"
             style={{ background: 'rgba(10, 8, 30, 0.8)', backdropFilter: 'blur(16px)' }}
           >
-            <button
+            <motion.button
               data-tutorial="hand"
               onClick={() => { playButtonClick(); playModalOpen(); setHandModalOpen(true); }}
-              className="relative p-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 hover:text-purple-200 transition-all duration-200"
+              className="relative p-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 hover:text-purple-200 transition-colors"
               title="Carte in Mano"
+              whileHover={{ scale: 1.12 }}
+              whileTap={{ scale: 0.85 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
             >
               <Hand size={16} />
               {gameState?.players?.[playerName]?.hand?.length ? (
@@ -4012,22 +4041,28 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   {gameState.players[playerName].hand.length}
                 </span>
               ) : null}
-            </button>
+            </motion.button>
 
-            <button
+            <motion.button
               onClick={() => { playButtonClick(); socket.emit('force-end-turn', { gameId }); }}
-              className="p-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-300 hover:text-cyan-200 transition-all duration-200"
+              className="p-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-300 hover:text-cyan-200 transition-colors"
               title="Fine Turno"
+              whileHover={{ scale: 1.12 }}
+              whileTap={{ scale: 0.85 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
             >
               <SkipForward size={16} />
-            </button>
+            </motion.button>
 
             <div className="w-px h-5 bg-white/10" />
 
-            <button
+            <motion.button
               onClick={() => { playButtonClick(); if (chatOpen) { playPanelClose(); handleCloseChat(); } else { playPanelOpen(); handleOpenChat(); } }}
-              className="relative p-2 rounded-xl bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 hover:text-blue-200 transition-all duration-200"
+              className="relative p-2 rounded-xl bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 hover:text-blue-200 transition-colors"
               title="Chat"
+              whileHover={{ scale: 1.12 }}
+              whileTap={{ scale: 0.85 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
             >
               <MessageCircle size={16} />
               {unreadMessages > 0 && (
@@ -4035,43 +4070,55 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   {unreadMessages > 9 ? '9+' : unreadMessages}
                 </span>
               )}
-            </button>
+            </motion.button>
 
-            <button
+            <motion.button
               onClick={() => { playButtonClick(); if (gameLogOpen) { playPanelClose(); } else { playPanelOpen(); } setGameLogOpen(!gameLogOpen); }}
-              className="p-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 hover:text-purple-200 transition-all duration-200"
+              className="p-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 hover:text-purple-200 transition-colors"
               title="Game Log"
+              whileHover={{ scale: 1.12 }}
+              whileTap={{ scale: 0.85 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
             >
               <ScrollText size={16} />
-            </button>
+            </motion.button>
 
             <div className="w-px h-5 bg-white/10" />
 
-            <button
+            <motion.button
               onClick={() => { playButtonClick(); playModalOpen(); setDiceOpen(true); }}
-              className="p-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 hover:text-amber-200 transition-all duration-200"
+              className="p-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 hover:text-amber-200 transition-colors"
               title="Dado"
+              whileHover={{ scale: 1.12 }}
+              whileTap={{ scale: 0.85 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
             >
               <Dice6 size={16} />
-            </button>
+            </motion.button>
 
-            <button
+            <motion.button
               onClick={() => { playButtonClick(); if (calculatorOpen) { playPanelClose(); } else { playPanelOpen(); } setCalculatorOpen(!calculatorOpen); }}
-              className="p-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 hover:text-emerald-200 transition-all duration-200"
+              className="p-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 hover:text-emerald-200 transition-colors"
               title="Calcolatrice"
+              whileHover={{ scale: 1.12 }}
+              whileTap={{ scale: 0.85 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
             >
               <CalcIcon size={16} />
-            </button>
+            </motion.button>
 
-            <button
+            <motion.button
               onClick={() => { playButtonClick(); playModalOpen(); setGraveyardOpen(true); }}
-              className="p-2 rounded-xl bg-gray-500/20 hover:bg-gray-500/40 text-gray-300 hover:text-gray-200 transition-all duration-200"
+              className="p-2 rounded-xl bg-gray-500/20 hover:bg-gray-500/40 text-gray-300 hover:text-gray-200 transition-colors"
               title="Cimitero"
+              whileHover={{ scale: 1.12 }}
+              whileTap={{ scale: 0.85 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
             >
               <Skull size={16} />
-            </button>
+            </motion.button>
 
-            <button
+            <motion.button
               onClick={() => {
                 playButtonClick();
                 playDeckShuffle();
@@ -4080,11 +4127,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   socket.emit('shuffle-deck', { deckType });
                 });
               }}
-              className="p-2 rounded-xl bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 hover:text-blue-200 transition-all duration-200"
+              className="p-2 rounded-xl bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 hover:text-blue-200 transition-colors"
               title="Mischia Mazzi"
+              whileHover={{ scale: 1.12 }}
+              whileTap={{ scale: 0.85 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
             >
               <Shuffle size={16} />
-            </button>
+            </motion.button>
 
             <VoiceChat />
           </div>
@@ -4358,7 +4408,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
         {/* Turn Timer Widget */}
         {turnTimerState.active && (
-          <div className={`fixed top-20 right-4 z-40 flex flex-col items-center gap-1 pointer-events-none select-none ${turnTimerState.isWarning ? 'animate-pulse' : ''}`}>
+          <motion.div
+            className={`fixed top-20 right-4 z-40 flex flex-col items-center gap-1 pointer-events-none select-none`}
+            animate={turnTimerState.seconds <= 5 ? { x: [-3, 3, -3, 3, -2, 2, 0] } : { x: 0 }}
+            transition={{ duration: 0.4, repeat: turnTimerState.seconds <= 5 ? Infinity : 0, ease: 'easeInOut' }}
+          >
             <div className={`relative w-16 h-16 ${turnTimerState.isWarning ? 'drop-shadow-[0_0_12px_rgba(239,68,68,0.8)]' : 'drop-shadow-[0_0_8px_rgba(250,204,21,0.6)]'}`}>
               <svg className="w-full h-full -rotate-90" viewBox="0 0 64 64">
                 <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="6" />
@@ -4382,7 +4436,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${turnTimerState.isWarning ? 'bg-red-600/80 text-white' : 'bg-black/60 text-yellow-300'}`}>
               {turnTimerState.playerName === playerName ? 'Il tuo turno' : turnTimerState.playerName}
             </span>
-          </div>
+          </motion.div>
         )}
 
         {/* Rematch Panel (overlaid over game end rewards) */}

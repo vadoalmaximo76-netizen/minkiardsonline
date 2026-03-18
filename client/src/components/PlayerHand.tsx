@@ -61,11 +61,13 @@ export const PlayerHand: React.FC = () => {
         )}
       </div>
       <div className="flex gap-2 sm:gap-4 overflow-x-auto pb-2 sm:pb-4 -mx-2 px-2 sm:mx-0 sm:px-0">
-        {playerCards.map((card) => (
+        {playerCards.map((card, index) => (
           <Card
             key={card.id}
             card={card}
             location="hand"
+            cardIndexInHand={index}
+            totalHandCards={playerCards.length}
           />
         ))}
         {playerCards.length === 0 && (
