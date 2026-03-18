@@ -109,6 +109,7 @@ interface GameStateStore {
   userRankiardPoints: number;
   prSpentThisGame: number;
   handModalOpen: boolean;
+  showAttackTargetSelectCardId: string | null;
   
   setGameState: (state: GameState) => void;
   setPlayerName: (name: string) => void;
@@ -128,6 +129,7 @@ interface GameStateStore {
   addPRSpent: (amount: number) => void;
   resetPRSpent: () => void;
   setHandModalOpen: (open: boolean) => void;
+  setShowAttackTargetSelectCardId: (cardId: string | null) => void;
 }
 
 export const useGameState = create<GameStateStore>()(
@@ -218,6 +220,7 @@ export const useGameState = create<GameStateStore>()(
         userRankiardPoints: 0,
         prSpentThisGame: 0,
         handModalOpen: false,
+        showAttackTargetSelectCardId: null,
         
         setGameState: (gameState) => set({ gameState }),
         setPlayerName: (playerName) => set({ playerName }),
@@ -241,6 +244,7 @@ export const useGameState = create<GameStateStore>()(
         setIsReconnecting: (isReconnecting) => set({ isReconnecting }),
         setPickedCard: (pickedCard) => set({ pickedCard }),
         setHandModalOpen: (handModalOpen) => set({ handModalOpen }),
+        setShowAttackTargetSelectCardId: (showAttackTargetSelectCardId) => set({ showAttackTargetSelectCardId }),
         
         generateSessionId: () => {
           const sessionId = 'session-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now();

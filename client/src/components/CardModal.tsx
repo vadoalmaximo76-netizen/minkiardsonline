@@ -25,7 +25,7 @@ export const CardModal: React.FC = () => {
   const [showPowerSelect, setShowPowerSelect] = useState(false);
   const [showSkinPanel, setShowSkinPanel] = useState(false);
   const [appliedSkinUrl, setAppliedSkinUrl] = useState<string | null>(null);
-  const { selectedCard, setSelectedCard, playerName, gameState, gameId, setSelectedMosseCard, userRankiardPoints, prSpentThisGame, addPRSpent, setHandModalOpen } = useGameState();
+  const { selectedCard, setSelectedCard, playerName, gameState, gameId, setSelectedMosseCard, userRankiardPoints, prSpentThisGame, addPRSpent, setHandModalOpen, setShowAttackTargetSelectCardId } = useGameState();
   const { playFusionSound, playModalOpen, playModalClose, playButtonClick } = useAudio();
   
   // Calculate available Rankiard points (total from authenticated user minus spent this game)
@@ -142,8 +142,9 @@ export const CardModal: React.FC = () => {
       }
     }
     
-    // Set this MOSSE card as selected for attacking
+    // Set this MOSSE card as selected for attacking and open the target selection panel
     setSelectedMosseCard(selectedCard);
+    setShowAttackTargetSelectCardId(selectedCard.id);
     setSelectedCard(null);
   };
 

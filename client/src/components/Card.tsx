@@ -195,7 +195,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   const [targetCard, setTargetCard] = useState<any>(null);
   const [targetCards, setTargetCards] = useState<any[]>([]);
   const [showHandTargetSelect, setShowHandTargetSelect] = useState(false);
-  const [showAttackTargetSelect, setShowAttackTargetSelect] = useState(false);
+
   const [selectedTargets, setSelectedTargets] = useState<string[]>([]);
   const [isHandTarget, setIsHandTarget] = useState(false);
   const [isFurtoAttack, setIsFurtoAttack] = useState(false);
@@ -275,8 +275,12 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     setSelectedMosseCard, 
     shakingCards, 
     addShakingCard, 
-    removeShakingCard 
+    removeShakingCard,
+    showAttackTargetSelectCardId,
+    setShowAttackTargetSelectCardId,
   } = useGameState();
+  const showAttackTargetSelect = showAttackTargetSelectCardId === card.id;
+  const setShowAttackTargetSelect = (show: boolean) => setShowAttackTargetSelectCardId(show ? card.id : null);
 
   const currentTurnPlayer = gameState?.turnOrder?.[gameState?.currentTurnIndex ?? -1];
   const isMyTurn = currentTurnPlayer === playerName;
