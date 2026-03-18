@@ -95,7 +95,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
   const battleStartingRef = useRef(false);
   const mapScrollRef = useRef<HTMLDivElement>(null);
 
-  const { setGameId, setPlayerName, generateSessionId, reset } = useGameState();
+  const { setGameId, setPlayerName, generateSessionId, clearSession: reset } = useGameState();
 
   const authToken = localStorage.getItem('authToken');
 
