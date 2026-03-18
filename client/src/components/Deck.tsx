@@ -10,46 +10,6 @@ interface DeckProps {
   type: 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali';
 }
 
-// Themed colors per deck type
-const DECK_THEMES = {
-  personaggi: {
-    label: 'PERSONAGGI',
-    color: '#3b82f6',
-    glow: 'rgba(59,130,246,0.6)',
-    bg: 'linear-gradient(135deg, rgba(29,78,216,0.85) 0%, rgba(30,64,175,0.9) 100%)',
-    border: 'rgba(96,165,250,0.7)',
-    badgeBg: 'rgba(29,78,216,0.9)',
-    icon: '⚔️',
-  },
-  mosse: {
-    label: 'MOSSE',
-    color: '#ef4444',
-    glow: 'rgba(239,68,68,0.6)',
-    bg: 'linear-gradient(135deg, rgba(185,28,28,0.85) 0%, rgba(153,27,27,0.9) 100%)',
-    border: 'rgba(252,165,165,0.7)',
-    badgeBg: 'rgba(185,28,28,0.9)',
-    icon: '🔥',
-  },
-  bonus: {
-    label: 'BONUS',
-    color: '#10b981',
-    glow: 'rgba(16,185,129,0.6)',
-    bg: 'linear-gradient(135deg, rgba(6,95,70,0.85) 0%, rgba(4,120,87,0.9) 100%)',
-    border: 'rgba(110,231,183,0.7)',
-    badgeBg: 'rgba(6,95,70,0.9)',
-    icon: '💎',
-  },
-  personaggi_speciali: {
-    label: 'SPECIALI',
-    color: '#f59e0b',
-    glow: 'rgba(245,158,11,0.6)',
-    bg: 'linear-gradient(135deg, rgba(120,53,15,0.85) 0%, rgba(146,64,14,0.9) 100%)',
-    border: 'rgba(252,211,77,0.7)',
-    badgeBg: 'rgba(120,53,15,0.9)',
-    icon: '✨',
-  },
-} as const;
-
 const DeckComponent: React.FC<DeckProps> = ({ name, backImage, type }) => {
   const { gameState, playerName } = useGameState();
   const [showBrowser, setShowBrowser] = useState(false);
@@ -59,7 +19,6 @@ const DeckComponent: React.FC<DeckProps> = ({ name, backImage, type }) => {
   const [deckCards, setDeckCards] = useState<any[]>([]);
   const [isLoadingDeck, setIsLoadingDeck] = useState(false);
 
-  const theme = DECK_THEMES[type];
   const isDraftMode = (gameState as any)?.isDraftMode || false;
   const playerDraftDeckCounts = (gameState as any)?.playerDraftDeckCounts || {};
 
@@ -260,57 +219,28 @@ const DeckComponent: React.FC<DeckProps> = ({ name, backImage, type }) => {
 
   return (
     <div className="flex flex-col items-center gap-1 sm:gap-1.5 md:gap-2 w-[70px] sm:w-[80px] md:w-auto">
-      {/* Deck Label with theme color */}
-      <h3 className="font-black text-[9px] sm:text-xs md:text-sm lg:text-base leading-tight text-center truncate w-full"
-        style={{
-          color: theme.color,
-          textShadow: `0 0 8px ${theme.glow}, 1px 1px 2px rgba(0,0,0,0.9)`,
-        }}
-      >
+      <h3 className="text-white font-bold text-[9px] sm:text-xs md:text-sm lg:text-base leading-tight text-center truncate w-full" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
         <span className="sm:hidden">{getShortName(name)}</span>
-        <span className="hidden sm:inline">{theme.icon} {name}</span>
+        <span className="hidden sm:inline">{name}</span>
       </h3>
       
-      {/* Deck Image with themed glow */}
       <div className="relative">
-        <div className="absolute inset-0 rounded-lg pointer-events-none" style={{
-          boxShadow: `0 0 12px ${theme.glow}, 0 0 4px ${theme.glow}`,
-          borderRadius: '8px',
-        }} />
         <img
           src={backImage}
           alt={`${name} back`}
           className={`w-14 sm:w-16 md:w-20 lg:w-24 aspect-[2/3] object-cover rounded-md sm:rounded-lg md:rounded-xl cursor-pointer deck-3d shadow-lg transition-all duration-150 ${isShuffling ? 'animate-shuffle' : ''} ${isPicking ? 'scale-95 opacity-70' : 'hover:scale-105'}`}
-          style={{
-            border: `1.5px solid ${theme.border}`,
-          }}
           onClick={handlePickCard}
         />
         
-        {/* Card counter badge with theme color */}
-        <div className="absolute -bottom-0.5 -right-0.5 sm:-bottom-1 sm:-right-1 rounded-full w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 flex items-center justify-center font-black text-[9px] sm:text-[10px] md:text-xs border border-white/20"
-          style={{
-            background: theme.badgeBg,
-            color: 'white',
-            boxShadow: `0 0 8px ${theme.glow}`,
-            textShadow: '1px 1px 2px rgba(0,0,0,0.8)'
-          }}
-        >
+        <div className="absolute -bottom-0.5 -right-0.5 sm:-bottom-1 sm:-right-1 bg-white text-black rounded-full w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 flex items-center justify-center font-bold text-[8px] sm:text-[10px] md:text-xs">
           {remainingCards}
         </div>
       </div>
 
-      {/* SCEGLI Button with theme */}
       <Button
         onClick={handleChooseCard}
-        className="font-bold px-1.5 sm:px-2 md:px-3 py-0.5 sm:py-1 text-[8px] sm:text-[10px] md:text-xs rounded-full w-full border transition-all hover:scale-105 hover:brightness-110"
-        style={{
-          background: theme.bg,
-          borderColor: theme.border,
-          color: 'white',
-          boxShadow: `0 0 8px ${theme.glow}`,
-          textShadow: '1px 1px 2px rgba(0,0,0,0.8)'
-        }}
+        className="bg-green-600 hover:bg-green-700 text-white font-bold px-1.5 sm:px-2 md:px-3 py-0.5 sm:py-1 text-[8px] sm:text-[10px] md:text-xs rounded w-full"
+        style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}
       >
         SCEGLI
       </Button>

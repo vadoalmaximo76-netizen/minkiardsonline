@@ -11,12 +11,11 @@ export const modules: ModuleMap = {
   "./components/mockups/home-layouts/HeroTray.tsx": () => import("../components/mockups/home-layouts/HeroTray.tsx"),
   "./components/mockups/home-layouts/HorizontalScroll.tsx": () => import("../components/mockups/home-layouts/HorizontalScroll.tsx"),
   "./components/mockups/home-layouts/MagazineGrid.tsx": () => import("../components/mockups/home-layouts/MagazineGrid.tsx"),
-  "./components/mockups/home-approaches/CommandRadial.tsx": () => import("../components/mockups/home-approaches/CommandRadial.tsx"),
-  "./components/mockups/home-approaches/GameMap.tsx": () => import("../components/mockups/home-approaches/GameMap.tsx"),
-  "./components/mockups/home-approaches/PremiumGameTable.tsx": () => import("../components/mockups/home-approaches/PremiumGameTable.tsx"),
-  "./components/mockups/home-approaches/ProgressionFirst.tsx": () => import("../components/mockups/home-approaches/ProgressionFirst.tsx"),
-  "./components/mockups/home-approaches/SwipeMode.tsx": () => import("../components/mockups/home-approaches/SwipeMode.tsx"),
   "./components/mockups/home-reimagine/CardFan.tsx": () => import("../components/mockups/home-reimagine/CardFan.tsx"),
   "./components/mockups/home-reimagine/ClashHQ.tsx": () => import("../components/mockups/home-reimagine/ClashHQ.tsx"),
-  "./components/mockups/home-reimagine/RetroArcade.tsx": () => import("../components/mockups/home-reimagine/RetroArcade.tsx")
+  "./components/mockups/home-reimagine/RetroArcade.tsx": () => import("../components/mockups/home-reimagine/RetroArcade.tsx"),
+  "./components/mockups/home-approaches/CommandRadial.tsx": () => import("../components/mockups/home-approaches/CommandRadial.tsx"),
+  "./components/mockups/home-approaches/GameMap.tsx": () => import("../components/mockups/home-approaches/GameMap.tsx"),
+  "./components/mockups/home-approaches/ProgressionFirst.tsx": () => import("../components/mockups/home-approaches/ProgressionFirst.tsx"),
+  "./components/mockups/home-approaches/SwipeMode.tsx": () => import("../components/mockups/home-approaches/SwipeMode.tsx")
 };

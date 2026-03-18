@@ -26,7 +26,7 @@
     "subtitleColor": "rgba(255,255,255,0.75)",
     "badge": "Percorso Palestre",
     "badgeColor": "rgba(0,0,0,0.35)",
-    "sortOrder": 1,
+    "sortOrder": 0.5,
     "adminOnly": false
   },
   {
@@ -40,6 +40,21 @@
     "titleColor": "#ffffff",
     "subtitleColor": "rgba(255,255,255,0.7)",
     "badge": "Costruisci il tuo mazzo e sfida il mondo",
+    "badgeColor": "rgba(0,0,0,0.35)",
+    "sortOrder": 1,
+    "adminOnly": false
+  },
+  {
+    "id": "panel-tournaments-classic",
+    "panelKey": "tournaments-classic",
+    "title": "Tornei",
+    "subtitle": "Competizioni classiche o in modalità Draft",
+    "icon": "Crown",
+    "gradientFrom": "#ff0000",
+    "gradientTo": "#cb3a9d",
+    "titleColor": "#ffffff",
+    "subtitleColor": "rgba(255,255,255,0.7)",
+    "badge": "Crea o entra in un torneo",
     "badgeColor": "rgba(0,0,0,0.35)",
     "sortOrder": 2,
     "adminOnly": false
@@ -60,21 +75,6 @@
     "adminOnly": false
   },
   {
-    "id": "panel-tournaments-classic",
-    "panelKey": "tournaments-classic",
-    "title": "Tornei",
-    "subtitle": "Competizioni classiche o in modalità Draft",
-    "icon": "Crown",
-    "gradientFrom": "#ff0000",
-    "gradientTo": "#cb3a9d",
-    "titleColor": "#ffffff",
-    "subtitleColor": "rgba(255,255,255,0.7)",
-    "badge": "Crea o entra in un torneo",
-    "badgeColor": "rgba(0,0,0,0.35)",
-    "sortOrder": 4,
-    "adminOnly": false
-  },
-  {
     "id": "panel-rooms",
     "panelKey": "rooms",
     "title": "Stanze di Gioco",
@@ -86,7 +86,7 @@
     "subtitleColor": "rgba(255,255,255,0.7)",
     "badge": "",
     "badgeColor": "rgba(0,0,0,0.35)",
-    "sortOrder": 5,
+    "sortOrder": 4,
     "adminOnly": false
   },
   {
@@ -101,7 +101,7 @@
     "subtitleColor": "rgba(255,255,255,0.7)",
     "badge": "Scopri l'evento di oggi",
     "badgeColor": "rgba(0,0,0,0.35)",
-    "sortOrder": 6,
+    "sortOrder": 5,
     "adminOnly": false
   },
   {
@@ -116,7 +116,7 @@
     "subtitleColor": "rgba(255,255,255,0.7)",
     "badge": "Tutorial",
     "badgeColor": "rgba(0,0,0,0.35)",
-    "sortOrder": 7,
+    "sortOrder": 6,
     "adminOnly": false
   },
   {
@@ -131,7 +131,7 @@
     "subtitleColor": "rgba(255,255,255,0.7)",
     "badge": "Top 100",
     "badgeColor": "rgba(0,0,0,0.35)",
-    "sortOrder": 8,
+    "sortOrder": 7,
     "adminOnly": false
   },
   {
@@ -146,7 +146,7 @@
     "subtitleColor": "rgba(255,255,255,0.7)",
     "badge": "Comunità",
     "badgeColor": "rgba(0,0,0,0.35)",
-    "sortOrder": 9,
+    "sortOrder": 8,
     "adminOnly": false
   },
   {
@@ -161,7 +161,7 @@
     "subtitleColor": "rgba(255,255,255,0.7)",
     "badge": "Le tue statistiche e messaggi privati",
     "badgeColor": "rgba(0,0,0,0.35)",
-    "sortOrder": 10,
+    "sortOrder": 9,
     "adminOnly": false
   },
   {
@@ -176,7 +176,7 @@
     "subtitleColor": "rgba(255,255,255,0.7)",
     "badge": "Admin",
     "badgeColor": "rgba(0,0,0,0.35)",
-    "sortOrder": 11,
+    "sortOrder": 10,
     "adminOnly": true
   }
 ]
