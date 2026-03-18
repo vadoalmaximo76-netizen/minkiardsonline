@@ -211,6 +211,8 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   const [showHoverPreview, setShowHoverPreview] = useState(false);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
   const [damageFlash, setDamageFlash] = useState(false);
+  const [hitFlash, setHitFlash] = useState(false);
+  const [isAttacking, setIsAttacking] = useState(false);
   const [isLowHealth, setIsLowHealth] = useState(false);
   const [cardTilt, setCardTilt] = useState({ rotateX: 0, rotateY: 0, glareX: 50, glareY: 50 });
   const [isHovered, setIsHovered] = useState(false);
@@ -250,7 +252,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   // Reset newly placed flag after animation completes
   useEffect(() => {
     if (isNewlyPlaced) {
-      const timer = setTimeout(() => setIsNewlyPlaced(false), 1500);
+      const timer = setTimeout(() => setIsNewlyPlaced(false), 500);
       return () => clearTimeout(timer);
     }
   }, [isNewlyPlaced]);
@@ -324,11 +326,13 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           playPointLoss();
           setStatGlowEffect('pti-down');
           setDamageFlash(true);
-          setTimeout(() => setDamageFlash(false), 600);
+          setHitFlash(true);
+          setTimeout(() => { setDamageFlash(false); }, 220);
+          setTimeout(() => setHitFlash(false), 60);
         }
         
         // Clear glow effect after animation
-        setTimeout(() => setStatGlowEffect(null), 1000);
+        setTimeout(() => setStatGlowEffect(null), 400);
       }
     }
     
@@ -352,7 +356,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         }
         
         // Clear glow effect after animation
-        setTimeout(() => setStatGlowEffect(null), 1000);
+        setTimeout(() => setStatGlowEffect(null), 400);
       }
     }
     
@@ -608,7 +612,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                         rarity === 'epic' ? 'animate-epic-glow' :
                         rarity === 'rare' ? 'animate-rare-glow' : 'animate-common-glow';
       setSkinAnimation(animClass);
-      setTimeout(() => setSkinAnimation(null), 2500);
+      setTimeout(() => setSkinAnimation(null), 1200);
     } else {
       setSkinAnimation(null);
     }
@@ -623,7 +627,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                           rarity === 'epic' ? 'animate-epic-glow' :
                           rarity === 'rare' ? 'animate-rare-glow' : 'animate-common-glow';
         setSkinAnimation(animClass);
-        setTimeout(() => setSkinAnimation(null), 2500);
+        setTimeout(() => setSkinAnimation(null), 1200);
       }
     };
     socket.on('card-skin-changed', onSkinChanged);
@@ -906,6 +910,8 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       const attackWithDelay = async () => {
         for (let i = 0; i < targetCards.length; i++) {
           const target = targetCards[i];
+          setIsAttacking(true);
+          setTimeout(() => setIsAttacking(false), 400);
           socket.emit('mosse-attack', { 
             mosseCardId: selectedMosseCard?.id,
             targetCardId: target.id,
@@ -918,9 +924,9 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
             mosseEffect: selectedMosseEffect
           });
           
-          // Wait 3 seconds between attacks to allow full attack cycle (including defense resolution)
+          // Wait between attacks to allow full attack cycle (including defense resolution)
           if (i < targetCards.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 3000));
+            await new Promise(resolve => setTimeout(resolve, 350));
           }
         }
       };
@@ -1005,22 +1011,22 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         setPowerEffect('up');
         playPointGain();
         addFloatingNumber(newPti - oldPti, 'heal');
-        setTimeout(() => setPowerEffect(null), 1200);
+        setTimeout(() => setPowerEffect(null), 500);
       } else if (newPti !== null && oldPti !== null && newPti < oldPti) {
         setPowerEffect('down');
         playPointLoss();
         addFloatingNumber(oldPti - newPti, 'damage');
-        setTimeout(() => setPowerEffect(null), 1200);
+        setTimeout(() => setPowerEffect(null), 500);
       } else if (newStars !== null && oldStars !== null && newStars > oldStars) {
         setPowerEffect('up');
         playStarGain();
         addFloatingNumber(newStars - oldStars, 'star-up');
-        setTimeout(() => setPowerEffect(null), 1200);
+        setTimeout(() => setPowerEffect(null), 500);
       } else if (newStars !== null && oldStars !== null && newStars < oldStars) {
         setPowerEffect('down');
         playStarLoss();
         addFloatingNumber(oldStars - newStars, 'star-down');
-        setTimeout(() => setPowerEffect(null), 1200);
+        setTimeout(() => setPowerEffect(null), 500);
       }
     }
     
@@ -1191,6 +1197,16 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     return 'card-epic-enter';
   };
   
+  // Deterministic stagger delay for card draw animation (based on card ID hash)
+  // Gives a natural cascade effect when multiple cards are drawn at once
+  const drawAnimationDelay = useMemo(() => {
+    let hash = 0;
+    for (let i = 0; i < card.id.length; i++) {
+      hash = (hash * 31 + card.id.charCodeAt(i)) & 0xffff;
+    }
+    return (hash % 5) * 55; // 0, 55, 110, 165, or 220ms
+  }, [card.id]);
+
   const getFieldBreathClass = () => {
     if (location !== 'field' || card.faceDown || isNewlyPlaced) return '';
     const normalizedType = (card.type || '').toLowerCase();
@@ -1272,7 +1288,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     <div 
       ref={cardRef}
       onMouseMove={handleMouseMove3D}
-      className={`relative flex flex-col gap-2 card-play-transition card-3d-tilt ${damageFlash ? 'card-damage-flash' : ''} ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? getEntryAnimationClass() : ''} ${isPlayable ? 'card-playable-glow' : ''} ${getFieldBreathClass()} ${location === 'field' && !isNewlyPlaced && !isEliminated ? 'card-levitate-field' : ''}`}
+      className={`relative flex flex-col gap-2 card-play-transition card-3d-tilt ${damageFlash ? 'card-damage-flash' : ''} ${isAttacking && location === 'field' ? 'card-attack-lunge' : ''} ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? getEntryAnimationClass() : ''} ${isPlayable ? 'card-playable-glow' : ''} ${getFieldBreathClass()} ${location === 'field' && !isNewlyPlaced && !isEliminated ? 'card-levitate-field' : ''}`}
       style={{
         perspective: location === 'field' ? '800px' : undefined,
         transformStyle: location === 'field' ? 'preserve-3d' as any : undefined,
@@ -1291,6 +1307,14 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           onComplete={() => removeFloatingNumber(num.id)}
         />
       ))}
+
+      {/* Impact hit-flash: brief white overlay at the moment of taking damage */}
+      {hitFlash && (
+        <div
+          className="absolute inset-0 rounded-xl pointer-events-none z-[200]"
+          style={{ background: 'rgba(255,255,255,0.85)', animation: 'card-hit-flash 0.06s ease-out forwards' }}
+        />
+      )}
 
       {showHoverPreview && location === 'field' && !card.faceDown && typeof document !== 'undefined' && ReactDOM.createPortal(
         <div 
@@ -1481,6 +1505,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
               ${card.faceDown ? 'ring-2 ring-orange-400 ring-opacity-50' : ''}
               ${isNewlyDrawn && location === 'hand' ? 'card-draw-enter-enhanced' : ''}
               ${skinAnimation || ''}`}
+          style={isNewlyDrawn && location === 'hand' ? { animationDelay: `${drawAnimationDelay}ms` } : undefined}
           />
           {isHovered && location === 'field' && !card.faceDown && !showBack && (
             <>

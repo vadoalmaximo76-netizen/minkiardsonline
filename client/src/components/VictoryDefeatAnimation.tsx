@@ -233,8 +233,8 @@ export default function VictoryDefeatAnimation({ type, visible, playerName, stat
       victoryTimersRef.current.forEach(t => clearTimeout(t));
       victoryTimersRef.current = [];
 
-      victoryTimersRef.current.push(setTimeout(() => setVictoryPhase(1), 500));
-      victoryTimersRef.current.push(setTimeout(() => setVictoryPhase(2), 1500));
+      victoryTimersRef.current.push(setTimeout(() => setVictoryPhase(1), 200));
+      victoryTimersRef.current.push(setTimeout(() => setVictoryPhase(2), 600));
       victoryTimersRef.current.push(setTimeout(() => {
         setVictoryPhase(3);
         const initialConfetti = createConfettiBurst();
@@ -252,12 +252,12 @@ export default function VictoryDefeatAnimation({ type, visible, playerName, stat
             const extraConfetti = createConfettiBurst();
             confettiRef.current = [...confettiRef.current, ...extraConfetti];
           }
-        }, 600);
-      }, 2500));
+        }, 450);
+      }, 1200));
 
-      victoryTimersRef.current.push(setTimeout(() => setVictoryPhase(4), 3500));
-      victoryTimersRef.current.push(setTimeout(() => setVictoryPhase(5), 5000));
-      victoryTimersRef.current.push(setTimeout(() => setVictoryPhase(6), 7000));
+      victoryTimersRef.current.push(setTimeout(() => setVictoryPhase(4), 2000));
+      victoryTimersRef.current.push(setTimeout(() => setVictoryPhase(5), 3500));
+      victoryTimersRef.current.push(setTimeout(() => setVictoryPhase(6), 5500));
 
       animationRef.current = requestAnimationFrame(animateVictory);
 
@@ -275,12 +275,12 @@ export default function VictoryDefeatAnimation({ type, visible, playerName, stat
       defeatTimersRef.current.forEach(t => clearTimeout(t));
       defeatTimersRef.current = [];
       
-      defeatTimersRef.current.push(setTimeout(() => { setDefeatOpacity(0.3); setDefeatPhase(0); }, 100));
-      defeatTimersRef.current.push(setTimeout(() => setDefeatPhase(1), 500));
-      defeatTimersRef.current.push(setTimeout(() => { setDefeatOpacity(0.6); setDefeatPhase(2); }, 1500));
-      defeatTimersRef.current.push(setTimeout(() => setDefeatPhase(3), 2500));
-      defeatTimersRef.current.push(setTimeout(() => { setDefeatPhase(4); setDefeatOpacity(0.8); }, 3500));
-      defeatTimersRef.current.push(setTimeout(() => { setDefeatPhase(5); setDefeatOpacity(0.95); }, 5000));
+      defeatTimersRef.current.push(setTimeout(() => { setDefeatOpacity(0.3); setDefeatPhase(0); }, 50));
+      defeatTimersRef.current.push(setTimeout(() => setDefeatPhase(1), 200));
+      defeatTimersRef.current.push(setTimeout(() => { setDefeatOpacity(0.6); setDefeatPhase(2); }, 600));
+      defeatTimersRef.current.push(setTimeout(() => setDefeatPhase(3), 1000));
+      defeatTimersRef.current.push(setTimeout(() => { setDefeatPhase(4); setDefeatOpacity(0.8); }, 1800));
+      defeatTimersRef.current.push(setTimeout(() => { setDefeatPhase(5); setDefeatOpacity(0.95); }, 3000));
 
       return () => {
         defeatTimersRef.current.forEach(t => clearTimeout(t));

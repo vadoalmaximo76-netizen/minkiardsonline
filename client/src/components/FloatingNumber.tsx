@@ -31,7 +31,7 @@ export const FloatingNumber: React.FC<FloatingNumberProps> = ({
     const timer = setTimeout(() => {
       setVisible(false);
       onComplete();
-    }, 1800);
+    }, 900);
 
     return () => clearTimeout(timer);
   }, [onComplete]);
@@ -91,7 +91,7 @@ export const FloatingNumber: React.FC<FloatingNumberProps> = ({
           left: x + offsetX,
           top: y,
           transform: 'translate(-50%, -50%)',
-          animation: `${styles.animation} 1.8s ease-out forwards`,
+          animation: `${styles.animation} 0.9s ease-out forwards`,
         }}
       >
         <div

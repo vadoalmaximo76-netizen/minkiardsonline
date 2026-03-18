@@ -78,7 +78,7 @@ export const RecursiveDamagePanel: React.FC = () => {
             battleMusicRef.current?.stop();
             setEvent(null);
             setCurrentStep(-1);
-          }, 2000);
+          }, 800);
         }
         return;
       }
@@ -118,16 +118,16 @@ export const RecursiveDamagePanel: React.FC = () => {
                 setEvent(null);
                 setCurrentStep(-1);
               }
-            }, 2000);
+            }, 800);
           } else {
             stepIndex++;
-            setTimeout(runStep, 500);
+            setTimeout(runStep, 180);
           }
-        }, 800);
-      }, 600);
+        }, 80);
+      }, 120);
     };
     
-    const startTimer = setTimeout(runStep, 1000);
+    const startTimer = setTimeout(runStep, 200);
     
     return () => {
       cancelled = true;
