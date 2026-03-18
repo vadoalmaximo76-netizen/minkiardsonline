@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { motion } from "framer-motion";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
@@ -492,13 +493,16 @@ export const CardModal: React.FC = () => {
           <div className="grid grid-cols-3 gap-3">
             {/* MOSSE card ATTACCA button - show for MOSSE cards in hand or field */}
             {selectedCard.type === 'mosse' && isOwner && (
-            <Button
+            <motion.button
               onClick={handleAttacca}
-              className="aspect-square bg-red-600 hover:bg-red-700 text-white font-bold p-2 flex flex-col items-center justify-center gap-1 text-xs"
+              className="aspect-square bg-red-600 hover:bg-red-700 text-white font-bold p-2 flex flex-col items-center justify-center gap-1 text-xs rounded-md"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.88 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
             >
               <Sword size={16} />
               ATTACCA
-            </Button>
+            </motion.button>
           )}
 
           {/* Field card actions - available for all field cards (own and opponent's) */}
@@ -683,13 +687,16 @@ export const CardModal: React.FC = () => {
           {/* Hand card actions */}
           {!isInField && !isInGraveyard && isOwner && (
             <>
-              <Button
+              <motion.button
                 onClick={handlePlay}
-                className="aspect-square bg-sky-blue hover:bg-sky-blue/80 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
+                className="aspect-square bg-sky-blue hover:bg-sky-blue/80 text-white font-bold p-2 flex flex-col items-center justify-center text-xs rounded-md"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.88 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 15 }}
               >
                 🎮
                 GIOCA
-              </Button>
+              </motion.button>
               
               <Button
                 onClick={handlePlayFaceDown}

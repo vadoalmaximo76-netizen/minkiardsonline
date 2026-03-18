@@ -821,6 +821,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         attackerName: data.attackerName,
         category: data.category
       });
+      // Vignette when opponent uses a special move against us
+      if (data.attackerName !== playerName && data.damage > 0) {
+        if (damageVignetteTimerRef.current) clearTimeout(damageVignetteTimerRef.current);
+        setDamageVignetteVisible(true);
+        damageVignetteTimerRef.current = setTimeout(() => setDamageVignetteVisible(false), 700);
+      }
       setTimeout(() => {
         setSpecialMoveOverlay(prev => ({ ...prev, visible: false }));
       }, 4000);
@@ -1621,7 +1627,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       setPersonaggioCardName('OSTAGGIO');
       setPersonaggioMessage(`⛓️ ${captorPlayer} prende ${targetName} in OSTAGGIO per ${turnsRemaining} turni! (${damageDealt} danni inflitti)`);
       setPersonaggioCardImage('');
-      
+      // Vignette when our card is taken hostage and damaged
+      if (originalOwner === playerName && damageDealt > 0) {
+        if (damageVignetteTimerRef.current) clearTimeout(damageVignetteTimerRef.current);
+        setDamageVignetteVisible(true);
+        damageVignetteTimerRef.current = setTimeout(() => setDamageVignetteVisible(false), 700);
+      }
       setTimeout(() => {
         setPersonaggioNotificationVisible(false);
       }, 4000);
@@ -4446,7 +4457,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             <span className="text-yellow-400">🏆 Serie Bo3</span>
             {Object.entries(bo3State.seriesScore).map(([name, wins]) => (
               <span key={name} className={name === playerName ? 'text-green-400' : 'text-red-400'}>
-                {name}: {wins}
+                {name}: <AnimatedNumber value={wins} />
               </span>
             ))}
           </div>

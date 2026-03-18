@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { Card } from "./Card";
 import { Button } from "./ui/button";
 import { useGameState } from "../lib/stores/useGameState";
@@ -45,15 +46,18 @@ export const PlayerHand: React.FC = () => {
           <span className="sm:hidden">MANO</span>
           <span className="ml-2 text-[10px] sm:text-xs text-blue-400/60 font-normal">🃏 MANO</span>
         </h2>
-        <Button
+        <motion.button
           data-tutorial="end-turn"
           onClick={handleEndTurn}
-          className="sky-blue-button text-xs sm:text-sm px-2 sm:px-4 py-1 sm:py-2"
+          className="sky-blue-button text-xs sm:text-sm px-2 sm:px-4 py-1 sm:py-2 rounded"
           title="Termina il turno del giocatore corrente e passa al successivo"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.88 }}
+          transition={{ type: 'spring', stiffness: 500, damping: 15 }}
         >
           <span className="hidden sm:inline">FINE TURNO</span>
           <span className="sm:hidden">FINE</span>
-        </Button>
+        </motion.button>
         {endTurnMessage && (
           <div className="text-xs sm:text-sm font-bold text-white bg-purple-600/20 border border-purple-500/30 px-2 sm:px-3 py-1 rounded-xl">
             {endTurnMessage}
