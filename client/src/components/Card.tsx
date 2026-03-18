@@ -1294,7 +1294,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       initial={isNewlyPlaced && location === 'field' ? { scale: 0.85 } : false}
       animate={
         isAttacking && location === 'field'
-          ? { scale: [1, 1.12, 0.95, 1.0], y: [0, -6, 0, 0] }
+          ? { scale: [1, 1.12, 0.95, 1.0], y: [0, card.owner === playerName ? -6 : 6, 0, 0] }
           : isNewlyPlaced && location === 'field'
             ? { scale: [0.85, 1.05, 1.0] }
             : {}

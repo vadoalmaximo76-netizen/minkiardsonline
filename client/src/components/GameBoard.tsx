@@ -2308,13 +2308,25 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         onComplete={() => setCardTrailParticles(prev => ({ ...prev, visible: false }))}
       />
 
-      {/* Victory/Defeat Animation */}
-      <VictoryDefeatAnimation
-        visible={victoryDefeatAnim.visible}
-        type={victoryDefeatAnim.type}
-        playerName={victoryDefeatAnim.playerName}
-        stats={victoryDefeatAnim.stats}
-      />
+      {/* Victory/Defeat Animation — wrapped in AnimatePresence for result-phase transition */}
+      <AnimatePresence>
+        {victoryDefeatAnim.visible && (
+          <motion.div
+            key="victory-defeat"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <VictoryDefeatAnimation
+              visible={victoryDefeatAnim.visible}
+              type={victoryDefeatAnim.type}
+              playerName={victoryDefeatAnim.playerName}
+              stats={victoryDefeatAnim.stats}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Animated gradient background - dynamic colors based on game events */}
       <div className="fixed inset-0 pointer-events-none dynamic-bg-transition animate-color-shift" style={{ background: bgColors.gradient }} />
