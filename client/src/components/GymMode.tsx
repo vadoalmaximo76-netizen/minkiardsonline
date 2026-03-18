@@ -856,169 +856,173 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
             />
 
             {/* Nodes */}
-            <div className="flex flex-col gap-14 relative z-10 px-4 py-4">
+            <div className="flex flex-col gap-6 relative z-10 px-4 py-4">
               {leaders.map((leader, idx) => {
                 const status = getLeaderStatus(leader);
                 const isCompleted = status === 'completed';
                 const isAvailable = status === 'available';
                 const isLocked = status === 'locked';
                 const isCurrent = leader.id === currentLeader?.id;
-                const labelOnLeft = idx % 2 === 0;
+
+                const borderColor = isCurrent
+                  ? 'rgba(124,58,237,0.8)'
+                  : isCompleted
+                  ? 'rgba(34,197,94,0.45)'
+                  : 'rgba(255,255,255,0.08)';
+
+                const cardBg = isCurrent
+                  ? 'rgba(15,8,40,0.75)'
+                  : isCompleted
+                  ? 'rgba(5,20,12,0.75)'
+                  : 'rgba(10,14,26,0.75)';
 
                 return (
                   <div
                     key={leader.id}
-                    className={`flex items-center justify-center w-full relative ${isCurrent ? 'current-gym-node my-6' : ''}`}
+                    className={`flex justify-center w-full relative ${isCurrent ? 'current-gym-node' : ''}`}
                   >
-                    {/* ── Central node ── */}
-                    {isCurrent ? (
-                      /* Current: 72px, violet+yellow glow, fully tappable */
-                      <button
-                        onClick={() => handleChallengeLeader(leader)}
-                        className="gym-node-glow relative flex items-center justify-center rounded-full z-10 border-2 cursor-pointer active:scale-95 transition-transform"
-                        style={{
-                          width: 72,
-                          height: 72,
-                          background: 'linear-gradient(135deg, #1a1035, #2e1065)',
-                          borderColor: '#7c3aed',
-                        }}
-                      >
-                        {leader.leaderImageUrl ? (
-                          <img
-                            src={leader.leaderImageUrl}
-                            alt={leader.name}
-                            className="rounded-full object-cover border border-purple-400/30"
-                            style={{ width: 58, height: 58 }}
-                          />
-                        ) : (
-                          <div
-                            className="rounded-full flex items-center justify-center font-black text-2xl text-white border border-white/20"
-                            style={{
-                              width: 58,
-                              height: 58,
-                              background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
-                            }}
-                          >
-                            {leader.gymName.charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                        {/* Swords badge */}
-                        <div
-                          className="absolute -bottom-2 -right-2 rounded-full border-2 flex items-center justify-center"
-                          style={{ width: 22, height: 22, background: '#eab308', borderColor: '#0a0e1a' }}
-                        >
-                          <Swords className="text-black" style={{ width: 11, height: 11 }} />
-                        </div>
-                      </button>
-                    ) : isCompleted ? (
-                      /* Completed: 44px, green border, centered ✓ */
-                      <div
-                        className="gym-completed-glow relative flex items-center justify-center rounded-full z-10 border-2"
-                        style={{
-                          width: 44,
-                          height: 44,
-                          background: '#0d1f15',
-                          borderColor: 'rgba(34,197,94,0.6)',
-                        }}
-                      >
-                        <span style={{ fontSize: 18, color: '#22c55e', lineHeight: 1 }}>✓</span>
-                        {leader.badgeImageUrl && (
-                          <div className="absolute -bottom-2 -right-2">
-                            <img src={leader.badgeImageUrl} alt="" className="rounded-full border border-yellow-400/60 object-cover" style={{ width: 18, height: 18 }} />
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      /* Locked: 40px, semi-transparent, 🔒 centered */
-                      <div
-                        className="relative flex items-center justify-center rounded-full z-10 border-2"
-                        style={{
-                          width: 40,
-                          height: 40,
-                          background: 'rgba(10,14,26,0.5)',
-                          borderColor: 'rgba(255,255,255,0.1)',
-                          opacity: 0.6,
-                        }}
-                      >
-                        <span style={{ fontSize: 14, lineHeight: 1 }}>🔒</span>
-                      </div>
-                    )}
-
-                    {/* ── Label card ── */}
+                    {/* Card */}
                     <div
-                      className="absolute"
+                      className={`relative w-full overflow-hidden rounded-2xl border transition-all ${isCurrent ? 'gym-node-glow active:scale-[0.98]' : ''} ${isLocked ? 'opacity-60' : ''}`}
                       style={{
-                        [labelOnLeft ? 'left' : 'right']: 8,
-                        width: 140,
-                        maxWidth: '38%',
+                        maxWidth: 420,
+                        minHeight: isCurrent ? 150 : 100,
+                        borderColor,
+                        backdropFilter: 'blur(12px)',
+                        cursor: isCurrent ? 'pointer' : isCompleted ? 'pointer' : 'default',
                       }}
+                      onClick={isCurrent || isCompleted ? () => handleChallengeLeader(leader) : undefined}
                     >
-                      {isCurrent ? (
-                        /* Current leader — full info + SFIDA button */
-                        <div
-                          className="rounded-xl p-2.5 border"
-                          style={{
-                            background: 'linear-gradient(135deg, rgba(124,58,237,0.25), rgba(79,70,229,0.15))',
-                            borderColor: 'rgba(124,58,237,0.5)',
-                            backdropFilter: 'blur(8px)',
-                          }}
-                        >
-                          <p className="text-purple-300 font-black text-xs leading-tight">⚔️ #{leader.orderIndex}</p>
-                          <h3 className="text-white font-black text-sm leading-tight mt-0.5 truncate">{leader.gymName}</h3>
-                          <p className="text-white/60 text-xs truncate">{leader.name}</p>
-                          {leader.specialty && (
-                            <p className="text-yellow-400/80 text-[10px] mt-0.5 truncate">⚡ {leader.specialty}</p>
-                          )}
-                          <div className="flex items-center gap-0.5 mt-1">
-                            {Array.from({ length: leader.livesCount || 3 }).map((_, i) => (
-                              <Heart key={i} className="text-red-400 fill-red-400" style={{ width: 10, height: 10 }} />
-                            ))}
-                            <span className="ml-auto text-yellow-300 font-black text-[10px]">+{leader.rewardCredits}⭐</span>
-                          </div>
-                          <button
-                            onClick={() => handleChallengeLeader(leader)}
-                            className="w-full mt-2 py-1.5 rounded-lg font-black text-xs text-white transition-all active:scale-95"
-                            style={{ background: 'linear-gradient(to right, #7c3aed, #eab308)' }}
-                          >
-                            SFIDA!
-                          </button>
-                        </div>
-                      ) : isCompleted ? (
-                        /* Completed leader */
-                        <div
-                          className="rounded-xl p-2 border"
-                          style={{
-                            background: 'rgba(5,30,15,0.7)',
-                            borderColor: 'rgba(34,197,94,0.25)',
-                            backdropFilter: 'blur(6px)',
-                          }}
-                        >
-                          <p className="text-green-400 font-bold text-[10px]">✓ #{leader.orderIndex}</p>
-                          <h3 className="text-white font-black text-xs leading-tight truncate">{leader.gymName}</h3>
-                          <p className="text-white/40 text-[10px] truncate">{leader.name}</p>
-                          <button
-                            onClick={() => handleChallengeLeader(leader)}
-                            className="mt-1.5 text-green-400/60 hover:text-green-300 text-[10px] font-semibold flex items-center gap-0.5 transition-colors"
-                          >
-                            <ChevronRight style={{ width: 10, height: 10 }} /> Rigioca
-                          </button>
-                        </div>
-                      ) : (
-                        /* Locked leader */
-                        <div
-                          className="rounded-xl p-2 border"
-                          style={{
-                            background: 'rgba(10,14,26,0.6)',
-                            borderColor: 'rgba(255,255,255,0.05)',
-                            backdropFilter: 'blur(4px)',
-                            opacity: 0.55,
-                          }}
-                        >
-                          <p className="text-white/25 font-bold text-[10px]">🔒 #{leader.orderIndex}</p>
-                          <h3 className="text-white/30 font-black text-xs leading-tight truncate">{leader.gymName}</h3>
-                          <p className="text-white/20 text-[10px] truncate">{leader.name}</p>
-                        </div>
+                      {/* ── Background image at 50% opacity ── */}
+                      {leader.backgroundImageUrl && (
+                        <img
+                          src={leader.backgroundImageUrl}
+                          alt=""
+                          className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
+                          style={{ opacity: 0.5 }}
+                        />
                       )}
+                      {/* Dark overlay for readability */}
+                      <div
+                        className="absolute inset-0 pointer-events-none"
+                        style={{ background: cardBg }}
+                      />
+
+                      {/* ── Content ── */}
+                      <div className="relative z-10 flex items-stretch">
+
+                        {/* Leader portrait */}
+                        <div
+                          className="flex-shrink-0 relative overflow-hidden"
+                          style={{ width: isCurrent ? 96 : 72 }}
+                        >
+                          {leader.leaderImageUrl ? (
+                            <img
+                              src={leader.leaderImageUrl}
+                              alt={leader.name}
+                              className="w-full h-full object-cover object-top"
+                              style={{
+                                opacity: isLocked ? 0.25 : 1,
+                                minHeight: isCurrent ? 150 : 100,
+                              }}
+                            />
+                          ) : (
+                            <div
+                              className="w-full flex items-center justify-center font-black text-3xl text-white/40"
+                              style={{ minHeight: isCurrent ? 150 : 100 }}
+                            >
+                              {leader.gymName.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          {/* Status overlay on portrait */}
+                          {isLocked && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                              <span style={{ fontSize: 20 }}>🔒</span>
+                            </div>
+                          )}
+                          {isCompleted && (
+                            <div className="absolute bottom-0 inset-x-0 flex items-center justify-center pb-1.5"
+                              style={{ background: 'linear-gradient(to top, rgba(0,60,20,0.85), transparent)' }}>
+                              <CheckCircle className="text-green-400" style={{ width: 18, height: 18 }} />
+                            </div>
+                          )}
+                          {isCurrent && (
+                            <div className="absolute bottom-0 inset-x-0 flex items-center justify-center pb-1.5"
+                              style={{ background: 'linear-gradient(to top, rgba(80,20,150,0.85), transparent)' }}>
+                              <Swords className="text-yellow-300" style={{ width: 14, height: 14 }} />
+                            </div>
+                          )}
+                          {/* Vertical separator */}
+                          <div className="absolute top-0 right-0 bottom-0 w-px"
+                            style={{ background: borderColor }} />
+                        </div>
+
+                        {/* Info side */}
+                        <div className="flex-1 flex flex-col justify-center p-3 gap-0.5">
+                          {/* Order + status */}
+                          <p className="font-black text-[10px] leading-tight tracking-wider"
+                            style={{ color: isCurrent ? '#a78bfa' : isCompleted ? '#4ade80' : 'rgba(255,255,255,0.25)' }}>
+                            {isCurrent ? '⚔️' : isCompleted ? '✓' : '🔒'} PALESTRA #{leader.orderIndex}
+                          </p>
+
+                          {/* Gym name */}
+                          <h3 className="font-black text-sm leading-tight"
+                            style={{ color: isLocked ? 'rgba(255,255,255,0.3)' : 'white' }}>
+                            {leader.gymName}
+                          </h3>
+
+                          {/* Leader name */}
+                          <p className="text-xs truncate"
+                            style={{ color: isLocked ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.55)' }}>
+                            {leader.name}
+                          </p>
+
+                          {/* Specialty */}
+                          {leader.specialty && !isLocked && (
+                            <p className="text-[10px] truncate" style={{ color: 'rgba(234,179,8,0.8)' }}>
+                              ⚡ {leader.specialty}
+                            </p>
+                          )}
+
+                          {/* Badge image (completed) */}
+                          {isCompleted && leader.badgeImageUrl && (
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <img src={leader.badgeImageUrl} alt="badge" className="rounded-full border border-yellow-400/60 object-cover" style={{ width: 20, height: 20 }} />
+                              <span className="text-yellow-300/70 text-[10px] font-bold">Badge ottenuto</span>
+                            </div>
+                          )}
+
+                          {/* Current leader: hearts + credits + button */}
+                          {isCurrent && (
+                            <>
+                              <div className="flex items-center gap-0.5 mt-1">
+                                {Array.from({ length: leader.livesCount || 3 }).map((_, i) => (
+                                  <Heart key={i} className="text-red-400 fill-red-400" style={{ width: 10, height: 10 }} />
+                                ))}
+                                <span className="ml-auto text-yellow-300 font-black text-[10px]">+{leader.rewardCredits}⭐</span>
+                              </div>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleChallengeLeader(leader); }}
+                                className="mt-2 py-1.5 rounded-xl font-black text-xs text-white active:scale-95 transition-transform"
+                                style={{ background: 'linear-gradient(to right, #7c3aed, #eab308)' }}
+                              >
+                                ⚔️ SFIDA!
+                              </button>
+                            </>
+                          )}
+
+                          {/* Completed: replay button */}
+                          {isCompleted && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleChallengeLeader(leader); }}
+                              className="mt-1.5 flex items-center gap-0.5 transition-colors"
+                              style={{ color: 'rgba(74,222,128,0.6)', fontSize: 10, fontWeight: 700 }}
+                            >
+                              <ChevronRight style={{ width: 10, height: 10 }} /> Rigioca
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 );
