@@ -5,6 +5,7 @@ import { socket } from '../lib/socket';
 import { useGameState } from '../lib/stores/useGameState';
 import { CARD_DATA } from '../lib/cardData';
 import { pauseHomeMusic, resumeHomeMusic } from './SpotifyPlayer';
+import { InjuredPersonaggiDisclaimer } from './InjuredPersonaggiDisclaimer';
 
 interface GymLeader {
   id: number;
@@ -86,6 +87,8 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
   const [musicActive, setMusicActive] = useState(false);
   const [pickedCardId, setPickedCardId] = useState<string | null>(null);
   const [victoryStep, setVictoryStep] = useState(0);
+  const [pendingBattle, setPendingBattle] = useState<{ leader: GymLeader; deckIds: string[] } | null>(null);
+  const [userCredits, setUserCredits] = useState(0);
 
   const selectedLeaderRef = useRef<GymLeader | null>(null);
   const gameIdRef = useRef<string | null>(null);
@@ -120,10 +123,22 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
     } catch {}
   }, [authToken]);
 
+  const fetchUserCredits = useCallback(async () => {
+    if (!authToken) return;
+    try {
+      const res = await fetch('/api/profile', {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const data = await res.json();
+      if (data.profile?.user?.puntiRankiard !== undefined) setUserCredits(data.profile.user.puntiRankiard);
+    } catch {}
+  }, [authToken]);
+
   useEffect(() => {
     fetchLeaders();
     fetchStoryDeck();
-  }, [fetchLeaders, fetchStoryDeck]);
+    fetchUserCredits();
+  }, [fetchLeaders, fetchStoryDeck, fetchUserCredits]);
 
   useEffect(() => {
     selectedLeaderRef.current = selectedLeader;
@@ -195,19 +210,12 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, [phase]);
 
+  // Step 1: Fetch deck IDs and show the injured disclaimer before starting
   const startBattle = useCallback(async (leader: GymLeader) => {
-    const newGameId = `gym-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    setGameIdLocal(newGameId);
     setSelectedLeader(leader);
     selectedLeaderRef.current = leader;
-    gameIdRef.current = newGameId;
-
-    setGameId(newGameId);
-    setPlayerName(playerName);
-    generateSessionId();
 
     // Always fetch the latest story deck fresh from server before each battle
-    // so the accumulated deck is always up-to-date across the whole story mode
     let currentDeckIds: string[] = [];
     if (authToken) {
       try {
@@ -238,6 +246,22 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
       } catch {}
     }
 
+    // Show injured disclaimer (will auto-confirm if no injuries)
+    setPendingBattle({ leader, deckIds: currentDeckIds });
+  }, [authToken]);
+
+  // Step 2: Actually launch the battle with the filtered deck
+  const doStartBattle = useCallback((leader: GymLeader, filteredDeckIds: string[]) => {
+    setPendingBattle(null);
+
+    const newGameId = `gym-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    setGameIdLocal(newGameId);
+    gameIdRef.current = newGameId;
+
+    setGameId(newGameId);
+    setPlayerName(playerName);
+    generateSessionId();
+
     socket.emit('create-training-game', {
       gameId: newGameId,
       playerName,
@@ -245,7 +269,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
       userId,
       helpEnabled: false,
       isGymMode: true,
-      playerDeck: currentDeckIds.length > 0 ? currentDeckIds : undefined,
+      playerDeck: filteredDeckIds.length > 0 ? filteredDeckIds : undefined,
       livesCount: leader.livesCount || 3,
     });
 
@@ -267,7 +291,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
 
     pauseHomeMusic();
     setPhase('battle');
-  }, [playerName, avatarId, userId, setGameId, setPlayerName, generateSessionId, authToken]);
+  }, [playerName, avatarId, userId, setGameId, setPlayerName, generateSessionId]);
 
   const handleBackFromBattle = () => {
     if (gameId) {
@@ -690,6 +714,21 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'linear-gradient(180deg, #03050d 0%, #070b1a 40%, #0a1028 100%)' }}>
+      {/* Injured Personaggi Disclaimer — shown before battle starts */}
+      {pendingBattle && authToken && (
+        <InjuredPersonaggiDisclaimer
+          authToken={authToken}
+          relevantCardIds={pendingBattle.deckIds.filter(id => id.startsWith('personaggi'))}
+          userCredits={userCredits}
+          onCreditsUpdated={setUserCredits}
+          onConfirm={(availableIds) => {
+            // Merge: keep non-personaggi cards + available personaggi cards
+            const nonPersonaggi = pendingBattle.deckIds.filter(id => !id.startsWith('personaggi'));
+            doStartBattle(pendingBattle.leader, [...availableIds, ...nonPersonaggi]);
+          }}
+          onCancel={() => setPendingBattle(null)}
+        />
+      )}
       <div className="flex-shrink-0 flex items-center gap-4 px-4 pt-safe py-4 border-b border-white/10 bg-black/30 backdrop-blur-sm">
         <button onClick={onBack} className="p-2 text-white/60 hover:text-white transition-colors">
           <ArrowLeft className="w-5 h-5" />

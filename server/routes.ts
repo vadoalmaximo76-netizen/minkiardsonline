@@ -7,9 +7,9 @@ import jwt from "jsonwebtoken";
 import fs from "fs";
 import path from "path";
 import { db, legacyDb, isDatabaseAvailable, isLegacyDbAvailable } from "./db";
-import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, draftTournaments, notifications, gymLeaders, userGymProgress, userStoryDeck } from "../shared/schema";
+import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, draftTournaments, notifications, gymLeaders, userGymProgress, userStoryDeck, injuredPersonaggi } from "../shared/schema";
 import { jsonStorage, homePanelsStorage, newsTickerStorage } from "./jsonStorage";
-import { eq, ilike, and, desc, or, ne, sql, inArray } from "drizzle-orm";
+import { eq, ilike, and, desc, or, ne, sql, inArray, gt } from "drizzle-orm";
 import { CARD_DATA, DECK_BACK_IMAGES } from "../client/src/lib/cardData";
 import { authMiddleware, ADMIN_FALLBACK, JWT_SECRET } from "./auth";
 import { setPlayerOnline, rateLimit as redisRateLimit, isRedisConfigured, updateLeaderboard as redisUpdateLeaderboard, cacheGet, cacheSet } from "./redis";
@@ -10667,6 +10667,95 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       res.json({ success: true, cardIds: [] });
     } catch (e) {
       console.error('Error initializing story deck:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // ============= INJURED PERSONAGGI ENDPOINTS =============
+
+  // Returns all injured personaggi for the authenticated user, enriched with card display info
+  app.get('/api/injured-personaggi', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json({ success: true, injured: [] });
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+
+      const rows = await db.select().from(injuredPersonaggi)
+        .where(and(eq(injuredPersonaggi.userId, user.userId), gt(injuredPersonaggi.gamesRemaining, 0)));
+
+      // Enrich each row with card display data (name + image)
+      const allMods = jsonStorage.cardModifications.getAll();
+      const modMap = new Map(allMods.map((m: any) => [m.originalCardId, m]));
+      const customCardsAll = jsonStorage.customCards.getAll();
+      const customMap = new Map(customCardsAll.map((c: any) => [c.id, c]));
+
+      const injured = rows.map(row => {
+        const { cardId } = row;
+        let name: string = cardId;
+        let imageUrl: string | null = null;
+
+        if (cardId.startsWith('custom-')) {
+          const customId = parseInt(cardId.replace('custom-', ''), 10);
+          const cc = customMap.get(customId);
+          name = cc?.name || cardId;
+          imageUrl = `/api/card-image/${customId}`;
+        } else {
+          // Standard card: type-index format
+          const parts = cardId.split('-');
+          const deckType = parts.slice(0, -1).join('-') as 'personaggi' | 'mosse' | 'bonus' | 'personaggi_speciali';
+          const index = parseInt(parts[parts.length - 1], 10);
+          const mod = modMap.get(cardId);
+          if (mod?.name) {
+            name = mod.name;
+          } else {
+            const urls: string[] = (CARD_DATA as any)[deckType] || [];
+            const url = urls[index] || '';
+            const filename = url.split('/').pop() || '';
+            name = decodeURIComponent(filename).replace(/\.(png|jpg|jpeg|gif|webp)$/i, '').replace(/[-_]/g, ' ').trim() || cardId;
+          }
+          const urls: string[] = (CARD_DATA as any)[deckType] || [];
+          imageUrl = urls[index] || null;
+          if (mod?.imageUrl) imageUrl = mod.imageUrl;
+        }
+
+        return { cardId, gamesRemaining: row.gamesRemaining, name, imageUrl };
+      });
+
+      res.json({ success: true, injured });
+    } catch (e) {
+      console.error('Error fetching injured personaggi:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
+  // Pay 50 puntiRankiard to immediately revive an injured personaggio
+  app.post('/api/revive-personaggio', authMiddleware, async (req, res) => {
+    const REVIVE_COST = 50;
+    try {
+      if (!isDatabaseAvailable()) return res.status(503).json({ success: false, error: 'Database non disponibile' });
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+      const { cardId } = req.body;
+      if (!cardId) return res.status(400).json({ success: false, error: 'cardId richiesto' });
+
+      // Check the injury record exists
+      const [injuryRow] = await db.select().from(injuredPersonaggi)
+        .where(and(eq(injuredPersonaggi.userId, user.userId), eq(injuredPersonaggi.cardId, cardId)));
+      if (!injuryRow) return res.status(404).json({ success: false, error: 'Personaggio non risulta infortunato' });
+
+      // Check credits
+      const [currentUser] = await db.select({ puntiRankiard: users.puntiRankiard }).from(users).where(eq(users.id, user.userId));
+      if (!currentUser || currentUser.puntiRankiard < REVIVE_COST) {
+        return res.status(400).json({ success: false, error: `Crediti insufficienti. Servono ${REVIVE_COST} Rankiard.` });
+      }
+
+      // Deduct credits and remove injury record
+      await db.update(users).set({ puntiRankiard: currentUser.puntiRankiard - REVIVE_COST }).where(eq(users.id, user.userId));
+      await db.delete(injuredPersonaggi).where(and(eq(injuredPersonaggi.userId, user.userId), eq(injuredPersonaggi.cardId, cardId)));
+
+      res.json({ success: true, newCredits: currentUser.puntiRankiard - REVIVE_COST });
+    } catch (e) {
+      console.error('Error reviving personaggio:', e);
       res.status(500).json({ success: false, error: 'Errore server' });
     }
   });

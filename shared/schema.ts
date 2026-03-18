@@ -825,9 +825,21 @@ export const userStoryDeck = pgTable("user_story_deck", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Tracks personaggi cards that are "injured" (died in previous game) and unavailable for the next game
+export const injuredPersonaggi = pgTable("injured_personaggi", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  cardId: text("card_id").notNull(), // Base card ID e.g. "personaggi-5" or "custom-123"
+  gamesRemaining: integer("games_remaining").notNull().default(1), // 1 = skip next game; decremented on game end
+  injuredAt: timestamp("injured_at").notNull().defaultNow(),
+}, (table) => ({
+  uniqueUserCard: uniqueIndex("injured_personaggi_user_card_idx").on(table.userId, table.cardId),
+}));
+
 export const insertGymLeaderSchema = createInsertSchema(gymLeaders).omit({ id: true, createdAt: true });
 export const insertUserGymProgressSchema = createInsertSchema(userGymProgress).omit({ id: true });
 export type GymLeader = typeof gymLeaders.$inferSelect;
 export type UserGymProgress = typeof userGymProgress.$inferSelect;
 export type UserStoryDeck = typeof userStoryDeck.$inferSelect;
+export type InjuredPersonaggio = typeof injuredPersonaggi.$inferSelect;
 export type InsertGymLeader = z.infer<typeof insertGymLeaderSchema>;

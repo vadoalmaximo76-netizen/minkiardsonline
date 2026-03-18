@@ -1,7 +1,7 @@
 import { CARD_DATA, DECK_BACK_IMAGES, SCENARIO_CARDS } from '../client/src/lib/cardData';
 import { db, isDatabaseAvailable } from './db';
-import { matches, gameEvents, personaggi, customCards, cardModifications, users, gameStates, cardSkins, tournamentMatches, tournaments, tournamentParticipants, draftDecks, draftCharacterGrowth, draftTournaments, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
-import { eq, ilike, sql, and } from 'drizzle-orm';
+import { matches, gameEvents, personaggi, customCards, cardModifications, users, gameStates, cardSkins, tournamentMatches, tournaments, tournamentParticipants, draftDecks, draftCharacterGrowth, draftTournaments, injuredPersonaggi, type InsertMatch, type InsertGameEvent, type InsertCustomCard } from '../shared/schema';
+import { eq, ilike, sql, and, gt } from 'drizzle-orm';
 import { CPUPlayer } from './cpuPlayer';
 import { trackGameEvent } from './missionsAndAchievements';
 import { awardSeasonPassXP } from './seasonPassHelper';
@@ -2260,6 +2260,8 @@ Rispondi SOLO in JSON:`;
         const playerId = game.playerUserIds.get(player);
         if (playerId) {
           awardSeasonPassXP(playerId, 100).catch(() => {});
+          // Injured Personaggi: decrement recovery counters after each game
+          this.decrementPersonaggioInjuries(playerId).catch(() => {});
         }
       }
       if (winnerPlayer && !game.players[winnerPlayer]?.isCPU) {
@@ -3004,6 +3006,53 @@ Rispondi SOLO in JSON:`;
   cleanupOldSocketMapping(oldSocketId: string): void {
     if (oldSocketId) {
       this.playerToGame.delete(oldSocketId);
+    }
+  }
+
+  // --- Injured Personaggi system ---
+
+  /** Record that a personaggio died for a human player (fire-and-forget). */
+  async recordPersonaggioInjury(userId: number, cardId: string): Promise<void> {
+    if (!isDatabaseAvailable()) return;
+    try {
+      // Upsert: if already injured, keep gamesRemaining at 1 (reset the counter)
+      await db.insert(injuredPersonaggi)
+        .values({ userId, cardId, gamesRemaining: 1 })
+        .onConflictDoUpdate({
+          target: [injuredPersonaggi.userId, injuredPersonaggi.cardId],
+          set: { gamesRemaining: 1, injuredAt: new Date() }
+        });
+    } catch (err) {
+      console.error('Error recording personaggio injury:', err);
+    }
+  }
+
+  /** Decrement gamesRemaining for all injured personaggi of a user; delete those that reach 0. */
+  async decrementPersonaggioInjuries(userId: number): Promise<void> {
+    if (!isDatabaseAvailable()) return;
+    try {
+      await db.update(injuredPersonaggi)
+        .set({ gamesRemaining: sql`${injuredPersonaggi.gamesRemaining} - 1` })
+        .where(eq(injuredPersonaggi.userId, userId));
+      // Remove fully recovered cards
+      await db.delete(injuredPersonaggi)
+        .where(and(eq(injuredPersonaggi.userId, userId), sql`${injuredPersonaggi.gamesRemaining} <= 0`));
+    } catch (err) {
+      console.error('Error decrementing personaggio injuries:', err);
+    }
+  }
+
+  /** Returns all currently injured cardIds for a user (gamesRemaining > 0). */
+  async getInjuredCardIds(userId: number): Promise<string[]> {
+    if (!isDatabaseAvailable()) return [];
+    try {
+      const rows = await db.select({ cardId: injuredPersonaggi.cardId })
+        .from(injuredPersonaggi)
+        .where(and(eq(injuredPersonaggi.userId, userId), gt(injuredPersonaggi.gamesRemaining, 0)));
+      return rows.map(r => r.cardId);
+    } catch (err) {
+      console.error('Error fetching injured card IDs:', err);
+      return [];
     }
   }
 
@@ -14237,6 +14286,17 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       card.eliminatedBy = attacker || 'Unknown';
       game.graveyard.push(card);
       console.log(`Card ${cardId} moved to graveyard. Owner: ${cardOwner}, RequestedBy: ${playerName}, Killed by: ${attacker || 'Unknown'}`);
+
+      // Injured Personaggi: record injury for human player who lost this character
+      if ((card.type === 'personaggi' || card.type === 'personaggi_speciali') && game.playerUserIds) {
+        const ownerUserId = game.playerUserIds.get(cardOwner);
+        if (ownerUserId) {
+          // Base card ID = draftBaseId (if set) or the card's own id (e.g. "personaggi-5")
+          const baseCardId = (card as any).draftBaseId || card.id;
+          this.recordPersonaggioInjury(ownerUserId, baseCardId).catch(() => {});
+          console.log(`🩹 Personaggio injury recorded: userId=${ownerUserId} cardId=${baseCardId}`);
+        }
+      }
 
       // Gym mode: send leader message when CPU eliminates an opponent's character
       if (game.isGymMode && game.gymLeaderCpuName && attacker === game.gymLeaderCpuName && cardOwner !== game.gymLeaderCpuName) {

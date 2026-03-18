@@ -3,6 +3,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { socket } from "../lib/socket";
 import { FantaAuctionRoom } from "./FantaAuctionRoom";
+import { InjuredPersonaggiDisclaimer } from "./InjuredPersonaggiDisclaimer";
 
 interface SessionSummary {
   id: string;
@@ -153,6 +154,10 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
   const [marketSellPrice, setMarketSellPrice] = useState(50);
   const [marketSellDeckTab, setMarketSellDeckTab] = useState<'personaggi' | 'mosse' | 'bonus'>('personaggi');
 
+  // Injured Personaggi disclaimer state
+  const [pendingFormation, setPendingFormation] = useState<{ matchId: string; formation: { personaggioId: string; mossaId: string; bonusId: string }; personaggioBaseId: string } | null>(null);
+  const [fantaUserCredits, setFantaUserCredits] = useState(0);
+
   const fetchSessions = useCallback(async () => {
     try {
       const headers: Record<string, string> = {};
@@ -171,6 +176,14 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
     const interval = setInterval(fetchSessions, 5000);
     return () => clearInterval(interval);
   }, [fetchSessions]);
+
+  useEffect(() => {
+    if (!authToken) return;
+    fetch('/api/profile', { headers: { Authorization: `Bearer ${authToken}` } })
+      .then(r => r.json())
+      .then(data => { if (data.profile?.user?.puntiRankiard !== undefined) setFantaUserCredits(data.profile.user.puntiRankiard); })
+      .catch(() => {});
+  }, [authToken]);
 
   const handleDeleteFantaSession = async (id: string) => {
     if (!window.confirm('Sei sicuro di voler eliminare questa sessione FantaMinkiards?')) return;
@@ -1296,7 +1309,14 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
                     style={{ flex: 1, background: 'linear-gradient(135deg, #1e293b, #0f172a)', border: '1px solid #334155', borderRadius: 12, color: '#94a3b8', padding: '12px 0', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
                     ↩ Salta formazione
                   </button>
-                  <button onClick={() => { if (!allPicked) return; const formation = { personaggioId: formationPick.personaggioId!, mossaId: formationPick.mossaId!, bonusId: formationPick.bonusId! }; socket.emit('fanta:start-fanta-match', { fantaId, playerName, matchId: pendingMatchForFormation.id, formation }); setShowFormation(false); setPendingMatchForFormation(null); setFormationDeck(null); }}
+                  <button onClick={() => {
+                    if (!allPicked) return;
+                    const formation = { personaggioId: formationPick.personaggioId!, mossaId: formationPick.mossaId!, bonusId: formationPick.bonusId! };
+                    // Find the selected personaggio card to get its base ID for injury check
+                    const selectedPersonaggio = formationDeck?.personaggi?.find((c: any) => c.id === formation.personaggioId);
+                    const baseId = selectedPersonaggio ? (selectedPersonaggio.draftBaseId || selectedPersonaggio.id) : formation.personaggioId;
+                    setPendingFormation({ matchId: pendingMatchForFormation.id, formation, personaggioBaseId: baseId });
+                  }}
                     disabled={!allPicked}
                     style={{ flex: 2, background: allPicked ? 'linear-gradient(135deg, #7c3aed, #4f46e5, #6d28d9)' : '#1e293b', border: `2px solid ${allPicked ? '#7c3aed' : '#334155'}`, borderRadius: 12, color: allPicked ? '#fff' : '#475569', padding: '12px 0', fontSize: 13, fontWeight: 800, cursor: allPicked ? 'pointer' : 'not-allowed', boxShadow: allPicked ? '0 0 24px #7c3aed66' : 'none', letterSpacing: 0.3, transition: 'all 0.2s' }}>
                     {allPicked ? '🚀 Schiera e Combatti!' : `Seleziona ancora ${3 - pickedCount} carta${3 - pickedCount !== 1 ? '' : ''}`}
@@ -1830,6 +1850,28 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
 
   return (
     <div className="fixed inset-0 bg-gray-900 z-50 flex flex-col">
+      {/* Injured Personaggi Disclaimer — shown before fanta match formation is submitted */}
+      {pendingFormation && authToken && (
+        <InjuredPersonaggiDisclaimer
+          authToken={authToken}
+          relevantCardIds={[pendingFormation.personaggioBaseId]}
+          userCredits={fantaUserCredits}
+          onCreditsUpdated={setFantaUserCredits}
+          onConfirm={() => {
+            socket.emit('fanta:start-fanta-match', {
+              fantaId,
+              playerName,
+              matchId: pendingFormation.matchId,
+              formation: pendingFormation.formation,
+            });
+            setPendingFormation(null);
+            setShowFormation(false);
+            setPendingMatchForFormation(null);
+            setFormationDeck(null);
+          }}
+          onCancel={() => setPendingFormation(null)}
+        />
+      )}
       {/* Incoming invite modal */}
       {incomingInvite && (
         <div className="fixed inset-0 bg-black/80 z-[70] flex items-center justify-center p-4">
