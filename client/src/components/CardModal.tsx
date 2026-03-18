@@ -491,8 +491,8 @@ export const CardModal: React.FC = () => {
         {/* Action buttons - hidden for enemy face-down cards */}
         {!isEnemyFaceDownCard && (
           <div className="grid grid-cols-3 gap-3">
-            {/* MOSSE card ATTACCA button - show for MOSSE cards in hand or field */}
-            {selectedCard.type === 'mosse' && isOwner && (
+            {/* MOSSE card ATTACCA button - only for field cards (hand has its own banner below) */}
+            {selectedCard.type === 'mosse' && isOwner && isInField && (
             <motion.button
               onClick={handleAttacca}
               className="aspect-square bg-red-600 hover:bg-red-700 text-white font-bold p-2 flex flex-col items-center justify-center gap-1 text-xs rounded-md"
@@ -687,17 +687,17 @@ export const CardModal: React.FC = () => {
           {/* Hand card actions */}
           {!isInField && !isInGraveyard && isOwner && (
             <>
+              {/* GIOCA — full width, unmissable primary action */}
               <motion.button
                 onClick={handlePlay}
-                className="aspect-square bg-sky-blue hover:bg-sky-blue/80 text-white font-bold p-2 flex flex-col items-center justify-center text-xs rounded-md"
-                whileHover={{ scale: 1.1 }}
+                className="col-span-3 w-full bg-green-500 hover:bg-green-400 text-white font-extrabold py-4 flex items-center justify-center gap-3 text-lg rounded-xl shadow-lg shadow-green-900/50 border-2 border-green-300"
+                whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.88 }}
                 transition={{ type: 'spring', stiffness: 600, damping: 20 }}
               >
-                🎮
-                GIOCA
+                🎮 GIOCA
               </motion.button>
-              
+
               <Button
                 onClick={handlePlayFaceDown}
                 className="aspect-square bg-orange-600 hover:bg-orange-700 text-white font-bold p-2 flex flex-col items-center justify-center text-xs"
