@@ -1607,7 +1607,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       {/* ATTACCA button for MOSSE cards on field (owned by player) - positioned AFTER text note */}
       {location === 'field' && card.type === 'mosse' && isOwner && !card.faceDown && (
         <div className="flex flex-col gap-1 mt-1">
-          <Button
+          <motion.button
             onClick={() => {
               if (isAtaccoDisonesto) {
                 handleAttaccoDisonesto();
@@ -1681,11 +1681,13 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                 setShowAttackTargetSelect(true);
               }
             }}
-            className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-2 py-1"
-            size="sm"
+            className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-2 py-1 rounded"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.88 }}
+            transition={{ type: 'spring', stiffness: 600, damping: 20 }}
           >
             ⚔️ ATTACCA
-          </Button>
+          </motion.button>
         </div>
       )}
       
@@ -2536,12 +2538,15 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
             )}
 
             <div className="flex gap-3">
-              <Button
+              <motion.button
                 onClick={targetCards.length > 0 ? handleMultiTargetDamageConfirm : handleDamageConfirm}
-                className={`flex-1 font-bold py-3 text-lg ${isFurtoAttack ? 'bg-yellow-600 hover:bg-yellow-700 text-black' : 'bg-red-600 hover:bg-red-700 text-white'}`}
+                className={`flex-1 font-bold py-3 text-lg rounded-md ${isFurtoAttack ? 'bg-yellow-600 hover:bg-yellow-700 text-black' : 'bg-red-600 hover:bg-red-700 text-white'}`}
+                whileHover={{ scale: 1.06 }}
+                whileTap={{ scale: 0.9 }}
+                transition={{ type: 'spring', stiffness: 600, damping: 20 }}
               >
                 {isFurtoAttack ? '⭐ RUBA STELLE' : targetCards.length > 1 ? `⚔️ ATTACCA TUTTI (${targetCards.length})` : '⚔️ ATTACCA'}
-              </Button>
+              </motion.button>
               <Button
                 onClick={() => {
                   handleDamageCancel();
@@ -2614,6 +2619,8 @@ export const Card = memo(CardComponent, (prevProps, nextProps) => {
     prevCard.appliedSkinUrl === nextCard.appliedSkinUrl &&
     prevProps.location === nextProps.location &&
     prevProps.showBack === nextProps.showBack &&
-    prevProps.onCardPlayed === nextProps.onCardPlayed
+    prevProps.onCardPlayed === nextProps.onCardPlayed &&
+    prevProps.cardIndexInHand === nextProps.cardIndexInHand &&
+    prevProps.totalHandCards === nextProps.totalHandCards
   );
 });
