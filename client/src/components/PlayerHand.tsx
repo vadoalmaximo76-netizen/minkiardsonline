@@ -53,7 +53,7 @@ export const PlayerHand: React.FC = () => {
           title="Termina il turno del giocatore corrente e passa al successivo"
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.88 }}
-          transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+          transition={{ type: 'spring', stiffness: 600, damping: 20 }}
         >
           <span className="hidden sm:inline">FINE TURNO</span>
           <span className="sm:hidden">FINE</span>

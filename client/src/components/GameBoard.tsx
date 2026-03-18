@@ -821,12 +821,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         attackerName: data.attackerName,
         category: data.category
       });
-      // Vignette when opponent uses a special move against us
-      if (data.attackerName !== playerName && data.damage > 0) {
-        if (damageVignetteTimerRef.current) clearTimeout(damageVignetteTimerRef.current);
-        setDamageVignetteVisible(true);
-        damageVignetteTimerRef.current = setTimeout(() => setDamageVignetteVisible(false), 700);
-      }
       setTimeout(() => {
         setSpecialMoveOverlay(prev => ({ ...prev, visible: false }));
       }, 4000);
@@ -4043,8 +4037,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               className="relative p-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 hover:text-purple-200 transition-colors"
               title="Carte in Mano"
               whileHover={{ scale: 1.12 }}
-              whileTap={{ scale: 0.85 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+              whileTap={{ scale: 0.88 }}
+              transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
               <Hand size={16} />
               {gameState?.players?.[playerName]?.hand?.length ? (
@@ -4059,8 +4053,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               className="p-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-300 hover:text-cyan-200 transition-colors"
               title="Fine Turno"
               whileHover={{ scale: 1.12 }}
-              whileTap={{ scale: 0.85 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+              whileTap={{ scale: 0.88 }}
+              transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
               <SkipForward size={16} />
             </motion.button>
@@ -4072,8 +4066,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               className="relative p-2 rounded-xl bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 hover:text-blue-200 transition-colors"
               title="Chat"
               whileHover={{ scale: 1.12 }}
-              whileTap={{ scale: 0.85 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+              whileTap={{ scale: 0.88 }}
+              transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
               <MessageCircle size={16} />
               {unreadMessages > 0 && (
@@ -4088,8 +4082,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               className="p-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 hover:text-purple-200 transition-colors"
               title="Game Log"
               whileHover={{ scale: 1.12 }}
-              whileTap={{ scale: 0.85 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+              whileTap={{ scale: 0.88 }}
+              transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
               <ScrollText size={16} />
             </motion.button>
@@ -4101,8 +4095,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               className="p-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 hover:text-amber-200 transition-colors"
               title="Dado"
               whileHover={{ scale: 1.12 }}
-              whileTap={{ scale: 0.85 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+              whileTap={{ scale: 0.88 }}
+              transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
               <Dice6 size={16} />
             </motion.button>
@@ -4112,8 +4106,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               className="p-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 hover:text-emerald-200 transition-colors"
               title="Calcolatrice"
               whileHover={{ scale: 1.12 }}
-              whileTap={{ scale: 0.85 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+              whileTap={{ scale: 0.88 }}
+              transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
               <CalcIcon size={16} />
             </motion.button>
@@ -4123,8 +4117,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               className="p-2 rounded-xl bg-gray-500/20 hover:bg-gray-500/40 text-gray-300 hover:text-gray-200 transition-colors"
               title="Cimitero"
               whileHover={{ scale: 1.12 }}
-              whileTap={{ scale: 0.85 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+              whileTap={{ scale: 0.88 }}
+              transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
               <Skull size={16} />
             </motion.button>
@@ -4141,8 +4135,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               className="p-2 rounded-xl bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 hover:text-blue-200 transition-colors"
               title="Mischia Mazzi"
               whileHover={{ scale: 1.12 }}
-              whileTap={{ scale: 0.85 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+              whileTap={{ scale: 0.88 }}
+              transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
               <Shuffle size={16} />
             </motion.button>

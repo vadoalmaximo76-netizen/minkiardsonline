@@ -498,7 +498,7 @@ export const CardModal: React.FC = () => {
               className="aspect-square bg-red-600 hover:bg-red-700 text-white font-bold p-2 flex flex-col items-center justify-center gap-1 text-xs rounded-md"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.88 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+              transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
               <Sword size={16} />
               ATTACCA
@@ -692,7 +692,7 @@ export const CardModal: React.FC = () => {
                 className="aspect-square bg-sky-blue hover:bg-sky-blue/80 text-white font-bold p-2 flex flex-col items-center justify-center text-xs rounded-md"
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.88 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+                transition={{ type: 'spring', stiffness: 600, damping: 20 }}
               >
                 🎮
                 GIOCA
