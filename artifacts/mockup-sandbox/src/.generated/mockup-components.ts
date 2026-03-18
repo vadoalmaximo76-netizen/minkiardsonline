@@ -6,5 +6,9 @@ export const modules: ModuleMap = {
   "./components/mockups/admin-modal/WizardFlow.tsx": () => import("../components/mockups/admin-modal/WizardFlow.tsx"),
   "./components/mockups/home-reimagine/CardFan.tsx": () => import("../components/mockups/home-reimagine/CardFan.tsx"),
   "./components/mockups/home-reimagine/ClashHQ.tsx": () => import("../components/mockups/home-reimagine/ClashHQ.tsx"),
-  "./components/mockups/home-reimagine/RetroArcade.tsx": () => import("../components/mockups/home-reimagine/RetroArcade.tsx")
+  "./components/mockups/home-reimagine/RetroArcade.tsx": () => import("../components/mockups/home-reimagine/RetroArcade.tsx"),
+  "./components/mockups/home-layouts/ActivityFeed.tsx": () => import("../components/mockups/home-layouts/ActivityFeed.tsx"),
+  "./components/mockups/home-layouts/BottomNav.tsx": () => import("../components/mockups/home-layouts/BottomNav.tsx"),
+  "./components/mockups/home-layouts/DashboardFirst.tsx": () => import("../components/mockups/home-layouts/DashboardFirst.tsx"),
+  "./components/mockups/home-layouts/HeroTray.tsx": () => import("../components/mockups/home-layouts/HeroTray.tsx")
 };
