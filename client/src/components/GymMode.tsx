@@ -759,8 +759,8 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'linear-gradient(180deg, #03050d 0%, #070b1a 40%, #0a1028 100%)' }}>
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes gymNodeGlow {
-          0%, 100% { box-shadow: 0 0 18px 4px rgba(234,179,8,0.35), inset 0 0 8px rgba(234,179,8,0.25); }
-          50% { box-shadow: 0 0 32px 12px rgba(234,179,8,0.6), inset 0 0 16px rgba(234,179,8,0.45); }
+          0%, 100% { box-shadow: 0 0 20px 6px rgba(124,58,237,0.45), 0 0 10px 2px rgba(234,179,8,0.3), inset 0 0 10px rgba(124,58,237,0.35); }
+          50% { box-shadow: 0 0 35px 14px rgba(124,58,237,0.7), 0 0 18px 6px rgba(234,179,8,0.5), inset 0 0 18px rgba(124,58,237,0.55); }
         }
         .gym-node-glow { animation: gymNodeGlow 2s cubic-bezier(0.4,0,0.6,1) infinite; }
         @keyframes gymCompletedPulse {
@@ -842,15 +842,15 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
           </div>
         ) : (
           <div className="relative py-10 pb-24">
-            {/* Central vertical gradient line */}
+            {/* Central vertical gradient line — violet → yellow only */}
             <div
               className="absolute top-10 bottom-24 rounded-full z-0 pointer-events-none"
               style={{
                 left: '50%',
                 transform: 'translateX(-50%)',
                 width: 4,
-                background: 'linear-gradient(to bottom, #1e40af 0%, #7c3aed 40%, #eab308 70%, #92400e 100%)',
-                boxShadow: '0 0 18px rgba(124,58,237,0.35)',
+                background: 'linear-gradient(to bottom, #1e1b4b 0%, #7c3aed 45%, #eab308 100%)',
+                boxShadow: '0 0 16px rgba(124,58,237,0.4)',
               }}
             />
 
@@ -869,46 +869,33 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
                     key={leader.id}
                     className={`flex items-center justify-center w-full relative ${isCurrent ? 'current-gym-node my-6' : ''}`}
                   >
-                    {/* ── Completed/Locked status indicator (opposite side from label) ── */}
-                    {!isCurrent && (
-                      <div
-                        className="absolute flex items-center justify-center rounded-full border border-white/10 bg-[#0a0e1a]"
-                        style={{
-                          [labelOnLeft ? 'right' : 'left']: 16,
-                          width: 36,
-                          height: 36,
-                        }}
-                      >
-                        {isCompleted && <span style={{ fontSize: 16, color: '#22c55e' }}>✓</span>}
-                        {isLocked && <span style={{ fontSize: 14 }}>🔒</span>}
-                      </div>
-                    )}
-
                     {/* ── Central node ── */}
                     {isCurrent ? (
-                      <div
-                        className="gym-node-glow relative flex items-center justify-center rounded-full z-10 border-2"
+                      /* Current: 72px, violet+yellow glow, fully tappable */
+                      <button
+                        onClick={() => handleChallengeLeader(leader)}
+                        className="gym-node-glow relative flex items-center justify-center rounded-full z-10 border-2 cursor-pointer active:scale-95 transition-transform"
                         style={{
-                          width: 80,
-                          height: 80,
-                          background: 'linear-gradient(135deg, #1a1200, #3b2800)',
-                          borderColor: '#eab308',
+                          width: 72,
+                          height: 72,
+                          background: 'linear-gradient(135deg, #1a1035, #2e1065)',
+                          borderColor: '#7c3aed',
                         }}
                       >
                         {leader.leaderImageUrl ? (
                           <img
                             src={leader.leaderImageUrl}
                             alt={leader.name}
-                            className="rounded-full object-cover border border-yellow-400/30"
-                            style={{ width: 64, height: 64 }}
+                            className="rounded-full object-cover border border-purple-400/30"
+                            style={{ width: 58, height: 58 }}
                           />
                         ) : (
                           <div
                             className="rounded-full flex items-center justify-center font-black text-2xl text-white border border-white/20"
                             style={{
-                              width: 64,
-                              height: 64,
-                              background: 'linear-gradient(135deg, #92400e, #b45309)',
+                              width: 58,
+                              height: 58,
+                              background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
                             }}
                           >
                             {leader.gymName.charAt(0).toUpperCase()}
@@ -917,49 +904,42 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
                         {/* Swords badge */}
                         <div
                           className="absolute -bottom-2 -right-2 rounded-full border-2 flex items-center justify-center"
-                          style={{ width: 24, height: 24, background: '#eab308', borderColor: '#0a0e1a' }}
+                          style={{ width: 22, height: 22, background: '#eab308', borderColor: '#0a0e1a' }}
                         >
-                          <Swords className="text-black" style={{ width: 12, height: 12 }} />
+                          <Swords className="text-black" style={{ width: 11, height: 11 }} />
                         </div>
-                      </div>
+                      </button>
                     ) : isCompleted ? (
+                      /* Completed: 44px, green border, centered ✓ */
                       <div
                         className="gym-completed-glow relative flex items-center justify-center rounded-full z-10 border-2"
                         style={{
-                          width: 48,
-                          height: 48,
+                          width: 44,
+                          height: 44,
                           background: '#0d1f15',
                           borderColor: 'rgba(34,197,94,0.6)',
                         }}
                       >
-                        {leader.leaderImageUrl ? (
-                          <img
-                            src={leader.leaderImageUrl}
-                            alt={leader.name}
-                            className="rounded-full object-cover grayscale opacity-70"
-                            style={{ width: 38, height: 38 }}
-                          />
-                        ) : (
-                          <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 8px rgba(34,197,94,0.8)' }} />
-                        )}
+                        <span style={{ fontSize: 18, color: '#22c55e', lineHeight: 1 }}>✓</span>
                         {leader.badgeImageUrl && (
                           <div className="absolute -bottom-2 -right-2">
-                            <img src={leader.badgeImageUrl} alt="" className="rounded-full border border-yellow-400/60 object-cover" style={{ width: 20, height: 20 }} />
+                            <img src={leader.badgeImageUrl} alt="" className="rounded-full border border-yellow-400/60 object-cover" style={{ width: 18, height: 18 }} />
                           </div>
                         )}
                       </div>
                     ) : (
+                      /* Locked: 40px, semi-transparent, 🔒 centered */
                       <div
                         className="relative flex items-center justify-center rounded-full z-10 border-2"
                         style={{
-                          width: 44,
-                          height: 44,
-                          background: '#0a0e1a',
-                          borderColor: 'rgba(255,255,255,0.12)',
-                          opacity: 0.65,
+                          width: 40,
+                          height: 40,
+                          background: 'rgba(10,14,26,0.5)',
+                          borderColor: 'rgba(255,255,255,0.1)',
+                          opacity: 0.6,
                         }}
                       >
-                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'rgba(255,255,255,0.18)' }} />
+                        <span style={{ fontSize: 14, lineHeight: 1 }}>🔒</span>
                       </div>
                     )}
 
@@ -977,12 +957,12 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
                         <div
                           className="rounded-xl p-2.5 border"
                           style={{
-                            background: 'linear-gradient(135deg, rgba(146,64,14,0.4), rgba(120,53,15,0.25))',
-                            borderColor: 'rgba(234,179,8,0.4)',
+                            background: 'linear-gradient(135deg, rgba(124,58,237,0.25), rgba(79,70,229,0.15))',
+                            borderColor: 'rgba(124,58,237,0.5)',
                             backdropFilter: 'blur(8px)',
                           }}
                         >
-                          <p className="text-yellow-400 font-black text-xs leading-tight">⚔️ #{leader.orderIndex}</p>
+                          <p className="text-purple-300 font-black text-xs leading-tight">⚔️ #{leader.orderIndex}</p>
                           <h3 className="text-white font-black text-sm leading-tight mt-0.5 truncate">{leader.gymName}</h3>
                           <p className="text-white/60 text-xs truncate">{leader.name}</p>
                           {leader.specialty && (
@@ -996,8 +976,8 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
                           </div>
                           <button
                             onClick={() => handleChallengeLeader(leader)}
-                            className="w-full mt-2 py-1.5 rounded-lg font-black text-xs text-black transition-all active:scale-95"
-                            style={{ background: 'linear-gradient(to right, #eab308, #f97316)' }}
+                            className="w-full mt-2 py-1.5 rounded-lg font-black text-xs text-white transition-all active:scale-95"
+                            style={{ background: 'linear-gradient(to right, #7c3aed, #eab308)' }}
                           >
                             SFIDA!
                           </button>
