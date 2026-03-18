@@ -1330,7 +1330,9 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       style={
         location === 'hand'
           ? { transformOrigin: '50% 150%' }
-          : { willChange: 'transform' }
+          : location === 'field'
+            ? { willChange: 'transform' }
+            : undefined
       }
     >
       {/* Tilt wrapper: owns perspective + 3D tilt inline transform ONLY — never touched by Framer Motion */}
