@@ -1313,24 +1313,41 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       whileHover={location === 'hand' ? { y: -14, scale: 1.08 } : undefined}
       transition={
         isAttacking && location === 'field'
-          ? { duration: 0.16, times: [0, 0.3, 0.7, 1], ease: 'easeOut' }
+          ? { duration: 0.35, times: [0, 0.25, 0.75, 1], ease: [0.22, 1, 0.36, 1] }
           : location === 'hand'
             ? { type: 'spring', stiffness: 500, damping: 18 }
             : { type: 'spring', stiffness: 700, damping: 25 }
       }
-      style={location === 'hand' ? { transformOrigin: '50% 150%' } : undefined}
+      style={
+        location === 'hand'
+          ? { transformOrigin: '50% 150%' }
+          : { willChange: 'transform' }
+      }
     >
+      {/* Tilt wrapper: owns perspective + 3D tilt inline transform ONLY — never touched by Framer Motion */}
+      <div
+        style={{
+          perspective: location === 'field' ? '800px' : undefined,
+          transformStyle: location === 'field' ? 'preserve-3d' as any : undefined,
+          transform: location === 'field' && isHovered ? `rotateX(${cardTilt.rotateX}deg) rotateY(${cardTilt.rotateY}deg) scale3d(1.05, 1.05, 1.05)` : undefined,
+          transition: location === 'field' ? (isHovered ? 'transform 0.1s ease-out' : 'transform 0.4s ease-out') : undefined,
+        }}
+      >
     <div 
       ref={cardRef}
       onMouseMove={handleMouseMove3D}
-      className={`relative flex flex-col gap-2 ${location !== 'field' ? 'card-play-transition' : ''} card-3d-tilt ${damageFlash ? 'card-damage-flash' : ''} ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? getEntryAnimationClass() : ''} ${isPlayable ? 'card-playable-glow' : ''} ${getFieldBreathClass()} ${location === 'field' && !isNewlyPlaced && !isEliminated ? 'card-levitate-field' : ''}`}
+      className={`relative flex flex-col gap-2 ${location !== 'field' ? 'card-play-transition' : ''} card-3d-tilt ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? getEntryAnimationClass() : ''} ${isPlayable ? 'card-playable-glow' : ''} ${getFieldBreathClass()} ${location === 'field' && !isNewlyPlaced && !isEliminated ? 'card-levitate-field' : ''}`}
       style={{
-        perspective: location === 'field' ? '800px' : undefined,
-        transformStyle: location === 'field' ? 'preserve-3d' as any : undefined,
-        transform: location === 'field' && isHovered ? `rotateX(${cardTilt.rotateX}deg) rotateY(${cardTilt.rotateY}deg) scale3d(1.05, 1.05, 1.05)` : undefined,
-        transition: location === 'field' ? (isHovered ? 'transform 0.1s ease-out' : 'transform 0.4s ease-out') : undefined,
+        animationPlayState: (isAttacking || hitFlash || damageFlash) ? 'paused' : undefined,
       }}
     >
+      {/* Damage flash overlay: opacity + background only — no filter, no transform → GPU-compositor-safe */}
+      {damageFlash && (
+        <div
+          className="absolute inset-0 rounded-xl pointer-events-none z-[199]"
+          style={{ background: 'rgba(220, 50, 50, 0.6)', animation: 'card-damage-overlay 0.35s ease-out forwards' }}
+        />
+      )}
       {/* Floating Numbers */}
       {floatingNumbers.map(num => (
         <FloatingNumber
@@ -2597,6 +2614,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         .animate-common-glow { animation: common-glow 0.8s ease-in-out; }
       `}</style>
     </div>
+      </div>{/* /tilt wrapper */}
     </motion.div>
   );
 };

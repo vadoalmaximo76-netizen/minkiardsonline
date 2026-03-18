@@ -1628,6 +1628,16 @@ input:focus, select:focus {
   animation: card-hit-flash 0.06s ease-out forwards;
 }
 
+/* Damage flash overlay: opacity-only animation — no filter, no transform.
+   Used by the absolutely-positioned overlay div instead of card-damage-flash.
+   Compositor-safe: only opacity changes → zero paint, zero transform conflict. */
+@keyframes card-damage-overlay {
+  0%   { opacity: 0.8; }
+  25%  { opacity: 0.6; }
+  60%  { opacity: 0.45; }
+  100% { opacity: 0; }
+}
+
 /* 3D Attack lunge animation */
 @keyframes attack-lunge-3d {
   0% { transform: perspective(800px) translateY(0) translateZ(0) rotateX(0) scale(1); }
