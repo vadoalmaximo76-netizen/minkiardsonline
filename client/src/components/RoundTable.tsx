@@ -286,21 +286,45 @@ const RoundTableComponent: React.FC = () => {
 
   return (
     <div className="mb-4 md:mb-8">
+      <style>{`
+        @keyframes arena-badge-glow {
+          0%,100% { box-shadow: 0 0 10px 2px rgba(34,211,238,0.4), 0 0 20px 5px rgba(124,58,237,0.2); }
+          50% { box-shadow: 0 0 20px 6px rgba(34,211,238,0.7), 0 0 40px 12px rgba(124,58,237,0.4); }
+        }
+        @keyframes arena-player-pulse {
+          0%,100% { box-shadow: 0 0 8px 2px rgba(34,211,238,0.35); }
+          50% { box-shadow: 0 0 18px 6px rgba(34,211,238,0.65); }
+        }
+        @keyframes arena-overlay-pulse {
+          0%,100% { opacity: 0.55; }
+          50% { opacity: 0.45; }
+        }
+        .arena-badge-glow { animation: arena-badge-glow 2s ease-in-out infinite; }
+        .arena-player-pulse { animation: arena-player-pulse 2.5s ease-in-out infinite; }
+        .arena-overlay-pulse { animation: arena-overlay-pulse 4s ease-in-out infinite; }
+      `}</style>
       <div className="flex flex-wrap items-center justify-center gap-2 mb-2 landscape:mb-4 md:mb-4">
-        <h2 className="text-white font-bold text-lg landscape:text-2xl md:text-2xl text-center" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>TAVOLO DA GIOCO</h2>
+        <h2 className="font-black text-lg landscape:text-2xl md:text-2xl text-center tracking-wide" style={{
+          background: 'linear-gradient(to right, #22d3ee, #818cf8, #a78bfa)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          textShadow: 'none',
+          filter: 'drop-shadow(0 0 8px rgba(34,211,238,0.4))',
+        }}>TAVOLO DA GIOCO</h2>
         {currentTurnPlayer && (
-          <div className={`px-3 py-1 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-500 border ${
-            isMyTurn 
-              ? 'border-yellow-400/40 text-yellow-100 turn-indicator-mine' 
-              : 'border-blue-400/30 text-blue-100 turn-indicator-other'
-          }`} style={{
-            background: isMyTurn 
-              ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(234, 179, 8, 0.15) 100%)'
-              : 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%)',
-            backdropFilter: 'blur(12px)',
-            textShadow: isMyTurn ? '0 0 12px rgba(250, 204, 21, 0.5)' : '0 0 8px rgba(147, 197, 253, 0.4)',
-          }}>
-            {isMyTurn ? '👑 TOCCA A TE!' : `⏳ Turno di ${currentTurnPlayer}`}
+          <div
+            className={`px-3 py-1 rounded-2xl text-xs sm:text-sm font-black whitespace-nowrap transition-all duration-500 border ${isMyTurn ? 'arena-badge-glow' : ''}`}
+            style={{
+              background: isMyTurn
+                ? 'linear-gradient(135deg, rgba(34,211,238,0.22) 0%, rgba(124,58,237,0.18) 100%)'
+                : 'linear-gradient(135deg, rgba(99,102,241,0.18) 0%, rgba(124,58,237,0.12) 100%)',
+              borderColor: isMyTurn ? 'rgba(34,211,238,0.5)' : 'rgba(99,102,241,0.35)',
+              backdropFilter: 'blur(12px)',
+              color: isMyTurn ? '#a5f3fc' : '#c7d2fe',
+              textShadow: isMyTurn ? '0 0 12px rgba(34,211,238,0.7)' : '0 0 8px rgba(165,180,252,0.4)',
+            }}
+          >
+            {isMyTurn ? '⚡ TOCCA A TE!' : `⏳ Turno di ${currentTurnPlayer}`}
           </div>
         )}
       </div>
@@ -308,20 +332,25 @@ const RoundTableComponent: React.FC = () => {
       {/* Rectangular Table Container */}
       <div 
         data-tutorial="field"
-        className="relative w-[79vw] h-[88vh] landscape:w-[88vw] landscape:h-[88vh] sm:w-[84vw] sm:h-[84vh] md:w-[88vw] md:h-[88vh] lg:w-[91vw] lg:h-[88vh] xl:w-[91vw] xl:h-[91vh] max-w-[1488px] max-h-[1302px] min-w-[298px] min-h-[465px] mx-auto border-4 landscape:border-8 md:border-8 border-purple-500/30 game-field bg-no-repeat overflow-visible"
+        className="relative w-[79vw] h-[88vh] landscape:w-[88vw] landscape:h-[88vh] sm:w-[84vw] sm:h-[84vh] md:w-[88vw] md:h-[88vh] lg:w-[91vw] lg:h-[88vh] xl:w-[91vw] xl:h-[91vh] max-w-[1488px] max-h-[1302px] min-w-[298px] min-h-[465px] mx-auto game-field bg-no-repeat overflow-visible"
         style={{
           borderRadius: '24px',
           backgroundImage: `url('https://i.ibb.co/Y4bv4xwz/sfondo-minkiards.png')`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           touchAction: 'pan-y pinch-zoom',
-          boxShadow: '0 0 40px rgba(147, 51, 234, 0.4)'
+          border: '3px solid transparent',
+          backgroundClip: 'padding-box',
+          boxShadow: '0 0 0 3px rgba(34,211,238,0.25), 0 0 0 6px rgba(124,58,237,0.15), 0 0 60px rgba(124,58,237,0.35), inset 0 0 80px rgba(30,0,60,0.2)',
         }}
       >
-        {/* Black overlay with 20% opacity */}
-        <div 
-          className="absolute inset-0 bg-black opacity-40 rounded-lg"
-          style={{ borderRadius: '16px' }}
+        {/* Violet/blue gradient overlay */}
+        <div
+          className="absolute inset-0 arena-overlay-pulse"
+          style={{
+            borderRadius: '20px',
+            background: 'linear-gradient(180deg, rgba(30,0,60,0.42) 0%, rgba(14,8,50,0.38) 50%, rgba(30,0,60,0.45) 100%)',
+          }}
         />
         
         <AmbientParticles visible={true} />
@@ -334,7 +363,11 @@ const RoundTableComponent: React.FC = () => {
               <span>DRAFT — MAZZO PERSONALE</span>
             </div>
           )}
-          <div data-tutorial="decks" className={`grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-3 md:gap-4 items-start justify-center zone-decks rounded-lg sm:rounded-xl p-2 sm:p-3 md:p-4 backdrop-blur-sm ${isDraftMode ? 'ring-1 ring-teal-500/40' : ''}`}>
+          <div data-tutorial="decks" className={`grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-3 md:gap-4 items-start justify-center zone-decks rounded-xl sm:rounded-2xl p-2 sm:p-3 md:p-4 backdrop-blur-sm ${isDraftMode ? 'ring-1 ring-teal-500/40' : ''}`} style={{
+            background: 'linear-gradient(135deg, rgba(30,0,60,0.5) 0%, rgba(14,8,50,0.4) 100%)',
+            border: '1px solid rgba(34,211,238,0.2)',
+            boxShadow: '0 0 24px rgba(124,58,237,0.25), inset 0 0 20px rgba(34,211,238,0.05)',
+          }}>
             <Deck
               name="PERSONAGGI"
               backImage="https://i.imgur.com/r1rfUAB.png"
@@ -374,11 +407,39 @@ const RoundTableComponent: React.FC = () => {
                   top: `${Math.max(1, playerPosition.y - 6)}%`,
                 }}
               >
-                <span className={`${player === currentTurnPlayer ? 'bg-green-600/90 ring-2 ring-green-400 turn-glow-active' : 'bg-blue-800/80'} text-white font-bold px-2 py-1 rounded-full text-xs shadow-lg whitespace-nowrap inline-flex items-center gap-1`} style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${isPlayerOnline(player) ? 'bg-green-400' : 'bg-red-500'}`} />
+                <div
+                  className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-xl text-xs font-black whitespace-nowrap ${player === currentTurnPlayer ? 'arena-player-pulse' : ''}`}
+                  style={{
+                    background: player === currentTurnPlayer
+                      ? 'linear-gradient(135deg, rgba(34,211,238,0.28) 0%, rgba(124,58,237,0.22) 100%)'
+                      : 'linear-gradient(135deg, rgba(55,48,163,0.65) 0%, rgba(76,29,149,0.55) 100%)',
+                    border: player === currentTurnPlayer
+                      ? '1px solid rgba(34,211,238,0.55)'
+                      : '1px solid rgba(99,102,241,0.35)',
+                    backdropFilter: 'blur(10px)',
+                    color: player === currentTurnPlayer ? '#a5f3fc' : '#c7d2fe',
+                    textShadow: player === currentTurnPlayer ? '0 0 10px rgba(34,211,238,0.6)' : 'none',
+                  }}
+                >
+                  {/* Avatar circle with initial */}
+                  <span
+                    className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black shrink-0"
+                    style={{
+                      background: player === currentTurnPlayer
+                        ? 'linear-gradient(135deg, #22d3ee, #7c3aed)'
+                        : 'linear-gradient(135deg, #6366f1, #7c3aed)',
+                      color: '#fff',
+                      boxShadow: player === currentTurnPlayer ? '0 0 6px rgba(34,211,238,0.5)' : 'none',
+                    }}
+                  >
+                    {player[0]?.toUpperCase()}
+                  </span>
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isPlayerOnline(player) ? 'bg-emerald-400' : 'bg-red-500'}`} />
                   {player}
-                  {!isUnlimitedDeaths && <span className="text-[9px] opacity-80 ml-0.5">💀{getDeathCount(player)}/{getDeathLimit(player)}</span>}
-                </span>
+                  {!isUnlimitedDeaths && (
+                    <span className="text-[9px] opacity-80 ml-0.5">💀{getDeathCount(player)}/{getDeathLimit(player)}</span>
+                  )}
+                </div>
               </div>
               
               {/* Player's Cards positioned individually */}
@@ -441,7 +502,7 @@ const RoundTableComponent: React.FC = () => {
                     top: `${playerPosition.y + 8}%`,
                   }}
                 >
-                  <div className="text-white/60 text-xs italic" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                  <div className="text-indigo-300/60 text-xs italic">
                     Nessuna carta
                   </div>
                 </div>
@@ -454,10 +515,36 @@ const RoundTableComponent: React.FC = () => {
         {cardsByPlayer[playerName] && cardsByPlayer[playerName].length > 0 && (
           <>
             {/* Player Name at bottom */}
-            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
-              <span className={`${isMyTurn ? 'bg-green-500/90 ring-2 ring-green-400 turn-glow-active' : 'bg-yellow-600/80'} text-white font-bold px-2 py-1 rounded-full text-xs shadow-lg whitespace-nowrap`}>
-                {playerName} (Tu)
-              </span>
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20">
+              <div
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap ${isMyTurn ? 'arena-badge-glow' : ''}`}
+                style={{
+                  background: isMyTurn
+                    ? 'linear-gradient(135deg, rgba(34,211,238,0.30) 0%, rgba(124,58,237,0.24) 100%)'
+                    : 'linear-gradient(135deg, rgba(99,102,241,0.55) 0%, rgba(76,29,149,0.45) 100%)',
+                  border: isMyTurn
+                    ? '1px solid rgba(34,211,238,0.6)'
+                    : '1px solid rgba(99,102,241,0.4)',
+                  backdropFilter: 'blur(12px)',
+                  color: isMyTurn ? '#a5f3fc' : '#e0e7ff',
+                  textShadow: isMyTurn ? '0 0 12px rgba(34,211,238,0.7)' : 'none',
+                }}
+              >
+                <span
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0"
+                  style={{
+                    background: isMyTurn
+                      ? 'linear-gradient(135deg, #22d3ee, #7c3aed)'
+                      : 'linear-gradient(135deg, #6366f1, #7c3aed)',
+                    color: '#fff',
+                    boxShadow: isMyTurn ? '0 0 8px rgba(34,211,238,0.6)' : 'none',
+                  }}
+                >
+                  {playerName[0]?.toUpperCase()}
+                </span>
+                {playerName}
+                <span className="text-[10px] opacity-70">(Tu)</span>
+              </div>
             </div>
             
             {/* Current player's cards positioned individually */}
@@ -556,8 +643,17 @@ const RoundTableComponent: React.FC = () => {
 
       {/* CARTE IN CAMPO section for all players */}
       <div className="mt-4 md:mt-8">
-        <h3 className="text-white font-bold text-lg md:text-xl mb-2 md:mb-4 text-center" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>CARTE IN CAMPO</h3>
-        <div className="bg-blue-800/30 rounded-lg p-2 md:p-4 zone-field">
+        <h3 className="font-black text-lg md:text-xl mb-2 md:mb-4 text-center tracking-wide" style={{
+          background: 'linear-gradient(to right, #22d3ee, #818cf8, #a78bfa)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          filter: 'drop-shadow(0 0 6px rgba(34,211,238,0.3))',
+        }}>CARTE IN CAMPO</h3>
+        <div className="rounded-xl p-2 md:p-4 zone-field" style={{
+          background: 'linear-gradient(135deg, rgba(30,0,60,0.55) 0%, rgba(14,8,50,0.45) 100%)',
+          border: '1px solid rgba(99,102,241,0.25)',
+          boxShadow: '0 0 20px rgba(124,58,237,0.15), inset 0 0 20px rgba(34,211,238,0.04)',
+        }}>
           {allPlayerNames.length > 0 ? (
             (() => {
               // Reorder players to put current player first
@@ -573,16 +669,39 @@ const RoundTableComponent: React.FC = () => {
                 return (
                 <div key={player} className="mb-3 md:mb-4 last:mb-0">
                   <div className="flex items-center justify-between mb-1 md:mb-2">
-                    <h4 className={`font-semibold text-sm md:text-base ${player === currentTurnPlayer ? 'text-green-400 turn-text-glow' : isCurrentPlayer ? 'text-yellow-400' : 'text-white'} flex items-center gap-1.5`} style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
-                      {!isCurrentPlayer && <span className={`w-2 h-2 rounded-full shrink-0 ${isPlayerOnline(player) ? 'bg-green-400' : 'bg-red-500'}`} />}
-                      {player} {isCurrentPlayer && '(Tu)'}{player === currentTurnPlayer && <span className="ml-1 text-xs">🟢</span>}
-                      {!isUnlimitedDeaths && (
-                        <span className={`text-[10px] font-normal ml-1 ${getDeathCount(player) >= getDeathLimit(player) ? 'text-red-400' : 'text-gray-400'}`}>
-                          💀{getDeathCount(player)}/{getDeathLimit(player)}
-                        </span>
-                      )}
-                    </h4>
-                    <span className="text-white/60 text-xs md:text-sm" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                    <div className="inline-flex items-center gap-1.5">
+                      <span
+                        className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black shrink-0"
+                        style={{
+                          background: player === currentTurnPlayer
+                            ? 'linear-gradient(135deg, #22d3ee, #7c3aed)'
+                            : isCurrentPlayer
+                              ? 'linear-gradient(135deg, #818cf8, #7c3aed)'
+                              : 'linear-gradient(135deg, #6366f1, #4c1d95)',
+                          color: '#fff',
+                          boxShadow: player === currentTurnPlayer ? '0 0 6px rgba(34,211,238,0.5)' : 'none',
+                        }}
+                      >
+                        {player[0]?.toUpperCase()}
+                      </span>
+                      <h4
+                        className="font-black text-sm md:text-base flex items-center gap-1.5"
+                        style={{
+                          color: player === currentTurnPlayer ? '#a5f3fc' : isCurrentPlayer ? '#c7d2fe' : '#e0e7ff',
+                          textShadow: player === currentTurnPlayer ? '0 0 10px rgba(34,211,238,0.5)' : 'none',
+                        }}
+                      >
+                        {player} {isCurrentPlayer && <span className="text-[10px] opacity-70">(Tu)</span>}
+                        {player === currentTurnPlayer && <span className="text-[10px] text-cyan-300">⚡</span>}
+                        {!isUnlimitedDeaths && (
+                          <span className={`text-[10px] font-normal ${getDeathCount(player) >= getDeathLimit(player) ? 'text-red-400' : 'text-indigo-400'}`}>
+                            💀{getDeathCount(player)}/{getDeathLimit(player)}
+                          </span>
+                        )}
+                      </h4>
+                      {!isCurrentPlayer && <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isPlayerOnline(player) ? 'bg-emerald-400' : 'bg-red-500'}`} />}
+                    </div>
+                    <span className="text-indigo-300/70 text-xs md:text-sm font-medium">
                       {playerCards.length} carte
                     </span>
                   </div>
@@ -671,7 +790,7 @@ const RoundTableComponent: React.FC = () => {
                       );
                       })
                     ) : (
-                      <p className="text-white/60 italic col-span-full">Nessuna carta in campo</p>
+                      <p className="text-indigo-300/60 italic col-span-full">Nessuna carta in campo</p>
                     )}
                   </div>
                 </div>
@@ -679,7 +798,7 @@ const RoundTableComponent: React.FC = () => {
             });
             })()
           ) : (
-            <p className="text-white/60 italic text-center">Nessun giocatore</p>
+            <p className="text-indigo-300/60 italic text-center">Nessun giocatore</p>
           )}
         </div>
       </div>
