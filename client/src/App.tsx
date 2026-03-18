@@ -317,7 +317,8 @@ function App() {
             
             // Check if server has an active game for this player (after server restart)
             // SECURITY: Send auth token, server will resolve player identity
-            socket.emit('check-active-game', { authToken });
+            // Also send the last known gameId so the server can prefer the correct game
+            socket.emit('check-active-game', { authToken, lastGameId: localStorage.getItem('mink_lastGameId') || undefined });
             
             setPlayerName(data.user.username);
             setPendingAvatar(data.user.avatar);
@@ -380,6 +381,13 @@ function App() {
       socket.disconnect();
     };
   }, [setGameId, hasActiveSession, restoreSession, setPlayerName, generateSessionId]);
+
+  // Persist the last active gameId in localStorage so reconnection returns to the correct game
+  useEffect(() => {
+    if (gameId) {
+      localStorage.setItem('mink_lastGameId', gameId);
+    }
+  }, [gameId]);
 
   useEffect(() => {
     (window as any).__minkAppSection = currentSection;

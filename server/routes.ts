@@ -1219,7 +1219,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Check if player has an active game to reconnect to (after server restart)
     // SECURITY: Only returns active game for authenticated user via JWT validation
-    socket.on('check-active-game', async ({ authToken }) => {
+    socket.on('check-active-game', async ({ authToken, lastGameId }: { authToken: string; lastGameId?: string }) => {
       if (!authToken) {
         socket.emit('no-active-game');
         return;
@@ -1246,7 +1246,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         const playerName = userRecord[0].username;
-        const activeGame = gameManager.getActiveGameByPlayerName(playerName);
+        // Pass lastGameId hint so the server prefers the game the client was last in
+        const activeGame = gameManager.getActiveGameByPlayerName(playerName, lastGameId);
         
         if (activeGame) {
           console.log(`🔄 Authenticated player ${playerName} has active game ${activeGame.gameId} with ${activeGame.handCount} cards in hand`);

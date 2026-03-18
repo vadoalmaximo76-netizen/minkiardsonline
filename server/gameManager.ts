@@ -2965,20 +2965,39 @@ Rispondi SOLO in JSON:`;
   }
 
   // Get active game ID for a player by their name (used for reconnection after server restart)
-  getActiveGameByPlayerName(playerName: string): { gameId: string; handCount: number } | null {
+  getActiveGameByPlayerName(playerName: string, preferredGameId?: string): { gameId: string; handCount: number } | null {
     const gamesArray = Array.from(this.games.entries());
-    for (let i = 0; i < gamesArray.length; i++) {
-      const [gameId, game] = gamesArray[i];
+
+    // If client tells us which game it was in, check that first
+    if (preferredGameId) {
+      const preferred = this.games.get(preferredGameId);
+      if (preferred && !preferred.gameEnded && preferred.players[playerName]) {
+        return { gameId: preferredGameId, handCount: preferred.players[playerName].hand.length };
+      }
+    }
+
+    // Collect all candidate games for this player
+    const candidates: Array<{ gameId: string; game: GameState; handCount: number }> = [];
+    for (const [gameId, game] of gamesArray) {
       if (game.gameEnded) continue;
       const player = game.players[playerName];
       if (player) {
-        return { 
-          gameId, 
-          handCount: player.hand.length 
-        };
+        candidates.push({ gameId, game, handCount: player.hand.length });
       }
     }
-    return null;
+
+    if (candidates.length === 0) return null;
+    if (candidates.length === 1) return { gameId: candidates[0].gameId, handCount: candidates[0].handCount };
+
+    // Prefer: (1) games that are actively playing, (2) more cards in hand, (3) insertion order
+    candidates.sort((a, b) => {
+      const aPlaying = a.game.isPlaying ? 1 : 0;
+      const bPlaying = b.game.isPlaying ? 1 : 0;
+      if (bPlaying !== aPlaying) return bPlaying - aPlaying;
+      return b.handCount - a.handCount;
+    });
+
+    return { gameId: candidates[0].gameId, handCount: candidates[0].handCount };
   }
 
   // Clean up old socket mappings when player reconnects
