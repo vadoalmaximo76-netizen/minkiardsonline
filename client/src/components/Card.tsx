@@ -10,6 +10,7 @@ import { Input } from "./ui/input";
 import { FloatingNumber } from "./FloatingNumber";
 import { getOptimizedUrl, onCloudNameReady, getCloudinaryCloudName } from "../lib/imagePreloader";
 import { SkinSelectionPanel } from "./SkinSelectionPanel";
+import { motion } from "framer-motion";
 
 let _cardIdCounter = 0;
 
@@ -1285,10 +1286,25 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   }, [location]);
 
   return (
+    <motion.div
+      initial={isNewlyPlaced && location === 'field' ? { scale: 0.85 } : false}
+      animate={
+        isAttacking && location === 'field'
+          ? { scale: [1, 1.12, 0.95, 1.0], y: [0, -6, 0, 0] }
+          : isNewlyPlaced && location === 'field'
+            ? { scale: [0.85, 1.05, 1.0] }
+            : {}
+      }
+      transition={
+        isAttacking && location === 'field'
+          ? { duration: 0.16, times: [0, 0.3, 0.7, 1], ease: 'easeOut' }
+          : { type: 'spring', stiffness: 700, damping: 25 }
+      }
+    >
     <div 
       ref={cardRef}
       onMouseMove={handleMouseMove3D}
-      className={`relative flex flex-col gap-2 card-play-transition card-3d-tilt ${damageFlash ? 'card-damage-flash' : ''} ${isAttacking && location === 'field' ? 'card-attack-lunge' : ''} ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? getEntryAnimationClass() : ''} ${isPlayable ? 'card-playable-glow' : ''} ${getFieldBreathClass()} ${location === 'field' && !isNewlyPlaced && !isEliminated ? 'card-levitate-field' : ''}`}
+      className={`relative flex flex-col gap-2 card-play-transition card-3d-tilt ${damageFlash ? 'card-damage-flash' : ''} ${powerEffect === 'up' ? 'animate-power-up' : powerEffect === 'down' ? 'animate-power-down' : ''} ${getStatGlowClass()} ${isNewlyPlaced && location === 'field' ? getEntryAnimationClass() : ''} ${isPlayable ? 'card-playable-glow' : ''} ${getFieldBreathClass()} ${location === 'field' && !isNewlyPlaced && !isEliminated ? 'card-levitate-field' : ''}`}
       style={{
         perspective: location === 'field' ? '800px' : undefined,
         transformStyle: location === 'field' ? 'preserve-3d' as any : undefined,
@@ -2557,6 +2573,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         .animate-common-glow { animation: common-glow 0.8s ease-in-out; }
       `}</style>
     </div>
+    </motion.div>
   );
 };
 

@@ -30,25 +30,43 @@ interface RecursiveDamageEvent {
   steps: DamageStep[];
 }
 
+interface ShowDamage {
+  target: 'attacker' | 'defender';
+  value: number;
+  stepObj: DamageStep;
+}
+
+// Damage display framer-motion variants
+const damageVariants = {
+  hidden: { opacity: 0, scale: 2, y: -20 },
+  visible: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.1 } },
+  exit: { opacity: 0, scale: 0.5, transition: { duration: 0.08 } },
+};
+
 export const RecursiveDamagePanel: React.FC = () => {
   const [event, setEvent] = useState<RecursiveDamageEvent | null>(null);
   const [currentStep, setCurrentStep] = useState<number>(-1);
   const [attackerPTI, setAttackerPTI] = useState<number>(0);
   const [defenderPTI, setDefenderPTI] = useState<number>(0);
-  const [showDamage, setShowDamage] = useState<{ target: 'attacker' | 'defender'; value: number } | null>(null);
+  const [showDamage, setShowDamage] = useState<ShowDamage | null>(null);
   const [ballPosition, setBallPosition] = useState<'center' | 'attacker' | 'defender'>('center');
-  const { playBattleMusic, stopBattleMusic, playTennisHit, playSempafaagaraHit } = useAudio();
+  const { playBattleMusic, playTennisHit, playSempafaagaraHit } = useAudio();
   const battleMusicRef = useRef<{ stop: () => void } | null>(null);
 
+  // Refs for declarative step orchestration
+  const stepIndexRef = useRef(0);
+  const cancelledRef = useRef(false);
+  const activeStepRef = useRef<ShowDamage | null>(null);
+  const exitProcessedRef = useRef(-1); // guard: only process exit once per step index
+
   useEffect(() => {
-    return () => {
-      battleMusicRef.current?.stop();
-    };
+    return () => { battleMusicRef.current?.stop(); };
   }, []);
 
   useEffect(() => {
     const handleRecursiveDamage = (data: RecursiveDamageEvent) => {
       console.log('🎮 RECURSIVE DAMAGE EVENT:', data);
+      cancelledRef.current = true; // cancel any previous sequence
       setEvent(data);
       setCurrentStep(-1);
       setAttackerPTI(data.attackerCard.initialPTI);
@@ -57,83 +75,66 @@ export const RecursiveDamagePanel: React.FC = () => {
       setBallPosition('center');
       battleMusicRef.current = playBattleMusic();
     };
-
     socket.on('recursive-damage-animation', handleRecursiveDamage);
-
-    return () => {
-      socket.off('recursive-damage-animation', handleRecursiveDamage);
-    };
+    return () => { socket.off('recursive-damage-animation', handleRecursiveDamage); };
   }, []);
 
+  // Start step sequence when event is set (replaces old setTimeout cascade)
   useEffect(() => {
     if (!event) return;
-    
-    let stepIndex = 0;
-    let cancelled = false;
-    
-    const runStep = () => {
-      if (cancelled || stepIndex >= event.steps.length) {
-        if (!cancelled) {
-          setTimeout(() => {
-            battleMusicRef.current?.stop();
-            setEvent(null);
-            setCurrentStep(-1);
-          }, 800);
-        }
-        return;
-      }
-      
-      const step = event.steps[stepIndex];
-      
-      if (event.type === 'PARTITA_DI_TENNIS') {
-        setBallPosition(step.target);
-      }
-      
-      setShowDamage({ target: step.target, value: step.damage });
-      if (event.type === 'PARTITA_DI_TENNIS') {
-        playTennisHit();
-      } else {
-        playSempafaagaraHit();
-      }
-      
-      setTimeout(() => {
-        if (cancelled) return;
-        
-        if (step.target === 'attacker') {
-          setAttackerPTI(step.newPTI);
-        } else {
-          setDefenderPTI(step.newPTI);
-        }
-        setCurrentStep(stepIndex);
-        
-        setTimeout(() => {
-          if (cancelled) return;
-          
-          setShowDamage(null);
-          
-          if (step.eliminated) {
-            setTimeout(() => {
-              if (!cancelled) {
-                battleMusicRef.current?.stop();
-                setEvent(null);
-                setCurrentStep(-1);
-              }
-            }, 800);
-          } else {
-            stepIndex++;
-            setTimeout(runStep, 180);
-          }
-        }, 80);
-      }, 120);
-    };
-    
-    const startTimer = setTimeout(runStep, 200);
-    
-    return () => {
-      cancelled = true;
-      clearTimeout(startTimer);
-    };
+    stepIndexRef.current = 0;
+    cancelledRef.current = false;
+    exitProcessedRef.current = -1;
+    const timer = setTimeout(() => advanceStep(event), 200);
+    return () => { cancelledRef.current = true; clearTimeout(timer); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event]);
+
+  // Present the current step's damage display
+  const advanceStep = (ev: RecursiveDamageEvent) => {
+    if (cancelledRef.current) return;
+    const idx = stepIndexRef.current;
+    if (idx >= ev.steps.length) {
+      setTimeout(() => {
+        if (!cancelledRef.current) { battleMusicRef.current?.stop(); setEvent(null); setCurrentStep(-1); }
+      }, 800);
+      return;
+    }
+    const step = ev.steps[idx];
+    if (ev.type === 'PARTITA_DI_TENNIS') setBallPosition(step.target);
+    const sd: ShowDamage = { target: step.target, value: step.damage, stepObj: step };
+    activeStepRef.current = sd;
+    setShowDamage(sd);
+    if (ev.type === 'PARTITA_DI_TENNIS') playTennisHit(); else playSempafaagaraHit();
+  };
+
+  // Called by motion.div onAnimationComplete (enter phase) — update PTI, then hide
+  const onDamageEnterComplete = () => {
+    if (cancelledRef.current || !activeStepRef.current) return;
+    const step = activeStepRef.current.stepObj;
+    if (step.target === 'attacker') setAttackerPTI(step.newPTI);
+    else setDefenderPTI(step.newPTI);
+    setCurrentStep(stepIndexRef.current);
+    // Hide the damage display after a brief pause — triggers exit animation
+    setTimeout(() => { if (!cancelledRef.current) setShowDamage(null); }, 80);
+  };
+
+  // Called by AnimatePresence onExitComplete — advance to next step or close
+  const onDamageExitComplete = () => {
+    if (cancelledRef.current || !event) return;
+    // Guard: only process once per step
+    if (exitProcessedRef.current === stepIndexRef.current) return;
+    exitProcessedRef.current = stepIndexRef.current;
+    const step = event.steps[stepIndexRef.current];
+    if (step?.eliminated) {
+      setTimeout(() => {
+        if (!cancelledRef.current) { battleMusicRef.current?.stop(); setEvent(null); setCurrentStep(-1); }
+      }, 800);
+    } else {
+      stepIndexRef.current++;
+      setTimeout(() => advanceStep(event), 100);
+    }
+  };
 
   if (!event) return null;
 
@@ -204,12 +205,15 @@ export const RecursiveDamagePanel: React.FC = () => {
                   alt={event.attackerCard.name}
                   className={`w-48 h-auto rounded-lg shadow-xl border-4 ${isAttackerEliminated ? 'border-red-600 grayscale' : isTennis ? 'border-white' : 'border-blue-500'}`}
                 />
-                <AnimatePresence>
+                <AnimatePresence onExitComplete={onDamageExitComplete}>
                   {showDamage?.target === 'attacker' && (
                     <motion.div
-                      initial={{ opacity: 0, scale: 2, y: -20 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.5 }}
+                      key={`atk-${stepIndexRef.current}`}
+                      variants={damageVariants}
+                      initial="hidden"
+                      animate="visible"
+                      exit="exit"
+                      onAnimationComplete={(def) => { if (def === 'visible') onDamageEnterComplete(); }}
                       className="absolute inset-0 flex items-center justify-center"
                     >
                       <span className="text-6xl font-bold text-red-500 drop-shadow-lg">
@@ -300,12 +304,15 @@ export const RecursiveDamagePanel: React.FC = () => {
                   alt={event.defenderCard.name}
                   className={`w-48 h-auto rounded-lg shadow-xl border-4 ${isDefenderEliminated ? 'border-red-600 grayscale' : isTennis ? 'border-white' : 'border-red-500'}`}
                 />
-                <AnimatePresence>
+                <AnimatePresence onExitComplete={onDamageExitComplete}>
                   {showDamage?.target === 'defender' && (
                     <motion.div
-                      initial={{ opacity: 0, scale: 2, y: -20 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.5 }}
+                      key={`def-${stepIndexRef.current}`}
+                      variants={damageVariants}
+                      initial="hidden"
+                      animate="visible"
+                      exit="exit"
+                      onAnimationComplete={(def) => { if (def === 'visible') onDamageEnterComplete(); }}
                       className="absolute inset-0 flex items-center justify-center"
                     >
                       <span className="text-6xl font-bold text-red-500 drop-shadow-lg">

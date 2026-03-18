@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Deck } from "./Deck";
 import { PlayerHand } from "./PlayerHand";
 import { OtherPlayersHands } from "./OtherPlayersHands";
@@ -3908,7 +3909,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           </div>
         </div>
 
+        <AnimatePresence mode="wait">
         {!(gameState as any)?.isPlaying && gameState?.players && !gameId?.startsWith('tournament-') && !(gameState as any)?.fantaTournamentId && !gameId?.startsWith('gym-') ? (
+          <motion.div
+            key="pre-game-lobby"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.2 }}
+          >
           <PreGameLobbyPanel
             gameId={gameId}
             playerName={playerName}
@@ -3921,7 +3930,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             roomCode={gameId?.replace('room-', '') || ''}
             isStartingGame={isStartingGame}
           />
+          </motion.div>
         ) : (
+        <motion.div
+          key="game-board"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.25 }}
+        >
         <>
         {/* Player Hand */}
         <PlayerHand />
@@ -3950,7 +3966,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           </>
         )}
         </>
+        </motion.div>
         )}
+        </AnimatePresence>
 
         {/* Graveyard Modal */}
         {graveyardOpen && (
