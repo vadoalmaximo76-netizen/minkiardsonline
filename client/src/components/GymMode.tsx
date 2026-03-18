@@ -259,6 +259,9 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
     battleStartingRef.current = true;
     setPendingBattle(null);
 
+    // Clear previous game state so GameBoard doesn't flash old data
+    reset();
+
     // Decrement injury counters: the player is now starting their "next game",
     // so injured characters from last game recover after this one
     if (authToken) {
@@ -305,7 +308,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
 
     pauseHomeMusic();
     setPhase('battle');
-  }, [playerName, avatarId, userId, setGameId, setPlayerName, generateSessionId, authToken]);
+  }, [playerName, avatarId, userId, setGameId, setPlayerName, generateSessionId, authToken, reset]);
 
   const handleBackFromBattle = () => {
     if (gameId) {
@@ -645,7 +648,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
             const nonPersonaggi = pendingBattle.deckIds.filter(id => !id.startsWith('personaggi'));
             doStartBattle(pendingBattle.leader, [...availableIds, ...nonPersonaggi]);
           }}
-          onCancel={() => setPendingBattle(null)}
+          onCancel={() => { setPendingBattle(null); battleStartingRef.current = false; }}
         />
       );
     }
@@ -756,7 +759,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
             const nonPersonaggi = pendingBattle.deckIds.filter(id => !id.startsWith('personaggi'));
             doStartBattle(pendingBattle.leader, [...availableIds, ...nonPersonaggi]);
           }}
-          onCancel={() => setPendingBattle(null)}
+          onCancel={() => { setPendingBattle(null); battleStartingRef.current = false; }}
         />
       )}
       <div className="flex-shrink-0 flex items-center gap-4 px-4 pt-safe py-4 border-b border-white/10 bg-black/30 backdrop-blur-sm">

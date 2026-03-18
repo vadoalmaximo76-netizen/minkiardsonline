@@ -1,5 +1,16 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 
+/**
+ * Draft card IDs have format: "personaggi-5-abc123"
+ * Base card IDs (as stored in injured_personaggi) have format: "personaggi-5"
+ * This function extracts the base ID from a draft ID.
+ */
+function extractBaseId(cardId: string): string {
+  // Match pattern: prefix-number-randomSuffix  (e.g. "personaggi-5-abc123" → "personaggi-5")
+  const match = cardId.match(/^(.+?-\d+)-[a-z0-9]{4,}$/i);
+  return match ? match[1] : cardId;
+}
+
 export interface InjuredCard {
   cardId: string;
   name: string;
@@ -44,8 +55,12 @@ export function InjuredPersonaggiDisclaimer({
       if (data.success) {
         let list: InjuredCard[] = data.injured || [];
         if (relevantCardIds && relevantCardIds.length > 0) {
-          const relevant = new Set(relevantCardIds);
-          list = list.filter(c => relevant.has(c.cardId));
+          // relevantCardIds may contain draft IDs (e.g. "personaggi-5-abc123")
+          // injuries are stored with base IDs (e.g. "personaggi-5")
+          // so we match exactly OR by prefix (extractBaseId)
+          const relevantExact = new Set(relevantCardIds);
+          const relevantBases = new Set(relevantCardIds.map(extractBaseId));
+          list = list.filter(c => relevantExact.has(c.cardId) || relevantBases.has(c.cardId));
         }
         setInjured(list);
       }
@@ -103,9 +118,15 @@ export function InjuredPersonaggiDisclaimer({
   const handleConfirm = () => {
     if (confirmedRef.current) return;
     confirmedRef.current = true;
-    const injuredIds = new Set(injured.map(c => c.cardId));
+    // injured.cardId are base IDs (e.g. "personaggi-5")
+    // relevantCardIds may be draft IDs (e.g. "personaggi-5-abc123")
+    // Exclude a card if its base ID (or exact ID) is in the injured set
+    const injuredBaseIds = new Set(injured.map(c => c.cardId));
     const available = relevantCardIds
-      ? relevantCardIds.filter(id => !injuredIds.has(id))
+      ? relevantCardIds.filter(id => {
+          const base = extractBaseId(id);
+          return !injuredBaseIds.has(id) && !injuredBaseIds.has(base);
+        })
       : [];
     onConfirm(available);
   };
