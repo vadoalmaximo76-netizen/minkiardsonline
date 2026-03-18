@@ -254,6 +254,15 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
   const doStartBattle = useCallback((leader: GymLeader, filteredDeckIds: string[]) => {
     setPendingBattle(null);
 
+    // Decrement injury counters: the player is now starting their "next game",
+    // so injured characters from last game recover after this one
+    if (authToken) {
+      fetch('/api/decrement-injured-personaggi', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}` },
+      }).catch(() => {});
+    }
+
     const newGameId = `gym-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     setGameIdLocal(newGameId);
     gameIdRef.current = newGameId;
@@ -291,7 +300,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
 
     pauseHomeMusic();
     setPhase('battle');
-  }, [playerName, avatarId, userId, setGameId, setPlayerName, generateSessionId]);
+  }, [playerName, avatarId, userId, setGameId, setPlayerName, generateSessionId, authToken]);
 
   const handleBackFromBattle = () => {
     if (gameId) {
@@ -619,6 +628,22 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
   }
 
   if (phase === 'intro' && selectedLeader) {
+    // If pendingBattle is set (user pressed SFIDA from intro), show disclaimer as full overlay
+    if (pendingBattle) {
+      return (
+        <InjuredPersonaggiDisclaimer
+          authToken={authToken || ''}
+          relevantCardIds={pendingBattle.deckIds.filter(id => id.startsWith('personaggi'))}
+          userCredits={userCredits}
+          onCreditsUpdated={setUserCredits}
+          onConfirm={(availableIds) => {
+            const nonPersonaggi = pendingBattle.deckIds.filter(id => !id.startsWith('personaggi'));
+            doStartBattle(pendingBattle.leader, [...availableIds, ...nonPersonaggi]);
+          }}
+          onCancel={() => setPendingBattle(null)}
+        />
+      );
+    }
     return (
       <div
         className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -715,9 +740,9 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'linear-gradient(180deg, #03050d 0%, #070b1a 40%, #0a1028 100%)' }}>
       {/* Injured Personaggi Disclaimer — shown before battle starts */}
-      {pendingBattle && authToken && (
+      {pendingBattle && (
         <InjuredPersonaggiDisclaimer
-          authToken={authToken}
+          authToken={authToken || ''}
           relevantCardIds={pendingBattle.deckIds.filter(id => id.startsWith('personaggi'))}
           userCredits={userCredits}
           onCreditsUpdated={setUserCredits}

@@ -1858,6 +1858,13 @@ export function FantaMinkiardsSection({ playerName, authToken, isAdmin, initialF
           userCredits={fantaUserCredits}
           onCreditsUpdated={setFantaUserCredits}
           onConfirm={() => {
+            // Decrement injury counters: next game is starting
+            if (authToken) {
+              fetch('/api/decrement-injured-personaggi', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${authToken}` },
+              }).catch(() => {});
+            }
             socket.emit('fanta:start-fanta-match', {
               fantaId,
               playerName,

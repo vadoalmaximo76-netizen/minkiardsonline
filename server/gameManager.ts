@@ -2260,8 +2260,8 @@ Rispondi SOLO in JSON:`;
         const playerId = game.playerUserIds.get(player);
         if (playerId) {
           awardSeasonPassXP(playerId, 100).catch(() => {});
-          // Injured Personaggi: decrement recovery counters after each game
-          this.decrementPersonaggioInjuries(playerId).catch(() => {});
+          // NOTE: Injured Personaggi decrements happen when the NEXT game starts (via /api/decrement-injured-personaggi),
+          // NOT at the end of this game — so characters remain unavailable for the next game.
         }
       }
       if (winnerPlayer && !game.players[winnerPlayer]?.isCPU) {

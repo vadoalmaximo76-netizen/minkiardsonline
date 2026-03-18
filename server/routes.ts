@@ -10728,6 +10728,20 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
     }
   });
 
+  // Decrement injury counters when a new game is about to start (called from client before battle)
+  app.post('/api/decrement-injured-personaggi', authMiddleware, async (req, res) => {
+    try {
+      if (!isDatabaseAvailable()) return res.json({ success: true });
+      const user = (req as any).user;
+      if (!user?.userId) return res.status(401).json({ success: false, error: 'Autenticazione richiesta' });
+      await gameManager.decrementPersonaggioInjuries(user.userId);
+      res.json({ success: true });
+    } catch (e) {
+      console.error('Error decrementing injured personaggi:', e);
+      res.status(500).json({ success: false, error: 'Errore server' });
+    }
+  });
+
   // Pay 50 puntiRankiard to immediately revive an injured personaggio
   app.post('/api/revive-personaggio', authMiddleware, async (req, res) => {
     const REVIVE_COST = 50;
