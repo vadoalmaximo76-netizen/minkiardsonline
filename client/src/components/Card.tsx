@@ -1298,6 +1298,15 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     ? ((cardIdx - (totalCards - 1) / 2) / Math.max(totalCards - 1, 1)) * 16
     : 0;
 
+  const tiltWrapperStyle: React.CSSProperties = location === 'field' ? {
+    perspective: '800px',
+    transformStyle: 'preserve-3d',
+    transform: isHovered
+      ? `rotateX(${cardTilt.rotateX}deg) rotateY(${cardTilt.rotateY}deg) scale3d(1.05, 1.05, 1.05)`
+      : undefined,
+    transition: isHovered ? 'transform 0.1s ease-out' : 'transform 0.4s ease-out',
+  } : {};
+
   return (
     <motion.div
       initial={isNewlyPlaced && location === 'field' ? { scale: 0.85 } : false}
@@ -1313,7 +1322,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       whileHover={location === 'hand' ? { y: -14, scale: 1.08 } : undefined}
       transition={
         isAttacking && location === 'field'
-          ? { duration: 0.35, times: [0, 0.25, 0.75, 1], ease: [0.22, 1, 0.36, 1] }
+          ? { type: 'spring', stiffness: 400, damping: 20 }
           : location === 'hand'
             ? { type: 'spring', stiffness: 500, damping: 18 }
             : { type: 'spring', stiffness: 700, damping: 25 }
@@ -1325,14 +1334,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       }
     >
       {/* Tilt wrapper: owns perspective + 3D tilt inline transform ONLY — never touched by Framer Motion */}
-      <div
-        style={{
-          perspective: location === 'field' ? '800px' : undefined,
-          transformStyle: location === 'field' ? 'preserve-3d' as any : undefined,
-          transform: location === 'field' && isHovered ? `rotateX(${cardTilt.rotateX}deg) rotateY(${cardTilt.rotateY}deg) scale3d(1.05, 1.05, 1.05)` : undefined,
-          transition: location === 'field' ? (isHovered ? 'transform 0.1s ease-out' : 'transform 0.4s ease-out') : undefined,
-        }}
-      >
+      <div style={tiltWrapperStyle}>
     <div 
       ref={cardRef}
       onMouseMove={handleMouseMove3D}
