@@ -84,7 +84,7 @@ const RoundTableComponent: React.FC = () => {
     return acc;
   }, {} as Record<string, typeof fieldCards>);
 
-  // Determine player order for positioning around the table
+  // Determine player order for positioning around the table (current player is always at bottom)
   const getOrderedPlayers = () => {
     let orderedList;
     if (turnOrder.length > 0) {
@@ -286,19 +286,33 @@ const RoundTableComponent: React.FC = () => {
 
   return (
     <div className="mb-4 md:mb-8">
-      <div className="flex flex-wrap items-center justify-center gap-2 mb-2 landscape:mb-4 md:mb-4">
-        <h2 className="text-white font-bold text-lg landscape:text-2xl md:text-2xl text-center" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>TAVOLO DA GIOCO</h2>
+      {/* Premium Header with Turn Indicator */}
+      <div className="flex flex-wrap items-center justify-center gap-3 mb-3 landscape:mb-4 md:mb-4">
+        <h2 className="text-white font-black text-xl landscape:text-2xl md:text-2xl text-center tracking-widest"
+          style={{
+            textShadow: '0 0 20px rgba(168,85,247,0.6), 2px 2px 4px rgba(0,0,0,0.9)',
+            background: 'linear-gradient(135deg, #e879f9 0%, #c084fc 40%, #f59e0b 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+          }}>
+          TAVOLO DA GIOCO
+        </h2>
         {currentTurnPlayer && (
-          <div className={`px-3 py-1 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-500 border ${
+          <div className={`px-4 py-1.5 rounded-2xl text-xs sm:text-sm font-black whitespace-nowrap transition-all duration-500 border-2 ${
             isMyTurn 
-              ? 'border-yellow-400/40 text-yellow-100 turn-indicator-mine' 
-              : 'border-blue-400/30 text-blue-100 turn-indicator-other'
+              ? 'border-yellow-400 text-yellow-100 animate-pulse' 
+              : 'border-blue-400/50 text-blue-100'
           }`} style={{
             background: isMyTurn 
-              ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(234, 179, 8, 0.15) 100%)'
-              : 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%)',
+              ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.4) 0%, rgba(251, 191, 36, 0.25) 100%)'
+              : 'linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(139, 92, 246, 0.2) 100%)',
             backdropFilter: 'blur(12px)',
-            textShadow: isMyTurn ? '0 0 12px rgba(250, 204, 21, 0.5)' : '0 0 8px rgba(147, 197, 253, 0.4)',
+            boxShadow: isMyTurn
+              ? '0 0 20px rgba(250, 204, 21, 0.5), 0 0 40px rgba(250, 204, 21, 0.2)'
+              : '0 0 12px rgba(96, 165, 250, 0.25)',
+            textShadow: isMyTurn ? '0 0 12px rgba(250, 204, 21, 0.8)' : '0 0 8px rgba(147, 197, 253, 0.5)',
+            letterSpacing: isMyTurn ? '0.08em' : '0.04em',
           }}>
             {isMyTurn ? '👑 TOCCA A TE!' : `⏳ Turno di ${currentTurnPlayer}`}
           </div>
@@ -308,21 +322,48 @@ const RoundTableComponent: React.FC = () => {
       {/* Rectangular Table Container */}
       <div 
         data-tutorial="field"
-        className="relative w-[79vw] h-[88vh] landscape:w-[88vw] landscape:h-[88vh] sm:w-[84vw] sm:h-[84vh] md:w-[88vw] md:h-[88vh] lg:w-[91vw] lg:h-[88vh] xl:w-[91vw] xl:h-[91vh] max-w-[1488px] max-h-[1302px] min-w-[298px] min-h-[465px] mx-auto border-4 landscape:border-8 md:border-8 border-purple-500/30 game-field bg-no-repeat overflow-visible"
+        className="relative w-[79vw] h-[88vh] landscape:w-[88vw] landscape:h-[88vh] sm:w-[84vw] sm:h-[84vh] md:w-[88vw] md:h-[88vh] lg:w-[91vw] lg:h-[88vh] xl:w-[91vw] xl:h-[91vh] max-w-[1488px] max-h-[1302px] min-w-[298px] min-h-[465px] mx-auto border-4 landscape:border-8 md:border-8 game-field bg-no-repeat overflow-visible"
         style={{
           borderRadius: '24px',
           backgroundImage: `url('https://i.ibb.co/Y4bv4xwz/sfondo-minkiards.png')`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           touchAction: 'pan-y pinch-zoom',
-          boxShadow: '0 0 40px rgba(147, 51, 234, 0.4)'
+          borderColor: 'rgba(251, 191, 36, 0.5)',
+          boxShadow: '0 0 0 1px rgba(251,191,36,0.15), 0 0 40px rgba(147,51,234,0.5), 0 0 80px rgba(251,191,36,0.15), 0 8px 32px rgba(0,0,0,0.6)',
         }}
       >
-        {/* Black overlay with 20% opacity */}
+        {/* Overlay - reduced to 25% */}
         <div 
-          className="absolute inset-0 bg-black opacity-40 rounded-lg"
-          style={{ borderRadius: '16px' }}
+          className="absolute inset-0 bg-black rounded-lg"
+          style={{ borderRadius: '16px', opacity: 0.25 }}
         />
+
+        {/* Decorative golden corner accents */}
+        {/* Top-left corner */}
+        <svg className="absolute top-0 left-0 z-10 pointer-events-none" width="48" height="48" viewBox="0 0 48 48" fill="none">
+          <path d="M4 44 L4 8 Q4 4 8 4 L44 4" stroke="rgba(251,191,36,0.7)" strokeWidth="2" fill="none" strokeLinecap="round"/>
+          <circle cx="4" cy="4" r="3" fill="rgba(251,191,36,0.8)"/>
+          <path d="M4 20 L4 4 L20 4" stroke="rgba(251,191,36,0.4)" strokeWidth="1" fill="none"/>
+        </svg>
+        {/* Top-right corner */}
+        <svg className="absolute top-0 right-0 z-10 pointer-events-none" width="48" height="48" viewBox="0 0 48 48" fill="none">
+          <path d="M44 44 L44 8 Q44 4 40 4 L4 4" stroke="rgba(251,191,36,0.7)" strokeWidth="2" fill="none" strokeLinecap="round"/>
+          <circle cx="44" cy="4" r="3" fill="rgba(251,191,36,0.8)"/>
+          <path d="M44 20 L44 4 L28 4" stroke="rgba(251,191,36,0.4)" strokeWidth="1" fill="none"/>
+        </svg>
+        {/* Bottom-left corner */}
+        <svg className="absolute bottom-0 left-0 z-10 pointer-events-none" width="48" height="48" viewBox="0 0 48 48" fill="none">
+          <path d="M4 4 L4 40 Q4 44 8 44 L44 44" stroke="rgba(251,191,36,0.7)" strokeWidth="2" fill="none" strokeLinecap="round"/>
+          <circle cx="4" cy="44" r="3" fill="rgba(251,191,36,0.8)"/>
+          <path d="M4 28 L4 44 L20 44" stroke="rgba(251,191,36,0.4)" strokeWidth="1" fill="none"/>
+        </svg>
+        {/* Bottom-right corner */}
+        <svg className="absolute bottom-0 right-0 z-10 pointer-events-none" width="48" height="48" viewBox="0 0 48 48" fill="none">
+          <path d="M44 4 L44 40 Q44 44 40 44 L4 44" stroke="rgba(251,191,36,0.7)" strokeWidth="2" fill="none" strokeLinecap="round"/>
+          <circle cx="44" cy="44" r="3" fill="rgba(251,191,36,0.8)"/>
+          <path d="M44 28 L44 44 L28 44" stroke="rgba(251,191,36,0.4)" strokeWidth="1" fill="none"/>
+        </svg>
         
         <AmbientParticles visible={true} />
         
@@ -334,7 +375,20 @@ const RoundTableComponent: React.FC = () => {
               <span>DRAFT — MAZZO PERSONALE</span>
             </div>
           )}
-          <div data-tutorial="decks" className={`grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-3 md:gap-4 items-start justify-center zone-decks rounded-lg sm:rounded-xl p-2 sm:p-3 md:p-4 backdrop-blur-sm ${isDraftMode ? 'ring-1 ring-teal-500/40' : ''}`}>
+          {/* Magical halo behind decks */}
+          <div className="absolute inset-0 -m-4 rounded-full pointer-events-none"
+            style={{
+              background: 'radial-gradient(ellipse at center, rgba(139,92,246,0.25) 0%, rgba(251,191,36,0.08) 50%, transparent 75%)',
+              filter: 'blur(8px)',
+            }}
+          />
+          <div data-tutorial="decks" className={`relative grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-3 md:gap-4 items-start justify-center zone-decks rounded-xl sm:rounded-2xl p-2 sm:p-3 md:p-4 backdrop-blur-sm ${isDraftMode ? 'ring-1 ring-teal-500/40' : ''}`}
+            style={{
+              background: 'linear-gradient(135deg, rgba(15,10,40,0.75) 0%, rgba(30,15,60,0.65) 100%)',
+              border: '1px solid rgba(139,92,246,0.3)',
+              boxShadow: '0 0 30px rgba(139,92,246,0.2), inset 0 0 20px rgba(0,0,0,0.3)',
+            }}
+          >
             <Deck
               name="PERSONAGGI"
               backImage="https://i.imgur.com/r1rfUAB.png"
@@ -363,10 +417,33 @@ const RoundTableComponent: React.FC = () => {
           const playerCards = cardsByPlayer[player] || [];
           const cardPositions = getCardPositions(playerCards, playerIndex, otherPlayers.length);
           const playerPosition = getPlayerPosition(playerIndex, otherPlayers.length);
+          const isActive = player === currentTurnPlayer;
           
           return (
             <div key={player}>
-              {/* Player Name - positioned above the card */}
+              {/* Field zone glow delimiter - subtle area around player's cards */}
+              <div
+                className="absolute pointer-events-none z-[3]"
+                style={{
+                  left: `${playerPosition.x}%`,
+                  top: `${playerPosition.y}%`,
+                  transform: 'translate(-50%, -50%)',
+                  width: '120px',
+                  height: '80px',
+                  borderRadius: '16px',
+                  border: isActive
+                    ? '1px solid rgba(74,222,128,0.35)'
+                    : '1px solid rgba(99,102,241,0.2)',
+                  boxShadow: isActive
+                    ? '0 0 16px rgba(74,222,128,0.15), inset 0 0 12px rgba(74,222,128,0.05)'
+                    : '0 0 10px rgba(99,102,241,0.1), inset 0 0 8px rgba(99,102,241,0.04)',
+                  background: isActive
+                    ? 'rgba(34,197,94,0.04)'
+                    : 'rgba(79,70,229,0.04)',
+                }}
+              />
+
+              {/* Player Badge */}
               <div
                 className="absolute transform -translate-x-1/2 z-20"
                 style={{
@@ -374,10 +451,34 @@ const RoundTableComponent: React.FC = () => {
                   top: `${Math.max(1, playerPosition.y - 6)}%`,
                 }}
               >
-                <span className={`${player === currentTurnPlayer ? 'bg-green-600/90 ring-2 ring-green-400 turn-glow-active' : 'bg-blue-800/80'} text-white font-bold px-2 py-1 rounded-full text-xs shadow-lg whitespace-nowrap inline-flex items-center gap-1`} style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${isPlayerOnline(player) ? 'bg-green-400' : 'bg-red-500'}`} />
-                  {player}
-                  {!isUnlimitedDeaths && <span className="text-[9px] opacity-80 ml-0.5">💀{getDeathCount(player)}/{getDeathLimit(player)}</span>}
+                <span className={`text-white font-bold px-2.5 py-1.5 rounded-full text-xs shadow-lg whitespace-nowrap inline-flex items-center gap-1.5 ${
+                  isActive 
+                    ? 'ring-2 ring-green-400 animate-pulse' 
+                    : 'ring-1 ring-white/20'
+                }`} style={{
+                  background: isActive
+                    ? 'linear-gradient(135deg, rgba(34,197,94,0.85) 0%, rgba(21,128,61,0.9) 100%)'
+                    : 'linear-gradient(135deg, rgba(30,27,75,0.9) 0%, rgba(49,46,129,0.85) 100%)',
+                  backdropFilter: 'blur(8px)',
+                  boxShadow: isActive
+                    ? '0 0 12px rgba(74,222,128,0.5)'
+                    : '0 2px 8px rgba(0,0,0,0.5)',
+                  textShadow: '1px 1px 2px rgba(0,0,0,0.8)'
+                }}>
+                  {players[player]?.avatar && (
+                    <span className="text-base leading-none shrink-0">{getAvatarEmoji(players[player].avatar)}</span>
+                  )}
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isPlayerOnline(player) ? 'bg-green-400 animate-pulse' : 'bg-red-500'}`} />
+                  <span>{player}</span>
+                  {!isUnlimitedDeaths && (
+                    <span className={`text-[9px] font-bold ml-0.5 px-1 py-0.5 rounded ${
+                      getDeathCount(player) >= getDeathLimit(player) 
+                        ? 'bg-red-600/80 text-red-100' 
+                        : 'bg-black/30 text-white/80'
+                    }`}>
+                      💀{getDeathCount(player)}/{getDeathLimit(player)}
+                    </span>
+                  )}
                 </span>
               </div>
               
@@ -411,18 +512,19 @@ const RoundTableComponent: React.FC = () => {
                         {/* Attached parasitic cards */}
                         {attachedCards.map((parasiticCard) => (
                           <div key={parasiticCard.id} className="flex items-center">
-                            <div className="w-2 h-1 bg-red-500 animate-pulse" />
+                            {/* Enhanced parasitic connector */}
+                            <div className="w-3 h-1.5 rounded-full bg-gradient-to-r from-red-600 to-red-400 animate-pulse shadow-sm shadow-red-500/50" />
                             <div className={`${cardScale} relative`}>
-                              <div className="border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/50 ring-2 ring-red-400 animate-pulse">
+                              <div className="border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/60 ring-2 ring-red-400/70 animate-pulse">
                                 <Card
                                   card={parasiticCard}
                                   location="field"
                                 />
                               </div>
-                              <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[8px] px-1 py-0.5 rounded-full whitespace-nowrap font-bold">
+                              <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[8px] px-1 py-0.5 rounded-full whitespace-nowrap font-bold shadow-sm">
                                 {parasiticCard.owner}
                               </div>
-                              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-purple-600 text-white text-[8px] px-1 py-0.5 rounded-full whitespace-nowrap font-bold">
+                              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-purple-600 text-white text-[8px] px-1 py-0.5 rounded-full whitespace-nowrap font-bold shadow-sm">
                                 AGGANCIATO
                               </div>
                             </div>
@@ -441,7 +543,7 @@ const RoundTableComponent: React.FC = () => {
                     top: `${playerPosition.y + 8}%`,
                   }}
                 >
-                  <div className="text-white/60 text-xs italic" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                  <div className="text-white/50 text-xs italic" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
                     Nessuna carta
                   </div>
                 </div>
@@ -453,10 +555,46 @@ const RoundTableComponent: React.FC = () => {
         {/* Current Player's Field Cards (always at bottom) */}
         {cardsByPlayer[playerName] && cardsByPlayer[playerName].length > 0 && (
           <>
+            {/* Current player field zone glow */}
+            <div
+              className="absolute pointer-events-none z-[3]"
+              style={{
+                bottom: '10%',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: '70%',
+                height: '22%',
+                borderRadius: '20px',
+                border: isMyTurn
+                  ? '1px solid rgba(74,222,128,0.35)'
+                  : '1px solid rgba(251,191,36,0.2)',
+                boxShadow: isMyTurn
+                  ? '0 0 20px rgba(74,222,128,0.12), inset 0 0 16px rgba(74,222,128,0.05)'
+                  : '0 0 14px rgba(251,191,36,0.08), inset 0 0 10px rgba(251,191,36,0.04)',
+                background: isMyTurn
+                  ? 'rgba(34,197,94,0.03)'
+                  : 'rgba(161,98,7,0.04)',
+              }}
+            />
+
             {/* Player Name at bottom */}
-            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
-              <span className={`${isMyTurn ? 'bg-green-500/90 ring-2 ring-green-400 turn-glow-active' : 'bg-yellow-600/80'} text-white font-bold px-2 py-1 rounded-full text-xs shadow-lg whitespace-nowrap`}>
-                {playerName} (Tu)
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20">
+              <span className={`text-white font-bold px-3 py-1.5 rounded-full text-xs shadow-lg whitespace-nowrap inline-flex items-center gap-1.5 ${
+                isMyTurn ? 'ring-2 ring-green-400 animate-pulse' : 'ring-1 ring-yellow-500/50'
+              }`} style={{
+                background: isMyTurn
+                  ? 'linear-gradient(135deg, rgba(34,197,94,0.85) 0%, rgba(21,128,61,0.9) 100%)'
+                  : 'linear-gradient(135deg, rgba(161,98,7,0.85) 0%, rgba(120,53,15,0.9) 100%)',
+                backdropFilter: 'blur(8px)',
+                boxShadow: isMyTurn
+                  ? '0 0 14px rgba(74,222,128,0.5)'
+                  : '0 0 10px rgba(251,191,36,0.3)',
+                textShadow: '1px 1px 2px rgba(0,0,0,0.8)'
+              }}>
+                {players[playerName]?.avatar && (
+                  <span className="text-base leading-none shrink-0">{getAvatarEmoji(players[playerName].avatar)}</span>
+                )}
+                <span>{playerName} (Tu)</span>
               </span>
             </div>
             
@@ -485,14 +623,20 @@ const RoundTableComponent: React.FC = () => {
                     }}
                   >
                     <div className="flex items-center gap-1">
-                      {/* Left Arrow */}
+                      {/* Left Arrow - Premium */}
                       <Button
                         onClick={() => handleMoveCard(card.id, 'left')}
                         disabled={!canMoveLeft}
-                        className="p-1 h-5 w-5 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
+                        className="p-1 h-7 w-7 rounded-full border border-white/30 disabled:border-white/10 disabled:opacity-30 transition-all hover:scale-110"
                         size="sm"
+                        style={{
+                          background: canMoveLeft 
+                            ? 'linear-gradient(135deg, rgba(99,102,241,0.8) 0%, rgba(79,70,229,0.8) 100%)'
+                            : 'rgba(30,30,50,0.5)',
+                          boxShadow: canMoveLeft ? '0 0 8px rgba(99,102,241,0.4)' : 'none'
+                        }}
                       >
-                        <ChevronLeft size={10} />
+                        <ChevronLeft size={14} />
                       </Button>
                       
                       {/* Card */}
@@ -506,43 +650,55 @@ const RoundTableComponent: React.FC = () => {
                       {/* Attached parasitic cards */}
                       {attachedCards.map((parasiticCard) => (
                         <div key={parasiticCard.id} className="flex items-center">
-                          <div className="w-2 h-1 bg-red-500 animate-pulse" />
+                          {/* Enhanced parasitic connector */}
+                          <div className="w-3 h-1.5 rounded-full bg-gradient-to-r from-red-600 to-red-400 animate-pulse shadow-sm shadow-red-500/50" />
                           <div className={`${cardScale} relative`}>
-                            <div className="border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/50 ring-2 ring-red-400 animate-pulse">
+                            <div className="border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/60 ring-2 ring-red-400/70 animate-pulse">
                               <Card
                                 card={parasiticCard}
                                 location="field"
                               />
                             </div>
-                            <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[8px] px-1 py-0.5 rounded-full whitespace-nowrap font-bold">
+                            <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[8px] px-1 py-0.5 rounded-full whitespace-nowrap font-bold shadow-sm">
                               {parasiticCard.owner}
                             </div>
-                            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-purple-600 text-white text-[8px] px-1 py-0.5 rounded-full whitespace-nowrap font-bold">
+                            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-purple-600 text-white text-[8px] px-1 py-0.5 rounded-full whitespace-nowrap font-bold shadow-sm">
                               AGGANCIATO
                             </div>
                           </div>
                         </div>
                       ))}
                       
-                      {/* Right Arrow */}
+                      {/* Right Arrow - Premium */}
                       <Button
                         onClick={() => handleMoveCard(card.id, 'right')}
                         disabled={!canMoveRight}
-                        className="p-1 h-5 w-5 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
+                        className="p-1 h-7 w-7 rounded-full border border-white/30 disabled:border-white/10 disabled:opacity-30 transition-all hover:scale-110"
                         size="sm"
+                        style={{
+                          background: canMoveRight
+                            ? 'linear-gradient(135deg, rgba(99,102,241,0.8) 0%, rgba(79,70,229,0.8) 100%)'
+                            : 'rgba(30,30,50,0.5)',
+                          boxShadow: canMoveRight ? '0 0 8px rgba(99,102,241,0.4)' : 'none'
+                        }}
                       >
-                        <ChevronRight size={10} />
+                        <ChevronRight size={14} />
                       </Button>
                     </div>
                     
-                    {/* Activate Effect Button - for cards with custom effects */}
+                    {/* Activate Effect Button - Premium violet electric */}
                     {hasCustomEffect(card) && (
                       <Button
                         onClick={() => handleActivateEffect(card)}
-                        className="mt-1 px-2 py-0.5 h-6 text-[10px] bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-1 mx-auto"
+                        className="mt-1.5 px-3 py-1 h-7 text-[11px] font-bold text-white flex items-center gap-1.5 mx-auto rounded-full border border-purple-400/50 transition-all hover:scale-105"
                         size="sm"
+                        style={{
+                          background: 'linear-gradient(135deg, rgba(147,51,234,0.9) 0%, rgba(109,40,217,0.95) 100%)',
+                          boxShadow: '0 0 16px rgba(168,85,247,0.6), 0 0 32px rgba(168,85,247,0.2)',
+                          textShadow: '0 0 8px rgba(233,213,255,0.8)'
+                        }}
                       >
-                        <Zap size={12} />
+                        <Zap size={14} />
                         Attiva Effetto
                       </Button>
                     )}
@@ -554,10 +710,29 @@ const RoundTableComponent: React.FC = () => {
         )}
       </div>
 
-      {/* CARTE IN CAMPO section for all players */}
+      {/* CARTE IN CAMPO section for all players - Premium redesign */}
       <div className="mt-4 md:mt-8">
-        <h3 className="text-white font-bold text-lg md:text-xl mb-2 md:mb-4 text-center" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8)'}}>CARTE IN CAMPO</h3>
-        <div className="bg-blue-800/30 rounded-lg p-2 md:p-4 zone-field">
+        <div className="flex items-center justify-center gap-3 mb-3 md:mb-4">
+          <div className="h-px flex-1 max-w-24" style={{background: 'linear-gradient(to right, transparent, rgba(168,85,247,0.5))'}} />
+          <h3 className="text-white font-black text-base md:text-lg text-center tracking-widest"
+            style={{
+              textShadow: '0 0 16px rgba(168,85,247,0.5)',
+              background: 'linear-gradient(135deg, #c084fc 0%, #e879f9 50%, #f59e0b 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}>
+            CARTE IN CAMPO
+          </h3>
+          <div className="h-px flex-1 max-w-24" style={{background: 'linear-gradient(to left, transparent, rgba(168,85,247,0.5))'}} />
+        </div>
+        <div className="rounded-xl p-2 md:p-4 zone-field"
+          style={{
+            background: 'linear-gradient(135deg, rgba(15,10,40,0.85) 0%, rgba(20,15,55,0.8) 100%)',
+            border: '1px solid rgba(99,102,241,0.3)',
+            boxShadow: '0 0 24px rgba(79,70,229,0.15), inset 0 0 16px rgba(0,0,0,0.3)',
+          }}
+        >
           {allPlayerNames.length > 0 ? (
             (() => {
               // Reorder players to put current player first
@@ -569,20 +744,50 @@ const RoundTableComponent: React.FC = () => {
               return orderedPlayers.map((player) => {
                 const playerCards = cardsByPlayer[player] || [];
                 const isCurrentPlayer = player === playerName;
+                const isActiveTurn = player === currentTurnPlayer;
                 
                 return (
-                <div key={player} className="mb-3 md:mb-4 last:mb-0">
-                  <div className="flex items-center justify-between mb-1 md:mb-2">
-                    <h4 className={`font-semibold text-sm md:text-base ${player === currentTurnPlayer ? 'text-green-400 turn-text-glow' : isCurrentPlayer ? 'text-yellow-400' : 'text-white'} flex items-center gap-1.5`} style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
-                      {!isCurrentPlayer && <span className={`w-2 h-2 rounded-full shrink-0 ${isPlayerOnline(player) ? 'bg-green-400' : 'bg-red-500'}`} />}
-                      {player} {isCurrentPlayer && '(Tu)'}{player === currentTurnPlayer && <span className="ml-1 text-xs">🟢</span>}
+                <div key={player} className="mb-3 md:mb-4 last:mb-0 rounded-xl p-2 sm:p-3"
+                  style={{
+                    background: isCurrentPlayer
+                      ? 'linear-gradient(135deg, rgba(161,98,7,0.3) 0%, rgba(120,53,15,0.2) 100%)'
+                      : 'linear-gradient(135deg, rgba(30,27,75,0.4) 0%, rgba(17,24,39,0.3) 100%)',
+                    border: isActiveTurn
+                      ? '1px solid rgba(74,222,128,0.4)'
+                      : isCurrentPlayer
+                        ? '1px solid rgba(251,191,36,0.25)'
+                        : '1px solid rgba(99,102,241,0.15)',
+                    boxShadow: isActiveTurn ? '0 0 12px rgba(74,222,128,0.15)' : 'none'
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-1.5 md:mb-2.5">
+                    <h4 className={`font-bold text-sm md:text-base flex items-center gap-2`}
+                      style={{
+                        color: isActiveTurn ? '#4ade80' : isCurrentPlayer ? '#fbbf24' : '#e2e8f0',
+                        textShadow: isActiveTurn 
+                          ? '0 0 10px rgba(74,222,128,0.5)' 
+                          : isCurrentPlayer 
+                            ? '0 0 8px rgba(251,191,36,0.4)'
+                            : '1px 1px 2px rgba(0,0,0,0.8)'
+                      }}
+                    >
+                      {!isCurrentPlayer && (
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${isPlayerOnline(player) ? 'bg-green-400 animate-pulse' : 'bg-red-500'}`} />
+                      )}
+                      <span>{player}</span>
+                      {isCurrentPlayer && <span className="text-[11px] font-normal text-yellow-300/80">(Tu)</span>}
+                      {isActiveTurn && <span className="text-xs">🟢</span>}
                       {!isUnlimitedDeaths && (
-                        <span className={`text-[10px] font-normal ml-1 ${getDeathCount(player) >= getDeathLimit(player) ? 'text-red-400' : 'text-gray-400'}`}>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                          getDeathCount(player) >= getDeathLimit(player) 
+                            ? 'bg-red-600/70 text-red-100' 
+                            : 'bg-black/30 text-white/70'
+                        }`}>
                           💀{getDeathCount(player)}/{getDeathLimit(player)}
                         </span>
                       )}
                     </h4>
-                    <span className="text-white/60 text-xs md:text-sm" style={{textShadow: '1px 1px 2px rgba(0,0,0,0.8)'}}>
+                    <span className="text-white/50 text-xs md:text-sm bg-black/20 px-2 py-0.5 rounded-full">
                       {playerCards.length} carte
                     </span>
                   </div>
@@ -604,15 +809,21 @@ const RoundTableComponent: React.FC = () => {
                         <div key={card.id} className="flex flex-col items-center gap-0.5">
                           {/* Card with arrows and attached cards */}
                           <div className="flex items-center gap-0.5">
-                            {/* Left Arrow for current player */}
+                            {/* Left Arrow for current player - Premium */}
                             {isCurrentPlayer && (
                               <Button
                                 onClick={() => handleMoveCard(card.id, 'left')}
                                 disabled={index === 0}
-                                className="p-0.5 h-4 w-4 sm:h-5 sm:w-5 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
+                                className="p-0.5 h-5 w-5 sm:h-6 sm:w-6 rounded-full border border-white/20 disabled:border-white/5 disabled:opacity-25 transition-all hover:scale-110"
                                 size="sm"
+                                style={{
+                                  background: index !== 0
+                                    ? 'linear-gradient(135deg, rgba(99,102,241,0.7) 0%, rgba(79,70,229,0.7) 100%)'
+                                    : 'rgba(30,30,50,0.4)',
+                                  boxShadow: index !== 0 ? '0 0 6px rgba(99,102,241,0.4)' : 'none'
+                                }}
                               >
-                                <ChevronLeft size={8} />
+                                <ChevronLeft size={10} />
                               </Button>
                             )}
                             
@@ -625,9 +836,9 @@ const RoundTableComponent: React.FC = () => {
                             {/* Attached parasitic cards */}
                             {attachedCards.map((parasiticCard) => (
                               <div key={parasiticCard.id} className="flex items-center">
-                                <div className="w-2 h-1 bg-red-500 animate-pulse" />
+                                <div className="w-2 h-1.5 rounded-full bg-gradient-to-r from-red-600 to-red-400 animate-pulse" />
                                 <div className="relative">
-                                  <div className="border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/50 ring-2 ring-red-400 animate-pulse">
+                                  <div className="border-2 border-red-500 rounded-lg shadow-lg shadow-red-500/60 ring-2 ring-red-400/70 animate-pulse">
                                     <Card
                                       card={parasiticCard}
                                       location="field"
@@ -643,25 +854,36 @@ const RoundTableComponent: React.FC = () => {
                               </div>
                             ))}
                             
-                            {/* Right Arrow for current player */}
+                            {/* Right Arrow for current player - Premium */}
                             {isCurrentPlayer && (
                               <Button
                                 onClick={() => handleMoveCard(card.id, 'right')}
                                 disabled={index === playerCards.length - 1}
-                                className="p-0.5 h-4 w-4 sm:h-5 sm:w-5 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 disabled:opacity-50"
+                                className="p-0.5 h-5 w-5 sm:h-6 sm:w-6 rounded-full border border-white/20 disabled:border-white/5 disabled:opacity-25 transition-all hover:scale-110"
                                 size="sm"
+                                style={{
+                                  background: index !== playerCards.length - 1
+                                    ? 'linear-gradient(135deg, rgba(99,102,241,0.7) 0%, rgba(79,70,229,0.7) 100%)'
+                                    : 'rgba(30,30,50,0.4)',
+                                  boxShadow: index !== playerCards.length - 1 ? '0 0 6px rgba(99,102,241,0.4)' : 'none'
+                                }}
                               >
-                                <ChevronRight size={8} />
+                                <ChevronRight size={10} />
                               </Button>
                             )}
                           </div>
                           
-                          {/* Activate Effect Button - show for cards with custom effects */}
+                          {/* Activate Effect Button - Premium */}
                           {isCurrentPlayer && hasCustomEffect(card) && (
                             <Button
                               onClick={() => handleActivateEffect(card)}
-                              className="mt-1 px-2 py-0.5 h-5 text-[9px] bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-1"
+                              className="mt-1 px-2 py-0.5 h-6 text-[9px] font-bold text-white flex items-center gap-1 rounded-full border border-purple-400/40 transition-all hover:scale-105"
                               size="sm"
+                              style={{
+                                background: 'linear-gradient(135deg, rgba(147,51,234,0.9) 0%, rgba(109,40,217,0.95) 100%)',
+                                boxShadow: '0 0 12px rgba(168,85,247,0.5)',
+                                textShadow: '0 0 6px rgba(233,213,255,0.8)'
+                              }}
                             >
                               <Zap size={10} />
                               Attiva Effetto
@@ -671,7 +893,7 @@ const RoundTableComponent: React.FC = () => {
                       );
                       })
                     ) : (
-                      <p className="text-white/60 italic col-span-full">Nessuna carta in campo</p>
+                      <p className="text-white/40 italic col-span-full text-sm">Nessuna carta in campo</p>
                     )}
                   </div>
                 </div>
@@ -679,7 +901,7 @@ const RoundTableComponent: React.FC = () => {
             });
             })()
           ) : (
-            <p className="text-white/60 italic text-center">Nessun giocatore</p>
+            <p className="text-white/40 italic text-center">Nessun giocatore</p>
           )}
         </div>
       </div>
