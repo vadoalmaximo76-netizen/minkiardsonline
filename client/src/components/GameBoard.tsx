@@ -4725,28 +4725,28 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
         {/* Rankiard Modal */}
         {rankiardOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full border border-gray-600">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-white">RANKIARD</h2>
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-black/85 backdrop-blur-xl border border-violet-500/30 rounded-2xl shadow-[0_0_40px_rgba(124,58,237,0.25)] p-6 max-w-md w-full">
+              <div className="flex justify-between items-center mb-5">
+                <h2 className="text-xl font-black bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-transparent">RANKIARD</h2>
                 <Button
                   onClick={() => setRankiardOpen(false)}
-                  className="btn-neon-red text-white rounded-full p-1"
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-red-900/40 border border-red-500/30 text-red-400 hover:bg-red-900/60 p-0"
                 >
-                  <X size={16} />
+                  <X size={14} />
                 </Button>
               </div>
               
               <div className="space-y-4">
                 <div>
-                  <label className="text-white text-sm font-medium mb-2 block">
+                  <label className="text-violet-300/80 text-sm font-semibold mb-2 block">
                     Punti Rankiard residui
                   </label>
                   <Textarea
                     value={rankiardPoints}
                     onChange={(e) => handleRankiardPointsChange(e.target.value)}
                     placeholder="Inserisci i tuoi punti Rankiard..."
-                    className="bg-gray-700 border-gray-600 text-white resize-none"
+                    className="bg-black/40 border border-violet-500/20 text-violet-100 placeholder:text-violet-300/40 focus:border-violet-400/60 resize-none rounded-xl"
                     rows={3}
                   />
                 </div>
@@ -4754,21 +4754,21 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 <div className="grid grid-cols-1 gap-2">
                   <Button
                     onClick={() => setLeaderboardOpen(true)}
-                    className="btn-neon-blue text-white font-bold py-2 px-4 flex items-center justify-center gap-2"
+                    className="bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-600 hover:to-indigo-600 text-white font-bold py-2 px-4 flex items-center justify-center gap-2 rounded-xl"
                   >
                     <Trophy size={16} />
                     CLASSIFICA RANKIARD
                   </Button>
                   <Button
                     onClick={() => window.open('https://drive.google.com/file/d/1IEyFgz3stHj4W7k8VZrl8opIwkmP_7WC/view', '_blank')}
-                    className="btn-neon-green text-white font-bold py-2 px-4 flex items-center justify-center gap-2"
+                    className="bg-gradient-to-r from-emerald-700 to-green-700 hover:from-emerald-600 hover:to-green-600 text-white font-bold py-2 px-4 flex items-center justify-center gap-2 rounded-xl"
                   >
                     <ExternalLink size={16} />
                     ASSEGNAZIONE PUNTI RANKIARD
                   </Button>
                   <Button
                     onClick={() => window.open('https://drive.google.com/file/d/1KSPlXXs2lDg3-0MqlJvkgippLUBCnEbz/view', '_blank')}
-                    className="btn-neon-purple text-white font-bold py-2 px-4 flex items-center justify-center gap-2"
+                    className="bg-gradient-to-r from-violet-700 to-purple-700 hover:from-violet-600 hover:to-purple-600 text-white font-bold py-2 px-4 flex items-center justify-center gap-2 rounded-xl"
                   >
                     <ExternalLink size={16} />
                     BANCA POTERI
@@ -4781,26 +4781,26 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
         {/* Instructions Modal */}
         {instructionsOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full border border-gray-600">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-white">ISTRUZIONI</h2>
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-black/85 backdrop-blur-xl border border-violet-500/30 rounded-2xl shadow-[0_0_40px_rgba(124,58,237,0.25)] p-6 max-w-md w-full">
+              <div className="flex justify-between items-center mb-5">
+                <h2 className="text-xl font-black bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-transparent">🎮 ISTRUZIONI AI</h2>
                 <Button
                   onClick={() => setInstructionsOpen(false)}
-                  className="btn-neon-red text-white rounded-full p-1"
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-red-900/40 border border-red-500/30 text-red-400 hover:bg-red-900/60 p-0"
                 >
-                  <X size={16} />
+                  <X size={14} />
                 </Button>
               </div>
               
               <div className="space-y-4">
                 {/* Conversation History */}
                 {conversationHistory.length > 0 && (
-                  <div className="bg-gray-700 rounded-lg p-3 max-h-48 overflow-y-auto">
-                    <h3 className="text-white text-sm font-medium mb-2">💬 Conversazione</h3>
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-3 max-h-48 overflow-y-auto">
+                    <h3 className="text-violet-300/80 text-sm font-semibold mb-2">💬 Conversazione</h3>
                     <div className="space-y-2">
                       {conversationHistory.map((message, index) => (
-                        <div key={index} className={`text-sm ${message.type === 'user' ? 'text-blue-300' : 'text-green-300'}`}>
+                        <div key={index} className={`text-sm ${message.type === 'user' ? 'text-cyan-300' : 'text-emerald-300'}`}>
                           <span className="font-medium">
                             {message.type === 'user' ? '👤 Tu: ' : '🤖 Assistente: '}
                           </span>
@@ -4812,7 +4812,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 )}
 
                 <div>
-                  <label className="text-white text-sm font-medium mb-2 block">
+                  <label className="text-violet-300/80 text-sm font-semibold mb-2 block">
                     {conversationMode 
                       ? "💬 Rispondi all'assistente" 
                       : "Indica al sistema come modificare il gioco"}
@@ -4820,14 +4820,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   
                   {/* Current Assistant Question */}
                   {conversationMode && assistantQuestion && (
-                    <div className="bg-green-900 border border-green-600 rounded-lg p-3 mb-3">
-                      <div className="text-green-300 text-sm font-medium mb-1">🤖 Assistente chiede:</div>
-                      <div className="text-green-100 text-sm whitespace-pre-wrap">{assistantQuestion}</div>
+                    <div className="bg-emerald-900/20 border border-emerald-500/30 rounded-xl p-3 mb-3">
+                      <div className="text-emerald-400 text-sm font-semibold mb-1">🤖 Assistente chiede:</div>
+                      <div className="text-emerald-100/80 text-sm whitespace-pre-wrap">{assistantQuestion}</div>
                     </div>
                   )}
                   
                   {!conversationMode && (
-                    <p className="text-gray-400 text-xs mb-3">
+                    <p className="text-violet-400/50 text-xs mb-3">
                       Esempi: "Inverti i turni di gioco", "Tutte le carte in campo vengono coperte", "Tutti prendono 3 carte MOSSE"
                     </p>
                   )}
@@ -4838,7 +4838,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                     placeholder={conversationMode 
                       ? "Scrivi qui la tua risposta..." 
                       : "Scrivi qui la tua istruzione..."}
-                    className="bg-gray-700 border-gray-600 text-white resize-none"
+                    className="bg-black/40 border border-violet-500/20 text-violet-100 placeholder:text-violet-300/40 focus:border-violet-400/60 resize-none rounded-xl"
                     rows={4}
                   />
                 </div>
@@ -4846,7 +4846,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 <div className="flex gap-2">
                   <Button
                     onClick={handleExecuteGameInstruction}
-                    className="flex-1 btn-neon-green text-white font-bold py-2"
+                    className="flex-1 bg-gradient-to-r from-emerald-700 to-green-700 hover:from-emerald-600 hover:to-green-600 text-white font-bold py-2 rounded-xl"
                   >
                     {conversationMode ? "💬 RISPONDI" : "🎮 ESEGUI ISTRUZIONE"}
                   </Button>
@@ -4859,7 +4859,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                         setConversationHistory([]);
                         setGameInstruction('');
                       }}
-                      className="btn-neon-orange text-white py-2 px-4"
+                      className="bg-gradient-to-r from-orange-700 to-amber-700 hover:from-orange-600 hover:to-amber-600 text-white py-2 px-4 rounded-xl"
                     >
                       🔄 Ricomincia
                     </Button>
@@ -4872,9 +4872,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                       setAssistantQuestion('');
                       setGameInstruction('');
                     }}
-                    className="btn-neon-gray text-white py-2 px-4"
+                    className="bg-white/10 hover:bg-white/20 border border-white/10 text-white py-2 px-4 rounded-xl"
                   >
-                    ❌ Chiudi
+                    Chiudi
                   </Button>
                 </div>
               </div>

@@ -228,7 +228,7 @@ const DeckComponent: React.FC<DeckProps> = ({ name, backImage, type }) => {
         <img
           src={backImage}
           alt={`${name} back`}
-          className={`w-14 h-[84px] sm:w-16 sm:h-[96px] md:w-20 md:h-[120px] lg:w-24 lg:h-[144px] object-fill rounded-xl sm:rounded-xl md:rounded-2xl lg:rounded-2xl cursor-pointer deck-3d shadow-lg transition-all duration-150 ${isShuffling ? 'animate-shuffle' : ''} ${isPicking ? 'scale-95 opacity-70' : 'hover:scale-105'}`}
+          className={`w-14 sm:w-16 md:w-20 lg:w-24 h-auto rounded-xl sm:rounded-xl md:rounded-2xl lg:rounded-2xl cursor-pointer deck-3d shadow-lg transition-all duration-150 ${isShuffling ? 'animate-shuffle' : ''} ${isPicking ? 'scale-95 opacity-70' : 'hover:scale-105'}`}
           onClick={handlePickCard}
         />
         
@@ -262,9 +262,9 @@ const DeckComponent: React.FC<DeckProps> = ({ name, backImage, type }) => {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="p-3 sm:p-4 lg:p-6 bg-gray-800 border-b-2 border-gray-600 flex-shrink-0">
+            <div className="p-3 sm:p-4 lg:p-6 bg-black/60 border-b border-violet-500/20 flex-shrink-0">
               <div className="flex justify-between items-center mb-3">
-                <h3 className="text-white font-bold text-lg sm:text-xl lg:text-3xl">
+                <h3 className="font-black text-lg sm:text-xl lg:text-3xl bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-transparent">
                   Scegli una carta da {name}
                 </h3>
                 <Button
@@ -275,7 +275,7 @@ const DeckComponent: React.FC<DeckProps> = ({ name, backImage, type }) => {
                     setShowBrowser(false);
                     setSearchTerm('');
                   }}
-                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 sm:px-6 sm:py-3 lg:px-8 lg:py-4 text-base sm:text-lg lg:text-xl font-bold rounded relative z-50"
+                  className="bg-gradient-to-r from-red-700 to-rose-800 hover:from-red-600 hover:to-rose-700 text-white px-4 py-2 sm:px-6 sm:py-3 lg:px-8 lg:py-4 text-base sm:text-lg lg:text-xl font-bold rounded-xl relative z-50 border border-red-500/30"
                   style={{ pointerEvents: 'auto' }}
                 >
                   CHIUDI
@@ -284,27 +284,27 @@ const DeckComponent: React.FC<DeckProps> = ({ name, backImage, type }) => {
               
               {/* Search input */}
               <div className="flex items-center gap-2">
-                <span className="text-white font-semibold text-sm sm:text-base lg:text-lg whitespace-nowrap">Cerca:</span>
+                <span className="text-violet-300/80 font-semibold text-sm sm:text-base lg:text-lg whitespace-nowrap">Cerca:</span>
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Nome carta..."
-                  className="flex-1 px-3 py-2 bg-gray-700 text-white rounded border border-gray-600 focus:border-blue-500 focus:outline-none text-sm sm:text-base lg:text-lg"
+                  className="flex-1 px-3 py-2 bg-black/40 border border-violet-500/20 text-violet-100 placeholder:text-violet-300/40 rounded-xl focus:border-violet-400/60 focus:outline-none text-sm sm:text-base lg:text-lg transition-colors"
                 />
                 {searchTerm && (
                   <Button
                     onClick={() => setSearchTerm('')}
-                    className="bg-gray-600 hover:bg-gray-500 text-white px-3 py-2 text-sm sm:text-base lg:text-lg rounded whitespace-nowrap"
+                    className="bg-white/10 hover:bg-white/20 text-white px-3 py-2 text-sm sm:text-base lg:text-lg rounded-xl whitespace-nowrap border border-white/10"
                   >
-                    X
+                    ✕
                   </Button>
                 )}
               </div>
               
               {/* Search results info */}
               {searchTerm && (
-                <div className="mt-2 text-white/70 text-sm lg:text-base">
+                <div className="mt-2 text-violet-400/60 text-sm lg:text-base">
                   {getSortedCards().length === 0 ? 
                     'Nessuna carta trovata' : 
                     `${getSortedCards().length} carte trovate`
