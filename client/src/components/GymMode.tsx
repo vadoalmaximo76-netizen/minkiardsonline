@@ -212,6 +212,16 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, [phase]);
 
+  // Auto-scroll to current gym node when map loads
+  useEffect(() => {
+    if (phase === 'map' && !loading && mapScrollRef.current) {
+      const node = mapScrollRef.current.querySelector('.current-gym-node') as HTMLElement | null;
+      if (node) {
+        setTimeout(() => node.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+      }
+    }
+  }, [phase, loading, leaders]);
+
   // Step 1: Fetch deck IDs and show the injured disclaimer before starting
   const startBattle = useCallback(async (leader: GymLeader) => {
     battleStartingRef.current = false; // Reset guard for new battle attempt
@@ -745,15 +755,6 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
 
   const completedCount = completedIds.length;
   const totalCount = leaders.length;
-
-  useEffect(() => {
-    if (phase === 'map' && !loading && mapScrollRef.current) {
-      const node = mapScrollRef.current.querySelector('.current-gym-node') as HTMLElement | null;
-      if (node) {
-        setTimeout(() => node.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
-      }
-    }
-  }, [phase, loading, leaders]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'linear-gradient(180deg, #03050d 0%, #070b1a 40%, #0a1028 100%)' }}>
