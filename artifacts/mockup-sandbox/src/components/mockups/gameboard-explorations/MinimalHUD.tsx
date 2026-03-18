@@ -96,16 +96,14 @@ export function MinimalHUD() {
         .badge-glow { animation: badge-glow 2s ease-in-out infinite; }
       `}</style>
 
-      {/* ── FULL-SCREEN GAME FIELD (with background image simulation) ── */}
+      {/* ── FULL-SCREEN GAME FIELD (background gradient simulation) ── */}
       <div
         className="absolute inset-0 z-0"
         style={{
-          backgroundImage: `url('https://i.ibb.co/Y4bv4xwz/sfondo-minkiards.png')`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          filter: "brightness(0.25)",
+          background: "radial-gradient(ellipse at 30% 40%, #1a0a2e 0%, #0a0520 40%, #040310 100%)",
         }}
       />
+      <div className="absolute inset-0 z-0 opacity-30" style={{ backgroundImage: "radial-gradient(ellipse at 70% 60%, rgba(124,58,237,0.3) 0%, transparent 50%), radial-gradient(ellipse at 20% 20%, rgba(59,130,246,0.2) 0%, transparent 40%)" }} />
       <div
         className="absolute inset-0 z-0"
         style={{ background: "linear-gradient(180deg, rgba(4,5,15,0.5) 0%, rgba(4,5,15,0.3) 40%, rgba(4,5,15,0.7) 100%)" }}
