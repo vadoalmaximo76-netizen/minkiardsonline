@@ -92,6 +92,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
 
   const selectedLeaderRef = useRef<GymLeader | null>(null);
   const gameIdRef = useRef<string | null>(null);
+  const battleStartingRef = useRef(false);
 
   const { setGameId, setPlayerName, generateSessionId, reset } = useGameState();
 
@@ -212,6 +213,7 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
 
   // Step 1: Fetch deck IDs and show the injured disclaimer before starting
   const startBattle = useCallback(async (leader: GymLeader) => {
+    battleStartingRef.current = false; // Reset guard for new battle attempt
     setSelectedLeader(leader);
     selectedLeaderRef.current = leader;
 
@@ -252,6 +254,9 @@ export function GymMode({ playerName, userId, avatarId, onBack }: GymModeProps) 
 
   // Step 2: Actually launch the battle with the filtered deck
   const doStartBattle = useCallback((leader: GymLeader, filteredDeckIds: string[]) => {
+    // Guard against double invocation (e.g. React StrictMode re-renders)
+    if (battleStartingRef.current) return;
+    battleStartingRef.current = true;
     setPendingBattle(null);
 
     // Decrement injury counters: the player is now starting their "next game",

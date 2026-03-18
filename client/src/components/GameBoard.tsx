@@ -61,9 +61,6 @@ import { ProfilePanel } from "./ProfilePanel";
 import { CollectionPanel } from "./CollectionPanel";
 import { TableThemeSelector } from "./TableThemeSelector";
 import useTableTheme from "../lib/stores/useTableTheme";
-import { NarratorBanner } from "./NarratorBanner";
-import { NarratorVoiceSelector } from "./NarratorVoiceSelector";
-import useNarrator from "../lib/stores/useNarrator";
 import { EmojiReactions } from "./EmojiReactions";
 import { JoinRequestDialog } from "./JoinRequestDialog";
 import CardTrailParticles from "./CardTrailParticles";
@@ -124,7 +121,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [soundSettingsOpen, setSoundSettingsOpen] = useState(false);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [musicPlayerOpen, setMusicPlayerOpen] = useState(false);
-  const [voiceSelectorOpen, setVoiceSelectorOpen] = useState(false);
   const [graveyardOpen, setGraveyardOpen] = useState(false);
   const [missionsOpen, setMissionsOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
@@ -257,34 +253,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [customAnimationData, setCustomAnimationData] = useState<{ cardName: string; animationDescription: string } | null>(null);
   const [sorosActivationVisible, setSorosActivationVisible] = useState(false);
   const [sorosData, setSorosData] = useState<{ activator: string; cardImage: string } | null>(null);
-  const narratorEnabled = useNarrator(s => s.enabled);
-  const showNarratorMessage = useNarrator(s => s.showMessage);
-  const narratorVisible = useNarrator(s => s.visible);
-  const narratorMessage = useNarrator(s => s.currentMessage);
-  const dismissNarrator = useNarrator(s => s.dismiss);
-
-  const requestNarratorComment = useCallback((eventType: string, eventData: any) => {
-    const isEnabled = useNarrator.getState().enabled;
-    if (!isEnabled) return;
-    const token = authToken || localStorage.getItem('authToken');
-    if (!token) {
-      console.log('[Narrator] No auth token found, skipping');
-      return;
-    }
-    console.log('[Narrator] Requesting comment for:', eventType, eventData);
-    fetch('/api/narrator/comment', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ eventType, eventData })
-    })
-      .then(r => r.json())
-      .then(data => {
-        console.log('[Narrator] Response:', data);
-        if (data.comment) useNarrator.getState().showMessage(data.comment);
-      })
-      .catch((err) => { console.error('[Narrator] Error:', err); });
-  }, [authToken]);
-
   const [attackEffectVisible, setAttackEffectVisible] = useState(false);
   const [attackedCharacterName, setAttackedCharacterName] = useState<string>("");
   const [attackEffectType, setAttackEffectType] = useState<AttackEffectType>('physical');
@@ -757,7 +725,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       shake(dmg > 50 ? 'heavy' : dmg > 20 ? 'medium' : 'light');
       playAttackSound();
       playDamageSound();
-      requestNarratorComment('attack', { attackerName: attacker, fromPlayer: attacker, targetName: target, toPlayer: defender, damage: dmg });
     };
 
     const handleCardToGraveyard = ({ cardName, cardType }: { cardName: string, cardType?: string }) => {
@@ -921,9 +888,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         const updated = [...prev, newCard];
         return updated.slice(-10);
       });
-
-      // Request narrator comment for card played
-      requestNarratorComment('card_played', { playerName: cardPlayerName, cardName: cardName || '', cardType });
 
       // Track card for collection (non-blocking)
       const collectionToken = authToken || localStorage.getItem('authToken');
@@ -1154,15 +1118,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         if (data.damageReflected) msg = 'Danno riflesso al mittente! ' + msg;
         if (data.damageRedirected) msg = 'Danno reindirizzato! ' + msg;
         if (data.damageDelayed) msg = 'Danno ritardato! ' + msg;
-        requestNarratorComment('defense_block', { defenderPlayer: data.defenderName || '???', defenseCardName: data.defenseCardName || '', message: msg });
       }
     };
     socket.on('defense:result', handleDefenseResult);
 
     const handleEffectApplied = (data: { cardName?: string; effectDescription?: string; playerName?: string }) => {
-      if (data.cardName) {
-        requestNarratorComment('effect_applied', { cardName: data.cardName, effectDescription: data.effectDescription || '', playerName: data.playerName || '???' });
-      }
+      // Effect applied handler (no narrator)
     };
     socket.on('bonus-effect-applied', handleEffectApplied);
 
@@ -1887,9 +1848,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         player: eliminatedPlayer
       });
       
-      // Request narrator comment for player elimination
-      requestNarratorComment('player_eliminated', { playerName: eliminatedPlayer });
-      
       // Don't clear session here - let game-victory and game-end-rewards handle the end flow
       // The player will see the winner announcement and rewards panel before being redirected
       
@@ -2319,13 +2277,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         onClose={() => setThemeOpen(false)}
       />
 
-      {/* AI Narrator Banner */}
-      <NarratorBanner
-        message={narratorMessage}
-        visible={narratorVisible}
-        onDismiss={dismissNarrator}
-      />
-
       {helpBanner.visible && (
         <div className="fixed top-2 left-1/2 -translate-x-1/2 z-[60] max-w-lg w-[calc(100%-2rem)] animate-in fade-in slide-in-from-top-2 duration-300">
           <div className="bg-purple-900/90 backdrop-blur-md border border-purple-400/40 rounded-xl px-4 py-3 shadow-2xl flex items-start gap-3">
@@ -2341,11 +2292,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           </div>
         </div>
       )}
-      <NarratorVoiceSelector
-        visible={voiceSelectorOpen}
-        onClose={() => setVoiceSelectorOpen(false)}
-      />
-      
       {/* Join Request Dialog for room creator */}
       <JoinRequestDialog
         isCreator={gameState?.turnOrder?.[0] === playerName}
@@ -3954,16 +3900,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                         <Music size={16} className="text-pink-400 flex-shrink-0" />
                         Musica
                       </button>
-                      <button onClick={() => { useNarrator.getState().setEnabled(!narratorEnabled); setHeaderMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors">
-                        <MessageCircle size={16} className={narratorEnabled ? "text-amber-400 flex-shrink-0" : "text-gray-500 flex-shrink-0"} />
-                        {narratorEnabled ? 'Narratore ON' : 'Narratore OFF'}
-                      </button>
-                      {narratorEnabled && (
-                        <button onClick={() => { setVoiceSelectorOpen(true); setHeaderMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors">
-                          <Volume2 size={16} className="text-amber-400/70 flex-shrink-0" />
-                          Voce Narratore
-                        </button>
-                      )}
                     </div>
                   </div>
                 </>

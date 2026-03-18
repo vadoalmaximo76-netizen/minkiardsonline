@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 
 export interface InjuredCard {
   cardId: string;
@@ -9,7 +9,6 @@ export interface InjuredCard {
 
 interface Props {
   authToken: string;
-  /** cardIds that are relevant to the current deck/selection (filter injuries to only these) */
   relevantCardIds?: string[];
   onConfirm: (availableCardIds: string[]) => void;
   onCancel: () => void;
@@ -32,6 +31,9 @@ export function InjuredPersonaggiDisclaimer({
   const [reviving, setReviving] = useState<Set<string>>(new Set());
   const [localCredits, setLocalCredits] = useState(userCredits);
 
+  // Guard: prevent onConfirm from being called more than once (fixes double-game creation crash)
+  const confirmedRef = useRef(false);
+
   const fetchInjured = useCallback(async () => {
     setLoading(true);
     try {
@@ -48,7 +50,6 @@ export function InjuredPersonaggiDisclaimer({
         setInjured(list);
       }
     } catch {
-      // Silent — assume no injuries on error
       setInjured([]);
     } finally {
       setLoading(false);
@@ -62,6 +63,14 @@ export function InjuredPersonaggiDisclaimer({
   useEffect(() => {
     setLocalCredits(userCredits);
   }, [userCredits]);
+
+  // Auto-confirm (skip disclaimer) when there are no injured cards — called only once via ref guard
+  useEffect(() => {
+    if (!loading && injured.length === 0 && !confirmedRef.current) {
+      confirmedRef.current = true;
+      onConfirm(relevantCardIds || []);
+    }
+  }, [loading, injured.length, onConfirm, relevantCardIds]);
 
   const handleRevive = async (cardId: string) => {
     if (localCredits < REVIVE_COST) return;
@@ -92,6 +101,8 @@ export function InjuredPersonaggiDisclaimer({
   };
 
   const handleConfirm = () => {
+    if (confirmedRef.current) return;
+    confirmedRef.current = true;
     const injuredIds = new Set(injured.map(c => c.cardId));
     const available = relevantCardIds
       ? relevantCardIds.filter(id => !injuredIds.has(id))
@@ -111,32 +122,32 @@ export function InjuredPersonaggiDisclaimer({
   }
 
   if (injured.length === 0) {
-    // No injured cards in this deck — skip the disclaimer automatically
-    // (call onConfirm with all relevant card IDs)
-    setTimeout(() => onConfirm(relevantCardIds || []), 0);
     return null;
   }
 
+  const availableCount = (relevantCardIds?.length ?? 0) - injured.length;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4">
       <div className="bg-gray-900 border border-red-500/40 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-900/60 to-red-800/40 px-6 py-4 border-b border-red-500/30">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">🩹</span>
+        <div className="bg-gradient-to-r from-red-950/80 to-red-900/50 px-6 py-5 border-b border-red-500/30">
+          <div className="flex items-start gap-3">
+            <span className="text-3xl mt-0.5">🩹</span>
             <div>
-              <h2 className="text-white font-bold text-lg">Personaggi Infortunati</h2>
-              <p className="text-red-300 text-xs">
-                Questi personaggi sono fuori combattimento per una partita.
-                Puoi riscattarli pagando {REVIVE_COST} Rankiard ciascuno.
+              <h2 className="text-white font-bold text-lg leading-tight">Personaggi Infortunati</h2>
+              <p className="text-red-300 text-sm mt-1 leading-relaxed">
+                Questi personaggi sono <strong>morti nell'ultima partita</strong> e non possono scendere in campo oggi.
+                Torneranno disponibili automaticamente nella partita successiva.
               </p>
             </div>
           </div>
         </div>
 
-        {/* Credits */}
+        {/* Credits bar */}
         <div className="px-6 pt-4 pb-2 flex items-center justify-between">
-          <span className="text-white/60 text-sm">I tuoi Rankiard:</span>
+          <span className="text-white/50 text-xs">I tuoi Rankiard disponibili:</span>
           <span className="text-yellow-400 font-bold text-sm">⭐ {localCredits}</span>
         </div>
 
@@ -150,43 +161,63 @@ export function InjuredPersonaggiDisclaimer({
                 key={card.cardId}
                 className="flex items-center gap-3 bg-black/40 rounded-xl p-3 border border-red-500/20"
               >
-                {/* Card thumbnail */}
-                <div className="w-12 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-800 border border-white/10">
+                {/* Card thumbnail — grayscale to show "unavailable" */}
+                <div className="w-12 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-800 border border-white/10 relative">
                   {card.imageUrl ? (
                     <img
                       src={card.imageUrl}
                       alt={card.name}
-                      className="w-full h-full object-cover opacity-50"
+                      className="w-full h-full object-cover grayscale opacity-60"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-2xl opacity-40">🃏</div>
+                    <div className="w-full h-full flex items-center justify-center text-2xl opacity-30">🃏</div>
                   )}
+                  {/* Dead overlay */}
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                    <span className="text-base">💀</span>
+                  </div>
                 </div>
+
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-semibold text-sm truncate">{card.name}</p>
-                  <p className="text-red-400 text-xs mt-0.5">⛔ Non disponibile per 1 partita</p>
+                  <p className="text-red-400 text-xs mt-0.5">⛔ Fuori per questa partita</p>
+                  <p className="text-white/35 text-[10px] mt-0.5">Morto nell'ultima battaglia</p>
                 </div>
+
                 {/* Revive button */}
-                <button
-                  onClick={() => handleRevive(card.cardId)}
-                  disabled={!canRevive || isReviving}
-                  className={`flex-shrink-0 px-3 py-2 rounded-lg text-xs font-bold transition-all
-                    ${canRevive && !isReviving
-                      ? 'bg-yellow-500 hover:bg-yellow-400 text-black cursor-pointer'
-                      : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
-                >
-                  {isReviving ? '...' : `⭐ ${REVIVE_COST}`}
-                </button>
+                <div className="flex-shrink-0 text-right">
+                  <button
+                    onClick={() => handleRevive(card.cardId)}
+                    disabled={!canRevive || isReviving}
+                    className={`px-3 py-2 rounded-lg text-xs font-bold transition-all
+                      ${canRevive && !isReviving
+                        ? 'bg-yellow-500 hover:bg-yellow-400 text-black cursor-pointer shadow-lg shadow-yellow-500/20'
+                        : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
+                  >
+                    {isReviving ? (
+                      <span className="flex items-center gap-1">
+                        <span className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin inline-block" />
+                      </span>
+                    ) : (
+                      <>⭐ {REVIVE_COST} — Riscatta</>
+                    )}
+                  </button>
+                  {!canRevive && (
+                    <p className="text-red-500/70 text-[10px] mt-1">Rankiard insuff.</p>
+                  )}
+                </div>
               </div>
             );
           })}
         </div>
 
-        {/* Disclaimer note */}
-        <div className="mx-6 mb-4 bg-orange-900/30 border border-orange-500/30 rounded-xl p-3">
-          <p className="text-orange-300 text-xs text-center">
-            ⚠️ I personaggi infortunati verranno rimossi dal tuo mazzo per questa partita. Torneranno disponibili automaticamente nella partita successiva.
+        {/* Summary note */}
+        <div className="mx-6 mb-4 bg-gray-800/60 border border-white/10 rounded-xl p-3">
+          <p className="text-white/60 text-xs text-center leading-relaxed">
+            {availableCount > 0
+              ? `Il tuo mazzo per questa partita avrà ${availableCount} personaggi disponibili (${injured.length} esclus${injured.length === 1 ? 'o' : 'i'}).`
+              : `Tutti i tuoi personaggi sono infortunati. Riscattane almeno uno o usa un mazzo alternativo.`}
           </p>
         </div>
 
@@ -194,15 +225,15 @@ export function InjuredPersonaggiDisclaimer({
         <div className="px-6 pb-6 flex gap-3">
           <button
             onClick={onCancel}
-            className="flex-1 py-3 rounded-xl bg-gray-700 hover:bg-gray-600 text-white font-semibold text-sm transition-all"
+            className="flex-1 py-3 rounded-xl bg-gray-700 hover:bg-gray-600 text-white/80 font-semibold text-sm transition-all"
           >
-            Annulla
+            ← Indietro
           </button>
           <button
             onClick={handleConfirm}
             className="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm transition-all"
           >
-            Continua senza di loro →
+            Gioca senza di loro →
           </button>
         </div>
       </div>
