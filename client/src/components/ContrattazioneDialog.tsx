@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useGameState } from '../lib/stores/useGameState';
 import { socket } from '../lib/socket';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Handshake, X, DicesIcon, ChevronRight } from 'lucide-react';
+import { Handshake, ChevronRight } from 'lucide-react';
 
 interface ContrattazioneState {
   negotiationId: string;
@@ -111,54 +109,56 @@ export const ContrattazioneDialog: React.FC = () => {
   if (!state) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 pointer-events-auto">
-      <div className="bg-gray-900 border-2 border-yellow-500 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 text-white">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm pointer-events-auto">
+      <div className="bg-black/85 backdrop-blur-xl border border-amber-500/30 rounded-2xl shadow-[0_0_40px_rgba(245,158,11,0.2)] w-full max-w-md mx-4 p-6 text-white">
         {/* Header */}
         <div className="flex items-center gap-3 mb-4">
-          <Handshake className="text-yellow-400" size={28} />
+          <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+            <Handshake className="text-amber-400" size={22} />
+          </div>
           <div>
-            <h2 className="text-xl font-bold text-yellow-400">CONTRATTAZIONE CLANDESTINA</h2>
-            <p className="text-sm text-gray-300">
+            <h2 className="text-lg font-black bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">CONTRATTAZIONE CLANDESTINA</h2>
+            <p className="text-sm text-violet-300/60">
               {state.attacker} attacca {state.defender}
             </p>
           </div>
         </div>
 
         {/* Damage info */}
-        <div className="bg-gray-800 rounded-lg p-3 mb-4 flex justify-between items-center">
+        <div className="bg-white/5 rounded-xl border border-white/10 p-3 mb-4 flex justify-between items-center">
           <div>
-            <span className="text-gray-300 text-sm">Danno base</span>
-            <p className="text-xs text-gray-500">100 PTI × stelle attaccante</p>
+            <span className="text-violet-300/70 text-sm">Danno base</span>
+            <p className="text-xs text-violet-400/50">100 PTI × stelle attaccante</p>
           </div>
           <span className="text-red-400 font-bold text-lg">{state.baseDamage} PTI</span>
         </div>
 
         {/* Offers left */}
-        <div className="flex gap-2 mb-4">
+        <div className="flex gap-2 items-center mb-4">
           {[1, 2, 3].map(i => (
             <div
               key={i}
-              className={`flex-1 h-2 rounded-full ${i <= state.offersLeft ? 'bg-yellow-400' : 'bg-gray-600'}`}
+              className={`flex-1 h-1.5 rounded-full ${i <= state.offersLeft ? 'bg-amber-400' : 'bg-white/10'}`}
             />
           ))}
-          <span className="text-xs text-gray-400 ml-1">{state.offersLeft} offert{state.offersLeft === 1 ? 'a' : 'e'}</span>
+          <span className="text-xs text-violet-400/60 ml-1">{state.offersLeft} offert{state.offersLeft === 1 ? 'a' : 'e'}</span>
         </div>
 
         {/* Phase: resolved */}
         {state.phase === 'resolved' && state.resolvedData && (
-          <div className={`text-center py-4 rounded-lg ${state.resolvedData.accepted ? 'bg-green-900/50' : 'bg-red-900/50'}`}>
+          <div className={`text-center py-4 rounded-xl border ${state.resolvedData.accepted ? 'bg-emerald-900/30 border-emerald-500/30' : 'bg-red-900/30 border-red-500/30'}`}>
             {state.resolvedData.accepted ? (
               <>
                 <div className="text-2xl mb-2">✅</div>
-                <p className="font-bold text-green-400">ACCORDO RAGGIUNTO!</p>
-                <p className="text-white">Danno finale: <span className="font-bold text-red-400">{state.resolvedData.finalDamage} PTI</span></p>
+                <p className="font-bold text-emerald-400">ACCORDO RAGGIUNTO!</p>
+                <p className="text-violet-100">Danno finale: <span className="font-bold text-red-400">{state.resolvedData.finalDamage} PTI</span></p>
               </>
             ) : (
               <>
                 <div className="text-2xl mb-2">🎲</div>
                 <p className="font-bold text-orange-400">NESSUN ACCORDO!</p>
-                <p className="text-gray-300 text-sm">Dado: {state.resolvedData.diceResult} → -{state.resolvedData.discountPct}% sconto</p>
-                <p className="text-white">Danno finale: <span className="font-bold text-red-400">{state.resolvedData.finalDamage} PTI</span></p>
+                <p className="text-violet-300/70 text-sm">Dado: {state.resolvedData.diceResult} → -{state.resolvedData.discountPct}% sconto</p>
+                <p className="text-violet-100">Danno finale: <span className="font-bold text-red-400">{state.resolvedData.finalDamage} PTI</span></p>
               </>
             )}
           </div>
@@ -167,29 +167,29 @@ export const ContrattazioneDialog: React.FC = () => {
         {/* Phase: attacker makes offer */}
         {state.phase === 'offer' && isAttacker && (
           <div>
-            <p className="text-sm text-gray-300 mb-3">
-              Proponi un danno ridotto a <strong>{state.defender}</strong>. Puoi offrire qualsiasi valore da 0 a {state.baseDamage} PTI.
+            <p className="text-sm text-violet-300/70 mb-3">
+              Proponi un danno ridotto a <strong className="text-white">{state.defender}</strong>. Puoi offrire qualsiasi valore da 0 a {state.baseDamage} PTI.
             </p>
             <div className="flex gap-2 mb-2">
-              <Input
+              <input
                 type="number"
                 min={0}
                 max={state.baseDamage}
                 value={offerInput}
                 onChange={e => setOfferInput(e.target.value)}
-                className="bg-gray-800 border-gray-600 text-white"
+                className="flex-1 px-4 py-2.5 bg-black/40 border border-violet-500/20 text-violet-100 placeholder:text-violet-300/40 rounded-xl focus:outline-none focus:border-violet-400/60 transition-colors"
                 placeholder="Danno offerto (PTI)"
               />
-              <Button
+              <button
                 onClick={submitOffer}
                 disabled={isSubmitting}
-                className="bg-yellow-600 hover:bg-yellow-500 text-black font-bold px-4"
+                className="flex items-center gap-1 px-4 py-2.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 disabled:opacity-40 text-white font-bold rounded-xl transition-all"
               >
                 <ChevronRight size={18} />
                 Offri
-              </Button>
+              </button>
             </div>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-violet-400/50">
               Se tutte e 3 le offerte vengono rifiutate, il dado decide lo sconto (1 faccia = 10%).
             </p>
           </div>
@@ -198,34 +198,34 @@ export const ContrattazioneDialog: React.FC = () => {
         {/* Phase: attacker waiting for response */}
         {state.phase === 'waiting_response' && isAttacker && (
           <div className="text-center py-3">
-            <p className="text-yellow-300 animate-pulse">In attesa della risposta di {state.defender}...</p>
-            <p className="text-gray-400 text-sm mt-1">Hai offerto <strong className="text-white">{state.currentOffer} PTI</strong></p>
+            <p className="text-amber-300 animate-pulse">In attesa della risposta di {state.defender}...</p>
+            <p className="text-violet-400/60 text-sm mt-1">Hai offerto <strong className="text-white">{state.currentOffer} PTI</strong></p>
           </div>
         )}
 
         {/* Phase: defender receives offer */}
         {state.phase === 'waiting_response' && isDefender && (
           <div>
-            <p className="text-sm text-gray-300 mb-3">
-              <strong>{state.attacker}</strong> ti offre un danno ridotto:
+            <p className="text-sm text-violet-300/70 mb-3">
+              <strong className="text-white">{state.attacker}</strong> ti offre un danno ridotto:
             </p>
-            <div className="bg-gray-800 rounded-lg p-4 text-center mb-4">
-              <span className="text-3xl font-bold text-yellow-400">{state.currentOffer} PTI</span>
-              <p className="text-xs text-gray-400 mt-1">invece di {state.baseDamage} PTI</p>
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center mb-4">
+              <span className="text-3xl font-bold text-amber-400">{state.currentOffer} PTI</span>
+              <p className="text-xs text-violet-400/50 mt-1">invece di {state.baseDamage} PTI</p>
             </div>
             <div className="flex gap-3">
-              <Button
+              <button
                 onClick={() => respond(true)}
-                className="flex-1 bg-green-700 hover:bg-green-600 text-white font-bold"
+                className="flex-1 py-2.5 bg-gradient-to-r from-emerald-700 to-green-700 hover:from-emerald-600 hover:to-green-600 text-white font-bold rounded-xl transition-all"
               >
                 ✅ Accetta
-              </Button>
-              <Button
+              </button>
+              <button
                 onClick={() => respond(false)}
-                className="flex-1 bg-red-700 hover:bg-red-600 text-white font-bold"
+                className="flex-1 py-2.5 bg-gradient-to-r from-red-700 to-rose-800 hover:from-red-600 hover:to-rose-700 text-white font-bold rounded-xl transition-all"
               >
                 ❌ Rifiuta {state.offersLeft <= 1 ? '(dado)' : ''}
-              </Button>
+              </button>
             </div>
             {state.offersLeft <= 1 && (
               <p className="text-xs text-orange-400 text-center mt-2">
@@ -238,13 +238,13 @@ export const ContrattazioneDialog: React.FC = () => {
         {/* Phase: waiting for defender (attacker view, offer not submitted yet) */}
         {state.phase === 'offer' && isDefender && (
           <div className="text-center py-3">
-            <p className="text-yellow-300 animate-pulse">In attesa dell'offerta di {state.attacker}...</p>
+            <p className="text-amber-300 animate-pulse">In attesa dell'offerta di {state.attacker}...</p>
           </div>
         )}
 
         {/* Non-participant spectator view */}
         {!isParticipant && state.phase !== 'resolved' && (
-          <div className="text-center py-3 text-gray-400">
+          <div className="text-center py-3 text-violet-400/60">
             <p>Negoziazione in corso tra {state.attacker} e {state.defender}...</p>
           </div>
         )}

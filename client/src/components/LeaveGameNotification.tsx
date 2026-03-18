@@ -1,5 +1,4 @@
 import React, { useEffect } from "react";
-import { Button } from "./ui/button";
 import { X } from "lucide-react";
 
 interface LeaveGameNotificationProps {
@@ -15,7 +14,6 @@ export const LeaveGameNotification: React.FC<LeaveGameNotificationProps> = ({
 }) => {
   useEffect(() => {
     if (isVisible) {
-      // Auto-close after 4 seconds
       const timer = setTimeout(() => {
         onClose();
       }, 4000);
@@ -26,27 +24,25 @@ export const LeaveGameNotification: React.FC<LeaveGameNotificationProps> = ({
   if (!isVisible) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-red-600 rounded-lg p-8 max-w-md w-full text-center shadow-2xl border-2 border-red-400">
-        <div className="flex justify-between items-center mb-6">
-          <div></div> {/* Spacer */}
-          <Button
-            onClick={onClose}
-            className="bg-red-800 hover:bg-red-900 text-white p-2"
-            size="sm"
-          >
-            <X size={16} />
-          </Button>
-        </div>
-        
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-black/85 backdrop-blur-xl border border-red-500/40 rounded-2xl p-8 max-w-md w-full text-center shadow-[0_0_40px_rgba(239,68,68,0.3)]">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-red-900/40 border border-red-500/30 text-red-400 hover:bg-red-900/60 transition-colors"
+        >
+          <X size={14} />
+        </button>
+
         <div className="text-6xl mb-4">👋</div>
-        
-        <h2 className="text-white font-bold text-3xl mb-2">A CASCETTA</h2>
-        <p className="text-white/90 text-xl font-semibold">
+
+        <h2 className="font-black text-3xl mb-2 bg-gradient-to-r from-red-400 to-rose-400 bg-clip-text text-transparent">
+          A CASCETTA
+        </h2>
+        <p className="text-violet-100 text-xl font-semibold">
           {playerName}
         </p>
-        
-        <div className="mt-6 text-white/80 text-sm">
+
+        <div className="mt-6 text-violet-300/60 text-sm">
           ha lasciato la partita
         </div>
       </div>

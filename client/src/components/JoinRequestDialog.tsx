@@ -32,10 +32,7 @@ export function JoinRequestDialog({ isCreator, gameId }: JoinRequestDialogProps)
     };
 
     socket.on('join-request-received', handleJoinRequest);
-
-    return () => {
-      socket.off('join-request-received', handleJoinRequest);
-    };
+    return () => { socket.off('join-request-received', handleJoinRequest); };
   }, [isCreator, gameId]);
 
   const handleApprove = (request: JoinRequest) => {
@@ -58,37 +55,35 @@ export function JoinRequestDialog({ isCreator, gameId }: JoinRequestDialogProps)
     setPendingRequests(prev => prev.filter(r => r.requesterSocketId !== request.requesterSocketId));
   };
 
-  if (!isCreator || pendingRequests.length === 0) {
-    return null;
-  }
+  if (!isCreator || pendingRequests.length === 0) return null;
 
   return (
     <div className="fixed top-20 right-4 z-50 space-y-3">
       {pendingRequests.map((request) => (
         <div
           key={request.requesterSocketId}
-          className="bg-gradient-to-r from-amber-900/90 to-orange-900/90 backdrop-blur-sm rounded-2xl p-4 border border-amber-500/30 shadow-2xl animate-slide-in-right max-w-sm"
+          className="bg-black/85 backdrop-blur-xl border border-violet-500/30 rounded-2xl p-4 shadow-[0_0_20px_rgba(124,58,237,0.25)] animate-slide-in-right max-w-sm"
         >
           <div className="flex items-start gap-3">
-            <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-              <UserPlus className="w-6 h-6 text-amber-400" />
+            <div className="w-12 h-12 rounded-xl bg-violet-500/10 border border-violet-500/30 flex items-center justify-center flex-shrink-0">
+              <UserPlus className="w-6 h-6 text-violet-400" />
             </div>
             <div className="flex-1">
-              <h3 className="text-white font-semibold text-lg">Richiesta di accesso</h3>
-              <p className="text-amber-200/80 text-sm">
+              <h3 className="text-violet-100 font-semibold text-base">Richiesta di accesso</h3>
+              <p className="text-violet-300/70 text-sm">
                 <span className="font-bold text-white">{request.requesterName}</span> vuole unirsi alla partita
               </p>
               <div className="flex gap-2 mt-3">
                 <button
                   onClick={() => handleApprove(request)}
-                  className="flex items-center gap-1 px-4 py-2 bg-green-500 hover:bg-green-400 text-white rounded-xl font-medium transition-colors text-sm"
+                  className="flex items-center gap-1 px-4 py-2 bg-gradient-to-r from-emerald-700 to-green-700 hover:from-emerald-600 hover:to-green-600 text-white rounded-xl font-medium transition-all text-sm"
                 >
                   <Check className="w-4 h-4" />
                   Accetta
                 </button>
                 <button
                   onClick={() => handleDeny(request)}
-                  className="flex items-center gap-1 px-4 py-2 bg-red-500/80 hover:bg-red-500 text-white rounded-xl font-medium transition-colors text-sm"
+                  className="flex items-center gap-1 px-4 py-2 bg-gradient-to-r from-red-800 to-rose-900 hover:from-red-700 hover:to-rose-800 text-white rounded-xl font-medium transition-all text-sm border border-red-500/30"
                 >
                   <X className="w-4 h-4" />
                   Rifiuta

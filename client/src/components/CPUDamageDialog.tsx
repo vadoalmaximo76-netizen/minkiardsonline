@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useGameState } from '../lib/stores/useGameState';
 import { socket } from '../lib/socket';
-import { Button } from './ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Swords, Bot, Dices, X } from 'lucide-react';
 import { DiceModal } from './DiceModal';
 
@@ -37,8 +35,7 @@ interface CPUDamageRequest {
   timestamp: number;
   attackerCharacter: CharacterData | null;
   defenderCharacter: CharacterData | null;
-  isHandTarget?: boolean;  // NEW: True if attacking character in hand (ATTACCO DISONESTO)
-  // MOSSE damage auto-fill
+  isHandTarget?: boolean;
   mosseDamageValue?: number | null;
   mosseDamageEffect?: string | null;
   suggestedDamage?: number | null;
@@ -57,25 +54,14 @@ export const CPUDamageDialog: React.FC = () => {
   const [autoSubmitCountdown, setAutoSubmitCountdown] = useState<number | null>(null);
   const { playerName } = useGameState();
 
-  // Listen for CPU damage requests
   useEffect(() => {
     const handleCPUDamageRequest = (request: CPUDamageRequest) => {
       console.log('🤖 CPU DAMAGE REQUEST RECEIVED:', request);
-      console.log('🤖 Attacker Image:', request.attackerCharacter?.image ? '✓ YES' : '✗ NO');
-      console.log('🤖 MOSSE Image:', request.mosseCardImage ? '✓ YES' : '✗ NO');
-      console.log('🤖 Defender Image:', request.defenderCharacter?.image ? '✓ YES' : '✗ NO');
-      console.log('🤖 Current playerName:', playerName);
-      console.log('🤖 Request gameCreator:', request.gameCreator);
-      
-      // Only show dialog if this player is the game creator
       if (request.gameCreator === playerName) {
         console.log('🤖 SHOWING CPU DAMAGE DIALOG!');
         setDamageRequest(request);
-        // Auto-fill damage value if suggestedDamage is provided (including 0)
         if (request.suggestedDamage !== null && request.suggestedDamage !== undefined) {
           setDamageValue(request.suggestedDamage.toString());
-          console.log(`🎯 Auto-filled damage: ${request.suggestedDamage} (${request.mosseDamageValue} x ${request.attackerStars} stars)`);
-          // Start auto-submit countdown for preset-damage cards
           setAutoSubmitCountdown(3);
         } else {
           setDamageValue('');
@@ -83,78 +69,51 @@ export const CPUDamageDialog: React.FC = () => {
         }
         setStarsToRemove('');
         setIsProcessing(false);
-      } else {
-        console.log('🤖 CPU damage request not for this player, ignoring');
       }
     };
 
-    const handleDiceRolled = (data: { playerName: string; result: number }) => {
-      setCurrentDiceRoll(data.result);
+    const handleDiceRoll = (data: { playerName: string; value: number }) => {
+      console.log('🎲 DICE ROLL RESULT:', data);
+      setCurrentDiceRoll(data.value);
       setPlayerWhoRolled(data.playerName);
     };
 
     socket.on('cpu-damage-request', handleCPUDamageRequest);
-    socket.on('dice-rolled', handleDiceRolled);
+    socket.on('dice-rolled', handleDiceRoll);
 
     return () => {
       socket.off('cpu-damage-request', handleCPUDamageRequest);
-      socket.off('dice-rolled', handleDiceRolled);
+      socket.off('dice-rolled', handleDiceRoll);
     };
   }, [playerName]);
 
-  // Auto-submit countdown: when suggestedDamage is provided, count down and auto-confirm
   useEffect(() => {
     if (autoSubmitCountdown === null) return;
     if (autoSubmitCountdown <= 0) {
-      // Auto-submit now
-      if (damageRequest && !isProcessing) {
-        const damage = damageValue.trim() !== '' ? (parseInt(damageValue) || 0) : 0;
-        socket.emit('cpu-damage-submit', {
-          cpuName: damageRequest.cpuName,
-          mosseCardId: damageRequest.mosseCardId,
-          targetCardId: damageRequest.targetCardId,
-          targetOwner: damageRequest.targetOwner,
-          damageValue: damage,
-          starsToRemove: 0,
-          mosseEffect: damageRequest.mosseDamageEffect || null
-        });
-        setDamageRequest(null);
-        setDamageValue('');
-        setAutoSubmitCountdown(null);
-      }
+      handleDamageSubmit();
       return;
     }
-    const t = setTimeout(() => setAutoSubmitCountdown(c => (c !== null ? c - 1 : null)), 1000);
-    return () => clearTimeout(t);
-  }, [autoSubmitCountdown, damageRequest, damageValue, isProcessing]);
+    const timer = setTimeout(() => setAutoSubmitCountdown(prev => (prev !== null ? prev - 1 : null)), 1000);
+    return () => clearTimeout(timer);
+  }, [autoSubmitCountdown]);
 
   const handleDamageSubmit = () => {
-    if (autoSubmitCountdown !== null) setAutoSubmitCountdown(null);
     if (!damageRequest || isProcessing) return;
-    
-    // Allow 0 damage if there's a special effect like "death"
-    let damage = 0;
-    if (damageValue.trim() !== '') {
-      const parsed = evaluateMathExpression(damageValue);
-      if (parsed === null || parsed < 0) {
-        alert('Inserisci un valore di danno valido (minimo 0)!');
-        return;
-      }
-      damage = parsed;
-    } else if (!damageRequest.mosseDamageEffect) {
-      alert('Inserisci un valore di danno valido!');
+
+    const damage = evaluateMathExpression(damageValue.trim());
+    if (damage === null || damage < 0) {
+      alert('Inserisci un valore di danno valido (minimo 0)!');
       return;
     }
-    
-    const stars = starsToRemove.trim() !== '' ? parseInt(starsToRemove) : 0;
+
+    const stars = starsToRemove === '' ? 0 : parseInt(starsToRemove);
     if (isNaN(stars) || stars < 0) {
       alert('Inserisci un valore di stelle valido (minimo 0)!');
       return;
     }
-    
+
     setIsProcessing(true);
-    console.log(`🤖 Submitting CPU damage: ${damage}, stars to remove: ${stars}, effect: ${damageRequest.mosseDamageEffect || 'none'}`);
-    
+
     socket.emit('cpu-damage-submit', {
       cpuName: damageRequest.cpuName,
       mosseCardId: damageRequest.mosseCardId,
@@ -165,7 +124,6 @@ export const CPUDamageDialog: React.FC = () => {
       mosseEffect: damageRequest.mosseDamageEffect || null
     });
 
-    // Close dialog after sending response
     setTimeout(() => {
       setDamageRequest(null);
       setDamageValue('');
@@ -178,237 +136,228 @@ export const CPUDamageDialog: React.FC = () => {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[100] p-4">
-        <Card className="w-full max-w-4xl bg-white shadow-2xl border-2 border-purple-500">
-          <CardHeader className="text-center pb-4">
-            <div className="flex items-center justify-center gap-2 text-purple-600">
-              <Bot className="w-6 h-6" />
-              <CardTitle className="text-xl font-bold">ATTACCO CPU</CardTitle>
-              <Swords className="w-6 h-6" />
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+        <div className="bg-black/85 backdrop-blur-xl border border-violet-500/30 rounded-2xl shadow-[0_0_40px_rgba(124,58,237,0.3)] w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6">
+
+          {/* Header */}
+          <div className="flex items-center justify-center gap-3 mb-5">
+            <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/30 flex items-center justify-center">
+              <Bot className="w-5 h-5 text-violet-400" />
             </div>
-          </CardHeader>
-          
-          <CardContent className="space-y-4">
-            {/* Characters and Move Display */}
-            <div className="grid grid-cols-3 gap-4 items-start">
-              {/* Attacker Character */}
-              <div className="text-center">
-                <p className="text-sm font-bold text-purple-600 mb-2">ATTACCANTE</p>
-                {damageRequest.attackerCharacter && damageRequest.attackerCharacter.image ? (
+            <h2 className="text-xl font-black bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
+              ATTACCO CPU
+            </h2>
+            <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/30 flex items-center justify-center">
+              <Swords className="w-5 h-5 text-violet-400" />
+            </div>
+          </div>
+
+          {/* Characters and Move Display */}
+          <div className="grid grid-cols-3 gap-4 items-start mb-5">
+            {/* Attacker Character */}
+            <div className="text-center">
+              <p className="text-xs font-semibold uppercase tracking-widest text-violet-400/70 mb-2">Attaccante</p>
+              {damageRequest.attackerCharacter && damageRequest.attackerCharacter.image ? (
+                <>
+                  <img
+                    src={damageRequest.attackerCharacter.image}
+                    alt={damageRequest.attackerCharacter.name}
+                    className="w-full h-48 object-cover rounded-xl shadow-lg border-2 border-violet-500/30 mb-2 cursor-pointer hover:border-violet-400/60 transition-all"
+                    onClick={() => setZoomedImage(damageRequest.attackerCharacter!.image)}
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                  <p className="font-bold text-violet-100">{damageRequest.attackerCharacter.name || 'Attaccante'}</p>
+                  <p className="text-xs text-violet-400/50 mt-0.5">({damageRequest.cpuName})</p>
+                  {damageRequest.attackerCharacter.notes && (
+                    <div className="mt-2 p-2 bg-violet-900/20 border border-violet-500/15 rounded-xl text-xs text-left">
+                      <p className="font-semibold text-violet-300/70">Note:</p>
+                      <p className="text-violet-200/70 whitespace-pre-wrap">{damageRequest.attackerCharacter.notes}</p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="w-full h-48 rounded-xl border-2 border-violet-500/30 mb-2 bg-violet-900/20 flex items-center justify-center">
+                  <p className="text-violet-300 font-bold">{damageRequest.cpuName}</p>
+                </div>
+              )}
+            </div>
+
+            {/* MOSSE Card */}
+            <div className="text-center">
+              <p className="text-xs font-semibold uppercase tracking-widest text-orange-400/70 mb-2">Mossa usata</p>
+              {damageRequest.mosseCardImage && (
+                <img
+                  src={damageRequest.mosseCardImage}
+                  alt={damageRequest.mosseCardName}
+                  className="w-full h-48 object-cover rounded-xl shadow-lg border-2 border-orange-500/30 mb-2 cursor-pointer hover:border-orange-400/60 transition-all"
+                  onClick={() => setZoomedImage(damageRequest.mosseCardImage)}
+                />
+              )}
+              <p className="font-bold text-orange-300">{damageRequest.mosseCardName}</p>
+            </div>
+
+            {/* Defender Character */}
+            <div className="text-center">
+              <p className="text-xs font-semibold uppercase tracking-widest text-red-400/70 mb-2">
+                {damageRequest.isHandTarget ? 'Bersaglio (mano)' : 'Difensore'}
+              </p>
+              {damageRequest.isHandTarget ? (
+                <div className="w-full h-48 rounded-xl border-2 border-red-500/30 mb-2 bg-gradient-to-br from-red-900/40 to-rose-900/40 flex items-center justify-center">
+                  <div className="text-center">
+                    <p className="text-white font-bold text-xl mb-2">🎴</p>
+                    <p className="text-white text-xs font-semibold">CARTA COPERTA</p>
+                    <p className="text-red-300/70 text-xs mt-1">{damageRequest.targetCardName}</p>
+                  </div>
+                </div>
+              ) : (
+                damageRequest.defenderCharacter && damageRequest.defenderCharacter.image ? (
                   <>
-                    <img 
-                      src={damageRequest.attackerCharacter.image} 
-                      alt={damageRequest.attackerCharacter.name}
-                      className="w-full h-48 object-cover rounded-lg shadow-lg border-2 border-purple-400 mb-2 cursor-pointer hover:border-purple-600 transition-all"
-                      onClick={() => setZoomedImage(damageRequest.attackerCharacter!.image)}
-                      onError={(e) => {
-                        console.log('❌ Failed to load attacker image:', damageRequest.attackerCharacter?.image);
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
+                    <img
+                      src={damageRequest.defenderCharacter.image}
+                      alt={damageRequest.defenderCharacter.name}
+                      className="w-full h-48 object-cover rounded-xl shadow-lg border-2 border-red-500/30 mb-2 cursor-pointer hover:border-red-400/60 transition-all"
+                      onClick={() => setZoomedImage(damageRequest.defenderCharacter!.image)}
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                     />
-                    <p className="font-bold text-purple-700">{damageRequest.attackerCharacter.name || 'Attaccante'}</p>
-                    <p className="text-xs text-gray-600 mt-1">({damageRequest.cpuName})</p>
-                    {damageRequest.attackerCharacter.notes && (
-                      <div className="mt-2 p-2 bg-purple-50 rounded text-xs text-left">
-                        <p className="font-semibold text-purple-700">Note:</p>
-                        <p className="text-gray-700 whitespace-pre-wrap">{damageRequest.attackerCharacter.notes}</p>
+                    <p className="font-bold text-red-300">{damageRequest.defenderCharacter.name || 'Difensore'}</p>
+                    <p className="text-xs text-violet-400/50 mt-0.5">({damageRequest.targetOwner})</p>
+                    {damageRequest.defenderCharacter.notes && (
+                      <div className="mt-2 p-2 bg-red-900/20 border border-red-500/15 rounded-xl text-xs text-left">
+                        <p className="font-semibold text-red-300/70">Note:</p>
+                        <p className="text-violet-200/70 whitespace-pre-wrap">{damageRequest.defenderCharacter.notes}</p>
                       </div>
                     )}
                   </>
                 ) : (
-                  <div className="w-full h-48 rounded-lg shadow-lg border-2 border-purple-400 mb-2 bg-purple-100 flex items-center justify-center">
-                    <p className="text-purple-600 font-bold">{damageRequest.cpuName}</p>
+                  <div className="w-full h-48 rounded-xl border-2 border-red-500/30 mb-2 bg-red-900/20 flex items-center justify-center">
+                    <p className="text-red-300 font-bold">{damageRequest.targetOwner}</p>
                   </div>
-                )}
-              </div>
+                )
+              )}
+            </div>
+          </div>
 
-              {/* MOSSE Card */}
-              <div className="text-center">
-                <p className="text-sm font-bold text-orange-600 mb-2">MOSSA USATA</p>
-                {damageRequest.mosseCardImage && (
-                  <img 
-                    src={damageRequest.mosseCardImage} 
-                    alt={damageRequest.mosseCardName}
-                    className="w-full h-48 object-cover rounded-lg shadow-lg border-2 border-orange-400 mb-2 cursor-pointer hover:border-orange-600 transition-all"
-                    onClick={() => setZoomedImage(damageRequest.mosseCardImage)}
-                  />
-                )}
-                <p className="font-bold text-orange-700">{damageRequest.mosseCardName}</p>
+          {/* MOSSE Damage Info */}
+          {damageRequest.mosseDamageValue !== null && damageRequest.mosseDamageValue !== undefined && (
+            <div className="bg-emerald-900/20 border border-emerald-500/20 rounded-xl p-3 mb-4">
+              <div className="flex items-center justify-center gap-2 text-emerald-400 font-bold text-sm">
+                <span>⚔️</span>
+                <span>Danno pre-calcolato: {damageRequest.mosseDamageValue} PTI × {damageRequest.attackerStars || 1} stelle = {damageRequest.suggestedDamage} PTI</span>
               </div>
+              <p className="text-center text-emerald-400/60 text-xs mt-1">Puoi modificare il valore prima di confermare</p>
+            </div>
+          )}
 
-              {/* Defender Character or Hand Card */}
-              <div className="text-center">
-                <p className="text-sm font-bold text-red-600 mb-2">
-                  {damageRequest.isHandTarget ? 'BERSAGLIO (MANO)' : 'DIFENSORE'}
-                </p>
-                {damageRequest.isHandTarget ? (
-                  // Show hand card (face-down) for ATTACCO DISONESTO
-                  <div className="w-full h-48 rounded-lg shadow-lg border-2 border-red-400 mb-2 bg-gradient-to-br from-red-900 to-red-700 flex items-center justify-center relative">
-                    <div className="absolute text-center">
-                      <p className="text-white font-bold text-xl mb-2">🎴</p>
-                      <p className="text-white text-xs font-semibold">CARTA COPERTA</p>
-                      <p className="text-red-200 text-xs mt-1">{damageRequest.targetCardName}</p>
-                    </div>
-                  </div>
-                ) : (
-                  damageRequest.defenderCharacter && damageRequest.defenderCharacter.image ? (
-                    <>
-                      <img 
-                        src={damageRequest.defenderCharacter.image} 
-                        alt={damageRequest.defenderCharacter.name}
-                        className="w-full h-48 object-cover rounded-lg shadow-lg border-2 border-red-400 mb-2 cursor-pointer hover:border-red-600 transition-all"
-                        onClick={() => setZoomedImage(damageRequest.defenderCharacter!.image)}
-                        onError={(e) => {
-                          console.log('❌ Failed to load defender image:', damageRequest.defenderCharacter?.image);
-                          (e.target as HTMLImageElement).style.display = 'none';
-                        }}
-                      />
-                      <p className="font-bold text-red-700">{damageRequest.defenderCharacter.name || 'Difensore'}</p>
-                      <p className="text-xs text-gray-600 mt-1">({damageRequest.targetOwner})</p>
-                      {damageRequest.defenderCharacter.notes && (
-                        <div className="mt-2 p-2 bg-red-50 rounded text-xs text-left">
-                          <p className="font-semibold text-red-700">Note:</p>
-                          <p className="text-gray-700 whitespace-pre-wrap">{damageRequest.defenderCharacter.notes}</p>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="w-full h-48 rounded-lg shadow-lg border-2 border-red-400 mb-2 bg-red-100 flex items-center justify-center">
-                      <p className="text-red-600 font-bold">{damageRequest.targetOwner}</p>
-                    </div>
-                  )
-                )}
+          {/* MOSSE Effect Info */}
+          {damageRequest.mosseDamageEffect && (
+            <div className="bg-red-900/20 border border-red-500/20 rounded-xl p-3 mb-4">
+              <div className="flex items-center justify-center gap-2 text-red-400 font-bold text-sm">
+                <span>💀</span>
+                <span>Effetto speciale: {
+                  damageRequest.mosseDamageEffect === 'death' ? 'Morte istantanea' :
+                  damageRequest.mosseDamageEffect === 'halve_pti' ? 'PTI dimezzati' :
+                  damageRequest.mosseDamageEffect === 'zero_stars' ? 'Manda a 0 stelle' :
+                  damageRequest.mosseDamageEffect === 'set_5_pti' ? 'Manda a 5 PTI' :
+                  damageRequest.mosseDamageEffect === 'remove_1_star' ? 'Elimina 1 stella' :
+                  damageRequest.mosseDamageEffect
+                }</span>
               </div>
             </div>
-            
-            {/* MOSSE Damage Info - Show if pre-filled (including 0) */}
-            {damageRequest.mosseDamageValue !== null && damageRequest.mosseDamageValue !== undefined && (
-              <div className="bg-green-50 p-3 rounded-lg border-2 border-green-300 mb-4">
-                <div className="flex items-center justify-center gap-2 text-green-700 font-bold">
-                  <span>⚔️</span>
-                  <span>Danno pre-calcolato: {damageRequest.mosseDamageValue} PTI × {damageRequest.attackerStars || 1} stelle = {damageRequest.suggestedDamage} PTI</span>
-                </div>
-                <p className="text-center text-green-600 text-xs mt-1">Puoi modificare il valore prima di confermare</p>
-              </div>
-            )}
-            
-            {/* MOSSE Effect Info - Show if special effect */}
-            {damageRequest.mosseDamageEffect && (
-              <div className="bg-red-50 p-3 rounded-lg border-2 border-red-300 mb-4">
-                <div className="flex items-center justify-center gap-2 text-red-700 font-bold">
-                  <span>💀</span>
-                  <span>Effetto speciale: {
-                    damageRequest.mosseDamageEffect === 'death' ? 'Morte istantanea' :
-                    damageRequest.mosseDamageEffect === 'halve_pti' ? 'PTI dimezzati' :
-                    damageRequest.mosseDamageEffect === 'zero_stars' ? 'Manda a 0 stelle' :
-                    damageRequest.mosseDamageEffect === 'set_5_pti' ? 'Manda a 5 PTI' :
-                    damageRequest.mosseDamageEffect === 'remove_1_star' ? 'Elimina 1 stella' :
-                    damageRequest.mosseDamageEffect
-                  }</span>
-                </div>
-              </div>
-            )}
-            
-            {/* Damage and Stars Input */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-purple-50 p-4 rounded-lg border-2 border-purple-200">
-                <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
-                  PTI da togliere:
-                </label>
-                <input
-                  type="text"
-                  value={damageValue}
-                  onChange={(e) => setDamageValue(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && damageValue !== '') {
-                      handleDamageSubmit();
-                    }
-                  }}
-                  placeholder="Es: 50, 100+50, 200*2"
-                  className={`w-full px-4 py-3 text-center text-2xl font-bold border-2 rounded-lg focus:outline-none focus:ring-2 ${
-                    damageRequest.suggestedDamage !== null && damageRequest.suggestedDamage !== undefined ? 'border-green-400 bg-green-50 focus:ring-green-500' : 'border-purple-300 focus:ring-purple-500'
-                  }`}
-                  autoFocus
-                  disabled={isProcessing}
-                />
-              </div>
-              <div className="bg-yellow-50 p-4 rounded-lg border-2 border-yellow-300">
-                <label className="block text-sm font-medium text-gray-700 mb-2 text-center">
-                  ⭐ Stelle da togliere:
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={starsToRemove}
-                  onChange={(e) => setStarsToRemove(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && damageValue !== '') {
-                      handleDamageSubmit();
-                    }
-                  }}
-                  placeholder="Stelle (es. 1)"
-                  className="w-full px-4 py-3 text-center text-2xl font-bold border-2 border-yellow-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
-                  disabled={isProcessing}
-                />
-              </div>
+          )}
+
+          {/* Damage and Stars Input */}
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="bg-violet-900/20 border border-violet-500/20 rounded-xl p-4">
+              <label className="block text-sm font-semibold text-violet-300/80 mb-2 text-center">
+                PTI da togliere:
+              </label>
+              <input
+                type="text"
+                value={damageValue}
+                onChange={(e) => setDamageValue(e.target.value)}
+                onKeyPress={(e) => { if (e.key === 'Enter' && damageValue !== '') handleDamageSubmit(); }}
+                placeholder="Es: 50, 100+50, 200*2"
+                className={`w-full px-4 py-3 text-center text-2xl font-bold bg-black/40 border rounded-xl focus:outline-none transition-colors text-violet-100 placeholder:text-violet-400/30 ${
+                  damageRequest.suggestedDamage !== null && damageRequest.suggestedDamage !== undefined
+                    ? 'border-emerald-500/40 focus:border-emerald-400/60'
+                    : 'border-violet-500/30 focus:border-violet-400/60'
+                }`}
+                autoFocus
+                disabled={isProcessing}
+              />
             </div>
-            
-            {/* Action Buttons */}
-            <div className="grid grid-cols-2 gap-4">
-              <Button
-                onClick={() => setIsDiceModalOpen(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 text-lg transition-all duration-200"
-              >
-                <Dices className="w-5 h-5 mr-2" />
-                LANCIA IL DADO
-              </Button>
-              
+            <div className="bg-amber-900/20 border border-amber-500/20 rounded-xl p-4">
+              <label className="block text-sm font-semibold text-amber-300/80 mb-2 text-center">
+                ⭐ Stelle da togliere:
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={starsToRemove}
+                onChange={(e) => setStarsToRemove(e.target.value)}
+                onKeyPress={(e) => { if (e.key === 'Enter' && damageValue !== '') handleDamageSubmit(); }}
+                placeholder="Stelle (es. 1)"
+                className="w-full px-4 py-3 text-center text-2xl font-bold bg-black/40 border border-amber-500/30 text-amber-100 placeholder:text-amber-400/30 rounded-xl focus:outline-none focus:border-amber-400/60 transition-colors"
+                disabled={isProcessing}
+              />
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="grid grid-cols-2 gap-4">
+            <button
+              onClick={() => setIsDiceModalOpen(true)}
+              className="flex items-center justify-center gap-2 py-4 text-lg font-bold bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-600 hover:to-indigo-600 text-white rounded-xl transition-all"
+            >
+              <Dices className="w-5 h-5" />
+              LANCIA IL DADO
+            </button>
+
+            <div className="relative">
               {autoSubmitCountdown !== null && (
                 <button
                   onClick={() => setAutoSubmitCountdown(null)}
-                  className="text-xs text-yellow-300 underline"
+                  className="absolute -top-5 left-0 right-0 text-xs text-amber-300/70 underline text-center"
                 >
                   Annulla auto-invio ({autoSubmitCountdown}s)
                 </button>
               )}
-              <Button
+              <button
                 onClick={handleDamageSubmit}
                 disabled={isProcessing || !damageValue}
-                className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 text-lg transition-all duration-200"
+                className="w-full py-4 text-lg font-bold bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-40 text-white rounded-xl transition-all shadow-[0_0_15px_rgba(124,58,237,0.3)]"
               >
                 {autoSubmitCountdown !== null
                   ? `AUTO-INVIO IN ${autoSubmitCountdown}s`
                   : isProcessing ? 'APPLICANDO...' : 'APPLICA DANNO'}
-              </Button>
+              </button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
-      {/* Dice Modal */}
-      <DiceModal 
+      <DiceModal
         isOpen={isDiceModalOpen}
         onClose={() => setIsDiceModalOpen(false)}
         currentRoll={currentDiceRoll}
         playerWhoRolled={playerWhoRolled}
       />
 
-      {/* Zoomed Image Overlay */}
       {zoomedImage && (
-        <div 
-          className="fixed inset-0 bg-black/90 flex items-center justify-center z-[120] p-4"
+        <div
+          className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[120] p-4"
           onClick={() => setZoomedImage(null)}
         >
-          <Button
+          <button
             onClick={() => setZoomedImage(null)}
-            className="absolute top-4 right-4 bg-red-600 hover:bg-red-700 text-white p-3 rounded-full z-[121]"
+            className="absolute top-4 right-4 w-10 h-10 bg-red-900/60 border border-red-500/30 hover:bg-red-900 text-white rounded-full flex items-center justify-center z-[121] transition-colors"
           >
-            <X size={24} />
-          </Button>
-          <img 
-            src={zoomedImage} 
+            <X size={20} />
+          </button>
+          <img
+            src={zoomedImage}
             alt="Carta ingrandita"
-            className="max-w-full max-h-full object-contain"
+            className="max-w-full max-h-full object-contain rounded-2xl"
             onClick={(e) => e.stopPropagation()}
           />
         </div>

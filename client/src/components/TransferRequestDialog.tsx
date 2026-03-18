@@ -1,16 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useGameState } from "../lib/stores/useGameState";
 import { socket } from "../lib/socket";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "./ui/alert-dialog";
+import { ArrowLeftRight, Check, X } from "lucide-react";
 
 interface TransferRequest {
   id: string;
@@ -27,7 +18,6 @@ export const TransferRequestDialog: React.FC = () => {
 
   useEffect(() => {
     const handleTransferRequest = (request: TransferRequest) => {
-      // Only show if this player is the recipient
       if (request.toPlayer === playerName) {
         setCurrentRequest(request);
         setIsOpen(true);
@@ -36,35 +26,22 @@ export const TransferRequestDialog: React.FC = () => {
 
     const handleTransferError = ({ message }: { message: string }) => {
       console.error('Transfer error:', message);
-      // Close dialog on error
       setIsOpen(false);
       setCurrentRequest(null);
     };
 
-    const handleTransferAccepted = ({ message }: { message: string }) => {
-      console.log('Transfer accepted:', message);
-    };
-
-    const handleTransferDeclined = ({ message }: { message: string }) => {
-      console.log('Transfer declined:', message);
-    };
-
-    const handleTransferRequestSent = ({ message }: { message: string }) => {
-      console.log('Transfer request sent:', message);
-    };
-
     socket.on('transfer-request', handleTransferRequest);
     socket.on('transfer-error', handleTransferError);
-    socket.on('transfer-accepted', handleTransferAccepted);
-    socket.on('transfer-declined', handleTransferDeclined);
-    socket.on('transfer-request-sent', handleTransferRequestSent);
+    socket.on('transfer-accepted', ({ message }: any) => console.log('Transfer accepted:', message));
+    socket.on('transfer-declined', ({ message }: any) => console.log('Transfer declined:', message));
+    socket.on('transfer-request-sent', ({ message }: any) => console.log('Transfer request sent:', message));
 
     return () => {
       socket.off('transfer-request', handleTransferRequest);
       socket.off('transfer-error', handleTransferError);
-      socket.off('transfer-accepted', handleTransferAccepted);
-      socket.off('transfer-declined', handleTransferDeclined);
-      socket.off('transfer-request-sent', handleTransferRequestSent);
+      socket.off('transfer-accepted');
+      socket.off('transfer-declined');
+      socket.off('transfer-request-sent');
     };
   }, [playerName]);
 
@@ -84,51 +61,50 @@ export const TransferRequestDialog: React.FC = () => {
     }
   };
 
-  const handleClose = () => {
-    // If user closes without choosing, treat as decline
-    if (currentRequest) {
-      socket.emit('decline-transfer', { requestId: currentRequest.id });
-    }
-    setIsOpen(false);
-    setCurrentRequest(null);
-  };
-
-  if (!currentRequest) return null;
+  if (!isOpen || !currentRequest) return null;
 
   return (
-    <AlertDialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <AlertDialogContent className="max-w-md">
-        <AlertDialogHeader>
-          <AlertDialogTitle className="text-lg font-bold text-center">
-            🔄 Richiesta di Trasferimento
-          </AlertDialogTitle>
-          <AlertDialogDescription className="text-center text-base">
-            <div className="space-y-2">
-              <p className="font-semibold text-white">
-                {currentRequest.fromPlayer}
-              </p>
-              <p>vuole trasferire una carta a te</p>
-              <p className="text-sm text-gray-300">
-                Vuoi accettare questo trasferimento?
-              </p>
-            </div>
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter className="flex gap-2 justify-center">
-          <AlertDialogCancel 
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-black/85 backdrop-blur-xl border border-violet-500/30 rounded-2xl shadow-[0_0_40px_rgba(124,58,237,0.3)] w-full max-w-sm p-6">
+        {/* Header */}
+        <div className="flex items-center justify-center gap-3 mb-5">
+          <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/30 flex items-center justify-center">
+            <ArrowLeftRight className="w-5 h-5 text-violet-400" />
+          </div>
+          <h2 className="text-lg font-black bg-gradient-to-r from-cyan-400 to-violet-400 bg-clip-text text-transparent">
+            Richiesta di Trasferimento
+          </h2>
+        </div>
+
+        {/* Content */}
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-5 text-center space-y-2">
+          <p className="font-semibold text-white text-lg">
+            {currentRequest.fromPlayer}
+          </p>
+          <p className="text-violet-300/70">vuole trasferire una carta a te</p>
+          <p className="text-sm text-violet-400/60">
+            Vuoi accettare questo trasferimento?
+          </p>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3">
+          <button
             onClick={handleDecline}
-            className="bg-red-600 hover:bg-red-700 text-white border-red-600"
+            className="flex-1 flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-red-800 to-rose-900 hover:from-red-700 hover:to-rose-800 text-white font-bold rounded-xl transition-all border border-red-500/20"
           >
-            ❌ Rifiuta
-          </AlertDialogCancel>
-          <AlertDialogAction 
+            <X className="w-4 h-4" />
+            Rifiuta
+          </button>
+          <button
             onClick={handleAccept}
-            className="bg-green-600 hover:bg-green-700 text-white"
+            className="flex-1 flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-emerald-700 to-green-700 hover:from-emerald-600 hover:to-green-600 text-white font-bold rounded-xl transition-all"
           >
-            ✅ Accetta
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+            <Check className="w-4 h-4" />
+            Accetta
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };

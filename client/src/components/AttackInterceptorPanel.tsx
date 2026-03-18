@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { socket } from '../lib/socket';
 import { useGameState } from '../lib/stores/useGameState';
-import { Button } from './ui/button';
 import { Shield, Swords, RotateCcw, X, Clock } from 'lucide-react';
 
 interface InterceptorData {
@@ -53,15 +52,15 @@ export const AttackInterceptorPanel: React.FC = () => {
 
   if (!data) return null;
 
-  const timerColor = timeLeft > 8 ? 'text-green-400' : timeLeft > 4 ? 'text-yellow-400' : 'text-red-400';
+  const timerColor = timeLeft > 8 ? 'text-emerald-400' : timeLeft > 4 ? 'text-amber-400' : 'text-red-400';
 
   return (
     <div className="fixed inset-0 z-[9000] flex items-center justify-center pointer-events-none">
-      <div className="pointer-events-auto bg-gray-900/95 border-2 border-yellow-500 rounded-xl p-5 max-w-sm w-full mx-4 shadow-2xl shadow-yellow-500/30">
+      <div className="pointer-events-auto bg-black/85 backdrop-blur-xl border border-violet-500/40 rounded-2xl p-5 max-w-sm w-full mx-4 shadow-[0_0_40px_rgba(124,58,237,0.35)]">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-yellow-400" />
-            <span className="font-bold text-yellow-400 text-sm uppercase tracking-wide">Intercettore Attacco</span>
+            <Shield className="w-5 h-5 text-cyan-400" />
+            <span className="font-bold text-cyan-400 text-sm uppercase tracking-wide">Intercettore Attacco</span>
           </div>
           <div className={`flex items-center gap-1 font-mono font-bold text-lg ${timerColor}`}>
             <Clock className="w-4 h-4" />
@@ -69,58 +68,58 @@ export const AttackInterceptorPanel: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-gray-800/60 rounded-lg p-3 mb-4 text-center">
-          <p className="text-white text-sm">
+        <div className="bg-white/5 border border-white/10 rounded-xl p-3 mb-4 text-center">
+          <p className="text-violet-100 text-sm">
             <span className="font-bold text-red-400">{data.attackerName}</span>
             {' '}sta attaccando{' '}
-            <span className="font-bold text-blue-400">{data.targetOwnerName}</span>
+            <span className="font-bold text-cyan-400">{data.targetOwnerName}</span>
           </p>
-          <p className="text-gray-300 text-xs mt-1">
+          <p className="text-violet-300/60 text-xs mt-1">
             Bersaglio: <span className="text-white font-semibold">{data.targetCardName}</span>
           </p>
           <div className="mt-2 flex items-center justify-center gap-2">
             <Swords className="w-4 h-4 text-orange-400" />
             <span className="text-orange-400 font-bold text-lg">{data.damage} PTI</span>
-            <span className="text-gray-400 text-xs">→ x2 se confermi</span>
+            <span className="text-violet-400/50 text-xs">→ x2 se confermi</span>
           </div>
         </div>
 
-        <div className="text-gray-400 text-xs text-center mb-3">
+        <div className="text-violet-400/60 text-xs text-center mb-3">
           Puoi intercettare questo attacco!
         </div>
 
         <div className="grid grid-cols-3 gap-2">
-          <Button
+          <button
             onClick={() => sendResponse('conferma')}
             disabled={isProcessing}
-            className="bg-green-700 hover:bg-green-600 text-white text-xs py-2 px-1 flex flex-col items-center gap-1"
+            className="flex flex-col items-center gap-1 py-2 px-1 bg-gradient-to-b from-emerald-700 to-green-800 hover:from-emerald-600 hover:to-green-700 disabled:opacity-40 text-white text-xs rounded-xl transition-all border border-emerald-500/30"
           >
             <Shield className="w-4 h-4" />
             <span>Conferma</span>
-            <span className="text-green-300 text-xs">(x2 danno)</span>
-          </Button>
-          <Button
+            <span className="text-emerald-300 text-[10px]">(x2 danno)</span>
+          </button>
+          <button
             onClick={() => sendResponse('ribalta')}
             disabled={isProcessing}
-            className="bg-red-700 hover:bg-red-600 text-white text-xs py-2 px-1 flex flex-col items-center gap-1"
+            className="flex flex-col items-center gap-1 py-2 px-1 bg-gradient-to-b from-red-700 to-rose-800 hover:from-red-600 hover:to-rose-700 disabled:opacity-40 text-white text-xs rounded-xl transition-all border border-red-500/30"
           >
             <RotateCcw className="w-4 h-4" />
             <span>Ribalta</span>
-            <span className="text-red-300 text-xs">(all'attacc.)</span>
-          </Button>
-          <Button
+            <span className="text-red-300 text-[10px]">(all'attacc.)</span>
+          </button>
+          <button
             onClick={() => sendResponse('ignora')}
             disabled={isProcessing}
-            className="bg-gray-700 hover:bg-gray-600 text-white text-xs py-2 px-1 flex flex-col items-center gap-1"
+            className="flex flex-col items-center gap-1 py-2 px-1 bg-white/5 hover:bg-white/10 disabled:opacity-40 text-white text-xs rounded-xl transition-all border border-white/10"
           >
             <X className="w-4 h-4" />
             <span>Ignora</span>
-            <span className="text-gray-400 text-xs">(attacco norm.)</span>
-          </Button>
+            <span className="text-violet-400/50 text-[10px]">(attacco norm.)</span>
+          </button>
         </div>
 
-        <div className="mt-3 bg-gray-800/40 rounded p-2 text-center">
-          <p className="text-gray-500 text-xs">
+        <div className="mt-3 bg-white/5 rounded-xl p-2 text-center border border-white/5">
+          <p className="text-violet-400/50 text-xs">
             Auto-ignora tra <span className={`font-bold ${timerColor}`}>{timeLeft}s</span>
           </p>
         </div>
