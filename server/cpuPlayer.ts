@@ -2453,6 +2453,45 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           damageValue: suggestedDamage,
           timestamp: Date.now()
         });
+
+        // BARRIERA HANDLING: If the attack was absorbed by a shield, apply damage and end turn
+        if (attackResult.result?.barrieraAbsorbed) {
+          const barrieraDamage = attackResult.result.damageValue ?? suggestedDamage ?? 0;
+          console.log(`🛡️ CPU ${this.playerName}: Attack auto-absorbed by BARRIERA - applying ${barrieraDamage} damage to shield`);
+
+          this.socketEmitter.to(this.gameId).emit('chat-message', {
+            id: `${Date.now()}-cpu-barriera-absorb`,
+            playerName: 'Sistema',
+            message: `🛡️ BARRIERA assorbe automaticamente ${barrieraDamage} danni dell'attacco di ${this.playerName}!`,
+            timestamp: Date.now()
+          });
+
+          this.gameManager.damageBarriera(this.gameId, attackResult.result.barrieraShieldId, barrieraDamage, this.playerName, this.socketEmitter);
+          this.gameManager.returnToDeck(this.gameId, mosseCard.id, this.playerName);
+
+          const barrieraState = this.gameManager.getSanitizedGameState(this.gameId);
+          if (barrieraState) {
+            this.socketEmitter.to(this.gameId).emit('game-state-update', barrieraState);
+          }
+
+          // End turn: one attack on BARRIERA per turn
+          this.resetTurnState();
+          setTimeout(() => {
+            this.gameManager.processDelayedDamages(this.gameId, this.playerName, this.socketEmitter);
+            const nextPlayer = this.gameManager.endTurn(this.gameId, this.playerName);
+            if (nextPlayer) {
+              console.log(`🎯 CPU ${this.playerName}: Turn ended after BARRIERA attack, next: ${nextPlayer}`);
+              this.socketEmitter.to(this.gameId).emit('next-turn', { nextPlayer });
+              const freshGame = this.gameManager.getGameState(this.gameId);
+              if (freshGame && freshGame.players[nextPlayer]?.isCPU) {
+                setTimeout(() => {
+                  this.gameManager.processCPUTurn(this.gameId, nextPlayer, this.socketEmitter);
+                }, 1500);
+              }
+            }
+          }, 800);
+          return;
+        }
         
         if (attackResult.result?.requiresDefenseResponse) {
           console.log(`🛡️ CPU ${this.playerName}: Attack requires defense response from ${target.owner}`);
