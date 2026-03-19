@@ -3800,10 +3800,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
         {/* Header - Premium slim bar - fixed at top */}
         <div className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between gap-2 px-3 py-1.5"
           style={{
-            background: 'rgba(2,16,8,0.92)',
+            background: 'rgba(5,3,20,0.92)',
             backdropFilter: 'blur(20px)',
-            borderBottom: '1px solid rgba(202,138,4,0.25)',
-            boxShadow: '0 2px 16px rgba(0,0,0,0.5), inset 0 -1px 0 rgba(202,138,4,0.12)',
+            borderBottom: '1px solid rgba(99,102,241,0.25)',
+            boxShadow: '0 2px 16px rgba(0,0,0,0.5), inset 0 -1px 0 rgba(99,102,241,0.12)',
           }}
         >
           {/* Left: Back + Logo + Room */}
@@ -3811,7 +3811,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             {onBack && (
               <button
                 onClick={onBack}
-                className="text-amber-400/70 hover:text-amber-300 transition-colors text-sm font-bold"
+                className="text-indigo-400/70 hover:text-cyan-300 transition-colors text-sm font-bold"
               >
                 ←
               </button>
@@ -3819,19 +3819,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             <h1
               className="text-lg landscape:text-2xl md:text-2xl font-black tracking-tight whitespace-nowrap"
               style={{
-                background: 'linear-gradient(to right, #fbbf24, #f59e0b, #fde68a)',
+                background: 'linear-gradient(to right, #22d3ee, #818cf8, #a78bfa)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
-                filter: 'drop-shadow(0 0 6px rgba(202,138,4,0.45))',
+                filter: 'drop-shadow(0 0 6px rgba(34,211,238,0.45))',
               }}
             >MINKIARDS</h1>
             {gameId && gameId.startsWith('room-') && (
               <span
                 className="text-[10px] landscape:text-xs md:text-xs px-2 py-0.5 rounded-full whitespace-nowrap font-bold"
                 style={{
-                  background: 'rgba(202,138,4,0.12)',
-                  border: '1px solid rgba(202,138,4,0.30)',
-                  color: 'rgba(253,230,138,0.80)',
+                  background: 'rgba(99,102,241,0.12)',
+                  border: '1px solid rgba(99,102,241,0.30)',
+                  color: 'rgba(199,210,254,0.80)',
                 }}
               >
                 {gameId.replace('room-', '')}
@@ -3854,10 +3854,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             </Button>
             <Button
               onClick={() => { playButtonClick(); setIs3DMode(!is3DMode); }}
-              className={`${is3DMode ? 'border-amber-400/40' : 'border-white/10'} text-white font-bold text-[11px] landscape:text-sm md:text-sm px-3 landscape:px-4 md:px-4 py-1.5 landscape:py-2 md:py-2 rounded-xl shadow-lg border transition-all duration-200`}
+              className={`${is3DMode ? 'border-cyan-400/40' : 'border-white/10'} text-white font-bold text-[11px] landscape:text-sm md:text-sm px-3 landscape:px-4 md:px-4 py-1.5 landscape:py-2 md:py-2 rounded-xl shadow-lg border transition-all duration-200`}
               style={{
-                background: is3DMode ? 'rgba(202,138,4,0.65)' : 'rgba(255,255,255,0.07)',
-                boxShadow: is3DMode ? '0 0 12px rgba(202,138,4,0.35)' : 'none',
+                background: is3DMode ? 'rgba(34,211,238,0.55)' : 'rgba(255,255,255,0.07)',
+                boxShadow: is3DMode ? '0 0 12px rgba(34,211,238,0.35)' : 'none',
               }}
             >
               3D
@@ -3881,17 +3881,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               <div
                 className="flex items-center gap-1.5 backdrop-blur-md px-2.5 py-1.5 rounded-xl cursor-pointer hover:bg-white/10 transition-all duration-200"
                 style={{
-                  background: 'rgba(202,138,4,0.08)',
-                  border: '1px solid rgba(202,138,4,0.22)',
+                  background: 'rgba(99,102,241,0.08)',
+                  border: '1px solid rgba(99,102,241,0.25)',
                 }}
                 onClick={() => setProfileOpen(true)}
                 title="Apri Profilo"
               >
-                <User size={13} className="text-amber-400/80 flex-shrink-0" />
+                <User size={13} className="text-indigo-400/80 flex-shrink-0" />
                 <span className="text-white/80 text-[11px] landscape:text-xs md:text-xs truncate max-w-[60px] landscape:max-w-[100px] md:max-w-[100px]">
                   {authenticatedUser.username}
                 </span>
-                <span className="text-amber-300 text-[11px] landscape:text-xs md:text-xs font-bold whitespace-nowrap">
+                <span className="text-cyan-300 text-[11px] landscape:text-xs md:text-xs font-bold whitespace-nowrap">
                   <AnimatedNumber value={authenticatedUser.puntiRankiard || 0} />
                 </span>
                 {onLogout && (
@@ -3910,10 +3910,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             <div className="relative">
               <button
                 onClick={() => { playButtonClick(); setHeaderMenuOpen(!headerMenuOpen); }}
-                className="p-2 rounded-xl backdrop-blur-md border hover:bg-white/10 transition-all duration-200 text-amber-400/70 hover:text-amber-300"
+                className="p-2 rounded-xl backdrop-blur-md border hover:bg-white/10 transition-all duration-200 text-indigo-400/70 hover:text-cyan-300"
                 style={{
-                  background: 'rgba(202,138,4,0.08)',
-                  border: '1px solid rgba(202,138,4,0.22)',
+                  background: 'rgba(99,102,241,0.08)',
+                  border: '1px solid rgba(99,102,241,0.25)',
                 }}
               >
                 <MoreVertical size={18} />
@@ -3924,10 +3924,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   <div className="fixed inset-0 z-40" onClick={() => setHeaderMenuOpen(false)} />
                   <div className="absolute right-0 top-full mt-2 z-50 w-56 rounded-2xl overflow-hidden shadow-2xl shadow-black/60 border"
                     style={{
-                      background: 'rgba(2,16,8,0.96)',
+                      background: 'rgba(5,3,20,0.96)',
                       backdropFilter: 'blur(24px)',
-                      borderColor: 'rgba(202,138,4,0.28)',
-                      boxShadow: '0 8px 32px rgba(0,0,0,0.7), 0 0 0 1px rgba(202,138,4,0.10)',
+                      borderColor: 'rgba(99,102,241,0.30)',
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.7), 0 0 0 1px rgba(99,102,241,0.12)',
                     }}
                   >
                     <div className="py-1.5">
@@ -4075,10 +4075,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           <div
             className="flex items-center gap-0.5 px-1.5 py-1 rounded-2xl shadow-2xl shadow-black/60"
             style={{
-              background: 'rgba(2,16,8,0.90)',
+              background: 'rgba(5,3,20,0.90)',
               backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(202,138,4,0.28)',
-              boxShadow: '0 0 0 1px rgba(202,138,4,0.10), 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)',
+              border: '1px solid rgba(99,102,241,0.35)',
+              boxShadow: '0 0 0 1px rgba(99,102,241,0.12), 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)',
             }}
           >
             <motion.button
@@ -4093,7 +4093,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             >
               <Hand size={16} />
               {gameState?.players?.[playerName]?.hand?.length ? (
-                <span className="absolute -top-1 -right-1 bg-amber-500 text-white rounded-full text-[9px] w-4 h-4 flex items-center justify-center font-bold shadow-md">
+                <span className="absolute -top-1 -right-1 bg-indigo-500 text-white rounded-full text-[9px] w-4 h-4 flex items-center justify-center font-bold shadow-md">
                   {gameState.players[playerName].hand.length}
                 </span>
               ) : null}
@@ -4102,16 +4102,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             <motion.button
               onClick={() => { playButtonClick(); socket.emit('force-end-turn', { gameId }); }}
               className="p-2 rounded-xl transition-colors"
-              style={{ color: '#fde68a', background: 'rgba(202,138,4,0.15)' }}
+              style={{ color: '#a5f3fc', background: 'rgba(34,211,238,0.12)' }}
               title="Fine Turno"
-              whileHover={{ scale: 1.12, background: 'rgba(202,138,4,0.30)' } as any}
+              whileHover={{ scale: 1.12, background: 'rgba(34,211,238,0.28)' } as any}
               whileTap={{ scale: 0.88 }}
               transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
               <SkipForward size={16} />
             </motion.button>
 
-            <div className="w-px h-5 mx-0.5" style={{ background: 'rgba(202,138,4,0.20)' }} />
+            <div className="w-px h-5 mx-0.5" style={{ background: 'rgba(99,102,241,0.25)' }} />
 
             <motion.button
               onClick={() => { playButtonClick(); if (chatOpen) { playPanelClose(); handleCloseChat(); } else { playPanelOpen(); handleOpenChat(); } }}
@@ -4142,14 +4142,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               <ScrollText size={16} />
             </motion.button>
 
-            <div className="w-px h-5 mx-0.5" style={{ background: 'rgba(202,138,4,0.20)' }} />
+            <div className="w-px h-5 mx-0.5" style={{ background: 'rgba(99,102,241,0.25)' }} />
 
             <motion.button
               onClick={() => { playButtonClick(); playModalOpen(); setDiceOpen(true); }}
               className="p-2 rounded-xl transition-colors"
-              style={{ color: '#fcd34d', background: 'rgba(202,138,4,0.15)' }}
+              style={{ color: '#ddd6fe', background: 'rgba(124,58,237,0.15)' }}
               title="Dado"
-              whileHover={{ scale: 1.12, background: 'rgba(202,138,4,0.30)' } as any}
+              whileHover={{ scale: 1.12, background: 'rgba(124,58,237,0.30)' } as any}
               whileTap={{ scale: 0.88 }}
               transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >

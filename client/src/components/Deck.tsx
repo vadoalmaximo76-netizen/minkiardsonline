@@ -228,7 +228,7 @@ const DeckComponent: React.FC<DeckProps> = ({ name, backImage, type }) => {
         <img
           src={backImage}
           alt={`${name} back`}
-          className={`w-14 sm:w-16 md:w-20 lg:w-24 h-auto rounded-xl sm:rounded-xl md:rounded-2xl lg:rounded-2xl cursor-pointer deck-3d shadow-lg transition-all duration-150 ${isShuffling ? 'animate-shuffle' : ''} ${isPicking ? 'scale-95 opacity-70' : 'hover:scale-105'}`}
+          className={`w-16 sm:w-20 md:w-24 lg:w-28 aspect-[3/4] object-cover rounded-xl md:rounded-2xl cursor-pointer deck-3d shadow-lg transition-all duration-150 ${isShuffling ? 'animate-shuffle' : ''} ${isPicking ? 'scale-95 opacity-70' : 'hover:scale-105'}`}
           onClick={handlePickCard}
         />
         

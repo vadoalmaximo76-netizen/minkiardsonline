@@ -8,6 +8,7 @@ import { socket } from "../lib/socket";
 import { Checkbox } from "./ui/checkbox";
 import { getAvatarEmoji } from "../lib/avatars";
 import AmbientParticles from "./AmbientParticles";
+import useTableTheme from "../lib/stores/useTableTheme";
 
 // Check if a card has custom activatable effects
 const hasCustomEffect = (card: any): boolean => {
@@ -45,6 +46,8 @@ const hasCustomEffect = (card: any): boolean => {
 
 const RoundTableComponent: React.FC = () => {
   const { gameState, playerName, gameId, showBrowser } = useGameState();
+  const { getCurrentTheme } = useTableTheme();
+  const tableTheme = getCurrentTheme();
   
   const currentTurnPlayer = gameState?.turnOrder?.[gameState?.currentTurnIndex ?? 0] || '';
   const isMyTurn = currentTurnPlayer === playerName;
@@ -288,20 +291,16 @@ const RoundTableComponent: React.FC = () => {
     <div className="mb-4 md:mb-8">
       <style>{`
         @keyframes arena-badge-glow {
-          0%,100% { box-shadow: 0 0 10px 2px rgba(202,138,4,0.5), 0 0 22px 6px rgba(202,138,4,0.2); }
-          50% { box-shadow: 0 0 22px 8px rgba(251,191,36,0.7), 0 0 44px 14px rgba(202,138,4,0.35); }
+          0%,100% { box-shadow: 0 0 10px 2px rgba(34,211,238,0.4), 0 0 20px 5px rgba(124,58,237,0.2); }
+          50% { box-shadow: 0 0 20px 6px rgba(34,211,238,0.7), 0 0 40px 12px rgba(124,58,237,0.4); }
         }
         @keyframes arena-player-pulse {
-          0%,100% { box-shadow: 0 0 8px 2px rgba(202,138,4,0.4); }
-          50% { box-shadow: 0 0 18px 6px rgba(251,191,36,0.65); }
+          0%,100% { box-shadow: 0 0 8px 2px rgba(34,211,238,0.35); }
+          50% { box-shadow: 0 0 18px 6px rgba(34,211,238,0.65); }
         }
         @keyframes arena-overlay-pulse {
-          0%,100% { opacity: 1; }
-          50% { opacity: 0.92; }
-        }
-        @keyframes felt-shimmer {
-          0% { background-position: -200% center; }
-          100% { background-position: 200% center; }
+          0%,100% { opacity: 0.55; }
+          50% { opacity: 0.45; }
         }
         .arena-badge-glow { animation: arena-badge-glow 2s ease-in-out infinite; }
         .arena-player-pulse { animation: arena-player-pulse 2.5s ease-in-out infinite; }
@@ -309,23 +308,23 @@ const RoundTableComponent: React.FC = () => {
       `}</style>
       <div className="flex flex-wrap items-center justify-center gap-2 mb-2 landscape:mb-4 md:mb-4">
         <h2 className="font-black text-lg landscape:text-2xl md:text-2xl text-center tracking-wide" style={{
-          background: 'linear-gradient(to right, #fbbf24, #f59e0b, #d97706)',
+          background: 'linear-gradient(to right, #22d3ee, #818cf8, #a78bfa)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           textShadow: 'none',
-          filter: 'drop-shadow(0 0 8px rgba(202,138,4,0.5))',
+          filter: 'drop-shadow(0 0 8px rgba(34,211,238,0.4))',
         }}>TAVOLO DA GIOCO</h2>
         {currentTurnPlayer && (
           <div
             className={`px-3 py-1 rounded-2xl text-xs sm:text-sm font-black whitespace-nowrap transition-all duration-500 border ${isMyTurn ? 'arena-badge-glow' : ''}`}
             style={{
               background: isMyTurn
-                ? 'linear-gradient(135deg, rgba(251,191,36,0.20) 0%, rgba(202,138,4,0.14) 100%)'
-                : 'linear-gradient(135deg, rgba(30,60,20,0.55) 0%, rgba(15,40,10,0.45) 100%)',
-              borderColor: isMyTurn ? 'rgba(202,138,4,0.6)' : 'rgba(100,140,80,0.35)',
+                ? 'linear-gradient(135deg, rgba(34,211,238,0.22) 0%, rgba(124,58,237,0.18) 100%)'
+                : 'linear-gradient(135deg, rgba(99,102,241,0.18) 0%, rgba(124,58,237,0.12) 100%)',
+              borderColor: isMyTurn ? 'rgba(34,211,238,0.5)' : 'rgba(99,102,241,0.35)',
               backdropFilter: 'blur(12px)',
-              color: isMyTurn ? '#fde68a' : '#bbf7d0',
-              textShadow: isMyTurn ? '0 0 12px rgba(251,191,36,0.7)' : 'none',
+              color: isMyTurn ? '#a5f3fc' : '#c7d2fe',
+              textShadow: isMyTurn ? '0 0 12px rgba(34,211,238,0.7)' : '0 0 8px rgba(165,180,252,0.4)',
             }}
           >
             {isMyTurn ? '⚡ TOCCA A TE!' : `⏳ Turno di ${currentTurnPlayer}`}
@@ -333,32 +332,26 @@ const RoundTableComponent: React.FC = () => {
         )}
       </div>
       
-      {/* Rectangular Table Container — premium felt surface */}
+      {/* Rectangular Table Container — background image + theme colour overlay */}
       <div 
         data-tutorial="field"
         className="relative w-[79vw] h-[88vh] landscape:w-[88vw] landscape:h-[88vh] sm:w-[84vw] sm:h-[84vh] md:w-[88vw] md:h-[88vh] lg:w-[91vw] lg:h-[88vh] xl:w-[91vw] xl:h-[91vh] max-w-[1488px] max-h-[1302px] min-w-[298px] min-h-[465px] mx-auto game-field bg-no-repeat overflow-visible"
         style={{
-          borderRadius: '28px',
-          background: 'radial-gradient(ellipse at 50% 35%, #0d3b1e 0%, #052e16 45%, #021a0b 100%)',
+          borderRadius: '24px',
+          backgroundImage: `url('https://i.ibb.co/Y4bv4xwz/sfondo-minkiards.png')`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
           touchAction: 'pan-y pinch-zoom',
-          border: '3px solid rgba(202,138,4,0.55)',
-          boxShadow: '0 0 0 1px rgba(202,138,4,0.15), 0 0 0 6px rgba(5,46,22,0.8), 0 0 0 7px rgba(202,138,4,0.25), 0 0 60px rgba(202,138,4,0.18), 0 0 120px rgba(2,26,11,0.9), inset 0 0 60px rgba(0,0,0,0.5)',
+          border: `3px solid ${tableTheme.tableBorder}66`,
+          boxShadow: `0 0 60px ${tableTheme.tableBorder}30, 0 0 120px rgba(30,0,60,0.4), inset 0 0 80px rgba(30,0,60,0.15)`,
         }}
       >
-        {/* Felt texture overlay — radial vignette */}
+        {/* Theme colour overlay */}
         <div
           className="absolute inset-0 arena-overlay-pulse pointer-events-none"
           style={{
-            borderRadius: '24px',
-            background: 'radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(0,0,0,0.35) 100%)',
-          }}
-        />
-        {/* Subtle felt grain lines */}
-        <div
-          className="absolute inset-0 pointer-events-none opacity-[0.04]"
-          style={{
-            borderRadius: '24px',
-            backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,255,255,0.6) 0px, rgba(255,255,255,0.6) 1px, transparent 1px, transparent 4px)',
+            borderRadius: '20px',
+            background: tableTheme.backgroundGradient,
           }}
         />
         
@@ -367,15 +360,15 @@ const RoundTableComponent: React.FC = () => {
         {/* Center Area - Decks with protection zone - centered vertically */}
         <div className="absolute top-[45%] sm:top-[45%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
           {isDraftMode && (
-            <div className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap bg-gradient-to-r from-amber-700 to-yellow-600 text-white text-[10px] sm:text-xs font-black px-2 py-0.5 rounded-full shadow-lg shadow-amber-500/30 flex items-center gap-1">
+            <div className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap text-white text-[10px] sm:text-xs font-black px-2 py-0.5 rounded-full flex items-center gap-1" style={{background:'linear-gradient(135deg, #0e7490, #4f46e5)', boxShadow:'0 0 12px rgba(34,211,238,0.3)'}}>
               <span>🃏</span>
               <span>DRAFT — MAZZO PERSONALE</span>
             </div>
           )}
-          <div data-tutorial="decks" className={`grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-3 md:gap-4 items-start justify-center zone-decks rounded-xl sm:rounded-2xl p-2 sm:p-3 md:p-4 backdrop-blur-sm ${isDraftMode ? 'ring-1 ring-amber-500/40' : ''}`} style={{
-            background: 'linear-gradient(135deg, rgba(5,30,12,0.75) 0%, rgba(2,16,8,0.65) 100%)',
-            border: '1px solid rgba(202,138,4,0.35)',
-            boxShadow: '0 0 28px rgba(202,138,4,0.18), 0 8px 32px rgba(0,0,0,0.6), inset 0 0 20px rgba(0,0,0,0.3)',
+          <div data-tutorial="decks" className={`grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-3 md:gap-4 items-start justify-center zone-decks rounded-xl sm:rounded-2xl p-2 sm:p-3 md:p-4 backdrop-blur-sm ${isDraftMode ? 'ring-1 ring-indigo-500/40' : ''}`} style={{
+            background: 'linear-gradient(135deg, rgba(10,8,30,0.80) 0%, rgba(5,3,20,0.70) 100%)',
+            border: '1px solid rgba(99,102,241,0.35)',
+            boxShadow: '0 0 28px rgba(99,102,241,0.18), 0 8px 32px rgba(0,0,0,0.6), inset 0 0 20px rgba(0,0,0,0.3)',
           }}>
             <Deck
               name="PERSONAGGI"
@@ -420,14 +413,14 @@ const RoundTableComponent: React.FC = () => {
                   className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-xl text-xs font-black whitespace-nowrap ${player === currentTurnPlayer ? 'arena-player-pulse' : ''}`}
                   style={{
                     background: player === currentTurnPlayer
-                      ? 'linear-gradient(135deg, rgba(202,138,4,0.32) 0%, rgba(146,100,0,0.22) 100%)'
-                      : 'linear-gradient(135deg, rgba(5,30,12,0.80) 0%, rgba(2,16,8,0.70) 100%)',
+                      ? 'linear-gradient(135deg, rgba(34,211,238,0.25) 0%, rgba(124,58,237,0.18) 100%)'
+                      : 'linear-gradient(135deg, rgba(10,8,30,0.82) 0%, rgba(5,3,20,0.72) 100%)',
                     border: player === currentTurnPlayer
-                      ? '1px solid rgba(202,138,4,0.65)'
-                      : '1px solid rgba(100,140,80,0.30)',
+                      ? '1px solid rgba(34,211,238,0.55)'
+                      : '1px solid rgba(99,102,241,0.30)',
                     backdropFilter: 'blur(10px)',
-                    color: player === currentTurnPlayer ? '#fde68a' : '#bbf7d0',
-                    textShadow: player === currentTurnPlayer ? '0 0 10px rgba(251,191,36,0.6)' : 'none',
+                    color: player === currentTurnPlayer ? '#a5f3fc' : '#c7d2fe',
+                    textShadow: player === currentTurnPlayer ? '0 0 10px rgba(34,211,238,0.6)' : '0 0 6px rgba(165,180,252,0.3)',
                   }}
                 >
                   {/* Avatar circle with initial */}
@@ -435,11 +428,11 @@ const RoundTableComponent: React.FC = () => {
                     className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black shrink-0"
                     style={{
                       background: player === currentTurnPlayer
-                        ? 'linear-gradient(135deg, #f59e0b, #92400e)'
-                        : 'linear-gradient(135deg, #166534, #052e16)',
-                      color: player === currentTurnPlayer ? '#fff' : '#bbf7d0',
-                      border: player === currentTurnPlayer ? '1px solid rgba(202,138,4,0.5)' : '1px solid rgba(100,140,80,0.3)',
-                      boxShadow: player === currentTurnPlayer ? '0 0 6px rgba(202,138,4,0.55)' : 'none',
+                        ? 'linear-gradient(135deg, #06b6d4, #6d28d9)'
+                        : 'linear-gradient(135deg, #312e81, #1e1b4b)',
+                      color: '#e0e7ff',
+                      border: player === currentTurnPlayer ? '1px solid rgba(34,211,238,0.5)' : '1px solid rgba(99,102,241,0.35)',
+                      boxShadow: player === currentTurnPlayer ? '0 0 6px rgba(34,211,238,0.55)' : 'none',
                     }}
                   >
                     {player[0]?.toUpperCase()}
@@ -530,25 +523,25 @@ const RoundTableComponent: React.FC = () => {
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap ${isMyTurn ? 'arena-badge-glow' : ''}`}
                 style={{
                   background: isMyTurn
-                    ? 'linear-gradient(135deg, rgba(202,138,4,0.38) 0%, rgba(146,100,0,0.28) 100%)'
-                    : 'linear-gradient(135deg, rgba(5,30,12,0.82) 0%, rgba(2,16,8,0.72) 100%)',
+                    ? 'linear-gradient(135deg, rgba(34,211,238,0.28) 0%, rgba(124,58,237,0.22) 100%)'
+                    : 'linear-gradient(135deg, rgba(10,8,30,0.85) 0%, rgba(5,3,20,0.75) 100%)',
                   border: isMyTurn
-                    ? '1px solid rgba(202,138,4,0.70)'
-                    : '1px solid rgba(100,140,80,0.35)',
+                    ? '1px solid rgba(34,211,238,0.60)'
+                    : '1px solid rgba(99,102,241,0.35)',
                   backdropFilter: 'blur(12px)',
-                  color: isMyTurn ? '#fde68a' : '#bbf7d0',
-                  textShadow: isMyTurn ? '0 0 12px rgba(251,191,36,0.7)' : 'none',
+                  color: isMyTurn ? '#a5f3fc' : '#c7d2fe',
+                  textShadow: isMyTurn ? '0 0 12px rgba(34,211,238,0.7)' : '0 0 8px rgba(165,180,252,0.35)',
                 }}
               >
                 <span
                   className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0"
                   style={{
                     background: isMyTurn
-                      ? 'linear-gradient(135deg, #f59e0b, #92400e)'
-                      : 'linear-gradient(135deg, #166534, #052e16)',
-                    color: isMyTurn ? '#fff' : '#bbf7d0',
-                    border: isMyTurn ? '1px solid rgba(202,138,4,0.5)' : '1px solid rgba(100,140,80,0.3)',
-                    boxShadow: isMyTurn ? '0 0 8px rgba(202,138,4,0.6)' : 'none',
+                      ? 'linear-gradient(135deg, #06b6d4, #6d28d9)'
+                      : 'linear-gradient(135deg, #312e81, #1e1b4b)',
+                    color: '#e0e7ff',
+                    border: isMyTurn ? '1px solid rgba(34,211,238,0.5)' : '1px solid rgba(99,102,241,0.35)',
+                    boxShadow: isMyTurn ? '0 0 8px rgba(34,211,238,0.6)' : 'none',
                   }}
                 >
                   {playerName[0]?.toUpperCase()}
@@ -655,15 +648,15 @@ const RoundTableComponent: React.FC = () => {
       {/* CARTE IN CAMPO section for all players */}
       <div className="mt-4 md:mt-8">
         <h3 className="font-black text-lg md:text-xl mb-2 md:mb-4 text-center tracking-wide" style={{
-          background: 'linear-gradient(to right, #fbbf24, #f59e0b, #d97706)',
+          background: 'linear-gradient(to right, #22d3ee, #818cf8, #a78bfa)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
-          filter: 'drop-shadow(0 0 6px rgba(202,138,4,0.4))',
+          filter: 'drop-shadow(0 0 6px rgba(34,211,238,0.4))',
         }}>CARTE IN CAMPO</h3>
         <div className="rounded-xl p-2 md:p-4 zone-field" style={{
-          background: 'linear-gradient(135deg, rgba(2,20,8,0.70) 0%, rgba(1,10,4,0.60) 100%)',
-          border: '1px solid rgba(202,138,4,0.22)',
-          boxShadow: '0 0 20px rgba(202,138,4,0.10), inset 0 0 20px rgba(0,0,0,0.25)',
+          background: 'linear-gradient(135deg, rgba(10,8,30,0.72) 0%, rgba(5,3,20,0.62) 100%)',
+          border: '1px solid rgba(99,102,241,0.22)',
+          boxShadow: '0 0 20px rgba(99,102,241,0.10), inset 0 0 20px rgba(0,0,0,0.25)',
         }}>
           {allPlayerNames.length > 0 ? (
             (() => {
@@ -685,13 +678,11 @@ const RoundTableComponent: React.FC = () => {
                         className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black shrink-0"
                         style={{
                           background: player === currentTurnPlayer
-                            ? 'linear-gradient(135deg, #f59e0b, #92400e)'
-                            : isCurrentPlayer
-                              ? 'linear-gradient(135deg, #16a34a, #052e16)'
-                              : 'linear-gradient(135deg, #166534, #052e16)',
-                          color: player === currentTurnPlayer ? '#fff' : '#bbf7d0',
-                          border: player === currentTurnPlayer ? '1px solid rgba(202,138,4,0.5)' : '1px solid rgba(100,140,80,0.3)',
-                          boxShadow: player === currentTurnPlayer ? '0 0 6px rgba(202,138,4,0.55)' : 'none',
+                            ? 'linear-gradient(135deg, #06b6d4, #6d28d9)'
+                            : 'linear-gradient(135deg, #312e81, #1e1b4b)',
+                          color: '#e0e7ff',
+                          border: player === currentTurnPlayer ? '1px solid rgba(34,211,238,0.5)' : '1px solid rgba(99,102,241,0.35)',
+                          boxShadow: player === currentTurnPlayer ? '0 0 6px rgba(34,211,238,0.55)' : 'none',
                         }}
                       >
                         {player[0]?.toUpperCase()}
@@ -699,12 +690,12 @@ const RoundTableComponent: React.FC = () => {
                       <h4
                         className="font-black text-sm md:text-base flex items-center gap-1.5"
                         style={{
-                          color: player === currentTurnPlayer ? '#fde68a' : isCurrentPlayer ? '#bbf7d0' : '#d1fae5',
-                          textShadow: player === currentTurnPlayer ? '0 0 10px rgba(251,191,36,0.5)' : 'none',
+                          color: player === currentTurnPlayer ? '#a5f3fc' : isCurrentPlayer ? '#c7d2fe' : '#ddd6fe',
+                          textShadow: player === currentTurnPlayer ? '0 0 10px rgba(34,211,238,0.5)' : '0 0 6px rgba(165,180,252,0.3)',
                         }}
                       >
                         {player} {isCurrentPlayer && <span className="text-[10px] opacity-70">(Tu)</span>}
-                        {player === currentTurnPlayer && <span className="text-[10px] text-yellow-300">⚡</span>}
+                        {player === currentTurnPlayer && <span className="text-[10px] text-cyan-300">⚡</span>}
                         {!isUnlimitedDeaths && (
                           <span className={`text-[10px] font-normal ${getDeathCount(player) >= getDeathLimit(player) ? 'text-red-400' : 'text-emerald-500/80'}`}>
                             💀{getDeathCount(player)}/{getDeathLimit(player)}
