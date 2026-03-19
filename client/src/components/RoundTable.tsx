@@ -8,7 +8,7 @@ import { socket } from "../lib/socket";
 import { Checkbox } from "./ui/checkbox";
 import { getAvatarEmoji } from "../lib/avatars";
 import AmbientParticles from "./AmbientParticles";
-import useTableTheme from "../lib/stores/useTableTheme";
+import useTableTheme, { TABLE_THEMES } from "../lib/stores/useTableTheme";
 
 // Check if a card has custom activatable effects
 const hasCustomEffect = (card: any): boolean => {
@@ -46,8 +46,8 @@ const hasCustomEffect = (card: any): boolean => {
 
 const RoundTableComponent: React.FC = () => {
   const { gameState, playerName, gameId, showBrowser } = useGameState();
-  const { getCurrentTheme } = useTableTheme();
-  const tableTheme = getCurrentTheme();
+  const currentThemeId = useTableTheme(state => state.currentThemeId);
+  const tableTheme = TABLE_THEMES.find(t => t.id === currentThemeId) || TABLE_THEMES[0];
   
   const currentTurnPlayer = gameState?.turnOrder?.[gameState?.currentTurnIndex ?? 0] || '';
   const isMyTurn = currentTurnPlayer === playerName;
