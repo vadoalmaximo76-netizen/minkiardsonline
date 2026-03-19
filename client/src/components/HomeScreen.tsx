@@ -273,24 +273,195 @@ const HOME_STYLES = `
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 `;
 
-const RANK_TIERS = [
-  { name: 'Esordiente',  min: 0,    max: 299,      numeral: 'I'   },
-  { name: 'Dilettante',  min: 300,  max: 599,      numeral: 'II'  },
-  { name: 'Competitore', min: 600,  max: 999,      numeral: 'III' },
-  { name: 'Sfidante',    min: 1000, max: 1499,     numeral: 'IV'  },
-  { name: 'Campione',    min: 1500, max: 1999,     numeral: 'V'   },
-  { name: 'Maestro',     min: 2000, max: 2499,     numeral: 'VI'  },
-  { name: 'Leggenda',    min: 2500, max: Infinity, numeral: '★'   },
+interface RankTier { name: string; min: number; numeral: string; }
+interface HomeConfig {
+  rankSectionVisible: boolean;
+  rankSectionPosition: 'above' | 'below';
+  rankSectionLabel: string;
+  statsGridVisible: boolean;
+  ctaText: string;
+  ctaSubtext: string;
+  ctaGradientFrom: string;
+  ctaGradientTo: string;
+}
+
+const DEFAULT_RANK_TIERS: RankTier[] = [
+  { name: 'Esordiente',  min: 0,    numeral: 'I'   },
+  { name: 'Dilettante',  min: 300,  numeral: 'II'  },
+  { name: 'Competitore', min: 600,  numeral: 'III' },
+  { name: 'Sfidante',    min: 1000, numeral: 'IV'  },
+  { name: 'Campione',    min: 1500, numeral: 'V'   },
+  { name: 'Maestro',     min: 2000, numeral: 'VI'  },
+  { name: 'Leggenda',    min: 2500, numeral: '★'   },
 ];
 
-function getTierInfo(pts: number) {
-  const idx = RANK_TIERS.findIndex(t => pts >= t.min && pts <= t.max);
-  const tier = RANK_TIERS[Math.max(0, idx)];
-  const nextTier = RANK_TIERS[idx + 1] ?? null;
+const DEFAULT_HOME_CONFIG: HomeConfig = {
+  rankSectionVisible: true,
+  rankSectionPosition: 'above',
+  rankSectionLabel: 'Il tuo rango',
+  statsGridVisible: true,
+  ctaText: 'GIOCA ORA',
+  ctaSubtext: 'Guadagna Rankiard',
+  ctaGradientFrom: '#22c55e',
+  ctaGradientTo: '#16a34a',
+};
+
+function getTierInfo(pts: number, tiers: RankTier[]) {
+  const sorted = [...tiers].sort((a, b) => a.min - b.min);
+  const withMax = sorted.map((t, i) => ({
+    ...t,
+    max: i + 1 < sorted.length ? sorted[i + 1].min - 1 : Infinity,
+  }));
+  const idx = withMax.findIndex(t => pts >= t.min && pts <= t.max);
+  const tier = withMax[Math.max(0, idx)];
+  const nextTier = withMax[idx + 1] ?? null;
   const progress = nextTier
     ? Math.min(99, Math.round(((pts - tier.min) / (nextTier.min - tier.min)) * 100))
     : 100;
   return { tier, nextTier, progress };
+}
+
+function RankiardTiersModal({ tiers, onSave, onClose, authToken }: { tiers: RankTier[]; onSave: (t: RankTier[]) => void; onClose: () => void; authToken: string; }) {
+  const [local, setLocal] = useState<RankTier[]>(tiers.map(t => ({ ...t })));
+  const [saving, setSaving] = useState(false);
+  const set = (i: number, k: keyof RankTier, v: any) => setLocal(prev => prev.map((t, idx) => idx === i ? { ...t, [k]: k === 'min' ? Number(v) : v } : t));
+  const addTier = () => setLocal(prev => [...prev, { name: 'Nuovo', min: 9999, numeral: '?' }]);
+  const removeTier = (i: number) => setLocal(prev => prev.filter((_, idx) => idx !== i));
+  const handleSave = async () => {
+    const sorted = [...local].sort((a, b) => a.min - b.min);
+    setSaving(true);
+    try {
+      await fetch('/api/rankiard-tiers', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` }, body: JSON.stringify(sorted) });
+      onSave(sorted);
+    } finally { setSaving(false); }
+  };
+  const modalStyle: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' };
+  const boxStyle: React.CSSProperties = { background: 'linear-gradient(135deg, #1e1b4b, #0f172a)', borderRadius: 20, border: '1px solid rgba(139,92,246,0.3)', padding: 24, width: '92%', maxWidth: 480, maxHeight: '85vh', overflow: 'auto', boxShadow: '0 30px 80px rgba(0,0,0,0.5)' };
+  return (
+    <div style={modalStyle} onClick={onClose}>
+      <div style={boxStyle} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#e2e8f0' }}>🏆 Gradi Rankiard</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>✕</button>
+        </div>
+        <p style={{ margin: '0 0 14px', fontSize: 12, color: 'rgba(148,163,184,0.7)' }}>Imposta i traguardi di punti per ogni grado. I gradi vengono ordinati per punteggio minimo.</p>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 6, padding: '0 4px' }}>
+          <span style={{ flex: 2, fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Nome</span>
+          <span style={{ flex: 1, fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Min PTI</span>
+          <span style={{ flex: 1, fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', textAlign: 'center' }}>Simbolo</span>
+          <span style={{ width: 28 }} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {local.map((tier, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input value={tier.name} onChange={e => set(i, 'name', e.target.value)} style={{ flex: 2, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(139,92,246,0.25)', borderRadius: 8, color: '#e2e8f0', padding: '7px 10px', fontSize: 13, outline: 'none' }} />
+              <input type="number" value={tier.min} onChange={e => set(i, 'min', e.target.value)} style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(139,92,246,0.25)', borderRadius: 8, color: '#a78bfa', padding: '7px 10px', fontSize: 13, outline: 'none', textAlign: 'center' }} />
+              <input value={tier.numeral} onChange={e => set(i, 'numeral', e.target.value)} style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(139,92,246,0.25)', borderRadius: 8, color: '#fbbf24', padding: '7px 10px', fontSize: 13, outline: 'none', textAlign: 'center' }} />
+              <button onClick={() => removeTier(i)} style={{ width: 28, height: 28, borderRadius: 6, background: 'rgba(220,38,38,0.2)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><X size={12} /></button>
+            </div>
+          ))}
+        </div>
+        <button onClick={addTier} style={{ marginTop: 12, width: '100%', padding: '8px 0', borderRadius: 10, border: '1px dashed rgba(139,92,246,0.4)', background: 'transparent', color: '#a78bfa', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>+ Aggiungi grado</button>
+        <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+          <button onClick={handleSave} disabled={saving} style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', color: '#fff', fontWeight: 700, fontSize: 14, opacity: saving ? 0.6 : 1 }}>{saving ? 'Salvataggio...' : 'Salva gradi'}</button>
+          <button onClick={onClose} style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: '1px solid rgba(139,92,246,0.3)', background: 'transparent', color: 'rgba(203,213,225,0.7)', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Annulla</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HomeConfigModal({ config, onSave, onClose, authToken }: { config: HomeConfig; onSave: (c: HomeConfig) => void; onClose: () => void; authToken: string; }) {
+  const [form, setForm] = useState<HomeConfig>({ ...config });
+  const [saving, setSaving] = useState(false);
+  const set = (k: keyof HomeConfig, v: any) => setForm(f => ({ ...f, [k]: v }));
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await fetch('/api/home-config', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` }, body: JSON.stringify(form) });
+      onSave(form);
+    } finally { setSaving(false); }
+  };
+  const inputStyle: React.CSSProperties = { width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(139,92,246,0.25)', borderRadius: 8, color: '#e2e8f0', padding: '8px 10px', fontSize: 13, outline: 'none', boxSizing: 'border-box' };
+  const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 4, display: 'block' };
+  const rowStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column' as const, gap: 4 };
+  const toggleRow = (label: string, key: keyof HomeConfig) => (
+    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.04)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer' }}>
+      <span style={{ fontSize: 13, color: '#cbd5e1', fontWeight: 600 }}>{label}</span>
+      <div onClick={() => set(key, !form[key])} style={{ width: 40, height: 22, borderRadius: 999, background: form[key] ? '#7c3aed' : '#1e293b', border: `1px solid ${form[key] ? '#a78bfa' : '#334155'}`, position: 'relative', transition: 'background 0.2s', cursor: 'pointer' }}>
+        <div style={{ position: 'absolute', top: 2, left: form[key] ? 20 : 2, width: 16, height: 16, borderRadius: '50%', background: 'white', transition: 'left 0.2s' }} />
+      </div>
+    </label>
+  );
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)' }} onClick={onClose}>
+      <div style={{ background: 'linear-gradient(135deg, #1e1b4b, #0f172a)', borderRadius: 20, border: '1px solid rgba(139,92,246,0.3)', padding: 24, width: '92%', maxWidth: 480, maxHeight: '85vh', overflow: 'auto', boxShadow: '0 30px 80px rgba(0,0,0,0.5)' }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#e2e8f0' }}>⚙️ Configurazione Home</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 }}>✕</button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ padding: '12px 14px', background: 'rgba(139,92,246,0.08)', borderRadius: 12, border: '1px solid rgba(139,92,246,0.15)' }}>
+            <p style={{ margin: '0 0 10px', fontSize: 12, fontWeight: 700, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Sezione Punteggio</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {toggleRow('Mostra sezione punteggio', 'rankSectionVisible')}
+              {toggleRow('Mostra statistiche (partite/vittorie)', 'statsGridVisible')}
+              <div style={rowStyle}>
+                <span style={labelStyle}>Titolo sezione</span>
+                <input value={form.rankSectionLabel} onChange={e => set('rankSectionLabel', e.target.value)} style={inputStyle} />
+              </div>
+              <div style={rowStyle}>
+                <span style={labelStyle}>Posizione</span>
+                <select value={form.rankSectionPosition} onChange={e => set('rankSectionPosition', e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
+                  <option value="above">Sopra i pannelli</option>
+                  <option value="below">Sotto i pannelli</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ padding: '12px 14px', background: 'rgba(34,197,94,0.06)', borderRadius: 12, border: '1px solid rgba(34,197,94,0.15)' }}>
+            <p style={{ margin: '0 0 10px', fontSize: 12, fontWeight: 700, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Bottone "Gioca"</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={rowStyle}>
+                <span style={labelStyle}>Testo principale</span>
+                <input value={form.ctaText} onChange={e => set('ctaText', e.target.value)} style={inputStyle} />
+              </div>
+              <div style={rowStyle}>
+                <span style={labelStyle}>Sottotitolo</span>
+                <input value={form.ctaSubtext} onChange={e => set('ctaSubtext', e.target.value)} style={inputStyle} />
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ flex: 1, ...rowStyle }}>
+                  <span style={labelStyle}>Colore da</span>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <input type="color" value={form.ctaGradientFrom} onChange={e => set('ctaGradientFrom', e.target.value)} style={{ width: 36, height: 32, borderRadius: 6, border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer', padding: 2, background: 'transparent' }} />
+                    <input value={form.ctaGradientFrom} onChange={e => set('ctaGradientFrom', e.target.value)} style={{ ...inputStyle, flex: 1, fontSize: 12 }} />
+                  </div>
+                </div>
+                <div style={{ flex: 1, ...rowStyle }}>
+                  <span style={labelStyle}>Colore a</span>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <input type="color" value={form.ctaGradientTo} onChange={e => set('ctaGradientTo', e.target.value)} style={{ width: 36, height: 32, borderRadius: 6, border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer', padding: 2, background: 'transparent' }} />
+                    <input value={form.ctaGradientTo} onChange={e => set('ctaGradientTo', e.target.value)} style={{ ...inputStyle, flex: 1, fontSize: 12 }} />
+                  </div>
+                </div>
+              </div>
+              <div style={{ height: 36, borderRadius: 10, background: `linear-gradient(to right, ${form.ctaGradientFrom}, ${form.ctaGradientTo})`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ color: 'white', fontWeight: 800, fontSize: 13 }}>{form.ctaText || 'ANTEPRIMA'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+          <button onClick={handleSave} disabled={saving} style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', color: '#fff', fontWeight: 700, fontSize: 14, opacity: saving ? 0.6 : 1 }}>{saving ? 'Salvataggio...' : 'Salva configurazione'}</button>
+          <button onClick={onClose} style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: '1px solid rgba(139,92,246,0.3)', background: 'transparent', color: 'rgba(203,213,225,0.7)', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Annulla</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 const PARTICLE_COLORS = ['#c084fc', '#60a5fa', '#34d399', '#f472b6', '#fbbf24', '#a78bfa', '#38bdf8'];
@@ -322,6 +493,10 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
   const [saving, setSaving] = useState(false);
   const [barWidth, setBarWidth] = useState(0);
   const [giocaHovered, setGiocaHovered] = useState(false);
+  const [homeConfig, setHomeConfig] = useState<HomeConfig>(DEFAULT_HOME_CONFIG);
+  const [rankiardTiers, setRankiardTiers] = useState<RankTier[]>(DEFAULT_RANK_TIERS);
+  const [editingHomeConfig, setEditingHomeConfig] = useState(false);
+  const [editingTiers, setEditingTiers] = useState(false);
   const isAdmin = userEmail === 'lucaforte94@gmail.com';
   const authToken = localStorage.getItem('authToken') || '';
 
@@ -382,6 +557,14 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
       .then(r => r.json())
       .then(data => { if (Array.isArray(data)) setPanels([...data].sort((a, b) => a.sortOrder - b.sortOrder)); })
       .catch(() => {});
+    fetch('/api/home-config')
+      .then(r => r.json())
+      .then(data => { if (data && typeof data === 'object') setHomeConfig(c => ({ ...c, ...data })); })
+      .catch(() => {});
+    fetch('/api/rankiard-tiers')
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data) && data.length > 0) setRankiardTiers(data); })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -419,7 +602,7 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
 
   useEffect(() => {
     if (userStats) {
-      const { progress } = getTierInfo(userStats.puntiRankiard);
+      const { progress } = getTierInfo(userStats.puntiRankiard, rankiardTiers);
       const timer = setTimeout(() => setBarWidth(progress), 200);
       return () => clearTimeout(timer);
     }
@@ -483,7 +666,7 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
 
   const visiblePanels = panels.filter(p => !p.adminOnly || isAdmin);
 
-  const tierInfo = userStats ? getTierInfo(userStats.puntiRankiard) : null;
+  const tierInfo = userStats ? getTierInfo(userStats.puntiRankiard, rankiardTiers) : null;
 
   return (
     <div className="min-h-screen bg-arena-deep flex flex-col overflow-hidden relative">
@@ -555,13 +738,26 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
           </div>
         </header>
 
-        {/* ── Rank section ── */}
-        <section style={{ padding: '28px 20px 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+        {/* ── Rank section (above panels) ── */}
+        {(homeConfig.rankSectionVisible || editMode) && homeConfig.rankSectionPosition === 'above' && (
+        <section style={{ padding: '28px 20px 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', opacity: editMode && !homeConfig.rankSectionVisible ? 0.4 : 1 }}>
           {/* Purple glow backdrop */}
           <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 280, height: 280, background: 'rgba(139,92,246,0.18)', filter: 'blur(64px)', borderRadius: '50%', pointerEvents: 'none' }} />
 
+          {/* Admin edit overlay */}
+          {editMode && isAdmin && (
+            <div style={{ position: 'absolute', top: 10, right: 10, display: 'flex', gap: 6, zIndex: 10 }}>
+              <button onClick={() => setEditingHomeConfig(true)} style={{ background: 'rgba(139,92,246,0.3)', border: '1px solid rgba(139,92,246,0.5)', borderRadius: 8, color: '#c084fc', padding: '4px 10px', cursor: 'pointer', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Settings size={11} /> Config sezione
+              </button>
+              <button onClick={() => setEditingTiers(true)} style={{ background: 'rgba(234,179,8,0.2)', border: '1px solid rgba(234,179,8,0.4)', borderRadius: 8, color: '#fbbf24', padding: '4px 10px', cursor: 'pointer', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Trophy size={11} /> Gradi
+              </button>
+            </div>
+          )}
+
           <h2 style={{ fontSize: 10, fontWeight: 800, color: '#64748b', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 20, position: 'relative', zIndex: 1 }}>
-            Il tuo rango
+            {homeConfig.rankSectionLabel}
           </h2>
 
           {/* Floating rank badge */}
@@ -630,12 +826,14 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
           )}
 
           {/* Stats grid */}
+          {(homeConfig.statsGridVisible || editMode) && (
           <div style={{
             display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
             gap: 0, width: '100%', maxWidth: 300,
             background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(12px)',
             borderRadius: 18, border: '1px solid rgba(30,41,59,0.8)',
             overflow: 'hidden', zIndex: 1,
+            opacity: editMode && !homeConfig.statsGridVisible ? 0.4 : 1,
           }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 8px', borderRight: '1px solid rgba(30,41,59,0.8)' }}>
               <span style={{ fontSize: 18, fontWeight: 800, color: '#f1f5f9', lineHeight: 1 }}>{userStats?.gamesPlayed ?? '…'}</span>
@@ -655,7 +853,9 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
               <span style={{ fontSize: 9, color: '#475569', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.06em', marginTop: 3 }}>Win Rate</span>
             </div>
           </div>
+          )}
         </section>
+        )}
 
         {/* ── Panels grid ── */}
         <section style={{ padding: '0 16px 16px' }}>
@@ -799,6 +999,56 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
           </div>
         </section>
 
+        {/* ── Rank section (below panels) ── */}
+        {(homeConfig.rankSectionVisible || editMode) && homeConfig.rankSectionPosition === 'below' && (
+        <section style={{ padding: '24px 20px 28px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', opacity: editMode && !homeConfig.rankSectionVisible ? 0.4 : 1 }}>
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 280, height: 280, background: 'rgba(139,92,246,0.14)', filter: 'blur(64px)', borderRadius: '50%', pointerEvents: 'none' }} />
+          {editMode && isAdmin && (
+            <div style={{ position: 'absolute', top: 10, right: 10, display: 'flex', gap: 6, zIndex: 10 }}>
+              <button onClick={() => setEditingHomeConfig(true)} style={{ background: 'rgba(139,92,246,0.3)', border: '1px solid rgba(139,92,246,0.5)', borderRadius: 8, color: '#c084fc', padding: '4px 10px', cursor: 'pointer', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Settings size={11} /> Config sezione
+              </button>
+              <button onClick={() => setEditingTiers(true)} style={{ background: 'rgba(234,179,8,0.2)', border: '1px solid rgba(234,179,8,0.4)', borderRadius: 8, color: '#fbbf24', padding: '4px 10px', cursor: 'pointer', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Trophy size={11} /> Gradi
+              </button>
+            </div>
+          )}
+          <h2 style={{ fontSize: 10, fontWeight: 800, color: '#64748b', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 20, position: 'relative', zIndex: 1 }}>
+            {homeConfig.rankSectionLabel}
+          </h2>
+          {tierInfo && userStats && (
+            <div style={{ textAlign: 'center', position: 'relative', zIndex: 1, width: '100%', maxWidth: 300 }}>
+              <div style={{ fontSize: 48, fontWeight: 900, background: 'linear-gradient(to bottom, #a855f7, #4f46e5)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', lineHeight: 1.1 }}>{tierInfo.tier.numeral}</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#e2e8f0', marginBottom: 4 }}>{tierInfo.tier.name}</div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: '#a78bfa', marginBottom: 12 }}>{userStats.puntiRankiard.toLocaleString('it-IT')} <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>punti</span></div>
+              <div style={{ height: 6, background: 'rgba(30,41,59,0.8)', borderRadius: 99, overflow: 'hidden', marginBottom: 6 }}>
+                <div style={{ height: '100%', width: `${barWidth}%`, background: 'linear-gradient(to right, #a855f7, #4f46e5)', borderRadius: 99, transition: 'width 1s cubic-bezier(0.4,0,0.2,1)' }} />
+              </div>
+              {tierInfo.nextTier && <p style={{ fontSize: 10, color: '#475569', margin: 0 }}><span style={{ color: '#94a3b8' }}>{(tierInfo.nextTier.min - userStats.puntiRankiard).toLocaleString('it-IT')} punti</span> al prossimo grado</p>}
+            </div>
+          )}
+          {(homeConfig.statsGridVisible || editMode) && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0, width: '100%', maxWidth: 300, marginTop: 16, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(12px)', borderRadius: 18, border: '1px solid rgba(30,41,59,0.8)', overflow: 'hidden', opacity: editMode && !homeConfig.statsGridVisible ? 0.4 : 1 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 8px', borderRight: '1px solid rgba(30,41,59,0.8)' }}>
+              <span style={{ fontSize: 18, fontWeight: 800, color: '#f1f5f9' }}>{userStats?.gamesPlayed ?? '…'}</span>
+              <span style={{ fontSize: 9, color: '#475569', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.06em', marginTop: 3 }}>Partite</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 8px', borderRight: '1px solid rgba(30,41,59,0.8)' }}>
+              <span style={{ fontSize: 18, fontWeight: 800, color: '#4ade80' }}>{userStats?.gamesWon ?? '…'}</span>
+              <span style={{ fontSize: 9, color: '#475569', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.06em', marginTop: 3 }}>Vittorie</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 3, color: '#60a5fa' }}>
+                <TrendingUp style={{ width: 12, height: 12 }} />
+                <span style={{ fontSize: 18, fontWeight: 800 }}>{userStats && userStats.gamesPlayed > 0 ? Math.round((userStats.gamesWon / userStats.gamesPlayed) * 100) : 0}%</span>
+              </div>
+              <span style={{ fontSize: 9, color: '#475569', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.06em', marginTop: 3 }}>Win Rate</span>
+            </div>
+          </div>
+          )}
+        </section>
+        )}
+
         {/* ── Ticker ── */}
         <div style={{ padding: '4px 16px 12px' }}>
           <div style={{
@@ -852,6 +1102,13 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
           paddingTop: 48, paddingBottom: 20, paddingLeft: 16, paddingRight: 16,
         }}>
           {/* GIOCA ORA */}
+          {editMode && isAdmin && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+              <button onClick={() => setEditingHomeConfig(true)} style={{ background: 'rgba(139,92,246,0.25)', border: '1px solid rgba(139,92,246,0.45)', borderRadius: 8, color: '#c084fc', padding: '3px 10px', cursor: 'pointer', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Settings size={10} /> Modifica bottone
+              </button>
+            </div>
+          )}
           <button
             onClick={() => !editMode && onNavigate('play')}
             onMouseEnter={() => setGiocaHovered(true)}
@@ -859,13 +1116,13 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
             style={{
               width: '100%', position: 'relative', display: 'flex', alignItems: 'center',
               justifyContent: 'space-between', padding: '14px 20px',
-              background: 'linear-gradient(to bottom, #22c55e, #16a34a)',
-              borderRadius: 18, border: '1px solid rgba(74,222,128,0.3)',
+              background: `linear-gradient(to bottom, ${homeConfig.ctaGradientFrom}, ${homeConfig.ctaGradientTo})`,
+              borderRadius: 18, border: '1px solid rgba(255,255,255,0.15)',
               cursor: editMode ? 'default' : 'pointer', marginBottom: 10,
               transform: giocaHovered && !editMode ? 'translateY(-2px)' : 'translateY(0)',
               transition: 'transform 0.2s ease, box-shadow 0.2s ease',
               animation: 'homeGiocaGlow 2.5s ease-in-out infinite',
-              opacity: editMode ? 0.5 : 1,
+              opacity: editMode ? 0.7 : 1,
             }}
           >
             <div style={{ position: 'absolute', inset: 0, borderRadius: 18, background: 'linear-gradient(to bottom, rgba(255,255,255,0.12), transparent)', pointerEvents: 'none' }} />
@@ -874,8 +1131,8 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
                 <Gamepad2 style={{ width: 22, height: 22, color: 'white' }} />
               </div>
               <div style={{ textAlign: 'left' }}>
-                <div style={{ fontSize: 17, fontWeight: 900, color: 'white', letterSpacing: '0.02em', lineHeight: 1 }}>GIOCA ORA</div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(220,252,231,0.9)', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 3 }}>Guadagna Rankiard</div>
+                <div style={{ fontSize: 17, fontWeight: 900, color: 'white', letterSpacing: '0.02em', lineHeight: 1 }}>{homeConfig.ctaText || 'GIOCA ORA'}</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 3 }}>{homeConfig.ctaSubtext || 'Guadagna Rankiard'}</div>
               </div>
             </div>
             <div style={{ width: 36, height: 36, background: 'rgba(255,255,255,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,0.2)' }}>
@@ -985,6 +1242,26 @@ export function HomeScreen({ playerName, userId, onNavigate, onJoinTournamentMat
         <ClubPanel userId={userId || 0} username={playerName} onClose={() => setShowClubs(false)} />
       )}
       <SeasonalEventsPanel isOpen={showSeasonalEvents} onClose={() => setShowSeasonalEvents(false)} />
+
+      {/* ── Home Config modal ── */}
+      {editingHomeConfig && (
+        <HomeConfigModal
+          config={homeConfig}
+          onSave={c => { setHomeConfig(c); setEditingHomeConfig(false); }}
+          onClose={() => setEditingHomeConfig(false)}
+          authToken={authToken}
+        />
+      )}
+
+      {/* ── Rankiard Tiers modal ── */}
+      {editingTiers && (
+        <RankiardTiersModal
+          tiers={rankiardTiers}
+          onSave={t => { setRankiardTiers(t); setEditingTiers(false); }}
+          onClose={() => setEditingTiers(false)}
+          authToken={authToken}
+        />
+      )}
     </div>
   );
 }

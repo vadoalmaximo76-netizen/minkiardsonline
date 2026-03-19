@@ -8,7 +8,7 @@ import fs from "fs";
 import path from "path";
 import { db, legacyDb, isDatabaseAvailable, isLegacyDbAvailable } from "./db";
 import { personaggi, customCards, cardModifications, users, friendRequests, friendships, gameInvitations, playerAchievements, playerDailyMissions, trainingTips, clans, clanMembers, clanJoinRequests, tournaments, tournamentParticipants, tournamentMatches, matches, gameEvents, seasonalEvents, seasonalCards, playerSkins, seasonalPasses, passRewards, playerPassProgress, conversations, privateMessages, pushSubscriptions, cardCollection, userDraftCredits, draftDecks, creditPurchases, userCardCollection, draftPackOpenings, draftDeckPresets, cardTradeListings, cardTradeHistory, draftCharacterGrowth, draftTournaments, notifications, gymLeaders, userGymProgress, userStoryDeck, injuredPersonaggi } from "../shared/schema";
-import { jsonStorage, homePanelsStorage, newsTickerStorage } from "./jsonStorage";
+import { jsonStorage, homePanelsStorage, newsTickerStorage, homeConfigStorage, rankiardTiersStorage } from "./jsonStorage";
 import { eq, ilike, and, desc, or, ne, sql, inArray, gt } from "drizzle-orm";
 import { CARD_DATA, DECK_BACK_IMAGES } from "../client/src/lib/cardData";
 import { authMiddleware, ADMIN_FALLBACK, JWT_SECRET } from "./auth";
@@ -13169,6 +13169,52 @@ Rispondi SOLO con JSON, nessun testo fuori dal JSON:
       res.json({ success: true });
     } catch (e) {
       res.status(500).json({ error: 'Errore salvataggio ticker' });
+    }
+  });
+
+  // ============ HOME CONFIG API ============
+  app.get('/api/home-config', (req, res) => {
+    try {
+      res.json(homeConfigStorage.get());
+    } catch (e) {
+      res.status(500).json({ error: 'Errore lettura configurazione home' });
+    }
+  });
+
+  app.put('/api/home-config', authMiddleware, (req: any, res) => {
+    try {
+      const userEmail = req.user?.email;
+      if (userEmail !== 'lucaforte94@gmail.com') {
+        return res.status(403).json({ error: 'Solo gli admin possono modificare la configurazione' });
+      }
+      homeConfigStorage.save(req.body);
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: 'Errore salvataggio configurazione' });
+    }
+  });
+
+  // ============ RANKIARD TIERS API ============
+  app.get('/api/rankiard-tiers', (req, res) => {
+    try {
+      res.json(rankiardTiersStorage.get());
+    } catch (e) {
+      res.status(500).json({ error: 'Errore lettura gradi' });
+    }
+  });
+
+  app.put('/api/rankiard-tiers', authMiddleware, (req: any, res) => {
+    try {
+      const userEmail = req.user?.email;
+      if (userEmail !== 'lucaforte94@gmail.com') {
+        return res.status(403).json({ error: 'Solo gli admin possono modificare i gradi' });
+      }
+      const tiers = req.body;
+      if (!Array.isArray(tiers)) return res.status(400).json({ error: 'Formato non valido' });
+      rankiardTiersStorage.save(tiers);
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: 'Errore salvataggio gradi' });
     }
   });
 

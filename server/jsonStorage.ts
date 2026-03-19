@@ -986,4 +986,52 @@ export const homePanelsStorage = {
   },
 };
 
+export const homeConfigStorage = {
+  DEFAULTS: {
+    rankSectionVisible: true,
+    rankSectionPosition: 'above' as 'above' | 'below',
+    rankSectionLabel: 'Il tuo rango',
+    statsGridVisible: true,
+    ctaText: 'GIOCA ORA',
+    ctaSubtext: 'Guadagna Rankiard',
+    ctaGradientFrom: '#22c55e',
+    ctaGradientTo: '#16a34a',
+  },
+  get() {
+    const file = path.join(DATA_DIR, 'homeConfig.json');
+    try {
+      if (!fs.existsSync(file)) return { ...this.DEFAULTS };
+      return { ...this.DEFAULTS, ...JSON.parse(fs.readFileSync(file, 'utf8')) };
+    } catch { return { ...this.DEFAULTS }; }
+  },
+  save(config: any): void {
+    const file = path.join(DATA_DIR, 'homeConfig.json');
+    fs.writeFileSync(file, JSON.stringify(config, null, 2));
+  },
+};
+
+export const rankiardTiersStorage = {
+  DEFAULTS: [
+    { name: 'Esordiente',  min: 0,    numeral: 'I'   },
+    { name: 'Dilettante',  min: 300,  numeral: 'II'  },
+    { name: 'Competitore', min: 600,  numeral: 'III' },
+    { name: 'Sfidante',    min: 1000, numeral: 'IV'  },
+    { name: 'Campione',    min: 1500, numeral: 'V'   },
+    { name: 'Maestro',     min: 2000, numeral: 'VI'  },
+    { name: 'Leggenda',    min: 2500, numeral: '★'   },
+  ],
+  get() {
+    const file = path.join(DATA_DIR, 'rankiardTiers.json');
+    try {
+      if (!fs.existsSync(file)) return [...this.DEFAULTS];
+      const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+      return Array.isArray(data) && data.length > 0 ? data : [...this.DEFAULTS];
+    } catch { return [...this.DEFAULTS]; }
+  },
+  save(tiers: any[]): void {
+    const file = path.join(DATA_DIR, 'rankiardTiers.json');
+    fs.writeFileSync(file, JSON.stringify(tiers, null, 2));
+  },
+};
+
 export type { CustomCard, CardModification, CardSkin, PersonaggioCache, Achievement, MissionTemplate, TutorialStep, PlayerSkin, JsonUser };
