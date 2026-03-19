@@ -3797,23 +3797,43 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
       {/* Game content */}
       <div className="relative z-10 pt-14 landscape:pt-12 md:pt-14">
-        {/* Header - Compact glassmorphism bar - fixed at top */}
-        <div className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between gap-2 px-3 py-2"
-          style={{ background: 'rgba(10, 8, 30, 0.85)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}
+        {/* Header - Premium slim bar - fixed at top */}
+        <div className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between gap-2 px-3 py-1.5"
+          style={{
+            background: 'rgba(2,16,8,0.92)',
+            backdropFilter: 'blur(20px)',
+            borderBottom: '1px solid rgba(202,138,4,0.25)',
+            boxShadow: '0 2px 16px rgba(0,0,0,0.5), inset 0 -1px 0 rgba(202,138,4,0.12)',
+          }}
         >
           {/* Left: Back + Logo + Room */}
           <div className="flex items-center gap-2 min-w-0">
             {onBack && (
               <button
                 onClick={onBack}
-                className="text-white/60 hover:text-white transition-colors text-sm"
+                className="text-amber-400/70 hover:text-amber-300 transition-colors text-sm font-bold"
               >
                 ←
               </button>
             )}
-            <h1 className="text-lg landscape:text-2xl md:text-2xl font-black text-white tracking-tight whitespace-nowrap" style={{textShadow: '0 2px 8px rgba(0,0,0,0.6)'}}>MINKIARDS</h1>
+            <h1
+              className="text-lg landscape:text-2xl md:text-2xl font-black tracking-tight whitespace-nowrap"
+              style={{
+                background: 'linear-gradient(to right, #fbbf24, #f59e0b, #fde68a)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                filter: 'drop-shadow(0 0 6px rgba(202,138,4,0.45))',
+              }}
+            >MINKIARDS</h1>
             {gameId && gameId.startsWith('room-') && (
-              <span className="text-white/50 text-[10px] landscape:text-xs md:text-xs bg-white/5 px-2 py-0.5 rounded-full border border-white/10 whitespace-nowrap">
+              <span
+                className="text-[10px] landscape:text-xs md:text-xs px-2 py-0.5 rounded-full whitespace-nowrap font-bold"
+                style={{
+                  background: 'rgba(202,138,4,0.12)',
+                  border: '1px solid rgba(202,138,4,0.30)',
+                  color: 'rgba(253,230,138,0.80)',
+                }}
+              >
                 {gameId.replace('room-', '')}
               </span>
             )}
@@ -3824,19 +3844,31 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           <div className="flex items-center gap-1.5 landscape:gap-2 md:gap-2">
             <Button
               onClick={() => { playButtonClick(); setShowCpuControls(!showCpuControls); }}
-              className={`${showCpuControls ? 'bg-purple-500/90 border-purple-400/30 shadow-purple-500/25' : 'bg-white/10 border-white/10 shadow-none'} text-white font-bold text-[11px] landscape:text-sm md:text-sm px-3 landscape:px-4 md:px-4 py-1.5 landscape:py-2 md:py-2 rounded-xl shadow-lg border transition-all duration-200 hover:bg-purple-500/70`}
+              className={`${showCpuControls ? 'border-purple-400/40' : 'border-white/10'} text-white font-bold text-[11px] landscape:text-sm md:text-sm px-3 landscape:px-4 md:px-4 py-1.5 landscape:py-2 md:py-2 rounded-xl shadow-lg border transition-all duration-200`}
+              style={{
+                background: showCpuControls ? 'rgba(124,58,237,0.75)' : 'rgba(255,255,255,0.07)',
+                boxShadow: showCpuControls ? '0 0 12px rgba(124,58,237,0.4)' : 'none',
+              }}
             >
               CPU
             </Button>
             <Button
               onClick={() => { playButtonClick(); setIs3DMode(!is3DMode); }}
-              className={`${is3DMode ? 'bg-cyan-500/90 border-cyan-400/30 shadow-cyan-500/25' : 'bg-white/10 border-white/10 shadow-none'} text-white font-bold text-[11px] landscape:text-sm md:text-sm px-3 landscape:px-4 md:px-4 py-1.5 landscape:py-2 md:py-2 rounded-xl shadow-lg border transition-all duration-200 hover:bg-cyan-500/70`}
+              className={`${is3DMode ? 'border-amber-400/40' : 'border-white/10'} text-white font-bold text-[11px] landscape:text-sm md:text-sm px-3 landscape:px-4 md:px-4 py-1.5 landscape:py-2 md:py-2 rounded-xl shadow-lg border transition-all duration-200`}
+              style={{
+                background: is3DMode ? 'rgba(202,138,4,0.65)' : 'rgba(255,255,255,0.07)',
+                boxShadow: is3DMode ? '0 0 12px rgba(202,138,4,0.35)' : 'none',
+              }}
             >
               3D
             </Button>
             <Button
               onClick={() => { playButtonClick(); setShowInvitePanel(!showInvitePanel); }}
-              className={`${showInvitePanel ? 'bg-emerald-500/90 border-emerald-400/30 shadow-emerald-500/25' : 'bg-white/10 border-white/10 shadow-none'} text-white font-bold text-[11px] landscape:text-sm md:text-sm px-3 landscape:px-4 md:px-4 py-1.5 landscape:py-2 md:py-2 rounded-xl shadow-lg border transition-all duration-200 hover:bg-emerald-500/70 whitespace-nowrap`}
+              className={`${showInvitePanel ? 'border-emerald-400/40' : 'border-white/10'} text-white font-bold text-[11px] landscape:text-sm md:text-sm px-3 landscape:px-4 md:px-4 py-1.5 landscape:py-2 md:py-2 rounded-xl shadow-lg border transition-all duration-200 whitespace-nowrap`}
+              style={{
+                background: showInvitePanel ? 'rgba(16,185,129,0.65)' : 'rgba(255,255,255,0.07)',
+                boxShadow: showInvitePanel ? '0 0 12px rgba(16,185,129,0.35)' : 'none',
+              }}
             >
               INVITA
             </Button>
@@ -3847,15 +3879,19 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           <div className="flex items-center gap-1.5">
             {authenticatedUser && (
               <div
-                className="flex items-center gap-1.5 bg-white/5 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-white/10 cursor-pointer hover:bg-white/10 transition-all duration-200"
+                className="flex items-center gap-1.5 backdrop-blur-md px-2.5 py-1.5 rounded-xl cursor-pointer hover:bg-white/10 transition-all duration-200"
+                style={{
+                  background: 'rgba(202,138,4,0.08)',
+                  border: '1px solid rgba(202,138,4,0.22)',
+                }}
                 onClick={() => setProfileOpen(true)}
                 title="Apri Profilo"
               >
-                <User size={13} className="text-blue-400 flex-shrink-0" />
+                <User size={13} className="text-amber-400/80 flex-shrink-0" />
                 <span className="text-white/80 text-[11px] landscape:text-xs md:text-xs truncate max-w-[60px] landscape:max-w-[100px] md:max-w-[100px]">
                   {authenticatedUser.username}
                 </span>
-                <span className="text-yellow-400 text-[11px] landscape:text-xs md:text-xs font-bold whitespace-nowrap">
+                <span className="text-amber-300 text-[11px] landscape:text-xs md:text-xs font-bold whitespace-nowrap">
                   <AnimatedNumber value={authenticatedUser.puntiRankiard || 0} />
                 </span>
                 {onLogout && (
@@ -3874,7 +3910,11 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             <div className="relative">
               <button
                 onClick={() => { playButtonClick(); setHeaderMenuOpen(!headerMenuOpen); }}
-                className="p-2 rounded-xl bg-white/5 backdrop-blur-md border border-white/10 hover:bg-white/15 transition-all duration-200 text-white/70 hover:text-white"
+                className="p-2 rounded-xl backdrop-blur-md border hover:bg-white/10 transition-all duration-200 text-amber-400/70 hover:text-amber-300"
+                style={{
+                  background: 'rgba(202,138,4,0.08)',
+                  border: '1px solid rgba(202,138,4,0.22)',
+                }}
               >
                 <MoreVertical size={18} />
               </button>
@@ -3882,8 +3922,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
               {headerMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setHeaderMenuOpen(false)} />
-                  <div className="absolute left-0 top-full mt-2 z-50 w-56 rounded-2xl overflow-hidden shadow-2xl shadow-black/40 border border-white/15"
-                    style={{ background: 'rgba(15, 10, 40, 0.92)', backdropFilter: 'blur(20px)' }}
+                  <div className="absolute right-0 top-full mt-2 z-50 w-56 rounded-2xl overflow-hidden shadow-2xl shadow-black/60 border"
+                    style={{
+                      background: 'rgba(2,16,8,0.96)',
+                      backdropFilter: 'blur(24px)',
+                      borderColor: 'rgba(202,138,4,0.28)',
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.7), 0 0 0 1px rgba(202,138,4,0.10)',
+                    }}
                   >
                     <div className="py-1.5">
                       <button onClick={() => { window.open('https://minkiards.wixsite.com/minkiards/post/regolamento-ufficiale', '_blank'); setHeaderMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors">
@@ -4028,21 +4073,27 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
           }}
         >
           <div
-            className="flex items-center gap-1 px-1.5 py-1 rounded-2xl border border-white/15 shadow-2xl shadow-black/50"
-            style={{ background: 'rgba(10, 8, 30, 0.8)', backdropFilter: 'blur(16px)' }}
+            className="flex items-center gap-0.5 px-1.5 py-1 rounded-2xl shadow-2xl shadow-black/60"
+            style={{
+              background: 'rgba(2,16,8,0.90)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(202,138,4,0.28)',
+              boxShadow: '0 0 0 1px rgba(202,138,4,0.10), 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)',
+            }}
           >
             <motion.button
               data-tutorial="hand"
               onClick={() => { playButtonClick(); playModalOpen(); setHandModalOpen(true); }}
-              className="relative p-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 hover:text-purple-200 transition-colors"
+              className="relative p-2 rounded-xl transition-colors"
+              style={{ color: '#a78bfa', background: 'rgba(124,58,237,0.15)' }}
               title="Carte in Mano"
-              whileHover={{ scale: 1.12 }}
+              whileHover={{ scale: 1.12, background: 'rgba(124,58,237,0.32)' } as any}
               whileTap={{ scale: 0.88 }}
               transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
               <Hand size={16} />
               {gameState?.players?.[playerName]?.hand?.length ? (
-                <span className="absolute -top-1 -right-1 bg-cyan-500 text-white rounded-full text-[9px] w-4 h-4 flex items-center justify-center font-bold">
+                <span className="absolute -top-1 -right-1 bg-amber-500 text-white rounded-full text-[9px] w-4 h-4 flex items-center justify-center font-bold shadow-md">
                   {gameState.players[playerName].hand.length}
                 </span>
               ) : null}
@@ -4050,28 +4101,30 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
             <motion.button
               onClick={() => { playButtonClick(); socket.emit('force-end-turn', { gameId }); }}
-              className="p-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-300 hover:text-cyan-200 transition-colors"
+              className="p-2 rounded-xl transition-colors"
+              style={{ color: '#fde68a', background: 'rgba(202,138,4,0.15)' }}
               title="Fine Turno"
-              whileHover={{ scale: 1.12 }}
+              whileHover={{ scale: 1.12, background: 'rgba(202,138,4,0.30)' } as any}
               whileTap={{ scale: 0.88 }}
               transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
               <SkipForward size={16} />
             </motion.button>
 
-            <div className="w-px h-5 bg-white/10" />
+            <div className="w-px h-5 mx-0.5" style={{ background: 'rgba(202,138,4,0.20)' }} />
 
             <motion.button
               onClick={() => { playButtonClick(); if (chatOpen) { playPanelClose(); handleCloseChat(); } else { playPanelOpen(); handleOpenChat(); } }}
-              className="relative p-2 rounded-xl bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 hover:text-blue-200 transition-colors"
+              className="relative p-2 rounded-xl transition-colors"
+              style={{ color: '#93c5fd', background: 'rgba(59,130,246,0.12)' }}
               title="Chat"
-              whileHover={{ scale: 1.12 }}
+              whileHover={{ scale: 1.12, background: 'rgba(59,130,246,0.28)' } as any}
               whileTap={{ scale: 0.88 }}
               transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
               <MessageCircle size={16} />
               {unreadMessages > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-[9px] w-4 h-4 flex items-center justify-center font-bold">
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-[9px] w-4 h-4 flex items-center justify-center font-bold shadow-md">
                   {unreadMessages > 9 ? '9+' : unreadMessages}
                 </span>
               )}
@@ -4079,22 +4132,24 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
             <motion.button
               onClick={() => { playButtonClick(); if (gameLogOpen) { playPanelClose(); } else { playPanelOpen(); } setGameLogOpen(!gameLogOpen); }}
-              className="p-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/40 text-purple-300 hover:text-purple-200 transition-colors"
+              className="p-2 rounded-xl transition-colors"
+              style={{ color: '#c4b5fd', background: 'rgba(124,58,237,0.12)' }}
               title="Game Log"
-              whileHover={{ scale: 1.12 }}
+              whileHover={{ scale: 1.12, background: 'rgba(124,58,237,0.28)' } as any}
               whileTap={{ scale: 0.88 }}
               transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
               <ScrollText size={16} />
             </motion.button>
 
-            <div className="w-px h-5 bg-white/10" />
+            <div className="w-px h-5 mx-0.5" style={{ background: 'rgba(202,138,4,0.20)' }} />
 
             <motion.button
               onClick={() => { playButtonClick(); playModalOpen(); setDiceOpen(true); }}
-              className="p-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/40 text-amber-300 hover:text-amber-200 transition-colors"
+              className="p-2 rounded-xl transition-colors"
+              style={{ color: '#fcd34d', background: 'rgba(202,138,4,0.15)' }}
               title="Dado"
-              whileHover={{ scale: 1.12 }}
+              whileHover={{ scale: 1.12, background: 'rgba(202,138,4,0.30)' } as any}
               whileTap={{ scale: 0.88 }}
               transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
@@ -4103,9 +4158,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
             <motion.button
               onClick={() => { playButtonClick(); if (calculatorOpen) { playPanelClose(); } else { playPanelOpen(); } setCalculatorOpen(!calculatorOpen); }}
-              className="p-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 hover:text-emerald-200 transition-colors"
+              className="p-2 rounded-xl transition-colors"
+              style={{ color: '#6ee7b7', background: 'rgba(16,185,129,0.12)' }}
               title="Calcolatrice"
-              whileHover={{ scale: 1.12 }}
+              whileHover={{ scale: 1.12, background: 'rgba(16,185,129,0.28)' } as any}
               whileTap={{ scale: 0.88 }}
               transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
@@ -4114,9 +4170,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
 
             <motion.button
               onClick={() => { playButtonClick(); playModalOpen(); setGraveyardOpen(true); }}
-              className="p-2 rounded-xl bg-gray-500/20 hover:bg-gray-500/40 text-gray-300 hover:text-gray-200 transition-colors"
+              className="p-2 rounded-xl transition-colors"
+              style={{ color: '#d1d5db', background: 'rgba(107,114,128,0.12)' }}
               title="Cimitero"
-              whileHover={{ scale: 1.12 }}
+              whileHover={{ scale: 1.12, background: 'rgba(107,114,128,0.28)' } as any}
               whileTap={{ scale: 0.88 }}
               transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
@@ -4132,9 +4189,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                   socket.emit('shuffle-deck', { deckType });
                 });
               }}
-              className="p-2 rounded-xl bg-blue-500/20 hover:bg-blue-500/40 text-blue-300 hover:text-blue-200 transition-colors"
+              className="p-2 rounded-xl transition-colors"
+              style={{ color: '#93c5fd', background: 'rgba(59,130,246,0.12)' }}
               title="Mischia Mazzi"
-              whileHover={{ scale: 1.12 }}
+              whileHover={{ scale: 1.12, background: 'rgba(59,130,246,0.28)' } as any}
               whileTap={{ scale: 0.88 }}
               transition={{ type: 'spring', stiffness: 600, damping: 20 }}
             >
