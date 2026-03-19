@@ -2463,6 +2463,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                     selectedMosseEffect === 'zero_stars' ? 'bg-yellow-600 text-black' :
                     selectedMosseEffect === 'set_5_pti' ? 'bg-purple-600 text-white' :
                     selectedMosseEffect === 'remove_1_star' ? 'bg-blue-600 text-white' :
+                    selectedMosseEffect === 'drain_on_attack' ? 'bg-cyan-600 text-white' :
                     'bg-gray-600 text-white'
                   }`}>
                     {selectedMosseEffect === 'death' ? '💀 MORTE ISTANTANEA' :
@@ -2470,6 +2471,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
                      selectedMosseEffect === 'zero_stars' ? '⭐ AZZERA STELLE' :
                      selectedMosseEffect === 'set_5_pti' ? '5️⃣ IMPOSTA 5 PTI' :
                      selectedMosseEffect === 'remove_1_star' ? '⭐ -1 STELLA' :
+                     selectedMosseEffect === 'drain_on_attack' ? '🌀 ASSORBI PTI' :
                      selectedMosseEffect}
                   </span>
                   <Button 

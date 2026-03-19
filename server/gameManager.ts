@@ -24771,6 +24771,27 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     // If instant death effect, set newPTI to 0
     const newPTI = forceInstantDeath ? 0 : Math.max(0, currentPTI - effectiveDamage);
 
+    // DRAIN ON ATTACK (Fregatura / Assorbimento): add damage dealt to attacker's PTI
+    if (mosseEffect === 'drain_on_attack' && !isVoodooReflection) {
+      const actualDamageDealt = currentPTI - newPTI;
+      if (actualDamageDealt > 0) {
+        const attackerChar = this.getPlayerActiveCharacter(game, attackerName);
+        if (attackerChar) {
+          const attackerCurrentPTI = attackerChar.pti ?? this.extractPTIFromNote(attackerChar.text || '');
+          attackerChar.pti = attackerCurrentPTI + actualDamageDealt;
+          this.updateCardTextWithPTI(attackerChar);
+          const attackerCharName = attackerChar.name || this.getCardNameFromUrl(attackerChar.frontImage || '');
+          console.log(`🌀 DRAIN ON ATTACK: ${attackerCharName} gained ${actualDamageDealt} PTI`);
+          io?.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-drain-attack`,
+            playerName: 'Sistema',
+            message: `🌀 ${attackerCharName} assorbe ${actualDamageDealt} PTI! (${attackerCurrentPTI} → ${attackerChar.pti})`,
+            timestamp: Date.now()
+          });
+        }
+      }
+    }
+
     // Track last damage for CONVERSIONE effect
     (targetCard as any).lastDamageReceived = effectiveDamage;
     if (game) (game as any).lastDamageDealt = effectiveDamage;
