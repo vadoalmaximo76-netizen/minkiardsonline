@@ -5920,9 +5920,25 @@ Rispondi SOLO in JSON:`;
                 if (effectLower.includes('stelle')) targetCard.stars = Math.floor((targetCard.stars || 0) / 2);
                 console.log(`🎲 Applied: ${selectedChar.name} halved stats to ${targetCard.pti} PTI, ${targetCard.stars} stars`);
               } else if (effectLower.includes('morte')) {
-                targetCard.pti = 0;
-                this.killAndCheck(gameId, targetCard.id, targetCard.owner || '', cardOwner);
-                console.log(`🎲 Applied: ${selectedChar.name} died from dice effect`);
+                // Check BARRIERA/RIFUGIO protection before applying death
+                const barrieraCpuDice = this.isProtectedByBarriera(gameId, targetCard.id);
+                const activeShieldCpuDice = barrieraCpuDice ? this.getActiveBarrieraShieldCard(gameId, targetCard.id) : null;
+                if (barrieraCpuDice && activeShieldCpuDice) {
+                  console.log(`🎲🛡️ BARRIERA intercepts CPU dado morte for ${selectedChar.name}`);
+                  if (io) io.to(gameId).emit('chat-message', { id: `${Date.now()}-cpu-dado-barriera`, playerName: 'Sistema', message: `🛡️ ${selectedChar.name} è protetto da BARRIERA! L'effetto morte del dado colpisce lo scudo.`, timestamp: Date.now() });
+                  this.damageBarriera(gameId, activeShieldCpuDice.id, 99999, cardOwner, io);
+                } else {
+                  const rifugioCpuDice = this.isProtectedByRifugio(gameId, targetCard.id);
+                  if (rifugioCpuDice) {
+                    console.log(`🎲🏠 RIFUGIO intercepts CPU dado morte for ${selectedChar.name}`);
+                    if (io) io.to(gameId).emit('chat-message', { id: `${Date.now()}-cpu-dado-rifugio`, playerName: 'Sistema', message: `🏠 ${selectedChar.name} è protetto da RIFUGIO! L'effetto morte del dado viene assorbito dal rifugio.`, timestamp: Date.now() });
+                    this.damageRifugio(gameId, rifugioCpuDice.rifugioCardId, 99999, cardOwner, io);
+                  } else {
+                    targetCard.pti = 0;
+                    this.killAndCheck(gameId, targetCard.id, targetCard.owner || '', cardOwner);
+                    console.log(`🎲 Applied: ${selectedChar.name} died from dice effect`);
+                  }
+                }
               }
               this.updateCardTextWithPTI(targetCard);
             }
@@ -17052,21 +17068,70 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     };
 
+    // Helper: apply dice damage to a character with BARRIERA/RIFUGIO protection checks.
+    // Returns true if a protection intercepted the effect (skip direct damage/death).
+    // For morte effects, pass a large damageValue (e.g. 99999) to destroy a shield.
+    const applyDiceWithProtection = (targetCardId: string, targetCard: any, damageValue: number, source: string): boolean => {
+      const ioGlobal = (global as any).io;
+      const tName = targetCard.name || this.getCardNameFromUrl(targetCard.frontImage || '');
+
+      // BARRIERA check
+      const barrieraDiceProt = this.isProtectedByBarriera(gameId, targetCardId);
+      if (barrieraDiceProt) {
+        const activeShield = this.getActiveBarrieraShieldCard(gameId, targetCardId);
+        if (activeShield) {
+          console.log(`🎲🛡️ BARRIERA intercepts dado effect (${source}) for ${tName} — ${damageValue} to shield`);
+          if (ioGlobal) {
+            ioGlobal.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-dado-barriera`,
+              playerName: 'Sistema',
+              message: `🛡️ ${tName} è protetto da BARRIERA! L'effetto del dado (${source}) colpisce lo scudo invece del personaggio.`,
+              timestamp: Date.now()
+            });
+          }
+          this.damageBarriera(gameId, activeShield.id, damageValue, rollingPlayer || source, ioGlobal);
+          return true;
+        }
+      }
+
+      // RIFUGIO check
+      const rifugioDiceProt = this.isProtectedByRifugio(gameId, targetCardId);
+      if (rifugioDiceProt) {
+        console.log(`🎲🏠 RIFUGIO intercepts dado effect (${source}) for ${tName} — ${damageValue} to rifugio`);
+        if (ioGlobal) {
+          ioGlobal.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-dado-rifugio`,
+            playerName: 'Sistema',
+            message: `🏠 ${tName} è protetto da RIFUGIO! L'effetto del dado (${source}) viene assorbito dal rifugio.`,
+            timestamp: Date.now()
+          });
+        }
+        this.damageRifugio(gameId, rifugioDiceProt.rifugioCardId, damageValue, rollingPlayer || source, ioGlobal);
+        return true;
+      }
+
+      return false; // no protection — apply directly
+    };
+
     // Combined PTI + stars loss: "Perde X PTI e perde Y stella/stelle" (bonus-6 face 5)
     const combinedLossMatch = effectStr.match(/perde\s+(\d+)\s+pti.*?perde\s+(\d+)\s+stell/i);
     if (combinedLossMatch) {
       const ptiLoss = parseInt(combinedLossMatch[1]);
       const starLoss = parseInt(combinedLossMatch[2]);
-      const currentPTI = card.pti || this.extractPTIFromNote(card.text || '');
-      const currentStars = card.stars || this.extractStarsFromNote(card.text || '');
-      const newPTI = Math.max(0, currentPTI - ptiLoss);
-      const newStars = Math.max(0, currentStars - starLoss);
-      card.pti = newPTI;
-      card.stars = newStars;
-      card.text = `PTI: ${newPTI} | Stelle: ${newStars}`;
-      console.log(`🎲 ${cardName} lost ${ptiLoss} PTI and ${starLoss} stars → PTI: ${newPTI}, Stelle: ${newStars}`);
-      if (newPTI <= 0) {
-        graveyardAndCheck(gameId, characterId, card.owner, 'DADO');
+
+      // Check protection for PTI damage portion
+      if (!applyDiceWithProtection(characterId, card, ptiLoss, 'DADO')) {
+        const currentPTI = card.pti || this.extractPTIFromNote(card.text || '');
+        const currentStars = card.stars || this.extractStarsFromNote(card.text || '');
+        const newPTI = Math.max(0, currentPTI - ptiLoss);
+        const newStars = Math.max(0, currentStars - starLoss);
+        card.pti = newPTI;
+        card.stars = newStars;
+        card.text = `PTI: ${newPTI} | Stelle: ${newStars}`;
+        console.log(`🎲 ${cardName} lost ${ptiLoss} PTI and ${starLoss} stars → PTI: ${newPTI}, Stelle: ${newStars}`);
+        if (newPTI <= 0) {
+          graveyardAndCheck(gameId, characterId, card.owner, 'DADO');
+        }
       }
       return;
     }
@@ -17080,19 +17145,27 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         const rollerChar = game.field.find((c: any) => c.owner === rollingPlayer && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
         if (rollerChar) {
           console.log(`🎲💀 ${rollerChar.name || rollerChar.id} (roller) dies from dice effect (self-only)`);
-          graveyardAndCheck(gameId, rollerChar.id, rollingPlayer, 'DADO');
+          // Roller's own character — protection applies (using 99999 to eliminate shield/rifugio)
+          if (!applyDiceWithProtection(rollerChar.id, rollerChar, 99999, 'DADO-MORTE')) {
+            graveyardAndCheck(gameId, rollerChar.id, rollingPlayer, 'DADO');
+          }
         }
       } else {
-        // Kill the target character
-        console.log(`🎲💀 ${cardName} dies from dice effect`);
-        graveyardAndCheck(gameId, characterId, card.owner, 'DADO');
+        // Kill the target character — check protection first
+        const targetProtected = applyDiceWithProtection(characterId, card, 99999, 'DADO-MORTE');
+        if (!targetProtected) {
+          console.log(`🎲💀 ${cardName} dies from dice effect`);
+          graveyardAndCheck(gameId, characterId, card.owner, 'DADO');
+        }
 
         if (isCoinvolti && rollingPlayer && rollingPlayer !== card.owner) {
           // Also kill the rolling player's own character (faces 1-2 of bonus-64)
           const rollerChar = game.field.find((c: any) => c.owner === rollingPlayer && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
           if (rollerChar) {
-            console.log(`🎲💀 ${rollerChar.name || rollerChar.id} (roller) also dies — COINVOLTI`);
-            graveyardAndCheck(gameId, rollerChar.id, rollingPlayer, 'DADO_COINVOLTI');
+            if (!applyDiceWithProtection(rollerChar.id, rollerChar, 99999, 'DADO-MORTE-COINVOLTI')) {
+              console.log(`🎲💀 ${rollerChar.name || rollerChar.id} (roller) also dies — COINVOLTI`);
+              graveyardAndCheck(gameId, rollerChar.id, rollingPlayer, 'DADO_COINVOLTI');
+            }
           }
         }
       }
@@ -22127,6 +22200,40 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     return game?.pendingDefense;
   }
 
+  // Helper: apply direct PTI counter-damage to attacker's character (no protection)
+  private applyCounterDamageDirectly(game: any, gameId: string, attackerCharacter: any, attacker: string, defender: string, netCounterDamage: number, grossCounterDamage: number, originalAttackDamage: number, io: any): void {
+    let currentPti = attackerCharacter.pti || 0;
+    if (!currentPti && attackerCharacter.text) {
+      const ptiMatch = attackerCharacter.text.match(/PTI[:\s]*(\d+)/i);
+      if (ptiMatch) currentPti = parseInt(ptiMatch[1]);
+    }
+    const newPti = Math.max(0, currentPti - netCounterDamage);
+    attackerCharacter.pti = newPti;
+    if (attackerCharacter.text) {
+      attackerCharacter.text = attackerCharacter.text.replace(/PTI[:\s]*\d+/i, `PTI: ${newPti}`);
+    }
+    const cardName = attackerCharacter.name || 'Personaggio';
+    console.log(`[COUNTER-DAMAGE] ${attacker}'s ${cardName} took ${netCounterDamage} NET counter damage: ${currentPti} → ${newPti} PTI`);
+    io.to(gameId).emit('chat-message', {
+      id: `${Date.now()}-counter-damage-applied`,
+      playerName: 'Sistema',
+      message: `💥 ${cardName} di ${attacker} subisce ${netCounterDamage} danni netti dalla respinta! (${grossCounterDamage} - ${originalAttackDamage} = ${netCounterDamage}) PTI: ${currentPti} → ${newPti}`,
+      timestamp: Date.now()
+    });
+    if (newPti <= 0) {
+      console.log(`[COUNTER-DAMAGE] ${attacker}'s ${cardName} DIED from counter-attack!`);
+      attackerCharacter.eliminatedBy = defender;
+      game.graveyard.push(attackerCharacter);
+      game.field = game.field.filter((c: any) => c.id !== attackerCharacter.id);
+      io.to(gameId).emit('chat-message', {
+        id: `${Date.now()}-counter-kill`,
+        playerName: 'Sistema',
+        message: `💀 ${cardName} di ${attacker} è stato eliminato dalla respinta di ${defender}!`,
+        timestamp: Date.now()
+      });
+    }
+  }
+
   // UNIFIED DEFENSE RESPONSE HANDLER: Processes defense responses and continues attack flow
   async processDefenseResponse(
     gameId: string, 
@@ -22492,6 +22599,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         
         // APPLY NET COUNTER DAMAGE to attacker's character (counter damage - attack damage)
+        // Protection cards (BARRIERA, RIFUGIO) intercept the reflected damage — the attacker's
+        // own protections must absorb the respinta just as they would absorb a regular attack.
         const attackerPlayer = game?.players?.[attacker];
         if (attackerPlayer) {
           // Find attacker's character on field
@@ -22504,47 +22613,45 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             
             console.log(`[COUNTER-DAMAGE] Calculating NET damage: ${grossCounterDamage} (counter) - ${originalAttackDamage} (attack) = ${netCounterDamage}`);
             
-            let currentPti = attackerCharacter.pti || 0;
-            
-            // Parse PTI from text if not set
-            if (!currentPti && attackerCharacter.text) {
-              const ptiMatch = attackerCharacter.text.match(/PTI[:\s]*(\d+)/i);
-              if (ptiMatch) currentPti = parseInt(ptiMatch[1]);
-            }
-            
-            const newPti = Math.max(0, currentPti - netCounterDamage);
-            attackerCharacter.pti = newPti;
-            
-            // Update text to reflect new PTI
-            if (attackerCharacter.text) {
-              attackerCharacter.text = attackerCharacter.text.replace(/PTI[:\s]*\d+/i, `PTI: ${newPti}`);
-            }
-            
-            const cardName = attackerCharacter.name || 'Personaggio';
-            console.log(`[COUNTER-DAMAGE] ${attacker}'s ${cardName} took ${netCounterDamage} NET counter damage: ${currentPti} → ${newPti} PTI`);
-            
-            io.to(gameId).emit('chat-message', {
-              id: `${Date.now()}-counter-damage-applied`,
-              playerName: 'Sistema',
-              message: `💥 ${cardName} di ${attacker} subisce ${netCounterDamage} danni netti dalla respinta! (${grossCounterDamage} - ${originalAttackDamage} = ${netCounterDamage}) PTI: ${currentPti} → ${newPti}`,
-              timestamp: Date.now()
-            });
-            
-            // Check if attacker's character died
-            if (newPti <= 0) {
-              console.log(`[COUNTER-DAMAGE] ${attacker}'s ${cardName} DIED from counter-attack!`);
-              
-              // Move to graveyard
-              attackerCharacter.eliminatedBy = defender;
-              game.graveyard.push(attackerCharacter);
-              game.field = game.field.filter((c: any) => c.id !== attackerCharacter.id);
-              
-              io.to(gameId).emit('chat-message', {
-                id: `${Date.now()}-counter-kill`,
-                playerName: 'Sistema',
-                message: `💀 ${cardName} di ${attacker} è stato eliminato dalla respinta di ${defender}!`,
-                timestamp: Date.now()
-              });
+            if (netCounterDamage > 0) {
+              const cardName = attackerCharacter.name || 'Personaggio';
+
+              // --- BARRIERA PROTECTION CHECK ---
+              const barrieraProt = this.isProtectedByBarriera(gameId, attackerCharacter.id);
+              if (barrieraProt) {
+                const activeShield = this.getActiveBarrieraShieldCard(gameId, attackerCharacter.id);
+                if (activeShield) {
+                  console.log(`[COUNTER-DAMAGE] BARRIERA intercepts respinta for ${attacker}'s ${cardName} — redirecting ${netCounterDamage} to shield`);
+                  io.to(gameId).emit('chat-message', {
+                    id: `${Date.now()}-counter-barriera`,
+                    playerName: 'Sistema',
+                    message: `🛡️ ${cardName} di ${attacker} è protetto da BARRIERA! La respinta colpisce lo scudo invece del personaggio. (${netCounterDamage} danni assorbiti)`,
+                    timestamp: Date.now()
+                  });
+                  this.damageBarriera(gameId, activeShield.id, netCounterDamage, defender, io);
+                  // Skip direct damage — BARRIERA absorbed everything
+                } else {
+                  // BARRIERA protection found but no active shield — fall through to direct damage
+                  this.applyCounterDamageDirectly(game, gameId, attackerCharacter, attacker, defender, netCounterDamage, grossCounterDamage, originalAttackDamage, io);
+                }
+              } else {
+                // --- RIFUGIO PROTECTION CHECK ---
+                const rifugioProt = this.isProtectedByRifugio(gameId, attackerCharacter.id);
+                if (rifugioProt) {
+                  console.log(`[COUNTER-DAMAGE] RIFUGIO intercepts respinta for ${attacker}'s ${cardName} — redirecting ${netCounterDamage} to rifugio`);
+                  io.to(gameId).emit('chat-message', {
+                    id: `${Date.now()}-counter-rifugio`,
+                    playerName: 'Sistema',
+                    message: `🏠 ${cardName} di ${attacker} è protetto da RIFUGIO! La respinta viene assorbita dal rifugio. (${netCounterDamage} danni assorbiti)`,
+                    timestamp: Date.now()
+                  });
+                  this.damageRifugio(gameId, rifugioProt.rifugioCardId, netCounterDamage, defender, io);
+                  // Skip direct damage — RIFUGIO absorbed everything
+                } else {
+                  // No protection active — apply counter-attack damage directly
+                  this.applyCounterDamageDirectly(game, gameId, attackerCharacter, attacker, defender, netCounterDamage, grossCounterDamage, originalAttackDamage, io);
+                }
+              }
             }
           }
         }
@@ -22587,6 +22694,40 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             return;
           }
           const targetChar = targetCharacters[0];
+          const cardName = targetChar.name || 'Personaggio';
+
+          // BARRIERA PROTECTION: redirect defense-redirected damage to BARRIERA shield
+          const barrieraDefProt = this.isProtectedByBarriera(gameId, targetChar.id);
+          if (barrieraDefProt) {
+            const activeDefShield = this.getActiveBarrieraShieldCard(gameId, targetChar.id);
+            if (activeDefShield) {
+              console.log(`[DEFENSE-BONUS] BARRIERA intercepts ${reason} for ${targetPlayerName}'s ${cardName} — ${damageAmount} to shield`);
+              io.to(gameId).emit('chat-message', {
+                id: `${Date.now()}-defense-bonus-barriera`,
+                playerName: 'Sistema',
+                message: `🛡️ ${cardName} di ${targetPlayerName} è protetto da BARRIERA! ${reason} colpisce lo scudo. (${damageAmount} danni assorbiti)`,
+                timestamp: Date.now()
+              });
+              this.damageBarriera(gameId, activeDefShield.id, damageAmount, defender, io);
+              return;
+            }
+          }
+
+          // RIFUGIO PROTECTION: redirect defense-redirected damage to RIFUGIO
+          const rifugioDefProt = this.isProtectedByRifugio(gameId, targetChar.id);
+          if (rifugioDefProt) {
+            console.log(`[DEFENSE-BONUS] RIFUGIO intercepts ${reason} for ${targetPlayerName}'s ${cardName} — ${damageAmount} to rifugio`);
+            io.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-defense-bonus-rifugio`,
+              playerName: 'Sistema',
+              message: `🏠 ${cardName} di ${targetPlayerName} è protetto da RIFUGIO! ${reason} viene assorbita dal rifugio. (${damageAmount} danni assorbiti)`,
+              timestamp: Date.now()
+            });
+            this.damageRifugio(gameId, rifugioDefProt.rifugioCardId, damageAmount, defender, io);
+            return;
+          }
+
+          // No protection — apply damage directly
           let currentPti = targetChar.pti || 0;
           if (!currentPti && targetChar.text) {
             const ptiMatch = targetChar.text.match(/PTI[:\s]*(\d+)/i);
@@ -22597,7 +22738,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           if (targetChar.text) {
             targetChar.text = targetChar.text.replace(/PTI[:\s]*\d+/i, `PTI: ${newPti}`);
           }
-          const cardName = targetChar.name || 'Personaggio';
           console.log(`[DEFENSE-BONUS] ${targetPlayerName}'s ${cardName} took ${damageAmount} damage (${reason}): ${currentPti} → ${newPti} PTI`);
           io.to(gameId).emit('chat-message', {
             id: `${Date.now()}-defense-bonus-damage`,
