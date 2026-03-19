@@ -1246,6 +1246,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         const playerName = userRecord[0].username;
+
+        // If set-user-data already auto-rejoined this socket to a game, return that
+        // game without checking lastGameId — prevents cross-game state conflicts where
+        // a stale session hint directs the client to a different (e.g. old room) game
+        // while the player is already live in a Story Mode / gym game.
+        const alreadyJoinedGameId = gameManager.getGameIdBySocketId(socket.id);
+        if (alreadyJoinedGameId) {
+          const alreadyJoinedGame = gameManager.getGameState(alreadyJoinedGameId);
+          if (alreadyJoinedGame && !alreadyJoinedGame.gameEnded && alreadyJoinedGame.players[playerName]) {
+            const handCount = alreadyJoinedGame.players[playerName].hand.length;
+            console.log(`🔒 Socket already in game ${alreadyJoinedGameId} (via set-user-data), returning it instead of hint ${lastGameId}`);
+            socket.emit('active-game-found', { gameId: alreadyJoinedGameId, handCount, playerName });
+            return;
+          }
+        }
+
         // Pass lastGameId hint so the server prefers the game the client was last in
         const activeGame = gameManager.getActiveGameByPlayerName(playerName, lastGameId);
         

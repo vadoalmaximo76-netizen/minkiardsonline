@@ -2970,15 +2970,7 @@ Rispondi SOLO in JSON:`;
   getActiveGameByPlayerName(playerName: string, preferredGameId?: string): { gameId: string; handCount: number } | null {
     const gamesArray = Array.from(this.games.entries());
 
-    // If client tells us which game it was in, check that first
-    if (preferredGameId) {
-      const preferred = this.games.get(preferredGameId);
-      if (preferred && !preferred.gameEnded && preferred.players[playerName]) {
-        return { gameId: preferredGameId, handCount: preferred.players[playerName].hand.length };
-      }
-    }
-
-    // Collect all candidate games for this player
+    // Collect all candidate games for this player (non-ended)
     const candidates: Array<{ gameId: string; game: GameState; handCount: number }> = [];
     for (const [gameId, game] of gamesArray) {
       if (game.gameEnded) continue;
@@ -2991,8 +2983,32 @@ Rispondi SOLO in JSON:`;
     if (candidates.length === 0) return null;
     if (candidates.length === 1) return { gameId: candidates[0].gameId, handCount: candidates[0].handCount };
 
-    // Prefer: (1) games that are actively playing, (2) more cards in hand, (3) insertion order
+    // If a preferredGameId hint was given, only honor it when the player does NOT have
+    // a live socket connection in a different candidate game. This prevents the client's
+    // stale session hint (pointing to an old room game) from overriding an already-active
+    // Story Mode / gym game where the player currently has an active socket.
+    if (preferredGameId) {
+      const preferred = this.games.get(preferredGameId);
+      if (preferred && !preferred.gameEnded && preferred.players[playerName]) {
+        // Check if the player has a live (non-null) socketId in ANY other candidate game
+        const hasLiveSocketElsewhere = candidates.some(c => {
+          if (c.gameId === preferredGameId) return false;
+          const p = c.game.players[playerName];
+          return p && p.socketId !== null && p.socketId !== undefined;
+        });
+        if (!hasLiveSocketElsewhere) {
+          return { gameId: preferredGameId, handCount: preferred.players[playerName].hand.length };
+        }
+        // If there IS a live socket elsewhere, fall through to the sort-based selection
+      }
+    }
+
+    // Prefer: (1) player has live socket connection in this game, (2) actively playing,
+    // (3) more cards in hand, (4) insertion order
     candidates.sort((a, b) => {
+      const aSocketLive = (a.game.players[playerName]?.socketId != null) ? 1 : 0;
+      const bSocketLive = (b.game.players[playerName]?.socketId != null) ? 1 : 0;
+      if (bSocketLive !== aSocketLive) return bSocketLive - aSocketLive;
       const aPlaying = a.game.isPlaying ? 1 : 0;
       const bPlaying = b.game.isPlaying ? 1 : 0;
       if (bPlaying !== aPlaying) return bPlaying - aPlaying;
