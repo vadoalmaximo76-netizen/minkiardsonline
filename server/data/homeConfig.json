@@ -1,0 +1,10 @@
+{
+  "rankSectionVisible": true,
+  "rankSectionPosition": "above",
+  "rankSectionLabel": "I tuoi punti Rankiard",
+  "statsGridVisible": true,
+  "ctaText": "GIOCA ORA",
+  "ctaSubtext": "Guadagna Rankiard",
+  "ctaGradientFrom": "#22c55e",
+  "ctaGradientTo": "#005720"
+}

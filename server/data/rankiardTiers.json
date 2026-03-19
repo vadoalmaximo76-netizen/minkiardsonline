@@ -1,0 +1,37 @@
+[
+  {
+    "name": "Esordiente",
+    "min": 0,
+    "numeral": "I"
+  },
+  {
+    "name": "Dilettante",
+    "min": 100,
+    "numeral": "II"
+  },
+  {
+    "name": "Competitore",
+    "min": 300,
+    "numeral": "III"
+  },
+  {
+    "name": "Sfidante",
+    "min": 500,
+    "numeral": "IV"
+  },
+  {
+    "name": "Campione",
+    "min": 1000,
+    "numeral": "V"
+  },
+  {
+    "name": "Maestro",
+    "min": 1500,
+    "numeral": "VI"
+  },
+  {
+    "name": "Leggenda",
+    "min": 2000,
+    "numeral": "★"
+  }
+]
