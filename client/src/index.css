@@ -2525,8 +2525,23 @@ input:focus, select:focus {
     opacity: 0.08;
   }
 
+  /* Replace full 3D flip (perspective + rotateY + translateZ) with simple 2D slide-in.
+     The 3D flip is the single most expensive animation during card draw on mobile. */
+  @keyframes card-draw-mobile {
+    0%   { opacity: 0; transform: scale(0.65) translateY(18px); }
+    65%  { transform: scale(1.04) translateY(-3px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
   .card-draw-enter-enhanced {
-    animation: card-draw-3d-enhanced 0.5s ease-out !important;
+    animation: card-draw-mobile 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    transform-style: flat !important;
+  }
+
+  /* Disable card-master CSS transition on mobile.
+     Touch events temporarily trigger hover/active states, causing spurious
+     0.3s transform transitions that look like jank on slow devices. */
+  .card-master {
+    transition: none !important;
   }
 
   .low-health-critical {
@@ -2574,6 +2589,23 @@ input:focus, select:focus {
   [role="dialog"], .modal, .dialog {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+  }
+
+  /* Simplify panel open/close on mobile — just opacity, no scale transform.
+     Scale animations on panels with preserve-3d or complex children cause
+     the browser to rasterize the entire subtree on every frame. */
+  @keyframes panel-open-mobile {
+    0%   { opacity: 0; }
+    100% { opacity: 1; }
+  }
+  .panel-pop-open {
+    animation: panel-open-mobile 0.18s ease-out forwards !important;
+  }
+  .panel-pop-close {
+    animation: panel-open-mobile 0.15s ease-in reverse forwards !important;
+  }
+  .animate-panel-slide-up {
+    animation: panel-open-mobile 0.2s ease-out forwards !important;
   }
 
   /* Disable skin glow animations (filter: brightness + drop-shadow) */

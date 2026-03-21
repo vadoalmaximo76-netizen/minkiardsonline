@@ -1415,8 +1415,10 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
         document.body
       )}
 
-      {/* Particle Effects for newly placed cards */}
-      {isNewlyPlaced && location === 'field' && (
+      {/* Particle Effects for newly placed cards — desktop only.
+          On mobile: 6 particles + 2 shockwave rings + 2 flash divs = 10 animated DOM nodes
+          all painting simultaneously → major jank source. CSS entry animation is sufficient. */}
+      {!isMobile && isNewlyPlaced && location === 'field' && (
         <div className="absolute inset-0 pointer-events-none overflow-visible z-50">
           {/* Energy burst particles — 6 on mobile, 12 on desktop */}
           {[...Array(isMobile ? 6 : 12)].map((_, i) => {
