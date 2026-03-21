@@ -4375,6 +4375,19 @@ Rispondi SOLO in JSON:`;
       }
     }
 
+    // ============ PICK FROM DECK (Minkiards N.200) ============
+    if (/scegli.*carta.*mazz[io].*mettila.*mano|scegli.*carta.*mazz[io].*in\s+mano|sfoglia.*mazz.*scegli/i.test(text) &&
+        !actions.some(a => a.type === 'pick_from_deck')) {
+      actions.push({ type: 'pick_from_deck', target: 'self', value: 1, description: 'Scegli una carta da un mazzo e mettila in mano' });
+    }
+
+    // ============ DISCARD OPPONENT DECK (Sfaccim) ============
+    if (/avversario.*scarta.*carte.*mazz|scarta.*carte.*mazz.*avversario|manda.*cimitero.*mazz.*avvers/i.test(text) &&
+        !actions.some(a => a.type === 'discard_opponent_deck')) {
+      const value = extractNumber(text, 10);
+      actions.push({ type: 'discard_opponent_deck', target: 'opponents', value, description: `Avversario scarta ${value} carte dai mazzi` });
+    }
+
     // ============ DRAW PATTERNS ============
     if (text.includes('pesca') || text.includes('prendi carta') || text.includes('estrai') || 
         text.includes('prendere carta') || text.includes('pescare') || text.includes('tira una carta') ||
@@ -4581,7 +4594,7 @@ Rispondi SOLO in JSON:`;
     }
 
     // ============ VAMPIRO / LIFESTEAL ENHANCED PATTERN ============
-    if (/vampir[oa]|aggiung.*metà.*danni.*inflitt|succhia.*vita|assorb.*vita|danni.*curano|cura.*danni.*inflitt|ruba.*vita/i.test(text) && !actions.some(a => a.type === 'lifesteal')) {
+    if (/vampir[oa]|aggiung.*met[aà].*danni.*inflitt|aggiung.*met[aà].*pti.*danno.*infligg|met[aà].*pti.*danno.*infligg|succhia.*vita|assorb.*vita|danni.*curano|cura.*danni.*inflitt|ruba.*vita/i.test(text) && !actions.some(a => a.type === 'lifesteal') && !actions.some(a => a.type === 'drain_from_all')) {
       const value = extractNumber(text, 50);
       actions.push({ type: 'lifesteal', target: 'self', value, description: `Vampiro: i danni inflitti curano questa carta di ${value}%` });
     }
@@ -4603,12 +4616,19 @@ Rispondi SOLO in JSON:`;
       actions.push({ type: 'shield', target: 'self', value, description: `Scudo: assorbe ${value} danni` });
     }
 
+    // ============ DRAIN FROM ALL (Barbone / Capo Rabbino) ============
+    if (/assorbe?\s+\d+\s+pti\s+(da\s+tutti|da\s+ogni|da\s+ciascuno)|assorb.*tutti.*personaggi.*campo/i.test(text) &&
+        !actions.some(a => a.type === 'drain_from_all')) {
+      const value = extractNumber(text, 10);
+      actions.push({ type: 'drain_from_all', target: 'all', value, description: `Assorbe ${value} PTI da tutti i personaggi in campo` });
+    }
+
     // ============ DRAIN PATTERNS ============
     if (text.includes('assorbe') || text.includes('assorbimento') || text.includes('drain') ||
         text.includes('risucchia') || text.includes('prosciuga') || text.includes('svuota')) {
       const value = getDetailValue(['valore', 'drain'], extractNumber(text));
       const target = determineTarget(text);
-      if (!actions.some(a => a.type === 'lifesteal')) {
+      if (!actions.some(a => a.type === 'lifesteal') && !actions.some(a => a.type === 'drain_from_all')) {
         actions.push({ type: 'drain', target: target === 'self' ? 'opponents' : target, value, description: `Assorbe ${value}` });
       }
     }
@@ -5385,10 +5405,17 @@ Rispondi SOLO in JSON:`;
       actions.push({ type: 'absorb_pti', target: 'enemy_card', value, description: `Ruba ${value} PTI` });
     }
 
+    // ============ ADD STARS ALL (Galassia – tutti i personaggi in campo guadagnano stelle) ============
+    if (/tutti.*personaggi.*guadagn.*stell|tutti.*personaggi.*\+\d+.*stell|stell.*tutti.*personaggi/i.test(text) &&
+        !actions.some(a => a.type === 'add_stars_all')) {
+      const value = extractNumber(text, 2);
+      actions.push({ type: 'add_stars_all', target: 'all', value, description: `Tutti i personaggi in campo guadagnano ${value} stelle` });
+    }
+
     // ============ ADD STARS ============  
     if ((text.includes('aggiung') || text.includes('guadagn') || text.includes('ottien') || text.includes('ricev') || text.includes('+')) && 
         (text.includes('stella') || text.includes('stelle')) && 
-        !actions.some(a => a.type === 'modify_stars' || a.type === 'steal_stars')) {
+        !actions.some(a => a.type === 'modify_stars' || a.type === 'steal_stars' || a.type === 'add_stars_all')) {
       const value = extractNumber(text, 1);
       actions.push({ type: 'modify_stars', target: 'self', value, description: `Guadagna ${value} stelle` });
     }
@@ -5506,6 +5533,22 @@ Rispondi SOLO in JSON:`;
     // ============ SPECIAL/GENERIC PATTERNS (fallback) ============
     if (actions.length === 0 && text.length > 5) {
       actions.push({ type: 'special', target: 'self', value: 0, description: effectText });
+    }
+
+    // ============ DOPING — split immediato + ritardato ============
+    // "Aumenta i PTI di 100, ma dopo 5 turni i PTI diminuiscono di 50"
+    if (/aumenta.*pti.*\d+.*dopo\s+\d+\s+turni.*diminuisc|doping/i.test(text) &&
+        !actions.some(a => a.type === 'doping')) {
+      const dopNums = (text.match(/\d+/g) || []).map(Number);
+      const turns = (() => { const m = text.match(/dopo\s+(\d+)\s+turni/i); return m ? parseInt(m[1]) : 5; })();
+      const immediate = dopNums[0] || 100;
+      // delayed = first number that is neither immediate nor turns
+      const delayed = dopNums.find(n => n !== immediate && n !== turns) ?? Math.floor(immediate / 2);
+      actions.length = 0; // drop any wrong actions already parsed
+      actions.push({ type: 'doping', target: 'self', value: immediate,
+        description: `+${immediate} PTI ora, -${delayed} PTI dopo ${turns} turni`,
+        _delayedLoss: delayed, _delayTurns: turns } as any);
+      delayTurns = 0; // prevent generic wrapper from re-wrapping
     }
 
     // ============ WRAP DELAYED EFFECTS ============
@@ -7583,6 +7626,123 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           console.log(`🌀 Drain effect: No valid targets found to drain from`);
         }
         break;
+
+      // ============ DRAIN FROM ALL (Barbone / Capo Rabbino) ============
+      case 'drain_from_all': {
+        let dfaTotalDrained = 0;
+        const dfaAmount = action.value || 10;
+        const dfaOwnCard = game.field.find(c => c.id === card.id);
+        for (const fc of game.field) {
+          const isChar = fc.type === 'personaggi' || fc.type === 'personaggi_speciali';
+          const isOther = fc.id !== card.id;
+          if (isChar && isOther && fc.pti != null && fc.pti > 0) {
+            const drained = Math.min(fc.pti, dfaAmount);
+            fc.pti = fc.pti - drained;
+            this.updateCardTextWithPTI(fc);
+            dfaTotalDrained += drained;
+            console.log(`🌀 drain_from_all: drained ${drained} PTI from ${fc.name || fc.id}`);
+          }
+        }
+        if (dfaOwnCard && dfaTotalDrained > 0) {
+          if (dfaOwnCard.pti == null) dfaOwnCard.pti = 0;
+          dfaOwnCard.pti += dfaTotalDrained;
+          this.updateCardTextWithPTI(dfaOwnCard);
+          console.log(`🌀 drain_from_all: ${dfaOwnCard.name || dfaOwnCard.id} gained ${dfaTotalDrained} PTI total`);
+        }
+        break;
+      }
+
+      // ============ ADD STARS ALL (Galassia) ============
+      case 'add_stars_all': {
+        const asaValue = action.value || 2;
+        for (const fc of game.field) {
+          if (fc.type === 'personaggi' || fc.type === 'personaggi_speciali') {
+            if (fc.stars == null) fc.stars = 0;
+            fc.stars = Math.min(5, fc.stars + asaValue);
+            console.log(`⭐ add_stars_all: ${fc.name || fc.id} now has ${fc.stars} stelle`);
+          }
+        }
+        break;
+      }
+
+      // ============ DOPING — immediato + ritardato ============
+      case 'doping': {
+        const dopImmediate = action.value || 100;
+        const dopDelayed: number = (action as any)._delayedLoss ?? Math.floor(dopImmediate / 2);
+        const dopTurns: number = (action as any)._delayTurns ?? 5;
+        // Apply immediate PTI boost to own character on field
+        const dopChar = game.field.find(c => c.id === card.id ||
+          ((c.type === 'personaggi' || c.type === 'personaggi_speciali') && c.owner === playerName));
+        if (dopChar) {
+          if (dopChar.pti == null) dopChar.pti = 0;
+          dopChar.pti += dopImmediate;
+          this.updateCardTextWithPTI(dopChar);
+          console.log(`💊 Doping: +${dopImmediate} PTI immediato a ${dopChar.name || dopChar.id} (ora ${dopChar.pti})`);
+          // Register delayed PTI loss
+          if (!game.timedEffects) game.timedEffects = [];
+          game.timedEffects.push({
+            id: `doping_${Date.now()}_${playerName}`,
+            owner: playerName,
+            turnsLeft: dopTurns,
+            actions: [{ type: 'heal', target: 'self_char', value: -dopDelayed,
+              description: `Doping scaduto: -${dopDelayed} PTI` }],
+            description: `Doping: -${dopDelayed} PTI dopo ${dopTurns} turni`,
+            cardId: card.id
+          } as any);
+          console.log(`💊 Doping: registrato -${dopDelayed} PTI dopo ${dopTurns} turni`);
+        }
+        break;
+      }
+
+      // ============ DISCARD OPPONENT DECK (Sfaccim) ============
+      case 'discard_opponent_deck': {
+        const dodAmount = action.value || 10;
+        for (const [pName, pData] of Object.entries(game.players)) {
+          if (pName === playerName) continue;
+          let discarded = 0;
+          const decksToTry: Array<keyof typeof pData> = ['mosseDeck', 'bonusDeck', 'personaggiDeck'] as any;
+          for (const deckKey of decksToTry) {
+            const deck = (pData as any)[deckKey] as any[];
+            if (!Array.isArray(deck)) continue;
+            while (discarded < dodAmount && deck.length > 0) {
+              const removed = deck.pop();
+              if (removed) {
+                game.graveyard.push({ ...removed, eliminatedBy: playerName });
+                discarded++;
+              }
+            }
+            if (discarded >= dodAmount) break;
+          }
+          console.log(`🗑️ discard_opponent_deck: ${pName} ha scartato ${discarded} carte dai mazzi`);
+        }
+        break;
+      }
+
+      // ============ PICK FROM DECK (Minkiards N.200) ============
+      case 'pick_from_deck': {
+        // For CPU opponents: auto-pick best card from any available deck
+        // For human: register pending effect so client can show deck selection UI
+        const pfdPlayer = game.players[playerName];
+        if (!pfdPlayer) break;
+        // Try to find a card from any deck (prefer personaggi, then mosse, then bonus)
+        const pfdDecks: Array<{ key: string; deck: any[] }> = [
+          { key: 'personaggiDeck', deck: (pfdPlayer as any).personaggiDeck || [] },
+          { key: 'mosseDeck', deck: (pfdPlayer as any).mosseDeck || [] },
+          { key: 'bonusDeck', deck: (pfdPlayer as any).bonusDeck || [] },
+        ];
+        let pfdPicked = false;
+        for (const { key, deck } of pfdDecks) {
+          if (deck.length > 0) {
+            const picked = deck.splice(0, 1)[0];
+            pfdPlayer.hand.push(picked);
+            console.log(`🃏 pick_from_deck: ${playerName} sceglie ${picked.name || picked.id} dal ${key}`);
+            pfdPicked = true;
+            break;
+          }
+        }
+        if (!pfdPicked) console.log(`🃏 pick_from_deck: nessuna carta disponibile nei mazzi di ${playerName}`);
+        break;
+      }
 
       // === NEW EFFECT HANDLERS ===
       
@@ -24748,6 +24908,94 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             const diceSplitState = this.getSanitizedGameState(gameId);
             io.to(gameId).emit('game-state-update', diceSplitState);
           }
+          break;
+        }
+
+        case 'death_on_dice_fail': {
+          // mosse-66 (Pioggia di Aghi di Pino): 0 danno base, dado: se indovina nessun effetto; se sbaglia morte istantanea
+          if (!game) break;
+          effectiveDamage = 0;
+          const diceRoll66 = Math.floor(Math.random() * 6) + 1;
+          const guess66 = Math.floor(Math.random() * 6) + 1; // attacker's guess (auto for simplicity)
+          const guessedRight66 = diceRoll66 === guess66;
+          io.to(gameId).emit('dice-rolled', { result: diceRoll66, playerName: attackerName });
+          if (guessedRight66) {
+            effectMessage = `🎲 PIOGGIA DI AGHI: Dado = ${diceRoll66}, Indovinato! Nessun effetto.`;
+          } else {
+            forceInstantDeath = true;
+            effectMessage = `🎲 PIOGGIA DI AGHI: Dado = ${diceRoll66}, Sbagliato (guessed ${guess66})! 💀 MORTE ISTANTANEA!`;
+          }
+          console.log(`🎲 DEATH_ON_DICE_FAIL: roll=${diceRoll66} guess=${guess66} guessedRight=${guessedRight66}`);
+          break;
+        }
+
+        case 'gamble_death': {
+          // mosse-76 (Roulette Russa): 50% di +100 o -100 PTI al bersaglio; dado: se sbaglia → attaccante muore
+          if (!game) break;
+          const gambleWin = Math.random() < 0.5;
+          const diceRoll76 = Math.floor(Math.random() * 6) + 1;
+          const guess76 = Math.floor(Math.random() * 6) + 1;
+          const guessedRight76 = diceRoll76 === guess76;
+          io.to(gameId).emit('dice-rolled', { result: diceRoll76, playerName: attackerName });
+          const gamblePTI = 100;
+          if (gambleWin) {
+            effectiveDamage = -gamblePTI; // negative = give PTI to target
+            effectMessage = `🎲 ROULETTE RUSSA: Fortuna! Il bersaglio guadagna ${gamblePTI} PTI!`;
+          } else {
+            effectiveDamage = gamblePTI;
+            effectMessage = `🎲 ROULETTE RUSSA: Sfortuna! Il bersaglio perde ${gamblePTI} PTI!`;
+          }
+          if (!guessedRight76) {
+            // Attacker dies
+            const atkChar76 = game.field.find((c: Card) =>
+              c.owner === attackerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+            );
+            if (atkChar76) {
+              const atkPTI76 = this.extractPTIFromNote(atkChar76.text || '');
+              atkChar76.pti = 0;
+              this.updateCardTextWithPTI(atkChar76);
+              const atkName76 = atkChar76.name || this.getCardNameFromUrl(atkChar76.frontImage || '');
+              effectMessage += ` | Dado sbagliato (${diceRoll76}≠${guess76}) 💀 ${atkName76} MUORE!`;
+              const rouletteState = this.getSanitizedGameState(gameId);
+              io.to(gameId).emit('game-state-update', rouletteState);
+              const rouletteDeath = this.moveToGraveyard(gameId, atkChar76.id, attackerName, attackerName);
+              if (rouletteDeath.eliminationCheck) {
+                this.processEliminationAfterDeath(gameId, attackerName, io, 'ROULETTE_RUSSA');
+              }
+            }
+          } else {
+            effectMessage += ` | Dado indovinato (${diceRoll76})! Salvo.`;
+          }
+          console.log(`🎲 GAMBLE_DEATH: win=${gambleWin} roll=${diceRoll76} guess=${guess76} guessedRight=${guessedRight76}`);
+          break;
+        }
+
+        case 'delayed_damage': {
+          // mosse-84 (Sveglia Palestinese): il danno viene applicato dopo 2 turni
+          if (!game) break;
+          const originalDmg84 = effectiveDamage || 0;
+          effectiveDamage = 0;
+          const targetOwner84 = targetCard.owner;
+          this.addDelayedDamage(gameId, attackerName, targetOwner84, targetCardId, originalDmg84, mosseCardId || '', 2);
+          effectMessage = `⏳ SVEGLIA PALESTINESE: ${originalDmg84} PTI di danno verranno applicati tra 2 turni!`;
+          console.log(`⏳ DELAYED_DAMAGE: ${originalDmg84} PTI queued for ${targetOwner84}'s character (2 turns)`);
+          break;
+        }
+
+        case 'delayed_best_mosse': {
+          // mosse-49 (Ma-che-t-hanno-fatto): dopo 5 turni usa automaticamente la mosse più potente del mazzo
+          if (!game) break;
+          effectiveDamage = 0;
+          if (!(game as any).pendingDelayedMosse) (game as any).pendingDelayedMosse = [];
+          (game as any).pendingDelayedMosse.push({
+            id: `delayed-mosse-${Date.now()}`,
+            activatorName: attackerName,
+            turnsRemaining: 5,
+            targetCardId,
+            createdAt: Date.now()
+          });
+          effectMessage = `⏳ MA CHE T'HANNO FATTO: tra 5 turni verrà usata automaticamente la mosse più potente del mazzo di ${attackerName}!`;
+          console.log(`⏳ DELAYED_BEST_MOSSE: Queued for ${attackerName}, fires in 5 turns`);
           break;
         }
       }
