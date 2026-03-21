@@ -2,6 +2,71 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
+// ─── MOBILE FAST PATH ────────────────────────────────────────────────────────
+// On mobile, the full AttackSlash3D (WebGL canvas + 25-45 sparks + rings +
+// screen shake) causes severe frame drops. Instead we render a lightweight
+// CSS-only overlay: a brief screen flash + a floating damage number.
+// The Three.js canvas, spark particles, and impact rings are all skipped.
+// ─────────────────────────────────────────────────────────────────────────────
+const AttackSlash3DMobile: React.FC<{
+  damage: number;
+  attackerName: string;
+  targetName: string;
+  isCritical: boolean;
+  onComplete: () => void;
+}> = ({ damage, attackerName, targetName, isCritical, onComplete }) => {
+  const damageColor = isCritical ? '#ff2222' : '#ff6644';
+  const glowColor = isCritical ? 'rgba(255,0,0,0.7)' : 'rgba(255,100,0,0.5)';
+
+  useEffect(() => {
+    const timer = setTimeout(onComplete, isCritical ? 900 : 650);
+    return () => clearTimeout(timer);
+  }, [onComplete, isCritical]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[9999] pointer-events-none"
+      style={{ animation: 'attack-mobile-flash 0.4s ease-out forwards' }}
+    >
+      <style>{`
+        @keyframes attack-mobile-flash {
+          0%   { background: rgba(255,80,0,${isCritical ? 0.35 : 0.2}); }
+          25%  { background: rgba(255,80,0,0.05); }
+          100% { background: transparent; }
+        }
+        @keyframes attack-mobile-number {
+          0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+          20%  { opacity: 1; transform: translate(-50%, -50%) scale(${isCritical ? 1.3 : 1.1}); }
+          75%  { opacity: 1; transform: translate(-50%, calc(-50% - 40px)) scale(1); }
+          100% { opacity: 0; transform: translate(-50%, calc(-50% - 70px)) scale(0.8); }
+        }
+        @keyframes attack-mobile-label {
+          0%   { opacity: 0; transform: translateY(6px); }
+          30%  { opacity: 1; transform: translateY(0); }
+          80%  { opacity: 1; }
+          100% { opacity: 0; }
+        }
+      `}</style>
+      <div
+        className="absolute left-1/2 top-1/3 flex flex-col items-center gap-0"
+        style={{ animation: 'attack-mobile-number 0.65s ease-out forwards', opacity: 0 }}
+      >
+        {isCritical && (
+          <div style={{ fontSize: '0.7rem', fontWeight: 900, color: '#ff0', letterSpacing: '4px', animation: 'attack-mobile-label 0.6s ease-out forwards', opacity: 0, textShadow: '1px 1px 0 #000' }}>
+            CRITICO!
+          </div>
+        )}
+        <div style={{ fontSize: isCritical ? '4rem' : '3rem', fontWeight: 900, color: damageColor, textShadow: `0 0 12px ${glowColor}, 2px 2px 0 #000`, lineHeight: 1 }}>
+          {damage}
+        </div>
+        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)', letterSpacing: '2px', textTransform: 'uppercase', animation: 'attack-mobile-label 0.6s ease-out 0.1s forwards', opacity: 0, textShadow: '1px 1px 0 #000' }}>
+          {attackerName} → {targetName}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 interface AttackSlash3DProps {
   isVisible: boolean;
   attackerName: string;
@@ -121,6 +186,10 @@ export const AttackSlash3D: React.FC<AttackSlash3DProps> = ({
   const isHeavy = damage > 40;
   const isCritical = damage > 80;
 
+  // Detect mobile once at mount. Must be called BEFORE any conditional return
+  // to respect React's rules of hooks.
+  const isMobile = useMemo(() => typeof window !== 'undefined' && window.innerWidth <= 768, []);
+
   const slashData = useMemo<SlashData[]>(() => {
     const slashes: SlashData[] = [];
     const primaryColor = isCritical ? '#ff2200' : isHeavy ? '#ff4444' : '#ff6644';
@@ -208,6 +277,20 @@ export const AttackSlash3D: React.FC<AttackSlash3DProps> = ({
   }, [isVisible, onComplete, isCritical]);
 
   if (!isVisible) return null;
+
+  // On mobile: skip WebGL canvas + 25-45 sparks + 3-5 rings + screen shake.
+  // Initializing a WebGL context per-attack causes severe frame drops.
+  if (isMobile) {
+    return (
+      <AttackSlash3DMobile
+        damage={damage}
+        attackerName={attackerName}
+        targetName={targetName}
+        isCritical={isCritical}
+        onComplete={onComplete}
+      />
+    );
+  }
 
   const damageColor = isCritical ? '#ff0000' : isHeavy ? '#ff4444' : '#ff6644';
   const glowColor = isCritical ? 'rgba(255, 0, 0, 0.8)' : isHeavy ? 'rgba(255, 68, 68, 0.6)' : 'rgba(255, 100, 0, 0.5)';
