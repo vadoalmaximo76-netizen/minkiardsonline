@@ -1320,7 +1320,7 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   const motionAnimate = isMobile
     ? (isAttacking && location === 'field'
         ? { scale: [1, 1.08, 1] as number[] }
-        : {})
+        : location === 'hand' ? { rotate: 0 } : {})
     : (isAttacking && location === 'field'
         ? { scale: [1, 1.12, 0.95, 1.0], y: [0, card.owner === playerName ? -6 : 6, 0, 0] }
         : isNewlyPlaced && location === 'field'
