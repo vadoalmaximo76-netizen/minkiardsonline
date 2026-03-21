@@ -443,115 +443,6 @@
   .animate-bg-float-2 { animation-duration: 36s !important; }
   .animate-bg-float-3 { animation-duration: 28s !important; }
   .animate-bg-float-4 { animation-duration: 40s !important; }
-
-  /* ===== MOBILE ANIMATION PERFORMANCE FIXES ===== */
-
-  /* card-levitate: on mobile, animate ONLY translateY (no rotateX/rotateZ = less compositor work) */
-  @keyframes card-levitate-mobile {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-4px); }
-  }
-  .card-levitate-field {
-    animation: card-levitate-mobile 4s ease-in-out infinite !important;
-  }
-
-  /* Disable continuous box-shadow animations on field cards (causes paint invalidation every frame) */
-  .card-field-alive,
-  .card-field-alive-personaggi,
-  .card-field-alive-mosse,
-  .card-field-alive-bonus,
-  .card-field-alive-speciali {
-    animation: none !important;
-    will-change: auto !important;
-  }
-
-  /* Disable continuous box-shadow glow on premium cards in hand */
-  .card-bonus-premium,
-  .card-mosse-premium {
-    animation: card-appear 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
-  }
-
-  /* Disable pulsing box-shadow on playable cards (causes paint every 3s on all hand cards) */
-  .card-playable-glow {
-    animation: none !important;
-    will-change: auto !important;
-    box-shadow: 0 0 12px 3px rgba(34, 211, 238, 0.5) !important;
-    border: 2px solid rgba(34, 211, 238, 0.6) !important;
-  }
-
-  /* Disable card-active-pulse (animated box-shadow on active cards) */
-  .card-active-glow {
-    animation: none !important;
-    will-change: auto !important;
-  }
-
-  /* Disable holo shimmer with mix-blend-mode (causes compositing layer issues on mobile) */
-  .card-holo-reflection {
-    display: none !important;
-  }
-
-  /* Disable animated borders on card types (border-glow-rotate + border-pulse-glow on ::before) */
-  .card-border-glow-personaggi::before,
-  .card-border-glow-mosse::before,
-  .card-border-glow-bonus::before,
-  .card-border-glow-speciali::before {
-    animation: border-pulse-glow 2s ease-in-out infinite !important;
-  }
-
-  /* Disable continuous turn-glow and low-health pulsing box-shadows */
-  .turn-glow-active {
-    animation: none !important;
-    box-shadow: 0 0 12px rgba(74, 222, 128, 0.7) !important;
-  }
-  .low-health-critical {
-    animation: none !important;
-    box-shadow: 0 0 12px rgba(255, 0, 0, 0.5) !important;
-    will-change: auto !important;
-  }
-
-  /* Simplify entry animations on mobile — use fast scale+opacity only */
-  @keyframes card-epic-enter-mobile {
-    0% { opacity: 0; transform: scale(0.5) translateY(-30px); }
-    100% { opacity: 1; transform: scale(1) translateY(0); }
-  }
-  @keyframes card-slam-mobile {
-    0% { opacity: 0; transform: scale(1.5) translateY(-40px); }
-    60% { transform: scale(0.97) translateY(5px); }
-    100% { opacity: 1; transform: scale(1) translateY(0); }
-  }
-  .card-epic-enter,
-  .card-personaggi-enter,
-  .card-speciali-enter {
-    animation: card-epic-enter-mobile 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
-  }
-  .card-slam,
-  .card-mosse-enter {
-    animation: card-slam-mobile 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
-  }
-  .card-spin-in,
-  .card-bonus-enter {
-    animation: card-epic-enter-mobile 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
-  }
-
-  /* Disable backdrop-filter on modals (very expensive on mobile) */
-  [role="dialog"], .modal, .dialog {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-
-  /* Disable aurora-shift (filter: hue-rotate animation) */
-  .game-field-aurora {
-    animation: none !important;
-    opacity: 0 !important;
-  }
-
-  /* Disable skin glow animations on mobile (filter: brightness + drop-shadow) */
-  .animate-legendary-glow,
-  .animate-epic-glow,
-  .animate-rare-glow,
-  .animate-common-glow {
-    animation: none !important;
-  }
 }
 
 @keyframes panel-slide-up {
@@ -2626,9 +2517,71 @@ input:focus, select:focus {
     will-change: auto !important;
   }
 
+  /* Disable playable-glow pulse entirely (box-shadow animated 3-5s on hand cards) */
   .card-playable-glow {
-    animation: playable-glow-pulse 5s ease-in-out infinite !important;
+    animation: none !important;
     will-change: auto !important;
+    box-shadow: 0 0 12px 3px rgba(34, 211, 238, 0.5) !important;
+    border: 2px solid rgba(34, 211, 238, 0.6) !important;
+  }
+
+  /* Disable continuous box-shadow glow on premium hand cards */
+  .card-bonus-premium,
+  .card-mosse-premium {
+    animation: card-appear 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  }
+
+  /* Disable card-active-pulse (animated box-shadow) */
+  .card-active-glow {
+    animation: none !important;
+    will-change: auto !important;
+  }
+
+  /* Disable holo shimmer (mix-blend-mode: screen causes GPU compositing issues) */
+  .card-holo-reflection {
+    display: none !important;
+  }
+
+  /* Disable turn glow pulse (keep static box-shadow instead) */
+  .turn-glow-active {
+    animation: none !important;
+    box-shadow: 0 0 12px rgba(74, 222, 128, 0.7) !important;
+  }
+
+  /* Disable backdrop-filter on modals (very expensive on mobile) */
+  [role="dialog"], .modal, .dialog {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Disable skin glow animations (filter: brightness + drop-shadow) */
+  .animate-legendary-glow,
+  .animate-epic-glow,
+  .animate-rare-glow,
+  .animate-common-glow {
+    animation: none !important;
+  }
+
+  /* Simplify entry animations — fast scale+opacity only (no blur, no 3D perspective) */
+  @keyframes card-epic-enter-mobile {
+    0% { opacity: 0; transform: scale(0.5) translateY(-30px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  @keyframes card-slam-mobile {
+    0% { opacity: 0; transform: scale(1.5) translateY(-40px); }
+    60% { transform: scale(0.97) translateY(5px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .card-epic-enter,
+  .card-personaggi-enter,
+  .card-speciali-enter,
+  .card-spin-in,
+  .card-bonus-enter {
+    animation: card-epic-enter-mobile 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  }
+  .card-slam,
+  .card-mosse-enter {
+    animation: card-slam-mobile 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
   }
 
   .cinematic-attack-flash,
