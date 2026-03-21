@@ -1305,7 +1305,8 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     ? ((cardIdx - (totalCards - 1) / 2) / Math.max(totalCards - 1, 1)) * 16
     : 0;
 
-  const tiltWrapperStyle: React.CSSProperties = location === 'field' ? {
+  // On mobile: no perspective/preserve-3d (creates extra GPU compositing layers)
+  const tiltWrapperStyle: React.CSSProperties = (!isMobile && location === 'field') ? {
     perspective: '800px',
     transformStyle: 'preserve-3d',
     transform: isHovered
@@ -1314,30 +1315,40 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
     transition: isHovered ? 'transform 0.1s ease-out' : 'transform 0.4s ease-out',
   } : {};
 
+  // On mobile: let CSS entry keyframes handle card placement (no double-animation conflict);
+  // for attack use a simple scale tween instead of JS-driven spring with y movement.
+  const motionAnimate = isMobile
+    ? (isAttacking && location === 'field'
+        ? { scale: [1, 1.08, 1] as number[] }
+        : {})
+    : (isAttacking && location === 'field'
+        ? { scale: [1, 1.12, 0.95, 1.0], y: [0, card.owner === playerName ? -6 : 6, 0, 0] }
+        : isNewlyPlaced && location === 'field'
+          ? { scale: [0.85, 1.05, 1.0] }
+          : location === 'hand'
+            ? { rotate: fanRotation }
+            : {});
+
+  const motionTransition = isMobile
+    ? (isAttacking && location === 'field'
+        ? { type: 'tween' as const, duration: 0.3, ease: 'easeOut' }
+        : { duration: 0 })
+    : (isAttacking && location === 'field'
+        ? { type: 'spring' as const, stiffness: 400, damping: 20 }
+        : location === 'hand'
+          ? { type: 'spring' as const, stiffness: 500, damping: 18 }
+          : { type: 'spring' as const, stiffness: 700, damping: 25 });
+
   return (
     <motion.div
-      initial={isNewlyPlaced && location === 'field' ? { scale: 0.85 } : false}
-      animate={
-        isAttacking && location === 'field'
-          ? { scale: [1, 1.12, 0.95, 1.0], y: [0, card.owner === playerName ? -6 : 6, 0, 0] }
-          : isNewlyPlaced && location === 'field'
-            ? { scale: [0.85, 1.05, 1.0] }
-            : location === 'hand'
-              ? { rotate: fanRotation }
-              : {}
-      }
-      whileHover={location === 'hand' ? { y: -14, scale: 1.08 } : undefined}
-      transition={
-        isAttacking && location === 'field'
-          ? { type: 'spring', stiffness: 400, damping: 20 }
-          : location === 'hand'
-            ? { type: 'spring', stiffness: 500, damping: 18 }
-            : { type: 'spring', stiffness: 700, damping: 25 }
-      }
+      initial={(!isMobile && isNewlyPlaced && location === 'field') ? { scale: 0.85 } : false}
+      animate={motionAnimate}
+      whileHover={(!isMobile && location === 'hand') ? { y: -14, scale: 1.08 } : undefined}
+      transition={motionTransition}
       style={
         location === 'hand'
           ? { transformOrigin: '50% 150%' }
-          : location === 'field'
+          : (location === 'field' && !isMobile)
             ? { willChange: 'transform' }
             : undefined
       }
