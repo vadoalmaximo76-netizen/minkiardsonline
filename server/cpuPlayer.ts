@@ -2493,6 +2493,30 @@ Extract EXACT numbers and text as they appear on the card. Return JSON format on
           return;
         }
         
+        // SAGOMA ABSORBED: attack absorbed by shadow clone - end turn immediately
+        if (attackResult.result?.sagomaAbsorbed) {
+          console.log(`👥 CPU ${this.playerName}: Attack absorbed by SAGOMA - ending turn`);
+          this.gameManager.returnToDeck(this.gameId, mosseCard.id, this.playerName);
+          const sagState = this.gameManager.getSanitizedGameState(this.gameId);
+          if (sagState) this.socketEmitter.to(this.gameId).emit('game-state-update', sagState);
+          this.resetTurnState();
+          setTimeout(() => {
+            this.gameManager.processDelayedDamages(this.gameId, this.playerName, this.socketEmitter);
+            const nextSagPlayer = this.gameManager.endTurn(this.gameId, this.playerName);
+            if (nextSagPlayer) {
+              console.log(`🎯 CPU ${this.playerName}: Turn ended after SAGOMA absorption, next: ${nextSagPlayer}`);
+              this.socketEmitter.to(this.gameId).emit('next-turn', { nextPlayer: nextSagPlayer });
+              const freshGameSag = this.gameManager.getGameState(this.gameId);
+              if (freshGameSag && freshGameSag.players[nextSagPlayer]?.isCPU) {
+                setTimeout(() => {
+                  this.gameManager.processCPUTurn(this.gameId, nextSagPlayer, this.socketEmitter);
+                }, 1500);
+              }
+            }
+          }, 800);
+          return;
+        }
+
         if (attackResult.result?.requiresDefenseResponse) {
           console.log(`🛡️ CPU ${this.playerName}: Attack requires defense response from ${target.owner}`);
           const pendingDefense = this.gameManager.getPendingDefense(this.gameId);
