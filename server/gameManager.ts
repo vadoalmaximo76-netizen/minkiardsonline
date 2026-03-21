@@ -25289,10 +25289,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
     
     // PRESERVE: Broadcast the damage result
+    const displayDamage = effectiveDamage < 0 ? `+${-effectiveDamage} (cura)` : effectiveDamage;
     io.to(gameId).emit('chat-message', {
       id: `${Date.now()}-damage`,
       playerName: 'Sistema',
-      message: `⚔️ ${attackerName} attacca ${targetCard.owner}! Danno: ${damageValue} | PTI: ${currentPTI} → ${newPTI}${starsRemovedMessage}`,
+      message: `⚔️ ${attackerName} attacca ${targetCard.owner}! Danno: ${displayDamage} | PTI: ${currentPTI} → ${newPTI}${starsRemovedMessage}`,
       timestamp: Date.now()
     });
 

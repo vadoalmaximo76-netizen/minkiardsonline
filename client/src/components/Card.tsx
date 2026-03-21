@@ -549,6 +549,28 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
           }
         }
         
+        // GAMBLE_DEATH fast-path: skip dialog, emit mosse-attack directly (no damage input needed)
+        const mosseDmgEffect = (selectedMosseCard as any)?.mosseDamageEffect;
+        if (mosseDmgEffect === 'gamble_death') {
+          console.log(`🎲 GAMBLE_DEATH: emitting mosse-attack directly for ${card.owner}`);
+          if (location === 'field') { setIsAttacking(true); setTimeout(() => setIsAttacking(false), 400); }
+          socket.emit('mosse-attack', {
+            mosseCardId: selectedMosseCard?.id,
+            targetCardId: card.id,
+            attackerName: playerName,
+            targetOwner: card.owner,
+            damageValue: 0,
+            starsToRemove: 0,
+            isHandTarget: false,
+            isFurtoAttack: false,
+            mosseEffect: 'gamble_death'
+          });
+          setSelectedMosseCard(null);
+          setSelectedMosseEffect(null);
+          setMosseHasPreset(false);
+          return;
+        }
+
         // Open damage input dialog instead of attacking immediately
         setTargetCard(card);
         setIsHandTarget(false);
