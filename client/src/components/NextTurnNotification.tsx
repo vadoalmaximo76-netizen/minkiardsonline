@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { X, Swords, Crown, Zap, Shield } from "lucide-react";
 
+const _isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+
 interface NextTurnNotificationProps {
   isVisible: boolean;
   nextPlayer: string;
@@ -55,7 +57,128 @@ export const NextTurnNotification: React.FC<NextTurnNotificationProps> = ({
   if (!isVisible && phase === "hidden") return null;
 
   const bgOpacity = phase === "enter" ? "0" : phase === "show" ? "1" : "0";
-  const myColor = isMyTurn;
+
+  if (_isMobile) {
+    return (
+      <>
+        <style>{`
+          @keyframes ntSlideIn {
+            0% { transform: translateX(-120%) scale(0.8); opacity: 0; }
+            40% { transform: translateX(8%) scale(1.05); opacity: 1; }
+            100% { transform: translateX(0%) scale(1); opacity: 1; }
+          }
+          @keyframes ntSlideOut {
+            0% { transform: translateX(0%) scale(1); opacity: 1; }
+            100% { transform: translateX(120%) scale(0.7); opacity: 0; }
+          }
+        `}</style>
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden"
+          style={{
+            backgroundColor: `rgba(0,0,0,${bgOpacity === "1" ? "0.75" : "0"})`,
+            transition: "background-color 0.3s ease",
+            pointerEvents: phase === "hidden" ? "none" : "auto",
+          }}
+          onClick={onClose}
+        >
+          <button
+            onClick={(e) => { e.stopPropagation(); onClose(); }}
+            className="absolute top-4 right-4 z-[10000] bg-white/10 rounded-full p-2"
+          >
+            <X size={20} className="text-white" />
+          </button>
+
+          <div
+            className="relative w-full max-w-2xl mx-4"
+            style={{
+              animation:
+                phase === "enter" || phase === "show"
+                  ? "ntSlideIn 0.5s ease-out forwards"
+                  : phase === "exit"
+                    ? "ntSlideOut 0.4s ease-in forwards"
+                    : "none",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="relative overflow-hidden rounded-xl border-2"
+              style={{
+                background: isMyTurn
+                  ? "linear-gradient(135deg, #b45309, #ea580c, #f59e0b, #ea580c, #b45309)"
+                  : "linear-gradient(135deg, #1e3a5f, #4338ca, #6366f1, #4338ca, #1e3a5f)",
+                borderColor: isMyTurn
+                  ? "rgba(251, 191, 36, 0.6)"
+                  : "rgba(129, 140, 248, 0.6)",
+              }}
+            >
+              <div className="relative flex flex-col items-center py-6 px-8">
+                <div className="flex items-center gap-3 mb-2">
+                  {isMyTurn ? (
+                    <>
+                      <Swords size={28} className="text-yellow-200" />
+                      <Crown size={36} className="text-yellow-300" />
+                      <Swords size={28} className="text-yellow-200" />
+                    </>
+                  ) : (
+                    <>
+                      <Shield size={28} className="text-indigo-300" />
+                      <Swords size={36} className="text-indigo-200" />
+                      <Zap size={28} className="text-indigo-300" />
+                    </>
+                  )}
+                </div>
+
+                <div className="text-center">
+                  <h2
+                    className="font-black tracking-wider"
+                    style={{
+                      fontSize: "clamp(1.5rem, 5vw, 2.5rem)",
+                      color: "white",
+                      textShadow: "0 2px 4px rgba(0,0,0,0.6)",
+                      letterSpacing: "0.15em",
+                    }}
+                  >
+                    {isMyTurn ? "IL TUO TURNO!" : `Turno di`}
+                  </h2>
+
+                  {!isMyTurn && (
+                    <p
+                      className="font-bold mt-1"
+                      style={{
+                        fontSize: "clamp(1.2rem, 4vw, 2rem)",
+                        color: "white",
+                        textShadow: "0 2px 4px rgba(0,0,0,0.5)",
+                      }}
+                    >
+                      {nextPlayer}
+                    </p>
+                  )}
+
+                  {isMyTurn && (
+                    <p
+                      className="font-semibold mt-1 text-yellow-200/90"
+                      style={{ fontSize: "clamp(0.9rem, 2.5vw, 1.2rem)" }}
+                    >
+                      Prepara la tua mossa!
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div
+                className="h-1"
+                style={{
+                  background: isMyTurn
+                    ? "linear-gradient(90deg, transparent, #fbbf24, #f59e0b, #fbbf24, transparent)"
+                    : "linear-gradient(90deg, transparent, #818cf8, #6366f1, #818cf8, transparent)",
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

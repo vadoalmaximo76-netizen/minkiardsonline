@@ -83,6 +83,8 @@ import { MessageCircle, Calculator as CalcIcon, Volume2, VolumeX, Plus, Dice6, S
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 
+const _isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+
 interface AuthUser {
   id: number;
   username: string;
@@ -4380,11 +4382,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             <div className="absolute inset-0 bg-black/70" style={{ animation: 'fadeIn 0.2s ease-out' }} />
             <div className="relative flex flex-col items-center gap-4" style={{ animation: 'specialMoveEntry 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>
               {specialMoveOverlay.category && (
-                <div className="text-yellow-400 text-lg font-bold uppercase tracking-widest" style={{ textShadow: '0 0 20px rgba(234, 179, 8, 0.8)' }}>
+                <div
+                  className="text-yellow-400 text-lg font-bold uppercase tracking-widest"
+                  style={{ textShadow: _isMobile ? 'none' : '0 0 20px rgba(234, 179, 8, 0.8)' }}
+                >
                   {specialMoveOverlay.category}
                 </div>
               )}
-              <div className="text-white text-2xl font-bold tracking-wide" style={{ textShadow: '0 0 15px rgba(255, 255, 255, 0.5)' }}>
+              <div
+                className="text-white text-2xl font-bold tracking-wide"
+                style={{ textShadow: _isMobile ? 'none' : '0 0 15px rgba(255, 255, 255, 0.5)' }}
+              >
                 {specialMoveOverlay.attackerName}
               </div>
               <div 
@@ -4392,10 +4400,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 style={{ 
                   fontSize: 'clamp(2.5rem, 8vw, 5rem)',
                   backgroundImage: 'linear-gradient(135deg, #ff6b35, #ff0844, #fffc00, #ff6b35)',
-                  backgroundSize: '300% 300%',
-                  animation: 'specialMoveGlow 1.5s ease-in-out infinite',
-                  WebkitTextStroke: '1px rgba(255, 100, 0, 0.3)',
-                  filter: 'drop-shadow(0 0 30px rgba(255, 68, 0, 0.8)) drop-shadow(0 0 60px rgba(255, 0, 68, 0.4))',
+                  backgroundSize: _isMobile ? '100% 100%' : '300% 300%',
+                  animation: _isMobile ? 'none' : 'specialMoveGlow 1.5s ease-in-out infinite',
+                  WebkitTextStroke: _isMobile ? undefined : '1px rgba(255, 100, 0, 0.3)',
+                  filter: _isMobile ? undefined : 'drop-shadow(0 0 30px rgba(255, 68, 0, 0.8)) drop-shadow(0 0 60px rgba(255, 0, 68, 0.4))',
                   lineHeight: 1.1
                 }}
               >
@@ -4405,7 +4413,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
                 className="text-red-100 font-black text-center"
                 style={{ 
                   fontSize: 'clamp(1.8rem, 5vw, 3.5rem)',
-                  textShadow: '0 0 30px rgba(255, 0, 0, 0.9), 0 0 60px rgba(255, 0, 0, 0.5)',
+                  textShadow: _isMobile ? '0 2px 4px rgba(0,0,0,0.5)' : '0 0 30px rgba(255, 0, 0, 0.9), 0 0 60px rgba(255, 0, 0, 0.5)',
                   animation: 'specialMoveDamage 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both'
                 }}
               >
