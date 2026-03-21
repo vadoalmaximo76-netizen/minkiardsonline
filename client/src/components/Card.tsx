@@ -1197,6 +1197,9 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
   const isBonus = card.type === 'bonus';
   const isMosse = card.type === 'mosse';
   const isSpeciali = card.type === 'personaggi_speciali';
+
+  // Mobile detection — memoized to avoid recalculation on every render
+  const isMobile = useMemo(() => typeof window !== 'undefined' && window.innerWidth <= 767, []);
   
   // Get dramatic entry animation class based on card type
   const getEntryAnimationClass = () => {
@@ -1404,9 +1407,9 @@ const CardComponent: React.FC<CardProps> = ({ card, location, showBack = false, 
       {/* Particle Effects for newly placed cards */}
       {isNewlyPlaced && location === 'field' && (
         <div className="absolute inset-0 pointer-events-none overflow-visible z-50">
-          {/* Energy burst particles */}
-          {[...Array(12)].map((_, i) => {
-            const angle = (i * 30) * (Math.PI / 180);
+          {/* Energy burst particles — 6 on mobile, 12 on desktop */}
+          {[...Array(isMobile ? 6 : 12)].map((_, i) => {
+            const angle = (i * (isMobile ? 60 : 30)) * (Math.PI / 180);
             const distance = 60 + (i % 3) * 20;
             const x = Math.cos(angle) * distance;
             const y = Math.sin(angle) * distance;
