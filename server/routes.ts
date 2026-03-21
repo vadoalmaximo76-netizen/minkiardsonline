@@ -2515,6 +2515,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
                               }, 1500);
                               return; // Attack absorbed
                             }
+
+                            // SAGOMA ABSORBED (CPU path 1)
+                            if (attackResult.result?.sagomaAbsorbed) {
+                              console.log(`👥 CPU ${cpuName} attack absorbed by sagoma`);
+                              gameManager.returnToDeck(gameId, result.card!.id, cpuName);
+                              const sagState1 = gameManager.getSanitizedGameState(gameId);
+                              emitThrottledGameState(io, gameId, sagState1);
+                              setTimeout(() => {
+                                gameManager.processDelayedDamages(gameId, cpuName, io);
+                                const nextSag1 = gameManager.endTurn(gameId, cpuName);
+                                if (nextSag1) {
+                                  io.to(gameId).emit('next-turn', { nextPlayer: nextSag1 });
+                                  const freshSag1 = gameManager.getGameState(gameId);
+                                  if (freshSag1 && freshSag1.players[nextSag1]?.isCPU) {
+                                    setTimeout(() => gameManager.processCPUTurn(gameId, nextSag1, io), 1500);
+                                  }
+                                }
+                              }, 1500);
+                              return;
+                            }
                           } else {
                             console.log(`❌ CPU ${cpuName} MOSSE attack failed: ${attackResult.error}`);
                           }
@@ -6057,6 +6077,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return; // Attack absorbed - no defense dialog needed
         }
 
+        // SAGOMA ABSORBED: attack was absorbed by a sagoma clone
+        if (attackResult.result?.sagomaAbsorbed) {
+          console.log(`👥 SAGOMA assorbe attacco di ${attackerName}`);
+          gameManager.returnToDeck(gameId, mosseCardId, attackerName);
+          const updatedGameStateSag = gameManager.getSanitizedGameState(gameId);
+          emitThrottledGameState(io, gameId, updatedGameStateSag);
+          return;
+        }
+
         // OSTAGGIO HANDLING: If this is an OSTAGGIO attack, apply hostage effect
         if (attackResult.result?.isOstaggioAttack) {
           console.log(`⛓️ OSTAGGIO attack detected - applying hostage effect to ${targetCardId}`);
@@ -8069,6 +8098,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
                                 generateHelpMessage(gameId, 'human_turn_start', helpCtx).then(helpMsg => {
                                   emitHelpMessage(io, gameId, helpMsg);
                                 });
+                              }
+                            }
+                          }, 1500);
+                          break;
+                        }
+
+                        // SAGOMA ABSORBED (CPU path 2)
+                        if (attackResult.result?.sagomaAbsorbed) {
+                          console.log(`👥 CPU ${nextPlayer} attack absorbed by sagoma`);
+                          gameManager.returnToDeck(gameId, cpuAction.data.mosseCardId, cpuAction.data.playerName);
+                          const sagState2 = gameManager.getSanitizedGameState(gameId);
+                          emitThrottledGameState(io, gameId, sagState2);
+                          setTimeout(() => {
+                            const nextSag2 = gameManager.endTurn(gameId, nextPlayer);
+                            if (nextSag2) {
+                              io.to(gameId).emit('next-turn', { nextPlayer: nextSag2 });
+                              const freshSag2 = gameManager.getGameState(gameId);
+                              if (freshSag2 && freshSag2.players[nextSag2]?.isCPU) {
+                                setTimeout(() => gameManager.processCPUTurn(gameId, nextSag2, io), 2000);
                               }
                             }
                           }, 1500);

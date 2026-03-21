@@ -4502,7 +4502,7 @@ Rispondi SOLO in JSON:`;
     }
 
     // ============ CICLONE / CARD ROTATION PATTERN ============
-    if (/ciclone|rotazione.*carte|carte.*ruotano|giro.*carte|passaggio.*catena|carte.*passano.*prossimo|sposta.*tutt[ie].*carte/i.test(text)) {
+    if (/ciclone|rotazione.*carte|carte.*ruotano|giro.*carte|passaggio.*catena|carte.*passano.*prossimo|sposta.*tutt[ie].*carte|carte.*campo.*successivo|dà.*carte.*campo.*utente|do.*carte.*campo.*successivo|carte.*campo.*passano.*prossim/i.test(text)) {
       actions.push({ type: 'ciclone', target: 'all', value: 0, description: 'Ciclone: le carte in campo ruotano al giocatore successivo' });
     }
 
@@ -4776,6 +4776,34 @@ Rispondi SOLO in JSON:`;
       const evolveCount = extractNumberForKeyword(text, ['volte', 'volta'], 2);
       actions.push({ type: 'block_then_evolve', target: 'self', value: blockTurns, description: `Bloccato per ${blockTurns} turni, poi si evolve ${evolveCount} volte` });
       (actions[actions.length - 1] as any).evolveCount = evolveCount;
+    }
+
+    // ============ GIVE PTI AND BLOCK (bonus-32) ============
+    // "aggiungi 50 PTI a un avversario togliendoli a te; lui non può attacarti per 3 turni"
+    if (/aggiung.*pti.*avversario.*togliendoli|togliendoli.*pti.*aggiung.*avversario|aggiungi.*pti.*togli.*a\s*te/i.test(text) &&
+        !actions.some(a => a.type === 'give_pti_and_block')) {
+      const ptiVal = extractNumber(text, 50);
+      const blockTurns = (() => { const m = text.match(/(\d+)\s*turni/i); return m ? parseInt(m[1]) : 3; })();
+      actions.push({ type: 'give_pti_and_block', target: 'opponents', value: ptiVal,
+        description: `Dai ${ptiVal} PTI all'avversario e lui non può attacarti per ${blockTurns} turni`,
+        _blockTurns: blockTurns } as any);
+    }
+
+    // ============ SAGOME (bonus-13) — shadow clone shields ============
+    if (/sagom[ae]/i.test(text) && !actions.some(a => a.type === 'sagome')) {
+      const count = extractNumber(text, 3);
+      const ptiEach = (() => { const nums = (text.match(/\d+/g)||[]).map(Number); return nums.find(n => n !== count) ?? 50; })();
+      actions.push({ type: 'sagome', target: 'self', value: count,
+        description: `Crea ${count} sagome da ${ptiEach} PTI che assorbono gli attacchi`,
+        _ptiEach: ptiEach } as any);
+    }
+
+    // ============ KILL TRIGGER BLOCK (bonus-66) ============
+    if (/appena.*personaggio.*uccide.*altro.*rest.*bloccat|un.*personaggio.*uccide.*bloccat.*turni|uccide.*altro.*bloccat/i.test(text) &&
+        !actions.some(a => a.type === 'kill_trigger_block')) {
+      const blockT = (() => { const m = text.match(/bloccat.*?(\d+)\s*turni/i); return m ? parseInt(m[1]) : 2; })();
+      actions.push({ type: 'kill_trigger_block', target: 'all', value: blockT,
+        description: `Chi uccide un personaggio resta bloccato per ${blockT} turni` });
     }
 
     // ============ STEAL CHARACTER PATTERN ============
@@ -7714,6 +7742,75 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             if (discarded >= dodAmount) break;
           }
           console.log(`🗑️ discard_opponent_deck: ${pName} ha scartato ${discarded} carte dai mazzi`);
+        }
+        break;
+      }
+
+      // ============ GIVE PTI AND BLOCK (bonus-32) ============
+      case 'give_pti_and_block': {
+        const gpbAmount = action.value || 50;
+        const gpbTurns: number = (action as any)._blockTurns ?? 3;
+        // Find own active character and chosen enemy (first enemy on field or random)
+        const gpbSelf = game.field.find(c => c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+        const gpbEnemies = game.field.filter(c => c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali'));
+        if (gpbSelf && gpbSelf.pti != null && gpbSelf.pti >= gpbAmount && gpbEnemies.length > 0) {
+          // Transfer PTI
+          gpbSelf.pti -= gpbAmount;
+          this.updateCardTextWithPTI(gpbSelf);
+          const gpbTarget = gpbEnemies[0];
+          if (gpbTarget.pti == null) gpbTarget.pti = 0;
+          gpbTarget.pti += gpbAmount;
+          this.updateCardTextWithPTI(gpbTarget);
+          // Register attack block: target owner cannot attack playerName for N turns
+          if (!(game as any).attackBlocks) (game as any).attackBlocks = {};
+          (game as any).attackBlocks[gpbTarget.owner || ''] = {
+            blockedFrom: playerName, turnsLeft: gpbTurns, timestamp: Date.now()
+          };
+          console.log(`🔄 give_pti_and_block: ${playerName} dà ${gpbAmount} PTI a ${gpbTarget.name||gpbTarget.id}; ${gpbTarget.owner} bloccato per ${gpbTurns} turni`);
+          const ioGpb = (global as any).io;
+          if (ioGpb) {
+            ioGpb.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-gpb`, playerName: 'Sistema',
+              message: `🔄 ${playerName} ha trasferito ${gpbAmount} PTI a ${gpbTarget.name||'avversario'}, che non può attaccare ${playerName} per ${gpbTurns} turni!`,
+              timestamp: Date.now()
+            });
+          }
+        } else {
+          console.log(`🔄 give_pti_and_block: condizioni non soddisfatte (selfPTI=${gpbSelf?.pti}, enemies=${gpbEnemies.length})`);
+        }
+        break;
+      }
+
+      // ============ SAGOME (bonus-13) ============
+      case 'sagome': {
+        const sagCount = action.value || 3;
+        const sagPti: number = (action as any)._ptiEach ?? 50;
+        if (!(game as any).sagome) (game as any).sagome = {};
+        (game as any).sagome[playerName] = { count: sagCount, ptiEach: sagPti };
+        console.log(`👥 sagome: ${playerName} ora ha ${sagCount} sagome da ${sagPti} PTI ciascuna`);
+        const ioSag = (global as any).io;
+        if (ioSag) {
+          ioSag.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-sagome`, playerName: 'Sistema',
+            message: `👥 ${playerName} ha creato ${sagCount} SAGOME (${sagPti} PTI ognuna) che assorbono i prossimi attacchi! (1 per turno)`,
+            timestamp: Date.now()
+          });
+        }
+        break;
+      }
+
+      // ============ KILL TRIGGER BLOCK (bonus-66) ============
+      case 'kill_trigger_block': {
+        const ktbTurns = action.value || 2;
+        (game as any).killTriggerBlock = { turnsLeft: 999, blockTurns: ktbTurns, playedBy: playerName };
+        console.log(`⚔️🚫 kill_trigger_block attivato da ${playerName}: chi uccide viene bloccato per ${ktbTurns} turni`);
+        const ioKtb = (global as any).io;
+        if (ioKtb) {
+          ioKtb.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-ktb`, playerName: 'Sistema',
+            message: `⚔️🚫 EFFETTO GLOBALE: d'ora in poi, chi uccide un personaggio resta bloccato per ${ktbTurns} turni!`,
+            timestamp: Date.now()
+          });
         }
         break;
       }
@@ -11618,6 +11715,46 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
     
+    // ATTACK BLOCK CHECK (bonus-32): if attacker is blocked from attacking targetOwner
+    if (!isHandTarget) {
+      const atkBlocks = (game as any).attackBlocks as Record<string, { blockedFrom: string; turnsLeft: number }> | undefined;
+      if (atkBlocks && atkBlocks[attackerName] && atkBlocks[attackerName].blockedFrom === targetOwnerName) {
+        const bk = atkBlocks[attackerName];
+        console.log(`🚫 BLOCCO ATTACCO (bonus-32): ${attackerName} non può attaccare ${targetOwnerName} per altri ${bk.turnsLeft} turni`);
+        return { success: false, error: `${attackerName} non può attaccare ${targetOwnerName} per altri ${bk.turnsLeft} turni (effetto bonus)!` };
+      }
+    }
+
+    // SAGOME INTERCEPTION: If target owner has active sagome, absorb the attack on a sagoma
+    if (!isHandTarget) {
+      const sagomeState = (game as any).sagome as Record<string, { count: number; ptiEach: number }> | undefined;
+      if (sagomeState && targetOwnerName && sagomeState[targetOwnerName]?.count > 0) {
+        const sag = sagomeState[targetOwnerName];
+        sag.count -= 1;
+        console.log(`👥 SAGOMA ASSORBITA: attacco di ${attackerName} su ${targetOwnerName} assorbito da sagoma (rimaste: ${sag.count})`);
+        if (sag.count <= 0) delete sagomeState[targetOwnerName];
+        const ioSagAtk = (global as any).io;
+        if (ioSagAtk) {
+          ioSagAtk.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-sagoma-atk`, playerName: 'Sistema',
+            message: `👥 L'attacco di ${attackerName} è stato assorbito da una SAGOMA di ${targetOwnerName}! (Sagome rimaste: ${sag.count})`,
+            timestamp: Date.now()
+          });
+        }
+        // Track card usage and return early (attack absorbed)
+        if (!attacker.usedCardsThisTurn) attacker.usedCardsThisTurn = [];
+        attacker.usedCardsThisTurn.push(mosseCard.frontImage);
+        return {
+          success: true,
+          result: {
+            targetCardId, targetOwner: targetOwnerName, mosseCardId, attackerName,
+            isHandTarget: false, requiresDefenseResponse: false, sagomaAbsorbed: true,
+            damageValue: 0
+          }
+        };
+      }
+    }
+
     // BARRIERA BYPASS: If target is protected by BARRIERA, skip defense dialog and auto-apply damage
     if (!isHandTarget) {
       const barrieraProtection = this.isProtectedByBarriera(gameId, targetCardId);
@@ -14646,10 +14783,30 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
    */
   private killAndCheck(gameId: string, cardId: string, owner: string, attacker: string): void {
     const result = this.moveToGraveyard(gameId, cardId, owner, attacker);
-    if (result.success && result.eliminationCheck) {
-      const io = (global as any).io;
-      if (io) {
-        this.processEliminationAfterDeath(gameId, result.cardOwner || owner, io, attacker);
+    if (result.success) {
+      // KILL TRIGGER BLOCK: if a bonus-66 effect is active, block the killer for N turns
+      const game = this.games.get(gameId);
+      if (game) {
+        const ktb = (game as any).killTriggerBlock as { blockTurns: number; playedBy: string } | undefined;
+        if (ktb && attacker && attacker !== 'SELF_DAMAGE' && attacker !== 'EFFETTO_CASUALE') {
+          if (!game.skipTurnPlayers) game.skipTurnPlayers = [];
+          for (let i = 0; i < ktb.blockTurns; i++) game.skipTurnPlayers.push(attacker);
+          console.log(`⚔️🚫 kill_trigger_block: ${attacker} ha ucciso → bloccato per ${ktb.blockTurns} turni`);
+          const ioKtb = (global as any).io;
+          if (ioKtb) {
+            ioKtb.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-ktb-kill`, playerName: 'Sistema',
+              message: `⚔️🚫 ${attacker} ha ucciso un personaggio e viene bloccato per ${ktb.blockTurns} turni!`,
+              timestamp: Date.now()
+            });
+          }
+        }
+      }
+      if (result.eliminationCheck) {
+        const io = (global as any).io;
+        if (io) {
+          this.processEliminationAfterDeath(gameId, result.cardOwner || owner, io, attacker);
+        }
       }
     }
   }
@@ -20297,6 +20454,18 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     (gameState as any).stateSnapshots.push(snapshot);
     if ((gameState as any).stateSnapshots.length > 10) {
       (gameState as any).stateSnapshots = (gameState as any).stateSnapshots.slice(-10);
+    }
+
+    // Decrement attackBlocks (bonus-32)
+    if ((gameState as any).attackBlocks) {
+      const blocks = (gameState as any).attackBlocks as Record<string, { blockedFrom: string; turnsLeft: number }>;
+      for (const blockedPlayer of Object.keys(blocks)) {
+        blocks[blockedPlayer].turnsLeft--;
+        if (blocks[blockedPlayer].turnsLeft <= 0) {
+          delete blocks[blockedPlayer];
+          console.log(`🔓 attackBlock scaduto per ${blockedPlayer}`);
+        }
+      }
     }
 
     // Process delayed deaths - decrement timers and kill cards when timer reaches 0
