@@ -11845,27 +11845,55 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
 
-    // BIGFOOT: automatic dice roll — even = attack proceeds, odd = attack cancelled
+    // BIGFOOT: two independent dice rolls — attacker-side and defender-side
     {
       const atkImg = (attackerCharacter.frontImage || '').toLowerCase();
       const tgtImg = (targetCard.frontImage || '').toLowerCase();
-      if (atkImg.includes('bigfoot') || (!isHandTarget && tgtImg.includes('bigfoot'))) {
-        const diceRoll = Math.floor(Math.random() * 6) + 1;
-        const isEven = diceRoll % 2 === 0;
-        const ioBF = (global as any).io;
+      const ioBF = (global as any).io;
+
+      // Attacker-side roll: BIGFOOT is the one attacking
+      if (atkImg.includes('bigfoot')) {
+        const roll = Math.floor(Math.random() * 6) + 1;
+        const isEven = roll % 2 === 0;
         if (ioBF) {
-          ioBF.to(gameId).emit('dice-rolled', { value: diceRoll, playerName: attackerName });
+          ioBF.to(gameId).emit('dice-rolled', { value: roll, playerName: attackerName });
           ioBF.to(gameId).emit('chat-message', {
-            id: `${Date.now()}-bigfoot-dice`, playerName: 'Sistema',
-            message: `🦶 BIGFOOT! Dado: ${diceRoll} (${isEven ? 'pari ✅ — attacco va a segno!' : 'dispari ❌ — attacco annullato!'})`,
+            id: `${Date.now()}-bigfoot-atk`, playerName: 'Sistema',
+            message: `🦶 BIGFOOT (attacco)! Dado: ${roll} (${isEven ? 'pari ✅ — attacca!' : 'dispari ❌ — attacco fallito!'})`,
             timestamp: Date.now()
           });
         }
-        console.log(`🦶 BIGFOOT dice: ${diceRoll} (${isEven ? 'EVEN — attack proceeds' : 'ODD — attack cancelled'})`);
-        if (!isEven) {
-          return { success: false, error: `🦶 BIGFOOT! Dado ${diceRoll} (dispari) — l'attacco non va a segno!` };
-        }
+        console.log(`🦶 BIGFOOT attacker dice: ${roll} (${isEven ? 'EVEN' : 'ODD'})`);
+        if (!isEven) return { success: false, error: `🦶 BIGFOOT! Dado ${roll} (dispari) — attacco non riuscito!` };
       }
+
+      // Defender-side roll: BIGFOOT is being attacked
+      if (!isHandTarget && tgtImg.includes('bigfoot')) {
+        const roll = Math.floor(Math.random() * 6) + 1;
+        const isEven = roll % 2 === 0;
+        if (ioBF) {
+          ioBF.to(gameId).emit('dice-rolled', { value: roll, playerName: targetOwnerName || attackerName });
+          ioBF.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-bigfoot-def`, playerName: 'Sistema',
+            message: `🦶 BIGFOOT (difesa)! Dado: ${roll} (${isEven ? 'pari ✅ — colpito!' : 'dispari ❌ — schivato!'})`,
+            timestamp: Date.now()
+          });
+        }
+        console.log(`🦶 BIGFOOT defender dice: ${roll} (${isEven ? 'EVEN — hit' : 'ODD — dodge'})`);
+        if (!isEven) return { success: false, error: `🦶 BIGFOOT schiva! Dado ${roll} (dispari) — l'attacco viene evitato!` };
+      }
+    }
+
+    // GIGI PROIETTILE: consume immediate-attack flag on first use
+    if (attackerCharacter.canAttackImmediately) {
+      attackerCharacter.canAttackImmediately = false;
+      console.log(`🚀 GIGI PROIETTILE: canAttackImmediately consumed for ${attackerName}`);
+    }
+
+    // ERNESTO: consume extra MOSSE slot on use (engine-level — prevents unlimited chaining)
+    if (game.players[attackerName]?.extraMosseAllowed) {
+      game.players[attackerName].extraMosseAllowed = false;
+      console.log(`💪 ERNESTO: extraMosseAllowed consumed for ${attackerName} — attack proceeds`);
     }
 
     // ===================== END CHARACTER PASSIVE ATTACK RESTRICTIONS =====================
