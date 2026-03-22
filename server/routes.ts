@@ -4179,6 +4179,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!cardOnField) return;
       const idsToAbsorb = (selectedIds || []).slice(0, 3);
       let totalPTI = 0, totalStars = 0;
+      const absorbedNames: string[] = [];
+      const absorbedEffects: string[] = [];
       for (const sid of idsToAbsorb) {
         const gIdx = game.graveyard.findIndex((c: any) => c.id === sid);
         if (gIdx < 0) continue;
@@ -4187,16 +4189,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const dStars = dead.stars ?? (gameManager as any).extractStarsFromNote?.(dead.text || '') ?? 1;
         totalPTI += dPTI;
         totalStars += dStars;
+        absorbedNames.push(dead.name || dead.id);
+        // Power absorption: copy special abilities from absorbed cards
+        if (dead.mosseDamageEffect) absorbedEffects.push(dead.mosseDamageEffect);
+        if (dead.effect) absorbedEffects.push(dead.effect);
       }
-      if (totalPTI > 0 || totalStars > 0) {
+      if (totalPTI > 0 || totalStars > 0 || idsToAbsorb.length > 0) {
         const efPTI = cardOnField.pti ?? (gameManager as any).extractPTIFromNote?.(cardOnField.text || '') ?? 0;
         const efStars = cardOnField.stars ?? (gameManager as any).extractStarsFromNote?.(cardOnField.text || '') ?? 1;
         cardOnField.pti = efPTI + totalPTI;
         cardOnField.stars = efStars + totalStars;
+        // Store absorbed powers on the card for future use
+        if (absorbedEffects.length > 0) {
+          if (!cardOnField.absorbedEffects) cardOnField.absorbedEffects = [];
+          cardOnField.absorbedEffects.push(...absorbedEffects);
+        }
         (gameManager as any).updateCardTextWithPTI?.(cardOnField);
         io.to(gameId).emit('chat-message', {
           id: `${Date.now()}-evil-fake-absorb`, playerName: 'Sistema',
-          message: `😈 EVIL FAKE assorbe ${idsToAbsorb.length} personaggi! +${totalPTI} PTI +${totalStars}⭐!`,
+          message: `😈 EVIL FAKE assorbe ${absorbedNames.join(', ')}! +${totalPTI} PTI +${totalStars}⭐${absorbedEffects.length > 0 ? ` e ${absorbedEffects.length} poter${absorbedEffects.length > 1 ? 'i' : 'e'}` : ''}!`,
           timestamp: Date.now()
         });
       }
@@ -6296,6 +6307,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           gameManager.returnToDeck(gameId, mosseCardId, attackerName);
           const updatedGameStateSag = gameManager.getSanitizedGameState(gameId);
           emitThrottledGameState(io, gameId, updatedGameStateSag);
+          return;
+        }
+
+        // ACCHIAPPT CHESSA: mini-game pending — skip normal damage/defense flow, wait for timeout resolver
+        if (attackResult.result?.acchiapptPending) {
+          console.log(`🎯 ACCHIAPPT CHESSA mini-game started (attackId: ${attackResult.result.attackId}) — bypassing normal damage flow`);
+          const updatedStateAC = gameManager.getSanitizedGameState(gameId);
+          emitThrottledGameState(io, gameId, updatedStateAC);
           return;
         }
 

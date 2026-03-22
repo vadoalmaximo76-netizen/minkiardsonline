@@ -3951,18 +3951,19 @@ Rispondi SOLO in JSON:`;
           if (ssIdx >= 0) {
             game.field.splice(ssIdx, 1);
             const ssOwner = silverSilvioOnField.owner;
-            if (game.players[ssOwner]) {
-              if (!game.players[ssOwner].hand) game.players[ssOwner].hand = [];
-              game.players[ssOwner].hand.push(silverSilvioOnField);
-            }
+            // Return to deck (bottom), not hand
+            if (!game.decks) game.decks = {};
+            if (!game.decks.personaggi) game.decks.personaggi = [];
+            silverSilvioOnField.isFaceUp = false;
+            game.decks.personaggi.unshift(silverSilvioOnField);
             if (ioPX) {
               ioPX.to(gameId).emit('chat-message', {
                 id: `${Date.now()}-pelux-silver`, playerName: 'Sistema',
-                message: `⭐ IL PELUX è arrivato! SILVER SILVIO si ritira dal campo e torna in mano a ${ssOwner}!`,
+                message: `⭐ IL PELUX è arrivato! SILVER SILVIO si ritira dal campo e torna nel mazzo di ${ssOwner}!`,
                 timestamp: Date.now()
               });
             }
-            console.log(`⭐ IL PELUX: SILVER SILVIO forced off field back to ${ssOwner}'s hand`);
+            console.log(`⭐ IL PELUX: SILVER SILVIO forced off field back to ${ssOwner}'s deck`);
           }
         }
       }
@@ -11828,13 +11829,28 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     if (!isHandTarget && targetCard && (targetCard.frontImage || '').toLowerCase().includes('bud-spencer') && !(targetCard as any).firstAttackReceived) {
       (targetCard as any).firstAttackReceived = true;
       const budOwner = targetOwnerName;
+      // Search hand first, then personaggi/personaggi_speciali decks
       const terenceInHand = (game.players[budOwner]?.hand || []).find((c: Card) => (c.frontImage || '').toLowerCase().includes('terence-hill'));
-      if (terenceInHand) {
-        const handIdx = game.players[budOwner].hand.findIndex((c: Card) => c.id === terenceInHand.id);
-        if (handIdx >= 0) game.players[budOwner].hand.splice(handIdx, 1);
-        terenceInHand.owner = budOwner;
-        game.field.push(terenceInHand);
-        this.updateCardTextWithPTI(terenceInHand);
+      const terenceInDeck = !terenceInHand
+        ? ([...(game.decks?.personaggi || []), ...(game.decks?.personaggi_speciali || [])]).find((c: Card) => (c.frontImage || '').toLowerCase().includes('terence-hill'))
+        : null;
+      const terence = terenceInHand || terenceInDeck;
+      if (terence) {
+        if (terenceInHand) {
+          const handIdx = game.players[budOwner].hand.findIndex((c: Card) => c.id === terence.id);
+          if (handIdx >= 0) game.players[budOwner].hand.splice(handIdx, 1);
+        } else if (terenceInDeck) {
+          // Remove from deck
+          const deckP = (game.decks?.personaggi || []);
+          const deckPS = (game.decks?.personaggi_speciali || []);
+          const dIdxP = deckP.findIndex((c: Card) => c.id === terence.id);
+          if (dIdxP >= 0) deckP.splice(dIdxP, 1);
+          const dIdxPS = deckPS.findIndex((c: Card) => c.id === terence.id);
+          if (dIdxPS >= 0) deckPS.splice(dIdxPS, 1);
+        }
+        terence.owner = budOwner;
+        game.field.push(terence);
+        this.updateCardTextWithPTI(terence);
         const ioBud = (global as any).io;
         if (ioBud) {
           ioBud.to(gameId).emit('chat-message', {
@@ -11843,13 +11859,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             timestamp: Date.now()
           });
         }
-        console.log(`💪 BUD SPENCER: TERENCE HILL enters field for ${budOwner}`);
+        console.log(`💪 BUD SPENCER: TERENCE HILL enters field for ${budOwner} (from ${terenceInHand ? 'hand' : 'deck'})`);
       } else {
         const ioBud2 = (global as any).io;
         if (ioBud2) {
           ioBud2.to(gameId).emit('chat-message', {
             id: `${Date.now()}-bud-noterence`, playerName: 'Sistema',
-            message: `💪 BUD SPENCER subisce il primo attacco... ma TERENCE HILL non è in mano!`,
+            message: `💪 BUD SPENCER subisce il primo attacco... ma TERENCE HILL non è disponibile!`,
             timestamp: Date.now()
           });
         }
@@ -11871,30 +11887,42 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             if (!pending || pending.attackId !== attackId) return;
             const gameNow = this.games.get(gameId);
             if (!gameNow) return;
+            const ioResolve = (global as any).io;
+            // Emit dice-rolled animation before revealing result
+            if (ioResolve) {
+              ioResolve.to(gameId).emit('dice-rolled', { result: diceResult, playerName: attackerName });
+            }
             const fieldNow = gameNow.field.filter((c: Card) => c.type === 'personaggi' || c.type === 'personaggi_speciali');
             const results: string[] = [];
             for (const ch of fieldNow) {
-              const playerChoice = pending.responses[ch.owner];
+              // Random fallback for players who did not respond in time
+              let playerChoice = pending.responses[ch.owner];
+              if (playerChoice === undefined) {
+                playerChoice = Math.floor(Math.random() * 6) + 1;
+                results.push(`${ch.name || ch.owner}: (nessuna risposta → ${playerChoice} casuale)`);
+              }
               const guessed = playerChoice === diceResult;
               if (!guessed) {
                 const oldPTI = ch.pti ?? this.extractPTIFromNote(ch.text || '');
-                const newPti = Math.max(0, oldPTI - damageValue);
+                const newPti = Math.max(0, oldPTI - pending.damageValue);
                 ch.pti = newPti;
                 this.updateCardTextWithPTI(ch);
-                results.push(`${ch.name || ch.owner}: -${oldPTI - newPti} PTI${newPti === 0 ? ' 💀' : ''}`);
+                results.push(`${ch.name || ch.owner}: SBAGLIATO (${playerChoice}≠${diceResult}) -${oldPTI - newPti} PTI${newPti === 0 ? ' 💀' : ''}`);
                 if (newPti === 0) {
                   this.killAndCheck(gameId, ch.id, ch.owner, attackerName);
                 }
               } else {
-                results.push(`${ch.name || ch.owner}: IMMUNE 🛡️ (ha indovinato ${diceResult}!)`);
+                results.push(`${ch.name || ch.owner}: IMMUNE 🛡️ (indovinato: ${diceResult})`);
               }
             }
-            if (ioAC) {
-              ioAC.to(gameId).emit('chat-message', {
+            if (ioResolve) {
+              ioResolve.to(gameId).emit('chat-message', {
                 id: `${Date.now()}-acchiappt-result`, playerName: 'Sistema',
-                message: `🎯 ACCHIAPPT CHESSA — Dado: ${diceResult}! Risultati: ${results.join(' | ')}`,
+                message: `🎯 ACCHIAPPT CHESSA — Dado: ${diceResult}! ${results.join(' | ')}`,
                 timestamp: Date.now()
               });
+              const updatedAC = this.getSanitizedGameState(gameId);
+              ioResolve.to(gameId).emit('game-state-update', updatedAC);
             }
             delete (gameNow as any).acchiapptPendingAttack;
           }, 12000)
@@ -18499,7 +18527,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         });
         return;
       }
-      (card as any).evilFakeUsed = true;
       const graveyardOpponents = game.graveyard.filter((c: Card) =>
         c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
       );
@@ -18511,6 +18538,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         });
         return;
       }
+      // Only set used flag once we know there are valid targets
+      (card as any).evilFakeUsed = true;
       const playerData = game.players[playerName];
       if (playerData?.socketId) {
         io.to(playerData.socketId).emit('evil-fake-choice', {
@@ -18518,7 +18547,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             id: c.id, name: c.name || this.getCardNameFromUrl(c.frontImage || ''),
             frontImage: c.frontImage || '', owner: c.owner,
             pti: c.pti ?? this.extractPTIFromNote(c.text || ''),
-            stars: c.stars ?? this.extractStarsFromNote(c.text || '')
+            stars: c.stars ?? this.extractStarsFromNote(c.text || ''),
+            mosseDamageEffect: (c as any).mosseDamageEffect || ''
           }))
         });
       }
@@ -18541,7 +18571,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         });
         return;
       }
-      (card as any).cyberGeenaUsed = true;
       const enemyCharsOnField = game.field.filter((c: Card) =>
         c.owner !== playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
       );
@@ -18553,6 +18582,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         });
         return;
       }
+      // Only set used flag once we know there are valid targets
+      (card as any).cyberGeenaUsed = true;
       const playerDataCG = game.players[playerName];
       if (playerDataCG?.socketId) {
         io.to(playerDataCG.socketId).emit('cyber-geena-choice', {
