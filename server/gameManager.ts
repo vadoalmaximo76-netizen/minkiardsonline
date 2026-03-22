@@ -11887,19 +11887,19 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
     }
 
-    // GIGI PROIETTILE: consume immediate-attack flag on first use
+    // ===================== END CHARACTER PASSIVE ATTACK RESTRICTIONS =====================
+
+    // GIGI PROIETTILE: consume immediate-attack flag — all block checks passed, attack is committed
     if (attackerCharacter.canAttackImmediately) {
       attackerCharacter.canAttackImmediately = false;
       console.log(`🚀 GIGI PROIETTILE: canAttackImmediately consumed for ${attackerName}`);
     }
 
-    // ERNESTO: consume extra MOSSE slot on use (engine-level — prevents unlimited chaining)
+    // ERNESTO: consume extra MOSSE slot — all block checks passed, attack is committed
     if (game.players[attackerName]?.extraMosseAllowed) {
       game.players[attackerName].extraMosseAllowed = false;
-      console.log(`💪 ERNESTO: extraMosseAllowed consumed for ${attackerName} — attack proceeds`);
+      console.log(`💪 ERNESTO: extraMosseAllowed consumed for ${attackerName} — attack commits`);
     }
-
-    // ===================== END CHARACTER PASSIVE ATTACK RESTRICTIONS =====================
 
     // SAGOME INTERCEPTION: If target owner has active sagome, absorb the attack on a sagoma
     if (!isHandTarget) {
