@@ -22118,7 +22118,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     if (game.eliminatedPlayers.has(playerName)) return false;
 
     const graveyardCount = game.graveyard.filter(
-      (c: Card) => c.owner === playerName && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+      (c: Card) => c.owner === playerName &&
+        (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+        !c.capelloSmithNonCountedDeath
     ).length;
 
     const baseLimit = parseInt(game.characterLimit);
@@ -24976,7 +24978,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
                 turnsRemaining: _si,
                 actions: [{ type: 'restore_stars', target: 'self_char', value: 1, description: `+1 stella a ${zeroStarsTargetName} (turno ${_si})` }],
                 createdAt: Date.now()
-              } as any);
+              });
             }
             console.log(`⭐ ZERO STARS: scheduled ${zeroStarsCount} restore_stars timed effects for ${zeroStarsTargetOwner} (1/turn)`);
           }
