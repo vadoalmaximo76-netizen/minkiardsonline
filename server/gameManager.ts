@@ -25296,6 +25296,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             const newTgt = game.field.find((c: Card) =>
               c.owner === newOwner && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
             );
+            // NOTE: In 2-player games, prev/next in turnOrder is always the attacker themselves —
+            // the self-attack guard (newOwner !== attackerName) correctly falls back to normal attack.
             if (newTgt && newOwner !== attackerName) {
               targetCard = newTgt;
               targetOwner = newOwner;
@@ -25303,7 +25305,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               csMsg += `, bersaglio deviato a ${newTgt.name || this.getCardNameFromUrl(newTgt.frontImage || '')}!`;
               console.log(`🎲 CACCIATORE STRABICO: dado ${csRoll} — redirected to ${newTgt.name} (${newOwner})`);
             } else {
-              csMsg += ` (nessun bersaglio valido, attacco normale)`;
+              csMsg += ` (nessun bersaglio valido o attacker stesso, attacco normale)`;
             }
           }
         } else {
