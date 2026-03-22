@@ -17289,6 +17289,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
     }
 
     // Emit the result to all players
+    io.to(gameId).emit('dice-rolled', { result: diceResult, playerName });
     io.to(gameId).emit('auto-dice-result', {
       cardName: autoDice.cardName,
       diceResult,
