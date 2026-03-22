@@ -3867,6 +3867,56 @@ Rispondi SOLO in JSON:`;
         console.log(`🚀 GIGI PROIETTILE: canAttackImmediately = true for ${playerName}`);
       }
 
+      // CINESE COMUNE: immediatamente assorbe TUTTI i PTI e le stelle degli animali in campo
+      // Fires both when Cinese enters (animals already on field) AND when an animal enters (Cinese on field)
+      if (isPersonaggio) {
+        const CINESE_COMUNE_ANIMAL_SLUGS = [
+          'ape', 'aragosta-irachena', 'avvoltoio', 'brian', 'bullox', 'cimice',
+          'cinghiale-inferocito', 'crapa', 'crash-bandicoot', 'hippie', 'holly', 'horsy',
+          'mosca', 'opossum-con-la-rabbia', 'parassita', 'pingu', 'procione-insatanato',
+          'riccio-pic', 'scimmia', 'strafatta', 'zanzara'
+        ];
+        const isCinese = (card.frontImage || '').toLowerCase().includes('cinese-comune');
+        const isAnimalCard = CINESE_COMUNE_ANIMAL_SLUGS.some(slug => (card.frontImage || '').toLowerCase().includes(slug));
+        if (isCinese || isAnimalCard) {
+          const cineseOnField = game.field.find((c: Card) =>
+            (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+            (c.frontImage || '').toLowerCase().includes('cinese-comune')
+          );
+          if (cineseOnField) {
+            const ioCIN = (global as any).io;
+            const animalsToAbsorb = game.field.filter((c: Card) => {
+              if (c.id === cineseOnField.id) return false;
+              if (c.type !== 'personaggi' && c.type !== 'personaggi_speciali') return false;
+              const img = (c.frontImage || '').toLowerCase();
+              return CINESE_COMUNE_ANIMAL_SLUGS.some(slug => img.includes(slug));
+            });
+            for (const animal of animalsToAbsorb) {
+              const animalPTI = animal.pti ?? this.extractPTIFromNote(animal.text || '');
+              const animalStars = animal.stars ?? this.extractStarsFromNote(animal.text || '');
+              if (animalPTI > 0 || animalStars > 0) {
+                const cinesePTI = cineseOnField.pti ?? this.extractPTIFromNote(cineseOnField.text || '');
+                const cineseStars = cineseOnField.stars ?? this.extractStarsFromNote(cineseOnField.text || '');
+                cineseOnField.pti = cinesePTI + animalPTI;
+                cineseOnField.stars = cineseStars + animalStars;
+                this.updateCardTextWithPTI(cineseOnField);
+                animal.pti = 0;
+                animal.stars = 0;
+                this.updateCardTextWithPTI(animal);
+                if (ioCIN) {
+                  ioCIN.to(gameId).emit('chat-message', {
+                    id: `${Date.now()}-cinese-absorb-${animal.id}`, playerName: 'Sistema',
+                    message: `🇨🇳 CINESE COMUNE assorbe TUTTO da ${animal.name || 'animale'}! +${animalPTI} PTI +${animalStars}⭐ → animale azzera tutto!`,
+                    timestamp: Date.now()
+                  });
+                }
+                console.log(`🇨🇳 CINESE COMUNE: absorbed ALL PTI (${animalPTI}) + stars (${animalStars}) from ${animal.name || animal.id}`);
+              }
+            }
+          }
+        }
+      }
+
       // BAMBOLA DEL DEMONIO: 3-turn immunity on entry
       if (isPersonaggio && (card.frontImage || '').toLowerCase().includes('bambola-del-demonio')) {
         card.immuneToAttacks = true;
@@ -11787,6 +11837,25 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
     // Find MOSSE card on field (should be played first)
     // isDuelAttack allows BONUS cards (e.g. DUELLO card) to deal damage like a MOSSE
+    // CIRO/MOHAMED DUEL ENFORCEMENT: redirect attacks to duel opponent when auto-duel is active
+    if (!isDuelAttack && game?.activeDuel?.active && (game as any).ciroMohamedDuelActive) {
+      const duel = game.activeDuel;
+      const isPlayer1 = attackerName === duel.player1;
+      const expectedTargetId = isPlayer1 ? duel.character2Id : duel.character1Id;
+      if (targetCardId !== expectedTargetId) {
+        const duelEnemy = game.field.find((c: Card) => c.id === expectedTargetId);
+        if (duelEnemy) {
+          targetCardId = duelEnemy.id;
+          console.log(`🍕⚔️ CIRO/MOHAMED: redirecting attack to duel opponent (${expectedTargetId})`);
+          const ioCME = (global as any).io || io;
+          ioCME.to(gameId).emit('chat-message', {
+            id: `${Date.now()}-ciro-duel-enforce`, playerName: 'Sistema',
+            message: `🍕⚔️ DUELLO! L'attacco viene automaticamente deviato all'avversario nel duello!`,
+            timestamp: Date.now()
+          });
+        }
+      }
+    }
     const mosseCard = game.field.find(c => 
       c.id === mosseCardId && c.owner === attackerName && 
       (c.type === 'mosse' || (isDuelAttack && c.type === 'bonus'))
@@ -11890,7 +11959,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         terence.owner = budOwner;
         game.field.push(terence);
-        this.updateCardTextWithPTI(terence);
+        this.autoAnalyzePersonaggioCardSync(terence, budOwner);
         const ioBud = (global as any).io;
         if (ioBud) {
           ioBud.to(gameId).emit('chat-message', {
@@ -15381,6 +15450,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             });
           }
           console.log(`🎩 CAPELLO SMITH: first clone death (${card.id}), survivor ${survivor.id} transformed${transformTarget ? ` into ${transformTarget}` : ' to solo'}`);
+          // Broadcast updated field so client sees the transformation
+          const csFieldState = this.getSanitizedGameState(gameId);
+          if (ioCS) ioCS.to(gameId).emit('game-state-update', csFieldState);
           // Don't count this as an elimination — return early, skip eliminationCount++
           return { success: true, graveyardCount, cardImage: card.frontImage, cardType: card.type, eliminationCheck: false, cardOwner, sorosActivated: false, detachedParasites };
         }
@@ -21425,10 +21497,10 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if (turnsElapsed >= 3) {
           const gheller = gameState.field.find((c: Card) => c.id === trap.ghellerId);
           if (gheller) {
-            // Use stored attacker card ID (not current active char) for accurate targeting
-            const atkChar = trap.attackerCharId
+            // Use stored attacker card ID; fall back to current active char if it's already gone
+            const atkChar = (trap.attackerCharId
               ? gameState.field.find((c: Card) => c.id === trap.attackerCharId)
-              : this.getPlayerActiveCharacter(gameState as any, trap.attackerName);
+              : null) ?? this.getPlayerActiveCharacter(gameState as any, trap.attackerName);
             if (atkChar) {
               console.log(`👹 GHELLER: trap fires! Killing ${atkChar.name} (stored char ${trap.attackerCharId}, owner ${trap.attackerName})`);
               this.moveToGraveyard(gameId, atkChar.id, trap.attackerName, 'GHELLER_TRAP');
@@ -21500,52 +21572,6 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         if (pp.fabrizioChoiceConsumed) {
           pp.fabrizioChoiceConsumed = false;
           console.log(`🎭 FABRIZIO: fabrizioChoiceConsumed reset for ${pName}`);
-        }
-      }
-    }
-
-    // CINESE COMUNE: drena metà PTI e 1 stella dai 21 personaggi animali presenti in campo ogni turno
-    {
-      const CINESE_COMUNE_ANIMAL_SLUGS = [
-        'ape', 'aragosta-irachena', 'avvoltoio', 'brian', 'bullox', 'cimice',
-        'cinghiale-inferocito', 'crapa', 'crash-bandicoot', 'hippie', 'holly', 'horsy',
-        'mosca', 'opossum-con-la-rabbia', 'parassita', 'pingu', 'procione-insatanato',
-        'riccio-pic', 'scimmia', 'strafatta', 'zanzara'
-      ];
-      const cinese = gameState.field.find((c: Card) =>
-        (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
-        (c.frontImage || '').toLowerCase().includes('cinese-comune')
-      );
-      if (cinese) {
-        const ioCIN = (global as any).io;
-        for (const animal of gameState.field) {
-          if (animal.id === cinese.id) continue;
-          if (animal.type !== 'personaggi' && animal.type !== 'personaggi_speciali') continue;
-          const img = (animal.frontImage || '').toLowerCase();
-          const isAnimal = CINESE_COMUNE_ANIMAL_SLUGS.some(slug => img.includes(slug));
-          if (!isAnimal) continue;
-          const animalPTI = animal.pti ?? this.extractPTIFromNote(animal.text || '');
-          const animalStars = animal.stars ?? this.extractStarsFromNote(animal.text || '');
-          const drainPTI = Math.floor(animalPTI / 2);
-          const drainStars = Math.min(1, animalStars > 0 ? 1 : 0);
-          if (drainPTI > 0 || drainStars > 0) {
-            animal.pti = animalPTI - drainPTI;
-            animal.stars = Math.max(0, animalStars - drainStars);
-            this.updateCardTextWithPTI(animal);
-            const cinesePTI = cinese.pti ?? this.extractPTIFromNote(cinese.text || '');
-            const cineseStars = cinese.stars ?? this.extractStarsFromNote(cinese.text || '');
-            cinese.pti = cinesePTI + drainPTI;
-            cinese.stars = cineseStars + drainStars;
-            this.updateCardTextWithPTI(cinese);
-            if (ioCIN) {
-              ioCIN.to(gameId).emit('chat-message', {
-                id: `${Date.now()}-cinese-drain-${animal.id}`, playerName: 'Sistema',
-                message: `🇨🇳 CINESE COMUNE drena da ${animal.name || 'animale'}: -${drainPTI} PTI -${drainStars}⭐ → CINESE +${drainPTI} PTI +${drainStars}⭐`,
-                timestamp: Date.now()
-              });
-            }
-            console.log(`🇨🇳 CINESE COMUNE: drained ${drainPTI} PTI + ${drainStars} star from ${animal.name || animal.id}`);
-          }
         }
       }
     }
@@ -22118,12 +22144,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             const oldPti = domCard.pti || 0;
             domCard.pti = domEven ? oldPti * 2 : Math.max(1, Math.floor(oldPti / 2));
             (this as any).updateCardTextWithPTI?.(domCard);
-            tsIo.to(gameId).emit('dice-rolled', { value: domRoll, playerName: nextPlayer });
+            tsIo.to(gameId).emit('dice-rolled', { result: domRoll, playerName: nextPlayer });
             tsIo.to(gameId).emit('chat-message', {
               id: `${Date.now()}-don-domenico`, playerName: 'Sistema',
-              message: `🎲 DON DOMENICO CERRONE: dado = ${domRoll} (${domEven ? 'pari' : 'dispari'}) — PTI ${oldPti} → ${domCard.pti}!`,
+              message: `🎲 DON DOMENICO CERRONE: dado = ${domRoll} (${domEven ? 'PARI → PTI×2' : 'DISPARI → PTI÷2'}) — ${oldPti} → ${domCard.pti} PTI!`,
               timestamp: Date.now()
             });
+            const domState = this.getSanitizedGameState(gameId);
+            tsIo.to(gameId).emit('game-state-update', domState);
             console.log(`🎲 DON DOMENICO CERRONE (endTurn): roll=${domRoll}, PTI ${oldPti} → ${domCard.pti}`);
           }
 
@@ -25825,31 +25853,29 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       if (csAttackerChar && (csAttackerChar.frontImage || '').toLowerCase().includes('cacciatore-strabico')) {
         const csRoll = Math.floor(Math.random() * 6) + 1;
         const ioCS = (global as any).io || io;
-        ioCS.to(gameId).emit('dice-rolled', { value: csRoll, playerName: attackerName });
+        ioCS.to(gameId).emit('dice-rolled', { result: csRoll, playerName: attackerName });
         let csMsg = `🎲 CACCIATORE STRABICO: dado = ${csRoll}`;
         if (csRoll <= 2 || csRoll >= 5) {
-          const tOwnIdx = game.turnOrder.indexOf(targetOwner);
-          if (tOwnIdx !== -1) {
-            const shift = csRoll <= 2 ? -1 : 1;
-            const newOwnIdx = (tOwnIdx + shift + game.turnOrder.length) % game.turnOrder.length;
-            const newOwner = game.turnOrder[newOwnIdx];
-            const newTgt = game.field.find((c: Card) =>
-              c.owner === newOwner && (c.type === 'personaggi' || c.type === 'personaggi_speciali')
-            );
-            // NOTE: In 2-player games, prev/next in turnOrder is always the attacker themselves —
-            // the self-attack guard (newOwner !== attackerName) correctly falls back to normal attack.
-            if (newTgt && newOwner !== attackerName) {
-              targetCard = newTgt;
-              targetOwner = newOwner;
-              targetCardId = newTgt.id;
-              csMsg += `, bersaglio deviato a ${newTgt.name || this.getCardNameFromUrl(newTgt.frontImage || '')}!`;
-              console.log(`🎲 CACCIATORE STRABICO: dado ${csRoll} — redirected to ${newTgt.name} (${newOwner})`);
-            } else {
-              csMsg += ` (nessun bersaglio valido o attacker stesso, attacco normale)`;
-            }
+          // Pick a random enemy character NOT owned by the attacker and NOT the current target.
+          // This works in both 2-player AND multi-player games (no turnOrder-shift needed).
+          const altTargets = game.field.filter((c: Card) =>
+            c.owner !== attackerName &&
+            c.id !== targetCardId &&
+            (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+          );
+          if (altTargets.length > 0) {
+            const newTgt = altTargets[Math.floor(Math.random() * altTargets.length)];
+            targetCard = newTgt;
+            targetOwner = newTgt.owner;
+            targetCardId = newTgt.id;
+            const dir = csRoll <= 2 ? '⬅️ sinistra' : '➡️ destra';
+            csMsg += ` — bersaglio deviato (${dir}) a ${newTgt.name || this.getCardNameFromUrl(newTgt.frontImage || '')}!`;
+            console.log(`🎲 CACCIATORE STRABICO: dado ${csRoll} — redirected to ${newTgt.name} (${newTgt.owner})`);
+          } else {
+            csMsg += ` — nessun bersaglio alternativo, attacco normale`;
           }
         } else {
-          csMsg += ` — bersaglio normale`;
+          csMsg += ` (dado centrale — bersaglio normale)`;
         }
         ioCS.to(gameId).emit('chat-message', {
           id: `${Date.now()}-cacciatore-strabico`, playerName: 'Sistema',
@@ -25900,6 +25926,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         message: `🙏 FRA MARTINO! ${fraName} è tornato nel mazzo invece di subire danno!`,
         timestamp: Date.now()
       });
+      ioFM.to(gameId).emit('comic-banner', { text: 'Ì NN SACC NIENT!', owner: targetOwner });
       console.log(`🙏 FRA MARTINO: ${fraName} returned to deck instead of taking damage`);
       const fmState = this.getSanitizedGameState(gameId);
       ioFM.to(gameId).emit('game-state-update', fmState);
@@ -26706,15 +26733,24 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         this.updateCardTextWithPTI(fedesimo);
         const fedName = fedesimo.name || this.getCardNameFromUrl(fedesimo.frontImage || '');
         console.log(`😵 FEDESIMO: self-inflicts ${effectiveDamage} PTI damage (${fedPTI} → ${fedNewPTI})`);
+        // FEDESIMO: undo target damage (target is unharmed — FEDESIMO absorbs the attack itself)
+        const fedTargetFieldCard = game?.field?.find((c: Card) => c.id === targetCardId);
+        if (fedTargetFieldCard) {
+          fedTargetFieldCard.pti = currentPTI;
+          this.updateCardTextWithPTI(fedTargetFieldCard);
+        }
         io.to(gameId).emit('chat-message', {
           id: `${Date.now()}-fedesimo-self`, playerName: 'Sistema',
-          message: `😵 FEDESIMO si autoinfligge ${effectiveDamage} PTI di danno! (${fedPTI} → ${fedNewPTI})`,
+          message: `😵 FEDESIMO si autoinfligge ${effectiveDamage} PTI di danno! (${fedPTI} → ${fedNewPTI}) — bersaglio illeso!`,
           timestamp: Date.now()
         });
         if (fedNewPTI <= 0) {
           const fedResult = this.moveToGraveyard(gameId, fedesimo.id, attackerName, 'SELF_DAMAGE');
           if (fedResult.eliminationCheck) this.processEliminationAfterDeath(gameId, attackerName, io, 'FEDESIMO_SELF');
         }
+        const fedState = this.getSanitizedGameState(gameId);
+        io.to(gameId).emit('game-state-update', fedState);
+        return;
       }
     }
 

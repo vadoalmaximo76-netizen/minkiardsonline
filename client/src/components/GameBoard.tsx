@@ -281,6 +281,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
   const [controlTurnTargetPanel, setControlTurnTargetPanel] = useState<{ visible: boolean; opponents: string[] }>({ visible: false, opponents: [] });
   const [cpuThinkingPlayer, setCpuThinkingPlayer] = useState<string | null>(null);
   const [helpBanner, setHelpBanner] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
+  const [comicBanner, setComicBanner] = useState<{ visible: boolean; text: string; owner: string }>({ visible: false, text: '', owner: '' });
   const [graveyardSelectionModal, setGraveyardSelectionModal] = useState<{
     visible: boolean;
     reason: string;
@@ -1081,6 +1082,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       }
     };
     socket.on('control-turn-set', handleControlTurnSet);
+
+    const handleComicBanner = ({ text, owner }: { text: string; owner: string }) => {
+      setComicBanner({ visible: true, text, owner });
+      setTimeout(() => setComicBanner({ visible: false, text: '', owner: '' }), 4000);
+    };
+    socket.on('comic-banner', handleComicBanner);
 
     const handleBlockCardTypeSelect = (data: { cardId: string; cardName: string; options: string[]; turns: number; playerName: string }) => {
       if (data.playerName === playerName) {
@@ -2128,6 +2135,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
       socket.off('cpu-done-thinking', handleCpuDoneThinking);
       socket.off('next-turn', handleCpuDoneThinking);
       socket.off('control-turn-set', handleControlTurnSet);
+      socket.off('comic-banner', handleComicBanner);
       socket.off('block-card-type-select', handleBlockCardTypeSelect);
       socket.off('daddy-conte-choice', handleDaddyConteChoice);
       socket.off('fabrizio-choice', handleFabrizioChoice);
@@ -2348,6 +2356,26 @@ export const GameBoard: React.FC<GameBoardProps> = ({ authenticatedUser, onLogou
             >
               <X size={18} />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* FRA MARTINO: Comic-book speech bubble banner */}
+      {comicBanner.visible && (
+        <div className="fixed top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[70] pointer-events-none">
+          <div className="relative animate-in zoom-in-50 fade-in duration-200">
+            <div
+              className="bg-yellow-300 border-4 border-black rounded-2xl px-8 py-5 shadow-[6px_6px_0_0_#000] text-center"
+              style={{ fontFamily: "'Comic Sans MS', 'Bangers', cursive" }}
+            >
+              <p className="text-black font-black text-3xl tracking-widest uppercase" style={{ textShadow: '2px 2px 0 #fff, -1px -1px 0 #000' }}>
+                {comicBanner.text}
+              </p>
+              <p className="text-black/70 font-bold text-sm mt-1">— FRA MARTINO 🙏</p>
+            </div>
+            {/* Speech bubble tail */}
+            <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[12px] border-r-[12px] border-t-[16px] border-l-transparent border-r-transparent border-t-black" />
+            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[10px] border-r-[10px] border-t-[14px] border-l-transparent border-r-transparent border-t-yellow-300" />
           </div>
         </div>
       )}
