@@ -24958,7 +24958,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           console.log(`⭐ SPECIAL EFFECT: Zero stars for ${targetCard.frontImage}`);
           // DEGLI UMAN PIACER: schedule star restoration (1 per target-player turn) unless attacker has EEGEENEEO MASSAREE
           const zeroStarsCount = targetCard.stars ?? this.extractStarsFromNote(targetCard.text || '') ?? 0;
-          const hasEegeeneeo = game?.field?.some((c: Card) => c.owner === attackerName && (c.frontImage || '').toLowerCase().includes('eegeeneeo'));
+          const hasEegeeneeo = game?.field?.some((c: Card) =>
+            c.owner === attackerName &&
+            (c.type === 'personaggi' || c.type === 'personaggi_speciali') &&
+            (c.frontImage || '').toLowerCase().includes('eegeeneeo')
+          );
           if (!hasEegeeneeo && zeroStarsCount > 0 && game) {
             if (!game.timedEffects) game.timedEffects = [];
             const zeroStarsTargetOwner = targetCard.owner || '';
@@ -25706,9 +25710,9 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           console.log(`PTI ABSORPTION SKIPPED: Invalid data (absorbedPTI=${absorbedPTI}, newPTI=${newAttackerPTI})`);
         }
       } else if (noKillBonusActive && newPTI <= 0) {
-        // Consume the flag (one-time suppression per kill)
-        attackerCharacters.filter((c: Card) => c.noKillBonusPending).forEach((c: Card) => {
-          c.noKillBonusPending = undefined;
+        // Consume the flag on canonical game.field objects (one-time suppression per kill)
+        game.field.forEach((c: Card) => {
+          if (c.owner === attackerName && c.noKillBonusPending) c.noKillBonusPending = undefined;
         });
         console.log(`👊 NO KILL BONUS: PTI absorption suppressed for ${attackerName} — attacker was hit by CAZZOTTO IN TESTA`);
         io.to(gameId).emit('chat-message', {
