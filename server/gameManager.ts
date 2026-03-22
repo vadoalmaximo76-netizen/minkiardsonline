@@ -7381,6 +7381,26 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         }
         break;
 
+      case 'restore_stars': {
+        const rsChar = this.getPlayerActiveCharacter(game, playerName);
+        if (rsChar) {
+          const prevStars = rsChar.stars || 0;
+          rsChar.stars = prevStars + (action.value || 1);
+          this.updateCardTextWithPTI(rsChar);
+          console.log(`⭐ RESTORE STARS: ${rsChar.name || rsChar.id} ora ha ${rsChar.stars} stelle`);
+          const ioRs = (global as any).io;
+          if (ioRs) {
+            ioRs.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-restore-stars`,
+              playerName: 'Sistema',
+              message: `⭐ ${rsChar.name || rsChar.id} recupera 1 stella! (ora ${rsChar.stars} stelle)`,
+              timestamp: Date.now()
+            });
+          }
+        }
+        break;
+      }
+
       case 'special':
         console.log(`🌟 Special custom effect: ${action.description}`);
         // Special effects that require manual handling or user interaction
@@ -8637,13 +8657,21 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         );
         const cloneSelfActiveChar = cloneSelfPlayerChars.length > 0 ? cloneSelfPlayerChars[0] : null;
         if (cloneSelfActiveChar) {
+          const isCapelloSmith = (cloneSelfActiveChar.frontImage || '').toLowerCase().includes('capello-smith');
+          const cloneGroupId = isCapelloSmith ? `capello-smith-group-${Date.now()}` : undefined;
+          if (isCapelloSmith && cloneGroupId) {
+            (cloneSelfActiveChar as any).capelloSmithCloneGroup = cloneGroupId;
+          }
           const clonedCard: Card = {
             ...cloneSelfActiveChar,
             id: `${cloneSelfActiveChar.id}-clone-${Date.now()}`,
             name: `${cloneSelfActiveChar.name} (Clone)`,
           };
+          if (isCapelloSmith && cloneGroupId) {
+            (clonedCard as any).capelloSmithCloneGroup = cloneGroupId;
+          }
           game.field.push(clonedCard);
-          console.log(`🧬 CLONE SELF: Created clone of ${cloneSelfActiveChar.name} on the field!`);
+          console.log(`🧬 CLONE SELF: Created clone of ${cloneSelfActiveChar.name} on the field!${isCapelloSmith ? ` (Capello Smith group: ${cloneGroupId})` : ''}`);
         } else {
           console.log(`🧬 CLONE SELF: No active character found for ${playerName}`);
         }
@@ -14793,6 +14821,36 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             console.log(`🌱 Draft growth: ${attackerPersonaggi.name || attackerPersonaggi.draftBaseId} killed ${card.name || card.draftBaseId} (total: ${game.draftGrowthTracker[attacker][attackerPersonaggi.draftBaseId].killsThisMatch} kills this match)`);
           }
         }
+      }
+
+      // CAPELLO SMITH CLONE GROUP: when one clone dies, transform the survivor; don't count as elimination
+      if ((card as any).capelloSmithCloneGroup) {
+        const groupId = (card as any).capelloSmithCloneGroup;
+        const survivor = game.field.find((c: Card) =>
+          c.id !== card.id && (c as any).capelloSmithCloneGroup === groupId &&
+          (c.type === 'personaggi' || c.type === 'personaggi_speciali')
+        );
+        if (survivor) {
+          // First clone death — transform survivor: remove Clone suffix, clear group flag
+          const survivorName = (survivor.name || '').replace(' (Clone)', '').trim();
+          survivor.name = survivorName;
+          delete (survivor as any).capelloSmithCloneGroup;
+          this.updateCardTextWithPTI(survivor);
+          const ioCS = (global as any).io;
+          if (ioCS) {
+            ioCS.to(gameId).emit('chat-message', {
+              id: `${Date.now()}-capello-smith-transform`,
+              playerName: 'Sistema',
+              message: `🎩 CAPELLO SMITH: un clone è caduto! Il clone sopravvissuto si trasforma — ora è SOLO ma ancora in campo!`,
+              timestamp: Date.now()
+            });
+          }
+          console.log(`🎩 CAPELLO SMITH: first clone death, survivor ${survivor.id} transformed to solo`);
+          // Don't count this as an elimination — return early with eliminationCheck: false
+          return { success: true, graveyardCount, cardImage: card.frontImage, cardType: card.type, eliminationCheck: false, cardOwner, sorosActivated: false, detachedParasites };
+        }
+        // Second clone death (no survivor found): fall through to normal elimination check
+        console.log(`🎩 CAPELLO SMITH: second clone death, processing as normal elimination`);
       }
 
       // Check if player should be eliminated (only if it's a personaggi card)
@@ -24845,12 +24903,33 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           console.log(`➗ SPECIAL EFFECT: Halved PTI for ${targetCard.frontImage}: ${currentPTI}`);
           break;
           
-        case 'zero_stars':
+        case 'zero_stars': {
           // Set stars to 0
           additionalStarsToRemove = 999; // Will be capped to current stars
           effectMessage = '⭐ STELLE AZZERATE!';
           console.log(`⭐ SPECIAL EFFECT: Zero stars for ${targetCard.frontImage}`);
+          // DEGLI UMAN PIACER: schedule star restoration (1 per target-player turn) unless attacker has EEGEENEEO MASSAREE
+          const zeroStarsCount = targetCard.stars ?? this.extractStarsFromNote(targetCard.text || '') ?? 0;
+          const hasEegeeneeo = game?.field?.some((c: Card) => c.owner === attackerName && (c.frontImage || '').toLowerCase().includes('eegeeneeo'));
+          if (!hasEegeeneeo && zeroStarsCount > 0 && game) {
+            if (!game.timedEffects) game.timedEffects = [];
+            const zeroStarsTargetOwner = targetCard.owner || '';
+            const zeroStarsTargetName = targetCard.name || this.getCardNameFromUrl(targetCard.frontImage || '');
+            for (let _si = 1; _si <= zeroStarsCount; _si++) {
+              game.timedEffects.push({
+                id: `restore_stars_${Date.now()}_${zeroStarsTargetOwner}_${_si}`,
+                sourcePlayer: zeroStarsTargetOwner,
+                sourceCardId: targetCard.id,
+                sourceCardName: zeroStarsTargetName,
+                turnsRemaining: _si,
+                actions: [{ type: 'restore_stars', target: 'self_char', value: 1, description: `+1 stella a ${zeroStarsTargetName} (turno ${_si})` }],
+                createdAt: Date.now()
+              } as any);
+            }
+            console.log(`⭐ ZERO STARS: scheduled ${zeroStarsCount} restore_stars timed effects for ${zeroStarsTargetOwner} (1/turn)`);
+          }
           break;
+        }
           
         case 'set_5_pti':
           // Set PTI to exactly 5
@@ -24864,6 +24943,13 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           additionalStarsToRemove = 1;
           effectMessage = '⭐ -1 STELLA!';
           console.log(`⭐ SPECIAL EFFECT: Remove 1 star from ${targetCard.frontImage}`);
+          break;
+
+        case 'no_kill_bonus':
+          // CAZZOTTO IN TESTA (mosse-18): mark target so attacker won't get the 100 PTI kill bonus
+          (targetCard as any).noKillBonusPending = true;
+          effectMessage = '👊 CAZZOTTO IN TESTA! Niente bonus PTI per l\'eliminazione!';
+          console.log(`👊 NO KILL BONUS: Target ${targetCard.id} flagged — attacker won't gain +100 PTI on kill`);
           break;
 
         case 'field_harvest_30': {
@@ -25099,6 +25185,39 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
             effectiveDamage = Math.max(0, targetPTI - 5);
             additionalStarsToRemove = Math.max(0, (targetCard.stars ?? this.extractStarsFromNote(targetCard.text || '')) - 1);
             effectMessage = `🎴 LELLELLELELLE! Pescate ${drawn.length} MOSSE: ${drawnNames}. Danno totale: ${totalDrawnDmg} PTI (<100 → bersaglio scende a 5 PTI e 1 stella)!`;
+          }
+          break;
+        }
+
+        case 'lellelelle_chaos': {
+          // LELLELLELELLE (mosse-45): target draws 5 MOSSE from their own deck into their hand.
+          // If none has mosseDamageValue >= 100, target drops to 5 PTI + 1 star.
+          if (!game) break;
+          const llTargetOwner = targetCard.owner;
+          const llOwnerPlayer = game.players[llTargetOwner];
+          const llMosseDeck = game.playerDraftDecks?.[llTargetOwner]?.mosse || llOwnerPlayer?.playerDraftDecks?.mosse || game.decks?.['mosse'] || [];
+          const llDrawn: Array<{ name: string; dmg: number }> = [];
+          for (let i = 0; i < 5 && llMosseDeck.length > 0; i++) {
+            const llDrawnCard = llMosseDeck.shift()!;
+            const llDrawnName = llDrawnCard.name || this.getCardNameFromUrl(llDrawnCard.frontImage || '') || llDrawnCard.id;
+            const llDrawnDmg = llDrawnCard.mosseDamageValue ?? 0;
+            llDrawn.push({ name: llDrawnName, dmg: llDrawnDmg });
+            // Add drawn mosse to target's hand
+            if (llOwnerPlayer) {
+              if (!llOwnerPlayer.hand) llOwnerPlayer.hand = [];
+              llOwnerPlayer.hand.push(llDrawnCard);
+            }
+          }
+          const llHasHighDmg = llDrawn.some(d => d.dmg >= 100);
+          const llDrawnNames = llDrawn.map(d => `${d.name}(${d.dmg}PTI)`).join(', ') || '(nessuna)';
+          if (llHasHighDmg) {
+            effectiveDamage = 0;
+            effectMessage = `🎴 LELLELLELELLE! ${llTargetOwner} pesca ${llDrawn.length} MOSSE: ${llDrawnNames}. Una carta ha ≥100 PTI → SALVO! Le carte vanno in mano.`;
+          } else {
+            const llTargetPTI = this.extractPTIFromNote(targetCard.text || '');
+            effectiveDamage = Math.max(0, llTargetPTI - 5);
+            additionalStarsToRemove = Math.max(0, (targetCard.stars ?? this.extractStarsFromNote(targetCard.text || '')) - 1);
+            effectMessage = `🎴 LELLELLELELLE! ${llTargetOwner} pesca ${llDrawn.length} MOSSE: ${llDrawnNames}. Nessuna ≥100 PTI → scende a 5 PTI e 1 stella!`;
           }
           break;
         }
@@ -25499,7 +25618,8 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       }
       
       // PRESERVE: HARDENED PTI ABSORPTION (fixed: absorb when character dies regardless of previous PTI)
-      if (attackerCharacter && newPTI <= 0) {
+      // CAZZOTTO IN TESTA: skip absorption if target was hit by no_kill_bonus mosse
+      if (attackerCharacter && newPTI <= 0 && !(targetCard as any).noKillBonusPending) {
         const attackerNotes = attackerCharacter.text || '';
         const attackerPtiMatch = attackerNotes.match(/PTI:\s*(\d+)/i);
         let attackerCurrentPTI = attackerPtiMatch ? parseInt(attackerPtiMatch[1]) : 100;
@@ -25532,6 +25652,14 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
         } else {
           console.log(`PTI ABSORPTION SKIPPED: Invalid data (absorbedPTI=${absorbedPTI}, newPTI=${newAttackerPTI})`);
         }
+      } else if ((targetCard as any).noKillBonusPending && attackerCharacter && newPTI <= 0) {
+        console.log(`👊 NO KILL BONUS: PTI absorption suppressed for ${attackerName} — target had noKillBonusPending (CAZZOTTO IN TESTA)`);
+        io.to(gameId).emit('chat-message', {
+          id: `${Date.now()}-no-kill-bonus`,
+          playerName: 'Sistema',
+          message: `👊 CAZZOTTO IN TESTA! ${attackerName} non riceve i +100 PTI per l'eliminazione!`,
+          timestamp: Date.now()
+        });
       } else if (!attackerCharacter) {
         console.log(`PTI ABSORPTION SKIPPED: No attacker character found for ${attackerName}`);
       }
