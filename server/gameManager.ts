@@ -12225,6 +12225,19 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
       console.log(`💪 ERNESTO: extraMosseAllowed consumed for ${attackerName} — attack commits`);
     }
 
+    // GOLDEN FREEZER: enforce attack budget — block attacks when consecutive budget is exhausted
+    {
+      const gfChar = this.getPlayerActiveCharacter(game, attackerName);
+      if (gfChar && (gfChar as any).goldenFreezerUsed) {
+        const gfLeft = (game.players[attackerName] as any).consecutiveAttacksLeft ?? 0;
+        if (gfLeft <= 0) {
+          console.log(`❄️ GOLDEN FREEZER: ${attackerName} has exhausted all consecutive attacks (budget=0)`);
+          return { success: false, error: '❄️ GOLDEN FREEZER: hai esaurito gli attacchi consecutivi per questo turno!' };
+        }
+        // Budget is consumed in processMosseDamage after the attack lands
+      }
+    }
+
     // GIANNI GIGANTI: if blocked for turns, cannot attack (applies to ALL attack paths)
     if (attackerCharacter && (attackerCharacter as any).blockedForTurns > 0 &&
         (attackerCharacter.frontImage || '').toLowerCase().includes('gianni-giganti')) {

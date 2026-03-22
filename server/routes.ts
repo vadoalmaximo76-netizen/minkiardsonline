@@ -4198,6 +4198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let totalPTI = 0, totalStars = 0;
       const absorbedNames: string[] = [];
       const absorbedEffects: string[] = [];
+      const absorbedMosseEffects: string[] = [];
       for (const sid of idsToAbsorb) {
         const gIdx = game.graveyard.findIndex((c: any) => c.id === sid);
         if (gIdx < 0) continue;
@@ -4208,7 +4209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalStars += dStars;
         absorbedNames.push(dead.name || dead.id);
         // Power absorption: copy special abilities from absorbed cards
-        if (dead.mosseDamageEffect) absorbedEffects.push(dead.mosseDamageEffect);
+        if (dead.mosseDamageEffect) { absorbedMosseEffects.push(dead.mosseDamageEffect); absorbedEffects.push(dead.mosseDamageEffect); }
         if (dead.effect) absorbedEffects.push(dead.effect);
       }
       if (totalPTI > 0 || totalStars > 0 || idsToAbsorb.length > 0) {
@@ -4216,10 +4217,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const efStars = cardOnField.stars ?? (gameManager as any).extractStarsFromNote?.(cardOnField.text || '') ?? 1;
         cardOnField.pti = efPTI + totalPTI;
         cardOnField.stars = efStars + totalStars;
-        // Store absorbed powers on the card for future use
+        // Merge absorbed powers into the card's effect field so the effect resolution pipeline picks them up
         if (absorbedEffects.length > 0) {
-          if (!cardOnField.absorbedEffects) cardOnField.absorbedEffects = [];
-          cardOnField.absorbedEffects.push(...absorbedEffects);
+          const existingEffect = cardOnField.effect || '';
+          const newEffects = absorbedEffects.join(' | ');
+          cardOnField.effect = existingEffect ? `${existingEffect} | ${newEffects}` : newEffects;
+          // Surface first absorbed mosseDamageEffect so EVIL FAKE can use it in MOSSE attacks
+          if (absorbedMosseEffects.length > 0 && !cardOnField.mosseDamageEffect) {
+            cardOnField.mosseDamageEffect = absorbedMosseEffects[0];
+          }
         }
         (gameManager as any).updateCardTextWithPTI?.(cardOnField);
         io.to(gameId).emit('chat-message', {
