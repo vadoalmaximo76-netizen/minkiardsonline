@@ -14760,8 +14760,11 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
 
       // Use cardOwner (not playerName) so that when a master moves another player's card,
       // the death count and elimination check apply to the card's actual owner.
+      // Compute graveyardCount, excluding CAPELLO SMITH non-counted first clone deaths
       const graveyardCount = game.graveyard.filter(
-        graveyardCard => graveyardCard.owner === cardOwner && (graveyardCard.type === 'personaggi' || graveyardCard.type === 'personaggi_speciali')
+        graveyardCard => graveyardCard.owner === cardOwner &&
+          (graveyardCard.type === 'personaggi' || graveyardCard.type === 'personaggi_speciali') &&
+          !(graveyardCard as any).capelloSmithNonCountedDeath
       ).length;
 
       // CAPELLO SMITH CLONE GROUP: when first clone dies, transform the survivor and skip elimination/counter
@@ -14772,10 +14775,49 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
           (c.type === 'personaggi' || c.type === 'personaggi_speciali')
         );
         if (survivor) {
-          // First clone death — transform survivor: remove Clone suffix and group flag
-          survivor.name = (survivor.name || '').replace(' (Clone)', '').trim();
+          // Mark the dead clone in graveyard as non-counted so it doesn't inflate death counter
+          const deadInGrave = game.graveyard.find((c: Card) => c.id === card.id);
+          if (deadInGrave) (deadInGrave as any).capelloSmithNonCountedDeath = true;
+
+          // First clone death — transform survivor using existing mechanism if transformsInto is set
           delete (survivor as any).capelloSmithCloneGroup;
-          this.updateCardTextWithPTI(survivor);
+          const survivorMod = jsonStorage.cardModifications.getByOriginalCardId(survivor.id.replace(/-clone-\d+$/, ''));
+          const transformTarget = survivor.transformsInto || survivorMod?.transformsInto;
+          if (transformTarget) {
+            // Use the existing card replacement (same logic as transformation pathway)
+            const targetDeckType = transformTarget.startsWith('personaggi_speciali') ? 'personaggi_speciali' : 'personaggi';
+            const deckData = CARD_DATA[targetDeckType as keyof typeof CARD_DATA];
+            const cardIndex2 = parseInt(transformTarget.split('-').pop() || '-1');
+            if (deckData && cardIndex2 >= 0 && cardIndex2 < deckData.length) {
+              const newFrontImage = deckData[cardIndex2];
+              const newMod = jsonStorage.cardModifications.getByOriginalCardId(transformTarget);
+              const urlParts2 = newFrontImage.split('/');
+              const newName = decodeURIComponent(urlParts2[urlParts2.length - 1])
+                .replace(/\.(png|jpg|jpeg|gif|webp)$/i, '').replace(/[-_]/g, ' ').trim().toUpperCase();
+              const fieldIdx = game.field.findIndex((c: Card) => c.id === survivor.id);
+              if (fieldIdx >= 0) {
+                game.field[fieldIdx] = {
+                  ...game.field[fieldIdx],
+                  id: transformTarget,
+                  frontImage: newMod?.imageUrl || newFrontImage,
+                  name: newMod?.name || newName,
+                  pti: newMod?.pti ?? survivor.pti,
+                  stars: newMod?.stars ?? survivor.stars,
+                  transformsInto: newMod?.transformsInto || undefined,
+                  transformsFrom: newMod?.transformsFrom || undefined,
+                };
+              }
+            }
+          } else {
+            // Fallback: simply de-clone the survivor (remove Clone suffix, reset state)
+            survivor.name = (survivor.name || '').replace(' (Clone)', '').trim();
+          }
+          // Update PTI text on the actual current field card (may have been replaced)
+          const survivorFieldIdx = game.field.findIndex((c: Card) =>
+            c.id === (transformTarget || survivor.id) && c.owner === survivor.owner
+          );
+          if (survivorFieldIdx >= 0) this.updateCardTextWithPTI(game.field[survivorFieldIdx]);
+          else this.updateCardTextWithPTI(survivor);
           const ioCS = (global as any).io;
           if (ioCS) {
             ioCS.to(gameId).emit('chat-message', {
@@ -14785,7 +14827,7 @@ Se l'effetto richiede interazione utente (scelta target), usa type "special" con
               timestamp: Date.now()
             });
           }
-          console.log(`🎩 CAPELLO SMITH: first clone death (${card.id}), survivor ${survivor.id} transformed to solo`);
+          console.log(`🎩 CAPELLO SMITH: first clone death (${card.id}), survivor ${survivor.id} transformed${transformTarget ? ` into ${transformTarget}` : ' to solo'}`);
           // Don't count this as an elimination — return early, skip eliminationCount++
           return { success: true, graveyardCount, cardImage: card.frontImage, cardType: card.type, eliminationCheck: false, cardOwner, sorosActivated: false, detachedParasites };
         }
